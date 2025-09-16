@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTheme } from "next-themes";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,10 +12,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, User, LogOut, Sun, Moon } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Menu, User, LogOut, Sun, Moon, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useUserInfo } from "@/hooks/useUserInfo";
+import { useLocations } from "@/hooks/useLocations";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -25,8 +33,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const params = useParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const location = params.location as string;
   const { userInfo, isLoading } = useUserInfo(location);
+  const { locations, currentLocation, changeLocation } = useLocations();
 
   const handleMenuClick = () => {
     setIsOpen(!isOpen);
@@ -35,6 +46,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const handleThemeToggle = () => {
     setTheme(theme === "light" ? "dark" : "light");
+  };
+
+  const handleLocationChange = (newLocation: string) => {
+    changeLocation(newLocation);
+    // Update the URL path
+    const newPath = pathname.replace(`/${location}`, `/${newLocation}`);
+    router.push(newPath);
   };
 
   return (
@@ -62,6 +80,25 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <Menu className="h-4 w-4" />
           <span className="sr-only">Toggle sidebar</span>
         </Button>
+        
+        {/* Location Selector */}
+        <div className="hidden md:flex ml-4">
+          <Select value={location} onValueChange={handleLocationChange}>
+            <SelectTrigger className="w-[180px] h-8">
+              <div className="flex items-center space-x-2">
+                <MapPin className="h-4 w-4" />
+                <SelectValue placeholder="Select location" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.slug}>
+                  {loc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         
         {/* Mobile menu button */}
         <Button
