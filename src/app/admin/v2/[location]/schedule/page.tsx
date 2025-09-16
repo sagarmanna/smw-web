@@ -1,18 +1,19 @@
 import { Button } from "@/components/ui/button";
 
 interface SchedulePageProps {
-  params: {
+  params: Promise<{
     location: string;
-  };
+  }>;
 }
 
-export default function SchedulePage({ params }: SchedulePageProps) {
+export default async function SchedulePage({ params }: SchedulePageProps) {
+  const { location } = await params;
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Schedule</h1>
         <p className="text-muted-foreground">
-          Manage schedules for {params.location}
+          Manage schedules for {location}
         </p>
       </div>
       

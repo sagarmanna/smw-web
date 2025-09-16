@@ -1,18 +1,19 @@
 import { Button } from "@/components/ui/button";
 
 interface DashboardPageProps {
-  params: {
+  params: Promise<{
     location: string;
-  };
+  }>;
 }
 
-export default function DashboardPage({ params }: DashboardPageProps) {
+export default async function DashboardPage({ params }: DashboardPageProps) {
+  const { location } = await params;
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome to the {params.location} dashboard
+          Welcome to the {location} dashboard
         </p>
       </div>
       
