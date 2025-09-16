@@ -100,15 +100,34 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </Select>
         </div>
         
-        {/* Mobile menu button */}
-        <Button
-          variant="ghost"
-          className="ml-6 mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden"
-          onClick={handleMenuClick}
-        >
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Toggle Menu</span>
-        </Button>
+        {/* Mobile menu button and location selector */}
+        <div className="flex items-center space-x-2 md:hidden">
+          <Button
+            variant="ghost"
+            className="ml-6 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+            onClick={handleMenuClick}
+          >
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Toggle Menu</span>
+          </Button>
+          
+          {/* Mobile Location Selector */}
+          <Select value={location} onValueChange={handleLocationChange}>
+            <SelectTrigger className="w-[140px] h-8">
+              <div className="flex items-center space-x-1">
+                <MapPin className="h-3 w-3" />
+                <SelectValue placeholder="Location" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.slug}>
+                  {loc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Desktop navigation */}
         {/* <div className="w-full border border-red-500 "> */}

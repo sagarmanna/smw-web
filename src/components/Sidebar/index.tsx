@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import { ChevronDown, ChevronRight, Home, Users, Settings, BarChart3, FileText, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import Link from "next/link";
 
 interface MenuItem {
   id: string;
@@ -19,6 +22,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const { theme } = useTheme();
 
   const menuItems: MenuItem[] = [
     {
@@ -157,10 +161,20 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         ${isOpen ? 'md:flex' : 'md:hidden'} md:flex-col
       `}>
         <div className="flex flex-col flex-grow pt-5 overflow-y-auto bg-background border-r h-full">
-          <div className="flex items-center flex-shrink-0 px-4">
-            <h2 className="text-lg font-semibold">Navigation</h2>
+          {/* Mobile Logo */}
+          <div className="flex items-center justify-center px-4 pb-4 md:hidden">
+            <Link href="/">
+              <Image
+                src={theme === "dark" ? "/SMW-dark.png" : "/SMW.png"}
+                alt="SMW Logo"
+                width={120}
+                height={30}
+                className="h-8 w-auto"
+              />
+            </Link>
           </div>
-          <div className="mt-5 flex-grow flex flex-col">
+          
+          <div className="flex-grow flex flex-col">
             <nav className="flex-1 px-2 pb-4 space-y-1">
               {menuItems.map(item => renderMenuItem(item))}
             </nav>
