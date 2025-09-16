@@ -1,0 +1,165 @@
+name: Prod Web Deployment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  actions: write
+
+env:
+  TF_VERSION: '1.9.1'
+  TF_WORKING_DIR: 'platform_tools_new/web-manifest'
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+
+jobs:
+  push-store-image:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.commit.outputs.short }}
+    defaults:
+      run:
+        working-directory: './apps/web/'
+    steps:
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v3
+
+      - name: Set short git commit SHA
+        id: commit
+        uses: prompt/actions-commit-hash@v2
+
+      - name: 'Login to GitHub Container Registry'
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.PAT_TOKEN }}
+
+      - name: 'Build and Push Store Image'
+        run: |
+          IMAGE_NAME=ghcr.io/arcadia-music-academy/smw-web:${{ steps.commit.outputs.short }}
+          LATEST_TAG=ghcr.io/arcadia-music-academy/smw-api:latest
+          docker build . --tag $IMAGE_NAME
+          docker tag $IMAGE_NAME $LATEST_TAG
+          docker push $IMAGE_NAME
+          docker push $LATEST_TAG
+
+      - name: Show Docker image info
+        run: |
+          echo "Docker image built and pushed:"
+          echo "Image Tag for current Build : ${{ steps.commit.outputs.short }}"
+          
+  tofu-deployment:
+    name: tofu Deployment
+    needs: push-store-image
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_github_username: ${{ secrets.SMW_GITHUB_USERNAME }}
+      TF_VAR_github_pat_token: ${{ secrets.PAT_TOKEN }}
+      TF_VAR_github_email_id: ${{ secrets.SMW_GITHUB_EMAIL_ID }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup tofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TF_VERSION }}
+
+      - name: tofu Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          tofu init \
+            -backend-config "key=web-app-prod.tfstate" \
+            -backend-config "access_key=${{ env.AWS_ACCESS_KEY_ID }}" \
+            -backend-config "secret_key=${{ env.AWS_SECRET_ACCESS_KEY }}" \
+            -backend-config "bucket=smw-prod-infra"
+
+      - name: tofu Format
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: tofu fmt -check
+
+      - name: tofu Validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: tofu validate
+
+      - name: Install s3cmd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y s3cmd
+          s3cmd --version
+
+      - name: Configure s3cmd
+        run: |
+          cat > ~/.s3cfg <<EOF
+          access_key = ${{ env.AWS_ACCESS_KEY_ID }}
+          secret_key = ${{ env.AWS_SECRET_ACCESS_KEY }}
+          host_base = nbg1.your-objectstorage.com
+          host_bucket = nbg1.your-objectstorage.com
+          bucket_location = eu-central-1
+          use_https = True
+          check_ssl_certificate = True
+          check_ssl_hostname = True
+          cloudfront_host = cloudfront.amazonaws.com
+          website_endpoint = http://%(bucket)s.s3-website-%(location)s.amazonaws.com/
+          EOF
+
+      - name: Downloading Kubeconfig from the object storage
+        run: |
+          mkdir -p ~/.kube
+          s3cmd get s3://smw-prod-configurations/kubeconfig/config-k3s ~/.kube/config-k3s
+
+      - name: Runtime Configuration
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          sed -i -E "s|^web_docker_image[[:space:]]*=.*|web_docker_image = \"ghcr.io/arcadia-music-academy/smw-web:${{ needs.push-store-image.outputs.image_tag }}\"|" tfvars/prod.tfvars
+
+      - name: tofu Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: tofu plan -var-file="tfvars/prod.tfvars"
+
+      - name: tofu Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          tofu apply -auto-approve -var-file="tfvars/prod.tfvars"
+
+      - name: Save tofu outputs to file
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          tofu output -json > tofu-outputs.json
+
+      - name: Upload tofu outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-tofu-outputs
+          path: ${{ env.TF_WORKING_DIR }}/tofu-outputs.json
+
+      - name: Notify Slack (Apply)
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_PROD }}
+        with:
+          status: ${{ job.status }}
+          text: "${{ job.status == 'success' && format('✅ {0} deployed on Prod!', github.workflow) || job.status == 'failure' && format('❌ {0} deployment failed on Prod!', github.workflow) || format('⚠️ {0} deployment cancelled on Prod!', github.workflow) }}"
+          custom_payload: |
+            {
+              attachments: [{
+                color: "${{ job.status == 'success' && 'good' || job.status == 'failure' && 'danger' || 'warning' }}",
+                fields: [{
+                  title: "Workflow",
+                  value: "${{ github.workflow }}",
+                  short: true
+                }, {
+                  title: "Author",
+                  value: "${{ github.triggering_actor || github.actor }}",
+                  short: true
+                }, {
+                  title: "Status",
+                  value: "${{ job.status }}",
+                  short: true
+                }]
+              }]
+            }
+        if: always()
