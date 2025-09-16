@@ -9,12 +9,11 @@ WORKDIR /apps
 
 # Copy necessary files for package installation
 COPY package.json ./
-#un comment this if you are using yarn
-# COPY yarn.lock ./
+COPY yarn.lock ./
 COPY tsconfig.json ./
 
-# Install dependencies while skipping scripts to avoid running `npx projen`
-RUN npm install --legacy-peer-deps --ignore-scripts
+# Install dependencies with Yarn
+RUN yarn install --frozen-lockfile
 
 # Copy the web app source code
 COPY . ./
@@ -23,4 +22,4 @@ COPY . ./
 EXPOSE 3000
 
 # Set the default command to build and then start the app
-CMD ["sh", "-c", "npm run build && npm run start"]
+CMD ["sh", "-c", "yarn build && yarn start"]
