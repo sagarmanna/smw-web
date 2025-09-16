@@ -141,20 +141,33 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     );
   };
 
-  if (!isOpen) return null;
-
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col">
-      <div className="flex flex-col flex-grow pt-5 overflow-y-auto bg-background border-r">
-        <div className="flex items-center flex-shrink-0 px-4">
-          <h2 className="text-lg font-semibold">Navigation</h2>
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <aside className={`
+        fixed md:relative inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${isOpen ? 'md:flex' : 'md:hidden'} md:flex-col
+      `}>
+        <div className="flex flex-col flex-grow pt-5 overflow-y-auto bg-background border-r h-full">
+          <div className="flex items-center flex-shrink-0 px-4">
+            <h2 className="text-lg font-semibold">Navigation</h2>
+          </div>
+          <div className="mt-5 flex-grow flex flex-col">
+            <nav className="flex-1 px-2 pb-4 space-y-1">
+              {menuItems.map(item => renderMenuItem(item))}
+            </nav>
+          </div>
         </div>
-        <div className="mt-5 flex-grow flex flex-col">
-          <nav className="flex-1 px-2 pb-4 space-y-1">
-            {menuItems.map(item => renderMenuItem(item))}
-          </nav>
-        </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
