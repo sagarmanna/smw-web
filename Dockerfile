@@ -7,19 +7,27 @@ RUN apk add --no-cache bash
 # Set working directory
 WORKDIR /apps
 
-# Copy necessary files for package installation
-COPY package.json ./
-COPY yarn.lock ./
-COPY tsconfig.json ./
+# Copy package files first for better caching
+COPY package.json yarn.lock ./
 
 # Install dependencies with Yarn
 RUN yarn install --frozen-lockfile
 
-# Copy the web app source code
-COPY . ./
+# Copy configuration files needed for build
+COPY tsconfig.json ./
+COPY tailwind.config.ts ./
+COPY postcss.config.mjs ./
+COPY next.config.ts ./
+
+# Copy source code
+COPY src ./src
+COPY public ./public
+
+# Build the application
+RUN yarn build
 
 # Expose the port your app runs on
 EXPOSE 3000
 
-# Set the default command to build and then start the app
-CMD ["sh", "-c", "yarn build && yarn start"]
+# Start the application
+CMD ["yarn", "start"]
