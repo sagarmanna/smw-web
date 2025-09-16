@@ -65,7 +65,7 @@ resource "kubernetes_deployment_v1" "web_deployment" {
 
           liveness_probe {
             http_get {
-              path = "/admin/v2/api/health"
+              path = "/api/health"
               port = var.web_port
             }
             initial_delay_seconds = 300
@@ -75,7 +75,7 @@ resource "kubernetes_deployment_v1" "web_deployment" {
 
           readiness_probe {
             http_get {
-              path = "/admin/v2/api/health"
+              path = "/api/health"
               port = var.web_port
             }
             initial_delay_seconds = 300
