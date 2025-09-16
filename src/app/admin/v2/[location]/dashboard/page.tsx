@@ -12,7 +12,7 @@ export default function DashboardPage({ params }: DashboardPageProps) {
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             Dashboard
           </h1>
-          <p className="text-lg text-gray-600 mb-2">
+          <p className="text-lg text-red-600 mb-2">
             Hello World!
           </p>
           <p className="text-sm text-gray-500">
