@@ -32,12 +32,8 @@ COPY next.config.ts ./
 # Copy source code
 COPY src ./src
 COPY public ./public
-
-# Build the application with environment variables
-RUN yarn build
-
 # Expose the port your app runs on
 EXPOSE 3000
 
 # Start the application
-CMD ["yarn", "start"]
+CMD ["sh", "-c", "yarn build && yarn start"]
