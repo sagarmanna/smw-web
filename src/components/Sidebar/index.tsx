@@ -148,7 +148,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <div className="flex items-center justify-center px-4 pb-4 md:hidden">
             <Link href="/">
               <Image
-                src={theme === "dark" ? "/SMW-dark.png" : "/SMW.png"}
+                src={theme === "dark" ? "/admin/v2/SMW-dark.png" : "/admin/v2/SMW.png"}
                 alt="SMW Logo"
                 width={120}
                 height={30}
