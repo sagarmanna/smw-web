@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Menu, User, LogOut, Sun, Moon, MapPin } from "lucide-react";
+import { Menu, User, LogOut, Sun, Moon, MapPin, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useUserInfo } from "@/hooks/useUserInfo";
@@ -54,6 +54,27 @@ export default function Header({ onMenuClick }: HeaderProps) {
     const newPath = pathname.replace(`/${location}`, `/${newLocation}`);
     router.push(newPath);
   };
+
+  const handleBackToLegacy = () => {
+    // Extract the current page from the pathname
+    const currentPage = pathname.split('/').pop() || 'dashboard';
+    
+    // Map modern pages to their legacy equivalents
+    const legacyPageMap: { [key: string]: string } = {
+      'dashboard': '/dashboard',
+      'schedule': '/schedule',
+      'menu-flags': '/admin/menu-flags', // Special case for admin pages
+    };
+    
+    const legacyPath = legacyPageMap[currentPage] || `/${currentPage}`;
+    const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL || 'http://localhost:8080'}${legacyPath}`;
+    
+    // Redirect to legacy page
+    window.location.href = legacyUrl;
+  };
+
+  // Check if we're on a modern page that has a legacy equivalent
+  const isModernPage = pathname.includes('/admin/v2/') && !pathname.includes('/menu-flags');
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -92,7 +113,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </SelectTrigger>
             <SelectContent>
               {locations.map((loc) => (
-                <SelectItem key={loc.id} value={loc.slug}>
+                <SelectItem 
+                  key={loc.id} 
+                  value={loc.slug}
+                  className="data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:font-medium"
+                >
                   {loc.name}
                 </SelectItem>
               ))}
@@ -121,7 +146,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </SelectTrigger>
             <SelectContent>
               {locations.map((loc) => (
-                <SelectItem key={loc.id} value={loc.slug}>
+                <SelectItem 
+                  key={loc.id} 
+                  value={loc.slug}
+                  className="data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:font-medium"
+                >
                   {loc.name}
                 </SelectItem>
               ))}
@@ -136,6 +165,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
             {/* Search or other content can go here */}
           </div>
           
+          {/* Back to Legacy Button - Only show on modern pages */}
+          {isModernPage && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 px-3 mr-2 md:w-auto w-8"
+              onClick={handleBackToLegacy}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden md:inline ml-1">Back to Legacy</span>
+              <span className="sr-only">Back to Legacy</span>
+            </Button>
+          )}
+
           {/* Theme Toggle */}
           <Button 
             variant="ghost" 
