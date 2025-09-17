@@ -27,3 +27,4 @@ export async function generateMetadata({ params }: DashboardLayoutProps): Promis
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return <>{children}</>;
 }
+
