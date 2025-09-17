@@ -61,8 +61,9 @@ export const buildMenuUrl = (item: MenuItem, location: string): string => {
   }
   
   // For modern pages, use Next.js routing
+  // Note: basePath is already handled by Next.js config, so we don't need to add /admin/v2
   if (item.url.startsWith('/')) {
-    return `/admin/v2/${location}${item.url}`;
+    return `/${location}${item.url}`;
   }
   
   return item.url;

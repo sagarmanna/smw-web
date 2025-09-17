@@ -74,7 +74,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   // Check if we're on a modern page that has a legacy equivalent
-  const isModernPage = pathname.includes('/admin/v2/') && !pathname.includes('/menu-flags');
+  const isModernPage = !pathname.includes('/menu-flags');
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
