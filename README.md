@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SMW Web Admin Panel
 
-## Getting Started
+A modern Next.js admin panel for SMW with Redux state management, shadcn/ui components, and TypeScript.
 
-First, run the development server:
+## 🚀 Quick Start
 
+### Prerequisites
+- Node.js 18+ 
+- Yarn package manager
+
+### Installation & Setup
 ```bash
-npm run dev
-# or
+# Install dependencies
+yarn install
+
+# Start development server
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Available Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+yarn dev          # Start development server
+yarn build        # Build for production
+yarn start        # Start production server
+yarn lint         # Run ESLint
+```
 
-## Learn More
+## 🔧 Pre-commit Hooks
 
-To learn more about Next.js, take a look at the following resources:
+This project uses **husky** and **lint-staged** for automated code quality checks:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Linting**: Automatically fixes ESLint issues on staged files
+- **Build Check**: Ensures the project builds successfully
+- **Auto-fix**: Fixes formatting and simple issues automatically
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**What happens during commit:**
+1. Lints only the files you're committing
+2. Automatically fixes fixable issues
+3. Runs full project build to ensure everything works
+4. Blocks commit if any checks fail
 
-## Deploy on Vercel
+## 📚 Developer Guide
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+For detailed development guidelines, coding standards, and best practices, see our [Developer Guide](./DEVELOPER_GUIDE.md).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🏗️ Tech Stack
+
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **State Management**: Redux Toolkit
+- **Theme**: Dark/Light mode support
+- **Code Quality**: ESLint + Pre-commit hooks
+
+## 📁 Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router pages
+├── components/             # Reusable UI components
+├── hooks/                  # Custom React hooks
+├── redux/                  # Redux store and slices
+└── lib/                    # Utility functions
+```

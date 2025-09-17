@@ -74,7 +74,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="hidden md:flex h-8 w-8 px-0 ml-2"
+          className="hidden md:flex h-8 w-8 px-0 ml-6"
           onClick={handleMenuClick}
         >
           <Menu className="h-4 w-4" />
