@@ -7,16 +7,6 @@ RUN apk add --no-cache bash
 # Set working directory
 WORKDIR /apps
 
-# Accept build arguments for environment variables
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_LEGACY_URL
-ARG NEXT_PUBLIC_ENV
-
-# Set environment variables from build args
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_LEGACY_URL=$NEXT_PUBLIC_LEGACY_URL
-ENV NEXT_PUBLIC_ENV=$NEXT_PUBLIC_ENV
-
 # Copy package files first for better caching
 COPY package.json yarn.lock ./
 
