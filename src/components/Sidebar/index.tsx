@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -20,6 +20,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const { theme } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const { menuItems, getMenuUrl } = useMenuConfig();
 
   // Check if we're on mobile
@@ -40,6 +41,20 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         ? prev.filter(id => id !== itemId)
         : [...prev, itemId]
     );
+  };
+
+  // Check if a menu item is currently active
+  const isMenuItemActive = (item: MenuItem): boolean => {
+    if (!item.url) return false;
+    
+    // For modern pages, check if the current pathname matches
+    if (item.source === 'modern') {
+      const menuUrl = getMenuUrl(item);
+      return pathname === menuUrl;
+    }
+    
+    // For legacy pages, we can't easily check since they're external
+    return false;
   };
 
   const handleMenuClick = (item: MenuItem) => {
@@ -67,6 +82,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const renderMenuItem = (item: MenuItem, level = 0) => {
     const hasChildren = item.items && item.items.length > 0;
     const isExpanded = expandedItems.includes(item.id);
+    const isActive = isMenuItemActive(item);
     const paddingLeft = level * 20 + 12;
 
     return (
@@ -74,7 +90,8 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         <div
           className={cn(
             "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
-            level > 0 && "ml-4"
+            level > 0 && "ml-4",
+            isActive && "bg-primary/10 text-primary hover:bg-primary/20"
           )}
           style={{ paddingLeft: `${paddingLeft}px` }}
           onClick={() => handleMenuClick(item)}
@@ -82,21 +99,23 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <div className="flex items-center space-x-2">
             {item.icon}
             <span>{item.title}</span>
+          </div>
+          <div className="ml-auto flex items-center space-x-2">
             {item.source === 'modern' && (
-              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+              <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-primary text-white">
                 NEW
               </span>
             )}
+            {hasChildren && (
+              <div>
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </div>
+            )}
           </div>
-          {hasChildren && (
-            <div className="ml-auto">
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </div>
-          )}
         </div>
         
         {hasChildren && isExpanded && (
@@ -129,7 +148,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <div className="flex items-center justify-center px-4 pb-4 md:hidden">
             <Link href="/">
               <Image
-                src={theme === "dark" ? "/SMW-dark.png" : "/SMW.png"}
+                src={theme === "dark" ? "/admin/v2/SMW-dark.png" : "/admin/v2/SMW.png"}
                 alt="SMW Logo"
                 width={120}
                 height={30}

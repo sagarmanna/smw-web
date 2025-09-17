@@ -82,7 +82,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <div className="mr-4 hidden md:flex">
           <Link className="mr-6 flex items-center space-x-2 ml-6" href="/">
             <Image
-              src={theme === "dark" ? "/SMW-dark.png" : "/SMW.png"}
+              src={theme === "dark" ? "/admin/v2/SMW-dark.png" : "/admin/v2/SMW.png"}
               alt="SMW Logo"
               width={160}
               height={50}
