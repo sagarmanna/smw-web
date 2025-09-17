@@ -1,19 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { ChevronDown, ChevronRight, Home, Users, Settings, BarChart3, FileText, Shield } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-
-interface MenuItem {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  href?: string;
-  children?: MenuItem[];
-}
+import { useMenuConfig } from "@/hooks/useMenuConfig";
+import type { MenuItem } from "@/config/menuConfig";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -22,73 +17,22 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
   const { theme } = useTheme();
+  const router = useRouter();
+  const { menuItems, getMenuUrl } = useMenuConfig();
 
-  const menuItems: MenuItem[] = [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: <Home className="h-4 w-4" />,
-      href: "/dashboard",
-    },
-    {
-      id: "analytics",
-      label: "Analytics",
-      icon: <BarChart3 className="h-4 w-4" />,
-      children: [
-        {
-          id: "reports",
-          label: "Reports",
-          icon: <FileText className="h-4 w-4" />,
-          href: "/analytics/reports",
-        },
-        {
-          id: "metrics",
-          label: "Metrics",
-          icon: <BarChart3 className="h-4 w-4" />,
-          href: "/analytics/metrics",
-        },
-      ],
-    },
-    {
-      id: "users",
-      label: "User Management",
-      icon: <Users className="h-4 w-4" />,
-      children: [
-        {
-          id: "all-users",
-          label: "All Users",
-          icon: <Users className="h-4 w-4" />,
-          href: "/users",
-        },
-        {
-          id: "roles",
-          label: "Roles & Permissions",
-          icon: <Shield className="h-4 w-4" />,
-          href: "/users/roles",
-        },
-      ],
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: <Settings className="h-4 w-4" />,
-      children: [
-        {
-          id: "general",
-          label: "General",
-          icon: <Settings className="h-4 w-4" />,
-          href: "/settings/general",
-        },
-        {
-          id: "security",
-          label: "Security",
-          icon: <Shield className="h-4 w-4" />,
-          href: "/settings/security",
-        },
-      ],
-    },
-  ];
+  // Check if we're on mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const toggleExpanded = (itemId: string) => {
     setExpandedItems(prev =>
@@ -98,8 +42,30 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     );
   };
 
+  const handleMenuClick = (item: MenuItem) => {
+    if (item.items && item.items.length > 0) {
+      // Toggle submenu
+      toggleExpanded(item.id);
+    } else if (item.url) {
+      // Handle navigation
+      const url = getMenuUrl(item);
+      
+      if (item.source === 'legacy') {
+        // Redirect to legacy app (full page reload)
+        window.location.href = url;
+      } else {
+        // Use Next.js client-side routing for modern pages
+        router.push(url);
+        // Close sidebar only on mobile after navigation
+        if (isMobile) {
+          onClose?.();
+        }
+      }
+    }
+  };
+
   const renderMenuItem = (item: MenuItem, level = 0) => {
-    const hasChildren = item.children && item.children.length > 0;
+    const hasChildren = item.items && item.items.length > 0;
     const isExpanded = expandedItems.includes(item.id);
     const paddingLeft = level * 20 + 12;
 
@@ -111,18 +77,16 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             level > 0 && "ml-4"
           )}
           style={{ paddingLeft: `${paddingLeft}px` }}
-          onClick={() => {
-            if (hasChildren) {
-              toggleExpanded(item.id);
-            } else if (item.href) {
-              // Handle navigation
-              window.location.href = item.href;
-            }
-          }}
+          onClick={() => handleMenuClick(item)}
         >
           <div className="flex items-center space-x-2">
             {item.icon}
-            <span>{item.label}</span>
+            <span>{item.title}</span>
+            {item.source === 'modern' && (
+              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                NEW
+              </span>
+            )}
           </div>
           {hasChildren && (
             <div className="ml-auto">
@@ -137,7 +101,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         
         {hasChildren && isExpanded && (
           <div className="mt-1">
-            {item.children?.map(child => renderMenuItem(child, level + 1))}
+            {item.items?.map(child => renderMenuItem(child, level + 1))}
           </div>
         )}
       </div>
