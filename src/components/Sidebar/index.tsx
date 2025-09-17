@@ -157,7 +157,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             </Link>
           </div>
           
-          <div className="flex-grow flex flex-col">
+          <div className="flex-grow flex flex-col min-w-64">
             <nav className="flex-1 px-2 pb-4 space-y-1">
               {menuItems.map(item => renderMenuItem(item))}
             </nav>
