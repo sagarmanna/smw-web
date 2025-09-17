@@ -7,7 +7,6 @@ interface AdminV2LayoutProps {
   }>;
 }
 
-export default async function AdminV2Layout({ children, params }: AdminV2LayoutProps) {
-  const { location } = await params;
+export default async function AdminV2Layout({ children }: AdminV2LayoutProps) {
   return <AdminLayout>{children}</AdminLayout>;
 }
