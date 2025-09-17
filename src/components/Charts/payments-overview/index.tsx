@@ -44,7 +44,7 @@ export function PaymentsOverview({ className, location }: PropsType) {
     return (
       <div
         className={cn(
-          "grid gap-2 rounded-[10px] bg-white px-7.5 pb-6 pt-7.5 shadow-1 dark:bg-gray-dark dark:shadow-card",
+          "rounded-lg border bg-card text-card-foreground shadow-sm p-6",
           className
         )}
       >
@@ -67,12 +67,12 @@ export function PaymentsOverview({ className, location }: PropsType) {
     return (
       <div
         className={cn(
-          "grid gap-2 rounded-[10px] bg-white px-7.5 pb-6 pt-7.5 shadow-1 dark:bg-gray-dark dark:shadow-card",
+          "rounded-lg border bg-card text-card-foreground shadow-sm p-6",
           className
         )}
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-body-2xlg font-bold text-dark dark:text-white">
+          <h2 className="text-lg font-semibold">
             Monthly Revenue
           </h2>
         </div>
@@ -93,12 +93,12 @@ export function PaymentsOverview({ className, location }: PropsType) {
   return (
     <div
       className={cn(
-        "grid gap-2 rounded-[10px] bg-white px-7.5 pb-6 pt-7.5 shadow-1 dark:bg-gray-dark dark:shadow-card",
+        "rounded-lg border bg-card text-card-foreground shadow-sm p-6",
         className
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-body-2xlg font-bold text-dark dark:text-white">
+        <h2 className="text-lg font-semibold">
           Monthly Revenue
         </h2>
       </div>
