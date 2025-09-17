@@ -1,6 +1,5 @@
 "use client";
 
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "next-themes";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
@@ -31,7 +30,7 @@ export function PaymentsOverviewChart({ data }: PropsType) {
   const yAxisMax = Math.ceil(maxY + padding);
   
   // Calculate appropriate tick interval based on the range
-  const tickInterval = Math.ceil(range / 5); // Aim for ~5 ticks
+  // const tickInterval = Math.ceil(range / 5); // Aim for ~5 ticks
 
   // Create a formatter function that always shows shortened format for better readability
   const formatYAxisValue = (value: number) => {
