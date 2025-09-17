@@ -56,7 +56,11 @@ jobs:
       - name: Build and Push Store Image
         run: |
           IMAGE_NAME=ghcr.io/arcadia-music-academy/smw-web:${{ steps.commit.outputs.short }}
-          docker build . --tag $IMAGE_NAME
+          docker build . \
+            --build-arg NEXT_PUBLIC_API_URL=https://api.dev2.studiomanagerweb.com \
+            --build-arg NEXT_PUBLIC_LEGACY_URL=https://dev2.studiomanagerweb.com/admin \
+            --build-arg NEXT_PUBLIC_ENV=development \
+            --tag $IMAGE_NAME
           docker push $IMAGE_NAME
 
       - name: Show Docker image info
