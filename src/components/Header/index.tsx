@@ -37,7 +37,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
   const location = params.location as string;
   const { userInfo, isLoading } = useUserInfo(location);
-  const { locations, currentLocation, changeLocation } = useLocations();
+  const { locations, changeLocation } = useLocations();
 
   const handleMenuClick = () => {
     setIsOpen(!isOpen);
