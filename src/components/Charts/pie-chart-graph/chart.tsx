@@ -155,10 +155,38 @@ export function PieChart({ data, type }: PropsType) {
   // Handle empty data case
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="text-4xl mb-2">📊</div>
-          <div className="dark:text-white">{`No ${hyphenToTitleCase(type)} this period`}</div>
+          {/* Modern empty state with gradient background */}
+          <div className="relative mb-6">
+            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+            </div>
+            {/* Animated dots */}
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full animate-pulse"></div>
+            <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-green-400 rounded-full animate-pulse delay-100"></div>
+          </div>
+          
+          {/* Modern text styling */}
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+              No Data Available
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto leading-relaxed">
+              {`No ${hyphenToTitleCase(type)} found for the selected period`}
+            </p>
+          </div>
+          
+          {/* Subtle decorative elements */}
+          <div className="mt-6 flex justify-center space-x-1">
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce delay-100"></div>
+            <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce delay-200"></div>
+          </div>
         </div>
       </div>
     );
