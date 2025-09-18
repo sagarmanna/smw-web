@@ -69,11 +69,66 @@ export const buildMenuUrl = (item: MenuItem, location: string): string => {
   return item.url;
 };
 
+// Helper function to filter menus based on user role
+export const filterMenusByRole = (menus: MenuItem[], userRole: string): MenuItem[] => {
+  if (userRole === 'administrator') {
+    // Admin has access to ALL menus
+    return menus;
+  }
+  
+  if (userRole === 'owner') {
+    // Owner restrictions: hide Admin, Payment Preferences, some Reports, some Setup items
+    const filteredMenus = menus.filter(item => {
+      // Hide Admin menu completely for owner
+      if (item.title === 'Admin') {
+        return false;
+      }
+      
+      // Hide Payment Preferences for owner
+      if (item.title === 'Payment Preferences') {
+        return false;
+      }
+      
+      return true;
+    }).map(item => {
+      // Filter Reports submenu for owner - hide All Locations and Rentals
+      if (item.title === 'Reports' && item.items) {
+        const filteredReports = item.items.filter(subItem => {
+          return subItem.title !== 'All Locations' && subItem.title !== 'Rentals';
+        });
+        return {
+          ...item,
+          items: filteredReports
+        };
+      }
+      
+      // Filter Setup submenu for owner - hide Owners
+      if (item.title === 'Setup' && item.items) {
+        const filteredSetup = item.items.filter(subItem => {
+          return subItem.title !== 'Owners';
+        });
+        return {
+          ...item,
+          items: filteredSetup
+        };
+      }
+      
+      return item;
+    });
+    
+    return filteredMenus;
+  }
+  
+  // For any other role (including staffmember), return empty array
+  // Only admin and owner are supported
+  return [];
+};
+
 // Main menu configuration
-export const getSideMenus = (location: string, locationFlags: { [key: string]: string } = {}): MenuItem[] => {
+export const getSideMenus = (location: string, locationFlags: { [key: string]: string } = {}, userRole?: string): MenuItem[] => {
   const isDev = ENV_FLAGS.isDev;
   
-  return [
+  const allMenus = [
     {
       id: 'dashboard',
       title: 'Dashboard',
@@ -489,4 +544,11 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       hidden: isMenuEnabled(locationFlags, 'timeline') ? ('no' as const) : ('yes' as const),
     },
   ].filter(menu => menu.hidden !== 'yes');
+  
+  // Apply role-based filtering if userRole is provided
+  if (userRole) {
+    return filterMenusByRole(allMenus, userRole);
+  }
+  
+  return allMenus;
 };
