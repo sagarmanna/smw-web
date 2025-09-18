@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchLocationFlags, updateLocationFlags } from '@/redux/locationFlagsSlice';
 
@@ -8,7 +8,7 @@ export function useLocationFlags(location: string) {
   const dispatch = useAppDispatch();
   const { flags, isLoading, error, lastFetched } = useAppSelector((state) => state.locationFlags);
 
-  const locationFlags = flags[location] || {};
+  const locationFlags = useMemo(() => flags[location] || {}, [flags, location]);
   const lastFetchedTime = lastFetched[location] || 0;
 
   useEffect(() => {

@@ -22,8 +22,9 @@ import {
 import { Menu, User, LogOut, Sun, Moon, MapPin, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useUserInfo } from "@/hooks/useUserInfo";
+import { useAppSelector } from "@/redux/hooks";
 import { useLocations } from "@/hooks/useLocations";
+import { useLocationChange } from "@/hooks/useLocationChange";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -36,8 +37,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const location = params.location as string;
-  const { userInfo, isLoading } = useUserInfo(location);
+  const { userInfo, isLoading } = useAppSelector((state) => state.user);
   const { locations, changeLocation } = useLocations();
+  
+  // Handle location changes for staff permissions
+  useLocationChange(location);
 
   const handleMenuClick = () => {
     setIsOpen(!isOpen);
