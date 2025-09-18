@@ -69,8 +69,8 @@ export const buildMenuUrl = (item: MenuItem, location: string): string => {
   return item.url;
 };
 
-// Helper function to filter menus based on user role
-export const filterMenusByRole = (menus: MenuItem[], userRole: string): MenuItem[] => {
+// Helper function to filter menus based on user role and permissions
+export const filterMenusByRole = (menus: MenuItem[], userRole: string, userPermissions?: string[], dashboardPermissions?: { [key: string]: boolean }): MenuItem[] => {
   if (userRole === 'administrator') {
     // Admin has access to ALL menus
     return menus;
@@ -119,13 +119,148 @@ export const filterMenusByRole = (menus: MenuItem[], userRole: string): MenuItem
     return filteredMenus;
   }
   
-  // For any other role (including staffmember), return empty array
-  // Only admin and owner are supported
+  if (userRole === 'staffmember') {
+    // Staff member restrictions based on permissions
+    const filteredMenus = menus.filter(item => {
+      // Hide these menus completely for staff member
+      if (item.title === 'Admin' || item.title === 'Setup' || item.title === 'Payment Preferences') {
+        return false;
+      }
+      
+      // Check dashboard permissions for staff members
+      if (item.title === 'Dashboard' && dashboardPermissions) {
+        // Check if user has any dashboard permissions (exclude manageEnrolments)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { manageEnrolments, ...chartPermissions } = dashboardPermissions;
+        const hasAnyPermission = Object.values(chartPermissions).some(permission => permission === true);
+        return hasAnyPermission;
+      }
+      
+      return true;
+    }).map(item => {
+      // Filter Reports submenu based on permissions
+      if (item.title === 'Reports' && item.items && userPermissions) {
+        const permissionMap: { [key: string]: string } = {
+          'Account Receivable': 'manageAccountReceivableReport',
+          'Financial Summary Report': 'manageAccountReceivableReport',
+          'Birthdays': 'manageBirthdays',
+          'Payments': 'managePaymentsReport',
+          'Royalty': 'manageRoyalty',
+          'Tax Collected': 'manageTaxCollected',
+          'Royalty Free Items': 'manageRoyaltyFreeItems',
+          'Items': 'manageItemReport',
+          'Items Sold by Category': 'manageItemCategoryReport',
+          'Discount': 'manageDiscountReport',
+          'Sales & Payments Report': 'manageSalesAndPayment',
+          'All Locations': 'manageAllLocationsReport',
+          'Rentals': 'manageRentalsReport',
+        };
+        
+        // Check if user has manageReports permission
+        const hasManageReportsPermission = userPermissions.includes('manageReports');
+        if (!hasManageReportsPermission) {
+          return null; // Hide entire Reports menu
+        }
+        
+        const filteredReports = item.items.filter(subItem => {
+          const permissionName = permissionMap[subItem.title];
+          return permissionName && userPermissions.includes(permissionName);
+        });
+        
+        // Only return Reports menu if there are sub-items to show
+        if (filteredReports.length > 0) {
+          return {
+            ...item,
+            items: filteredReports
+          };
+        }
+        return null; // Hide Reports menu if no sub-items
+      }
+      
+      // Filter Recurring Payments based on permissions
+      if (item.title === 'Recurring Payments' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageRecurringPayment');
+        return hasPermission ? item : null;
+      }
+      
+      // Filter other menus based on permissions
+      if (item.title === 'Enrolments' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageEnrolments');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Students' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageStudents');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Customers' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageCustomers');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Teachers' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageTeachers');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Private Lessons' && userPermissions) {
+        const hasPermission = userPermissions.includes('managePrivateLessons');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Group Courses' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageGroupLessons');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Unscheduled Lessons' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageUnscheduledLessons');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Invoices' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageInvoices');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Payments' && userPermissions) {
+        const hasPermission = userPermissions.includes('managePayments');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Items' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageItems');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Timeline' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageTimeline');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Schedule' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageSchedule');
+        return hasPermission ? item : null;
+      }
+      
+      if (item.title === 'Release Notes' && userPermissions) {
+        const hasPermission = userPermissions.includes('manageReleaseNotes');
+        return hasPermission ? item : null;
+      }
+      
+      return item;
+    }).filter(item => item !== null);
+    
+    return filteredMenus;
+  }
+  
+  // For any other role, return empty array
   return [];
 };
 
 // Main menu configuration
-export const getSideMenus = (location: string, locationFlags: { [key: string]: string } = {}, userRole?: string): MenuItem[] => {
+export const getSideMenus = (location: string, locationFlags: { [key: string]: string } = {}, userRole?: string, userPermissions?: string[], dashboardPermissions?: { [key: string]: boolean }): MenuItem[] => {
   const isDev = ENV_FLAGS.isDev;
   
   const allMenus = [
@@ -547,7 +682,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
   
   // Apply role-based filtering if userRole is provided
   if (userRole) {
-    return filterMenusByRole(allMenus, userRole);
+    return filterMenusByRole(allMenus, userRole, userPermissions, dashboardPermissions);
   }
   
   return allMenus;
