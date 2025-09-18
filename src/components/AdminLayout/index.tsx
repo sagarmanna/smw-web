@@ -20,7 +20,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <Header onMenuClick={handleMenuClick} />
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className={`flex-1 p-6 transition-all duration-300 ${sidebarOpen ? 'md:ml-0' : 'md:ml-0'}`}>
+        <main className={`flex-1 p-6 transition-all duration-300 ${sidebarOpen ? 'md:ml-0' : 'md:ml-0'} md:w-[80%]`}>
           <div className="mx-auto max-w-7xl">
             {children}
           </div>
