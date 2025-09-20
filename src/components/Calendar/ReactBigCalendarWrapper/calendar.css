@@ -1,0 +1,422 @@
+/* Custom styles for React Big Calendar - Based on existing style.scss */
+
+/* Mobile event rendering improvements */
+@media (max-width: 768px) {
+  .teacher-view .rbc-event {
+    font-size: 13px !important;
+    padding: 4px 8px !important;
+    min-width: 100px !important;
+    min-height: 24px !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .classroom-view .rbc-event {
+    font-size: 13px !important;
+    padding: 4px 8px !important;
+    min-width: 100px !important;
+    min-height: 24px !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+.rbc-calendar {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+.rbc-header {
+  /* background: #f9fafb;
+  color: #22223b;
+  font-weight: 600;
+  font-size: 15px;
+  border-right: 1px solid #e5e7eb;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-width: 140px !important; */
+}
+
+.rbc-time-header {
+  background: #f9fafb;
+  position: sticky;
+  top: 0;
+  z-index: 10000;
+  width: 100% !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rbc-timeslot-group {
+  min-height: 45px !important;
+}
+
+.rbc-time-slot {
+  background: transparent !important;
+}
+
+.rbc-time-content {
+  background: var(--teacher-unavailability-color, #cccccc) !important;
+}
+
+.rbc-event {
+  color: #fff !important;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  font-size: 13px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.custom-tooltip {
+  background: #fff9db;
+  color: #22223b;
+  border: 1px solid #e5c07b;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 9999;
+  position: absolute;
+  pointer-events: none;
+  white-space: pre-line;
+}
+
+.rbc-time-gutter, .rbc-time-header-gutter {
+  background: #f9fafb;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 13px;
+  border-right: 1px solid #e5e7eb;
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+}
+
+.rbc-row-segment {
+  padding: 2px 0;
+}
+
+/* .rbc-today {
+  background: #505050 !important;
+} */
+
+.rbc-allday-cell,
+.rbc-time-header-cell {
+  display: none !important;
+}
+
+.rbc-current-time-indicator {
+  background-color: #e11d48 !important;
+  height: 2px !important;
+  width: 100% !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0;
+  border-radius: 0 !important;
+  z-index: 1000 !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  pointer-events: none;
+}
+
+.rbc-day-slot .rbc-time-slot:first-child {
+  border-bottom: 1px dotted #dddddd !important;
+}
+
+.rbc-day-slot .rbc-time-slot {
+  border-bottom: none !important;
+  border-top: none !important;
+}
+
+.rbc-timeslot-group .rbc-time-slot:first-child {
+  border-bottom: 1px dotted #dddddd ;
+}
+
+.rbc-label {
+  padding-bottom: 4px;
+}
+
+.rbc-time-header-gutter{
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+}
+
+.rbc-time-header-content > .rbc-row.rbc-row-resource {
+  /* border-bottom: none !important;
+  border-right: none !important; */
+  border: none !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+.rbc-time-header-content {
+  flex-direction: unset;
+}
+
+.teacher-view {
+  
+  /* Enable scrolling in the calendar container */
+  .rbc-calendar {
+    overflow: visible !important;
+    
+    /* Enable scrolling in the day view */
+    .rbc-day-view {
+      overflow: visible !important;
+    }
+  }
+  
+  /* Ensure the calendar fits within the container height */
+  .rbc-calendar .rbc-time-view {
+    height: auto !important;
+    max-height: none !important;
+  }
+  
+  /* Adjust slot height to prevent overflow */
+  .rbc-time-slot {
+    min-height: 20px !important;
+    height: auto !important;
+  }
+  
+  /* Ensure events don't cause overflow */
+  .rbc-event {
+    overflow: hidden !important;
+  }
+}
+
+/* Enable scrollbars for better UX */
+.teacher-view .rbc-calendar {
+  scrollbar-width: thin !important; /* Firefox */
+  -ms-overflow-style: auto !important; /* IE and Edge */
+}
+
+.teacher-view .rbc-calendar::-webkit-scrollbar {
+  width: 8px !important; /* Chrome, Safari, Opera */
+  height: 8px !important;
+}
+
+.teacher-view .rbc-calendar::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+  border-radius: 4px !important;
+}
+
+.teacher-view .rbc-calendar::-webkit-scrollbar-thumb {
+  background: #c1c1c1 !important;
+  border-radius: 4px !important;
+}
+
+.teacher-view .rbc-calendar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8 !important;
+}
+
+.rbc-event-label {
+  display: none;
+}
+
+.rbc-time-header:has(.empty-resource-header) {
+  display: none !important;
+}
+
+.rbc-events-container {
+  margin-right: 0 !important;
+}
+
+.rbc-event .rbc-addons-dnd-resize-ns-anchor:first-child .rbc-addons-dnd-resize-ns-icon {
+  display: none !important;
+}
+
+.fixed.top-4.right-4.z-\[10000\] {
+  pointer-events: auto !important;
+}
+
+.rbc-time-gutter {
+  background-color: var(--teacher-unavailability-color, #cccccc)!important;
+}
+
+.rbc-day-slot .unavailable-slot {
+  opacity: 1 !important;
+  background-color: var(--teacher-unavailability-color, #cccccc) !important;
+  border: 1px solid var(--teacher-unavailability-color, #cccccc) !important;
+}
+
+.rbc-day-slot .available-slot {
+  opacity: 0.6 !important;
+  background-color: #505050 !important;
+  border: 1px solid #505050 !important;
+}
+
+.rbc-day-slot .normal-slot {
+  opacity: 1 !important;
+  background-color: var(--teacher-unavailability-color, #cccccc)!important;
+}
+
+.classroom-view .rbc-day-slot {
+  opacity: 1 !important;
+  background-color: var(--teacher-unavailability-color, #cccccc)!important;
+}
+
+/* Classroom view sticky header and scrolling styles */
+.classroom-view {
+  
+  /* Enable scrolling in the calendar container */
+  .rbc-calendar {
+    overflow: visible !important;
+    
+    /* Enable scrolling in the day view */
+    .rbc-day-view {
+      overflow: visible !important;
+    }
+  }
+  
+  /* Ensure the calendar fits within the container height */
+  .rbc-calendar .rbc-time-view {
+    height: auto !important;
+    max-height: none !important;
+  }
+  
+  /* Adjust slot height to prevent overflow */
+  .rbc-time-slot {
+    min-height: 20px !important;
+    height: auto !important;
+  }
+  
+  /* Ensure events don't cause overflow */
+  .rbc-event {
+    overflow: hidden !important;
+  }
+}
+
+/* Enable scrollbars for classroom view */
+.classroom-view .rbc-calendar {
+  scrollbar-width: thin !important; /* Firefox */
+  -ms-overflow-style: auto !important; /* IE and Edge */
+}
+
+.classroom-view .rbc-calendar::-webkit-scrollbar {
+  width: 8px !important; /* Chrome, Safari, Opera */
+  height: 8px !important;
+}
+
+.classroom-view .rbc-calendar::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+  border-radius: 4px !important;
+}
+
+.classroom-view .rbc-calendar::-webkit-scrollbar-thumb {
+  background: #c1c1c1 !important;
+  border-radius: 4px !important;
+}
+
+.classroom-view .rbc-calendar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8 !important;
+}
+
+/* iOS-specific fixes for calendar events visibility */
+@supports (-webkit-touch-callout: none) {
+  .teacher-view {
+    /* iOS Safari specific fixes */
+    .rbc-calendar {
+      -webkit-overflow-scrolling: touch;
+      overflow: auto !important;
+    }
+    
+    .rbc-event {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      /* Ensure events are visible on iOS */
+      /* position: relative !important; */
+      z-index: 1 !important;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+    
+    .rbc-time-slot {
+      /* Ensure time slots are properly sized on iOS */
+      min-height: 20px !important;
+      height: auto !important;
+      position: relative !important;
+    }
+    
+    .rbc-time-content {
+      /* Fix scrolling issues on iOS */
+      -webkit-overflow-scrolling: touch;
+      overflow: auto !important;
+    }
+  }
+}
+
+/* Additional mobile fixes */
+@media (max-width: 768px) {
+  .teacher-view {
+    .rbc-calendar {
+      font-size: 12px;
+    }
+    
+    .rbc-event {
+      font-size: 11px !important;
+      padding: 2px 4px !important;
+    }
+    
+    .rbc-time-gutter {
+      font-size: 11px !important;
+    }
+  }
+}
+
+/* Fix for iOS Safari viewport issues */
+@supports (-webkit-touch-callout: none) {
+  .teacher-view .rbc-calendar {
+    /* Prevent iOS Safari from zooming */
+    touch-action: pan-x pan-y;
+    /* Ensure proper rendering */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+}
+
+/* Event type specific colors */
+.rbc-event.private-lesson {
+  background-color: #3b82f6 !important;
+  border-color: #1d4ed8 !important;
+  color: white !important;
+}
+
+.rbc-event.group-lesson {
+  background-color: #10b981 !important;
+  border-color: #059669 !important;
+  color: white !important;
+}
+
+.rbc-event.online-lesson {
+  background-color: #8b5cf6 !important;
+  border-color: #7c3aed !important;
+  color: white !important;
+}
+
+/* Status icons */
+.status-icons {
+  display: flex;
+  gap: 4px;
+  font-size: 0.75rem;
+  margin-top: auto;
+  align-items: center;
+}
