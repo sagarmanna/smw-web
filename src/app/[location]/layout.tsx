@@ -1,4 +1,5 @@
 import AdminLayout from "@/components/AdminLayout";
+import { GlobalDataProvider } from "@/providers/GlobalDataProvider";
 
 interface AdminV2LayoutProps {
   children: React.ReactNode;
@@ -7,6 +8,12 @@ interface AdminV2LayoutProps {
   }>;
 }
 
-export default async function AdminV2Layout({ children }: AdminV2LayoutProps) {
-  return <AdminLayout>{children}</AdminLayout>;
+export default async function AdminV2Layout({ children, params }: AdminV2LayoutProps) {
+  const { location } = await params;
+  
+  return (
+    <GlobalDataProvider location={location}>
+      <AdminLayout>{children}</AdminLayout>
+    </GlobalDataProvider>
+  );
 }
