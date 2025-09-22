@@ -10,7 +10,7 @@ import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarW
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability } from "./schedule.api";
+import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
 
 interface ScheduleClientProps {
   location: string;
@@ -347,6 +347,12 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [teacherViewEventsLoading, setTeacherViewEventsLoading] = useState<boolean>(false);
   const [teacherViewEventsError, setTeacherViewEventsError] = useState<string | null>(null);
 
+  // Classroom view state
+  const [classroomViewResources, setClassroomViewResources] = useState<ClassroomViewResource[]>([]);
+  const [classroomViewEvents, setClassroomViewEvents] = useState<ClassroomViewEvent[]>([]);
+  const [classroomViewLoading, setClassroomViewLoading] = useState<boolean>(false);
+  const [classroomViewError, setClassroomViewError] = useState<string | null>(null);
+
   // Ensure selectedDate is always valid
   const safeSelectedDate = useMemo(() => {
     return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
@@ -387,6 +393,23 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         setTeachersError(error instanceof Error ? error.message : 'Failed to fetch teachers');
       } finally {
         setTeachersLoading(false);
+      }
+
+      // Fetch classroom view resources
+      try {
+        setClassroomViewLoading(true);
+        setClassroomViewError(null);
+        const classroomResourcesResponse = await getClassroomViewResources(location);
+        
+        if (classroomResourcesResponse?.success) {
+          setClassroomViewResources(classroomResourcesResponse.data.resources);
+        } else {
+          setClassroomViewError(classroomResourcesResponse?.message || 'Failed to fetch classroom resources');
+        }
+      } catch (error) {
+        setClassroomViewError(error instanceof Error ? error.message : 'Failed to fetch classroom resources');
+      } finally {
+        setClassroomViewLoading(false);
       }
     };
 
@@ -480,6 +503,31 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     fetchTeacherViewEvents();
   }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
 
+  // Fetch classroom view events when date changes
+  useEffect(() => {
+    const fetchClassroomViewEvents = async () => {
+      try {
+        setClassroomViewLoading(true);
+        setClassroomViewError(null);
+        const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
+        
+        const response = await getClassroomViewEvents(location, dateStr);
+        
+        if (response?.success) {
+          setClassroomViewEvents(response.data.events);
+        } else {
+          setClassroomViewError(response?.message || 'Failed to fetch classroom view events');
+        }
+      } catch (error) {
+        setClassroomViewError(error instanceof Error ? error.message : 'Failed to fetch classroom view events');
+      } finally {
+        setClassroomViewLoading(false);
+      }
+    };
+
+    fetchClassroomViewEvents();
+  }, [location, safeSelectedDate]);
+
   // Convert API events to calendar format
   const convertTeacherViewEventsToCalendar = (events: TeacherViewEvent[]): CalendarEvent[] => {
     return events.map(event => {
@@ -504,6 +552,39 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           isOwing: event.isOwing,
           isOnline: event.isOnline,
           isOwingRentalAgreement: event.isOwingRentalAgreement,
+          tooltip: tooltipString,
+          url: event.url
+        }
+      };
+      
+      return calendarEvent;
+    });
+  };
+
+  // Convert classroom view events to calendar format
+  const convertClassroomViewEventsToCalendar = (events: ClassroomViewEvent[]): CalendarEvent[] => {
+    return events.map(event => {
+      const tooltip = event.tooltip || [];
+      
+      const tooltipString = tooltip.map(t => `${t.name}: ${t.value}`).join('\n');
+      
+      const calendarEvent = {
+        id: event.id.toString(),
+        title: event.title,
+        start: new Date(event.start),
+        end: new Date(event.end),
+        resourceId: event.resourceId,
+        backgroundColor: event.backgroundColor,
+        borderColor: event.backgroundColor,
+        className: event.className,
+        extendedProps: {
+          lessonId: event.id.toString(),
+          teacher: tooltip.find(t => t.name === "Teacher")?.value || "",
+          classroom: tooltip.find(t => t.name === "Classroom")?.value || "",
+          program: tooltip.find(t => t.name === "Program")?.value || "",
+          isOwing: false, // Classroom view doesn't have owing info
+          isOnline: false, // Classroom view doesn't have online info
+          isOwingRentalAgreement: false, // Classroom view doesn't have rental info
           tooltip: tooltipString,
           url: event.url
         }
@@ -577,16 +658,26 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                   {showAll ? " (All)" : " (Available)"}
                 </span>
               )}
-              {teacherViewResources.length > 0 && (
+              {currentView === "teacher" && teacherViewResources.length > 0 && (
                 <span className="ml-1">
                   • {teacherViewResources.length} teacher{teacherViewResources.length !== 1 ? 's' : ''}
                 </span>
               )}
-              {teacherViewEvents.length > 0 && (
+              {currentView === "teacher" && teacherViewEvents.length > 0 && (
                 <span className="ml-1">
                   • {teacherViewEvents.length} lesson{teacherViewEvents.length !== 1 ? 's' : ''}
-              </span>
-            )}
+                </span>
+              )}
+              {currentView === "classroom" && classroomViewResources.length > 0 && (
+                <span className="ml-1">
+                  • {classroomViewResources.length} classroom{classroomViewResources.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              {currentView === "classroom" && classroomViewEvents.length > 0 && (
+                <span className="ml-1">
+                  • {classroomViewEvents.length} lesson{classroomViewEvents.length !== 1 ? 's' : ''}
+                </span>
+              )}
           </p>
         </div>
         
@@ -631,9 +722,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           {/* Filters - Responsive Layout */}
           <div className="w-full lg:w-auto">
             {/* Error display - compact */}
-            {(programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError) && (
+            {(programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError || classroomViewError) && (
               <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded mb-2">
-                {programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError}
+                {programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError || classroomViewError}
           </div>
         )}
         
@@ -823,8 +914,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           <TabsContent value="classroom">
             <div>
                <ReactBigCalendarWrapper
-                 events={dummyEvents}
-                 resources={dummyClassrooms}
+                 events={convertClassroomViewEventsToCalendar(classroomViewEvents)}
+                 resources={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title, description: classroom.description }))}
                  date={safeSelectedDate}
                  onNavigate={setSelectedDate}
                  onEventClick={handleEventClick}

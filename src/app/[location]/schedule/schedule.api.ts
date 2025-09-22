@@ -94,6 +94,44 @@ export interface TeacherViewEventsResponse {
   message: string;
 }
 
+export interface ClassroomViewResource {
+  id: number;
+  title: string;
+  description: string;
+}
+
+export interface ClassroomViewResponse {
+  success: boolean;
+  data: {
+    resources: ClassroomViewResource[];
+  };
+  message: string;
+}
+
+export interface ClassroomViewEvent {
+  id: number;
+  resourceId: number;
+  title: string;
+  start: string;
+  end: string;
+  url: string;
+  className: string;
+  backgroundColor: string;
+  tooltip: TooltipItem[];
+  rendering?: string;
+}
+
+export interface ClassroomViewEventsResponse {
+  success: boolean;
+  data: {
+    events: ClassroomViewEvent[];
+    totalEvents: number;
+    date: string;
+    locationId: number;
+  };
+  message: string;
+}
+
 export async function getProgramsList(): Promise<ProgramsResponse | null> {
   try {
     const token = localStorage.getItem("token");
@@ -231,6 +269,54 @@ export async function getTeacherViewEvents(
     return response.data;
   } catch (error) {
     console.error("Error fetching teacher view events:", error);
+    return null;
+  }
+}
+
+export async function getClassroomViewResources(location: string): Promise<ClassroomViewResponse | null> {
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await apiClient.get<ClassroomViewResponse>(
+      `/admin/v2/${location}/schedule/classroom-view/resources`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching classroom view resources:", error);
+    return null;
+  }
+}
+
+export async function getClassroomViewEvents(
+  location: string, 
+  date: string
+): Promise<ClassroomViewEventsResponse | null> {
+  try {
+    const token = localStorage.getItem("token");
+
+    const params: Record<string, string> = {
+      date
+    };
+
+    const response = await apiClient.get<ClassroomViewEventsResponse>(
+      `/admin/v2/${location}/schedule/classroom-view/events`,
+      {
+        params,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching classroom view events:", error);
     return null;
   }
 }
