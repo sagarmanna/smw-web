@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Calendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
+import { Calendar as BigCalendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
 import moment from 'moment';
-import { Clock, DollarSign, Monitor, AlertTriangle } from 'lucide-react';
+import { Clock, DollarSign, Monitor, AlertTriangle, User, MapPin, BookOpen, Calendar, Users } from 'lucide-react';
 import {
   HoverCard,
   HoverCardContent,
@@ -19,7 +19,7 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 const localizer = momentLocalizer(moment);
 
 // Create BigCalendar with drag and drop support
-const BigCalendar = withDragAndDrop<CalendarEvent, CalendarResource>(Calendar);
+const BigCalendarWithDragDrop = withDragAndDrop<CalendarEvent, CalendarResource>(BigCalendar);
 
 interface CalendarEvent {
   id: string;
@@ -249,14 +249,7 @@ export function ReactBigCalendarWrapper({
                 
                 // If tooltip exists and is not empty, use it
                 if (extendedProps.tooltip && extendedProps.tooltip.trim()) {
-                  return extendedProps.tooltip.split('\n').map((line, index) => {
-                    console.log('HoverCard - Line:', line, 'Index:', index);
-                    return (
-                      <div key={index} className="text-sm">
-                        {line}
-                      </div>
-                    );
-                  });
+                  return renderTooltip(extendedProps.tooltip);
                 } else {
                   // Fallback: show basic information from extendedProps
                   const fallbackInfo = [];
@@ -268,11 +261,7 @@ export function ReactBigCalendarWrapper({
                     fallbackInfo.push('No additional information available');
                   }
                   
-                  return fallbackInfo.map((info, index) => (
-                    <div key={index} className="text-sm">
-                      {info}
-                    </div>
-                  ));
+                  return renderTooltip(fallbackInfo.join('\n'));
                 }
               })()}
             </div>
@@ -327,14 +316,7 @@ export function ReactBigCalendarWrapper({
               
               // If tooltip exists and is not empty, use it
               if (extendedProps.tooltip && extendedProps.tooltip.trim()) {
-                return extendedProps.tooltip.split('\n').map((line, index) => {
-                  console.log('HoverCard (long) - Line:', line, 'Index:', index);
-                  return (
-                    <div key={index} className="text-sm">
-                      {line}
-                    </div>
-                  );
-                });
+                return renderTooltip(extendedProps.tooltip);
               } else {
                 // Fallback: show basic information from extendedProps
                 const fallbackInfo = [];
@@ -346,11 +328,7 @@ export function ReactBigCalendarWrapper({
                   fallbackInfo.push('No additional information available');
                 }
                 
-                return fallbackInfo.map((info, index) => (
-                  <div key={index} className="text-sm">
-                    {info}
-                  </div>
-                ));
+                return renderTooltip(fallbackInfo.join('\n'));
               }
             })()}
           </div>
@@ -371,6 +349,52 @@ export function ReactBigCalendarWrapper({
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Function to get icon for tooltip field
+  const getTooltipIcon = (fieldName: string) => {
+    const name = fieldName.toLowerCase();
+    if (name.includes('teacher') || name.includes('instructor')) return <User className="h-4 w-4" />;
+    if (name.includes('classroom') || name.includes('room')) return <MapPin className="h-4 w-4" />;
+    if (name.includes('program') || name.includes('course')) return <BookOpen className="h-4 w-4" />;
+    if (name.includes('date') || name.includes('time')) return <Calendar className="h-4 w-4" />;
+    if (name.includes('student') || name.includes('group')) return <Users className="h-4 w-4" />;
+    if (name.includes('owing') || name.includes('payment')) return <DollarSign className="h-4 w-4" />;
+    if (name.includes('online') || name.includes('virtual')) return <Monitor className="h-4 w-4" />;
+    if (name.includes('rental') || name.includes('agreement')) return <AlertTriangle className="h-4 w-4" />;
+    return <Clock className="h-4 w-4" />; // Default icon
+  };
+
+  // Function to render tooltip with icons and bold text
+  const renderTooltip = (tooltipText: string) => {
+    if (!tooltipText || !tooltipText.trim()) return null;
+    
+    return tooltipText.split('\n').map((line, index) => {
+      if (!line.trim()) return null;
+      
+      // Split by colon to get field name and value
+      const colonIndex = line.indexOf(':');
+      if (colonIndex === -1) {
+        // If no colon found, just return the line as is
+        return (
+          <div key={index} className="text-sm">
+            {line}
+          </div>
+        );
+      }
+      
+      const fieldName = line.substring(0, colonIndex).trim();
+      const value = line.substring(colonIndex + 1).trim();
+      const icon = getTooltipIcon(fieldName);
+      
+      return (
+        <div key={index} className="flex items-center gap-2 text-sm">
+          <span className="text-gray-600">{icon}</span>
+          <span className="font-bold text-gray-800">{fieldName}:</span>
+          <span className="text-gray-700">{value}</span>
+        </div>
+      );
+    });
+  };
 
   // Create display resources - if no resources, create empty one
   // On mobile, show only one teacher at a time for better UX
@@ -404,7 +428,7 @@ export function ReactBigCalendarWrapper({
             position: 'relative'
           }}
         > 
-          <BigCalendar
+          <BigCalendarWithDragDrop
             localizer={localizer}
             events={filteredEvents}
             resources={displayResources}
