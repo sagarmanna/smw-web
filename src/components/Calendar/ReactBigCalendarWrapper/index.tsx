@@ -184,10 +184,6 @@ export function ReactBigCalendarWrapper({
   const EventComponent = ({ event }: EventProps<CalendarEvent>) => {
     const extendedProps = event.extendedProps || {};
     
-    // Debug: Log event data
-    console.log('EventComponent - Full event:', event);
-    console.log('EventComponent - Extended props:', extendedProps);
-    console.log('EventComponent - Tooltip data:', extendedProps.tooltip);
     
     // Calculate event duration in minutes
     const durationMinutes = moment(event.end).diff(moment(event.start), 'minutes');
@@ -244,9 +240,6 @@ export function ReactBigCalendarWrapper({
           <HoverCardContent className="w-auto">
             <div className="space-y-1">
               {(() => {
-                console.log('HoverCard - Tooltip content:', extendedProps.tooltip);
-                console.log('HoverCard - Extended props:', extendedProps);
-                
                 // If tooltip exists and is not empty, use it
                 if (extendedProps.tooltip && extendedProps.tooltip.trim()) {
                   return renderTooltip(extendedProps.tooltip);
@@ -311,9 +304,6 @@ export function ReactBigCalendarWrapper({
         <HoverCardContent className="w-auto">
           <div className="space-y-1">
             {(() => {
-              console.log('HoverCard (long) - Tooltip content:', extendedProps.tooltip);
-              console.log('HoverCard (long) - Extended props:', extendedProps);
-              
               // If tooltip exists and is not empty, use it
               if (extendedProps.tooltip && extendedProps.tooltip.trim()) {
                 return renderTooltip(extendedProps.tooltip);

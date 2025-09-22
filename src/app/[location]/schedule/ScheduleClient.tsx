@@ -454,13 +454,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         setTeacherViewEventsError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         
-        console.log('fetchTeacherViewEvents - Calling API with params:', {
-          location,
-          dateStr,
-          showAll,
-          selectedProgram,
-          selectedTeacher
-        });
         
         const response = await getTeacherViewEvents(
           location, 
@@ -470,12 +463,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           selectedTeacher || undefined
         );
         
-        console.log('fetchTeacherViewEvents - API response:', response);
-        console.log('fetchTeacherViewEvents - Response data:', response?.data);
-        console.log('fetchTeacherViewEvents - Lessons:', response?.data?.lessons);
-        
         if (response?.success) {
-          console.log('fetchTeacherViewEvents - Setting events:', response.data.lessons);
           setTeacherViewEvents(response.data.lessons);
           setTeacherViewAvailability(response.data.availability);
         } else {
@@ -493,15 +481,10 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
   // Convert API events to calendar format
   const convertTeacherViewEventsToCalendar = (events: TeacherViewEvent[]): CalendarEvent[] => {
-    console.log('convertTeacherViewEventsToCalendar - Input events:', events);
     return events.map(event => {
       const tooltip = event.tooltip || [];
-      console.log('convertTeacherViewEventsToCalendar - Processing event:', event);
-      console.log('convertTeacherViewEventsToCalendar - Tooltip array:', tooltip);
-      console.log('convertTeacherViewEventsToCalendar - Event tooltip property:', event.tooltip);
       
       const tooltipString = tooltip.map(t => `${t.name}: ${t.value}`).join('\n');
-      console.log('convertTeacherViewEventsToCalendar - Tooltip string:', tooltipString);
       
       const calendarEvent = {
         id: event.lessonId.toString(),
@@ -525,27 +508,22 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         }
       };
       
-      console.log('convertTeacherViewEventsToCalendar - Final calendar event:', calendarEvent);
-      console.log('convertTeacherViewEventsToCalendar - Final tooltip in extendedProps:', calendarEvent.extendedProps.tooltip);
       return calendarEvent;
     });
   };
 
   const handleEventClick = (event: CalendarEvent) => {
-    console.log("Event clicked:", event);
     // Navigate to lesson details if URL is available
     if (event.extendedProps?.url) {
-      window.open(event.extendedProps.url, '_blank');
+      window.open(event.extendedProps.url, '_self');
     }
   };
 
   const handleEventDrop = (event: CalendarEvent) => {
-    console.log("Event dropped:", event);
     // TODO: Update lesson time
   };
 
   const handleEventResize = (event: CalendarEvent) => {
-    console.log("Event resized:", event);
     // TODO: Update lesson duration
   };
 
@@ -684,17 +662,17 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={safeSelectedDate}
-                          onSelect={(date) => {
-                            if (date) {
-                              setSelectedDate(date);
-                              setDatePickerOpen(false);
-                            }
-                          }}
-                          initialFocus
-                        />
+                          <Calendar
+                            mode="single"
+                            selected={safeSelectedDate}
+                            onSelect={(date) => {
+                              if (date) {
+                                setSelectedDate(date);
+                                setDatePickerOpen(false);
+                              }
+                            }}
+                            initialFocus
+                          />
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -762,17 +740,17 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={safeSelectedDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setSelectedDate(date);
-                          setDatePickerOpen(false);
-                        }
-                      }}
-                      initialFocus
-                    />
+                      <Calendar
+                        mode="single"
+                        selected={safeSelectedDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setSelectedDate(date);
+                            setDatePickerOpen(false);
+                          }
+                        }}
+                        initialFocus
+                      />
                   </PopoverContent>
                 </Popover>
 
