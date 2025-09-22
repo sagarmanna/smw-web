@@ -22,6 +22,37 @@ export interface TeachersResponse {
   message: string;
 }
 
+export interface ScheduleDetails {
+  Availabilities: {
+    from: string;
+    to: string;
+  };
+  OperationTimeAvailability: {
+    from: string;
+    to: string;
+  };
+  Holiday: unknown;
+}
+
+export interface ScheduleDetailsResponse {
+  success: boolean;
+  data: ScheduleDetails;
+  message: string;
+}
+
+export interface TeacherViewResource {
+  id: number;
+  title: string;
+}
+
+export interface TeacherViewResponse {
+  success: boolean;
+  data: {
+    resources: TeacherViewResource[];
+  };
+  message: string;
+}
+
 export async function getProgramsList(): Promise<ProgramsResponse | null> {
   try {
     const token = localStorage.getItem("token");
@@ -58,6 +89,67 @@ export async function getTeachersList(location: string): Promise<TeachersRespons
     return response.data;
   } catch (error) {
     console.error("Error fetching teachers list:", error);
+    return null;
+  }
+}
+
+export async function getScheduleDetails(location: string, date: string): Promise<ScheduleDetailsResponse | null> {
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await apiClient.get<ScheduleDetailsResponse>(
+      `/admin/v2/${location}/schedule/details`,
+      {
+        params: { date },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching schedule details:", error);
+    return null;
+  }
+}
+
+export async function getTeacherView(
+  location: string, 
+  date: string, 
+  showAll: boolean, 
+  programId?: string, 
+  teacherId?: string
+): Promise<TeacherViewResponse | null> {
+  try {
+    const token = localStorage.getItem("token");
+
+    const params: Record<string, string | number> = {
+      date,
+      showAll: showAll ? 1 : 0
+    };
+
+    if (programId) {
+      params.programId = programId;
+    }
+
+    if (teacherId) {
+      params.teacherId = teacherId;
+    }
+
+    const response = await apiClient.get<TeacherViewResponse>(
+      `/admin/v2/${location}/schedule/teacher-view`,
+      {
+        params,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching teacher view:", error);
     return null;
   }
 }

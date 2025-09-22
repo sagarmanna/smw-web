@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -10,7 +10,7 @@ import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarW
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getProgramsList, getTeachersList, Program, Teacher } from "./schedule.api";
+import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, Program, Teacher, ScheduleDetails, TeacherViewResource } from "./schedule.api";
 
 interface ScheduleClientProps {
   location: string;
@@ -327,6 +327,21 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
   const [teachersError, setTeachersError] = useState<string | null>(null);
 
+  // Schedule details state
+  const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails | null>(null);
+  const [scheduleDetailsLoading, setScheduleDetailsLoading] = useState<boolean>(false);
+  const [scheduleDetailsError, setScheduleDetailsError] = useState<string | null>(null);
+
+  // Teacher view state
+  const [teacherViewResources, setTeacherViewResources] = useState<TeacherViewResource[]>([]);
+  const [teacherViewLoading, setTeacherViewLoading] = useState<boolean>(false);
+  const [teacherViewError, setTeacherViewError] = useState<string | null>(null);
+
+  // Ensure selectedDate is always valid
+  const safeSelectedDate = useMemo(() => {
+    return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
+  }, [selectedDate]);
+
   // Fetch programs and teachers on component mount
   useEffect(() => {
     const fetchData = async () => {
@@ -368,8 +383,59 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     fetchData();
   }, [location]);
 
-  // Ensure selectedDate is always valid
-  const safeSelectedDate = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
+  // Fetch schedule details when date changes
+  useEffect(() => {
+    const fetchScheduleDetails = async () => {
+      try {
+        setScheduleDetailsLoading(true);
+        setScheduleDetailsError(null);
+        const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
+        const response = await getScheduleDetails(location, dateStr);
+        
+        if (response?.success) {
+          setScheduleDetails(response.data);
+        } else {
+          setScheduleDetailsError(response?.message || 'Failed to fetch schedule details');
+        }
+      } catch (error) {
+        setScheduleDetailsError(error instanceof Error ? error.message : 'Failed to fetch schedule details');
+      } finally {
+        setScheduleDetailsLoading(false);
+      }
+    };
+
+    fetchScheduleDetails();
+  }, [location, safeSelectedDate]);
+
+  // Fetch teacher view data when filters or date change
+  useEffect(() => {
+    const fetchTeacherView = async () => {
+      try {
+        setTeacherViewLoading(true);
+        setTeacherViewError(null);
+        const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
+        const response = await getTeacherView(
+          location, 
+          dateStr, 
+          showAll, 
+          selectedProgram || undefined, 
+          selectedTeacher || undefined
+        );
+        
+        if (response?.success) {
+          setTeacherViewResources(response.data.resources);
+        } else {
+          setTeacherViewError(response?.message || 'Failed to fetch teacher view');
+        }
+      } catch (error) {
+        setTeacherViewError(error instanceof Error ? error.message : 'Failed to fetch teacher view');
+      } finally {
+        setTeacherViewLoading(false);
+      }
+    };
+
+    fetchTeacherView();
+  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
 
   const handleEventClick = (event: CalendarEvent) => {
     console.log("Event clicked:", event);
@@ -391,6 +457,29 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     window.open(`/admin/v2/${location}/daily-schedule?date=${dateStr}`, '_blank');
   };
 
+  // Get time range based on Show All checkbox
+  const getTimeRange = () => {
+    if (!scheduleDetails) {
+      return { minTime: "09:00:00", maxTime: "17:00:00" }; // Default fallback
+    }
+
+    if (showAll) {
+      // Use OperationTimeAvailability when Show All is checked
+      return {
+        minTime: scheduleDetails.OperationTimeAvailability.from,
+        maxTime: scheduleDetails.OperationTimeAvailability.to
+      };
+    } else {
+      // Use Availabilities when Show All is unchecked
+      return {
+        minTime: scheduleDetails.Availabilities.from,
+        maxTime: scheduleDetails.Availabilities.to
+      };
+    }
+  };
+
+  const timeRange = getTimeRange();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -398,9 +487,18 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             Schedule for {format(safeSelectedDate, "EEEE, MMMM do, yyyy")}
+            {scheduleDetailsLoading && (
+              <span className="ml-2 text-sm text-muted-foreground">(Loading time range...)</span>
+            )}
           </h1>
           <p className="text-muted-foreground">
             Manage schedules for {location}
+            {scheduleDetails && (
+              <span className="ml-2 text-sm">
+                • Time range: {timeRange.minTime} - {timeRange.maxTime}
+                {showAll ? " (All hours)" : " (Available hours)"}
+              </span>
+            )}
           </p>
         </div>
         
@@ -449,6 +547,20 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         {teachersError && (
           <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
             Failed to load teachers: {teachersError}
+          </div>
+        )}
+        
+        {/* Error display for schedule details */}
+        {scheduleDetailsError && (
+          <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+            Failed to load schedule details: {scheduleDetailsError}
+          </div>
+        )}
+        
+        {/* Error display for teacher view */}
+        {teacherViewError && (
+          <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+            Failed to load teacher view: {teacherViewError}
           </div>
         )}
         
@@ -521,13 +633,25 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
          <TabsContent value="teacher" className="mt-4">
            <div className="rounded-lg border bg-card">
              <div className="p-4 border-b">
-               <h3 className="text-lg font-semibold">Teacher View - {format(safeSelectedDate, "EEEE, MMMM do, yyyy")}</h3>
-               <p className="text-sm text-muted-foreground">Teachers as columns, time slots as rows</p>
+               <h3 className="text-lg font-semibold">
+                 Teacher View - {format(safeSelectedDate, "EEEE, MMMM do, yyyy")}
+                 {teacherViewLoading && (
+                   <span className="ml-2 text-sm text-muted-foreground">(Loading teachers...)</span>
+                 )}
+               </h3>
+               <p className="text-sm text-muted-foreground">
+                 Teachers as columns, time slots as rows
+                 {teacherViewResources.length > 0 && (
+                   <span className="ml-2">
+                     • {teacherViewResources.length} teacher{teacherViewResources.length !== 1 ? 's' : ''} available
+                   </span>
+                 )}
+               </p>
              </div>
              <div className="teacher-view">
                <ReactBigCalendarWrapper
                  events={dummyEvents}
-                 resources={teachers.map(teacher => ({ id: teacher.id, title: teacher.name, description: "" }))}
+                 resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
                  date={safeSelectedDate}
                  onNavigate={setSelectedDate}
                  onEventClick={handleEventClick}
@@ -537,6 +661,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  showAll={showAll}
                  selectedProgram={selectedProgram}
                  selectedTeacher={selectedTeacher}
+                 minTime={timeRange.minTime}
+                 maxTime={timeRange.maxTime}
                />
              </div>
            </div>
@@ -561,6 +687,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  showAll={showAll}
                  selectedProgram={selectedProgram}
                  selectedTeacher={selectedTeacher}
+                 minTime={timeRange.minTime}
+                 maxTime={timeRange.maxTime}
                />
              </div>
            </div>

@@ -53,6 +53,8 @@ interface ReactBigCalendarWrapperProps {
   showAll?: boolean;
   selectedProgram?: string;
   selectedTeacher?: string;
+  minTime?: string; // Format: "HH:mm:ss"
+  maxTime?: string; // Format: "HH:mm:ss"
 }
 
 // Custom resource header component
@@ -90,7 +92,9 @@ export function ReactBigCalendarWrapper({
   editable = true,
   showAll = false,
   selectedProgram,
-  selectedTeacher
+  selectedTeacher,
+  minTime = "08:00:00",
+  maxTime = "20:00:00"
 }: ReactBigCalendarWrapperProps) {
 
   // Filter events based on filters
@@ -169,6 +173,17 @@ export function ReactBigCalendarWrapper({
   // Create display resources - if no resources, create empty one
   const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : resources;
 
+  // Convert time strings to Date objects for the current date
+  const parseTimeToDate = (timeString: string) => {
+    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+    const timeDate = new Date(date);
+    timeDate.setHours(hours, minutes, seconds || 0, 0);
+    return timeDate;
+  };
+
+  const minDate = parseTimeToDate(minTime);
+  const maxDate = parseTimeToDate(maxTime);
+
   return (
     <div className="w-full max-w-none xl:max-w-[90rem] 2xl:max-w-[120rem] mx-auto">
       <div className="bg-white dark:bg-dark-2 rounded-lg shadow-lg p-2">
@@ -207,8 +222,8 @@ export function ReactBigCalendarWrapper({
             }}
             step={15} // 15-minute intervals
             timeslots={2} // 2 slots per 30 minutes
-            min={new Date(2024, 0, 1, 8, 0)} // 8:00 AM
-            max={new Date(2024, 0, 1, 20, 0)} // 8:00 PM
+            min={minDate}
+            max={maxDate}
             eventPropGetter={eventPropGetter}
             style={{ height: '100%' }}
           />
