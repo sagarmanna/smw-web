@@ -2,6 +2,12 @@
 
 import { Calendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
 import moment from 'moment';
+import { Clock, DollarSign, Monitor, AlertTriangle } from 'lucide-react';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './calendar.css';
 
@@ -53,6 +59,8 @@ interface ReactBigCalendarWrapperProps {
   showAll?: boolean;
   selectedProgram?: string;
   selectedTeacher?: string;
+  minTime?: string; // Format: "HH:mm:ss"
+  maxTime?: string; // Format: "HH:mm:ss"
 }
 
 // Custom resource header component
@@ -90,7 +98,9 @@ export function ReactBigCalendarWrapper({
   editable = true,
   showAll = false,
   selectedProgram,
-  selectedTeacher
+  selectedTeacher,
+  minTime = "08:00:00",
+  maxTime = "20:00:00"
 }: ReactBigCalendarWrapperProps) {
 
   // Filter events based on filters
@@ -123,13 +133,38 @@ export function ReactBigCalendarWrapper({
   };
 
   const eventPropGetter = (event: CalendarEvent) => {
+    // Get the base color from the event
+    const baseColor = event.backgroundColor || '#3174ad';
+    
+    // Convert hex to RGB and darken it for border
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+    
+    const darkenColor = (hex: string, factor: number = 0.3) => {
+      const rgb = hexToRgb(hex);
+      if (!rgb) return hex;
+      
+      const r = Math.floor(rgb.r * (1 - factor));
+      const g = Math.floor(rgb.g * (1 - factor));
+      const b = Math.floor(rgb.b * (1 - factor));
+      
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+    
+    const darkBorderColor = darkenColor(baseColor, 0.4);
+    
     return {
       style: {
-        backgroundColor: event.backgroundColor || '#3174ad',
-        borderColor: event.borderColor || '#3174ad',
+        backgroundColor: baseColor,
         color: 'white',
         borderRadius: '4px',
-        border: 'none',
+        borderBottom: `1px solid ${darkBorderColor}`,
         fontSize: '0.85rem',
         padding: '2px 4px',
         cursor: 'pointer',
@@ -146,28 +181,194 @@ export function ReactBigCalendarWrapper({
   const EventComponent = ({ event }: EventProps<CalendarEvent>) => {
     const extendedProps = event.extendedProps || {};
     
+    // Debug: Log event data
+    console.log('EventComponent - Full event:', event);
+    console.log('EventComponent - Extended props:', extendedProps);
+    console.log('EventComponent - Tooltip data:', extendedProps.tooltip);
+    
+    // Calculate event duration in minutes
+    const durationMinutes = moment(event.end).diff(moment(event.start), 'minutes');
+    const isShortEvent = durationMinutes <= 20; // 15-20 minute events
+    
+    // Format time as HH:mm - HH:mm
+    const formatTime = (start: Date, end: Date) => {
+      const startTime = moment(start).format('HH:mm');
+      const endTime = moment(end).format('HH:mm');
+      return `${startTime} - ${endTime}`;
+    };
+    
+    // Get first name from full name
+    const getFirstName = (fullName: string) => {
+      return fullName.split(' ')[0];
+    };
+    
+    // For short events (15-20 minutes), use single line layout
+    if (isShortEvent) {
+      return (
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center gap-1 cursor-pointer">
+              {/* Start time */}
+              <span className="text-xs font-semibold text-white flex-shrink-0">
+                {moment(event.start).format('HH:mm')}
+              </span>
+              
+              {/* Student first name */}
+              <span className="text-xs font-medium text-white truncate flex-1">
+                {getFirstName(event.title)}
+              </span>
+              
+              {/* Icons */}
+              <div className="status-icons flex gap-1 flex-shrink-0">
+                {extendedProps.isOwing && (
+                  <div title="Student owes money">
+                    <DollarSign className="h-3 w-3 text-white" />
+                  </div>
+                )}
+                {extendedProps.isOnline && (
+                  <div title="Online lesson">
+                    <Monitor className="h-3 w-3 text-white" />
+                  </div>
+                )}
+                {extendedProps.isOwingRentalAgreement && (
+                  <div title="Equipment rental outstanding">
+                    <AlertTriangle className="h-3 w-3 text-white" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </HoverCardTrigger>
+          <HoverCardContent className="w-auto">
+            <div className="space-y-1">
+              {(() => {
+                console.log('HoverCard - Tooltip content:', extendedProps.tooltip);
+                console.log('HoverCard - Extended props:', extendedProps);
+                
+                // If tooltip exists and is not empty, use it
+                if (extendedProps.tooltip && extendedProps.tooltip.trim()) {
+                  return extendedProps.tooltip.split('\n').map((line, index) => {
+                    console.log('HoverCard - Line:', line, 'Index:', index);
+                    return (
+                      <div key={index} className="text-sm">
+                        {line}
+                      </div>
+                    );
+                  });
+                } else {
+                  // Fallback: show basic information from extendedProps
+                  const fallbackInfo = [];
+                  if (extendedProps.teacher) fallbackInfo.push(`Teacher: ${extendedProps.teacher}`);
+                  if (extendedProps.classroom) fallbackInfo.push(`Classroom: ${extendedProps.classroom}`);
+                  if (extendedProps.programId) fallbackInfo.push(`Program: ${extendedProps.programId}`);
+                  
+                  if (fallbackInfo.length === 0) {
+                    fallbackInfo.push('No additional information available');
+                  }
+                  
+                  return fallbackInfo.map((info, index) => (
+                    <div key={index} className="text-sm">
+                      {info}
+                    </div>
+                  ));
+                }
+              })()}
+            </div>
+          </HoverCardContent>
+        </HoverCard>
+      );
+    }
+    
+    // For longer events (30+ minutes), use multi-line layout
     return (
-      <div className="relative h-full w-full overflow-hidden p-1">
-        <div className="text-xs font-medium truncate mb-1">
-          {event.title}
-        </div>
-        <div className="status-icons flex gap-1 text-xs">
-          {extendedProps.isOwing && (
-            <span title="Student owes money" className="text-yellow-300">💰</span>
-          )}
-          {extendedProps.isOnline && (
-            <span title="Online lesson" className="text-blue-300">💻</span>
-          )}
-          {extendedProps.isOwingRentalAgreement && (
-            <span title="Equipment rental outstanding" className="text-red-300">📢</span>
-          )}
-        </div>
-      </div>
+      <HoverCard>
+        <HoverCardTrigger asChild>
+          <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col justify-between cursor-pointer">
+            {/* Time row - compact for short events */}
+            <div className="text-xs font-semibold text-white flex items-center gap-1 leading-tight flex-shrink-0">
+              <Clock className="h-3 w-3 text-white flex-shrink-0" />
+              <span className="whitespace-nowrap">{formatTime(event.start, event.end)}</span>
+            </div>
+            
+            {/* Title row - flexible height with better text handling */}
+            <div className="text-xs font-medium text-white leading-tight flex-1 flex items-center min-h-0 overflow-hidden">
+              <span className="truncate w-full">
+                {event.title}
+              </span>
+            </div>
+            
+            {/* Icons row - compact and right-aligned */}
+            <div className="status-icons flex gap-1 justify-end flex-shrink-0">
+              {extendedProps.isOwing && (
+                <div title="Student owes money" className="flex-shrink-0">
+                  <DollarSign className="h-3 w-3 text-white" />
+                </div>
+              )}
+              {extendedProps.isOnline && (
+                <div title="Online lesson" className="flex-shrink-0">
+                  <Monitor className="h-3 w-3 text-white" />
+                </div>
+              )}
+              {extendedProps.isOwingRentalAgreement && (
+                <div title="Equipment rental outstanding" className="flex-shrink-0">
+                  <AlertTriangle className="h-3 w-3 text-white" />
+                </div>
+              )}
+            </div>
+          </div>
+        </HoverCardTrigger>
+        <HoverCardContent className="w-auto">
+          <div className="space-y-1">
+            {(() => {
+              console.log('HoverCard (long) - Tooltip content:', extendedProps.tooltip);
+              console.log('HoverCard (long) - Extended props:', extendedProps);
+              
+              // If tooltip exists and is not empty, use it
+              if (extendedProps.tooltip && extendedProps.tooltip.trim()) {
+                return extendedProps.tooltip.split('\n').map((line, index) => {
+                  console.log('HoverCard (long) - Line:', line, 'Index:', index);
+                  return (
+                    <div key={index} className="text-sm">
+                      {line}
+                    </div>
+                  );
+                });
+              } else {
+                // Fallback: show basic information from extendedProps
+                const fallbackInfo = [];
+                if (extendedProps.teacher) fallbackInfo.push(`Teacher: ${extendedProps.teacher}`);
+                if (extendedProps.classroom) fallbackInfo.push(`Classroom: ${extendedProps.classroom}`);
+                if (extendedProps.programId) fallbackInfo.push(`Program: ${extendedProps.programId}`);
+                
+                if (fallbackInfo.length === 0) {
+                  fallbackInfo.push('No additional information available');
+                }
+                
+                return fallbackInfo.map((info, index) => (
+                  <div key={index} className="text-sm">
+                    {info}
+                  </div>
+                ));
+              }
+            })()}
+          </div>
+        </HoverCardContent>
+      </HoverCard>
     );
   };
 
   // Create display resources - if no resources, create empty one
   const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : resources;
+
+  // Convert time strings to Date objects for the current date
+  const parseTimeToDate = (timeString: string) => {
+    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+    const timeDate = new Date(date);
+    timeDate.setHours(hours, minutes, seconds || 0, 0);
+    return timeDate;
+  };
+
+  const minDate = parseTimeToDate(minTime);
+  const maxDate = parseTimeToDate(maxTime);
 
   return (
     <div className="w-full max-w-none xl:max-w-[90rem] 2xl:max-w-[120rem] mx-auto">
@@ -207,8 +408,8 @@ export function ReactBigCalendarWrapper({
             }}
             step={15} // 15-minute intervals
             timeslots={2} // 2 slots per 30 minutes
-            min={new Date(2024, 0, 1, 8, 0)} // 8:00 AM
-            max={new Date(2024, 0, 1, 20, 0)} // 8:00 PM
+            min={minDate}
+            max={maxDate}
             eventPropGetter={eventPropGetter}
             style={{ height: '100%' }}
           />

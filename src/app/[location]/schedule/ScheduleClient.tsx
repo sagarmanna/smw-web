@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability } from "./schedule.api";
 
 interface ScheduleClientProps {
   location: string;
@@ -28,24 +29,17 @@ interface CalendarEvent {
     lessonId?: string;
     teacher?: string;
     classroom?: string;
+    program?: string;
     isOwing?: boolean;
     isOnline?: boolean;
     isOwingRentalAgreement?: boolean;
     tooltip?: string;
     programId?: string;
+    url?: string;
   };
 }
 
 // Dummy data for development
-const dummyTeachers = [
-  { id: 1, title: "John Smith", description: "Senior Instructor" },
-  { id: 2, title: "Sarah Johnson", description: "Lead Teacher" },
-  { id: 3, title: "Mike Wilson", description: "Assistant Teacher" },
-  { id: 4, title: "Emily Davis", description: "Specialist Teacher" },
-  { id: 5, title: "Emily Davis1", description: "Specialist Teacher" },
-  { id: 6, title: "Emily Davis2", description: "Specialist Teacher" },
-  { id: 7, title: "Emily Davis3", description: "Specialist Teacher" },
-];
 
 const dummyClassrooms = [
   { id: 1, title: "Room A", description: "Main classroom" },
@@ -317,12 +311,6 @@ const sep20Events = [
 // Combine all events
 const dummyEvents = [...todayEvents, ...sep20Events];
 
-const dummyPrograms = [
-  { id: "1", name: "Basic Training" },
-  { id: "2", name: "Advanced Training" },
-  { id: "3", name: "Specialized Training" },
-  { id: "4", name: "Group Classes" },
-];
 
 export function ScheduleClient({ location }: ScheduleClientProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
@@ -330,13 +318,225 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [showAll, setShowAll] = useState<boolean>(false);
+  const [datePickerOpen, setDatePickerOpen] = useState<boolean>(false);
+  
+  // Programs state
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programsLoading, setProgramsLoading] = useState<boolean>(true);
+  const [programsError, setProgramsError] = useState<string | null>(null);
+
+  // Teachers state
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
+  const [teachersError, setTeachersError] = useState<string | null>(null);
+
+  // Schedule details state
+  const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails | null>(null);
+  const [scheduleDetailsLoading, setScheduleDetailsLoading] = useState<boolean>(false);
+  const [scheduleDetailsError, setScheduleDetailsError] = useState<string | null>(null);
+
+  // Teacher view state
+  const [teacherViewResources, setTeacherViewResources] = useState<TeacherViewResource[]>([]);
+  const [teacherViewLoading, setTeacherViewLoading] = useState<boolean>(false);
+  const [teacherViewError, setTeacherViewError] = useState<string | null>(null);
+
+  // Teacher view events state
+  const [teacherViewEvents, setTeacherViewEvents] = useState<TeacherViewEvent[]>([]);
+  const [teacherViewAvailability, setTeacherViewAvailability] = useState<TeacherViewAvailability[]>([]);
+  const [teacherViewEventsLoading, setTeacherViewEventsLoading] = useState<boolean>(false);
+  const [teacherViewEventsError, setTeacherViewEventsError] = useState<string | null>(null);
 
   // Ensure selectedDate is always valid
-  const safeSelectedDate = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
+  const safeSelectedDate = useMemo(() => {
+    return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
+  }, [selectedDate]);
+
+  // Fetch programs and teachers on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      // Fetch programs
+      try {
+        setProgramsLoading(true);
+        setProgramsError(null);
+        const programsResponse = await getProgramsList();
+        
+        if (programsResponse?.success) {
+          setPrograms(programsResponse.data);
+        } else {
+          setProgramsError(programsResponse?.message || 'Failed to fetch programs');
+        }
+      } catch (error) {
+        setProgramsError(error instanceof Error ? error.message : 'Failed to fetch programs');
+      } finally {
+        setProgramsLoading(false);
+      }
+
+      // Fetch teachers
+      try {
+        setTeachersLoading(true);
+        setTeachersError(null);
+        const teachersResponse = await getTeachersList(location);
+        
+        if (teachersResponse?.success) {
+          setTeachers(teachersResponse.data);
+        } else {
+          setTeachersError(teachersResponse?.message || 'Failed to fetch teachers');
+        }
+      } catch (error) {
+        setTeachersError(error instanceof Error ? error.message : 'Failed to fetch teachers');
+      } finally {
+        setTeachersLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [location]);
+
+  // Fetch schedule details when date changes
+  useEffect(() => {
+    const fetchScheduleDetails = async () => {
+      try {
+        setScheduleDetailsLoading(true);
+        setScheduleDetailsError(null);
+        const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
+        const response = await getScheduleDetails(location, dateStr);
+        
+        if (response?.success) {
+          setScheduleDetails(response.data);
+        } else {
+          setScheduleDetailsError(response?.message || 'Failed to fetch schedule details');
+        }
+      } catch (error) {
+        setScheduleDetailsError(error instanceof Error ? error.message : 'Failed to fetch schedule details');
+      } finally {
+        setScheduleDetailsLoading(false);
+      }
+    };
+
+    fetchScheduleDetails();
+  }, [location, safeSelectedDate]);
+
+  // Fetch teacher view data when filters or date change
+  useEffect(() => {
+    const fetchTeacherView = async () => {
+      try {
+        setTeacherViewLoading(true);
+        setTeacherViewError(null);
+        const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
+        const response = await getTeacherView(
+          location, 
+          dateStr, 
+          showAll, 
+          selectedProgram || undefined, 
+          selectedTeacher || undefined
+        );
+        
+        if (response?.success) {
+          setTeacherViewResources(response.data.resources);
+        } else {
+          setTeacherViewError(response?.message || 'Failed to fetch teacher view');
+        }
+      } catch (error) {
+        setTeacherViewError(error instanceof Error ? error.message : 'Failed to fetch teacher view');
+      } finally {
+        setTeacherViewLoading(false);
+      }
+    };
+
+    fetchTeacherView();
+  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
+
+  // Fetch teacher view events when filters or date change
+  useEffect(() => {
+    const fetchTeacherViewEvents = async () => {
+      try {
+        setTeacherViewEventsLoading(true);
+        setTeacherViewEventsError(null);
+        const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
+        
+        console.log('fetchTeacherViewEvents - Calling API with params:', {
+          location,
+          dateStr,
+          showAll,
+          selectedProgram,
+          selectedTeacher
+        });
+        
+        const response = await getTeacherViewEvents(
+          location, 
+          dateStr, 
+          showAll, 
+          selectedProgram || undefined, 
+          selectedTeacher || undefined
+        );
+        
+        console.log('fetchTeacherViewEvents - API response:', response);
+        console.log('fetchTeacherViewEvents - Response data:', response?.data);
+        console.log('fetchTeacherViewEvents - Lessons:', response?.data?.lessons);
+        
+        if (response?.success) {
+          console.log('fetchTeacherViewEvents - Setting events:', response.data.lessons);
+          setTeacherViewEvents(response.data.lessons);
+          setTeacherViewAvailability(response.data.availability);
+        } else {
+          setTeacherViewEventsError(response?.message || 'Failed to fetch teacher view events');
+        }
+      } catch (error) {
+        setTeacherViewEventsError(error instanceof Error ? error.message : 'Failed to fetch teacher view events');
+      } finally {
+        setTeacherViewEventsLoading(false);
+      }
+    };
+
+    fetchTeacherViewEvents();
+  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
+
+  // Convert API events to calendar format
+  const convertTeacherViewEventsToCalendar = (events: TeacherViewEvent[]): CalendarEvent[] => {
+    console.log('convertTeacherViewEventsToCalendar - Input events:', events);
+    return events.map(event => {
+      const tooltip = event.tooltip || [];
+      console.log('convertTeacherViewEventsToCalendar - Processing event:', event);
+      console.log('convertTeacherViewEventsToCalendar - Tooltip array:', tooltip);
+      console.log('convertTeacherViewEventsToCalendar - Event tooltip property:', event.tooltip);
+      
+      const tooltipString = tooltip.map(t => `${t.name}: ${t.value}`).join('\n');
+      console.log('convertTeacherViewEventsToCalendar - Tooltip string:', tooltipString);
+      
+      const calendarEvent = {
+        id: event.lessonId.toString(),
+        title: event.title,
+        start: new Date(event.start),
+        end: new Date(event.end),
+        resourceId: event.resourceId,
+        backgroundColor: event.backgroundColor,
+        borderColor: event.backgroundColor,
+        className: event.className,
+        extendedProps: {
+          lessonId: event.lessonId.toString(),
+          teacher: tooltip.find(t => t.name === "Teacher")?.value || "",
+          classroom: tooltip.find(t => t.name === "Classroom")?.value || "",
+          program: tooltip.find(t => t.name === "Program")?.value || "",
+          isOwing: event.isOwing,
+          isOnline: event.isOnline,
+          isOwingRentalAgreement: event.isOwingRentalAgreement,
+          tooltip: tooltipString,
+          url: event.url
+        }
+      };
+      
+      console.log('convertTeacherViewEventsToCalendar - Final calendar event:', calendarEvent);
+      console.log('convertTeacherViewEventsToCalendar - Final tooltip in extendedProps:', calendarEvent.extendedProps.tooltip);
+      return calendarEvent;
+    });
+  };
 
   const handleEventClick = (event: CalendarEvent) => {
     console.log("Event clicked:", event);
-    // TODO: Navigate to lesson details
+    // Navigate to lesson details if URL is available
+    if (event.extendedProps?.url) {
+      window.open(event.extendedProps.url, '_blank');
+    }
   };
 
   const handleEventDrop = (event: CalendarEvent) => {
@@ -354,163 +554,230 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     window.open(`/admin/v2/${location}/daily-schedule?date=${dateStr}`, '_blank');
   };
 
+  // Get time range based on Show All checkbox
+  const getTimeRange = () => {
+    if (!scheduleDetails) {
+      return { minTime: "09:00:00", maxTime: "17:00:00" }; // Default fallback
+    }
+
+    if (showAll) {
+      // Use OperationTimeAvailability when Show All is checked
+      return {
+        minTime: scheduleDetails.OperationTimeAvailability.from,
+        maxTime: scheduleDetails.OperationTimeAvailability.to
+      };
+    } else {
+      // Use Availabilities when Show All is unchecked
+      return {
+        minTime: scheduleDetails.Availabilities.from,
+        maxTime: scheduleDetails.Availabilities.to
+      };
+    }
+  };
+
+  const timeRange = getTimeRange();
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Schedule for {format(safeSelectedDate, "EEEE, MMMM do, yyyy")}
-          </h1>
-          <p className="text-muted-foreground">
-            Manage schedules for {location}
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Show All Toggle */}
-          <div className="flex items-center space-x-2">
-            <input
-              id="show-all"
-              type="checkbox"
-              checked={showAll}
-              onChange={(e) => setShowAll(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            <label htmlFor="show-all" className="text-sm font-medium">
-              Show All
-            </label>
+    <div className="h-screen flex flex-col">
+      {/* Compact Header - Max 100px */}
+      <div className="flex-shrink-0 max-h-[100px] space-y-2">
+        {/* Header Row */}
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold tracking-tight truncate">
+              Schedule - {format(safeSelectedDate, "MMM do, yyyy")}
+              {scheduleDetailsLoading && (
+                <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
+              )}
+            </h1>
+            <p className="text-xs text-muted-foreground truncate">
+              {location}
+              {scheduleDetails && (
+                <span className="ml-1">
+                  • {timeRange.minTime}-{timeRange.maxTime}
+                  {showAll ? " (All)" : " (Available)"}
+                </span>
+              )}
+              {teacherViewResources.length > 0 && (
+                <span className="ml-1">
+                  • {teacherViewResources.length} teacher{teacherViewResources.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              {teacherViewEvents.length > 0 && (
+                <span className="ml-1">
+                  • {teacherViewEvents.length} lesson{teacherViewEvents.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </p>
           </div>
           
-          {/* TV Icon */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={openDailySchedule}
-            title="Open Daily Schedule"
-          >
-            <Tv className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 p-4 bg-muted/50 rounded-lg">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4" />
-          <span className="text-sm font-medium">Filter by:</span>
-        </div>
-        
-        {/* Date Picker */}
-        <Popover>
-          <PopoverTrigger asChild>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Show All Toggle */}
+            <div className="flex items-center space-x-1">
+              <input
+                id="show-all"
+                type="checkbox"
+                checked={showAll}
+                onChange={(e) => setShowAll(e.target.checked)}
+                className="rounded border-gray-300 h-3 w-3"
+              />
+              <label htmlFor="show-all" className="text-xs font-medium">
+                Show All
+              </label>
+            </div>
+            
+            {/* TV Icon */}
             <Button
               variant="outline"
-              className={cn(
-                "w-[240px] justify-start text-left font-normal",
-                !safeSelectedDate && "text-muted-foreground"
-              )}
+              size="sm"
+              onClick={openDailySchedule}
+              title="Open Daily Schedule"
+              className="h-7 w-7 p-0"
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {safeSelectedDate ? format(safeSelectedDate, "PPP") : <span>Pick a date</span>}
+              <Tv className="h-3 w-3" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={safeSelectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+          </div>
+        </div>
 
-        {/* Program Filter */}
-        <Select value={selectedProgram || "all"} onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Program" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Programs</SelectItem>
-            {dummyPrograms.map((program) => (
-              <SelectItem key={program.id} value={program.id.toString()}>
-                {program.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Tabs and Filters Row */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Tabs on the left */}
+          <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
+            <TabsList className="grid grid-cols-2 h-8 w-auto">
+              <TabsTrigger value="teacher" className="text-xs px-4">Teacher View</TabsTrigger>
+              <TabsTrigger value="classroom" className="text-xs px-4">Classroom View</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-        {/* Teacher Filter */}
-        <Select value={selectedTeacher || "all"} onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Teacher" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Teachers</SelectItem>
-            {dummyTeachers.map((teacher) => (
-              <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                {teacher.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Filters on the right */}
+          <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-1">
+              <Filter className="h-3 w-3" />
+              <span className="font-medium">Filters:</span>
+            </div>
+            
+            {/* Error display - compact */}
+            {(programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError) && (
+              <div className="text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded truncate max-w-[200px]">
+                {programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError}
+              </div>
+            )}
+            
+            {/* Date Picker - compact */}
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-7 px-2 text-xs justify-start font-normal min-w-[120px]",
+                    !safeSelectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-1 h-3 w-3" />
+                  {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Pick date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={safeSelectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      setSelectedDate(date);
+                      setDatePickerOpen(false); // Close the popover after date selection
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            {/* Program Filter - compact */}
+            <div className="min-w-[100px]">
+              <Combobox
+                options={[
+                  { value: "all", label: "All Programs" },
+                  ...programs.map((program) => ({
+                    value: program.id.toString(),
+                    label: program.name,
+                  }))
+                ]}
+                value={selectedProgram || "all"}
+                onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
+                placeholder={programsLoading ? "Loading..." : "Program"}
+                searchPlaceholder="Search programs..."
+                emptyText="No programs found."
+                disabled={programsLoading}
+              />
+            </div>
+
+            {/* Teacher Filter - compact */}
+            <div className="min-w-[100px]">
+              <Combobox
+                options={[
+                  { value: "all", label: "All Teachers" },
+                  ...teachers.map((teacher) => ({
+                    value: teacher.id.toString(),
+                    label: teacher.name,
+                  }))
+                ]}
+                value={selectedTeacher || "all"}
+                onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
+                placeholder={teachersLoading ? "Loading..." : "Teacher"}
+                searchPlaceholder="Search teachers..."
+                emptyText="No teachers found."
+                disabled={teachersLoading}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Calendar Tabs */}
-      <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="teacher">Teacher View</TabsTrigger>
-          <TabsTrigger value="classroom">Classroom View</TabsTrigger>
-        </TabsList>
+      {/* Calendar Content - Takes remaining space */}
+      <div className="flex-1 min-h-0">
+        <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
+          <TabsContent value="teacher" className="h-full">
+            <div className="h-full">
+              <ReactBigCalendarWrapper
+                events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
+                resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
+                date={safeSelectedDate}
+                onNavigate={setSelectedDate}
+                onEventClick={handleEventClick}
+                onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
+                editable={true}
+                showAll={showAll}
+                selectedProgram={selectedProgram}
+                selectedTeacher={selectedTeacher}
+                minTime={timeRange.minTime}
+                maxTime={timeRange.maxTime}
+              />
+            </div>
+          </TabsContent>
         
-         <TabsContent value="teacher" className="mt-4">
-           <div className="rounded-lg border bg-card">
-             <div className="p-4 border-b">
-               <h3 className="text-lg font-semibold">Teacher View - {format(safeSelectedDate, "EEEE, MMMM do, yyyy")}</h3>
-               <p className="text-sm text-muted-foreground">Teachers as columns, time slots as rows</p>
-             </div>
-             <div className="teacher-view">
-               <ReactBigCalendarWrapper
-                 events={dummyEvents}
-                 resources={dummyTeachers}
-                 date={safeSelectedDate}
-                 onNavigate={setSelectedDate}
-                 onEventClick={handleEventClick}
-                 onEventDrop={handleEventDrop}
-                 onEventResize={handleEventResize}
-                 editable={true}
-                 showAll={showAll}
-                 selectedProgram={selectedProgram}
-                 selectedTeacher={selectedTeacher}
-               />
-             </div>
-           </div>
-         </TabsContent>
-        
-         <TabsContent value="classroom" className="mt-4">
-           <div className="rounded-lg border bg-card">
-             <div className="p-4 border-b">
-               <h3 className="text-lg font-semibold">Classroom View - {format(safeSelectedDate, "EEEE, MMMM do, yyyy")}</h3>
-               <p className="text-sm text-muted-foreground">Classrooms as columns, time slots as rows</p>
-             </div>
-             <div className="classroom-view">
-               <ReactBigCalendarWrapper
-                 events={dummyEvents}
-                 resources={dummyClassrooms}
-                 date={safeSelectedDate}
-                 onNavigate={setSelectedDate}
-                 onEventClick={handleEventClick}
-                 onEventDrop={handleEventDrop}
-                 onEventResize={handleEventResize}
-                 editable={true}
-                 showAll={showAll}
-                 selectedProgram={selectedProgram}
-                 selectedTeacher={selectedTeacher}
-               />
-             </div>
-           </div>
-         </TabsContent>
-      </Tabs>
+          <TabsContent value="classroom" className="h-full">
+            <div className="h-full">
+              <ReactBigCalendarWrapper
+                events={dummyEvents}
+                resources={dummyClassrooms}
+                date={safeSelectedDate}
+                onNavigate={setSelectedDate}
+                onEventClick={handleEventClick}
+                onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
+                editable={true}
+                showAll={showAll}
+                selectedProgram={selectedProgram}
+                selectedTeacher={selectedTeacher}
+                minTime={timeRange.minTime}
+                maxTime={timeRange.maxTime}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
