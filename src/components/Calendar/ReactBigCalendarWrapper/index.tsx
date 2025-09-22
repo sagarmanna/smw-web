@@ -1,8 +1,9 @@
 "use client";
 
-import { Calendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
+import { useState, useEffect } from 'react';
+import { Calendar as BigCalendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
 import moment from 'moment';
-import { Clock, DollarSign, Monitor, AlertTriangle } from 'lucide-react';
+import { Clock, DollarSign, Monitor, Megaphone, User, MapPin, BookOpen, Calendar, Users } from 'lucide-react';
 import {
   HoverCard,
   HoverCardContent,
@@ -18,7 +19,7 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 const localizer = momentLocalizer(moment);
 
 // Create BigCalendar with drag and drop support
-const BigCalendar = withDragAndDrop<CalendarEvent, CalendarResource>(Calendar);
+const BigCalendarWithDragDrop = withDragAndDrop<CalendarEvent, CalendarResource>(BigCalendar);
 
 interface CalendarEvent {
   id: string;
@@ -61,6 +62,7 @@ interface ReactBigCalendarWrapperProps {
   selectedTeacher?: string;
   minTime?: string; // Format: "HH:mm:ss"
   maxTime?: string; // Format: "HH:mm:ss"
+  isMobile?: boolean;
 }
 
 // Custom resource header component
@@ -100,18 +102,39 @@ export function ReactBigCalendarWrapper({
   selectedProgram,
   selectedTeacher,
   minTime = "08:00:00",
-  maxTime = "20:00:00"
+  maxTime = "20:00:00",
+  isMobile = false
 }: ReactBigCalendarWrapperProps) {
 
-  // Filter events based on filters
+  // Convert time strings to Date objects for the current date
+  const parseTimeToDate = (timeString: string) => {
+    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+    const timeDate = new Date(date);
+    timeDate.setHours(hours, minutes, seconds || 0, 0);
+    return timeDate;
+  };
+
+  const minDate = parseTimeToDate(minTime);
+  const maxDate = parseTimeToDate(maxTime);
+
+  // Filter events based on filters and timeline visibility
   const filteredEvents = events.filter(event => {
+    // Filter by program and teacher
     if (!showAll && selectedProgram && event.extendedProps?.programId !== selectedProgram) {
       return false;
     }
     if (selectedTeacher && event.resourceId !== parseInt(selectedTeacher)) {
       return false;
     }
-    return true;
+    
+    // Filter by timeline visibility - only show events that start within visible time range
+    const eventStart = new Date(event.start);
+    const eventEnd = new Date(event.end);
+    
+    // Only show events that start within the visible time range
+    // or events that overlap with the visible time range
+    return (eventStart >= minDate && eventStart < maxDate) || 
+           (eventStart < minDate && eventEnd > minDate);
   });
 
   const handleEventClick = (event: CalendarEvent) => {
@@ -181,19 +204,15 @@ export function ReactBigCalendarWrapper({
   const EventComponent = ({ event }: EventProps<CalendarEvent>) => {
     const extendedProps = event.extendedProps || {};
     
-    // Debug: Log event data
-    console.log('EventComponent - Full event:', event);
-    console.log('EventComponent - Extended props:', extendedProps);
-    console.log('EventComponent - Tooltip data:', extendedProps.tooltip);
     
     // Calculate event duration in minutes
     const durationMinutes = moment(event.end).diff(moment(event.start), 'minutes');
     const isShortEvent = durationMinutes <= 20; // 15-20 minute events
     
-    // Format time as HH:mm - HH:mm
+    // Format time as hh:mm - hh:mm (12-hour format without AM/PM)
     const formatTime = (start: Date, end: Date) => {
-      const startTime = moment(start).format('HH:mm');
-      const endTime = moment(end).format('HH:mm');
+      const startTime = moment(start).format('hh:mm');
+      const endTime = moment(end).format('hh:mm');
       return `${startTime} - ${endTime}`;
     };
     
@@ -210,7 +229,7 @@ export function ReactBigCalendarWrapper({
             <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center gap-1 cursor-pointer">
               {/* Start time */}
               <span className="text-xs font-semibold text-white flex-shrink-0">
-                {moment(event.start).format('HH:mm')}
+                {moment(event.start).format('hh:mm')}
               </span>
               
               {/* Student first name */}
@@ -232,7 +251,7 @@ export function ReactBigCalendarWrapper({
                 )}
                 {extendedProps.isOwingRentalAgreement && (
                   <div title="Equipment rental outstanding">
-                    <AlertTriangle className="h-3 w-3 text-white" />
+                    <Megaphone className="h-3 w-3 text-white" />
                   </div>
                 )}
               </div>
@@ -241,19 +260,9 @@ export function ReactBigCalendarWrapper({
           <HoverCardContent className="w-auto">
             <div className="space-y-1">
               {(() => {
-                console.log('HoverCard - Tooltip content:', extendedProps.tooltip);
-                console.log('HoverCard - Extended props:', extendedProps);
-                
                 // If tooltip exists and is not empty, use it
                 if (extendedProps.tooltip && extendedProps.tooltip.trim()) {
-                  return extendedProps.tooltip.split('\n').map((line, index) => {
-                    console.log('HoverCard - Line:', line, 'Index:', index);
-                    return (
-                      <div key={index} className="text-sm">
-                        {line}
-                      </div>
-                    );
-                  });
+                  return renderTooltip(extendedProps.tooltip);
                 } else {
                   // Fallback: show basic information from extendedProps
                   const fallbackInfo = [];
@@ -265,11 +274,7 @@ export function ReactBigCalendarWrapper({
                     fallbackInfo.push('No additional information available');
                   }
                   
-                  return fallbackInfo.map((info, index) => (
-                    <div key={index} className="text-sm">
-                      {info}
-                    </div>
-                  ));
+                  return renderTooltip(fallbackInfo.join('\n'));
                 }
               })()}
             </div>
@@ -310,7 +315,7 @@ export function ReactBigCalendarWrapper({
               )}
               {extendedProps.isOwingRentalAgreement && (
                 <div title="Equipment rental outstanding" className="flex-shrink-0">
-                  <AlertTriangle className="h-3 w-3 text-white" />
+                  <Megaphone className="h-3 w-3 text-white" />
                 </div>
               )}
             </div>
@@ -319,19 +324,9 @@ export function ReactBigCalendarWrapper({
         <HoverCardContent className="w-auto">
           <div className="space-y-1">
             {(() => {
-              console.log('HoverCard (long) - Tooltip content:', extendedProps.tooltip);
-              console.log('HoverCard (long) - Extended props:', extendedProps);
-              
               // If tooltip exists and is not empty, use it
               if (extendedProps.tooltip && extendedProps.tooltip.trim()) {
-                return extendedProps.tooltip.split('\n').map((line, index) => {
-                  console.log('HoverCard (long) - Line:', line, 'Index:', index);
-                  return (
-                    <div key={index} className="text-sm">
-                      {line}
-                    </div>
-                  );
-                });
+                return renderTooltip(extendedProps.tooltip);
               } else {
                 // Fallback: show basic information from extendedProps
                 const fallbackInfo = [];
@@ -343,11 +338,7 @@ export function ReactBigCalendarWrapper({
                   fallbackInfo.push('No additional information available');
                 }
                 
-                return fallbackInfo.map((info, index) => (
-                  <div key={index} className="text-sm">
-                    {info}
-                  </div>
-                ));
+                return renderTooltip(fallbackInfo.join('\n'));
               }
             })()}
           </div>
@@ -356,33 +347,88 @@ export function ReactBigCalendarWrapper({
     );
   };
 
-  // Create display resources - if no resources, create empty one
-  const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : resources;
+  // Mobile detection
+  const [isMobileView, setIsMobileView] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileView(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
-  // Convert time strings to Date objects for the current date
-  const parseTimeToDate = (timeString: string) => {
-    const [hours, minutes, seconds] = timeString.split(':').map(Number);
-    const timeDate = new Date(date);
-    timeDate.setHours(hours, minutes, seconds || 0, 0);
-    return timeDate;
+  // Function to get icon for tooltip field
+  const getTooltipIcon = (fieldName: string) => {
+    const name = fieldName.toLowerCase();
+    if (name.includes('teacher') || name.includes('instructor')) return <User className="h-4 w-4" />;
+    if (name.includes('classroom') || name.includes('room')) return <MapPin className="h-4 w-4" />;
+    if (name.includes('program') || name.includes('course')) return <BookOpen className="h-4 w-4" />;
+    if (name.includes('date') || name.includes('time')) return <Calendar className="h-4 w-4" />;
+    if (name.includes('student') || name.includes('group')) return <Users className="h-4 w-4" />;
+    if (name.includes('owing') || name.includes('payment')) return <DollarSign className="h-4 w-4" />;
+    if (name.includes('online') || name.includes('virtual')) return <Monitor className="h-4 w-4" />;
+    if (name.includes('rental') || name.includes('agreement')) return <Megaphone className="h-4 w-4" />;
+    return <Clock className="h-4 w-4" />; // Default icon
   };
 
-  const minDate = parseTimeToDate(minTime);
-  const maxDate = parseTimeToDate(maxTime);
+  // Function to render tooltip with icons and bold text
+  const renderTooltip = (tooltipText: string) => {
+    if (!tooltipText || !tooltipText.trim()) return null;
+    
+    return tooltipText.split('\n').map((line, index) => {
+      if (!line.trim()) return null;
+      
+      // Split by colon to get field name and value
+      const colonIndex = line.indexOf(':');
+      if (colonIndex === -1) {
+        // If no colon found, just return the line as is
+        return (
+          <div key={index} className="text-sm">
+            {line}
+          </div>
+        );
+      }
+      
+      const fieldName = line.substring(0, colonIndex).trim();
+      const value = line.substring(colonIndex + 1).trim();
+      const icon = getTooltipIcon(fieldName);
+      
+      return (
+        <div key={index} className="flex items-center gap-2 text-sm">
+          <span className="text-gray-600">{icon}</span>
+          <span className="font-bold text-gray-800">{fieldName}:</span>
+          <span className="text-gray-700">{value}</span>
+        </div>
+      );
+    });
+  };
+
+  // Create display resources - if no resources, create empty one
+  // On mobile, show only one teacher at a time for better UX
+  const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : 
+    isMobileView ? resources.slice(0, 1) : resources;
+
 
   return (
     <div className="w-full max-w-none xl:max-w-[90rem] 2xl:max-w-[120rem] mx-auto">
       <div className="bg-white dark:bg-dark-2 rounded-lg shadow-lg p-2">
+        {/* Mobile: Add horizontal scroll indicator */}
+        {/* {isMobileView && resources.length > 1 && (
+          <div className="mb-2 p-2 bg-blue-50 rounded text-xs text-blue-700 text-center">
+            Swipe left/right to view other teachers
+          </div>
+        )} */}
+        
         <div 
           className="w-full"
           style={{ 
-            maxHeight: '87vh',
-            overflow: 'auto',
-            WebkitOverflowScrolling: 'touch', // Add this for iOS
             position: 'relative'
           }}
         > 
-          <BigCalendar
+          <BigCalendarWithDragDrop
             localizer={localizer}
             events={filteredEvents}
             resources={displayResources}
@@ -412,6 +458,7 @@ export function ReactBigCalendarWrapper({
             max={maxDate}
             eventPropGetter={eventPropGetter}
             style={{ height: '100%' }}
+            className={isMobileView ? 'mobile-calendar' : ''}
           />
         </div>
       </div>
