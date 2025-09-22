@@ -578,7 +578,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const timeRange = getTimeRange();
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Compact Header - Responsive height */}
       <div className="flex-shrink-0 max-h-[200px] md:max-h-[100px] space-y-2">
         {/* Header Row */}
@@ -819,11 +819,11 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         </div>
       </div>
 
-      {/* Calendar Content - Takes remaining space */}
-      <div className="flex-1 min-h-0">
-      <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
-          <TabsContent value="teacher" className="h-full">
-            <div className="h-full">
+      {/* Calendar Content - Natural height */}
+      <div className="flex-1">
+        <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
+          <TabsContent value="teacher">
+            <div>
                <ReactBigCalendarWrapper
                  events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
                  resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
@@ -843,8 +843,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
            </div>
          </TabsContent>
         
-          <TabsContent value="classroom" className="h-full">
-            <div className="h-full">
+          <TabsContent value="classroom">
+            <div>
                <ReactBigCalendarWrapper
                  events={dummyEvents}
                  resources={dummyClassrooms}

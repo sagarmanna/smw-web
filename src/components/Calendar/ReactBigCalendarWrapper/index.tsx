@@ -399,10 +399,8 @@ export function ReactBigCalendarWrapper({
         )} */}
         
         <div 
-          className={`w-full ${isMobileView ? 'mobile-calendar-container' : 'overflow-auto'}`}
+          className="w-full"
           style={{ 
-            maxHeight: '87vh',
-            WebkitOverflowScrolling: 'touch', // Add this for iOS
             position: 'relative'
           }}
         > 

@@ -434,24 +434,18 @@
   min-width: 320px !important;
 }
 
-/* Mobile horizontal scroll container */
+/* Mobile calendar styles - no scroll container */
 @media (max-width: 768px) {
-  .mobile-calendar-container {
-    overflow-x: auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
+  .mobile-calendar .rbc-calendar {
+    width: 100% !important;
   }
   
-  .mobile-calendar-container .rbc-calendar {
-    min-width: 600px !important; /* Ensure calendar is wider than viewport for horizontal scroll */
+  .mobile-calendar .rbc-time-header {
+    width: 100% !important;
   }
   
-  .mobile-calendar-container .rbc-time-header {
-    min-width: 600px !important;
-  }
-  
-  .mobile-calendar-container .rbc-time-content {
-    min-width: 600px !important;
+  .mobile-calendar .rbc-time-content {
+    width: 100% !important;
   }
 }
 
@@ -517,29 +511,5 @@
     max-width: 50px !important;
   }
   
-  /* Ensure mobile filters are fully visible */
-  .mobile-calendar-container {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
   
-  /* Mobile scrollbar styling */
-  .mobile-calendar-container::-webkit-scrollbar {
-    height: 8px !important;
-    width: 8px !important;
-  }
-  
-  .mobile-calendar-container::-webkit-scrollbar-track {
-    background: #f1f1f1 !important;
-    border-radius: 4px !important;
-  }
-  
-  .mobile-calendar-container::-webkit-scrollbar-thumb {
-    background: #c1c1c1 !important;
-    border-radius: 4px !important;
-  }
-  
-  .mobile-calendar-container::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8 !important;
-  }
 }
