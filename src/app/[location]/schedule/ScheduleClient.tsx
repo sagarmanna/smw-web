@@ -318,7 +318,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [showAll, setShowAll] = useState<boolean>(false);
-  const [datePickerOpen, setDatePickerOpen] = useState<boolean>(false);
+  const [mobileDatePickerOpen, setMobileDatePickerOpen] = useState<boolean>(false);
+  const [desktopDatePickerOpen, setDesktopDatePickerOpen] = useState<boolean>(false);
   
   // Programs state
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -633,9 +634,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
             {(programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError) && (
               <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded mb-2">
                 {programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError}
-              </div>
-            )}
-            
+          </div>
+        )}
+        
             {/* Mobile: Compact single line, Desktop: Keep horizontal */}
             <div className="flex flex-col md:flex-row gap-2 md:gap-3">
               {/* Mobile: Compact filter layout */}
@@ -643,11 +644,11 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                 <div className="flex items-center gap-1 text-xs">
                   <Filter className="h-3 w-3" />
                   <span className="font-medium">Filter by:</span>
-                </div>
+          </div>
                 <div className="flex flex-wrap gap-1">
                   {/* Date Picker - mobile compact */}
                   <div className="flex-1 min-w-[80px]">
-                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                    <Popover open={mobileDatePickerOpen} onOpenChange={setMobileDatePickerOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -668,10 +669,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                             onSelect={(date) => {
                               if (date) {
                                 setSelectedDate(date);
-                                setDatePickerOpen(false);
+                                setMobileDatePickerOpen(false);
                               }
                             }}
-                            initialFocus
                           />
                       </PopoverContent>
                     </Popover>
@@ -694,7 +694,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                       emptyText="No programs found."
                       disabled={programsLoading}
                     />
-                  </div>
+          </div>
 
                   {/* Teacher Filter - mobile compact */}
                   <div className="flex-1 min-w-[80px]">
@@ -715,81 +715,80 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                     />
                   </div>
                 </div>
-              </div>
+          </div>
 
               {/* Desktop: Original horizontal layout */}
               <div className="hidden md:flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <Filter className="h-3 w-3" />
                   <span className="font-medium text-xs">Filters:</span>
-                </div>
-                
+          </div>
+        
                 {/* Date Picker - desktop */}
-                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
+                <Popover open={desktopDatePickerOpen} onOpenChange={setDesktopDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
                       size="sm"
-                      className={cn(
+              className={cn(
                         "h-7 px-2 text-xs justify-start font-normal min-w-[120px]",
-                        !safeSelectedDate && "text-muted-foreground"
-                      )}
-                    >
+                !safeSelectedDate && "text-muted-foreground"
+              )}
+            >
                       <CalendarIcon className="mr-1 h-3 w-3" />
                       {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Pick date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={safeSelectedDate}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={safeSelectedDate}
                         onSelect={(date) => {
                           if (date) {
                             setSelectedDate(date);
-                            setDatePickerOpen(false);
+                            setDesktopDatePickerOpen(false);
                           }
                         }}
-                        initialFocus
                       />
-                  </PopoverContent>
-                </Popover>
+          </PopoverContent>
+        </Popover>
 
                 {/* Program Filter - desktop */}
                 <div className="min-w-[100px]">
-                  <Combobox
-                    options={[
-                      { value: "all", label: "All Programs" },
-                      ...programs.map((program) => ({
-                        value: program.id.toString(),
-                        label: program.name,
-                      }))
-                    ]}
-                    value={selectedProgram || "all"}
-                    onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
-                    placeholder={programsLoading ? "Loading..." : "Program"}
-                    searchPlaceholder="Search programs..."
-                    emptyText="No programs found."
-                    disabled={programsLoading}
-                  />
+        <Combobox
+          options={[
+            { value: "all", label: "All Programs" },
+            ...programs.map((program) => ({
+              value: program.id.toString(),
+              label: program.name,
+            }))
+          ]}
+          value={selectedProgram || "all"}
+          onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
+          placeholder={programsLoading ? "Loading..." : "Program"}
+          searchPlaceholder="Search programs..."
+          emptyText="No programs found."
+          disabled={programsLoading}
+        />
                 </div>
 
                 {/* Teacher Filter - desktop */}
                 <div className="min-w-[100px]">
-                  <Combobox
-                    options={[
-                      { value: "all", label: "All Teachers" },
-                      ...teachers.map((teacher) => ({
-                        value: teacher.id.toString(),
-                        label: teacher.name,
-                      }))
-                    ]}
-                    value={selectedTeacher || "all"}
-                    onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
-                    placeholder={teachersLoading ? "Loading..." : "Teacher"}
-                    searchPlaceholder="Search teachers..."
-                    emptyText="No teachers found."
-                    disabled={teachersLoading}
-                  />
+        <Combobox
+          options={[
+            { value: "all", label: "All Teachers" },
+            ...teachers.map((teacher) => ({
+              value: teacher.id.toString(),
+              label: teacher.name,
+            }))
+          ]}
+          value={selectedTeacher || "all"}
+          onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
+          placeholder={teachersLoading ? "Loading..." : "Teacher"}
+          searchPlaceholder="Search teachers..."
+          emptyText="No teachers found."
+          disabled={teachersLoading}
+        />
                 </div>
               </div>
             </div>
@@ -799,7 +798,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
       {/* Calendar Content - Natural height */}
       <div className="flex-1">
-        <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
+      <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
           <TabsContent value="teacher">
             <div>
                <ReactBigCalendarWrapper

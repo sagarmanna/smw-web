@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar as BigCalendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
 import moment from 'moment';
-import { Clock, DollarSign, Monitor, AlertTriangle, User, MapPin, BookOpen, Calendar, Users } from 'lucide-react';
+import { Clock, DollarSign, Monitor, Megaphone, User, MapPin, BookOpen, Calendar, Users } from 'lucide-react';
 import {
   HoverCard,
   HoverCardContent,
@@ -106,15 +106,35 @@ export function ReactBigCalendarWrapper({
   isMobile = false
 }: ReactBigCalendarWrapperProps) {
 
-  // Filter events based on filters
+  // Convert time strings to Date objects for the current date
+  const parseTimeToDate = (timeString: string) => {
+    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+    const timeDate = new Date(date);
+    timeDate.setHours(hours, minutes, seconds || 0, 0);
+    return timeDate;
+  };
+
+  const minDate = parseTimeToDate(minTime);
+  const maxDate = parseTimeToDate(maxTime);
+
+  // Filter events based on filters and timeline visibility
   const filteredEvents = events.filter(event => {
+    // Filter by program and teacher
     if (!showAll && selectedProgram && event.extendedProps?.programId !== selectedProgram) {
       return false;
     }
     if (selectedTeacher && event.resourceId !== parseInt(selectedTeacher)) {
       return false;
     }
-    return true;
+    
+    // Filter by timeline visibility - only show events that start within visible time range
+    const eventStart = new Date(event.start);
+    const eventEnd = new Date(event.end);
+    
+    // Only show events that start within the visible time range
+    // or events that overlap with the visible time range
+    return (eventStart >= minDate && eventStart < maxDate) || 
+           (eventStart < minDate && eventEnd > minDate);
   });
 
   const handleEventClick = (event: CalendarEvent) => {
@@ -189,10 +209,10 @@ export function ReactBigCalendarWrapper({
     const durationMinutes = moment(event.end).diff(moment(event.start), 'minutes');
     const isShortEvent = durationMinutes <= 20; // 15-20 minute events
     
-    // Format time as HH:mm - HH:mm
+    // Format time as hh:mm - hh:mm (12-hour format without AM/PM)
     const formatTime = (start: Date, end: Date) => {
-      const startTime = moment(start).format('HH:mm');
-      const endTime = moment(end).format('HH:mm');
+      const startTime = moment(start).format('hh:mm');
+      const endTime = moment(end).format('hh:mm');
       return `${startTime} - ${endTime}`;
     };
     
@@ -209,7 +229,7 @@ export function ReactBigCalendarWrapper({
             <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center gap-1 cursor-pointer">
               {/* Start time */}
               <span className="text-xs font-semibold text-white flex-shrink-0">
-                {moment(event.start).format('HH:mm')}
+                {moment(event.start).format('hh:mm')}
               </span>
               
               {/* Student first name */}
@@ -231,7 +251,7 @@ export function ReactBigCalendarWrapper({
                 )}
                 {extendedProps.isOwingRentalAgreement && (
                   <div title="Equipment rental outstanding">
-                    <AlertTriangle className="h-3 w-3 text-white" />
+                    <Megaphone className="h-3 w-3 text-white" />
                   </div>
                 )}
               </div>
@@ -295,7 +315,7 @@ export function ReactBigCalendarWrapper({
               )}
               {extendedProps.isOwingRentalAgreement && (
                 <div title="Equipment rental outstanding" className="flex-shrink-0">
-                  <AlertTriangle className="h-3 w-3 text-white" />
+                  <Megaphone className="h-3 w-3 text-white" />
                 </div>
               )}
             </div>
@@ -350,7 +370,7 @@ export function ReactBigCalendarWrapper({
     if (name.includes('student') || name.includes('group')) return <Users className="h-4 w-4" />;
     if (name.includes('owing') || name.includes('payment')) return <DollarSign className="h-4 w-4" />;
     if (name.includes('online') || name.includes('virtual')) return <Monitor className="h-4 w-4" />;
-    if (name.includes('rental') || name.includes('agreement')) return <AlertTriangle className="h-4 w-4" />;
+    if (name.includes('rental') || name.includes('agreement')) return <Megaphone className="h-4 w-4" />;
     return <Clock className="h-4 w-4" />; // Default icon
   };
 
@@ -391,16 +411,6 @@ export function ReactBigCalendarWrapper({
   const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : 
     isMobileView ? resources.slice(0, 1) : resources;
 
-  // Convert time strings to Date objects for the current date
-  const parseTimeToDate = (timeString: string) => {
-    const [hours, minutes, seconds] = timeString.split(':').map(Number);
-    const timeDate = new Date(date);
-    timeDate.setHours(hours, minutes, seconds || 0, 0);
-    return timeDate;
-  };
-
-  const minDate = parseTimeToDate(minTime);
-  const maxDate = parseTimeToDate(maxTime);
 
   return (
     <div className="w-full max-w-none xl:max-w-[90rem] 2xl:max-w-[120rem] mx-auto">
