@@ -55,7 +55,7 @@
   background: #f9fafb;
   position: sticky;
   top: 0;
-  z-index: 10000;
+  z-index: 10;
   width: 100% !important;
   overflow: hidden !important;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -93,7 +93,7 @@
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
-  z-index: 9999;
+  z-index: 50;
   position: absolute;
   pointer-events: none;
   white-space: pre-line;
@@ -131,7 +131,7 @@
   right: 0 !important;
   top: 0;
   border-radius: 0 !important;
-  z-index: 1000 !important;
+  z-index: 5 !important;
   opacity: 1 !important;
   position: absolute !important;
   pointer-events: none;
