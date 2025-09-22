@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getProgramsList, getTeachersList, Program, Teacher } from "./schedule.api";
 
 interface ScheduleClientProps {
   location: string;
@@ -37,15 +38,6 @@ interface CalendarEvent {
 }
 
 // Dummy data for development
-const dummyTeachers = [
-  { id: 1, title: "John Smith", description: "Senior Instructor" },
-  { id: 2, title: "Sarah Johnson", description: "Lead Teacher" },
-  { id: 3, title: "Mike Wilson", description: "Assistant Teacher" },
-  { id: 4, title: "Emily Davis", description: "Specialist Teacher" },
-  { id: 5, title: "Emily Davis1", description: "Specialist Teacher" },
-  { id: 6, title: "Emily Davis2", description: "Specialist Teacher" },
-  { id: 7, title: "Emily Davis3", description: "Specialist Teacher" },
-];
 
 const dummyClassrooms = [
   { id: 1, title: "Room A", description: "Main classroom" },
@@ -317,12 +309,6 @@ const sep20Events = [
 // Combine all events
 const dummyEvents = [...todayEvents, ...sep20Events];
 
-const dummyPrograms = [
-  { id: "1", name: "Basic Training" },
-  { id: "2", name: "Advanced Training" },
-  { id: "3", name: "Specialized Training" },
-  { id: "4", name: "Group Classes" },
-];
 
 export function ScheduleClient({ location }: ScheduleClientProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
@@ -330,6 +316,57 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [showAll, setShowAll] = useState<boolean>(false);
+  
+  // Programs state
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programsLoading, setProgramsLoading] = useState<boolean>(true);
+  const [programsError, setProgramsError] = useState<string | null>(null);
+
+  // Teachers state
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
+  const [teachersError, setTeachersError] = useState<string | null>(null);
+
+  // Fetch programs and teachers on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      // Fetch programs
+      try {
+        setProgramsLoading(true);
+        setProgramsError(null);
+        const programsResponse = await getProgramsList();
+        
+        if (programsResponse?.success) {
+          setPrograms(programsResponse.data);
+        } else {
+          setProgramsError(programsResponse?.message || 'Failed to fetch programs');
+        }
+      } catch (error) {
+        setProgramsError(error instanceof Error ? error.message : 'Failed to fetch programs');
+      } finally {
+        setProgramsLoading(false);
+      }
+
+      // Fetch teachers
+      try {
+        setTeachersLoading(true);
+        setTeachersError(null);
+        const teachersResponse = await getTeachersList(location);
+        
+        if (teachersResponse?.success) {
+          setTeachers(teachersResponse.data);
+        } else {
+          setTeachersError(teachersResponse?.message || 'Failed to fetch teachers');
+        }
+      } catch (error) {
+        setTeachersError(error instanceof Error ? error.message : 'Failed to fetch teachers');
+      } finally {
+        setTeachersLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [location]);
 
   // Ensure selectedDate is always valid
   const safeSelectedDate = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
@@ -401,6 +438,20 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           <span className="text-sm font-medium">Filter by:</span>
         </div>
         
+        {/* Error display for programs */}
+        {programsError && (
+          <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+            Failed to load programs: {programsError}
+          </div>
+        )}
+        
+        {/* Error display for teachers */}
+        {teachersError && (
+          <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+            Failed to load teachers: {teachersError}
+          </div>
+        )}
+        
         {/* Date Picker */}
         <Popover>
           <PopoverTrigger asChild>
@@ -426,34 +477,38 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         </Popover>
 
         {/* Program Filter */}
-        <Select value={selectedProgram || "all"} onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Program" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Programs</SelectItem>
-            {dummyPrograms.map((program) => (
-              <SelectItem key={program.id} value={program.id.toString()}>
-                {program.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          options={[
+            { value: "all", label: "All Programs" },
+            ...programs.map((program) => ({
+              value: program.id.toString(),
+              label: program.name,
+            }))
+          ]}
+          value={selectedProgram || "all"}
+          onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
+          placeholder={programsLoading ? "Loading..." : "Program"}
+          searchPlaceholder="Search programs..."
+          emptyText="No programs found."
+          disabled={programsLoading}
+        />
 
         {/* Teacher Filter */}
-        <Select value={selectedTeacher || "all"} onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Teacher" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Teachers</SelectItem>
-            {dummyTeachers.map((teacher) => (
-              <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                {teacher.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          options={[
+            { value: "all", label: "All Teachers" },
+            ...teachers.map((teacher) => ({
+              value: teacher.id.toString(),
+              label: teacher.name,
+            }))
+          ]}
+          value={selectedTeacher || "all"}
+          onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
+          placeholder={teachersLoading ? "Loading..." : "Teacher"}
+          searchPlaceholder="Search teachers..."
+          emptyText="No teachers found."
+          disabled={teachersLoading}
+        />
       </div>
 
       {/* Calendar Tabs */}
@@ -472,7 +527,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
              <div className="teacher-view">
                <ReactBigCalendarWrapper
                  events={dummyEvents}
-                 resources={dummyTeachers}
+                 resources={teachers.map(teacher => ({ id: teacher.id, title: teacher.name, description: "" }))}
                  date={safeSelectedDate}
                  onNavigate={setSelectedDate}
                  onEventClick={handleEventClick}
