@@ -10,7 +10,7 @@ import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarW
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, Program, Teacher, ScheduleDetails, TeacherViewResource } from "./schedule.api";
+import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability } from "./schedule.api";
 
 interface ScheduleClientProps {
   location: string;
@@ -29,11 +29,13 @@ interface CalendarEvent {
     lessonId?: string;
     teacher?: string;
     classroom?: string;
+    program?: string;
     isOwing?: boolean;
     isOnline?: boolean;
     isOwingRentalAgreement?: boolean;
     tooltip?: string;
     programId?: string;
+    url?: string;
   };
 }
 
@@ -337,6 +339,12 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [teacherViewLoading, setTeacherViewLoading] = useState<boolean>(false);
   const [teacherViewError, setTeacherViewError] = useState<string | null>(null);
 
+  // Teacher view events state
+  const [teacherViewEvents, setTeacherViewEvents] = useState<TeacherViewEvent[]>([]);
+  const [teacherViewAvailability, setTeacherViewAvailability] = useState<TeacherViewAvailability[]>([]);
+  const [teacherViewEventsLoading, setTeacherViewEventsLoading] = useState<boolean>(false);
+  const [teacherViewEventsError, setTeacherViewEventsError] = useState<string | null>(null);
+
   // Ensure selectedDate is always valid
   const safeSelectedDate = useMemo(() => {
     return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
@@ -437,9 +445,97 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     fetchTeacherView();
   }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
 
+  // Fetch teacher view events when filters or date change
+  useEffect(() => {
+    const fetchTeacherViewEvents = async () => {
+      try {
+        setTeacherViewEventsLoading(true);
+        setTeacherViewEventsError(null);
+        const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
+        
+        console.log('fetchTeacherViewEvents - Calling API with params:', {
+          location,
+          dateStr,
+          showAll,
+          selectedProgram,
+          selectedTeacher
+        });
+        
+        const response = await getTeacherViewEvents(
+          location, 
+          dateStr, 
+          showAll, 
+          selectedProgram || undefined, 
+          selectedTeacher || undefined
+        );
+        
+        console.log('fetchTeacherViewEvents - API response:', response);
+        console.log('fetchTeacherViewEvents - Response data:', response?.data);
+        console.log('fetchTeacherViewEvents - Lessons:', response?.data?.lessons);
+        
+        if (response?.success) {
+          console.log('fetchTeacherViewEvents - Setting events:', response.data.lessons);
+          setTeacherViewEvents(response.data.lessons);
+          setTeacherViewAvailability(response.data.availability);
+        } else {
+          setTeacherViewEventsError(response?.message || 'Failed to fetch teacher view events');
+        }
+      } catch (error) {
+        setTeacherViewEventsError(error instanceof Error ? error.message : 'Failed to fetch teacher view events');
+      } finally {
+        setTeacherViewEventsLoading(false);
+      }
+    };
+
+    fetchTeacherViewEvents();
+  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
+
+  // Convert API events to calendar format
+  const convertTeacherViewEventsToCalendar = (events: TeacherViewEvent[]): CalendarEvent[] => {
+    console.log('convertTeacherViewEventsToCalendar - Input events:', events);
+    return events.map(event => {
+      const tooltip = event.tooltip || [];
+      console.log('convertTeacherViewEventsToCalendar - Processing event:', event);
+      console.log('convertTeacherViewEventsToCalendar - Tooltip array:', tooltip);
+      console.log('convertTeacherViewEventsToCalendar - Event tooltip property:', event.tooltip);
+      
+      const tooltipString = tooltip.map(t => `${t.name}: ${t.value}`).join('\n');
+      console.log('convertTeacherViewEventsToCalendar - Tooltip string:', tooltipString);
+      
+      const calendarEvent = {
+        id: event.lessonId.toString(),
+        title: event.title,
+        start: new Date(event.start),
+        end: new Date(event.end),
+        resourceId: event.resourceId,
+        backgroundColor: event.backgroundColor,
+        borderColor: event.backgroundColor,
+        className: event.className,
+        extendedProps: {
+          lessonId: event.lessonId.toString(),
+          teacher: tooltip.find(t => t.name === "Teacher")?.value || "",
+          classroom: tooltip.find(t => t.name === "Classroom")?.value || "",
+          program: tooltip.find(t => t.name === "Program")?.value || "",
+          isOwing: event.isOwing,
+          isOnline: event.isOnline,
+          isOwingRentalAgreement: event.isOwingRentalAgreement,
+          tooltip: tooltipString,
+          url: event.url
+        }
+      };
+      
+      console.log('convertTeacherViewEventsToCalendar - Final calendar event:', calendarEvent);
+      console.log('convertTeacherViewEventsToCalendar - Final tooltip in extendedProps:', calendarEvent.extendedProps.tooltip);
+      return calendarEvent;
+    });
+  };
+
   const handleEventClick = (event: CalendarEvent) => {
     console.log("Event clicked:", event);
-    // TODO: Navigate to lesson details
+    // Navigate to lesson details if URL is available
+    if (event.extendedProps?.url) {
+      window.open(event.extendedProps.url, '_blank');
+    }
   };
 
   const handleEventDrop = (event: CalendarEvent) => {
@@ -564,6 +660,13 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           </div>
         )}
         
+        {/* Error display for teacher view events */}
+        {teacherViewEventsError && (
+          <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+            Failed to load teacher view events: {teacherViewEventsError}
+          </div>
+        )}
+        
         {/* Date Picker */}
         <Popover>
           <PopoverTrigger asChild>
@@ -635,8 +738,10 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
              <div className="p-4 border-b">
                <h3 className="text-lg font-semibold">
                  Teacher View - {format(safeSelectedDate, "EEEE, MMMM do, yyyy")}
-                 {teacherViewLoading && (
-                   <span className="ml-2 text-sm text-muted-foreground">(Loading teachers...)</span>
+                 {(teacherViewLoading || teacherViewEventsLoading) && (
+                   <span className="ml-2 text-sm text-muted-foreground">
+                     (Loading {teacherViewLoading ? 'teachers' : 'events'}...)
+                   </span>
                  )}
                </h3>
                <p className="text-sm text-muted-foreground">
@@ -646,11 +751,16 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                      • {teacherViewResources.length} teacher{teacherViewResources.length !== 1 ? 's' : ''} available
                    </span>
                  )}
+                 {teacherViewEvents.length > 0 && (
+                   <span className="ml-2">
+                     • {teacherViewEvents.length} lesson{teacherViewEvents.length !== 1 ? 's' : ''} scheduled
+                   </span>
+                 )}
                </p>
              </div>
              <div className="teacher-view">
                <ReactBigCalendarWrapper
-                 events={dummyEvents}
+                 events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
                  resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
                  date={safeSelectedDate}
                  onNavigate={setSelectedDate}

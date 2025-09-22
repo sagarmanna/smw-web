@@ -53,6 +53,47 @@ export interface TeacherViewResponse {
   message: string;
 }
 
+export interface TooltipItem {
+  name: string;
+  value: string;
+}
+
+export interface TeacherViewEvent {
+  lessonId: number;
+  isOwing: boolean;
+  isOwingRentalAgreement: boolean;
+  resourceId: number;
+  title: string;
+  start: string;
+  end: string;
+  url: string;
+  className: string;
+  backgroundColor: string;
+  tooltip: TooltipItem[];
+  isOnline: boolean;
+}
+
+export interface TeacherViewAvailability {
+  resourceId: number;
+  title: string;
+  start: string;
+  end: string;
+  rendering: string;
+  className: string;
+}
+
+export interface TeacherViewEventsResponse {
+  success: boolean;
+  data: {
+    lessons: TeacherViewEvent[];
+    availability: TeacherViewAvailability[];
+    totalEvents: number;
+    date: string;
+    locationId: number;
+  };
+  message: string;
+}
+
 export async function getProgramsList(): Promise<ProgramsResponse | null> {
   try {
     const token = localStorage.getItem("token");
@@ -150,6 +191,46 @@ export async function getTeacherView(
     return response.data;
   } catch (error) {
     console.error("Error fetching teacher view:", error);
+    return null;
+  }
+}
+
+export async function getTeacherViewEvents(
+  location: string, 
+  date: string, 
+  showAll: boolean, 
+  programId?: string, 
+  teacherId?: string
+): Promise<TeacherViewEventsResponse | null> {
+  try {
+    const token = localStorage.getItem("token");
+
+    const params: Record<string, string | number> = {
+      date,
+      showAll: showAll ? 1 : 0
+    };
+
+    if (programId) {
+      params.programId = programId;
+    }
+
+    if (teacherId) {
+      params.teacherId = teacherId;
+    }
+
+    const response = await apiClient.get<TeacherViewEventsResponse>(
+      `/admin/v2/${location}/schedule/teacher-view/events`,
+      {
+        params,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching teacher view events:", error);
     return null;
   }
 }
