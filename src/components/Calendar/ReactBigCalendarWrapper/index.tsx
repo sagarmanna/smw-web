@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { Calendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
 import moment from 'moment';
 import { Clock, DollarSign, Monitor, AlertTriangle } from 'lucide-react';
@@ -61,6 +62,7 @@ interface ReactBigCalendarWrapperProps {
   selectedTeacher?: string;
   minTime?: string; // Format: "HH:mm:ss"
   maxTime?: string; // Format: "HH:mm:ss"
+  isMobile?: boolean;
 }
 
 // Custom resource header component
@@ -100,7 +102,8 @@ export function ReactBigCalendarWrapper({
   selectedProgram,
   selectedTeacher,
   minTime = "08:00:00",
-  maxTime = "20:00:00"
+  maxTime = "20:00:00",
+  isMobile = false
 }: ReactBigCalendarWrapperProps) {
 
   // Filter events based on filters
@@ -356,8 +359,23 @@ export function ReactBigCalendarWrapper({
     );
   };
 
+  // Mobile detection
+  const [isMobileView, setIsMobileView] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileView(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Create display resources - if no resources, create empty one
-  const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : resources;
+  // On mobile, show only one teacher at a time for better UX
+  const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : 
+    isMobileView ? resources.slice(0, 1) : resources;
 
   // Convert time strings to Date objects for the current date
   const parseTimeToDate = (timeString: string) => {
@@ -373,11 +391,17 @@ export function ReactBigCalendarWrapper({
   return (
     <div className="w-full max-w-none xl:max-w-[90rem] 2xl:max-w-[120rem] mx-auto">
       <div className="bg-white dark:bg-dark-2 rounded-lg shadow-lg p-2">
+        {/* Mobile: Add horizontal scroll indicator */}
+        {/* {isMobileView && resources.length > 1 && (
+          <div className="mb-2 p-2 bg-blue-50 rounded text-xs text-blue-700 text-center">
+            Swipe left/right to view other teachers
+          </div>
+        )} */}
+        
         <div 
-          className="w-full"
+          className={`w-full ${isMobileView ? 'mobile-calendar-container' : 'overflow-auto'}`}
           style={{ 
             maxHeight: '87vh',
-            overflow: 'auto',
             WebkitOverflowScrolling: 'touch', // Add this for iOS
             position: 'relative'
           }}
@@ -412,6 +436,7 @@ export function ReactBigCalendarWrapper({
             max={maxDate}
             eventPropGetter={eventPropGetter}
             style={{ height: '100%' }}
+            className={isMobileView ? 'mobile-calendar' : ''}
           />
         </div>
       </div>

@@ -579,20 +579,20 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Compact Header - Max 100px */}
-      <div className="flex-shrink-0 max-h-[100px] space-y-2">
+      {/* Compact Header - Responsive height */}
+      <div className="flex-shrink-0 max-h-[200px] md:max-h-[100px] space-y-2">
         {/* Header Row */}
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold tracking-tight truncate">
               Schedule - {format(safeSelectedDate, "MMM do, yyyy")}
-              {scheduleDetailsLoading && (
+            {scheduleDetailsLoading && (
                 <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
-              )}
-            </h1>
+            )}
+          </h1>
             <p className="text-xs text-muted-foreground truncate">
               {location}
-              {scheduleDetails && (
+            {scheduleDetails && (
                 <span className="ml-1">
                   • {timeRange.minTime}-{timeRange.maxTime}
                   {showAll ? " (All)" : " (Available)"}
@@ -606,129 +606,214 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
               {teacherViewEvents.length > 0 && (
                 <span className="ml-1">
                   • {teacherViewEvents.length} lesson{teacherViewEvents.length !== 1 ? 's' : ''}
-                </span>
-              )}
-            </p>
+              </span>
+            )}
+          </p>
+        </div>
+        
+          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Show All Toggle */}
+            <div className="flex items-center space-x-1">
+            <input
+              id="show-all"
+              type="checkbox"
+              checked={showAll}
+              onChange={(e) => setShowAll(e.target.checked)}
+                className="rounded border-gray-300 h-3 w-3"
+            />
+              <label htmlFor="show-all" className="text-xs font-medium">
+              Show All
+            </label>
           </div>
           
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Show All Toggle */}
-            <div className="flex items-center space-x-1">
-              <input
-                id="show-all"
-                type="checkbox"
-                checked={showAll}
-                onChange={(e) => setShowAll(e.target.checked)}
-                className="rounded border-gray-300 h-3 w-3"
-              />
-              <label htmlFor="show-all" className="text-xs font-medium">
-                Show All
-              </label>
-            </div>
-            
-            {/* TV Icon */}
-            <Button
-              variant="outline"
+          {/* TV Icon */}
+          <Button
+            variant="outline"
               size="sm"
-              onClick={openDailySchedule}
-              title="Open Daily Schedule"
+            onClick={openDailySchedule}
+            title="Open Daily Schedule"
               className="h-7 w-7 p-0"
-            >
+          >
               <Tv className="h-3 w-3" />
-            </Button>
-          </div>
+          </Button>
         </div>
+      </div>
 
-        {/* Tabs and Filters Row */}
-        <div className="flex items-center justify-between gap-4">
+        {/* Tabs and Filters Row - Responsive */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 md:gap-4">
           {/* Tabs on the left */}
           <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
-            <TabsList className="grid grid-cols-2 h-8 w-auto">
-              <TabsTrigger value="teacher" className="text-xs px-4">Teacher View</TabsTrigger>
-              <TabsTrigger value="classroom" className="text-xs px-4">Classroom View</TabsTrigger>
+            <TabsList className="grid grid-cols-2 h-7 md:h-8 w-auto">
+              <TabsTrigger value="teacher" className="text-xs px-2 md:px-4">Teacher View</TabsTrigger>
+              <TabsTrigger value="classroom" className="text-xs px-2 md:px-4">Classroom View</TabsTrigger>
             </TabsList>
           </Tabs>
 
-          {/* Filters on the right */}
-          <div className="flex items-center gap-2 text-xs">
-            <div className="flex items-center gap-1">
-              <Filter className="h-3 w-3" />
-              <span className="font-medium">Filters:</span>
-            </div>
-            
+          {/* Filters - Responsive Layout */}
+          <div className="w-full lg:w-auto">
             {/* Error display - compact */}
             {(programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError) && (
-              <div className="text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded truncate max-w-[200px]">
+              <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded mb-2">
                 {programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError}
               </div>
             )}
             
-            {/* Date Picker - compact */}
-            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "h-7 px-2 text-xs justify-start font-normal min-w-[120px]",
-                    !safeSelectedDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-1 h-3 w-3" />
-                  {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Pick date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={safeSelectedDate}
-                  onSelect={(date) => {
-                    if (date) {
-                      setSelectedDate(date);
-                      setDatePickerOpen(false); // Close the popover after date selection
-                    }
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            {/* Mobile: Compact single line, Desktop: Keep horizontal */}
+            <div className="flex flex-col md:flex-row gap-2 md:gap-3">
+              {/* Mobile: Compact filter layout */}
+              <div className="flex flex-col md:hidden gap-1">
+                <div className="flex items-center gap-1 text-xs">
+                  <Filter className="h-3 w-3" />
+                  <span className="font-medium">Filter by:</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {/* Date Picker - mobile compact */}
+                  <div className="flex-1 min-w-[80px]">
+                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "w-full h-6 px-1 text-xs justify-center font-normal",
+                            !safeSelectedDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-1 h-3 w-3" />
+                          {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={safeSelectedDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setSelectedDate(date);
+                              setDatePickerOpen(false);
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
 
-            {/* Program Filter - compact */}
-            <div className="min-w-[100px]">
-              <Combobox
-                options={[
-                  { value: "all", label: "All Programs" },
-                  ...programs.map((program) => ({
-                    value: program.id.toString(),
-                    label: program.name,
-                  }))
-                ]}
-                value={selectedProgram || "all"}
-                onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
-                placeholder={programsLoading ? "Loading..." : "Program"}
-                searchPlaceholder="Search programs..."
-                emptyText="No programs found."
-                disabled={programsLoading}
-              />
-            </div>
+                  {/* Program Filter - mobile compact */}
+                  <div className="flex-1 min-w-[80px]">
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Programs" },
+                        ...programs.map((program) => ({
+                          value: program.id.toString(),
+                          label: program.name,
+                        }))
+                      ]}
+                      value={selectedProgram || "all"}
+                      onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
+                      placeholder={programsLoading ? "Loading..." : "Program"}
+                      searchPlaceholder="Search programs..."
+                      emptyText="No programs found."
+                      disabled={programsLoading}
+                    />
+                  </div>
 
-            {/* Teacher Filter - compact */}
-            <div className="min-w-[100px]">
-              <Combobox
-                options={[
-                  { value: "all", label: "All Teachers" },
-                  ...teachers.map((teacher) => ({
-                    value: teacher.id.toString(),
-                    label: teacher.name,
-                  }))
-                ]}
-                value={selectedTeacher || "all"}
-                onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
-                placeholder={teachersLoading ? "Loading..." : "Teacher"}
-                searchPlaceholder="Search teachers..."
-                emptyText="No teachers found."
-                disabled={teachersLoading}
-              />
+                  {/* Teacher Filter - mobile compact */}
+                  <div className="flex-1 min-w-[80px]">
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Teachers" },
+                        ...teachers.map((teacher) => ({
+                          value: teacher.id.toString(),
+                          label: teacher.name,
+                        }))
+                      ]}
+                      value={selectedTeacher || "all"}
+                      onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
+                      placeholder={teachersLoading ? "Loading..." : "Teacher"}
+                      searchPlaceholder="Search teachers..."
+                      emptyText="No teachers found."
+                      disabled={teachersLoading}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop: Original horizontal layout */}
+              <div className="hidden md:flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <Filter className="h-3 w-3" />
+                  <span className="font-medium text-xs">Filters:</span>
+                </div>
+                
+                {/* Date Picker - desktop */}
+                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-7 px-2 text-xs justify-start font-normal min-w-[120px]",
+                        !safeSelectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-1 h-3 w-3" />
+                      {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Pick date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={safeSelectedDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setSelectedDate(date);
+                          setDatePickerOpen(false);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                {/* Program Filter - desktop */}
+                <div className="min-w-[100px]">
+                  <Combobox
+                    options={[
+                      { value: "all", label: "All Programs" },
+                      ...programs.map((program) => ({
+                        value: program.id.toString(),
+                        label: program.name,
+                      }))
+                    ]}
+                    value={selectedProgram || "all"}
+                    onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
+                    placeholder={programsLoading ? "Loading..." : "Program"}
+                    searchPlaceholder="Search programs..."
+                    emptyText="No programs found."
+                    disabled={programsLoading}
+                  />
+                </div>
+
+                {/* Teacher Filter - desktop */}
+                <div className="min-w-[100px]">
+                  <Combobox
+                    options={[
+                      { value: "all", label: "All Teachers" },
+                      ...teachers.map((teacher) => ({
+                        value: teacher.id.toString(),
+                        label: teacher.name,
+                      }))
+                    ]}
+                    value={selectedTeacher || "all"}
+                    onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
+                    placeholder={teachersLoading ? "Loading..." : "Teacher"}
+                    searchPlaceholder="Search teachers..."
+                    emptyText="No teachers found."
+                    disabled={teachersLoading}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -736,47 +821,48 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
       {/* Calendar Content - Takes remaining space */}
       <div className="flex-1 min-h-0">
-        <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
+      <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
           <TabsContent value="teacher" className="h-full">
             <div className="h-full">
-              <ReactBigCalendarWrapper
-                events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
-                resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
-                date={safeSelectedDate}
-                onNavigate={setSelectedDate}
-                onEventClick={handleEventClick}
-                onEventDrop={handleEventDrop}
-                onEventResize={handleEventResize}
-                editable={true}
-                showAll={showAll}
-                selectedProgram={selectedProgram}
-                selectedTeacher={selectedTeacher}
-                minTime={timeRange.minTime}
-                maxTime={timeRange.maxTime}
-              />
-            </div>
-          </TabsContent>
+               <ReactBigCalendarWrapper
+                 events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
+                 resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
+                 date={safeSelectedDate}
+                 onNavigate={setSelectedDate}
+                 onEventClick={handleEventClick}
+                 onEventDrop={handleEventDrop}
+                 onEventResize={handleEventResize}
+                 editable={true}
+                 showAll={showAll}
+                 selectedProgram={selectedProgram}
+                 selectedTeacher={selectedTeacher}
+                 minTime={timeRange.minTime}
+                 maxTime={timeRange.maxTime}
+                isMobile={false} // We'll handle mobile detection in the wrapper
+               />
+           </div>
+         </TabsContent>
         
           <TabsContent value="classroom" className="h-full">
             <div className="h-full">
-              <ReactBigCalendarWrapper
-                events={dummyEvents}
-                resources={dummyClassrooms}
-                date={safeSelectedDate}
-                onNavigate={setSelectedDate}
-                onEventClick={handleEventClick}
-                onEventDrop={handleEventDrop}
-                onEventResize={handleEventResize}
-                editable={true}
-                showAll={showAll}
-                selectedProgram={selectedProgram}
-                selectedTeacher={selectedTeacher}
-                minTime={timeRange.minTime}
-                maxTime={timeRange.maxTime}
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
+               <ReactBigCalendarWrapper
+                 events={dummyEvents}
+                 resources={dummyClassrooms}
+                 date={safeSelectedDate}
+                 onNavigate={setSelectedDate}
+                 onEventClick={handleEventClick}
+                 onEventDrop={handleEventDrop}
+                 onEventResize={handleEventResize}
+                 editable={true}
+                 showAll={showAll}
+                 selectedProgram={selectedProgram}
+                 selectedTeacher={selectedTeacher}
+                 minTime={timeRange.minTime}
+                 maxTime={timeRange.maxTime}
+               />
+           </div>
+         </TabsContent>
+      </Tabs>
       </div>
     </div>
   );
