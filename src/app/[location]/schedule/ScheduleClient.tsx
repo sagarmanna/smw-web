@@ -392,19 +392,21 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         </div>
         
           <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Show All Toggle */}
-            <div className="flex items-center space-x-1">
-            <input
-              id="show-all"
-              type="checkbox"
-              checked={showAll}
-              onChange={(e) => setShowAll(e.target.checked)}
-                className="rounded border-gray-300 h-3 w-3"
-            />
-              <label htmlFor="show-all" className="text-xs font-medium">
-              Show All
-            </label>
-          </div>
+          {/* Show All Toggle - Only show in teacher view */}
+            {currentView === "teacher" && (
+              <div className="flex items-center space-x-1">
+                <input
+                  id="show-all"
+                  type="checkbox"
+                  checked={showAll}
+                  onChange={(e) => setShowAll(e.target.checked)}
+                  className="rounded border-gray-300 h-3 w-3"
+                />
+                <label htmlFor="show-all" className="text-xs font-medium">
+                  Show All
+                </label>
+              </div>
+            )}
           
           {/* TV Icon */}
           <Button
@@ -438,14 +440,16 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           </div>
         )}
         
-            {/* Mobile: Compact single line, Desktop: Keep horizontal */}
+              {/* Mobile: Compact single line, Desktop: Keep horizontal */}
             <div className="flex flex-col md:flex-row gap-2 md:gap-3">
               {/* Mobile: Compact filter layout */}
               <div className="flex flex-col md:hidden gap-1">
-                <div className="flex items-center gap-1 text-xs">
-                  <Filter className="h-3 w-3" />
-                  <span className="font-medium">Filter by:</span>
-          </div>
+                {currentView === "teacher" && (
+                  <div className="flex items-center gap-1 text-xs">
+                    <Filter className="h-3 w-3" />
+                    <span className="font-medium">Filter by:</span>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1">
                   {/* Date Picker - mobile compact */}
                   <div className="flex-1 min-w-[80px]">
@@ -478,52 +482,58 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                     </Popover>
                   </div>
 
-                  {/* Program Filter - mobile compact */}
-                  <div className="flex-1 min-w-[80px]">
-                    <Combobox
-                      options={[
-                        { value: "all", label: "All Programs" },
-                        ...programs.map((program) => ({
-                          value: program.id.toString(),
-                          label: program.name,
-                        }))
-                      ]}
-                      value={selectedProgram || "all"}
-                      onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
-                      placeholder={programsLoading ? "Loading..." : "Program"}
-                      searchPlaceholder="Search programs..."
-                      emptyText="No programs found."
-                      disabled={programsLoading}
-                    />
-          </div>
+                  {/* Program Filter - mobile compact - Only show in teacher view */}
+                  {currentView === "teacher" && (
+                    <div className="flex-1 min-w-[80px]">
+                      <Combobox
+                        options={[
+                          { value: "all", label: "All Programs" },
+                          ...programs.map((program) => ({
+                            value: program.id.toString(),
+                            label: program.name,
+                          }))
+                        ]}
+                        value={selectedProgram || "all"}
+                        onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
+                        placeholder={programsLoading ? "Loading..." : "Program"}
+                        searchPlaceholder="Search programs..."
+                        emptyText="No programs found."
+                        disabled={programsLoading}
+                      />
+                    </div>
+                  )}
 
-                  {/* Teacher Filter - mobile compact */}
-                  <div className="flex-1 min-w-[80px]">
-                    <Combobox
-                      options={[
-                        { value: "all", label: "All Teachers" },
-                        ...teachers.map((teacher) => ({
-                          value: teacher.id.toString(),
-                          label: teacher.name,
-                        }))
-                      ]}
-                      value={selectedTeacher || "all"}
-                      onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
-                      placeholder={teachersLoading ? "Loading..." : "Teacher"}
-                      searchPlaceholder="Search teachers..."
-                      emptyText="No teachers found."
-                      disabled={teachersLoading}
-                    />
-                  </div>
+                  {/* Teacher Filter - mobile compact - Only show in teacher view */}
+                  {currentView === "teacher" && (
+                    <div className="flex-1 min-w-[80px]">
+                      <Combobox
+                        options={[
+                          { value: "all", label: "All Teachers" },
+                          ...teachers.map((teacher) => ({
+                            value: teacher.id.toString(),
+                            label: teacher.name,
+                          }))
+                        ]}
+                        value={selectedTeacher || "all"}
+                        onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
+                        placeholder={teachersLoading ? "Loading..." : "Teacher"}
+                        searchPlaceholder="Search teachers..."
+                        emptyText="No teachers found."
+                        disabled={teachersLoading}
+                      />
+                    </div>
+                  )}
                 </div>
           </div>
 
               {/* Desktop: Original horizontal layout */}
               <div className="hidden md:flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <Filter className="h-3 w-3" />
-                  <span className="font-medium text-xs">Filters:</span>
-          </div>
+                {currentView === "teacher" && (
+                  <div className="flex items-center gap-1">
+                    <Filter className="h-3 w-3" />
+                    <span className="font-medium text-xs">Filters:</span>
+                  </div>
+                )}
         
                 {/* Date Picker - desktop */}
                 <Popover open={desktopDatePickerOpen} onOpenChange={setDesktopDatePickerOpen}>
@@ -554,43 +564,47 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           </PopoverContent>
         </Popover>
 
-                {/* Program Filter - desktop */}
-                <div className="min-w-[100px]">
-        <Combobox
-          options={[
-            { value: "all", label: "All Programs" },
-            ...programs.map((program) => ({
-              value: program.id.toString(),
-              label: program.name,
-            }))
-          ]}
-          value={selectedProgram || "all"}
-          onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
-          placeholder={programsLoading ? "Loading..." : "Program"}
-          searchPlaceholder="Search programs..."
-          emptyText="No programs found."
-          disabled={programsLoading}
-        />
-                </div>
+                {/* Program Filter - desktop - Only show in teacher view */}
+                {currentView === "teacher" && (
+                  <div className="min-w-[100px]">
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Programs" },
+                        ...programs.map((program) => ({
+                          value: program.id.toString(),
+                          label: program.name,
+                        }))
+                      ]}
+                      value={selectedProgram || "all"}
+                      onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
+                      placeholder={programsLoading ? "Loading..." : "Program"}
+                      searchPlaceholder="Search programs..."
+                      emptyText="No programs found."
+                      disabled={programsLoading}
+                    />
+                  </div>
+                )}
 
-                {/* Teacher Filter - desktop */}
-                <div className="min-w-[100px]">
-        <Combobox
-          options={[
-            { value: "all", label: "All Teachers" },
-            ...teachers.map((teacher) => ({
-              value: teacher.id.toString(),
-              label: teacher.name,
-            }))
-          ]}
-          value={selectedTeacher || "all"}
-          onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
-          placeholder={teachersLoading ? "Loading..." : "Teacher"}
-          searchPlaceholder="Search teachers..."
-          emptyText="No teachers found."
-          disabled={teachersLoading}
-        />
-                </div>
+                {/* Teacher Filter - desktop - Only show in teacher view */}
+                {currentView === "teacher" && (
+                  <div className="min-w-[100px]">
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Teachers" },
+                        ...teachers.map((teacher) => ({
+                          value: teacher.id.toString(),
+                          label: teacher.name,
+                        }))
+                      ]}
+                      value={selectedTeacher || "all"}
+                      onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
+                      placeholder={teachersLoading ? "Loading..." : "Teacher"}
+                      searchPlaceholder="Search teachers..."
+                      emptyText="No teachers found."
+                      disabled={teachersLoading}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
