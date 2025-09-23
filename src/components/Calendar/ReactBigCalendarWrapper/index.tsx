@@ -62,7 +62,6 @@ interface ReactBigCalendarWrapperProps {
   selectedTeacher?: string;
   minTime?: string; // Format: "HH:mm:ss"
   maxTime?: string; // Format: "HH:mm:ss"
-  isMobile?: boolean;
 }
 
 // Custom resource header component
@@ -102,8 +101,7 @@ export function ReactBigCalendarWrapper({
   selectedProgram,
   selectedTeacher,
   minTime = "08:00:00",
-  maxTime = "20:00:00",
-  isMobile = false
+  maxTime = "20:00:00"
 }: ReactBigCalendarWrapperProps) {
 
   // Convert time strings to Date objects for the current date

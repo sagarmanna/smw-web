@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { formatLocationName } from "@/utils/textUtils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,7 +11,7 @@ interface DashboardLayoutProps {
 export async function generateMetadata({ params }: DashboardLayoutProps): Promise<Metadata> {
   const { location } = await params;
 
-  const formattedLocation = location.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+  const formattedLocation = formatLocationName(location);
   
   return {
     title: `Dashboard - ${formattedLocation} | SMW`,
