@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { formatLocationName } from "@/utils/locationUtils";
+import { formatLocationName } from "@/utils/textUtils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;

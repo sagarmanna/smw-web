@@ -11,7 +11,7 @@ import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
-import { formatLocationName } from "@/utils/locationUtils";
+import { formatLocationName } from "@/utils/textUtils";
 
 interface ScheduleClientProps {
   location: string;
