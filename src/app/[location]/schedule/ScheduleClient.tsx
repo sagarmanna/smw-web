@@ -11,6 +11,7 @@ import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
+import { formatLocationName } from "@/utils/locationUtils";
 
 interface ScheduleClientProps {
   location: string;
@@ -361,7 +362,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
             )}
           </h1>
             <p className="text-xs text-muted-foreground truncate">
-              {location}
+              {formatLocationName(location)}
             {scheduleDetails && (
                 <span className="ml-1">
                   • {timeRange.minTime}-{timeRange.maxTime}
