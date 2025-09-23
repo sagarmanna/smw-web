@@ -10,7 +10,7 @@ import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarW
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
+import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
 
 interface ScheduleClientProps {
   location: string;
@@ -39,279 +39,6 @@ interface CalendarEvent {
   };
 }
 
-// Dummy data for development
-
-const dummyClassrooms = [
-  { id: 1, title: "Room A", description: "Main classroom" },
-  { id: 2, title: "Room B", description: "Small group room" },
-  { id: 3, title: "Room C", description: "Private lesson room" },
-  { id: 4, title: "Room D", description: "Equipment room" },
-];
-
-// Generate dummy events for today
-const today = new Date();
-const todayStr = today.toISOString().split('T')[0];
-
-// Generate events for resource timeline (teachers as columns)
-// Events for today
-const todayEvents = [
-  {
-    id: "1",
-    title: "Basic Training",
-    start: new Date(`${todayStr}T09:00:00`),
-    end: new Date(`${todayStr}T10:30:00`),
-    resourceId: 1, // John Smith
-    backgroundColor: "#3b82f6",
-    borderColor: "#1d4ed8",
-    className: "private-lesson",
-    extendedProps: {
-      lessonId: "1",
-      teacher: "John Smith",
-      classroom: "Room A",
-      isOwing: false,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Private Lesson: John Smith - Basic Training\nClassroom: Room A"
-    }
-  },
-  {
-    id: "2",
-    title: "Group Class (5 students)",
-    start: new Date(`${todayStr}T10:30:00`),
-    end: new Date(`${todayStr}T12:00:00`),
-    resourceId: 2, // Sarah Johnson
-    backgroundColor: "#10b981",
-    borderColor: "#059669",
-    className: "group-lesson",
-    extendedProps: {
-      lessonId: "2",
-      teacher: "Sarah Johnson",
-      classroom: "Room B",
-      isOwing: true,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Group Lesson: Sarah Johnson - Advanced Training (5 students)\nClassroom: Room B"
-    }
-  },
-  {
-    id: "3",
-    title: "Online Session",
-    start: new Date(`${todayStr}T14:00:00`),
-    end: new Date(`${todayStr}T15:00:00`),
-    resourceId: 3, // Mike Wilson
-    backgroundColor: "#8b5cf6",
-    borderColor: "#7c3aed",
-    className: "online-lesson",
-    extendedProps: {
-      lessonId: "3",
-      teacher: "Mike Wilson",
-      classroom: "Online",
-      isOwing: false,
-      isOnline: true,
-      isOwingRentalAgreement: true,
-      tooltip: "Online Lesson: Mike Wilson - Specialized Training\nClassroom: Online"
-    }
-  },
-  {
-    id: "4",
-    title: "Private Lesson",
-    start: new Date(`${todayStr}T15:30:00`),
-    end: new Date(`${todayStr}T16:30:00`),
-    resourceId: 4, // Emily Davis
-    backgroundColor: "#f59e0b",
-    borderColor: "#d97706",
-    className: "private-lesson",
-    extendedProps: {
-      lessonId: "4",
-      teacher: "Emily Davis",
-      classroom: "Room C",
-      isOwing: false,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Private Lesson: Emily Davis - Specialized Training\nClassroom: Room C"
-    }
-  },
-  {
-    id: "5",
-    title: "Basic Training",
-    start: new Date(`${todayStr}T11:00:00`),
-    end: new Date(`${todayStr}T12:30:00`),
-    resourceId: 1, // John Smith - second lesson
-    backgroundColor: "#3b82f6",
-    borderColor: "#1d4ed8",
-    className: "private-lesson",
-    extendedProps: {
-      lessonId: "5",
-      teacher: "John Smith",
-      classroom: "Room A",
-      isOwing: false,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Private Lesson: John Smith - Basic Training\nClassroom: Room A"
-    }
-  },
-];
-
-// Events for September 20, 2024
-const sep20Events = [
-  {
-    id: "sep20-1",
-    title: "Morning Session",
-    start: new Date("2024-09-20T08:30:00"),
-    end: new Date("2024-09-20T10:00:00"),
-    resourceId: 1, // John Smith
-    backgroundColor: "#3b82f6",
-    borderColor: "#1d4ed8",
-    className: "private-lesson",
-    extendedProps: {
-      lessonId: "sep20-1",
-      teacher: "John Smith",
-      classroom: "Room A",
-      isOwing: false,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Private Lesson: John Smith - Morning Session\nClassroom: Room A"
-    }
-  },
-  {
-    id: "sep20-2",
-    title: "Advanced Workshop",
-    start: new Date("2024-09-20T09:00:00"),
-    end: new Date("2024-09-20T11:00:00"),
-    resourceId: 2, // Sarah Johnson
-    backgroundColor: "#10b981",
-    borderColor: "#059669",
-    className: "group-lesson",
-    extendedProps: {
-      lessonId: "sep20-2",
-      teacher: "Sarah Johnson",
-      classroom: "Room B",
-      isOwing: true,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Group Lesson: Sarah Johnson - Advanced Workshop (8 students)\nClassroom: Room B"
-    }
-  },
-  {
-    id: "sep20-3",
-    title: "Online Consultation",
-    start: new Date("2024-09-20T10:15:00"),
-    end: new Date("2024-09-20T11:15:00"),
-    resourceId: 3, // Mike Wilson
-    backgroundColor: "#8b5cf6",
-    borderColor: "#7c3aed",
-    className: "online-lesson",
-    extendedProps: {
-      lessonId: "sep20-3",
-      teacher: "Mike Wilson",
-      classroom: "Online",
-      isOwing: false,
-      isOnline: true,
-      isOwingRentalAgreement: false,
-      tooltip: "Online Lesson: Mike Wilson - Consultation\nClassroom: Online"
-    }
-  },
-  {
-    id: "sep20-4",
-    title: "Specialized Training",
-    start: new Date("2024-09-20T11:30:00"),
-    end: new Date("2024-09-20T13:00:00"),
-    resourceId: 4, // Emily Davis
-    backgroundColor: "#f59e0b",
-    borderColor: "#d97706",
-    className: "private-lesson",
-    extendedProps: {
-      lessonId: "sep20-4",
-      teacher: "Emily Davis",
-      classroom: "Room C",
-      isOwing: false,
-      isOnline: false,
-      isOwingRentalAgreement: true,
-      tooltip: "Private Lesson: Emily Davis - Specialized Training\nClassroom: Room C"
-    }
-  },
-  {
-    id: "sep20-5",
-    title: "Afternoon Session",
-    start: new Date("2024-09-20T14:00:00"),
-    end: new Date("2024-09-20T15:30:00"),
-    resourceId: 1, // John Smith
-    backgroundColor: "#3b82f6",
-    borderColor: "#1d4ed8",
-    className: "private-lesson",
-    extendedProps: {
-      lessonId: "sep20-5",
-      teacher: "John Smith",
-      classroom: "Room A",
-      isOwing: true,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Private Lesson: John Smith - Afternoon Session\nClassroom: Room A"
-    }
-  },
-  {
-    id: "sep20-6",
-    title: "Group Practice",
-    start: new Date("2024-09-20T15:00:00"),
-    end: new Date("2024-09-20T16:30:00"),
-    resourceId: 2, // Sarah Johnson
-    backgroundColor: "#10b981",
-    borderColor: "#059669",
-    className: "group-lesson",
-    extendedProps: {
-      lessonId: "sep20-6",
-      teacher: "Sarah Johnson",
-      classroom: "Room B",
-      isOwing: false,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Group Lesson: Sarah Johnson - Practice Session (6 students)\nClassroom: Room B"
-    }
-  },
-  {
-    id: "sep20-7",
-    title: "Evening Class",
-    start: new Date("2024-09-20T17:00:00"),
-    end: new Date("2024-09-20T18:30:00"),
-    resourceId: 3, // Mike Wilson
-    backgroundColor: "#8b5cf6",
-    borderColor: "#7c3aed",
-    className: "group-lesson",
-    extendedProps: {
-      lessonId: "sep20-7",
-      teacher: "Mike Wilson",
-      classroom: "Room D",
-      isOwing: false,
-      isOnline: false,
-      isOwingRentalAgreement: false,
-      tooltip: "Group Lesson: Mike Wilson - Evening Class (4 students)\nClassroom: Room D"
-    }
-  },
-  {
-    id: "sep20-8",
-    title: "Final Session",
-    start: new Date("2024-09-20T18:00:00"),
-    end: new Date("2024-09-20T19:00:00"),
-    resourceId: 4, // Emily Davis
-    backgroundColor: "#f59e0b",
-    borderColor: "#d97706",
-    className: "private-lesson",
-    extendedProps: {
-      lessonId: "sep20-8",
-      teacher: "Emily Davis",
-      classroom: "Room C",
-      isOwing: false,
-      isOnline: true,
-      isOwingRentalAgreement: false,
-      tooltip: "Online Lesson: Emily Davis - Final Session\nClassroom: Online"
-    }
-  },
-];
-
-// Combine all events
-const dummyEvents = [...todayEvents, ...sep20Events];
-
-
 export function ScheduleClient({ location }: ScheduleClientProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [currentView, setCurrentView] = useState<"teacher" | "classroom">("teacher");
@@ -338,19 +65,15 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
   // Teacher view state
   const [teacherViewResources, setTeacherViewResources] = useState<TeacherViewResource[]>([]);
-  const [teacherViewLoading, setTeacherViewLoading] = useState<boolean>(false);
   const [teacherViewError, setTeacherViewError] = useState<string | null>(null);
 
   // Teacher view events state
   const [teacherViewEvents, setTeacherViewEvents] = useState<TeacherViewEvent[]>([]);
-  const [teacherViewAvailability, setTeacherViewAvailability] = useState<TeacherViewAvailability[]>([]);
-  const [teacherViewEventsLoading, setTeacherViewEventsLoading] = useState<boolean>(false);
   const [teacherViewEventsError, setTeacherViewEventsError] = useState<string | null>(null);
 
   // Classroom view state
   const [classroomViewResources, setClassroomViewResources] = useState<ClassroomViewResource[]>([]);
   const [classroomViewEvents, setClassroomViewEvents] = useState<ClassroomViewEvent[]>([]);
-  const [classroomViewLoading, setClassroomViewLoading] = useState<boolean>(false);
   const [classroomViewError, setClassroomViewError] = useState<string | null>(null);
 
   // Ensure selectedDate is always valid
@@ -397,7 +120,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
       // Fetch classroom view resources
       try {
-        setClassroomViewLoading(true);
         setClassroomViewError(null);
         const classroomResourcesResponse = await getClassroomViewResources(location);
         
@@ -408,8 +130,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         }
       } catch (error) {
         setClassroomViewError(error instanceof Error ? error.message : 'Failed to fetch classroom resources');
-      } finally {
-        setClassroomViewLoading(false);
       }
     };
 
@@ -444,7 +164,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   useEffect(() => {
     const fetchTeacherView = async () => {
       try {
-        setTeacherViewLoading(true);
         setTeacherViewError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         const response = await getTeacherView(
@@ -462,8 +181,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         }
       } catch (error) {
         setTeacherViewError(error instanceof Error ? error.message : 'Failed to fetch teacher view');
-      } finally {
-        setTeacherViewLoading(false);
       }
     };
 
@@ -474,7 +191,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   useEffect(() => {
     const fetchTeacherViewEvents = async () => {
       try {
-        setTeacherViewEventsLoading(true);
         setTeacherViewEventsError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         
@@ -489,14 +205,11 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         
         if (response?.success) {
           setTeacherViewEvents(response.data.lessons);
-          setTeacherViewAvailability(response.data.availability);
         } else {
           setTeacherViewEventsError(response?.message || 'Failed to fetch teacher view events');
         }
       } catch (error) {
         setTeacherViewEventsError(error instanceof Error ? error.message : 'Failed to fetch teacher view events');
-      } finally {
-        setTeacherViewEventsLoading(false);
       }
     };
 
@@ -507,7 +220,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   useEffect(() => {
     const fetchClassroomViewEvents = async () => {
       try {
-        setClassroomViewLoading(true);
         setClassroomViewError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         
@@ -520,8 +232,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         }
       } catch (error) {
         setClassroomViewError(error instanceof Error ? error.message : 'Failed to fetch classroom view events');
-      } finally {
-        setClassroomViewLoading(false);
       }
     };
 
@@ -601,17 +311,17 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     }
   };
 
-  const handleEventDrop = (event: CalendarEvent) => {
+  const handleEventDrop = () => {
     // TODO: Update lesson time
   };
 
-  const handleEventResize = (event: CalendarEvent) => {
+  const handleEventResize = () => {
     // TODO: Update lesson duration
   };
 
   const openDailySchedule = () => {
     const dateStr = format(safeSelectedDate, "dd-MM-yyyy");
-    window.open(`/admin/v2/${location}/daily-schedule?date=${dateStr}`, '_blank');
+    window.open(`/admin/${location}/daily-schedule?date=${dateStr}`, '_blank');
   };
 
   // Get time range based on Show All checkbox
@@ -906,7 +616,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  selectedTeacher={selectedTeacher}
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}
-                isMobile={false} // We'll handle mobile detection in the wrapper
                />
            </div>
          </TabsContent>
