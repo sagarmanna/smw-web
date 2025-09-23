@@ -393,24 +393,7 @@
   }
 }
 
-/* Event type specific colors */
-.rbc-event.private-lesson {
-  background-color: #3b82f6 !important;
-  border-color: #1d4ed8 !important;
-  color: white !important;
-}
-
-.rbc-event.group-lesson {
-  background-color: #10b981 !important;
-  border-color: #059669 !important;
-  color: white !important;
-}
-
-.rbc-event.online-lesson {
-  background-color: #8b5cf6 !important;
-  border-color: #7c3aed !important;
-  color: white !important;
-}
+/* Event type specific colors - removed to allow API colors to take precedence */
 
 /* Status icons */
 .status-icons {
