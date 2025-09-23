@@ -1,14 +1,14 @@
 const Test = () => {
     return (
         <>
-        <div> Test Page </div>
+        <div> Test Page | ENV </div>
         <pre>
         NEXT_PUBLIC_ENV: {process.env.NEXT_PUBLIC_ENV}
-        <br />
+        {/* <br />
         NEXT_PUBLIC_API_URL: {process.env.NEXT_PUBLIC_API_URL}
         <br />
         NEXT_PUBLIC_LEGACY_URL: {process.env.NEXT_PUBLIC_LEGACY_URL}
-        <br />
+        <br /> */}
         </pre>
         </>
     )
