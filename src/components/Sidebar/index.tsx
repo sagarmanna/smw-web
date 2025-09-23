@@ -63,7 +63,14 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       toggleExpanded(item.id);
     } else if (item.url) {
       // Handle navigation
-      const url = getMenuUrl(item);
+      let url = getMenuUrl(item);
+      
+      // Add resetDate parameter for Schedule menu to reset calendar to today
+      if (item.id === 'schedule' && item.source === 'modern') {
+        const urlObj = new URL(url, window.location.origin);
+        urlObj.searchParams.set('resetDate', 'true');
+        url = urlObj.pathname + urlObj.search;
+      }
       
       if (item.source === 'legacy') {
         // Redirect to legacy app (full page reload)

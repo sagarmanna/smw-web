@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,6 +42,8 @@ interface CalendarEvent {
 }
 
 export function ScheduleClient({ location }: ScheduleClientProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [currentView, setCurrentView] = useState<"teacher" | "classroom">("teacher");
   const [selectedProgram, setSelectedProgram] = useState<string>("");
@@ -81,6 +84,16 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const safeSelectedDate = useMemo(() => {
     return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
   }, [selectedDate]);
+
+  // Handle resetDate parameter from URL
+  useEffect(() => {
+    const resetDate = searchParams.get('resetDate');
+    if (resetDate === 'true') {
+      // Reset date to today
+      setSelectedDate(new Date());
+      router.replace('schedule');
+    }
+  }, [searchParams, router]);
 
   // Fetch programs and teachers on component mount
   useEffect(() => {
