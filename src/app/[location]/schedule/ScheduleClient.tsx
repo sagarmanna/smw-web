@@ -273,6 +273,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           teacher: tooltip.find(t => t.name === "Teacher")?.value || "",
           classroom: tooltip.find(t => t.name === "Classroom")?.value || "",
           program: tooltip.find(t => t.name === "Program")?.value || "",
+          programId: event.programId?.toString() || "",
           isOwing: event.isOwing,
           isOnline: event.isOnline,
           isOwingRentalAgreement: event.isOwingRentalAgreement,
