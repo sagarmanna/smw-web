@@ -77,6 +77,36 @@ export default function Header({ onMenuClick }: HeaderProps) {
     window.location.href = legacyUrl;
   };
 
+  const handleProfileClick = () => {
+    if (userInfo) {
+      const profileUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/user/view?UserSearch%5Brole_name%5D=${encodeURIComponent(userInfo.role)}&id=${userInfo.id}`;
+      window.location.href = profileUrl;
+    }
+  };
+
+  const handleLogout = async () => {
+    if (userInfo) {
+      try {
+        // First, call the new app logout API
+        // await logout(userInfo.id);
+        
+        // Clear localStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('location');
+        localStorage.removeItem('id');
+        
+        // Call the cross-domain logout endpoint to clear legacy session
+        // This will redirect to the legacy login page after clearing the session
+        window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/sign-in/cross-domain-logout`;
+        
+      } catch (error) {
+        console.error('Logout error:', error);
+        // Fallback: redirect to legacy login page
+        window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/sign-in/login`;
+      }
+    }
+  };
+
   // Check if we're on a modern page that has a legacy equivalent
   const isModernPage = !pathname.includes('/menu-flags');
 
@@ -231,12 +261,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleProfileClick}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

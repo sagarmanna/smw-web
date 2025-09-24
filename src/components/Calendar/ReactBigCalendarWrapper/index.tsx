@@ -48,6 +48,15 @@ interface CalendarResource {
   description?: string;
 }
 
+interface AvailabilityData {
+  resourceId: number;
+  title: string;
+  start: string;
+  end: string;
+  rendering: string;
+  className: string;
+}
+
 interface ReactBigCalendarWrapperProps {
   events: CalendarEvent[];
   resources: CalendarResource[];
@@ -62,6 +71,7 @@ interface ReactBigCalendarWrapperProps {
   selectedTeacher?: string;
   minTime?: string; // Format: "HH:mm:ss"
   maxTime?: string; // Format: "HH:mm:ss"
+  availability?: AvailabilityData[]; // Teacher availability data
 }
 
 // Custom resource header component
@@ -101,7 +111,8 @@ export function ReactBigCalendarWrapper({
   selectedProgram,
   selectedTeacher,
   minTime = "08:00:00",
-  maxTime = "20:00:00"
+  maxTime = "20:00:00",
+  availability = []
 }: ReactBigCalendarWrapperProps) {
 
   // Convert time strings to Date objects for the current date
@@ -151,6 +162,71 @@ export function ReactBigCalendarWrapper({
     if (onEventResize) {
       onEventResize(args.event);
     }
+  };
+
+  // Slot prop getter to handle availability/unavailability colors
+  const slotPropGetter = (date: Date, resourceId?: string | number) => {
+    // Default unavailability color
+    const unavailabilityColor = '#cccccc';
+    
+    if (!resourceId) {
+      return {
+        style: {
+          backgroundColor: unavailabilityColor,
+          opacity: 1,
+          cursor: 'pointer'
+        },
+        className: 'normal-slot'
+      };
+    }
+
+    // Convert resourceId to number for comparison
+    const numericResourceId = typeof resourceId === 'string' ? parseInt(resourceId) : resourceId;
+
+    // Check if this time slot has availability data
+    const hasAvailability = availability.some(avail => {
+      if (avail.resourceId !== numericResourceId) return false;
+      
+      const availStart = new Date(avail.start);
+      const availEnd = new Date(avail.end);
+      const slotTime = new Date(date);
+      
+      // Check if it's the same day
+      const isSameDay = slotTime.getFullYear() === availStart.getFullYear() &&
+        slotTime.getMonth() === availStart.getMonth() &&
+        slotTime.getDate() === availStart.getDate();
+      
+      if (!isSameDay) return false;
+      
+      // Compare only the time parts
+      const slotTimeOnly = slotTime.getHours() * 60 + slotTime.getMinutes();
+      const startTimeOnly = availStart.getHours() * 60 + availStart.getMinutes();
+      const endTimeOnly = availEnd.getHours() * 60 + availEnd.getMinutes();
+      
+      return slotTimeOnly >= startTimeOnly && slotTimeOnly < endTimeOnly;
+    });
+
+    if (hasAvailability) {
+      // Teacher is available - show availability color
+      return {
+        style: {
+          backgroundColor: '#a6a6a6',
+          opacity: 0.6,
+          cursor: 'pointer',
+        },
+        className: 'available-slot'
+      };
+    }
+
+    // Default state - teacher unavailability
+    return {
+      style: {
+        backgroundColor: unavailabilityColor,
+        opacity: 1,
+        cursor: 'pointer'
+      },
+      className: 'normal-slot'
+    };
   };
 
   const eventPropGetter = (event: CalendarEvent) => {
@@ -464,6 +540,7 @@ export function ReactBigCalendarWrapper({
             min={minDate}
             max={maxDate}
             eventPropGetter={eventPropGetter}
+            slotPropGetter={slotPropGetter}
             style={{ height: '100%' }}
             className={isMobileView ? 'mobile-calendar' : ''}
           />

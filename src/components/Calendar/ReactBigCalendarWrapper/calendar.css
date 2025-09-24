@@ -1,5 +1,12 @@
 /* Custom styles for React Big Calendar - Based on existing style.scss */
 
+/* Ensure teacher-unavailability color is always #cccccc for consistency */
+:root {
+  --teacher-unavailability-color: #cccccc !important;
+}
+
+/* Let slotPropGetter handle availability/unavailability colors */
+
 /* Mobile event rendering improvements */
 @media (max-width: 768px) {
   .teacher-view .rbc-event {
@@ -38,18 +45,18 @@
   overflow: hidden !important;
 }
 
-.rbc-header {
-  /* background: #f9fafb;
+/* .rbc-header {
+  background: #f9fafb;
   color: #22223b;
   font-weight: 600;
   font-size: 15px;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid #c0bdbb;
   padding: 0;
   position: sticky;
   top: 0;
   z-index: 2;
-  min-width: 140px !important; */
-}
+  min-width: 140px !important;
+} */
 
 .rbc-time-header {
   background: #f9fafb;
@@ -70,7 +77,8 @@
 }
 
 .rbc-time-content {
-  background: var(--teacher-unavailability-color, #cccccc) !important;
+  /* Let slotPropGetter handle the background colors */
+  background: transparent !important;
 }
 
 .rbc-event {
@@ -104,7 +112,7 @@
   color: #64748b;
   font-weight: 500;
   font-size: 13px;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid #c0bdbb;
   width: 70px !important;
   min-width: 70px !important;
   max-width: 70px !important;
@@ -138,7 +146,7 @@
 }
 
 .rbc-day-slot .rbc-time-slot:first-child {
-  border-bottom: 1px dotted #dddddd !important;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.5) !important;
 }
 
 .rbc-day-slot .rbc-time-slot {
@@ -147,7 +155,17 @@
 }
 
 .rbc-timeslot-group .rbc-time-slot:first-child {
-  border-bottom: 1px dotted #dddddd ;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.5);
+}
+
+/* Hourly solid lines - every hour separator */
+.rbc-timeslot-group {
+  border-bottom: 1px solid rgba(192, 189, 187, 0.3);
+}
+
+/* Alternative selector for hourly lines */
+.rbc-day-slot .rbc-timeslot-group:not(:last-child) {
+  border-bottom: 1px solid rgba(192, 189, 187, 0.3);
 }
 
 .rbc-label {
@@ -237,6 +255,8 @@
 
 .rbc-events-container {
   margin-right: 0 !important;
+  /* Allow default background to show through for empty time slots */
+  background-color: transparent;
 }
 
 .rbc-event .rbc-addons-dnd-resize-ns-anchor:first-child .rbc-addons-dnd-resize-ns-icon {

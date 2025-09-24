@@ -11,7 +11,7 @@ import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarW
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
+import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
 import { formatLocationName } from "@/utils/textUtils";
 
 interface ScheduleClientProps {
@@ -74,6 +74,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   // Teacher view events state
   const [teacherViewEvents, setTeacherViewEvents] = useState<TeacherViewEvent[]>([]);
   const [teacherViewEventsError, setTeacherViewEventsError] = useState<string | null>(null);
+
+  // Teacher view availability state
+  const [teacherViewAvailability, setTeacherViewAvailability] = useState<TeacherViewAvailability[]>([]);
 
   // Classroom view state
   const [classroomViewResources, setClassroomViewResources] = useState<ClassroomViewResource[]>([]);
@@ -219,6 +222,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         
         if (response?.success) {
           setTeacherViewEvents(response.data.lessons);
+          setTeacherViewAvailability(response.data.availability || []);
         } else {
           setTeacherViewEventsError(response?.message || 'Failed to fetch teacher view events');
         }
@@ -318,6 +322,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       return calendarEvent;
     });
   };
+
 
   const handleEventClick = (event: CalendarEvent) => {
     // Navigate to lesson details if URL is available
@@ -651,6 +656,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  selectedTeacher={selectedTeacher}
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}
+                 availability={teacherViewAvailability}
                />
            </div>
          </TabsContent>
