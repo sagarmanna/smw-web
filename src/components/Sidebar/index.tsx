@@ -150,7 +150,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         ${isOpen ? 'md:flex' : 'md:hidden'} md:flex-col
       `}>
-        <div className="flex flex-col flex-grow pt-5 overflow-y-auto bg-background border-r h-full">
+        <div className="flex flex-col flex-grow pt-5 overflow-y-auto overflow-x-hidden bg-background border-r h-full">
           {/* Mobile Logo */}
           <div className="flex items-center justify-center px-4 pb-4 md:hidden">
             <Link href="/">
