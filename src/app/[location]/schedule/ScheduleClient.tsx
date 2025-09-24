@@ -65,6 +65,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
   const [teachersError, setTeachersError] = useState<string | null>(null);
+  
+  // Filtered teachers state (based on selected program)
+  const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([]);
 
   // Schedule details state
   const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails | null>(null);
@@ -124,7 +127,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         setProgramsLoading(false);
       }
 
-      // Fetch teachers
+      // Fetch teachers (all teachers initially)
       try {
         setTeachersLoading(true);
         setTeachersError(null);
@@ -132,6 +135,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         
         if (teachersResponse?.success) {
           setTeachers(teachersResponse.data);
+          setFilteredTeachers(teachersResponse.data); // Initially show all teachers
         } else {
           setTeachersError(teachersResponse?.message || 'Failed to fetch teachers');
         }
@@ -160,6 +164,28 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
     fetchData();
   }, [location]);
+
+  // Filter teachers based on selected program using teacherViewResources
+  useEffect(() => {
+    if (!selectedProgram) {
+      // If no program selected, show all teachers
+      setFilteredTeachers(teachers);
+      return;
+    }
+
+    // Use teacherViewResources which are already filtered by the selected program
+    const filteredTeachersList = teachers.filter(teacher => 
+      teacherViewResources.some(resource => resource.id === teacher.id)
+    );
+
+    setFilteredTeachers(filteredTeachersList);
+
+    // Check if currently selected teacher is still available in filtered list
+    if (selectedTeacher && !filteredTeachersList.some(teacher => teacher.id.toString() === selectedTeacher)) {
+      // Reset teacher selection if selected teacher is not available in filtered list
+      setSelectedTeacher("");
+    }
+  }, [selectedProgram, teachers, teacherViewResources, selectedTeacher]);
 
   // Fetch schedule details when date changes
   useEffect(() => {
@@ -556,7 +582,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                       <Combobox
                         options={[
                           { value: "all", label: "All Teachers" },
-                          ...teachers.map((teacher) => ({
+                          ...filteredTeachers.map((teacher) => ({
                             value: teacher.id.toString(),
                             label: teacher.name,
                           }))
@@ -638,7 +664,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                     <Combobox
                       options={[
                         { value: "all", label: "All Teachers" },
-                        ...teachers.map((teacher) => ({
+                        ...filteredTeachers.map((teacher) => ({
                           value: teacher.id.toString(),
                           label: teacher.name,
                         }))
