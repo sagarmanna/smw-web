@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarWrapper";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [mobileDatePickerOpen, setMobileDatePickerOpen] = useState<boolean>(false);
   const [desktopDatePickerOpen, setDesktopDatePickerOpen] = useState<boolean>(false);
   
+  // Initial loading state
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
+
   // Programs state
   const [programs, setPrograms] = useState<Program[]>([]);
   const [programsLoading, setProgramsLoading] = useState<boolean>(true);
@@ -101,6 +105,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   // Fetch programs and teachers on component mount
   useEffect(() => {
     const fetchData = async () => {
+      setIsInitialLoading(true);
+      
       // Fetch programs
       try {
         setProgramsLoading(true);
@@ -147,6 +153,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         }
       } catch (error) {
         setClassroomViewError(error instanceof Error ? error.message : 'Failed to fetch classroom resources');
+      } finally {
+        setIsInitialLoading(false);
       }
     };
 
@@ -373,6 +381,19 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
   const timeRange = getTimeRange();
 
+  // Show full-page loading animation while fetching initial data
+  if (isInitialLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[600px]">
+        <LoadingAnimation 
+          size="xl" 
+          text="Loading schedule data..." 
+          className="text-center"
+        />
+      </div>  
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Compact Header - Responsive height */}
@@ -381,12 +402,12 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold tracking-tight truncate">
-              Schedule - {format(safeSelectedDate, "MMM do, yyyy")}
+              Schedule - {format(safeSelectedDate, "MMM do, yyyy")} {scheduleDetails?.Holiday?.description && `- ${scheduleDetails?.Holiday?.description}`}
             {scheduleDetailsLoading && (
                 <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
             )}
           </h1>
-            <p className="text-xs text-muted-foreground truncate">
+            {/* <p className="text-xs text-muted-foreground truncate">
               {formatLocationName(location)}
             {scheduleDetails && (
                 <span className="ml-1">
@@ -414,7 +435,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                   • {classroomViewEvents.length} lesson{classroomViewEvents.length !== 1 ? 's' : ''}
                 </span>
               )}
-          </p>
+          </p> */}
         </div>
         
           <div className="flex items-center gap-2 flex-shrink-0">

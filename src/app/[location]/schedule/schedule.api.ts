@@ -31,7 +31,11 @@ export interface ScheduleDetails {
     from: string;
     to: string;
   };
-  Holiday: unknown;
+  Holiday: {
+    id: number;
+    date: string;
+    description: string;
+  };
 }
 
 export interface ScheduleDetailsResponse {

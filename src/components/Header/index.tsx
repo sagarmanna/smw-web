@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Menu, User, LogOut, Sun, Moon, MapPin, ArrowLeft } from "lucide-react";
+import { Menu, User, LogOut, Sun, Moon, MapPin, ArrowLeft, ToggleLeft, ToggleRight } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Image from "next/image";
 import Link from "next/link";
 import { useAppSelector } from "@/redux/hooks";
@@ -32,6 +33,7 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLegacyMode, setIsLegacyMode] = useState(false);
   const { theme, setTheme } = useTheme();
   const params = useParams();
   const router = useRouter();
@@ -59,22 +61,29 @@ export default function Header({ onMenuClick }: HeaderProps) {
     router.push(newPath);
   };
 
-  const handleBackToLegacy = () => {
-    // Extract the current page from the pathname
-    const currentPage = pathname.split('/').pop() || 'dashboard';
-    
-    // Map modern pages to their legacy equivalents
-    const legacyPageMap: { [key: string]: string } = {
-      'dashboard': '/dashboard',
-      'schedule': '/schedule',
-      'menu-flags': '/admin/menu-flags', // Special case for admin pages
-    };
-    
-    const legacyPath = legacyPageMap[currentPage] || `/${currentPage}`;
-    const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL || 'http://localhost:8080'}${legacyPath}`;
-    
-    // Redirect to legacy page
-    window.location.href = legacyUrl;
+  const handleLegacyToggle = () => {
+    if (!isLegacyMode) {
+      // Switch to legacy mode
+      setIsLegacyMode(true);
+      
+      // Extract the current page from the pathname
+      const currentPage = pathname.split('/').pop() || 'dashboard';
+      
+      // Map modern pages to their legacy equivalents
+      const legacyPageMap: { [key: string]: string } = {
+        'dashboard': '/dashboard',
+        'schedule': '/schedule',
+        'menu-flags': '/admin/menu-flags', // Special case for admin pages
+      };
+      
+      const legacyPath = legacyPageMap[currentPage] || `/${currentPage}`;
+      const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL || 'http://localhost:8080'}${legacyPath}`;
+      
+      // Redirect to legacy page
+      window.location.href = legacyUrl;
+    }
+    // Note: We don't handle switching back to modern mode since that would require
+    // the user to be on the legacy page, which would be handled by the legacy system
   };
 
   const handleProfileClick = () => {
@@ -199,18 +208,37 @@ export default function Header({ onMenuClick }: HeaderProps) {
             {/* Search or other content can go here */}
           </div>
           
-          {/* Back to Legacy Button - Only show on modern pages */}
+          {/* Legacy Mode Switch - Only show on modern pages */}
           {isModernPage && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 px-3 mr-2 md:w-auto w-8"
-              onClick={handleBackToLegacy}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden md:inline ml-1">Back to Legacy</span>
-              <span className="sr-only">Back to Legacy</span>
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleLegacyToggle}
+                    className={`
+                      relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 mr-2
+                      ${isLegacyMode 
+                        ? 'bg-primary' 
+                        : 'bg-gray-200 dark:bg-gray-700'
+                      }
+                    `}
+                    role="switch"
+                    aria-checked={isLegacyMode}
+                    aria-label="Toggle legacy mode"
+                  >
+                    <span
+                      className={`
+                        inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out
+                        ${isLegacyMode ? 'translate-x-6' : 'translate-x-1'}
+                      `}
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Back to Legacy</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {/* Theme Toggle */}
