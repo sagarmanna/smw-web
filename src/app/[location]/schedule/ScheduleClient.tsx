@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,6 +42,8 @@ interface CalendarEvent {
 }
 
 export function ScheduleClient({ location }: ScheduleClientProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [currentView, setCurrentView] = useState<"teacher" | "classroom">("teacher");
   const [selectedProgram, setSelectedProgram] = useState<string>("");
@@ -81,6 +84,16 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const safeSelectedDate = useMemo(() => {
     return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
   }, [selectedDate]);
+
+  // Handle resetDate parameter from URL
+  useEffect(() => {
+    const resetDate = searchParams.get('resetDate');
+    if (resetDate === 'true') {
+      // Reset date to today
+      setSelectedDate(new Date());
+      router.replace('schedule');
+    }
+  }, [searchParams, router]);
 
   // Fetch programs and teachers on component mount
   useEffect(() => {
@@ -260,6 +273,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           teacher: tooltip.find(t => t.name === "Teacher")?.value || "",
           classroom: tooltip.find(t => t.name === "Classroom")?.value || "",
           program: tooltip.find(t => t.name === "Program")?.value || "",
+          programId: event.programId?.toString() || "",
           isOwing: event.isOwing,
           isOnline: event.isOnline,
           isOwingRentalAgreement: event.isOwingRentalAgreement,
@@ -325,20 +339,26 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     window.open(`/admin/${location}/daily-schedule?date=${dateStr}`, '_blank');
   };
 
-  // Get time range based on Show All checkbox
+  // Get time range based on view type and Show All checkbox
   const getTimeRange = () => {
     if (!scheduleDetails) {
       return { minTime: "09:00:00", maxTime: "17:00:00" }; // Default fallback
     }
 
-    if (showAll) {
-      // Use OperationTimeAvailability when Show All is checked
+    if (currentView === "classroom") {
+      // Classroom view always uses OperationTimeAvailability
+      return {
+        minTime: scheduleDetails.OperationTimeAvailability.from,
+        maxTime: scheduleDetails.OperationTimeAvailability.to
+      };
+    } else if (showAll) {
+      // Teacher view uses OperationTimeAvailability when Show All is checked
       return {
         minTime: scheduleDetails.OperationTimeAvailability.from,
         maxTime: scheduleDetails.OperationTimeAvailability.to
       };
     } else {
-      // Use Availabilities when Show All is unchecked
+      // Teacher view uses Availabilities when Show All is unchecked
       return {
         minTime: scheduleDetails.Availabilities.from,
         maxTime: scheduleDetails.Availabilities.to

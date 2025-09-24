@@ -224,34 +224,39 @@ export function ReactBigCalendarWrapper({
       return (
         <HoverCard>
           <HoverCardTrigger asChild>
-            <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center gap-1 cursor-pointer">
-              {/* Start time */}
-              <span className="text-xs font-semibold text-white flex-shrink-0">
-                {moment(event.start).format('hh:mm')}
-              </span>
+            <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col cursor-pointer">
+              {/* Top row: Icon, time, and status icons */}
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                  <span className="text-xs font-semibold text-white">
+                    {moment(event.start).format('hh:mm')}
+                  </span>
+                </div>
+                
+                {/* Status icons on the right */}
+                <div className="status-icons flex gap-1 flex-shrink-0">
+                  {extendedProps.isOwing && (
+                    <div title="Student owes money">
+                      <DollarSign className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                  {extendedProps.isOnline && (
+                    <div title="Online lesson">
+                      <Monitor className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                  {extendedProps.isOwingRentalAgreement && (
+                    <div title="Equipment rental outstanding">
+                      <Megaphone className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                </div>
+              </div>
               
-              {/* Student first name */}
-              <span className="text-xs font-medium text-white truncate flex-1">
+              {/* Title below */}
+              <div className="text-xs font-medium text-white truncate mt-0.5">
                 {getFirstName(event.title)}
-              </span>
-              
-              {/* Icons */}
-              <div className="status-icons flex gap-1 flex-shrink-0">
-                {extendedProps.isOwing && (
-                  <div title="Student owes money">
-                    <DollarSign className="h-3 w-3 text-white" />
-                  </div>
-                )}
-                {extendedProps.isOnline && (
-                  <div title="Online lesson">
-                    <Monitor className="h-3 w-3 text-white" />
-                  </div>
-                )}
-                {extendedProps.isOwingRentalAgreement && (
-                  <div title="Equipment rental outstanding">
-                    <Megaphone className="h-3 w-3 text-white" />
-                  </div>
-                )}
               </div>
             </div>
           </HoverCardTrigger>
@@ -285,37 +290,41 @@ export function ReactBigCalendarWrapper({
     return (
       <HoverCard>
         <HoverCardTrigger asChild>
-          <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col justify-between cursor-pointer">
-            {/* Time row - compact for short events */}
-            <div className="text-xs font-semibold text-white flex items-center gap-1 leading-tight flex-shrink-0">
-              <Clock className="h-3 w-3 text-white flex-shrink-0" />
-              <span className="whitespace-nowrap">{formatTime(event.start, event.end)}</span>
+          <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col cursor-pointer">
+            {/* Top row: Icon, time, and status icons */}
+            <div className="flex items-center justify-between w-full flex-shrink-0">
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                <span className="text-xs font-semibold text-white whitespace-nowrap">
+                  {formatTime(event.start, event.end)}
+                </span>
+              </div>
+              
+              {/* Status icons on the right */}
+              <div className="status-icons flex gap-1 flex-shrink-0">
+                {extendedProps.isOwing && (
+                  <div title="Student owes money" className="flex-shrink-0">
+                    <DollarSign className="h-3 w-3 text-white" />
+                  </div>
+                )}
+                {extendedProps.isOnline && (
+                  <div title="Online lesson" className="flex-shrink-0">
+                    <Monitor className="h-3 w-3 text-white" />
+                  </div>
+                )}
+                {extendedProps.isOwingRentalAgreement && (
+                  <div title="Equipment rental outstanding" className="flex-shrink-0">
+                    <Megaphone className="h-3 w-3 text-white" />
+                  </div>
+                )}
+              </div>
             </div>
             
-            {/* Title row - flexible height with better text handling */}
-            <div className="text-xs font-medium text-white leading-tight flex-1 flex items-center min-h-0 overflow-hidden">
+            {/* Title below - flexible height */}
+            <div className="text-xs font-medium text-white leading-tight flex-1 flex items-center min-h-0 overflow-hidden mt-1">
               <span className="truncate w-full">
                 {event.title}
               </span>
-            </div>
-            
-            {/* Icons row - compact and right-aligned */}
-            <div className="status-icons flex gap-1 justify-end flex-shrink-0">
-              {extendedProps.isOwing && (
-                <div title="Student owes money" className="flex-shrink-0">
-                  <DollarSign className="h-3 w-3 text-white" />
-                </div>
-              )}
-              {extendedProps.isOnline && (
-                <div title="Online lesson" className="flex-shrink-0">
-                  <Monitor className="h-3 w-3 text-white" />
-                </div>
-              )}
-              {extendedProps.isOwingRentalAgreement && (
-                <div title="Equipment rental outstanding" className="flex-shrink-0">
-                  <Megaphone className="h-3 w-3 text-white" />
-                </div>
-              )}
             </div>
           </div>
         </HoverCardTrigger>
