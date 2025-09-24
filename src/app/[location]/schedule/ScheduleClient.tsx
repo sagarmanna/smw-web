@@ -339,20 +339,26 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     window.open(`/admin/${location}/daily-schedule?date=${dateStr}`, '_blank');
   };
 
-  // Get time range based on Show All checkbox
+  // Get time range based on view type and Show All checkbox
   const getTimeRange = () => {
     if (!scheduleDetails) {
       return { minTime: "09:00:00", maxTime: "17:00:00" }; // Default fallback
     }
 
-    if (showAll) {
-      // Use OperationTimeAvailability when Show All is checked
+    if (currentView === "classroom") {
+      // Classroom view always uses OperationTimeAvailability
+      return {
+        minTime: scheduleDetails.OperationTimeAvailability.from,
+        maxTime: scheduleDetails.OperationTimeAvailability.to
+      };
+    } else if (showAll) {
+      // Teacher view uses OperationTimeAvailability when Show All is checked
       return {
         minTime: scheduleDetails.OperationTimeAvailability.from,
         maxTime: scheduleDetails.OperationTimeAvailability.to
       };
     } else {
-      // Use Availabilities when Show All is unchecked
+      // Teacher view uses Availabilities when Show All is unchecked
       return {
         minTime: scheduleDetails.Availabilities.from,
         maxTime: scheduleDetails.Availabilities.to
