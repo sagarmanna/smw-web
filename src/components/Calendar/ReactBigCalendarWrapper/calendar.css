@@ -1,5 +1,10 @@
 /* Custom styles for React Big Calendar - Based on existing style.scss */
 
+/* Ensure teacher-unavailability color is always #cccccc for consistency */
+:root {
+  --teacher-unavailability-color: #cccccc !important;
+}
+
 /* Mobile event rendering improvements */
 @media (max-width: 768px) {
   .teacher-view .rbc-event {
@@ -237,6 +242,7 @@
 
 .rbc-events-container {
   margin-right: 0 !important;
+  background-color: var(--teacher-unavailability-color, #cccccc);
 }
 
 .rbc-event .rbc-addons-dnd-resize-ns-anchor:first-child .rbc-addons-dnd-resize-ns-icon {
