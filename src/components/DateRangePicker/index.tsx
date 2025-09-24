@@ -119,8 +119,8 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start" ref={popoverRef}>
           <div className="flex">
-            {/* Quick Options */}
-            <div className="border-r p-3 w-[140px]">
+            {/* Quick Options - Hidden on mobile */}
+            <div className="hidden md:block border-r p-3 w-[140px]">
               <h4 className="text-sm font-medium mb-3">Quick Options</h4>
               <div className="space-y-1">
                 {quickOptions.map((option) => (
@@ -140,15 +140,30 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
             {/* Calendar */}
             <div className="p-3">
               <h4 className="text-sm font-medium mb-3">Custom Range</h4>
-              <CalendarComponent
-                mode="range"
-                defaultMonth={tempRange?.from}
-                selected={tempRange}
-                onSelect={handleCalendarSelect}
-                numberOfMonths={2}
-                showOutsideDays={false}
-                className="rounded-lg border shadow-sm"
-              />
+              {/* Mobile: Single month */}
+              <div className="block md:hidden">
+                <CalendarComponent
+                  mode="range"
+                  defaultMonth={tempRange?.from}
+                  selected={tempRange}
+                  onSelect={handleCalendarSelect}
+                  numberOfMonths={1}
+                  showOutsideDays={false}
+                  className="rounded-lg border shadow-sm"
+                />
+              </div>
+              {/* Desktop: Two months */}
+              <div className="hidden md:block">
+                <CalendarComponent
+                  mode="range"
+                  defaultMonth={tempRange?.from}
+                  selected={tempRange}
+                  onSelect={handleCalendarSelect}
+                  numberOfMonths={2}
+                  showOutsideDays={false}
+                  className="rounded-lg border shadow-sm"
+                />
+              </div>
               
               {/* Action Buttons */}
               <div className="flex justify-end space-x-2 mt-4 pt-3 border-t">

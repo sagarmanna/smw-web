@@ -13,7 +13,9 @@ import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
-import { formatLocationName } from "@/utils/textUtils";
+import { updateLesson, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
+import { useToast } from "@/hooks/useToast";
+import { ToastContainer } from "@/components/ui/toast";
 
 interface ScheduleClientProps {
   location: string;
@@ -56,6 +58,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   // Initial loading state
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
 
+  // Toast notifications
+  const { toast, dismiss, toasts } = useToast();
+
   // Programs state
   const [programs, setPrograms] = useState<Program[]>([]);
   const [programsLoading, setProgramsLoading] = useState<boolean>(true);
@@ -65,6 +70,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
   const [teachersError, setTeachersError] = useState<string | null>(null);
+  
+  // Filtered teachers state (based on selected program)
+  const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([]);
 
   // Schedule details state
   const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails | null>(null);
@@ -124,7 +132,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         setProgramsLoading(false);
       }
 
-      // Fetch teachers
+      // Fetch teachers (all teachers initially)
       try {
         setTeachersLoading(true);
         setTeachersError(null);
@@ -132,6 +140,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         
         if (teachersResponse?.success) {
           setTeachers(teachersResponse.data);
+          setFilteredTeachers(teachersResponse.data); // Initially show all teachers
         } else {
           setTeachersError(teachersResponse?.message || 'Failed to fetch teachers');
         }
@@ -160,6 +169,28 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
     fetchData();
   }, [location]);
+
+  // Filter teachers based on selected program using teacherViewResources
+  useEffect(() => {
+    if (!selectedProgram) {
+      // If no program selected, show all teachers
+      setFilteredTeachers(teachers);
+      return;
+    }
+
+    // Use teacherViewResources which are already filtered by the selected program
+    const filteredTeachersList = teachers.filter(teacher => 
+      teacherViewResources.some(resource => resource.id === teacher.id)
+    );
+
+    setFilteredTeachers(filteredTeachersList);
+
+    // Check if currently selected teacher is still available in filtered list
+    if (selectedTeacher && !filteredTeachersList.some(teacher => teacher.id.toString() === selectedTeacher)) {
+      // Reset teacher selection if selected teacher is not available in filtered list
+      setSelectedTeacher("");
+    }
+  }, [selectedProgram, teachers, teacherViewResources, selectedTeacher]);
 
   // Fetch schedule details when date changes
   useEffect(() => {
@@ -339,12 +370,72 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     }
   };
 
-  const handleEventDrop = () => {
-    // TODO: Update lesson time
+  const handleEventDrop = async (event: CalendarEvent) => {
+    try {
+      const lessonData = {
+        teacherId: event.resourceId?.toString() || '',
+        date: formatDateTimeForLegacy(event.start),
+        duration: formatDurationForLegacy(event.start, event.end),
+      };
+
+      const result = await updateLesson(location, event.id, lessonData);
+      
+      if (result.status) {
+        toast({
+          title: "Success",
+          description: "Lesson updated successfully",
+          variant: "success"
+        });
+        // Refresh the page to show updated data
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        toast({
+          title: "Error",
+          description: result.errors?.[0] || "Failed to update lesson",
+          variant: "destructive"
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to update lesson",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleEventResize = () => {
-    // TODO: Update lesson duration
+  const handleEventResize = async (event: CalendarEvent) => {
+    try {
+      const lessonData = {
+        teacherId: event.resourceId?.toString() || '',
+        date: formatDateTimeForLegacy(event.start),
+        duration: formatDurationForLegacy(event.start, event.end),
+      };
+
+      const result = await updateLesson(location, event.id, lessonData);
+      
+      if (result.status) {
+        toast({
+          title: "Success",
+          description: "Lesson duration updated successfully",
+          variant: "success"
+        });
+        // Refresh the page to show updated data
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        toast({
+          title: "Error",
+          description: result.errors?.[0] || "Failed to update lesson",
+          variant: "destructive"
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to update lesson",
+        variant: "destructive"
+      });
+    }
   };
 
   const openDailySchedule = () => {
@@ -556,7 +647,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                       <Combobox
                         options={[
                           { value: "all", label: "All Teachers" },
-                          ...teachers.map((teacher) => ({
+                          ...filteredTeachers.map((teacher) => ({
                             value: teacher.id.toString(),
                             label: teacher.name,
                           }))
@@ -638,7 +729,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                     <Combobox
                       options={[
                         { value: "all", label: "All Teachers" },
-                        ...teachers.map((teacher) => ({
+                        ...filteredTeachers.map((teacher) => ({
                           value: teacher.id.toString(),
                           label: teacher.name,
                         }))
@@ -703,6 +794,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
          </TabsContent>
       </Tabs>
       </div>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} dismiss={dismiss} />
     </div>
   );
 }
