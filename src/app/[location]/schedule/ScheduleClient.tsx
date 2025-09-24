@@ -402,12 +402,12 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold tracking-tight truncate">
-              Schedule - {format(safeSelectedDate, "MMM do, yyyy")}
+              Schedule - {format(safeSelectedDate, "MMM do, yyyy")} {scheduleDetails?.Holiday?.description && `- ${scheduleDetails?.Holiday?.description}`}
             {scheduleDetailsLoading && (
                 <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
             )}
           </h1>
-            <p className="text-xs text-muted-foreground truncate">
+            {/* <p className="text-xs text-muted-foreground truncate">
               {formatLocationName(location)}
             {scheduleDetails && (
                 <span className="ml-1">
@@ -435,7 +435,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                   • {classroomViewEvents.length} lesson{classroomViewEvents.length !== 1 ? 's' : ''}
                 </span>
               )}
-          </p>
+          </p> */}
         </div>
         
           <div className="flex items-center gap-2 flex-shrink-0">
