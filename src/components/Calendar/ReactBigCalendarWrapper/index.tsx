@@ -128,10 +128,7 @@ export function ReactBigCalendarWrapper({
 
   // Filter events based on filters and timeline visibility
   const filteredEvents = events.filter(event => {
-    // Filter by program and teacher
-    if (!showAll && selectedProgram && event.extendedProps?.programId !== selectedProgram) {
-      return false;
-    }
+    // Filter by teacher (if specific teacher is selected)
     if (selectedTeacher && event.resourceId !== parseInt(selectedTeacher)) {
       return false;
     }
