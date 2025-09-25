@@ -61,6 +61,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   // Toast notifications
   const { toast, dismiss, toasts } = useToast();
 
+  // Force refresh trigger
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   // Programs state
   const [programs, setPrograms] = useState<Program[]>([]);
   const [programsLoading, setProgramsLoading] = useState<boolean>(true);
@@ -271,7 +274,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     };
 
     fetchTeacherViewEvents();
-  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
+  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher, refreshTrigger]);
 
   // Fetch classroom view events when date changes
   useEffect(() => {
@@ -293,7 +296,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     };
 
     fetchClassroomViewEvents();
-  }, [location, safeSelectedDate]);
+  }, [location, safeSelectedDate, refreshTrigger]);
 
   // Convert API events to calendar format
   const convertTeacherViewEventsToCalendar = (events: TeacherViewEvent[]): CalendarEvent[] => {
@@ -386,8 +389,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           description: "Lesson updated successfully",
           variant: "success"
         });
-        // Refresh the page to show updated data
-        setTimeout(() => window.location.reload(), 1000);
+        // Refresh the events data instead of reloading the page
+        setRefreshTrigger(prev => prev + 1); // Trigger data refetch
       } else {
         toast({
           title: "Error",
@@ -420,8 +423,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           description: "Lesson duration updated successfully",
           variant: "success"
         });
-        // Refresh the page to show updated data
-        setTimeout(() => window.location.reload(), 1000);
+        // Refresh the events data instead of reloading the page
+        setRefreshTrigger(prev => prev + 1); // Trigger data refetch
       } else {
         toast({
           title: "Error",
