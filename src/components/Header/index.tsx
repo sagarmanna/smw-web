@@ -27,6 +27,8 @@ import { useAppSelector } from "@/redux/hooks";
 import { useLocations } from "@/hooks/useLocations";
 import { useLocationChange } from "@/hooks/useLocationChange";
 import { useLocationAccess } from "@/hooks/useLocationAccess";
+import { useLocationFeatures } from "@/hooks/useLocationFeatures";
+import { getCurrentPageFeature, getLegacyUrl } from "@/utils/pageFeatureDetection";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -48,6 +50,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
   
   // Check location access permissions
   const { hasLocationAccess } = useLocationAccess(location);
+  
+  // Check feature availability for location
+  const { getFeatureSourceForLocation } = useLocationFeatures();
 
   const handleMenuClick = () => {
     setIsOpen(!isOpen);
@@ -65,6 +70,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
       return;
     }
     
+    // Get the current page feature from pathname
+    const currentFeature = getCurrentPageFeature(pathname);
+    
+    // Check if the new location has modern version of the current feature
+    const featureSource = getFeatureSourceForLocation(newLocation, currentFeature);
+    
+    if (featureSource === 'legacy') {
+      // Redirect to legacy page for this feature with the new location
+      const legacyUrl = getLegacyUrl(currentFeature, newLocation);
+      window.location.href = legacyUrl;
+      return;
+    }
+    
+    // If modern feature, proceed with normal location change
     changeLocation(newLocation);
     // Update the URL path
     const newPath = pathname.replace(`/${location}`, `/${newLocation}`);
