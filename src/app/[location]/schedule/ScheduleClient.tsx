@@ -409,7 +409,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         toast.success("Lesson updated successfully");
         // Refresh the events data instead of reloading the page
         setRefreshTrigger(prev => prev + 1); // Trigger data refetch
-        handleEventUpdateSuccess(event.id);
+        // No need to call success handler - optimistic update is already correct
       } else {
         toast.error(result.errors?.[0] || "Failed to update lesson");
         handleEventUpdateFailure(event.id);
@@ -434,7 +434,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         toast.success("Lesson duration updated successfully");
         // Refresh the events data instead of reloading the page
         setRefreshTrigger(prev => prev + 1); // Trigger data refetch
-        handleEventUpdateSuccess(event.id);
+        // No need to call success handler - optimistic update is already correct
       } else {
         toast.error(result.errors?.[0] || "Failed to update lesson");
         handleEventUpdateFailure(event.id);
@@ -457,7 +457,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         toast.success("Classroom updated successfully");
         // Refresh the events data instead of reloading the page
         setRefreshTrigger(prev => prev + 1); // Trigger data refetch
-        handleEventUpdateSuccess(event.id);
+        // No need to call success handler - optimistic update is already correct
       } else {
         toast.error(result.errors?.[0] || "Failed to update classroom");
         handleEventUpdateFailure(event.id);
@@ -465,15 +465,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     } catch {
       toast.error("Failed to update classroom");
       handleEventUpdateFailure(event.id);
-    }
-  };
-
-  const handleEventUpdateSuccess = (eventId: string) => {
-    // Event update was successful, optimistic update is now confirmed
-    if (currentView === 'teacher') {
-      teacherCalendarRef.current?.handleEventUpdateSuccess(eventId);
-    } else {
-      classroomCalendarRef.current?.handleEventUpdateSuccess(eventId);
     }
   };
 
@@ -811,8 +802,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  onEventClick={handleEventClick}
                  onEventDrop={handleEventDrop}
                  onEventResize={handleEventResize}
-                 onEventUpdateSuccess={handleEventUpdateSuccess}
-                 onEventUpdateFailure={handleEventUpdateFailure}
                  editable={true}
                  showAll={showAll}
                  selectedProgram={selectedProgram}
@@ -837,8 +826,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  onEventDrop={handleEventDrop}
                  onEventResize={handleEventResize}
                  onClassroomChange={handleClassroomChange}
-                 onEventUpdateSuccess={handleEventUpdateSuccess}
-                 onEventUpdateFailure={handleEventUpdateFailure}
                  editable={true}
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}

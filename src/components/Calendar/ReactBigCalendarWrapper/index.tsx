@@ -66,8 +66,6 @@ interface ReactBigCalendarWrapperProps {
   onEventDrop?: (event: CalendarEvent) => void;
   onEventResize?: (event: CalendarEvent) => void;
   onClassroomChange?: (event: CalendarEvent, newClassroomId: string) => void;
-  onEventUpdateSuccess?: (eventId: string) => void;
-  onEventUpdateFailure?: (eventId: string) => void;
   editable?: boolean;
   showAll?: boolean;
   selectedProgram?: string;
@@ -79,7 +77,6 @@ interface ReactBigCalendarWrapperProps {
 }
 
 export interface CalendarWrapperRef {
-  handleEventUpdateSuccess: (eventId: string) => void;
   handleEventUpdateFailure: (eventId: string) => void;
 }
 
@@ -116,8 +113,6 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   onEventDrop,
   onEventResize,
   onClassroomChange,
-  onEventUpdateSuccess,
-  onEventUpdateFailure,
   editable = true,
   selectedTeacher,
   minTime = "08:00:00",
@@ -133,11 +128,6 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     setOptimisticEvents(events);
   }, [events]);
 
-  // Handle successful API updates
-  const handleEventUpdateSuccess = (eventId: string) => {
-    onEventUpdateSuccess?.(eventId);
-  };
-
   // Handle failed API updates - revert to original position
   const handleEventUpdateFailure = (eventId: string) => {
     const originalEvent = events.find(event => event.id === eventId);
@@ -146,12 +136,10 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
         prev.map(event => event.id === eventId ? originalEvent : event)
       );
     }
-    onEventUpdateFailure?.(eventId);
   };
 
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
-    handleEventUpdateSuccess,
     handleEventUpdateFailure
   }));
 
