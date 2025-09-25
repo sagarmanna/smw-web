@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReactBigCalendarWrapper } from "@/components/Calendar/ReactBigCalendarWrapper";
+import { ReactBigCalendarWrapper, CalendarWrapperRef } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
@@ -59,6 +59,10 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
   // Force refresh trigger
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Refs for calendar wrappers
+  const teacherCalendarRef = useRef<CalendarWrapperRef>(null);
+  const classroomCalendarRef = useRef<CalendarWrapperRef>(null);
 
   // Programs state
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -392,11 +396,14 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         toast.success("Lesson updated successfully");
         // Refresh the events data instead of reloading the page
         setRefreshTrigger(prev => prev + 1); // Trigger data refetch
+        handleEventUpdateSuccess(event.id);
       } else {
         toast.error(result.errors?.[0] || "Failed to update lesson");
+        handleEventUpdateFailure(event.id);
       }
     } catch {
       toast.error("Failed to update lesson");
+      handleEventUpdateFailure(event.id);
     }
   };
 
@@ -414,11 +421,14 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         toast.success("Lesson duration updated successfully");
         // Refresh the events data instead of reloading the page
         setRefreshTrigger(prev => prev + 1); // Trigger data refetch
+        handleEventUpdateSuccess(event.id);
       } else {
         toast.error(result.errors?.[0] || "Failed to update lesson");
+        handleEventUpdateFailure(event.id);
       }
     } catch {
       toast.error("Failed to update lesson");
+      handleEventUpdateFailure(event.id);
     }
   };
 
@@ -434,11 +444,32 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         toast.success("Classroom updated successfully");
         // Refresh the events data instead of reloading the page
         setRefreshTrigger(prev => prev + 1); // Trigger data refetch
+        handleEventUpdateSuccess(event.id);
       } else {
         toast.error(result.errors?.[0] || "Failed to update classroom");
+        handleEventUpdateFailure(event.id);
       }
     } catch {
       toast.error("Failed to update classroom");
+      handleEventUpdateFailure(event.id);
+    }
+  };
+
+  const handleEventUpdateSuccess = (eventId: string) => {
+    // Event update was successful, optimistic update is now confirmed
+    if (currentView === 'teacher') {
+      teacherCalendarRef.current?.handleEventUpdateSuccess(eventId);
+    } else {
+      classroomCalendarRef.current?.handleEventUpdateSuccess(eventId);
+    }
+  };
+
+  const handleEventUpdateFailure = (eventId: string) => {
+    // Event update failed, optimistic update will be reverted
+    if (currentView === 'teacher') {
+      teacherCalendarRef.current?.handleEventUpdateFailure(eventId);
+    } else {
+      classroomCalendarRef.current?.handleEventUpdateFailure(eventId);
     }
   };
 
@@ -759,6 +790,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           <TabsContent value="teacher">
             <div>
                <ReactBigCalendarWrapper
+                 ref={teacherCalendarRef}
                  events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
                  resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
                  date={safeSelectedDate}
@@ -766,6 +798,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  onEventClick={handleEventClick}
                  onEventDrop={handleEventDrop}
                  onEventResize={handleEventResize}
+                 onEventUpdateSuccess={handleEventUpdateSuccess}
+                 onEventUpdateFailure={handleEventUpdateFailure}
                  editable={true}
                  showAll={showAll}
                  selectedProgram={selectedProgram}
@@ -781,6 +815,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           <TabsContent value="classroom">
             <div>
                <ReactBigCalendarWrapper
+                 ref={classroomCalendarRef}
                  events={convertClassroomViewEventsToCalendar(classroomViewEvents)}
                  resources={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title, description: classroom.description }))}
                  date={safeSelectedDate}
@@ -789,6 +824,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  onEventDrop={handleEventDrop}
                  onEventResize={handleEventResize}
                  onClassroomChange={handleClassroomChange}
+                 onEventUpdateSuccess={handleEventUpdateSuccess}
+                 onEventUpdateFailure={handleEventUpdateFailure}
                  editable={true}
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}
