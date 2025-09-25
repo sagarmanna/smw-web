@@ -14,8 +14,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
 import { updateLesson, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
-import { useToast } from "@/hooks/useToast";
-import { ToastContainer } from "@/components/ui/toast";
+import { toast } from "sonner";
 
 interface ScheduleClientProps {
   location: string;
@@ -58,8 +57,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   // Initial loading state
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
 
-  // Toast notifications
-  const { toast, dismiss, toasts } = useToast();
+  // Force refresh trigger
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Programs state
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -271,7 +270,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     };
 
     fetchTeacherViewEvents();
-  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
+  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher, refreshTrigger]);
 
   // Fetch classroom view events when date changes
   useEffect(() => {
@@ -293,7 +292,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     };
 
     fetchClassroomViewEvents();
-  }, [location, safeSelectedDate]);
+  }, [location, safeSelectedDate, refreshTrigger]);
 
   // Convert API events to calendar format
   const convertTeacherViewEventsToCalendar = (events: TeacherViewEvent[]): CalendarEvent[] => {
@@ -381,26 +380,14 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       const result = await updateLesson(location, event.id, lessonData);
       
       if (result.status) {
-        toast({
-          title: "Success",
-          description: "Lesson updated successfully",
-          variant: "success"
-        });
-        // Refresh the page to show updated data
-        setTimeout(() => window.location.reload(), 1000);
+        toast.success("Lesson updated successfully");
+        // Refresh the events data instead of reloading the page
+        setRefreshTrigger(prev => prev + 1); // Trigger data refetch
       } else {
-        toast({
-          title: "Error",
-          description: result.errors?.[0] || "Failed to update lesson",
-          variant: "destructive"
-        });
+        toast.error(result.errors?.[0] || "Failed to update lesson");
       }
     } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update lesson",
-        variant: "destructive"
-      });
+      toast.error("Failed to update lesson");
     }
   };
 
@@ -415,26 +402,14 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       const result = await updateLesson(location, event.id, lessonData);
       
       if (result.status) {
-        toast({
-          title: "Success",
-          description: "Lesson duration updated successfully",
-          variant: "success"
-        });
-        // Refresh the page to show updated data
-        setTimeout(() => window.location.reload(), 1000);
+        toast.success("Lesson duration updated successfully");
+        // Refresh the events data instead of reloading the page
+        setRefreshTrigger(prev => prev + 1); // Trigger data refetch
       } else {
-        toast({
-          title: "Error",
-          description: result.errors?.[0] || "Failed to update lesson",
-          variant: "destructive"
-        });
+        toast.error(result.errors?.[0] || "Failed to update lesson");
       }
     } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update lesson",
-        variant: "destructive"
-      });
+      toast.error("Failed to update lesson");
     }
   };
 
@@ -796,7 +771,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       </div>
 
       {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} dismiss={dismiss} />
     </div>
   );
 }
