@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Calendar as BigCalendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
 import moment from 'moment';
 import { Clock, DollarSign, Monitor, Megaphone, User, MapPin, BookOpen, Calendar, Users } from 'lucide-react';
@@ -65,6 +65,9 @@ interface ReactBigCalendarWrapperProps {
   onEventClick?: (event: CalendarEvent) => void;
   onEventDrop?: (event: CalendarEvent) => void;
   onEventResize?: (event: CalendarEvent) => void;
+  onClassroomChange?: (event: CalendarEvent, newClassroomId: string) => void;
+  onEventUpdateSuccess?: (eventId: string) => void;
+  onEventUpdateFailure?: (eventId: string) => void;
   editable?: boolean;
   showAll?: boolean;
   selectedProgram?: string;
@@ -72,6 +75,12 @@ interface ReactBigCalendarWrapperProps {
   minTime?: string; // Format: "HH:mm:ss"
   maxTime?: string; // Format: "HH:mm:ss"
   availability?: AvailabilityData[]; // Teacher availability data
+  viewType?: 'teacher' | 'classroom'; // Add view type to distinguish between teacher and classroom views
+}
+
+export interface CalendarWrapperRef {
+  handleEventUpdateSuccess: (eventId: string) => void;
+  handleEventUpdateFailure: (eventId: string) => void;
 }
 
 // Custom resource header component
@@ -98,7 +107,7 @@ const EmptyResourceHeader = () => (
   </div>
 );
 
-export function ReactBigCalendarWrapper({
+export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCalendarWrapperProps>(function ReactBigCalendarWrapper({
   events,
   resources,
   date,
@@ -106,14 +115,45 @@ export function ReactBigCalendarWrapper({
   onEventClick,
   onEventDrop,
   onEventResize,
+  onClassroomChange,
+  onEventUpdateSuccess,
+  onEventUpdateFailure,
   editable = true,
-  showAll = false,
-  selectedProgram,
   selectedTeacher,
   minTime = "08:00:00",
   maxTime = "20:00:00",
-  availability = []
-}: ReactBigCalendarWrapperProps) {
+  availability = [],
+  viewType = 'teacher'
+}, ref) {
+  // State for optimistic updates
+  const [optimisticEvents, setOptimisticEvents] = useState<CalendarEvent[]>([]);
+
+  // Sync optimistic events with actual events
+  useEffect(() => {
+    setOptimisticEvents(events);
+  }, [events]);
+
+  // Handle successful API updates
+  const handleEventUpdateSuccess = (eventId: string) => {
+    onEventUpdateSuccess?.(eventId);
+  };
+
+  // Handle failed API updates - revert to original position
+  const handleEventUpdateFailure = (eventId: string) => {
+    const originalEvent = events.find(event => event.id === eventId);
+    if (originalEvent) {
+      setOptimisticEvents(prev => 
+        prev.map(event => event.id === eventId ? originalEvent : event)
+      );
+    }
+    onEventUpdateFailure?.(eventId);
+  };
+
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    handleEventUpdateSuccess,
+    handleEventUpdateFailure
+  }));
 
   // Convert time strings to Date objects for the current date
   const parseTimeToDate = (timeString: string) => {
@@ -127,7 +167,7 @@ export function ReactBigCalendarWrapper({
   const maxDate = parseTimeToDate(maxTime);
 
   // Filter events based on filters and timeline visibility
-  const filteredEvents = events.filter(event => {
+  const filteredEvents = optimisticEvents.filter(event => {
     // Filter by teacher (if specific teacher is selected)
     if (selectedTeacher && event.resourceId !== parseInt(selectedTeacher)) {
       return false;
@@ -150,26 +190,77 @@ export function ReactBigCalendarWrapper({
   };
 
   const handleEventDrop = (args: EventInteractionArgs<CalendarEvent>) => {
-    if (onEventDrop) {
-      // Pass the updated event with new times and resource
-      const updatedEvent = {
-        ...args.event,
-        start: new Date(args.start),
-        end: new Date(args.end),
-        resourceId: typeof args.resourceId === 'string' ? parseInt(args.resourceId) : args.resourceId // Update the teacher/resource ID
-      };
-      onEventDrop(updatedEvent);
+    // Create the updated event with new position
+    const updatedEvent = {
+      ...args.event,
+      start: new Date(args.start),
+      end: new Date(args.end),
+      resourceId: typeof args.resourceId === 'string' ? parseInt(args.resourceId) : args.resourceId
+    };
+
+    // Immediately update the optimistic state to show the event in its new position
+    setOptimisticEvents(prev => 
+      prev.map(event => event.id === updatedEvent.id ? updatedEvent : event)
+    );
+
+    // In classroom view, only allow classroom changes (resource changes)
+    if (viewType === 'classroom') {
+      // Check if this is a classroom change (resource change without time change)
+      const isClassroomChange = onClassroomChange && 
+        args.event.resourceId !== args.resourceId && 
+        args.event.start.getTime() === new Date(args.start).getTime() &&
+        args.event.end.getTime() === new Date(args.end).getTime();
+
+      if (isClassroomChange) {
+        // Handle classroom change
+        const newClassroomId = typeof args.resourceId === 'string' ? args.resourceId : args.resourceId?.toString() || '';
+        onClassroomChange(args.event, newClassroomId);
+      } else {
+        // In classroom view, prevent time changes - revert the optimistic update
+        setOptimisticEvents(prev => 
+          prev.map(event => event.id === updatedEvent.id ? args.event : event)
+        );
+        return false;
+      }
+    } else {
+      // In teacher view, allow both classroom and time changes
+      const isClassroomChange = onClassroomChange && 
+        args.event.resourceId !== args.resourceId && 
+        args.event.start.getTime() === new Date(args.start).getTime() &&
+        args.event.end.getTime() === new Date(args.end).getTime();
+
+      if (isClassroomChange) {
+        // Handle classroom change
+        const newClassroomId = typeof args.resourceId === 'string' ? args.resourceId : args.resourceId?.toString() || '';
+        onClassroomChange(args.event, newClassroomId);
+      } else if (onEventDrop) {
+        // Pass the updated event with new times and resource
+        onEventDrop(updatedEvent);
+      }
     }
   };
 
   const handleEventResize = (args: EventInteractionArgs<CalendarEvent>) => {
+    // In classroom view, prevent duration changes (resizing)
+    if (viewType === 'classroom') {
+      // Prevent resizing in classroom view
+      return false;
+    }
+    
     if (onEventResize) {
-      // Pass the updated event with new times
+      // Create the updated event with new times
       const updatedEvent = {
         ...args.event,
         start: new Date(args.start),
         end: new Date(args.end)
       };
+
+      // Immediately update the optimistic state to show the event with new duration
+      setOptimisticEvents(prev => 
+        prev.map(event => event.id === updatedEvent.id ? updatedEvent : event)
+      );
+
+      // Pass the updated event with new times
       onEventResize(updatedEvent);
     }
   };
@@ -558,4 +649,4 @@ export function ReactBigCalendarWrapper({
       </div>
     </div>
   );
-}
+});
