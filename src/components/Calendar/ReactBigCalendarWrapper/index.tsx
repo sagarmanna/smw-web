@@ -151,13 +151,26 @@ export function ReactBigCalendarWrapper({
 
   const handleEventDrop = (args: EventInteractionArgs<CalendarEvent>) => {
     if (onEventDrop) {
-      onEventDrop(args.event);
+      // Pass the updated event with new times and resource
+      const updatedEvent = {
+        ...args.event,
+        start: new Date(args.start),
+        end: new Date(args.end),
+        resourceId: typeof args.resourceId === 'string' ? parseInt(args.resourceId) : args.resourceId // Update the teacher/resource ID
+      };
+      onEventDrop(updatedEvent);
     }
   };
 
   const handleEventResize = (args: EventInteractionArgs<CalendarEvent>) => {
     if (onEventResize) {
-      onEventResize(args.event);
+      // Pass the updated event with new times
+      const updatedEvent = {
+        ...args.event,
+        start: new Date(args.start),
+        end: new Date(args.end)
+      };
+      onEventResize(updatedEvent);
     }
   };
 

@@ -374,7 +374,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     try {
       const lessonData = {
         teacherId: event.resourceId?.toString() || '',
-        date: formatDateTimeForLegacy(event.start),
+        date: formatDateTimeForLegacy(event.start), // Use start time for the new lesson time
         duration: formatDurationForLegacy(event.start, event.end),
       };
 
