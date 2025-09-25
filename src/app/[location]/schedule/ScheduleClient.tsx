@@ -103,12 +103,25 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
   }, [selectedDate]);
 
-  // Handle resetDate parameter from URL
+  // Handle resetDate and resetFilters parameters from URL
   useEffect(() => {
     const resetDate = searchParams.get('resetDate');
+    const resetFilters = searchParams.get('resetFilters');
+    
     if (resetDate === 'true') {
       // Reset date to today
       setSelectedDate(new Date());
+    }
+    
+    if (resetFilters === 'true') {
+      // Reset all filters to default values
+      setSelectedProgram("");
+      setSelectedTeacher("");
+      setShowAll(false);
+    }
+    
+    // Clean up URL parameters after processing
+    if (resetDate === 'true' || resetFilters === 'true') {
       router.replace('schedule');
     }
   }, [searchParams, router]);

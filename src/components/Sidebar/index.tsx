@@ -65,10 +65,11 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       // Handle navigation
       let url = getMenuUrl(item);
       
-      // Add resetDate parameter for Schedule menu to reset calendar to today
+      // Add reset parameters for Schedule menu to reset all filters
       if (item.id === 'schedule' && item.source === 'modern') {
         const urlObj = new URL(url, window.location.origin);
         urlObj.searchParams.set('resetDate', 'true');
+        urlObj.searchParams.set('resetFilters', 'true');
         url = urlObj.pathname + urlObj.search;
       }
       
