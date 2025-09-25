@@ -214,9 +214,9 @@ export const filterMenusByRole = (menus: MenuItem[], userRole: string, userPermi
         return hasPermission ? item : null;
       }
       
-      if (item.title === 'Unscheduled Lessons' && userPermissions) {
-        const hasPermission = userPermissions.includes('manageUnscheduledLessons');
-        return hasPermission ? item : null;
+      // Unscheduled Lessons - no permission required for staff
+      if (item.title === 'Unscheduled Lessons') {
+        return item;
       }
       
       if (item.title === 'Invoices' && userPermissions) {
@@ -234,9 +234,9 @@ export const filterMenusByRole = (menus: MenuItem[], userRole: string, userPermi
         return hasPermission ? item : null;
       }
       
-      if (item.title === 'Timeline' && userPermissions) {
-        const hasPermission = userPermissions.includes('manageTimeline');
-        return hasPermission ? item : null;
+      // Timeline - no permission required for staff
+      if (item.title === 'Timeline') {
+        return item;
       }
       
       if (item.title === 'Schedule' && userPermissions) {
