@@ -1,11 +1,12 @@
 "use client";
 
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { setCurrentLocation } from '@/redux/locationsSlice';
+import { setCurrentLocation, selectFilteredLocations } from '@/redux/locationsSlice';
 
 export function useLocations() {
   const dispatch = useAppDispatch();
-  const { locations, currentLocation, isLoading, error } = useAppSelector((state) => state.locations);
+  const { currentLocation, isLoading, error } = useAppSelector((state) => state.locations);
+  const locations = useAppSelector(selectFilteredLocations);
 
   // No longer fetch locations here - handled by GlobalDataProvider
   // useEffect(() => {

@@ -19,13 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Menu, User, LogOut, Sun, Moon, MapPin, ArrowLeft, ToggleLeft, ToggleRight } from "lucide-react";
+import { Menu, User, LogOut, Sun, Moon, MapPin } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Image from "next/image";
 import Link from "next/link";
 import { useAppSelector } from "@/redux/hooks";
 import { useLocations } from "@/hooks/useLocations";
 import { useLocationChange } from "@/hooks/useLocationChange";
+import { useLocationAccess } from "@/hooks/useLocationAccess";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -44,6 +45,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
   
   // Handle location changes for staff permissions
   useLocationChange(location);
+  
+  // Check location access permissions
+  const { hasLocationAccess } = useLocationAccess(location);
 
   const handleMenuClick = () => {
     setIsOpen(!isOpen);
@@ -55,6 +59,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   const handleLocationChange = (newLocation: string) => {
+    // Check if user has access to the new location
+    if (!hasLocationAccess(newLocation)) {
+      console.warn('User does not have access to this location');
+      return;
+    }
+    
     changeLocation(newLocation);
     // Update the URL path
     const newPath = pathname.replace(`/${location}`, `/${newLocation}`);
@@ -155,15 +165,21 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </div>
             </SelectTrigger>
             <SelectContent>
-              {locations.map((loc) => (
-                <SelectItem 
-                  key={loc.id} 
-                  value={loc.slug}
-                  className="data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:font-medium"
-                >
-                  {loc.name}
-                </SelectItem>
-              ))}
+              {locations.map((loc) => {
+                const hasAccess = hasLocationAccess(loc.slug);
+                return (
+                  <SelectItem 
+                    key={loc.id} 
+                    value={loc.slug}
+                    disabled={!hasAccess}
+                    className={`data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:font-medium ${
+                      !hasAccess ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {loc.name}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -188,15 +204,21 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </div>
             </SelectTrigger>
             <SelectContent>
-              {locations.map((loc) => (
-                <SelectItem 
-                  key={loc.id} 
-                  value={loc.slug}
-                  className="data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:font-medium"
-                >
-                  {loc.name}
-                </SelectItem>
-              ))}
+              {locations.map((loc) => {
+                const hasAccess = hasLocationAccess(loc.slug);
+                return (
+                  <SelectItem 
+                    key={loc.id} 
+                    value={loc.slug}
+                    disabled={!hasAccess}
+                    className={`data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:font-medium ${
+                      !hasAccess ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {loc.name}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>

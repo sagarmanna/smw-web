@@ -7,6 +7,7 @@ export interface UserInfo {
   displayRole: string;
   primaryEmail: string;
   emails: unknown[];
+  userLocations: number[] | null;
 }
 
 interface UserState {

@@ -90,4 +90,24 @@ const locationsSlice = createSlice({
 });
 
 export const { setCurrentLocation, clearError } = locationsSlice.actions;
+
+// Selector to get filtered locations based on user permissions
+export const selectFilteredLocations = (state: { locations: LocationsState; user: { userInfo: { role: string; userLocations: number[] | null } | null } }) => {
+  const { locations } = state.locations;
+  const { userInfo } = state.user;
+  
+  // If no user info or user is admin, return all locations
+  if (!userInfo || userInfo.role === 'administrator') {
+    return locations;
+  }
+  
+  // If user has userLocations, filter locations based on those IDs
+  if (userInfo.userLocations && userInfo.userLocations.length > 0) {
+    return locations.filter(location => userInfo.userLocations!.includes(location.id));
+  }
+  
+  // If no userLocations specified, return all locations (fallback)
+  return locations;
+};
+
 export default locationsSlice.reducer;
