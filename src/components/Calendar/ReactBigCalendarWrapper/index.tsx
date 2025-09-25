@@ -66,8 +66,6 @@ interface ReactBigCalendarWrapperProps {
   onEventDrop?: (event: CalendarEvent) => void;
   onEventResize?: (event: CalendarEvent) => void;
   onClassroomChange?: (event: CalendarEvent, newClassroomId: string) => void;
-  onEventUpdateSuccess?: (eventId: string) => void;
-  onEventUpdateFailure?: (eventId: string) => void;
   editable?: boolean;
   showAll?: boolean;
   selectedProgram?: string;
@@ -79,7 +77,6 @@ interface ReactBigCalendarWrapperProps {
 }
 
 export interface CalendarWrapperRef {
-  handleEventUpdateSuccess: (eventId: string) => void;
   handleEventUpdateFailure: (eventId: string) => void;
 }
 
@@ -116,8 +113,6 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   onEventDrop,
   onEventResize,
   onClassroomChange,
-  onEventUpdateSuccess,
-  onEventUpdateFailure,
   editable = true,
   selectedTeacher,
   minTime = "08:00:00",
@@ -133,11 +128,6 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     setOptimisticEvents(events);
   }, [events]);
 
-  // Handle successful API updates
-  const handleEventUpdateSuccess = (eventId: string) => {
-    onEventUpdateSuccess?.(eventId);
-  };
-
   // Handle failed API updates - revert to original position
   const handleEventUpdateFailure = (eventId: string) => {
     const originalEvent = events.find(event => event.id === eventId);
@@ -146,12 +136,10 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
         prev.map(event => event.id === eventId ? originalEvent : event)
       );
     }
-    onEventUpdateFailure?.(eventId);
   };
 
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
-    handleEventUpdateSuccess,
     handleEventUpdateFailure
   }));
 
@@ -383,6 +371,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     // Calculate event duration in minutes
     const durationMinutes = moment(event.end).diff(moment(event.start), 'minutes');
     const isShortEvent = durationMinutes <= 20; // 15-20 minute events
+    const isVeryShortEvent = durationMinutes <= 15; // 15 minute events
     
     // Format time as hh:mm - hh:mm (12-hour format without AM/PM)
     const formatTime = (start: Date, end: Date) => {
@@ -396,20 +385,27 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       return fullName.split(' ')[0];
     };
     
+    // Truncate title for very short events (15 minutes)
+    const getTruncatedTitle = (title: string) => {
+      if (title.length <= 5) return title;
+      return title.substring(0, 5) + '...';
+    };
+    
     // For short events (15-20 minutes), use single line layout
     if (isShortEvent) {
       return (
         <HoverCard>
           <HoverCardTrigger asChild>
-            <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col cursor-pointer">
-              {/* Top row: Icon, time, and status icons */}
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3 text-white flex-shrink-0" />
-                  <span className="text-xs font-semibold text-white">
-                    {moment(event.start).format('hh:mm')}
-                  </span>
-                </div>
+            <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center cursor-pointer">
+              {/* Single row: Icon, time, title, and status icons */}
+              <div className="flex items-center gap-1 w-full min-w-0">
+                <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                <span className="text-xs font-semibold text-white flex-shrink-0">
+                  {moment(event.start).format('hh:mm')}
+                </span>
+                <span className="text-xs font-medium text-white truncate min-w-0 flex-1">
+                  {isVeryShortEvent ? getTruncatedTitle(event.title) : getFirstName(event.title)}
+                </span>
                 
                 {/* Status icons on the right */}
                 <div className="status-icons flex gap-1 flex-shrink-0">
@@ -429,11 +425,6 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
                     </div>
                   )}
                 </div>
-              </div>
-              
-              {/* Title below */}
-              <div className="text-xs font-medium text-white truncate mt-0.5">
-                {getFirstName(event.title)}
               </div>
             </div>
           </HoverCardTrigger>
