@@ -239,8 +239,11 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       }
     };
 
-    fetchTeacherView();
-  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher]);
+    // Only fetch teacher view when in teacher view
+    if (currentView === "teacher") {
+      fetchTeacherView();
+    }
+  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher, currentView]);
 
   // Fetch teacher view events when filters or date change
   useEffect(() => {
@@ -269,10 +272,13 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       }
     };
 
-    fetchTeacherViewEvents();
-  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher, refreshTrigger]);
+    // Only fetch teacher events when in teacher view
+    if (currentView === "teacher") {
+      fetchTeacherViewEvents();
+    }
+  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher, refreshTrigger, currentView]);
 
-  // Fetch classroom view events when date changes
+  // Fetch classroom view events when date changes or view switches
   useEffect(() => {
     const fetchClassroomViewEvents = async () => {
       try {
@@ -291,8 +297,11 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       }
     };
 
-    fetchClassroomViewEvents();
-  }, [location, safeSelectedDate, refreshTrigger]);
+    // Only fetch classroom events when in classroom view
+    if (currentView === "classroom") {
+      fetchClassroomViewEvents();
+    }
+  }, [location, safeSelectedDate, refreshTrigger, currentView]);
 
   // Convert API events to calendar format
   const convertTeacherViewEventsToCalendar = (events: TeacherViewEvent[]): CalendarEvent[] => {
@@ -759,9 +768,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  onEventDrop={handleEventDrop}
                  onEventResize={handleEventResize}
                  editable={true}
-                 showAll={showAll}
-                 selectedProgram={selectedProgram}
-                 selectedTeacher={selectedTeacher}
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}
                />
@@ -770,7 +776,6 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       </Tabs>
       </div>
 
-      {/* Toast Notifications */}
     </div>
   );
 }
