@@ -65,6 +65,7 @@ interface ReactBigCalendarWrapperProps {
   onEventClick?: (event: CalendarEvent) => void;
   onEventDrop?: (event: CalendarEvent) => void;
   onEventResize?: (event: CalendarEvent) => void;
+  onClassroomChange?: (event: CalendarEvent, newClassroomId: string) => void;
   editable?: boolean;
   showAll?: boolean;
   selectedProgram?: string;
@@ -72,6 +73,7 @@ interface ReactBigCalendarWrapperProps {
   minTime?: string; // Format: "HH:mm:ss"
   maxTime?: string; // Format: "HH:mm:ss"
   availability?: AvailabilityData[]; // Teacher availability data
+  viewType?: 'teacher' | 'classroom'; // Add view type to distinguish between teacher and classroom views
 }
 
 // Custom resource header component
@@ -106,13 +108,15 @@ export function ReactBigCalendarWrapper({
   onEventClick,
   onEventDrop,
   onEventResize,
+  onClassroomChange,
   editable = true,
   showAll = false,
   selectedProgram,
   selectedTeacher,
   minTime = "08:00:00",
   maxTime = "20:00:00",
-  availability = []
+  availability = [],
+  viewType = 'teacher'
 }: ReactBigCalendarWrapperProps) {
 
   // Convert time strings to Date objects for the current date
@@ -150,19 +154,54 @@ export function ReactBigCalendarWrapper({
   };
 
   const handleEventDrop = (args: EventInteractionArgs<CalendarEvent>) => {
-    if (onEventDrop) {
-      // Pass the updated event with new times and resource
-      const updatedEvent = {
-        ...args.event,
-        start: new Date(args.start),
-        end: new Date(args.end),
-        resourceId: typeof args.resourceId === 'string' ? parseInt(args.resourceId) : args.resourceId // Update the teacher/resource ID
-      };
-      onEventDrop(updatedEvent);
+    // In classroom view, only allow classroom changes (resource changes)
+    if (viewType === 'classroom') {
+      // Check if this is a classroom change (resource change without time change)
+      const isClassroomChange = onClassroomChange && 
+        args.event.resourceId !== args.resourceId && 
+        args.event.start.getTime() === new Date(args.start).getTime() &&
+        args.event.end.getTime() === new Date(args.end).getTime();
+
+      if (isClassroomChange) {
+        // Handle classroom change
+        const newClassroomId = typeof args.resourceId === 'string' ? args.resourceId : args.resourceId?.toString() || '';
+        onClassroomChange(args.event, newClassroomId);
+      } else {
+        // In classroom view, prevent time changes - reset the event position
+        // This will prevent the visual change from being applied
+        return false;
+      }
+    } else {
+      // In teacher view, allow both classroom and time changes
+      const isClassroomChange = onClassroomChange && 
+        args.event.resourceId !== args.resourceId && 
+        args.event.start.getTime() === new Date(args.start).getTime() &&
+        args.event.end.getTime() === new Date(args.end).getTime();
+
+      if (isClassroomChange) {
+        // Handle classroom change
+        const newClassroomId = typeof args.resourceId === 'string' ? args.resourceId : args.resourceId?.toString() || '';
+        onClassroomChange(args.event, newClassroomId);
+      } else if (onEventDrop) {
+        // Pass the updated event with new times and resource
+        const updatedEvent = {
+          ...args.event,
+          start: new Date(args.start),
+          end: new Date(args.end),
+          resourceId: typeof args.resourceId === 'string' ? parseInt(args.resourceId) : args.resourceId // Update the teacher/resource ID
+        };
+        onEventDrop(updatedEvent);
+      }
     }
   };
 
   const handleEventResize = (args: EventInteractionArgs<CalendarEvent>) => {
+    // In classroom view, prevent duration changes (resizing)
+    if (viewType === 'classroom') {
+      // Prevent resizing in classroom view
+      return false;
+    }
+    
     if (onEventResize) {
       // Pass the updated event with new times
       const updatedEvent = {

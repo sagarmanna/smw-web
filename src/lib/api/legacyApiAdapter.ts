@@ -15,6 +15,10 @@ export interface LessonUpdateData {
   duration: string; // Format: HH:mm:ss
 }
 
+export interface ClassroomModifyData {
+  classroomId: string | number;
+}
+
 /**
  * Update a lesson using the legacy API
  */
@@ -73,3 +77,34 @@ export const formatDurationForLegacy = (startTime: Date, endTime: Date): string 
   
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
+
+/**
+ * Modify classroom for a lesson using the legacy API
+ */
+export async function modifyClassroom(
+  location: string,
+  lessonId: string,
+  classroomData: ClassroomModifyData
+): Promise<LegacyApiResponse> {
+  const url = `/admin/${location}/lesson/modify-classroom?id=${lessonId}&classroomId=${classroomData.classroomId}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}

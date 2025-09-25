@@ -13,7 +13,7 @@ import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
-import { updateLesson, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
+import { updateLesson, modifyClassroom, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 
 interface ScheduleClientProps {
@@ -422,6 +422,26 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     }
   };
 
+  const handleClassroomChange = async (event: CalendarEvent, newClassroomId: string) => {
+    try {
+      const classroomData = {
+        classroomId: newClassroomId,
+      };
+
+      const result = await modifyClassroom(location, event.id, classroomData);
+      
+      if (result.status) {
+        toast.success("Classroom updated successfully");
+        // Refresh the events data instead of reloading the page
+        setRefreshTrigger(prev => prev + 1); // Trigger data refetch
+      } else {
+        toast.error(result.errors?.[0] || "Failed to update classroom");
+      }
+    } catch {
+      toast.error("Failed to update classroom");
+    }
+  };
+
   const openDailySchedule = () => {
     const dateStr = format(safeSelectedDate, "dd-MM-yyyy");
     window.open(`/admin/${location}/daily-schedule?date=${dateStr}`, '_blank');
@@ -753,6 +773,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}
                  availability={teacherViewAvailability}
+                 viewType="teacher"
                />
            </div>
          </TabsContent>
@@ -767,9 +788,11 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  onEventClick={handleEventClick}
                  onEventDrop={handleEventDrop}
                  onEventResize={handleEventResize}
+                 onClassroomChange={handleClassroomChange}
                  editable={true}
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}
+                 viewType="classroom"
                />
            </div>
          </TabsContent>
