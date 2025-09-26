@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { DEFAULT_LOCATION_FLAGS } from '@/utils/locationFlags';
 
 interface LocationFlags {
   [feature: string]: 'modern' | 'legacy' | 'disabled';
@@ -36,11 +37,17 @@ export const fetchLocationFlags = createAsyncThunk(
           },
         }
       );
-      return { location, flags: response.data.data };
+      
+      // Merge API response with default flags to ensure all flags are present
+      const apiFlags = response.data.data || {};
+      const defaultFlags = DEFAULT_LOCATION_FLAGS[location] || {};
+      const mergedFlags = { ...defaultFlags, ...apiFlags };
+      
+      return { location, flags: mergedFlags };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      return rejectWithValue(axiosError.response?.data?.message || errorMessage);
+      // Fallback to default flags when API fails
+      const defaultFlags = DEFAULT_LOCATION_FLAGS[location] || {};
+      return { location, flags: defaultFlags };
     }
   }
 );
