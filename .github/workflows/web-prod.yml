@@ -19,9 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.commit.outputs.short }}
-    defaults:
-      run:
-        working-directory: './apps/web/'
     steps:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v3
