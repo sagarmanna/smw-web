@@ -582,20 +582,14 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   };
 
   // Create display resources - if no resources, create empty one
-  // On mobile, show only one teacher at a time for better UX
-  const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : 
-    isMobileView ? resources.slice(0, 1) : resources;
+  // Show all resources on both mobile and desktop
+  const displayResources = resources.length === 0 ? [{ id: 0, title: "" }] : resources;
 
 
   return (
-    <div className="w-full max-w-none xl:max-w-[90rem] 2xl:max-w-[120rem] mx-auto">
+    <div className="w-screen md:w-full">
       <div className="bg-white dark:bg-dark-2 rounded-lg shadow-lg p-2">
-        {/* Mobile: Add horizontal scroll indicator */}
-        {/* {isMobileView && resources.length > 1 && (
-          <div className="mb-2 p-2 bg-blue-50 rounded text-xs text-blue-700 text-center">
-            Swipe left/right to view other teachers
-          </div>
-        )} */}
+        
         
         <div 
           className="w-full"
