@@ -475,7 +475,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
           title: 'Rentals',
           icon: <DollarSign className="h-4 w-4" />,
           url: '/report/rental',
-          source: getMenuSource(locationFlags, 'rentals') as 'legacy' | 'modern',
+          source:  'legacy' as const,
         },
       ],
       hidden: isMenuEnabled(locationFlags, 'reports') ? ('no' as const) : ('yes' as const),

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 
 interface RentalRow {
   id: string;
@@ -341,13 +342,13 @@ export function RentalClient({ location }: RentalClientProps) {
 
   if (loading) {
     return (
-      <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
-        <div className="mx-auto max-w-screen-2xl">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-base sm:text-lg">Loading rentals...</div>
-          </div>
-        </div>
-      </div>
+      <div className="flex items-center justify-center min-h-[600px]">
+        <LoadingAnimation 
+          size="xl" 
+          text="Loading rental data..." 
+          className="text-center"
+        />
+      </div>  
     );
   }
 

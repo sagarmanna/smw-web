@@ -122,12 +122,6 @@ export default function MenuFlagsPage() {
       currentValue: localFlags.reports || flags.reports || 'legacy'
     },
     {
-      id: 'rentals',
-      name: 'Rentals',
-      description: 'Equipment rental management and tracking',
-      currentValue: localFlags.rentals || flags.rentals || 'legacy'
-    },
-    {
       id: 'releaseNotes',
       name: 'Release Notes',
       description: 'System release notes and updates',
