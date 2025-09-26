@@ -123,13 +123,23 @@ export interface ClassroomViewEvent {
   className: string;
   backgroundColor: string;
   tooltip: TooltipItem[];
-  rendering?: string;
+}
+
+export interface ClassroomViewAvailability {
+  resourceId: number;
+  title: string;
+  start: string;
+  end: string;
+  className: string;
+  backgroundColor?: string;
+  rendering: string;
 }
 
 export interface ClassroomViewEventsResponse {
   success: boolean;
   data: {
     events: ClassroomViewEvent[];
+    availability: ClassroomViewAvailability[];
     totalEvents: number;
     date: string;
     locationId: number;

@@ -12,7 +12,7 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { CalendarIcon, Tv, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent } from "./schedule.api";
+import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent, ClassroomViewAvailability } from "./schedule.api";
 import { updateLesson, modifyClassroom, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 
@@ -96,6 +96,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   // Classroom view state
   const [classroomViewResources, setClassroomViewResources] = useState<ClassroomViewResource[]>([]);
   const [classroomViewEvents, setClassroomViewEvents] = useState<ClassroomViewEvent[]>([]);
+  const [classroomViewAvailability, setClassroomViewAvailability] = useState<ClassroomViewAvailability[]>([]);
   const [classroomViewError, setClassroomViewError] = useState<string | null>(null);
 
   // Ensure selectedDate is always valid
@@ -306,6 +307,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         
         if (response?.success) {
           setClassroomViewEvents(response.data.events);
+          setClassroomViewAvailability(response.data.availability);
         } else {
           setClassroomViewError(response?.message || 'Failed to fetch classroom view events');
         }
@@ -386,6 +388,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       return calendarEvent;
     });
   };
+
 
 
   const handleEventClick = (event: CalendarEvent) => {
@@ -865,6 +868,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  editable={true}
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}
+                 availability={classroomViewAvailability}
                  viewType="classroom"
                />
            </div>
