@@ -60,6 +60,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   // Force refresh trigger
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Loading state for events being updated
+  const [updatingEvents, setUpdatingEvents] = useState<Set<string>>(new Set());
+
   // Refs for calendar wrappers
   const teacherCalendarRef = useRef<CalendarWrapperRef>(null);
   const classroomCalendarRef = useRef<CalendarWrapperRef>(null);
@@ -399,6 +402,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   };
 
   const handleEventDrop = async (event: CalendarEvent) => {
+    // Add event to updating state
+    setUpdatingEvents(prev => new Set(prev).add(event.id));
+    
     try {
       const lessonData = {
         teacherId: event.resourceId?.toString() || '',
@@ -410,9 +416,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       
       if (result.status) {
         toast.success("Lesson updated successfully");
-        // Refresh the events data instead of reloading the page
-        setRefreshTrigger(prev => prev + 1); // Trigger data refetch
-        // No need to call success handler - optimistic update is already correct
+        // Refresh the events data after successful update
+        setRefreshTrigger(prev => prev + 1);
       } else {
         toast.error(result.errors?.[0] || "Failed to update lesson");
         handleEventUpdateFailure(event.id);
@@ -420,10 +425,20 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     } catch {
       toast.error("Failed to update lesson");
       handleEventUpdateFailure(event.id);
+    } finally {
+      // Remove event from updating state
+      setUpdatingEvents(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(event.id);
+        return newSet;
+      });
     }
   };
 
   const handleEventResize = async (event: CalendarEvent) => {
+    // Add event to updating state
+    setUpdatingEvents(prev => new Set(prev).add(event.id));
+    
     try {
       const lessonData = {
         teacherId: event.resourceId?.toString() || '',
@@ -435,9 +450,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       
       if (result.status) {
         toast.success("Lesson duration updated successfully");
-        // Refresh the events data instead of reloading the page
-        setRefreshTrigger(prev => prev + 1); // Trigger data refetch
-        // No need to call success handler - optimistic update is already correct
+        // Refresh the events data after successful update
+        setRefreshTrigger(prev => prev + 1);
       } else {
         toast.error(result.errors?.[0] || "Failed to update lesson");
         handleEventUpdateFailure(event.id);
@@ -445,10 +459,20 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     } catch {
       toast.error("Failed to update lesson");
       handleEventUpdateFailure(event.id);
+    } finally {
+      // Remove event from updating state
+      setUpdatingEvents(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(event.id);
+        return newSet;
+      });
     }
   };
 
   const handleClassroomChange = async (event: CalendarEvent, newClassroomId: string) => {
+    // Add event to updating state
+    setUpdatingEvents(prev => new Set(prev).add(event.id));
+    
     try {
       const classroomData = {
         classroomId: newClassroomId,
@@ -458,9 +482,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       
       if (result.status) {
         toast.success("Classroom updated successfully");
-        // Refresh the events data instead of reloading the page
-        setRefreshTrigger(prev => prev + 1); // Trigger data refetch
-        // No need to call success handler - optimistic update is already correct
+        // Refresh the events data after successful update
+        setRefreshTrigger(prev => prev + 1);
       } else {
         toast.error(result.errors?.[0] || "Failed to update classroom");
         handleEventUpdateFailure(event.id);
@@ -468,6 +491,13 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     } catch {
       toast.error("Failed to update classroom");
       handleEventUpdateFailure(event.id);
+    } finally {
+      // Remove event from updating state
+      setUpdatingEvents(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(event.id);
+        return newSet;
+      });
     }
   };
 
@@ -849,6 +879,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  maxTime={timeRange.maxTime}
                  availability={teacherViewAvailability}
                  viewType="teacher"
+                 updatingEvents={updatingEvents}
                />
            </div>
          </TabsContent>
@@ -870,6 +901,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  maxTime={timeRange.maxTime}
                  availability={classroomViewAvailability}
                  viewType="classroom"
+                 updatingEvents={updatingEvents}
                />
            </div>
          </TabsContent>

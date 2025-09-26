@@ -3,7 +3,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Calendar as BigCalendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
 import moment from 'moment';
-import { Clock, DollarSign, Monitor, Megaphone, User, MapPin, BookOpen, Calendar, Users } from 'lucide-react';
+import { Clock, DollarSign, Monitor, Megaphone, User, MapPin, BookOpen, Calendar, Users, Loader2 } from 'lucide-react';
 import {
   HoverCard,
   HoverCardContent,
@@ -74,6 +74,7 @@ interface ReactBigCalendarWrapperProps {
   maxTime?: string; // Format: "HH:mm:ss"
   availability?: AvailabilityData[]; // Teacher availability data
   viewType?: 'teacher' | 'classroom'; // Add view type to distinguish between teacher and classroom views
+  updatingEvents?: Set<string>; // Events currently being updated
 }
 
 export interface CalendarWrapperRef {
@@ -118,7 +119,8 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   minTime = "08:00:00",
   maxTime = "20:00:00",
   availability = [],
-  viewType = 'teacher'
+  viewType = 'teacher',
+  updatingEvents = new Set()
 }, ref) {
   // State for optimistic updates
   const [optimisticEvents, setOptimisticEvents] = useState<CalendarEvent[]>([]);
@@ -178,6 +180,11 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   };
 
   const handleEventDrop = (args: EventInteractionArgs<CalendarEvent>) => {
+    // Check if this event is currently being updated
+    if (updatingEvents.has(args.event.id)) {
+      return false; // Prevent drop if event is being updated
+    }
+
     // Create the updated event with new position
     const updatedEvent = {
       ...args.event,
@@ -185,11 +192,6 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       end: new Date(args.end),
       resourceId: typeof args.resourceId === 'string' ? parseInt(args.resourceId) : args.resourceId
     };
-
-    // Immediately update the optimistic state to show the event in its new position
-    setOptimisticEvents(prev => 
-      prev.map(event => event.id === updatedEvent.id ? updatedEvent : event)
-    );
 
     // In classroom view, only allow classroom changes (resource changes)
     if (viewType === 'classroom') {
@@ -200,14 +202,11 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
         args.event.end.getTime() === new Date(args.end).getTime();
 
       if (isClassroomChange) {
-        // Handle classroom change
+        // Handle classroom change - no optimistic update, just call the handler
         const newClassroomId = typeof args.resourceId === 'string' ? args.resourceId : args.resourceId?.toString() || '';
         onClassroomChange(args.event, newClassroomId);
       } else {
-        // In classroom view, prevent time changes - revert the optimistic update
-        setOptimisticEvents(prev => 
-          prev.map(event => event.id === updatedEvent.id ? args.event : event)
-        );
+        // In classroom view, prevent time changes
         return false;
       }
     } else {
@@ -218,17 +217,22 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
         args.event.end.getTime() === new Date(args.end).getTime();
 
       if (isClassroomChange) {
-        // Handle classroom change
+        // Handle classroom change - no optimistic update, just call the handler
         const newClassroomId = typeof args.resourceId === 'string' ? args.resourceId : args.resourceId?.toString() || '';
         onClassroomChange(args.event, newClassroomId);
       } else if (onEventDrop) {
-        // Pass the updated event with new times and resource
+        // Pass the updated event with new times and resource - no optimistic update
         onEventDrop(updatedEvent);
       }
     }
   };
 
   const handleEventResize = (args: EventInteractionArgs<CalendarEvent>) => {
+    // Check if this event is currently being updated
+    if (updatingEvents.has(args.event.id)) {
+      return false; // Prevent resize if event is being updated
+    }
+
     // In classroom view, prevent duration changes (resizing)
     if (viewType === 'classroom') {
       // Prevent resizing in classroom view
@@ -243,12 +247,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
         end: new Date(args.end)
       };
 
-      // Immediately update the optimistic state to show the event with new duration
-      setOptimisticEvents(prev => 
-        prev.map(event => event.id === updatedEvent.id ? updatedEvent : event)
-      );
-
-      // Pass the updated event with new times
+      // Pass the updated event with new times - no optimistic update
       onEventResize(updatedEvent);
     }
   };
@@ -321,6 +320,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   const eventPropGetter = (event: CalendarEvent) => {
     // Get the base color from the event
     const baseColor = event.backgroundColor || '#3174ad';
+    const isUpdating = updatingEvents.has(event.id);
     
     // Convert hex to RGB and darken it for border
     const hexToRgb = (hex: string) => {
@@ -347,26 +347,27 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     
     return {
       style: {
-        backgroundColor: baseColor,
+        backgroundColor: isUpdating ? '#94a3b8' : baseColor, // Gray background when updating
         color: 'white',
         borderRadius: '4px',
         borderBottom: `1px solid ${darkBorderColor}`,
         fontSize: '0.85rem',
         padding: '2px 4px',
-        cursor: 'pointer',
+        cursor: isUpdating ? 'not-allowed' : 'pointer',
         display: 'flex' as const,
         flexDirection: 'column' as const,
         justifyContent: 'space-between' as const,
         height: '100%',
-        overflow: 'hidden' as const
+        overflow: 'hidden' as const,
+        opacity: isUpdating ? 0.7 : 1
       },
-      className: event.className || ''
+      className: `${event.className || ''} ${isUpdating ? 'updating-event' : ''}`
     };
   };
 
   const EventComponent = ({ event }: EventProps<CalendarEvent>) => {
     const extendedProps = event.extendedProps || {};
-    
+    const isUpdating = updatingEvents.has(event.id);
     
     // Calculate event duration in minutes
     const durationMinutes = moment(event.end).diff(moment(event.start), 'minutes');
@@ -399,7 +400,11 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center cursor-pointer">
               {/* Single row: Icon, time, title, and status icons */}
               <div className="flex items-center gap-1 w-full min-w-0">
-                <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                {isUpdating ? (
+                  <Loader2 className="h-3 w-3 text-white flex-shrink-0 animate-spin" />
+                ) : (
+                  <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                )}
                 <span className="text-xs font-semibold text-white flex-shrink-0">
                   {moment(event.start).format('hh:mm')}
                 </span>
@@ -462,7 +467,11 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             {/* Top row: Icon, time, and status icons */}
             <div className="flex items-center justify-between w-full flex-shrink-0">
               <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                {isUpdating ? (
+                  <Loader2 className="h-3 w-3 text-white flex-shrink-0 animate-spin" />
+                ) : (
+                  <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                )}
                 <span className="text-xs font-semibold text-white whitespace-nowrap">
                   {formatTime(event.start, event.end)}
                 </span>
