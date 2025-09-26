@@ -31,8 +31,8 @@ export const DEFAULT_LOCATION_FLAGS: LocationFlags = {
     timeline: 'legacy',
   },
   'burlington': {
-    dashboard: 'modern',
-    schedule: 'modern',
+    dashboard: 'legacy',
+    schedule: 'legacy',
     enrolments: 'legacy',
     students: 'legacy',
     customers: 'legacy',
@@ -199,8 +199,8 @@ export const DEFAULT_LOCATION_FLAGS: LocationFlags = {
     timeline: 'legacy',
   },
   'training-location': {
-    dashboard: 'modern',
-    schedule: 'modern',
+    dashboard: 'legacy',
+    schedule: 'legacy',
     enrolments: 'legacy',
     students: 'legacy',
     customers: 'legacy',
