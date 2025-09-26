@@ -30,8 +30,8 @@ export function PieChart({ data, type }: PropsType) {
     const options: Highcharts.Options = {
       chart: {
         type: 'pie',
-        width: 300,
-        height: 300,
+        width: null,
+        height: 350,
         backgroundColor: 'transparent',
         style: {
           fontFamily: 'inherit'
@@ -108,27 +108,38 @@ export function PieChart({ data, type }: PropsType) {
       responsive: {
         rules: [{
           condition: {
-            maxWidth: 640
+            maxWidth: 768
           },
           chartOptions: {
             chart: {
               width: null,
-              height: 300
+              height: 400
             },
             legend: {
               align: 'center',
               verticalAlign: 'bottom',
-              layout: 'horizontal'
+              layout: 'horizontal',
+              itemStyle: {
+                fontSize: '13px'
+              }
             }
           }
         }, {
           condition: {
-            maxWidth: 370
+            maxWidth: 480
           },
           chartOptions: {
             chart: {
-              width: 360,
-              height: 360
+              width: null,
+              height: 380
+            },
+            legend: {
+              align: 'center',
+              verticalAlign: 'bottom',
+              layout: 'horizontal',
+              itemStyle: {
+                fontSize: '12px'
+              }
             }
           }
         }]
@@ -193,7 +204,7 @@ export function PieChart({ data, type }: PropsType) {
   }
 
   return (
-    <div className="">
+    <div className="w-full">
       <HighchartsReact
         key={chartKey}
         highcharts={Highcharts}
