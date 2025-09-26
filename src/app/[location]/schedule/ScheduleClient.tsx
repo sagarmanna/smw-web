@@ -529,7 +529,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       {/* Compact Header - Responsive height */}
       <div className="flex-shrink-0 max-h-[200px] md:max-h-[100px] space-y-2">
         {/* Header Row */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold tracking-tight truncate">
               Schedule - {format(safeSelectedDate, "MMM do, yyyy")} {scheduleDetails?.Holiday?.description && `- ${scheduleDetails?.Holiday?.description}`}
@@ -568,7 +568,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           </p> */}
         </div>
         
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 justify-end md:justify-start">
           {/* Show All Toggle - Only show in teacher view */}
             {currentView === "teacher" && (
               <div className="flex items-center space-x-1">
@@ -617,19 +617,55 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           </div>
         )}
         
-              {/* Mobile: Compact single line, Desktop: Keep horizontal */}
+              {/* Mobile: 50/50 layout, Desktop: Keep horizontal */}
             <div className="flex flex-col md:flex-row gap-2 md:gap-3">
-              {/* Mobile: Compact filter layout */}
-              <div className="flex flex-col md:hidden gap-1">
+              {/* Mobile: Mixed layout - Filter by + Date in same row, others full width */}
+              <div className="flex flex-col md:hidden gap-2">
+                {/* First row: Filter by (50%) and Date (50%) - Only show in teacher view */}
                 {currentView === "teacher" && (
-                  <div className="flex items-center gap-1 text-xs">
-                    <Filter className="h-3 w-3" />
-                    <span className="font-medium">Filter by:</span>
+                  <div className="flex gap-2 mt-1">
+                    {/* Filter by label - 50% */}
+                    <div className="w-1/2 flex items-center gap-1 text-xs">
+                      <Filter className="h-3 w-3" />
+                      <span className="font-medium">Filter by:</span>
+                    </div>
+                    
+                    {/* Date Picker - 50% */}
+                    <div className="w-1/2">
+                      <Popover open={mobileDatePickerOpen} onOpenChange={setMobileDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "w-full h-6 px-1 text-xs justify-center font-normal",
+                              !safeSelectedDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-1 h-3 w-3" />
+                            {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={safeSelectedDate}
+                              onSelect={(date) => {
+                                if (date) {
+                                  setSelectedDate(date);
+                                  setMobileDatePickerOpen(false);
+                                }
+                              }}
+                            />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                 )}
-                <div className="flex flex-wrap gap-1">
-                  {/* Date Picker - mobile compact */}
-                  <div className="flex-1 min-w-[80px]">
+
+                {/* Date Picker - mobile full width for classroom view */}
+                {currentView === "classroom" && (
+                  <div className="w-full">
                     <Popover open={mobileDatePickerOpen} onOpenChange={setMobileDatePickerOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -658,49 +694,49 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                       </PopoverContent>
                     </Popover>
                   </div>
+                )}
 
-                  {/* Program Filter - mobile compact - Only show in teacher view */}
-                  {currentView === "teacher" && (
-                    <div className="flex-1 min-w-[80px]">
-                      <Combobox
-                        options={[
-                          { value: "all", label: "All Programs" },
-                          ...programs.map((program) => ({
-                            value: program.id.toString(),
-                            label: program.name,
-                          }))
-                        ]}
-                        value={selectedProgram || "all"}
-                        onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
-                        placeholder={programsLoading ? "Loading..." : "Program"}
-                        searchPlaceholder="Search programs..."
-                        emptyText="No programs found."
-                        disabled={programsLoading}
-                      />
-                    </div>
-                  )}
+                {/* Program Filter - mobile full width - Only show in teacher view */}
+                {currentView === "teacher" && (
+                  <div className="w-full">
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Programs" },
+                        ...programs.map((program) => ({
+                          value: program.id.toString(),
+                          label: program.name,
+                        }))
+                      ]}
+                      value={selectedProgram || "all"}
+                      onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
+                      placeholder={programsLoading ? "Loading..." : "Program"}
+                      searchPlaceholder="Search programs..."
+                      emptyText="No programs found."
+                      disabled={programsLoading}
+                    />
+                  </div>
+                )}
 
-                  {/* Teacher Filter - mobile compact - Only show in teacher view */}
-                  {currentView === "teacher" && (
-                    <div className="flex-1 min-w-[80px]">
-                      <Combobox
-                        options={[
-                          { value: "all", label: "All Teachers" },
-                          ...filteredTeachers.map((teacher) => ({
-                            value: teacher.id.toString(),
-                            label: teacher.name,
-                          }))
-                        ]}
-                        value={selectedTeacher || "all"}
-                        onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
-                        placeholder={teachersLoading ? "Loading..." : "Teacher"}
-                        searchPlaceholder="Search teachers..."
-                        emptyText="No teachers found."
-                        disabled={teachersLoading}
-                      />
-                    </div>
-                  )}
-                </div>
+                {/* Teacher Filter - mobile full width - Only show in teacher view */}
+                {currentView === "teacher" && (
+                  <div className="w-full mb-2">
+                    <Combobox
+                      options={[
+                        { value: "all", label: "All Teachers" },
+                        ...filteredTeachers.map((teacher) => ({
+                          value: teacher.id.toString(),
+                          label: teacher.name,
+                        }))
+                      ]}
+                      value={selectedTeacher || "all"}
+                      onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
+                      placeholder={teachersLoading ? "Loading..." : "Teacher"}
+                      searchPlaceholder="Search teachers..."
+                      emptyText="No teachers found."
+                      disabled={teachersLoading}
+                    />
+                  </div>
+                )}
           </div>
 
               {/* Desktop: Original horizontal layout */}
@@ -789,7 +825,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       </div>
 
       {/* Calendar Content - Natural height */}
-      <div className="flex-1">
+      <div className="flex-1 mt-4 md:mt-6">
       <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
           <TabsContent value="teacher">
             <div>
