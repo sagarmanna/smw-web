@@ -14,18 +14,7 @@ export async function testApiConnection(): Promise<{
   };
 }> {
   try {
-    console.log('Testing API connection...');
-    console.log('Base URL:', process.env.NEXT_PUBLIC_API_URL);
-    console.log('API Client config:', {
-      baseURL: apiClient.defaults.baseURL,
-      timeout: apiClient.defaults.timeout,
-      headers: apiClient.defaults.headers
-    });
-    
-    // Test with the actual rental endpoint to verify connectivity
-    console.log('Testing API connection with rental endpoint...');
     const response = await apiClient.get(`/admin/v2/training-location/report/rental`);
-    console.log('Health check response:', response);
     
     return {
       success: true,
@@ -36,7 +25,6 @@ export async function testApiConnection(): Promise<{
       }
     };
   } catch (error: unknown) {
-    console.error('API connection test failed:', error);
     const apiError = error as { 
       response?: { status?: number; statusText?: string };
       code?: string;
@@ -118,10 +106,6 @@ export async function getRentalsList(
   location: string,
   filters?: RentalFilters
 ): Promise<RentalAPIResponse> {
-  console.log('=== getRentalsList called ===');
-  console.log('Location:', location);
-  console.log('Filters:', filters);
-  
   try {
     const params = new URLSearchParams();
     
@@ -137,24 +121,7 @@ export async function getRentalsList(
     const queryString = params.toString();
     const url = `/admin/v2/${location}/report/rental${queryString ? `?${queryString}` : ''}`;
     
-    console.log('Rental API Debug:', {
-      location,
-      url,
-      baseURL: process.env.NEXT_PUBLIC_API_URL,
-      fullURL: `${process.env.NEXT_PUBLIC_API_URL}${url}`,
-      filters: filters || 'none'
-    });
-    
-    console.log('Making API call to:', `${process.env.NEXT_PUBLIC_API_URL}${url}`);
     const response = await apiClient.get(url);
-    
-    console.log('Rental API Response:', {
-      status: response.status,
-      dataLength: response.data?.length || 0,
-      data: response.data,
-      dataType: typeof response.data,
-      isArray: Array.isArray(response.data)
-    });
     
     // Handle different response data structures
     let rentalsData = [];
@@ -186,20 +153,6 @@ export async function getRentalsList(
       }
     }
     
-    console.log('Processed rentals data:', {
-      originalData: response.data,
-      processedData: rentalsData,
-      length: rentalsData.length
-    });
-    
-    // Debug: Log field names and values for the first item
-    if (rentalsData.length > 0) {
-      console.log('=== FIELD MAPPING DEBUG ===');
-      console.log('First rental object keys:', Object.keys(rentalsData[0]));
-      console.log('Customer field value:', rentalsData[0].customer);
-      console.log('Student field value:', rentalsData[0].student);
-      console.log('EquipmentReturned field value:', rentalsData[0].equipmentReturned);
-    }
     
     // Transform data to ensure consistent field names
     const transformedData = rentalsData.map((rental: Record<string, unknown>) => {
@@ -220,13 +173,6 @@ export async function getRentalsList(
       };
     });
     
-    console.log('=== TRANSFORMED DATA DEBUG ===');
-    console.log('Transformed data length:', transformedData.length);
-    if (transformedData.length > 0) {
-      console.log('Transformed customer value:', transformedData[0].customer);
-      console.log('Transformed student value:', transformedData[0].student);
-      console.log('Transformed equipmentReturned value:', transformedData[0].equipmentReturned);
-    }
     
     return {
       success: true,
@@ -234,7 +180,6 @@ export async function getRentalsList(
       message: 'Rentals fetched successfully'
     };
   } catch (error: unknown) {
-    console.error('Error fetching rentals:', error);
     const apiError = error as { 
       response?: { 
         status?: number;
@@ -244,16 +189,6 @@ export async function getRentalsList(
       request?: unknown;
       code?: string;
     };
-    
-    // Return error for any API failure
-    console.error('API Error Details:', {
-      status: apiError.response?.status,
-      statusText: apiError.response?.statusText,
-      message: apiError.response?.data?.message,
-      url: `/admin/v2/${location}/report/rental`,
-      code: apiError.code,
-      request: apiError.request
-    });
     
     return {
       success: false,
@@ -267,13 +202,8 @@ export async function getRentalsList(
  * Fetch rental by ID
  */
 export async function getRentalById(location: string, id: string): Promise<RentalAPIResponse> {
-  console.log('=== getRentalById called ===');
-  console.log('Location:', location, 'ID:', id);
-  
   try {
-    console.log('Making API call to:', `/admin/v2/${location}/report/rental/${id}`);
     const response = await apiClient.get(`/admin/v2/${location}/report/rental/${id}`);
-    console.log('Get rental by ID response:', response);
     
     return {
       success: true,
@@ -281,7 +211,6 @@ export async function getRentalById(location: string, id: string): Promise<Renta
       message: 'Rental fetched successfully'
     };
   } catch (error: unknown) {
-    console.error('Error fetching rental:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to fetch rental';
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
@@ -296,13 +225,8 @@ export async function getRentalById(location: string, id: string): Promise<Renta
  * Create new rental
  */
 export async function createRental(location: string, rentalData: CreateRentalData): Promise<RentalAPIResponse> {
-  console.log('=== createRental called ===');
-  console.log('Location:', location, 'Data:', rentalData);
-  
   try {
-    console.log('Making POST API call to:', `/admin/v2/${location}/report/rental`);
     const response = await apiClient.post(`/admin/v2/${location}/report/rental`, rentalData);
-    console.log('Create rental response:', response);
     
     return {
       success: true,
@@ -310,7 +234,6 @@ export async function createRental(location: string, rentalData: CreateRentalDat
       message: 'Rental created successfully'
     };
   } catch (error: unknown) {
-    console.error('Error creating rental:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to create rental';
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
@@ -325,13 +248,8 @@ export async function createRental(location: string, rentalData: CreateRentalDat
  * Update existing rental
  */
 export async function updateRental(location: string, id: string, rentalData: UpdateRentalData): Promise<RentalAPIResponse> {
-  console.log('=== updateRental called ===');
-  console.log('Location:', location, 'ID:', id, 'Data:', rentalData);
-  
   try {
-    console.log('Making PUT API call to:', `/admin/v2/${location}/report/rental/${id}`);
     const response = await apiClient.put(`/admin/v2/${location}/report/rental/${id}`, rentalData);
-    console.log('Update rental response:', response);
     
     return {
       success: true,
@@ -339,7 +257,6 @@ export async function updateRental(location: string, id: string, rentalData: Upd
       message: 'Rental updated successfully'
     };
   } catch (error: unknown) {
-    console.error('Error updating rental:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to update rental';
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
@@ -354,13 +271,8 @@ export async function updateRental(location: string, id: string, rentalData: Upd
  * Delete rental
  */
 export async function deleteRental(location: string, id: string): Promise<RentalAPIResponse> {
-  console.log('=== deleteRental called ===');
-  console.log('Location:', location, 'ID:', id);
-  
   try {
-    console.log('Making DELETE API call to:', `/admin/v2/${location}/report/rental/${id}`);
     await apiClient.delete(`/admin/v2/${location}/report/rental/${id}`);
-    console.log('Delete rental successful');
     
     return {
       success: true,
@@ -368,7 +280,6 @@ export async function deleteRental(location: string, id: string): Promise<Rental
       message: 'Rental deleted successfully'
     };
   } catch (error: unknown) {
-    console.error('Error deleting rental:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to delete rental';
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
@@ -392,11 +303,7 @@ export async function getRentalStats(location: string): Promise<{
   };
   message?: string;
 }> {
-  console.log('=== getRentalStats called ===');
-  console.log('Location:', location);
-  
   try {
-    console.log('Making stats API call to:', `/admin/v2/${location}/report/rental/stats`);
     
     // Use axios with validateStatus to not throw on 404
     const response = await apiClient.get(`/admin/v2/${location}/report/rental/stats`, {
@@ -408,23 +315,11 @@ export async function getRentalStats(location: string): Promise<{
     
     // Check if we got a 404
     if (response.status === 404) {
-      console.log('Stats endpoint not found (404), calculating stats from rental data');
-      
       // Try to calculate stats from the main rental data
       try {
         const rentalsResponse = await getRentalsList(location);
         if (rentalsResponse.success && rentalsResponse.data) {
           const rentals = rentalsResponse.data;
-          
-          // Debug: Log rental data for stats calculation
-          console.log('=== STATS CALCULATION DEBUG ===');
-          console.log('Total rentals for stats:', rentals.length);
-          if (rentals.length > 0) {
-            console.log('First rental for stats:', rentals[0]);
-            console.log('EquipmentReturned values:', rentals.map(r => r.equipmentReturned));
-            console.log('ReturnDate values:', rentals.map(r => r.returnDate));
-            console.log('Status values:', rentals.map(r => r.status));
-          }
           
           // Calculate active rentals - improved logic
           const activeRentals = rentals.filter(rental => {
@@ -432,14 +327,6 @@ export async function getRentalStats(location: string): Promise<{
             const returnDate = new Date(rental.returnDate);
             const today = new Date();
             const isNotOverdue = returnDate >= today;
-            
-            console.log(`Rental ${rental.id || 'unknown'}:`, {
-              equipmentReturned: rental.equipmentReturned,
-              isNotReturned,
-              returnDate: rental.returnDate,
-              isNotOverdue,
-              isActive: isNotReturned && isNotOverdue
-            });
             
             return isNotReturned && isNotOverdue;
           });
@@ -459,7 +346,6 @@ export async function getRentalStats(location: string): Promise<{
             ).length
           };
           
-          console.log('Calculated stats from rental data:', stats);
           
           return {
             success: true,
@@ -467,9 +353,9 @@ export async function getRentalStats(location: string): Promise<{
             message: 'Stats calculated from rental data (stats endpoint not available)'
           };
         }
-      } catch (calcError) {
-        console.error('Error calculating stats from rental data:', calcError);
-      }
+        } catch {
+          // Error calculating stats from rental data
+        }
       
       // Fallback to empty stats if calculation fails
       return {
@@ -484,12 +370,6 @@ export async function getRentalStats(location: string): Promise<{
       };
     }
     
-    console.log('Stats API Response:', {
-      status: response.status,
-      data: response.data,
-      dataType: typeof response.data,
-      isObject: typeof response.data === 'object'
-    });
     
     // Handle different response data structures for stats
     let statsData = response.data;
@@ -513,10 +393,6 @@ export async function getRentalStats(location: string): Promise<{
       }
     }
     
-    console.log('Processed stats data:', {
-      originalData: response.data,
-      processedData: statsData
-    });
     
     return {
       success: true,
@@ -524,7 +400,6 @@ export async function getRentalStats(location: string): Promise<{
       message: 'Rental statistics fetched successfully'
     };
   } catch (error: unknown) {
-    console.error('Error fetching rental stats:', error);
     const apiError = error as { 
       response?: { 
         status?: number;
@@ -533,14 +408,6 @@ export async function getRentalStats(location: string): Promise<{
       };
       code?: string;
     };
-    
-    console.error('Stats API Error Details:', {
-      status: apiError.response?.status,
-      statusText: apiError.response?.statusText,
-      message: apiError.response?.data?.message,
-      url: `/admin/v2/${location}/report/rental/stats`,
-      code: apiError.code
-    });
     
     // For any other errors (5xx, network issues, etc.), return error
     const errorMessage = error instanceof Error ? error.message : 'Failed to fetch rental statistics';

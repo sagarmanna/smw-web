@@ -3,8 +3,7 @@
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { useRentals } from "@/hooks/useRentals";
-import { RentalRow, testApiConnection } from "./rental.api";
+import { RentalRow, testApiConnection, getRentalsList, getRentalStats } from "./rental.api";
 import { toast } from "sonner";
 
 interface RentalClientProps {
@@ -48,21 +47,69 @@ const columns = [
 ];
 
 export function RentalClient({ location }: RentalClientProps) {
-  // Use the rentals hook for API integration
-  const {
-    rentals,
-    stats,
-    isLoading,
-    error,
-    refetch,
-    clearErrors
-  } = useRentals(location);
+  // Direct state management instead of useRentals hook
+  const [rentals, setRentals] = React.useState<RentalRow[]>([]);
+  const [stats, setStats] = React.useState<{
+    total: number;
+    active: number;
+    overdue: number;
+    returned: number;
+  } | null>(null);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Fetch rentals data
+  const fetchRentals = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await getRentalsList(location);
+      
+      if (response.success) {
+        setRentals(response.data);
+      } else {
+        setError(response.message || 'Failed to fetch rentals');
+        setRentals([]);
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching rentals';
+      setError(errorMessage);
+      setRentals([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location]);
+
+  // Fetch stats data
+  const fetchStats = React.useCallback(async () => {
+    try {
+      const response = await getRentalStats(location);
+      
+      if (response.success && response.data) {
+        setStats(response.data);
+      } else {
+        setStats({
+          total: 0,
+          active: 0,
+          overdue: 0,
+          returned: 0
+        });
+      }
+    } catch {
+      setStats({
+        total: 0,
+        active: 0,
+        overdue: 0,
+        returned: 0
+      });
+    }
+  }, [location]);
 
   // Test API connection on mount
   React.useEffect(() => {
     const testConnection = async () => {
       const result = await testApiConnection();
-      console.log('API Connection Test:', result);
       if (!result.success) {
         toast.error(`API Connection Failed: ${result.message}`);
       }
@@ -74,23 +121,31 @@ export function RentalClient({ location }: RentalClientProps) {
   React.useEffect(() => {
     if (error) {
       toast.error(`Failed to load rentals: ${error}`);
-      console.error('Rental API Error:', error);
     }
   }, [error]);
 
-  // Debug: Log the actual data structure
+  // Initial data fetch with error handling
   React.useEffect(() => {
-    if (rentals.length > 0) {
-      console.log('=== RENTAL DATA DEBUG ===');
-      console.log('Total rentals:', rentals.length);
-      console.log('First rental object:', rentals[0]);
-      console.log('Sample customer value:', rentals[0]?.customer);
-      console.log('Sample student value:', rentals[0]?.student);
-      console.log('Sample equipmentReturned value:', rentals[0]?.equipmentReturned);
-      console.log('All equipmentReturned values:', rentals.map(r => r.equipmentReturned));
-      console.log('All returnDate values:', rentals.map(r => r.returnDate));
-    }
-  }, [rentals]);
+    const loadData = async () => {
+      try {
+        await Promise.all([fetchRentals(), fetchStats()]);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      }
+    };
+    loadData();
+  }, [fetchRentals, fetchStats]);
+
+  // Refetch function
+  const refetch = React.useCallback(() => {
+    fetchRentals();
+    fetchStats();
+  }, [fetchRentals, fetchStats]);
+
+  // Clear errors function
+  const clearErrors = React.useCallback(() => {
+    setError(null);
+  }, []);
 
   // Use API data only
   const rows = rentals;
