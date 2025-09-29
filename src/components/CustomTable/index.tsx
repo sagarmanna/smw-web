@@ -23,6 +23,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Download, Filter, Printer, Infinity, List, Search } from "lucide-react";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 export interface FilterOption<TData> {
   key: string;
@@ -42,6 +43,7 @@ export interface CustomTableProps<TData, TValue> {
   enablePagination?: boolean;
   enablePrint?: boolean;
   enableShowAll?: boolean;
+  enableDateRangePicker?: boolean;
   
   // Search configuration
   searchPlaceholder?: string;
@@ -65,6 +67,13 @@ export interface CustomTableProps<TData, TValue> {
   pageSize?: number;
   showPageSizeOptions?: boolean;
   pageSizeOptions?: number[];
+  
+  // Custom components
+  customHeaderComponent?: React.ReactNode;
+  
+  // DateRangePicker configuration
+  dateRange?: { from: Date; to: Date };
+  onDateRangeChange?: (range: { from: Date; to: Date }) => void;
 }
 
 export function CustomTable<TData, TValue>({
@@ -79,6 +88,7 @@ export function CustomTable<TData, TValue>({
   enablePagination = true,
   enablePrint = true,
   enableShowAll = true,
+  enableDateRangePicker = false,
   
   // Search configuration
   searchPlaceholder = "Search...",
@@ -95,6 +105,13 @@ export function CustomTable<TData, TValue>({
   pageSize = 10,
   showPageSizeOptions = false,
   pageSizeOptions = [5, 10, 20, 50, 100],
+  
+  // Custom components
+  customHeaderComponent,
+  
+  // DateRangePicker configuration
+  dateRange,
+  onDateRangeChange,
 }: CustomTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
@@ -171,6 +188,17 @@ export function CustomTable<TData, TValue>({
         <div className={`flex flex-col gap-2 ${title ? 'md:flex-row md:items-center md:justify-between' : 'md:flex-row md:items-center md:justify-end'}`}>
           {title && <h2 className="text-base font-semibold md:text-lg">{title}</h2>}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Custom Header Component */}
+            {customHeaderComponent}
+            
+            {/* DateRangePicker */}
+            {enableDateRangePicker && dateRange && onDateRangeChange && (
+              <DateRangePicker
+                value={dateRange}
+                onChange={onDateRangeChange}
+              />
+            )}
+            
             {/* Search Input */}
             {enableSearch && (
               <div className="flex items-center gap-2">
