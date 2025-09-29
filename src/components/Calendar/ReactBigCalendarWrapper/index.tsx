@@ -177,8 +177,8 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     setTouchStartPosition({ x: touch.clientX, y: touch.clientY });
     setIsLongPress(false);
 
-    // Set up long press detection with iOS-specific timing
-    const longPressDelay = isIOS ? 600 : 500; // iOS needs slightly longer delay
+    // Set up long press detection with much longer delay for iOS
+    const longPressDelay = isIOS ? 1000 : 500; // iOS needs much longer delay to prevent accidental long press
     const longPressTimer = setTimeout(() => {
       setIsLongPress(true);
       handleMobileEventPress(event);
@@ -187,9 +187,11 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     // Store timer to clear it if touch ends early
     (e.target as HTMLElement & { _longPressTimer?: NodeJS.Timeout })._longPressTimer = longPressTimer;
     
-    // Prevent iOS Safari from triggering click events and zoom
-    e.preventDefault();
-    e.stopPropagation();
+    // Don't prevent default on iOS to allow normal touch behavior
+    if (!isIOS) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -212,9 +214,11 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     const touchDuration = Date.now() - touchStartTime;
     const touch = e.changedTouches[0];
     
-    // Extra safety: prevent default behavior on iOS
-    e.preventDefault();
-    e.stopPropagation();
+    // Only prevent default on non-iOS devices
+    if (!isIOS) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     
     if (touchStartPosition && touch) {
       const deltaX = Math.abs(touch.clientX - touchStartPosition.x);
@@ -503,6 +507,13 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       handleMobileEventClick(event);
     };
 
+    // Handle double click for iOS (to open modal)
+    const handleMobileDoubleClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleMobileEventPress(event);
+    };
+
     // Touch event handlers for mobile
     const handleEventTouchStart = (e: React.TouchEvent) => {
       e.preventDefault();
@@ -553,9 +564,10 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             <div 
               className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center cursor-pointer"
               onClick={isMobileView ? handleMobileClick : undefined}
-              onTouchStart={isMobileView ? handleEventTouchStart : undefined}
-              onTouchMove={isMobileView ? handleEventTouchMove : undefined}
-              onTouchEnd={isMobileView ? handleEventTouchEnd : undefined}
+              onDoubleClick={isMobileView && isIOS ? handleMobileDoubleClick : undefined}
+              onTouchStart={isMobileView && !isIOS ? handleEventTouchStart : undefined}
+              onTouchMove={isMobileView && !isIOS ? handleEventTouchMove : undefined}
+              onTouchEnd={isMobileView && !isIOS ? handleEventTouchEnd : undefined}
             >
               {/* Single row: Icon, time, title, and status icons */}
               <div className="flex items-center gap-1 w-full min-w-0">
@@ -626,9 +638,10 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
           <div 
             className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col cursor-pointer"
             onClick={isMobileView ? handleMobileClick : undefined}
-            onTouchStart={isMobileView ? handleEventTouchStart : undefined}
-            onTouchMove={isMobileView ? handleEventTouchMove : undefined}
-            onTouchEnd={isMobileView ? handleEventTouchEnd : undefined}
+            onDoubleClick={isMobileView && isIOS ? handleMobileDoubleClick : undefined}
+            onTouchStart={isMobileView && !isIOS ? handleEventTouchStart : undefined}
+            onTouchMove={isMobileView && !isIOS ? handleEventTouchMove : undefined}
+            onTouchEnd={isMobileView && !isIOS ? handleEventTouchEnd : undefined}
           >
             {/* Top row: Icon, time, and status icons */}
             <div className="flex items-center justify-between w-full flex-shrink-0">
