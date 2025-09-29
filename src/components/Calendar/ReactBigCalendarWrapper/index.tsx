@@ -177,14 +177,19 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     setTouchStartPosition({ x: touch.clientX, y: touch.clientY });
     setIsLongPress(false);
 
-    // Set up long press detection
+    // Set up long press detection with iOS-specific timing
+    const longPressDelay = isIOS ? 600 : 500; // iOS needs slightly longer delay
     const longPressTimer = setTimeout(() => {
       setIsLongPress(true);
       handleMobileEventPress(event);
-    }, 500); // 500ms for long press
+    }, longPressDelay);
 
     // Store timer to clear it if touch ends early
     (e.target as HTMLElement & { _longPressTimer?: NodeJS.Timeout })._longPressTimer = longPressTimer;
+    
+    // Prevent iOS Safari from triggering click events and zoom
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -207,17 +212,27 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     const touchDuration = Date.now() - touchStartTime;
     const touch = e.changedTouches[0];
     
-    if (touchStartPosition) {
+    // Extra safety: prevent default behavior on iOS
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (touchStartPosition && touch) {
       const deltaX = Math.abs(touch.clientX - touchStartPosition.x);
       const deltaY = Math.abs(touch.clientY - touchStartPosition.y);
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
       
+      // More lenient movement threshold for iOS
+      const movementThreshold = isIOS ? 15 : 10;
+      
       // If it's a quick tap (not long press) and minimal movement
-      if (touchDuration < 500 && distance < 10 && !isLongPress) {
+      if (touchDuration < 500 && distance < movementThreshold && !isLongPress) {
         const currentTime = Date.now();
         const timeSinceLastTap = currentTime - lastTapTime;
         
-        if (timeSinceLastTap < 300) {
+        // iOS Safari needs a longer delay for double tap detection
+        const doubleTapDelay = isIOS ? 600 : 300;
+        
+        if (timeSinceLastTap < doubleTapDelay) {
           // Double tap - open edit modal
           handleMobileEventPress(event);
         } else {
@@ -685,13 +700,26 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
 
   // Mobile detection
   const [isMobileView, setIsMobileView] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   
   useEffect(() => {
     const checkMobile = () => {
       setIsMobileView(window.innerWidth < 768); // md breakpoint
     };
     
+    const checkIOS = () => {
+      // Multiple iOS detection methods for safety
+      const userAgent = navigator.userAgent;
+      const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent);
+      const isIPadPro = navigator.maxTouchPoints > 1 && /Mac/.test(userAgent);
+      const isIOSSimulator = /iPhone|iPad/.test(userAgent) && /Safari/.test(userAgent);
+      const isIOSWebView = /iPhone|iPad/.test(userAgent) && !/Safari/.test(userAgent);
+      
+      setIsIOS(isIOSDevice || isIPadPro || isIOSSimulator || isIOSWebView);
+    };
+    
     checkMobile();
+    checkIOS();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
