@@ -880,6 +880,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  availability={teacherViewAvailability}
                  viewType="teacher"
                  updatingEvents={updatingEvents}
+                 teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
+                 classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
                />
            </div>
          </TabsContent>
@@ -902,6 +904,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  availability={classroomViewAvailability}
                  viewType="classroom"
                  updatingEvents={updatingEvents}
+                 teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
+                 classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
                />
            </div>
          </TabsContent>

@@ -9,6 +9,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { MobileEditModal } from '../MobileEditModal';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './calendar.css';
 
@@ -21,7 +22,7 @@ const localizer = momentLocalizer(moment);
 // Create BigCalendar with drag and drop support
 const BigCalendarWithDragDrop = withDragAndDrop<CalendarEvent, CalendarResource>(BigCalendar);
 
-interface CalendarEvent {
+export interface CalendarEvent {
   id: string;
   title: string;
   start: Date;
@@ -75,6 +76,9 @@ interface ReactBigCalendarWrapperProps {
   availability?: AvailabilityData[]; // Teacher availability data
   viewType?: 'teacher' | 'classroom'; // Add view type to distinguish between teacher and classroom views
   updatingEvents?: Set<string>; // Events currently being updated
+  // Mobile editing props
+  teachers?: Array<{ id: number; title: string }>; // For mobile teacher selection
+  classrooms?: Array<{ id: number; title: string }>; // For mobile classroom selection
 }
 
 export interface CalendarWrapperRef {
@@ -120,10 +124,16 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   maxTime = "20:00:00",
   availability = [],
   viewType = 'teacher',
-  updatingEvents = new Set()
+  updatingEvents = new Set(),
+  teachers = [],
+  classrooms = []
 }, ref) {
   // State for optimistic updates
   const [optimisticEvents, setOptimisticEvents] = useState<CalendarEvent[]>([]);
+
+  // Mobile editing state
+  const [mobileEditEvent, setMobileEditEvent] = useState<CalendarEvent | null>(null);
+  const [showMobileEditModal, setShowMobileEditModal] = useState(false);
 
   // Sync optimistic events with actual events
   useEffect(() => {
@@ -137,6 +147,108 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       setOptimisticEvents(prev => 
         prev.map(event => event.id === eventId ? originalEvent : event)
       );
+    }
+  };
+
+  // Mobile event handling
+  const handleMobileEventPress = (event: CalendarEvent) => {
+    if (isMobileView && editable) {
+      setMobileEditEvent(event);
+      setShowMobileEditModal(true);
+    }
+  };
+
+  // Handle single click for navigation (like desktop)
+  const handleMobileEventClick = (event: CalendarEvent) => {
+    if (isMobileView && onEventClick) {
+      onEventClick(event);
+    }
+  };
+
+  // Touch gesture handling for mobile
+  const [touchStartTime, setTouchStartTime] = useState<number>(0);
+  const [touchStartPosition, setTouchStartPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isLongPress, setIsLongPress] = useState(false);
+  const [lastTapTime, setLastTapTime] = useState<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent, event: CalendarEvent) => {
+    const touch = e.touches[0];
+    setTouchStartTime(Date.now());
+    setTouchStartPosition({ x: touch.clientX, y: touch.clientY });
+    setIsLongPress(false);
+
+    // Set up long press detection
+    const longPressTimer = setTimeout(() => {
+      setIsLongPress(true);
+      handleMobileEventPress(event);
+    }, 500); // 500ms for long press
+
+    // Store timer to clear it if touch ends early
+    (e.target as HTMLElement & { _longPressTimer?: NodeJS.Timeout })._longPressTimer = longPressTimer;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // Clear long press timer if user moves finger
+    const target = e.target as HTMLElement & { _longPressTimer?: NodeJS.Timeout };
+    if (target._longPressTimer) {
+      clearTimeout(target._longPressTimer);
+      target._longPressTimer = undefined;
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent, event: CalendarEvent) => {
+    // Clear long press timer
+    const target = e.target as HTMLElement & { _longPressTimer?: NodeJS.Timeout };
+    if (target._longPressTimer) {
+      clearTimeout(target._longPressTimer);
+      target._longPressTimer = undefined;
+    }
+
+    const touchDuration = Date.now() - touchStartTime;
+    const touch = e.changedTouches[0];
+    
+    if (touchStartPosition) {
+      const deltaX = Math.abs(touch.clientX - touchStartPosition.x);
+      const deltaY = Math.abs(touch.clientY - touchStartPosition.y);
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      
+      // If it's a quick tap (not long press) and minimal movement
+      if (touchDuration < 500 && distance < 10 && !isLongPress) {
+        const currentTime = Date.now();
+        const timeSinceLastTap = currentTime - lastTapTime;
+        
+        if (timeSinceLastTap < 300) {
+          // Double tap - open edit modal
+          handleMobileEventPress(event);
+        } else {
+          // Single tap - navigate to lesson page
+          handleMobileEventClick(event);
+        }
+        
+        setLastTapTime(currentTime);
+      }
+    }
+  };
+
+  const handleMobileEventSave = (updatedEvent: CalendarEvent) => {
+    // Determine if this is a time change or resource change
+    const isTimeChange = 
+      updatedEvent.start.getTime() !== mobileEditEvent?.start.getTime() ||
+      updatedEvent.end.getTime() !== mobileEditEvent?.end.getTime();
+    
+    const isResourceChange = updatedEvent.resourceId !== mobileEditEvent?.resourceId;
+
+    if (viewType === 'teacher') {
+      // In teacher view, use onEventDrop for both time and teacher changes
+      if ((isTimeChange || isResourceChange) && onEventDrop) {
+        onEventDrop(updatedEvent);
+      }
+    } else if (viewType === 'classroom') {
+      // In classroom view, use onClassroomChange for classroom changes only
+      if (isResourceChange && onClassroomChange) {
+        const newClassroomId = updatedEvent.resourceId?.toString() || '';
+        onClassroomChange(updatedEvent, newClassroomId);
+      }
     }
   };
 
@@ -369,6 +481,32 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     const extendedProps = event.extendedProps || {};
     const isUpdating = updatingEvents.has(event.id);
     
+    // Handle mobile event click (single tap for navigation)
+    const handleMobileClick = (e: React.MouseEvent | React.TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleMobileEventClick(event);
+    };
+
+    // Touch event handlers for mobile
+    const handleEventTouchStart = (e: React.TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleTouchStart(e, event);
+    };
+
+    const handleEventTouchMove = (e: React.TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleTouchMove(e);
+    };
+
+    const handleEventTouchEnd = (e: React.TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleTouchEnd(e, event);
+    };
+    
     // Calculate event duration in minutes
     const durationMinutes = moment(event.end).diff(moment(event.start), 'minutes');
     const isShortEvent = durationMinutes <= 20; // 15-20 minute events
@@ -397,7 +535,13 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       return (
         <HoverCard>
           <HoverCardTrigger asChild>
-            <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center cursor-pointer">
+            <div 
+              className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center cursor-pointer"
+              onClick={isMobileView ? handleMobileClick : undefined}
+              onTouchStart={isMobileView ? handleEventTouchStart : undefined}
+              onTouchMove={isMobileView ? handleEventTouchMove : undefined}
+              onTouchEnd={isMobileView ? handleEventTouchEnd : undefined}
+            >
               {/* Single row: Icon, time, title, and status icons */}
               <div className="flex items-center gap-1 w-full min-w-0">
                 {isUpdating ? (
@@ -411,6 +555,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
                 <span className="text-xs font-medium text-white truncate min-w-0 flex-1">
                   {isVeryShortEvent ? getTruncatedTitle(event.title) : getFirstName(event.title)}
                 </span>
+                
                 
                 {/* Status icons on the right */}
                 <div className="status-icons flex gap-1 flex-shrink-0">
@@ -463,7 +608,13 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     return (
       <HoverCard>
         <HoverCardTrigger asChild>
-          <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col cursor-pointer">
+          <div 
+            className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col cursor-pointer"
+            onClick={isMobileView ? handleMobileClick : undefined}
+            onTouchStart={isMobileView ? handleEventTouchStart : undefined}
+            onTouchMove={isMobileView ? handleEventTouchMove : undefined}
+            onTouchEnd={isMobileView ? handleEventTouchEnd : undefined}
+          >
             {/* Top row: Icon, time, and status icons */}
             <div className="flex items-center justify-between w-full flex-shrink-0">
               <div className="flex items-center gap-1">
@@ -476,6 +627,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
                   {formatTime(event.start, event.end)}
                 </span>
               </div>
+              
               
               {/* Status icons on the right */}
               <div className="status-icons flex gap-1 flex-shrink-0">
@@ -641,6 +793,17 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
           />
         </div>
       </div>
+      
+      {/* Mobile Edit Modal */}
+      <MobileEditModal
+        event={mobileEditEvent}
+        isOpen={showMobileEditModal}
+        onClose={() => setShowMobileEditModal(false)}
+        onSave={handleMobileEventSave}
+        teachers={teachers}
+        classrooms={classrooms}
+        viewType={viewType}
+      />
     </div>
   );
 });
