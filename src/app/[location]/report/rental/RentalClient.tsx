@@ -3,344 +3,100 @@
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-
-interface RentalRow {
-  id: string;
-  customer: string;
-  student: string;
-  startDate: string;
-  returnDate: string;
-  rentalTerm: string;
-  equipmentReturned: "Yes" | "No";
-  equipmentReturnedDate?: string;
-}
+import { useRentals } from "@/hooks/useRentals";
+import { RentalRow, testApiConnection } from "./rental.api";
+import { toast } from "sonner";
 
 interface RentalClientProps {
   location: string;
 }
 
 const columns = [
-  { accessorKey: "customer", header: "Customer" },
-  { accessorKey: "student", header: "Student" },
+  { 
+    accessorKey: "customer", 
+    header: "Customer",
+    cell: ({ row }: { row: { original: RentalRow } }) => {
+      return row.original.customer || 'N/A';
+    }
+  },
+  { 
+    accessorKey: "student", 
+    header: "Student",
+    cell: ({ row }: { row: { original: RentalRow } }) => {
+      return row.original.student || 'N/A';
+    }
+  },
   { accessorKey: "startDate", header: "Start Date" },
   { accessorKey: "returnDate", header: "Return Date" },
   { accessorKey: "rentalTerm", header: "Rental Term" },
-  { accessorKey: "equipmentReturned", header: "Equipment Returned" },
+  { 
+    accessorKey: "equipmentReturned", 
+    header: "Equipment Returned",
+    cell: ({ row }: { row: { original: RentalRow } }) => {
+      return row.original.equipmentReturned || 'N/A';
+    }
+  },
   {
     accessorKey: "equipmentReturnedDate",
     header: "Equipment Returned Date",
-    cell: ({ row }: { row: { original: RentalRow } }) => 
-      row.original.equipmentReturned === "Yes" 
+    cell: ({ row }: { row: { original: RentalRow } }) => {
+      return row.original.equipmentReturned === "Yes" 
         ? (row.original.equipmentReturnedDate ?? "") 
-        : "",
-  },
-];
-
-// Mock data - replace with actual API call
-const mockRentals: RentalRow[] = [
-  {
-    id: "1",
-    customer: "John Smith",
-    student: "Alice Smith",
-    startDate: "2024-01-15",
-    returnDate: "2024-02-15",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "2",
-    customer: "Jane Doe",
-    student: "Bob Doe",
-    startDate: "2024-01-20",
-    returnDate: "2024-01-25",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-25",
-  },
-  {
-    id: "3",
-    customer: "Mike Johnson",
-    student: "Sarah Johnson",
-    startDate: "2024-01-10",
-    returnDate: "2024-02-10",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "4",
-    customer: "Lisa Brown",
-    student: "Tom Brown",
-    startDate: "2024-01-05",
-    returnDate: "2024-01-12",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-12",
-  },
-  {
-    id: "5",
-    customer: "David Wilson",
-    student: "Emma Wilson",
-    startDate: "2024-01-01",
-    returnDate: "2024-01-31",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "6",
-    customer: "Sarah Davis",
-    student: "James Davis",
-    startDate: "2024-01-08",
-    returnDate: "2024-01-22",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-22",
-  },
-  {
-    id: "7",
-    customer: "Robert Miller",
-    student: "Sophia Miller",
-    startDate: "2024-01-12",
-    returnDate: "2024-02-12",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "8",
-    customer: "Emily Garcia",
-    student: "Lucas Garcia",
-    startDate: "2024-01-03",
-    returnDate: "2024-01-17",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-17",
-  },
-  {
-    id: "9",
-    customer: "Michael Rodriguez",
-    student: "Isabella Rodriguez",
-    startDate: "2024-01-18",
-    returnDate: "2024-02-18",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "10",
-    customer: "Jennifer Martinez",
-    student: "Alexander Martinez",
-    startDate: "2024-01-14",
-    returnDate: "2024-01-28",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-28",
-  },
-  {
-    id: "11",
-    customer: "Christopher Lee",
-    student: "Mia Lee",
-    startDate: "2024-01-25",
-    returnDate: "2024-02-25",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "12",
-    customer: "Amanda White",
-    student: "Noah White",
-    startDate: "2024-01-07",
-    returnDate: "2024-01-21",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-21",
-  },
-  {
-    id: "13",
-    customer: "Daniel Taylor",
-    student: "Ava Taylor",
-    startDate: "2024-01-30",
-    returnDate: "2024-02-29",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "14",
-    customer: "Jessica Anderson",
-    student: "William Anderson",
-    startDate: "2024-01-11",
-    returnDate: "2024-01-25",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-25",
-  },
-  {
-    id: "15",
-    customer: "Matthew Thomas",
-    student: "Charlotte Thomas",
-    startDate: "2024-01-22",
-    returnDate: "2024-02-22",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "16",
-    customer: "Ashley Jackson",
-    student: "Benjamin Jackson",
-    startDate: "2024-01-16",
-    returnDate: "2024-01-30",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-30",
-  },
-  {
-    id: "17",
-    customer: "Andrew Harris",
-    student: "Amelia Harris",
-    startDate: "2024-01-04",
-    returnDate: "2024-02-04",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "18",
-    customer: "Stephanie Clark",
-    student: "Liam Clark",
-    startDate: "2024-01-19",
-    returnDate: "2024-02-02",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-02-02",
-  },
-  {
-    id: "19",
-    customer: "Kevin Lewis",
-    student: "Harper Lewis",
-    startDate: "2024-01-26",
-    returnDate: "2024-02-26",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "20",
-    customer: "Nicole Walker",
-    student: "Ethan Walker",
-    startDate: "2024-01-09",
-    returnDate: "2024-01-23",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-23",
-  },
-  {
-    id: "21",
-    customer: "Ryan Hall",
-    student: "Evelyn Hall",
-    startDate: "2024-01-13",
-    returnDate: "2024-02-13",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "22",
-    customer: "Rachel Allen",
-    student: "Mason Allen",
-    startDate: "2024-01-06",
-    returnDate: "2024-01-20",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-20",
-  },
-  {
-    id: "23",
-    customer: "Brandon Young",
-    student: "Abigail Young",
-    startDate: "2024-01-27",
-    returnDate: "2024-02-27",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "24",
-    customer: "Lauren King",
-    student: "Logan King",
-    startDate: "2024-01-17",
-    returnDate: "2024-01-31",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-01-31",
-  },
-  {
-    id: "25",
-    customer: "Tyler Wright",
-    student: "Elizabeth Wright",
-    startDate: "2024-01-02",
-    returnDate: "2024-02-02",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "26",
-    customer: "Samantha Lopez",
-    student: "Sebastian Lopez",
-    startDate: "2024-01-24",
-    returnDate: "2024-02-07",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-02-07",
-  },
-  {
-    id: "27",
-    customer: "Justin Hill",
-    student: "Madison Hill",
-    startDate: "2024-01-21",
-    returnDate: "2024-02-21",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "28",
-    customer: "Brittany Scott",
-    student: "Jackson Scott",
-    startDate: "2024-01-28",
-    returnDate: "2024-02-11",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-02-11",
-  },
-  {
-    id: "29",
-    customer: "Nathan Green",
-    student: "Avery Green",
-    startDate: "2024-01-31",
-    returnDate: "2024-02-28",
-    rentalTerm: "Monthly",
-    equipmentReturned: "No",
-  },
-  {
-    id: "30",
-    customer: "Megan Adams",
-    student: "Sofia Adams",
-    startDate: "2024-01-23",
-    returnDate: "2024-02-06",
-    rentalTerm: "Weekly",
-    equipmentReturned: "Yes",
-    equipmentReturnedDate: "2024-02-06",
+        : "";
+    }
   },
 ];
 
 export function RentalClient({ location }: RentalClientProps) {
-  const [rows, setRows] = React.useState<RentalRow[]>([]);
-  const [loading, setLoading] = React.useState<boolean>(true);
+  // Use the rentals hook for API integration
+  const {
+    rentals,
+    stats,
+    isLoading,
+    error,
+    refetch,
+    clearErrors
+  } = useRentals(location);
 
+  // Test API connection on mount
   React.useEffect(() => {
-    // Simulate API call
-    const loadData = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setRows(mockRentals);
-      setLoading(false);
+    const testConnection = async () => {
+      const result = await testApiConnection();
+      console.log('API Connection Test:', result);
+      if (!result.success) {
+        toast.error(`API Connection Failed: ${result.message}`);
+      }
     };
-    loadData();
-  }, [location]);
+    testConnection();
+  }, []);
 
-  if (loading) {
+  // Handle errors with toast notifications
+  React.useEffect(() => {
+    if (error) {
+      toast.error(`Failed to load rentals: ${error}`);
+      console.error('Rental API Error:', error);
+    }
+  }, [error]);
+
+  // Debug: Log the actual data structure
+  React.useEffect(() => {
+    if (rentals.length > 0) {
+      console.log('=== RENTAL DATA DEBUG ===');
+      console.log('Total rentals:', rentals.length);
+      console.log('First rental object:', rentals[0]);
+      console.log('Sample customer value:', rentals[0]?.customer);
+      console.log('Sample student value:', rentals[0]?.student);
+      console.log('Sample equipmentReturned value:', rentals[0]?.equipmentReturned);
+      console.log('All equipmentReturned values:', rentals.map(r => r.equipmentReturned));
+      console.log('All returnDate values:', rentals.map(r => r.returnDate));
+    }
+  }, [rentals]);
+
+  // Use API data only
+  const rows = rentals;
+
+  // Show loading animation
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <LoadingAnimation 
@@ -352,13 +108,79 @@ export function RentalClient({ location }: RentalClientProps) {
     );
   }
 
+  // Show empty state if no data
+  if (!isLoading && rows.length === 0 && !error) {
+    return (
+      <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl">
+          {/* Rental Heading Card */}
+          <div className="mb-4">
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h1 className="text-lg font-semibold text-card-foreground">Rental</h1>
+                {stats && (
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>Total: {stats.total}</span>
+                    <span>Active: {stats.active}</span>
+                    <span>Overdue: {stats.overdue}</span>
+                    <span>Returned: {stats.returned}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Empty State */}
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-900">No rental data found</h3>
+              <p className="mt-2 text-sm text-gray-500">
+                There are no rental records available for this location.
+              </p>
+              <button
+                onClick={() => refetch()}
+                className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Refresh Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
       <div className="mx-auto max-w-screen-2xl">
         {/* Rental Heading Card */}
         <div className="mb-4">
           <div className="rounded-lg border bg-card p-4 shadow-sm">
-            <h1 className="text-lg font-semibold text-card-foreground">Rental</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg font-semibold text-card-foreground">Rental</h1>
+              {stats && (
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>Total: {stats.total}</span>
+                  <span>Active: {stats.active}</span>
+                  <span>Overdue: {stats.overdue}</span>
+                  <span>Returned: {stats.returned}</span>
+                </div>
+              )}
+            </div>
+            {error && (
+              <div className="mt-2 flex items-center justify-between rounded-md bg-red-50 p-3 text-sm text-red-700">
+                <span>Failed to load rental data: {error}</span>
+                <button
+                  onClick={() => {
+                    clearErrors();
+                    refetch();
+                  }}
+                  className="ml-2 rounded bg-red-100 px-2 py-1 text-xs hover:bg-red-200"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
           </div>
         </div>
         
@@ -410,6 +232,16 @@ export function RentalClient({ location }: RentalClientProps) {
                 const delta = due.getTime() - new Date().getTime();
                 return delta >= 0 && delta <= 7 * 24 * 60 * 60 * 1000;
               }
+            },
+            { 
+              key: 'returned', 
+              label: 'Returned Equipment', 
+              predicate: (r) => r.equipmentReturned === 'Yes'
+            },
+            { 
+              key: 'active', 
+              label: 'Active Rentals', 
+              predicate: (r) => r.equipmentReturned === 'No'
             },
           ]}
           
