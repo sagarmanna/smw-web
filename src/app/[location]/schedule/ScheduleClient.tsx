@@ -9,7 +9,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReactBigCalendarWrapper, CalendarWrapperRef } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { CalendarIcon, Tv, Filter } from "lucide-react";
+import { CalendarIcon, Tv, Filter, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent, ClassroomViewAvailability } from "./schedule.api";
@@ -515,6 +515,12 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     window.open(`/admin/${location}/daily-schedule?date=${dateStr}`, '_blank');
   };
 
+  const goToToday = () => {
+    setSelectedDate(new Date());
+    setMobileDatePickerOpen(false);
+    setDesktopDatePickerOpen(false);
+  };
+
   // Get time range based on view type and Show All checkbox
   const getTimeRange = () => {
     if (!scheduleDetails) {
@@ -676,13 +682,25 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                             )}
                           >
                             <CalendarIcon className="mr-1 h-3 w-3" />
-                            {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Date"}
+                            {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Date"}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
+                            <div className="p-2 border-b">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={goToToday}
+                                className="w-full h-8 text-xs"
+                              >
+                                <Clock className="mr-1 h-3 w-3" />
+                                Today
+                              </Button>
+                            </div>
                             <Calendar
                               mode="single"
                               selected={safeSelectedDate}
+                              defaultMonth={safeSelectedDate}
                               onSelect={(date) => {
                                 if (date) {
                                   setSelectedDate(date);
@@ -713,13 +731,25 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                           )}
                         >
                           <CalendarIcon className="mr-1 h-3 w-3" />
-                          {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Date"}
+                          {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Date"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-2 border-b">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={goToToday}
+                              className="w-full h-8 text-xs"
+                            >
+                              <Clock className="mr-1 h-3 w-3" />
+                              Today
+                            </Button>
+                          </div>
                           <Calendar
                             mode="single"
                             selected={safeSelectedDate}
+                            defaultMonth={safeSelectedDate}
                             onSelect={(date) => {
                               if (date) {
                                 setSelectedDate(date);
@@ -799,13 +829,25 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
               )}
             >
                       <CalendarIcon className="mr-1 h-3 w-3" />
-                      {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Pick date"}
+                      {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Pick date"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
+            <div className="p-2 border-b">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToToday}
+                className="w-full h-8 text-xs"
+              >
+                <Clock className="mr-1 h-3 w-3" />
+                Today
+              </Button>
+            </div>
             <Calendar
               mode="single"
               selected={safeSelectedDate}
+              defaultMonth={safeSelectedDate}
                         onSelect={(date) => {
                           if (date) {
                             setSelectedDate(date);
