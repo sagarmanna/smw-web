@@ -689,6 +689,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                                   setMobileDatePickerOpen(false);
                                 }
                               }}
+                              captionLayout="dropdown"
+                              fromYear={2005}
+                              toYear={2125}
                             />
                         </PopoverContent>
                       </Popover>
@@ -723,6 +726,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                                 setMobileDatePickerOpen(false);
                               }
                             }}
+                            captionLayout="dropdown"
+                            fromYear={2005}
+                            toYear={2125}
                           />
                       </PopoverContent>
                     </Popover>
@@ -806,6 +812,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                             setDesktopDatePickerOpen(false);
                           }
                         }}
+                        captionLayout="dropdown"
+                        fromYear={2005}
+                        toYear={2125}
                       />
           </PopoverContent>
         </Popover>
