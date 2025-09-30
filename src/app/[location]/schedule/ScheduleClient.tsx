@@ -788,7 +788,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
               variant="outline"
                       size="sm"
               className={cn(
-                        "h-7 px-2 text-xs justify-start font-normal min-w-[120px]",
+                        "h-7 px-2 text-xs justify-start font-normal min-w-[180px] min-h-[34px]",
                 !safeSelectedDate && "text-muted-foreground"
               )}
             >
