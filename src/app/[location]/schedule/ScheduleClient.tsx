@@ -9,7 +9,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReactBigCalendarWrapper, CalendarWrapperRef } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { CalendarIcon, Tv, Filter } from "lucide-react";
+import { CalendarIcon, Tv, Filter, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent, ClassroomViewAvailability } from "./schedule.api";
@@ -62,6 +62,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
   // Loading state for events being updated
   const [updatingEvents, setUpdatingEvents] = useState<Set<string>>(new Set());
+
+  // Recent dates memory (last 5 dates)
+  const [recentDates, setRecentDates] = useState<Date[]>([]);
 
   // Refs for calendar wrappers
   const teacherCalendarRef = useRef<CalendarWrapperRef>(null);
@@ -515,6 +518,37 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     window.open(`/admin/${location}/daily-schedule?date=${dateStr}`, '_blank');
   };
 
+  const goToToday = () => {
+    setSelectedDate(new Date());
+    setMobileDatePickerOpen(false);
+    setDesktopDatePickerOpen(false);
+  };
+
+  // Add date to recent dates memory
+  const addToRecentDates = (date: Date) => {
+    const dateStr = date.toDateString();
+    const existingIndex = recentDates.findIndex(d => d.toDateString() === dateStr);
+    
+    let newRecentDates;
+    if (existingIndex !== -1) {
+      // Remove existing date and add to front
+      newRecentDates = [date, ...recentDates.filter((_, index) => index !== existingIndex)];
+    } else {
+      // Add new date to front
+      newRecentDates = [date, ...recentDates];
+    }
+    
+    // Keep only last 5 dates
+    setRecentDates(newRecentDates.slice(0, 5));
+  };
+
+  // Handle date selection with recent dates tracking
+  const handleDateSelect = (date: Date, closeCalendar: () => void) => {
+    setSelectedDate(date);
+    addToRecentDates(date);
+    closeCalendar();
+  };
+
   // Get time range based on view type and Show All checkbox
   const getTimeRange = () => {
     if (!scheduleDetails) {
@@ -676,19 +710,33 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                             )}
                           >
                             <CalendarIcon className="mr-1 h-3 w-3" />
-                            {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Date"}
+                            {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Date"}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
+                            <div className="p-2 border-b">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={goToToday}
+                                className="w-full h-8 text-xs"
+                              >
+                                <Clock className="mr-1 h-3 w-3" />
+                                Today
+                              </Button>
+                            </div>
                             <Calendar
                               mode="single"
                               selected={safeSelectedDate}
+                              defaultMonth={safeSelectedDate}
                               onSelect={(date) => {
                                 if (date) {
-                                  setSelectedDate(date);
-                                  setMobileDatePickerOpen(false);
+                                  handleDateSelect(date, () => setMobileDatePickerOpen(false));
                                 }
                               }}
+                              captionLayout="dropdown"
+                              fromYear={2005}
+                              toYear={2125}
                             />
                         </PopoverContent>
                       </Popover>
@@ -710,19 +758,33 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                           )}
                         >
                           <CalendarIcon className="mr-1 h-3 w-3" />
-                          {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Date"}
+                          {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Date"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-2 border-b">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={goToToday}
+                              className="w-full h-8 text-xs"
+                            >
+                              <Clock className="mr-1 h-3 w-3" />
+                              Today
+                            </Button>
+                          </div>
                           <Calendar
                             mode="single"
                             selected={safeSelectedDate}
+                            defaultMonth={safeSelectedDate}
                             onSelect={(date) => {
                               if (date) {
-                                setSelectedDate(date);
-                                setMobileDatePickerOpen(false);
+                                handleDateSelect(date, () => setMobileDatePickerOpen(false));
                               }
                             }}
+                            captionLayout="dropdown"
+                            fromYear={2005}
+                            toYear={2125}
                           />
                       </PopoverContent>
                     </Popover>
@@ -788,25 +850,66 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
               variant="outline"
                       size="sm"
               className={cn(
-                        "h-7 px-2 text-xs justify-start font-normal min-w-[120px]",
+                        "h-7 px-2 text-xs justify-start font-normal min-w-[180px] min-h-[34px]",
                 !safeSelectedDate && "text-muted-foreground"
               )}
             >
                       <CalendarIcon className="mr-1 h-3 w-3" />
-                      {safeSelectedDate ? format(safeSelectedDate, "MMM dd") : "Pick date"}
+                      {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Pick date"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={safeSelectedDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            setSelectedDate(date);
-                            setDesktopDatePickerOpen(false);
-                          }
-                        }}
-                      />
+            <div className="flex">
+              {/* Recent Dates Sidebar - Desktop Only */}
+              <div className="w-32 p-2 border-r bg-gray-50">
+                <div className="text-xs font-medium text-gray-600 mb-2">Recent Dates</div>
+                <div className="space-y-1">
+                  {recentDates.length === 0 ? (
+                    <div className="text-xs text-gray-400">No recent dates</div>
+                  ) : (
+                    recentDates.map((date, index) => (
+                      <Button
+                        key={date.toDateString()}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDateSelect(date, () => setDesktopDatePickerOpen(false))}
+                        className="w-full h-6 text-xs justify-start p-1 hover:bg-gray-200"
+                      >
+                        {format(date, "MMM dd")}
+                      </Button>
+                    ))
+                  )}
+                </div>
+              </div>
+              
+              {/* Main Calendar */}
+              <div className="flex-1">
+                <div className="p-2 border-b">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToToday}
+                    className="w-full h-8 text-xs"
+                  >
+                    <Clock className="mr-1 h-3 w-3" />
+                    Today
+                  </Button>
+                </div>
+                <Calendar
+                  mode="single"
+                  selected={safeSelectedDate}
+                  defaultMonth={safeSelectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      handleDateSelect(date, () => setDesktopDatePickerOpen(false));
+                    }
+                  }}
+                  captionLayout="dropdown"
+                  fromYear={2005}
+                  toYear={2125}
+                />
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
 
