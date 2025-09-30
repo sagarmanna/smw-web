@@ -20,6 +20,35 @@ function toNumber(value: unknown): number {
   return 0;
 }
 
+function readFirst(item: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(item, key)) {
+      return (item as Record<string, unknown>)[key];
+    }
+  }
+  return undefined;
+}
+
+function findValueByKeyPattern(
+  input: unknown,
+  pattern: RegExp,
+  depth = 3
+): unknown {
+  if (depth < 0 || input == null) return undefined;
+  if (Array.isArray(input)) return undefined;
+  if (typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    for (const [k, v] of Object.entries(obj)) {
+      if (pattern.test(k)) return v;
+    }
+    for (const v of Object.values(obj)) {
+      const found = findValueByKeyPattern(v, pattern, depth - 1);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
+}
+
 // Recursively find the first array of objects in any nested response shape
 function findFirstArrayOfObjects(input: unknown, maxDepth = 5): Record<string, unknown>[] | null {
   if (maxDepth < 0 || input == null) return null;
@@ -158,15 +187,19 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
       
       
       // Handle different possible response formats
-      let locationDataArray: LocationStats[] = [];
+      let locationDataArray: unknown[] = [];
       
       // Cast response to a more flexible type for checking
       const flexibleResponse = response as unknown as Record<string, unknown>;
       
       // Try multiple common response formats
-      if (response?.success && response.data && Array.isArray(response.data)) {
-        // Format 1: { success: true, data: [...] }
-        locationDataArray = response.data;
+      if (
+        response?.success &&
+        response.data &&
+        Array.isArray((response.data as unknown as { body: unknown[] }).body)
+      ) {
+        // Format 1a: { success: true, data: { body: [...] } }
+        locationDataArray = (response.data as unknown as { body: unknown[] }).body;
         
       } else if (Array.isArray(response)) {
         // Format 2: Direct array [...]
@@ -174,7 +207,7 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
         
       } else if (response?.data && Array.isArray(response.data)) {
         // Format 3: { data: [...] }
-        locationDataArray = response.data;
+        locationDataArray = response.data as unknown[];
         
       } else if (flexibleResponse?.locations && Array.isArray(flexibleResponse.locations)) {
         // Format 4: { locations: [...] }
@@ -210,7 +243,7 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
       
       if (locationDataArray.length > 0) {
         // Transform data to ensure consistent field names and numeric types
-        const transformedData = (locationDataArray as unknown as Record<string, unknown>[]) 
+        const transformedData = (locationDataArray as Record<string, unknown>[]) 
           .map((item: Record<string, unknown>) => ({
             name:
               (item.name as string) ||
@@ -219,17 +252,16 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
               (item.location_name as string) ||
               "Unknown",
             activeEnrolments: toNumber(
-              item.activeEnrolments ??
-                item.active_enrolments ??
-                item.activeEnrollments ??
-                item.active_enrollments ??
-                0
+              readFirst(item, [
+                'activeEnrolments', 'active_enrolments', 'activeEnrollments', 'active_enrollments',
+                'activeStudents', 'active_students', 'active', 'enrolments', 'enrollments'
+              ]) ?? findValueByKeyPattern(item, /active.*(enrol|enroll|student|count)/i)
             ),
-            revenue: toNumber(item.revenue),
-            royalty: toNumber(item.royalty),
-            advertisement: toNumber(item.advertisement),
-            hst: toNumber(item.hst),
-            total: toNumber(item.total),
+            revenue: toNumber(readFirst(item, ['revenue', 'revenueAmount'])),
+            royalty: toNumber(readFirst(item, ['locationDebtValueRoyalty', 'royalty'])),
+            advertisement: toNumber(readFirst(item, ['locationDebtValueAdvertisement', 'advertisement'])),
+            hst: toNumber(readFirst(item, ['taxAmount', 'hst'])),
+            total: toNumber(readFirst(item, ['total', 'grandTotal'])),
           }));
 
         
@@ -241,7 +273,7 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
         // Check if response has any array-like properties
         if (response && typeof response === 'object') {
           
-          for (const [key, value] of Object.entries(response)) {
+          for (const value of Object.values(response)) {
             
             if (Array.isArray(value) && value.length > 0) {
               
@@ -256,17 +288,16 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
                       (item.location_name as string) ||
                       "Unknown",
                     activeEnrolments: toNumber(
-                      item.activeEnrolments ??
-                        item.active_enrolments ??
-                        item.activeEnrollments ??
-                        item.active_enrollments ??
-                        0
+                      readFirst(item, [
+                        'activeEnrolments', 'active_enrolments', 'activeEnrollments', 'active_enrollments',
+                        'activeStudents', 'active_students', 'active', 'enrolments', 'enrollments'
+                      ]) ?? findValueByKeyPattern(item, /active.*(enrol|enroll|student|count)/i)
                     ),
-                    revenue: toNumber(item.revenue),
-                    royalty: toNumber(item.royalty),
-                    advertisement: toNumber(item.advertisement),
-                    hst: toNumber(item.hst),
-                    total: toNumber(item.total),
+                    revenue: toNumber(readFirst(item, ['revenue', 'revenueAmount'])),
+                    royalty: toNumber(readFirst(item, ['locationDebtValueRoyalty', 'royalty'])),
+                    advertisement: toNumber(readFirst(item, ['locationDebtValueAdvertisement', 'advertisement'])),
+                    hst: toNumber(readFirst(item, ['taxAmount', 'hst'])),
+                    total: toNumber(readFirst(item, ['total', 'grandTotal'])),
                   }));
                 
                 setLocationData(coerced);
@@ -280,26 +311,28 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
         // As a last attempt, recursively search any nested array of objects
         const nested = findFirstArrayOfObjects(response);
         if (nested && nested.length > 0) {
-          const coerced = nested.map((item) => ({
+          const coerced = nested.map((item) => {
+            const rec = item as Record<string, unknown>;
+            return ({
             name:
-              (item.name as string) ||
-              (item.location as string) ||
-              (item.locationName as string) ||
-              (item.location_name as string) ||
+              (rec.name as string) ||
+              (rec.location as string) ||
+              (rec.locationName as string) ||
+              (rec.location_name as string) ||
               "Unknown",
             activeEnrolments: toNumber(
-              item.activeEnrolments ??
-                item.active_enrolments ??
-                item.activeEnrollments ??
-                item.active_enrollments ??
-                0
+              readFirst(rec, [
+                'activeEnrolments', 'active_enrolments', 'activeEnrollments', 'active_enrollments',
+                'activeStudents', 'active_students', 'active', 'enrolments', 'enrollments'
+              ]) ?? findValueByKeyPattern(rec, /active.*(enrol|enroll|student|count)/i)
             ),
-            revenue: toNumber(item.revenue),
-            royalty: toNumber(item.royalty),
-            advertisement: toNumber(item.advertisement),
-            hst: toNumber(item.hst),
-            total: toNumber(item.total),
-          }));
+            revenue: toNumber(readFirst(rec, ['revenue', 'revenueAmount'])),
+            royalty: toNumber(readFirst(rec, ['locationDebtValueRoyalty', 'royalty'])),
+            advertisement: toNumber(readFirst(rec, ['locationDebtValueAdvertisement', 'advertisement'])),
+            hst: toNumber(readFirst(rec, ['taxAmount', 'hst'])),
+            total: toNumber(readFirst(rec, ['total', 'grandTotal'])),
+          });
+          });
           
           setLocationData(coerced);
           setError(null);
