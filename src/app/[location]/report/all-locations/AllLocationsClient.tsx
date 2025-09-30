@@ -3,123 +3,40 @@
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-
-interface LocationStats {
-  name: string;
-  activeEnrolments: number;
-  revenue: number;
-  royalty: number;
-  advertisement: number;
-  hst: number;
-  total: number;
-}
+import { getAllLocationsData, LocationStats } from "./all-locations.api";
 
 interface AllLocationsClientProps {
   location: string;
 }
 
-// Mock data based on the image
-const mockLocationData: LocationStats[] = [
-  {
-    name: "Bolton",
-    activeEnrolments: 175,
-    revenue: 0.00,
-    royalty: 0.00,
-    advertisement: 0.00,
-    hst: 0.00,
-    total: 0.00
-  },
-  {
-    name: "Woodbridge",
-    activeEnrolments: 416,
-    revenue: 33550.40,
-    royalty: 2013.02,
-    advertisement: 671.01,
-    hst: 348.92,
-    total: 3032.96
-  },
-  {
-    name: "Maple",
-    activeEnrolments: 240,
-    revenue: 23565.26,
-    royalty: 1413.92,
-    advertisement: 471.31,
-    hst: 245.08,
-    total: 2130.30
-  },
-  {
-    name: "Burlington",
-    activeEnrolments: 233,
-    revenue: 18934.10,
-    royalty: 1136.05,
-    advertisement: 378.68,
-    hst: 196.91,
-    total: 1711.64
-  },
-  {
-    name: "Richmond Hill",
-    activeEnrolments: 358,
-    revenue: 39010.03,
-    royalty: 2340.60,
-    advertisement: 780.20,
-    hst: 405.70,
-    total: 3526.51
-  },
-  {
-    name: "Markham",
-    activeEnrolments: 239,
-    revenue: 25571.18,
-    royalty: 1534.27,
-    advertisement: 511.42,
-    hst: 265.94,
-    total: 2311.63
-  },
-  {
-    name: "Newmarket",
-    activeEnrolments: 186,
-    revenue: 22773.02,
-    royalty: 1366.38,
-    advertisement: 455.46,
-    hst: 236.84,
-    total: 2058.68
-  },
-  {
-    name: "South Brampton",
-    activeEnrolments: 0,
-    revenue: 0.00,
-    royalty: 0.00,
-    advertisement: 0.00,
-    hst: 0.00,
-    total: 0.00
-  },
-  {
-    name: "North Brampton",
-    activeEnrolments: 392,
-    revenue: 33948.35,
-    royalty: 2036.90,
-    advertisement: 678.97,
-    hst: 353.06,
-    total: 3068.93
-  },
-  {
-    name: "West Brampton",
-    activeEnrolments: 482,
-    revenue: 51782.85,
-    royalty: 3106.97,
-    advertisement: 1035.66,
-    hst: 538.54,
-    total: 4681.17
-  },
-  {
-    name: "Nobleton",
-    activeEnrolments: 118,
-    revenue: 9451.05,
-    royalty: 567.06,
-    advertisement: 189.02,
-    hst: 98.29,
-    total: 854.37
+// Safely parse numbers that might come as strings like "33,550.40"
+function toNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const cleaned = value.replace(/,/g, "").trim();
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
-];
+  return 0;
+}
+
+// Recursively find the first array of objects in any nested response shape
+function findFirstArrayOfObjects(input: unknown, maxDepth = 5): Record<string, unknown>[] | null {
+  if (maxDepth < 0 || input == null) return null;
+  if (Array.isArray(input)) {
+    if (input.length > 0 && typeof input[0] === "object" && input[0] !== null) {
+      return input as Record<string, unknown>[];
+    }
+    return null;
+  }
+  if (typeof input === "object") {
+    for (const value of Object.values(input as Record<string, unknown>)) {
+      const found = findFirstArrayOfObjects(value, maxDepth - 1);
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
 // Calculate totals
 const calculateTotals = (data: LocationStats[]) => {
@@ -142,22 +59,6 @@ const calculateTotals = (data: LocationStats[]) => {
     }
   );
 };
-
-const totals = calculateTotals(mockLocationData);
-
-// Add totals row to data
-const dataWithTotals = [
-  ...mockLocationData,
-  {
-    name: "TOTAL",
-    activeEnrolments: totals.activeEnrolments,
-    revenue: totals.revenue,
-    royalty: totals.royalty,
-    advertisement: totals.advertisement,
-    hst: totals.hst,
-    total: totals.total
-  }
-];
 
 const columns = [
   {
@@ -225,19 +126,265 @@ const columns = [
   }
 ];
 
-export function AllLocationsClient({ location: _location }: AllLocationsClientProps) {
-  const [isLoading] = React.useState(false);
+export function AllLocationsClient({ location }: AllLocationsClientProps) {
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [locationData, setLocationData] = React.useState<LocationStats[]>([]);
   const [dateRange, setDateRange] = React.useState<{
     from: Date;
     to: Date;
   }>({
-    from: new Date(2025, 7, 1), // Aug 1, 2025
-    to: new Date(2025, 7, 31)   // Aug 31, 2025
+    from: new Date(2025, 8, 1), // Sep 1, 2025
+    to: new Date(2025, 8, 30)   // Sep 30, 2025
   });
 
+  // Fetch data from API
+  const fetchData = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const fromDate = dateRange.from.toISOString().split('T')[0];
+      const toDate = dateRange.to.toISOString().split('T')[0];
+      
+      
+      
+      const response = await getAllLocationsData({
+        location,
+        fromDate,
+        toDate
+      });
+      
+      
+      
+      // Handle different possible response formats
+      let locationDataArray: LocationStats[] = [];
+      
+      // Cast response to a more flexible type for checking
+      const flexibleResponse = response as unknown as Record<string, unknown>;
+      
+      // Try multiple common response formats
+      if (response?.success && response.data && Array.isArray(response.data)) {
+        // Format 1: { success: true, data: [...] }
+        locationDataArray = response.data;
+        
+      } else if (Array.isArray(response)) {
+        // Format 2: Direct array [...]
+        locationDataArray = response;
+        
+      } else if (response?.data && Array.isArray(response.data)) {
+        // Format 3: { data: [...] }
+        locationDataArray = response.data;
+        
+      } else if (flexibleResponse?.locations && Array.isArray(flexibleResponse.locations)) {
+        // Format 4: { locations: [...] }
+        locationDataArray = flexibleResponse.locations as LocationStats[];
+        
+      } else if (flexibleResponse?.results && Array.isArray(flexibleResponse.results)) {
+        // Format 5: { results: [...] }
+        locationDataArray = flexibleResponse.results as LocationStats[];
+        
+      } else if (flexibleResponse?.items && Array.isArray(flexibleResponse.items)) {
+        // Format 6: { items: [...] }
+        locationDataArray = flexibleResponse.items as LocationStats[];
+        
+      } else if (response && typeof response === 'object') {
+        // Format 7: Search through all properties for arrays
+        
+        for (const [key, value] of Object.entries(response)) {
+          if (Array.isArray(value) && value.length > 0) {
+            
+            // Check if it looks like location data
+            if (value[0] && typeof value[0] === 'object') {
+              const firstItem = value[0];
+              // Check for common location data fields
+              if ('name' in firstItem || 'location' in firstItem || 'locationName' in firstItem) {
+                locationDataArray = value as LocationStats[];
+                
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      if (locationDataArray.length > 0) {
+        // Transform data to ensure consistent field names and numeric types
+        const transformedData = (locationDataArray as unknown as Record<string, unknown>[]) 
+          .map((item: Record<string, unknown>) => ({
+            name:
+              (item.name as string) ||
+              (item.location as string) ||
+              (item.locationName as string) ||
+              (item.location_name as string) ||
+              "Unknown",
+            activeEnrolments: toNumber(
+              item.activeEnrolments ??
+                item.active_enrolments ??
+                item.activeEnrollments ??
+                item.active_enrollments ??
+                0
+            ),
+            revenue: toNumber(item.revenue),
+            royalty: toNumber(item.royalty),
+            advertisement: toNumber(item.advertisement),
+            hst: toNumber(item.hst),
+            total: toNumber(item.total),
+          }));
+
+        
+        setLocationData(transformedData);
+        setError(null);
+      } else {
+        
+        
+        // Check if response has any array-like properties
+        if (response && typeof response === 'object') {
+          
+          for (const [key, value] of Object.entries(response)) {
+            
+            if (Array.isArray(value) && value.length > 0) {
+              
+              // Try to use this array as data
+              if (value[0] && typeof value[0] === 'object') {
+                const coerced = (value as Record<string, unknown>[]) 
+                  .map((item) => ({
+                    name:
+                      (item.name as string) ||
+                      (item.location as string) ||
+                      (item.locationName as string) ||
+                      (item.location_name as string) ||
+                      "Unknown",
+                    activeEnrolments: toNumber(
+                      item.activeEnrolments ??
+                        item.active_enrolments ??
+                        item.activeEnrollments ??
+                        item.active_enrollments ??
+                        0
+                    ),
+                    revenue: toNumber(item.revenue),
+                    royalty: toNumber(item.royalty),
+                    advertisement: toNumber(item.advertisement),
+                    hst: toNumber(item.hst),
+                    total: toNumber(item.total),
+                  }));
+                
+                setLocationData(coerced);
+                setError(null);
+                return;
+              }
+            }
+          }
+        }
+
+        // As a last attempt, recursively search any nested array of objects
+        const nested = findFirstArrayOfObjects(response);
+        if (nested && nested.length > 0) {
+          const coerced = nested.map((item) => ({
+            name:
+              (item.name as string) ||
+              (item.location as string) ||
+              (item.locationName as string) ||
+              (item.location_name as string) ||
+              "Unknown",
+            activeEnrolments: toNumber(
+              item.activeEnrolments ??
+                item.active_enrolments ??
+                item.activeEnrollments ??
+                item.active_enrollments ??
+                0
+            ),
+            revenue: toNumber(item.revenue),
+            royalty: toNumber(item.royalty),
+            advertisement: toNumber(item.advertisement),
+            hst: toNumber(item.hst),
+            total: toNumber(item.total),
+          }));
+          
+          setLocationData(coerced);
+          setError(null);
+          return;
+        }
+
+        setError('API returned invalid format');
+      }
+    } catch (err) {
+      
+      setError('Error fetching data');
+      console.error('Error fetching all locations data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location, dateRange.from, dateRange.to]);
+
+  // Fetch data on component mount and when date range changes
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Calculate totals and add to data
+  const totals = calculateTotals(Array.isArray(locationData) ? locationData : []);
+  const dataWithTotals = [
+    ...(Array.isArray(locationData) ? locationData : []),
+    {
+      name: "TOTAL",
+      activeEnrolments: totals.activeEnrolments,
+      revenue: totals.revenue,
+      royalty: totals.royalty,
+      advertisement: totals.advertisement,
+      hst: totals.hst,
+      total: totals.total
+    }
+  ];
 
   if (isLoading) {
     return <LoadingAnimation />;
+  }
+
+  if (error) {
+    return (
+      <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl">
+          <div className="mb-4">
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <h1 className="text-lg font-semibold text-card-foreground">All Locations</h1>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-8 shadow-sm text-center">
+            <p className="text-red-600">Error: {error}</p>
+            <button 
+              onClick={fetchData}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!Array.isArray(locationData) || locationData.length === 0) {
+    return (
+      <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl">
+          <div className="mb-4">
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <h1 className="text-lg font-semibold text-card-foreground">All Locations</h1>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-8 shadow-sm text-center">
+            <p className="text-gray-600">No data available for the selected date range</p>
+            <button 
+              onClick={fetchData}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
