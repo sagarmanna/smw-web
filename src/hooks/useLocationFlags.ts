@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { fetchLocationFlags, updateLocationFlags } from '@/redux/locationFlagsSlice';
+import { fetchAllLocationFlags, fetchLocationFlags, updateLocationFlags } from '@/redux/locationFlagsSlice';
 
 export function useLocationFlags(location: string) {
   const dispatch = useAppDispatch();
@@ -17,9 +17,21 @@ export function useLocationFlags(location: string) {
                        (Date.now() - lastFetchedTime > FIVE_MINUTES);
     
     if (location && shouldFetch) {
-      dispatch(fetchLocationFlags(location));
+      // Check if we have flags for this specific location
+      if (!flags[location]) {
+        // Check if we have any flags loaded at all
+        const hasAnyFlags = Object.keys(flags).length > 0;
+        
+        if (!hasAnyFlags) {
+          // If no flags are loaded at all, fetch all location flags at once
+          dispatch(fetchAllLocationFlags());
+        } else {
+          // If some flags are loaded but not for this location, fetch just this location
+          dispatch(fetchLocationFlags(location));
+        }
+      }
     }
-  }, [location, dispatch, lastFetchedTime, locationFlags]);
+  }, [location, dispatch, lastFetchedTime, locationFlags, flags]);
 
   const updateFlags = (newFlags: { [feature: string]: 'modern' | 'legacy' | 'disabled' }) => {
     dispatch(updateLocationFlags({ location, flags: newFlags }));

@@ -52,7 +52,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { hasLocationAccess } = useLocationAccess(location);
   
   // Check feature availability for location
-  const { getFeatureSourceForLocation } = useLocationFeatures();
+  const { getFeatureSourceForLocation, flags } = useLocationFeatures();
 
   const handleMenuClick = () => {
     setIsOpen(!isOpen);
@@ -69,13 +69,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
       console.warn('User does not have access to this location');
       return;
     }
-    
+
     // Get the current page feature from pathname
     const currentFeature = getCurrentPageFeature(pathname);
     
     // Check if the new location has modern version of the current feature
     const featureSource = getFeatureSourceForLocation(newLocation, currentFeature);
-    
     if (featureSource === 'legacy') {
       // Redirect to legacy page for this feature with the new location
       const legacyUrl = getLegacyUrl(currentFeature, newLocation);
