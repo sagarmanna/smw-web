@@ -1,3 +1,0 @@
-export { SalesAndPaymentClient } from "./SalesAndPaymentClient";
-
-

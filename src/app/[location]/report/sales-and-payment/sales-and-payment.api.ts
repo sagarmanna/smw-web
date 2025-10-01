@@ -144,7 +144,7 @@ export async function getPayments(
   endDate: string
 ): Promise<PaymentsApiResponse> {
   try {
-    const url = `/admin/v2/${location}/report/payments`;
+    const url = `/admin/v2/${location}/report/sales-payments`;
     const params = { startDate, endDate };
 
     const response = await apiClient.get(url, { params });

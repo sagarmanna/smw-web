@@ -1,4 +1,4 @@
-import { SalesAndPaymentClient } from "./index";
+import { SalesAndPaymentClient } from "./SalesAndPaymentClient";
 
 interface SalesAndPaymentPageProps {
   params: Promise<{
