@@ -64,6 +64,9 @@ export interface CustomTableProps<TData, TValue> {
     json?: (data: TData[]) => void;
   };
   
+  // Print configuration
+  onPrint?: () => void;
+  
   // Pagination configuration
   pageSize?: number;
   showPageSizeOptions?: boolean;
@@ -102,6 +105,9 @@ export function CustomTable<TData, TValue>({
   // Export configuration
   onExport,
   
+  // Print configuration
+  onPrint,
+  
   // Pagination configuration
   pageSize = 10,
   showPageSizeOptions = false,
@@ -126,10 +132,7 @@ export function CustomTable<TData, TValue>({
 
   const printCurrentTable = React.useCallback(() => {
     const tableEl = tableContainerRef.current?.querySelector('table');
-    if (!tableEl) {
-      window.print();
-      return;
-    }
+    if (!tableEl) return;
     const getOrdinal = (n: number) => {
       const s = ["th", "st", "nd", "rd"], v = n % 100;
       return s[(v - 20) % 10] || s[v] || s[0];
@@ -155,29 +158,15 @@ export function CustomTable<TData, TValue>({
       tbody tr:hover { background: transparent !important; }
       tbody tr:last-child td { font-weight: 700; }
     `;
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
-      document.body.removeChild(iframe);
-      window.print();
-      return;
-    }
-    doc.open();
-    doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>Report</title><style>${styles}</style></head><body>${titleHtml}${rangeHtml}${tableEl.outerHTML}</body></html>`);
-    doc.close();
-    iframe.onload = () => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 0);
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Report</title><style>${styles}</style></head><body>${titleHtml}${rangeHtml}${tableEl.outerHTML}</body></html>`;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
     };
   }, []);
 
@@ -329,7 +318,7 @@ export function CustomTable<TData, TValue>({
                     variant="outline" 
                     size="icon" 
                     className="h-8 w-8" 
-                    onClick={printCurrentTable}
+                    onClick={onPrint || printCurrentTable}
                   >
                     <Printer className="h-4 w-4" />
                   </Button>
