@@ -4,7 +4,7 @@ import { useEffect, ReactNode } from 'react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchUserInfo } from '@/redux/userSlice';
 import { fetchUserPermissions } from '@/redux/permissionsSlice';
-import { fetchLocationFlags } from '@/redux/locationFlagsSlice';
+import { fetchAllLocationFlags } from '@/redux/locationFlagsSlice';
 import { fetchLocations } from '@/redux/locationsSlice';
 
 interface GlobalDataProviderProps {
@@ -31,9 +31,10 @@ export function GlobalDataProvider({ children, location }: GlobalDataProviderPro
         dispatch(fetchLocations());
       }
 
-      // 3. Fetch location flags (always needed)
-      if (!flags[location] && !flagsLoading) {
-        dispatch(fetchLocationFlags(location));
+      // 3. Fetch all location flags (always needed)
+      const hasAnyFlags = Object.keys(flags).length > 0;
+      if (!hasAnyFlags && !flagsLoading) {
+        dispatch(fetchAllLocationFlags());
       }
     };
 
@@ -43,7 +44,6 @@ export function GlobalDataProvider({ children, location }: GlobalDataProviderPro
   // Fetch permissions only for staff members after user info is loaded
   useEffect(() => {
     if (userInfo?.role === 'staffmember' && !permissions && !permissionsLoading) {
-      console.log('GlobalDataProvider: Fetching permissions for staff member');
       dispatch(fetchUserPermissions(location));
     }
   }, [userInfo?.role, permissions, permissionsLoading, location, dispatch]);

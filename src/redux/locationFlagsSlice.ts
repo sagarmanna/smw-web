@@ -19,6 +19,32 @@ const initialState: LocationFlagsState = {
   lastFetched: {},
 };
 
+export const fetchAllLocationFlags = createAsyncThunk(
+  'locationFlags/fetchAllLocationFlags',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/v2/locations/flags`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      return response.data.data;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      return rejectWithValue(axiosError.response?.data?.message || errorMessage);
+    }
+  }
+);
+
 export const fetchLocationFlags = createAsyncThunk(
   'locationFlags/fetchLocationFlags',
   async (location: string, { rejectWithValue }) => {
@@ -91,7 +117,26 @@ const locationFlagsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Fetch flags
+      // Fetch all flags
+      .addCase(fetchAllLocationFlags.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllLocationFlags.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const allFlags = action.payload;
+        state.flags = allFlags;
+        // Set lastFetched for all locations
+        const now = Date.now();
+        Object.keys(allFlags).forEach(location => {
+          state.lastFetched[location] = now;
+        });
+      })
+      .addCase(fetchAllLocationFlags.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Fetch single location flags
       .addCase(fetchLocationFlags.pending, (state) => {
         state.isLoading = true;
         state.error = null;
