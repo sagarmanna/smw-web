@@ -861,11 +861,11 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           <PopoverContent className="w-auto p-0" align="start">
             <div className="flex">
               {/* Recent Dates Sidebar - Desktop Only */}
-              <div className="w-32 p-2 border-r bg-gray-50">
-                <div className="text-xs font-medium text-gray-600 mb-2">Recent Dates</div>
+              <div className="w-32 p-2 border-r bg-gray-50 dark:bg-gray-800">
+                <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Recent Dates</div>
                 <div className="space-y-1">
                   {recentDates.length === 0 ? (
-                    <div className="text-xs text-gray-400">No recent dates</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">No recent dates</div>
                   ) : (
                     recentDates.map((date, index) => (
                       <Button
@@ -873,9 +873,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDateSelect(date, () => setDesktopDatePickerOpen(false))}
-                        className="w-full h-6 text-xs justify-start p-1 hover:bg-gray-200"
+                        className="w-full h-6 text-xs justify-start p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                       >
-                        {format(date, "MMM dd")}
+                        {format(date, "MMM dd, yyyy")}
                       </Button>
                     ))
                   )}
