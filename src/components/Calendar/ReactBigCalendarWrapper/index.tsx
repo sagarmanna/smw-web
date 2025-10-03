@@ -449,10 +449,10 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     const isShortEvent = durationMinutes <= 20; // 15-20 minute events
     const isVeryShortEvent = durationMinutes <= 15; // 15 minute events
     
-    // Format time as hh:mm - hh:mm (12-hour format without AM/PM)
+    // Format time as h:mm - h:mm (12-hour format without AM/PM)
     const formatTime = (start: Date, end: Date) => {
-      const startTime = moment(start).format('hh:mm');
-      const endTime = moment(end).format('hh:mm');
+      const startTime = moment(start).format('h:mm');
+      const endTime = moment(end).format('h:mm');
       return `${startTime} - ${endTime}`;
     };
     
@@ -479,12 +479,12 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
               {/* Single row: Icon, time, title, and status icons */}
               <div className="flex items-center gap-1 w-full min-w-0">
                 {isUpdating ? (
-                  <Loader2 className="h-3 w-3 text-white flex-shrink-0 animate-spin" />
+                  <Loader2 className="h-2.5 w-2.5 text-white flex-shrink-0 animate-spin" />
                 ) : (
-                  <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                  <Clock className="h-2.5 w-2.5 text-white flex-shrink-0" />
                 )}
-                <span className="text-xs font-semibold text-white flex-shrink-0">
-                  {moment(event.start).format('hh:mm')}
+                <span className="text-[10px] font-semibold text-white flex-shrink-0">
+                  {moment(event.start).format('h:mm')}
                 </span>
                 <span className="text-xs font-medium text-white truncate min-w-0 flex-1">
                   {isVeryShortEvent ? getTruncatedTitle(event.title) : getFirstName(event.title)}
@@ -550,11 +550,11 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             <div className="flex items-center justify-between w-full flex-shrink-0">
               <div className="flex items-center gap-1">
                 {isUpdating ? (
-                  <Loader2 className="h-3 w-3 text-white flex-shrink-0 animate-spin" />
+                  <Loader2 className="h-2.5 w-2.5 text-white flex-shrink-0 animate-spin" />
                 ) : (
-                  <Clock className="h-3 w-3 text-white flex-shrink-0" />
+                  <Clock className="h-2.5 w-2.5 text-white flex-shrink-0" />
                 )}
-                <span className="text-xs font-semibold text-white whitespace-nowrap">
+                <span className="text-[10px] font-semibold text-white whitespace-nowrap">
                   {formatTime(event.start, event.end)}
                 </span>
               </div>
@@ -666,7 +666,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       if (colonIndex === -1) {
         // If no colon found, just return the line as is
         return (
-          <div key={index} className="text-sm">
+          <div key={index} className="text-sm text-foreground">
             {line}
           </div>
         );
@@ -678,9 +678,9 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       
       return (
         <div key={index} className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600">{icon}</span>
-          <span className="font-bold text-gray-800">{fieldName}:</span>
-          <span className="text-gray-700">{value}</span>
+          <span className="text-muted-foreground">{icon}</span>
+          <span className="font-bold text-foreground">{fieldName}:</span>
+          <span className="text-muted-foreground">{value}</span>
         </div>
       );
     });

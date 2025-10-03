@@ -592,14 +592,14 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col ">
       {/* Compact Header - Responsive height */}
       <div className="flex-shrink-0 max-h-[200px] md:max-h-[100px] space-y-2">
         {/* Header Row */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold tracking-tight truncate">
-              Schedule - {format(safeSelectedDate, "MMM do, yyyy")} {scheduleDetails?.Holiday?.description && `- ${scheduleDetails?.Holiday?.description}`}
+            <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
+              Schedule for {format(safeSelectedDate, "EEEE, MMMM do, yyyy")} {scheduleDetails?.Holiday?.description && `- ${scheduleDetails?.Holiday?.description}`}
             {scheduleDetailsLoading && (
                 <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
             )}
