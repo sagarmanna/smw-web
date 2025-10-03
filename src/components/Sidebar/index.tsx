@@ -147,7 +147,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       
       {/* Sidebar */}
       <aside className={`
-        fixed md:relative inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out
+        fixed md:relative inset-y-0 left-0 transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         ${isOpen ? 'md:flex' : 'md:hidden'} md:flex-col
       `}>
@@ -165,7 +165,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             </Link>
           </div>
           
-          <div className="flex-grow flex flex-col min-w-64 w-[20%]">
+          <div className="flex-grow flex flex-col">
             <nav className="flex-1 px-2 pb-4 space-y-1">
               {menuItems.map(item => renderMenuItem(item))}
             </nav>

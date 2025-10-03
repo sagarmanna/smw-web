@@ -38,15 +38,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <div className="min-h-screen bg-background">
       <Header onMenuClick={handleMenuClick} />
       <div className="flex">
+        <div className={sidebarOpen ? "w-1/6" : "w-0"}>
         <Sidebar 
           isOpen={sidebarOpen} 
           onClose={() => setSidebarOpen(false)} 
         />
-        <main className={`p-2 xl:p-4 transition-all duration-300 w-full ${sidebarOpen ? 'md:ml-0' : 'md:ml-0'}`}>
+        </div>
+        <div className={sidebarOpen ? "w-[83%]" : "w-full"}>
+        <main className="p-2 xl:p-4 transition-all duration-300 w-full">
           <div className="mx-auto">
             {children}
           </div>
         </main>
+        </div>
       </div>
     </div>
   );
