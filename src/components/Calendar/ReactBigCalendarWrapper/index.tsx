@@ -666,7 +666,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       if (colonIndex === -1) {
         // If no colon found, just return the line as is
         return (
-          <div key={index} className="text-sm">
+          <div key={index} className="text-sm text-foreground">
             {line}
           </div>
         );
@@ -678,9 +678,9 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       
       return (
         <div key={index} className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600">{icon}</span>
-          <span className="font-bold text-gray-800">{fieldName}:</span>
-          <span className="text-gray-700">{value}</span>
+          <span className="text-muted-foreground">{icon}</span>
+          <span className="font-bold text-foreground">{fieldName}:</span>
+          <span className="text-muted-foreground">{value}</span>
         </div>
       );
     });
