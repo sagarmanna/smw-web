@@ -42,8 +42,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           isOpen={sidebarOpen} 
           onClose={() => setSidebarOpen(false)} 
         />
-        <main className={`flex-1 p-2 transition-all duration-300 ${sidebarOpen ? 'md:ml-0' : 'md:ml-0'} md:w-[80%]`}>
-          <div className="mx-auto max-w-7xl">
+        <main className={`p-2 xl:p-4 transition-all duration-300 w-full ${sidebarOpen ? 'md:ml-0' : 'md:ml-0'}`}>
+          <div className="mx-auto">
             {children}
           </div>
         </main>

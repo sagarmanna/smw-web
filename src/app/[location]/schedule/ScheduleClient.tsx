@@ -592,7 +592,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col ">
       {/* Compact Header - Responsive height */}
       <div className="flex-shrink-0 max-h-[200px] md:max-h-[100px] space-y-2">
         {/* Header Row */}
