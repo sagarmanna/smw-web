@@ -598,8 +598,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         {/* Header Row */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold tracking-tight truncate">
-              Schedule - {format(safeSelectedDate, "MMM do, yyyy")} {scheduleDetails?.Holiday?.description && `- ${scheduleDetails?.Holiday?.description}`}
+            <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
+              Schedule for {format(safeSelectedDate, "EEEE, MMMM do, yyyy")} {scheduleDetails?.Holiday?.description && `- ${scheduleDetails?.Holiday?.description}`}
             {scheduleDetailsLoading && (
                 <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
             )}
