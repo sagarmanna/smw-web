@@ -30,6 +30,8 @@ export interface FilterOption<TData> {
   key: string;
   label: string;
   predicate: (row: TData) => boolean;
+  checked?: boolean;
+  onToggle?: (checked: boolean) => void;
 }
 
 export interface CustomTableProps<TData, TValue> {
@@ -415,19 +417,29 @@ export function CustomTable<TData, TValue>({
                     <p>Filter Data</p>
                   </TooltipContent>
                 </Tooltip>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setActiveFilterKey(undefined)}>
-                    All Records
-                  </DropdownMenuItem>
+                  
+                  {/* Filter Options - All Checkboxes */}
                   {filterOptions.map((option) => (
-                    <DropdownMenuItem
-                      key={option.key}
-                      onClick={() => setActiveFilterKey(option.key)}
-                    >
-                      {option.label}
-                    </DropdownMenuItem>
+                    <div key={option.key} className="px-2 py-1.5">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`filter-${option.key}`}
+                          checked={option.checked || false}
+                          onChange={(e) => option.onToggle?.(e.target.checked)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label 
+                          htmlFor={`filter-${option.key}`} 
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          {option.label}
+                        </label>
+                      </div>
+                    </div>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
