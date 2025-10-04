@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Download, Filter, Printer, Infinity, List, Search } from "lucide-react";
+import { Download, Filter, Printer, Infinity, List, Search, Check } from "lucide-react";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -32,6 +32,11 @@ export interface FilterOption<TData> {
   predicate: (row: TData) => boolean;
   checked?: boolean;
   onToggle?: (checked: boolean) => void;
+}
+
+export interface ServerSideFilterOption {
+  key: string;
+  label: string;
 }
 
 export interface CustomTableProps<TData, TValue> {
@@ -52,9 +57,14 @@ export interface CustomTableProps<TData, TValue> {
   searchPlaceholder?: string;
   getSearchValue?: (row: TData) => string;
   
-  // Filter configuration
+  // Filter configuration (client-side)
   filterOptions?: FilterOption<TData>[];
   initialFilterKey?: string;
+  
+  // Server-side filter configuration
+  serverSideFilterOptions?: ServerSideFilterOption[];
+  activeServerSideFilter?: string;
+  onServerSideFilterChange?: (filterKey: string | undefined) => void;
   
   // Export configuration
   onExport?: {
@@ -100,9 +110,14 @@ export function CustomTable<TData, TValue>({
   searchPlaceholder = "Search...",
   getSearchValue,
   
-  // Filter configuration
+  // Filter configuration (client-side)
   filterOptions,
   initialFilterKey,
+  
+  // Server-side filter configuration
+  serverSideFilterOptions,
+  activeServerSideFilter,
+  onServerSideFilterChange,
   
   // Export configuration
   onExport,
@@ -112,8 +127,6 @@ export function CustomTable<TData, TValue>({
   
   // Pagination configuration
   pageSize = 10,
-  showPageSizeOptions = false,
-  pageSizeOptions = [5, 10, 20, 50, 100],
   
   // Custom components
   customHeaderComponent,
@@ -125,7 +138,6 @@ export function CustomTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
   const [showAll, setShowAll] = React.useState<boolean>(false);
-  const [activeFilterKey, setActiveFilterKey] = React.useState<string | undefined>(initialFilterKey);
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: pageSize,
@@ -170,7 +182,7 @@ export function CustomTable<TData, TValue>({
       printWindow.focus();
       printWindow.print();
     };
-  }, []);
+  }, [dateRange?.from, dateRange?.to, title]);
 
   React.useEffect(() => {
     const onHotkey = (e: KeyboardEvent) => {
@@ -233,16 +245,8 @@ export function CustomTable<TData, TValue>({
       );
     }
     
-    // Apply custom filter
-    if (enableFilter && filterOptions && activeFilterKey) {
-      const filter = filterOptions.find(f => f.key === activeFilterKey);
-      if (filter) {
-        result = result.filter(filter.predicate);
-      }
-    }
-    
     return result;
-  }, [data, enableSearch, globalFilter, getSearchValue, enableFilter, filterOptions, activeFilterKey]);
+  }, [data, enableSearch, globalFilter, getSearchValue]);
 
   const table = useReactTable({
     data: filteredData,
@@ -403,7 +407,7 @@ export function CustomTable<TData, TValue>({
             )}
             
             {/* Filter Dropdown */}
-            {enableFilter && filterOptions && filterOptions.length > 0 && (
+            {enableFilter && ((filterOptions && filterOptions.length > 0) || (serverSideFilterOptions && serverSideFilterOptions.length > 0)) && (
               <DropdownMenu>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -421,8 +425,47 @@ export function CustomTable<TData, TValue>({
                   <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   
-                  {/* Filter Options - All Checkboxes */}
-                  {filterOptions.map((option) => (
+                  {/* Server-Side Filter Options - Clean Select Style */}
+                  {serverSideFilterOptions && serverSideFilterOptions.length > 0 && (
+                    <>
+                      <DropdownMenuItem 
+                        onClick={() => onServerSideFilterChange?.(undefined)}
+                        className={`cursor-pointer ${
+                          !activeServerSideFilter 
+                            ? 'bg-primary/10 text-primary font-medium' 
+                            : ''
+                        }`}
+                      >
+                        <span className="flex items-center justify-between w-full">
+                          <span>All Customers</span>
+                          {!activeServerSideFilter && (
+                            <Check className="h-4 w-4 ml-auto" />
+                          )}
+                        </span>
+                      </DropdownMenuItem>
+                      {serverSideFilterOptions.map((option) => (
+                        <DropdownMenuItem 
+                          key={option.key}
+                          onClick={() => onServerSideFilterChange?.(option.key)}
+                          className={`cursor-pointer ${
+                            activeServerSideFilter === option.key 
+                              ? 'bg-primary/10 text-primary font-medium' 
+                              : ''
+                          }`}
+                        >
+                          <span className="flex items-center justify-between w-full">
+                            <span>{option.label}</span>
+                            {activeServerSideFilter === option.key && (
+                              <Check className="h-4 w-4 ml-auto" />
+                            )}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                  
+                  {/* Client-Side Filter Options - Checkboxes */}
+                  {filterOptions && filterOptions.length > 0 && filterOptions.map((option) => (
                     <div key={option.key} className="px-2 py-1.5">
                       <div className="flex items-center space-x-2">
                         <input
