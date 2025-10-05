@@ -39,10 +39,16 @@ export interface ServerSideFilterOption {
   label: string;
 }
 
+export interface ColumnGroup {
+  label: string;
+  columnKeys: string[]; // accessorKeys that belong to this group
+}
+
 export interface CustomTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   title?: string;
+  columnGroups?: ColumnGroup[]; // Optional column grouping
   
   // Feature flags
   enableSearch?: boolean;
@@ -96,6 +102,7 @@ export function CustomTable<TData, TValue>({
   data,
   columns,
   title,
+  columnGroups,
   
   // Feature flags with defaults
   enableSearch = false,
@@ -494,15 +501,73 @@ export function CustomTable<TData, TValue>({
         <div ref={tableContainerRef} className="mt-3 overflow-hidden rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/30">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="border-b px-3 py-2 text-left font-semibold">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
+              {columnGroups && columnGroups.length > 0 ? (
+                <>
+                  {/* Column Group Header Row */}
+                  <tr>
+                    {table.getHeaderGroups()[0]?.headers.map((header) => {
+                      const columnKey = header.column.id;
+                      const group = columnGroups.find(g => g.columnKeys.includes(columnKey));
+                      
+                      // Check if this is the first column in the group
+                      if (group) {
+                        const isFirstInGroup = group.columnKeys[0] === columnKey;
+                        if (isFirstInGroup) {
+                          return (
+                            <th
+                              key={`group-${columnKey}`}
+                              colSpan={group.columnKeys.length}
+                              className="border-b px-3 py-2 text-center font-bold bg-muted/50"
+                            >
+                              {group.label}
+                            </th>
+                          );
+                        }
+                        return null; // Skip other columns in the group
+                      }
+                      
+                      // Column not in any group
+                      return (
+                        <th
+                          key={`group-${columnKey}`}
+                          rowSpan={2}
+                          className="border-b px-3 py-2 text-left font-semibold"
+                        >
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                  {/* Regular Column Header Row */}
+                  <tr>
+                    {table.getHeaderGroups()[0]?.headers.map((header) => {
+                      const columnKey = header.column.id;
+                      const isInGroup = columnGroups.some(g => g.columnKeys.includes(columnKey));
+                      
+                      if (!isInGroup) {
+                        return null; // Already rendered with rowSpan in previous row
+                      }
+                      
+                      return (
+                        <th key={header.id} className="border-b px-3 py-2 text-left font-semibold">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </>
+              ) : (
+                /* Standard single header row when no groups */
+                table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th key={header.id} className="border-b px-3 py-2 text-left font-semibold">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))
+              )}
             </thead>
             <tbody>
               {table.getRowModel().rows?.length ? (

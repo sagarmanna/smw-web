@@ -196,8 +196,10 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
 
   // Refetch function
   const refetch = React.useCallback(() => {
-    fetchAccountReceivable(pagination.page, pagination.limit, activeFilter);
-  }, [fetchAccountReceivable, pagination.page, pagination.limit, activeFilter]);
+    // If showing all records, use a large number that will be adjusted by the API
+    const limit = pagination.limit >= pagination.total ? 999999 : pagination.limit;
+    fetchAccountReceivable(pagination.page, limit, activeFilter);
+  }, [fetchAccountReceivable, pagination.page, pagination.limit, pagination.total, activeFilter]);
 
   // Pagination handlers
   const handlePageChange = React.useCallback((page: number) => {
@@ -205,8 +207,10 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
   }, [fetchAccountReceivable, pagination.limit, activeFilter]);
 
   const handlePageSizeChange = React.useCallback((limit: number) => {
-    fetchAccountReceivable(1, limit, activeFilter);
-  }, [fetchAccountReceivable, activeFilter]);
+    // If limit is -1 (All selected), use pagination.total, otherwise use the limit
+    const actualLimit = limit === -1 ? pagination.total : limit;
+    fetchAccountReceivable(1, actualLimit, activeFilter);
+  }, [fetchAccountReceivable, activeFilter, pagination.total]);
 
   // Clear errors function
   const clearErrors = React.useCallback(() => {
@@ -217,8 +221,10 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
   const handleFilterChange = React.useCallback((filterKey: string | undefined) => {
     setActiveFilter(filterKey);
     // Reset to page 1 when filter changes
-    fetchAccountReceivable(1, pagination.limit, filterKey);
-  }, [fetchAccountReceivable, pagination.limit]);
+    // If showing all records, use a large number that will be adjusted by the API
+    const limit = pagination.limit >= pagination.total ? 999999 : pagination.limit;
+    fetchAccountReceivable(1, limit, filterKey);
+  }, [fetchAccountReceivable, pagination.limit, pagination.total]);
 
   // Use API data only - append footer row if available
   const rows = React.useMemo(() => {
@@ -422,6 +428,14 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           data={rows}
           columns={columns}
           
+          // Column grouping configuration
+          columnGroups={[
+            {
+              label: "Outstanding Invoices",
+              columnKeys: ["aging_0_30", "aging_31_60", "aging_61_90", "aging_90_plus", "total"]
+            }
+          ]}
+          
           // Feature flags - easily configurable
           enableSearch={false}
           enableExport={true}
@@ -462,7 +476,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
             <div className="flex items-center gap-2">
               <label className="text-sm text-muted-foreground">Rows per page:</label>
               <select 
-                value={pagination.limit} 
+                value={pagination.limit >= pagination.total ? -1 : pagination.limit} 
                 onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                 className="px-2 py-1 text-sm border rounded"
               >
@@ -471,6 +485,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
                 <option value={20}>20</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
+                <option value={-1}>All</option>
               </select>
             </div>
           </div>
