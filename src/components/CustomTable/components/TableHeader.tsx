@@ -1,5 +1,6 @@
 import * as React from "react";
-import { flexRender, Table } from "@tanstack/react-table";
+import { flexRender, Table, Header } from "@tanstack/react-table";
+import { ArrowUpDown } from "lucide-react";
 import { ColumnGroup } from "./types";
 
 interface TableHeaderProps<TData> {
@@ -19,6 +20,30 @@ export function TableHeader<TData>({
   stickyHeader = false,
   headerClassName,
 }: TableHeaderProps<TData>) {
+  // Helper function to render a sortable header
+  const renderSortableHeader = (header: Header<TData, unknown>) => {
+    const canSort = header.column.getCanSort();
+    return (
+      <div
+        className={canSort ? "cursor-pointer select-none flex items-center justify-center gap-2" : "flex items-center justify-center gap-2"}
+        onClick={header.column.getToggleSortingHandler()}
+      >
+        {flexRender(header.column.columnDef.header, header.getContext())}
+        {canSort && (
+          <ArrowUpDown
+            className={`h-3 w-3 transition-transform duration-150 ${
+              header.column.getIsSorted() === "asc"
+                ? "transform rotate-180 text-primary"
+                : header.column.getIsSorted() === "desc"
+                ? "text-primary"
+                : "text-muted-foreground/50"
+            }`}
+          />
+        )}
+      </div>
+    );
+  };
+  
   return (
     <thead className={`bg-muted/40 border-b border-border/50 ${stickyHeader ? "sticky top-0 z-10" : ""} ${headerClassName || ""}`}>
       {columnGroups && columnGroups.length > 0 ? (
@@ -58,7 +83,7 @@ export function TableHeader<TData>({
                     maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
                   }}
                 >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
+                  {renderSortableHeader(header)}
                 </th>
               );
             })}
@@ -83,7 +108,7 @@ export function TableHeader<TData>({
                     maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
                   }}
                 >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
+                  {renderSortableHeader(header)}
                 </th>
               );
             })}
@@ -103,7 +128,7 @@ export function TableHeader<TData>({
                   maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
                 }}
               >
-                {flexRender(header.column.columnDef.header, header.getContext())}
+                {renderSortableHeader(header)}
               </th>
             ))}
           </tr>

@@ -9,7 +9,6 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { Card } from "@/components/ui/card";
 import { TooltipProvider } from "@/components/ui/tooltip";
  
 
@@ -31,7 +30,6 @@ export interface CustomTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   title?: string;
-  tableTitle?: string;
   columnGroups?: ColumnGroup[]; // Optional column grouping
   footerRow?: TData; // Optional footer row data
   
@@ -51,6 +49,11 @@ export interface CustomTableProps<TData, TValue> {
   enableSorting?: boolean; // Enable column sorting
   enableRowsPerPage?: boolean; // Enable rows per page selector
   
+  // Server-side sorting configuration
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
+  manualSorting?: boolean;
+
   // Search configuration
   searchPlaceholder?: string;
   getSearchValue?: (row: TData) => string;
@@ -118,7 +121,6 @@ export function CustomTable<TData, TValue>({
   data,
   columns,
   title,
-  tableTitle,
   columnGroups,
   footerRow,
   
@@ -138,6 +140,11 @@ export function CustomTable<TData, TValue>({
   enableSorting = true,
   enableRowsPerPage = false,
   
+  // Sorting configuration
+  sorting: controlledSorting,
+  onSortingChange,
+  manualSorting = false,
+
   // Search configuration
   searchPlaceholder = "Search...",
   getSearchValue,
@@ -188,7 +195,22 @@ export function CustomTable<TData, TValue>({
   // Row interaction
   onRowClick,
 }: CustomTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
+
+  const sorting = controlledSorting ?? internalSorting;
+
+  const processedColumns = React.useMemo(() => columns.map(col => ({
+    ...col,
+    enableSorting: col.enableSorting === true,
+  })), [columns]);
+
+  const setSorting = (updater: React.SetStateAction<SortingState>) => {
+    const newSorting = typeof updater === 'function' ? updater(sorting) : updater;
+    if (controlledSorting === undefined) { // Uncontrolled
+      setInternalSorting(newSorting);
+    }
+    onSortingChange?.(newSorting);
+  };
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
   const [showAll, setShowAll] = React.useState<boolean>(false);
   // Use controlled value if provided, otherwise use internal state
@@ -246,71 +268,6 @@ export function CustomTable<TData, TValue>({
     // Trigger server-side pagination change
     onRowsPerPageChange?.(newRowsPerPage);
   }, [onRowsPerPageChange, controlledRowsPerPage]);
-
-  // legacy print removed
-
-  // Create a simplified table for printing: single header row with printable names
-  const createPrintedTable = (
-    tableEl: HTMLTableElement,
-    selectedIdx: number[],
-    headerNames: string[],
-    columnSizes: number[]
-  ) => {
-    const total = columnSizes.reduce((t, n) => t + n, 0) || 1;
-    const colPercents = columnSizes.map((n) => Math.max(6, Math.round((n / total) * 100)));
-
-    const bodyRows = Array.from(tableEl.querySelectorAll('tbody tr'));
-
-    const colgroup = `<colgroup>${colPercents
-      .map((p) => `<col style="width:${p}%;">`)
-      .join('')}</colgroup>`;
-
-    const thead = `<thead><tr>${headerNames
-      .map((name) => `<th>${name}</th>`)
-      .join('')}</tr></thead>`;
-
-    const tbody = `<tbody>${bodyRows
-      .map((tr) => {
-        const isFooter = (tr as HTMLElement).dataset.footer === 'true';
-        const tds = Array.from(tr.children) as HTMLElement[];
-        const cells = selectedIdx.map((i) => `<td>${(tds[i]?.textContent || '').trim()}</td>`);
-        return `<tr${isFooter ? ' class="__print-footer"' : ''}>${cells.join('')}</tr>`;
-      })
-      .join('')}</tbody>`;
-
-    return `<table>${colgroup}${thead}${tbody}</table>`;
-  };
-
-  // Helper function to create filtered table
-  const createFilteredTable = (tableEl: HTMLTableElement, selectedColumns: number[]) => {
-    const newTable = tableEl.cloneNode(true) as HTMLTableElement;
-    
-    // Filter header cells
-    const headerRows = newTable.querySelectorAll('thead tr');
-    headerRows.forEach(row => {
-      const cells = Array.from(row.children);
-      cells.forEach((cell, index) => {
-        if (!selectedColumns.includes(index)) {
-          cell.remove();
-        }
-      });
-    });
-    
-    // Filter body cells
-    const bodyRows = newTable.querySelectorAll('tbody tr');
-    bodyRows.forEach(row => {
-      const cells = Array.from(row.children);
-      cells.forEach((cell, index) => {
-        if (!selectedColumns.includes(index)) {
-          cell.remove();
-        }
-      });
-    });
-    
-    return newTable.outerHTML;
-  };
-
-  // legacy print hotkey removed
 
   type ExportKind = "html" | "csv" | "text" | "excel" | "pdf" | "json";
   const [confirmOpen, setConfirmOpen] = React.useState<boolean>(false);
@@ -372,7 +329,7 @@ export function CustomTable<TData, TValue>({
 
   const table = useReactTable({
     data: filteredData,
-    columns,
+    columns: processedColumns,
     onSortingChange: enableSorting ? setSorting : undefined,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
@@ -383,6 +340,7 @@ export function CustomTable<TData, TValue>({
       globalFilter: enableSearch ? globalFilter : "",
     },
     manualPagination: true, // Always use manual pagination (server-side)
+    manualSorting: manualSorting,
   });
 
   // No client-side pagination effects needed - using server-side only
