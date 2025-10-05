@@ -295,7 +295,7 @@ export function CustomTable<TData, TValue>({
 
   return (
     <TooltipProvider>
-      <Card className="w-full p-3 md:p-4">
+      <Card className="w-full p-2 sm:p-3 md:p-4">
         <div className={`flex flex-col gap-2 ${title ? 'md:flex-row md:items-center md:justify-between' : 'md:flex-row md:items-center md:justify-end'}`}>
           {title && <h2 className="text-base font-semibold md:text-lg">{title}</h2>}
           <div className="flex flex-wrap items-center gap-2 print:hidden">
@@ -499,7 +499,8 @@ export function CustomTable<TData, TValue>({
         
         {/* Table */}
         <div ref={tableContainerRef} className="mt-3 overflow-hidden rounded-md border">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-full">
             <thead className="bg-muted/30">
               {columnGroups && columnGroups.length > 0 ? (
                 <>
@@ -517,7 +518,7 @@ export function CustomTable<TData, TValue>({
                             <th
                               key={`group-${columnKey}`}
                               colSpan={group.columnKeys.length}
-                              className="border-b px-3 py-2 text-center font-bold bg-muted/50"
+                              className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-center font-bold bg-muted/50 text-xs sm:text-sm"
                             >
                               {group.label}
                             </th>
@@ -531,7 +532,7 @@ export function CustomTable<TData, TValue>({
                         <th
                           key={`group-${columnKey}`}
                           rowSpan={2}
-                          className="border-b px-3 py-2 text-left font-semibold"
+                          className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold text-xs sm:text-sm"
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                         </th>
@@ -549,7 +550,7 @@ export function CustomTable<TData, TValue>({
                       }
                       
                       return (
-                        <th key={header.id} className="border-b px-3 py-2 text-left font-semibold">
+                        <th key={header.id} className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold text-xs sm:text-sm">
                           {flexRender(header.column.columnDef.header, header.getContext())}
                         </th>
                       );
@@ -561,7 +562,7 @@ export function CustomTable<TData, TValue>({
                 table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <th key={header.id} className="border-b px-3 py-2 text-left font-semibold">
+                      <th key={header.id} className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold text-xs sm:text-sm">
                         {flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
                     ))}
@@ -574,7 +575,7 @@ export function CustomTable<TData, TValue>({
                 table.getRowModel().rows.map((row) => (
                   <tr key={row.id} className="hover:bg-muted/20">
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="border-b px-3 py-2">
+                      <td key={cell.id} className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -582,29 +583,31 @@ export function CustomTable<TData, TValue>({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={columns.length} className="h-24 border-b text-center">
+                  <td colSpan={columns.length} className="h-24 border-b text-center text-xs sm:text-sm">
                     No results.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          </div>
         </div>
         
         {/* Pagination Controls */}
         {enablePagination && (
-          <div className="flex items-center justify-between px-2 py-2 print:hidden">
-            <div className="text-muted-foreground text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-2 py-3 print:hidden">
+            <div className="text-muted-foreground text-xs sm:text-sm">
               {table.getFilteredRowModel().rows.length} row(s)
               {!showAll && ` (Page ${table.getState().pagination.pageIndex + 1} of ${table.getPageCount()})`}
             </div>
             {!showAll && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center sm:justify-end gap-1 sm:gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => table.setPageIndex(0)} 
                   disabled={!table.getCanPreviousPage()}
+                  className="text-xs px-2 h-8"
                 >
                   First
                 </Button>
@@ -613,10 +616,11 @@ export function CustomTable<TData, TValue>({
                   size="sm" 
                   onClick={() => table.previousPage()} 
                   disabled={!table.getCanPreviousPage()}
+                  className="text-xs px-2 h-8"
                 >
                   Prev
                 </Button>
-                <span className="text-sm text-muted-foreground px-2">
+                <span className="text-xs sm:text-sm text-muted-foreground px-1 sm:px-2">
                   {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
                 </span>
                 <Button 
@@ -624,6 +628,7 @@ export function CustomTable<TData, TValue>({
                   size="sm" 
                   onClick={() => table.nextPage()} 
                   disabled={!table.getCanNextPage()}
+                  className="text-xs px-2 h-8"
                 >
                   Next
                 </Button>
@@ -632,6 +637,7 @@ export function CustomTable<TData, TValue>({
                   size="sm" 
                   onClick={() => table.setPageIndex(table.getPageCount() - 1)} 
                   disabled={!table.getCanNextPage()}
+                  className="text-xs px-2 h-8"
                 >
                   Last
                 </Button>

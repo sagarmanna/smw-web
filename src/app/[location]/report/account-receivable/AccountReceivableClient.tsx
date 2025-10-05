@@ -363,11 +363,11 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
       <div className="w-full">
         <div className="mx-auto">
           {/* Account Receivable Heading */}
-          <div className="mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="mb-4 sm:mb-6 px-2 sm:px-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Accounts Receivable</h1>
-                <p className="text-muted-foreground">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Accounts Receivable</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Track outstanding balances and customer payments
                 </p>
               </div>
@@ -375,15 +375,15 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           </div>
           
           {/* Empty State */}
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900">No account receivable data found</h3>
-              <p className="mt-2 text-sm text-gray-500">
+          <div className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
+            <div className="text-center max-w-md">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100">No account receivable data found</h3>
+              <p className="mt-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 There are no account receivable records available for this location.
               </p>
               <button
                 onClick={() => refetch()}
-                className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-blue-700"
               >
                 Refresh Data
               </button>
@@ -398,24 +398,24 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     <div className="w-full ">
       <div className="mx-auto">
         {/* Account Receivable Heading */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="mb-4 sm:mb-6 px-2 sm:px-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Accounts Receivable</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Accounts Receivable</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Track outstanding balances and customer payments
               </p>
             </div>
             </div>
             {error && (
-            <div className="mt-4 flex items-center justify-between rounded-md bg-red-50 p-3 text-sm text-red-700">
-                <span>Failed to load account receivable data: {error}</span>
+            <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-xs sm:text-sm text-red-700 dark:text-red-400">
+                <span className="break-words">Failed to load account receivable data: {error}</span>
                 <button
                   onClick={() => {
                     clearErrors();
                     refetch();
                   }}
-                  className="ml-2 rounded bg-red-100 px-2 py-1 text-xs hover:bg-red-200"
+                  className="rounded bg-red-100 dark:bg-red-800 px-3 py-1.5 text-xs hover:bg-red-200 dark:hover:bg-red-700 whitespace-nowrap self-start sm:self-auto"
                 >
                   Retry
                 </button>
@@ -468,17 +468,17 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
         />
         
         {/* Custom Server-Side Pagination */}
-        <div className="flex items-center justify-between px-2 py-2 mt-4">
-          <div className="flex items-center gap-4">
-            <div className="text-muted-foreground text-sm">
+        <div className="flex flex-col gap-3 px-2 py-3 mt-4 border-t">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-muted-foreground text-xs sm:text-sm order-2 sm:order-1">
               Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} records
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-muted-foreground">Rows per page:</label>
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <label className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">Rows per page:</label>
               <select 
                 value={pagination.limit >= pagination.total ? -1 : pagination.limit} 
                 onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="px-2 py-1 text-sm border rounded"
+                className="px-2 py-1 text-xs sm:text-sm border rounded min-w-[70px]"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>
@@ -490,35 +490,35 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
             </div>
           </div>
           {pagination.totalPages > 1 && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-1 sm:gap-2">
               <button 
                 onClick={() => handlePageChange(1)} 
                 disabled={pagination.page === 1}
-                className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 First
               </button>
               <button 
                 onClick={() => handlePageChange(pagination.page - 1)} 
                 disabled={pagination.page === 1}
-                className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 Previous
               </button>
-              <span className="text-sm text-muted-foreground px-2">
+              <span className="text-xs sm:text-sm text-muted-foreground px-1 sm:px-2 whitespace-nowrap">
                 Page {pagination.page} of {pagination.totalPages}
               </span>
               <button 
                 onClick={() => handlePageChange(pagination.page + 1)} 
                 disabled={pagination.page === pagination.totalPages}
-                className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 Next
               </button>
               <button 
                 onClick={() => handlePageChange(pagination.totalPages)} 
                 disabled={pagination.page === pagination.totalPages}
-                className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 Last
               </button>
