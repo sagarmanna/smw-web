@@ -6,6 +6,8 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { AccountReceivableRow, testApiConnection, getAccountReceivableList } from "./account-receivable.api";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface AccountReceivableClientProps {
   location: string;
@@ -391,17 +393,74 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
   }, [footer]);
 
   const exportToPdf = React.useCallback((data: AccountReceivableRow[]) => {
-    const tableRows = data.map(r => 
-      `<tr><td>${r.customerName}</td><td>${formatCurrency(r.aging_0_30)}</td><td>${formatCurrency(r.aging_31_60)}</td><td>${formatCurrency(r.aging_61_90)}</td><td>${formatCurrency(r.aging_90_plus)}</td><td>${formatCurrency(r.total)}</td><td>${formatCurrency(r.prePaidLessons)}</td><td>${formatCurrency(r.unusedCredits)}</td><td>${formatCurrency(r.balance)}</td></tr>`
-    ).join("");
-    const footerRow = footer 
-      ? `<tr style="font-weight:bold;background:#f0f0f0;"><td>TOTALS</td><td>${formatCurrency(footer.aging_0_30)}</td><td>${formatCurrency(footer.aging_31_60)}</td><td>${formatCurrency(footer.aging_61_90)}</td><td>${formatCurrency(footer.aging_90_plus)}</td><td>${formatCurrency(footer.total)}</td><td>${formatCurrency(footer.prePaidLessons)}</td><td>${formatCurrency(footer.unusedCredits)}</td><td>${formatCurrency(footer.balance)}</td></tr>`
-      : "";
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Accounts Receivable PDF</title><style>table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px;text-align:left}</style></head><body><h3>Accounts Receivable</h3><table><thead><tr><th>Customer Name</th><th>0-30</th><th>31-60</th><th>61-90</th><th>90+</th><th>Total</th><th>Pre-Paid Lessons</th><th>Unused Credits</th><th>Balance</th></tr></thead><tbody>${tableRows}${footerRow}</tbody></table><script>window.onload=()=>window.print()</script></body></html>`;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url);
-    if (!w) download(blob, "accounts-receivable.html");
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text("Accounts Receivable Report", 14, 15);
+    
+    // Prepare table data
+    const headers = [
+      ["Customer Name", "0-30", "31-60", "61-90", "90+", "Total", "Pre-Paid Lessons", "Unused Credits", "Balance"]
+    ];
+    
+    const rows = data.map(r => [
+      r.customerName,
+      formatCurrency(r.aging_0_30),
+      formatCurrency(r.aging_31_60),
+      formatCurrency(r.aging_61_90),
+      formatCurrency(r.aging_90_plus),
+      formatCurrency(r.total),
+      formatCurrency(r.prePaidLessons),
+      formatCurrency(r.unusedCredits),
+      formatCurrency(r.balance)
+    ]);
+    
+    // Add footer row if exists
+    if (footer) {
+      rows.push([
+        "TOTALS",
+        formatCurrency(footer.aging_0_30),
+        formatCurrency(footer.aging_31_60),
+        formatCurrency(footer.aging_61_90),
+        formatCurrency(footer.aging_90_plus),
+        formatCurrency(footer.total),
+        formatCurrency(footer.prePaidLessons),
+        formatCurrency(footer.unusedCredits),
+        formatCurrency(footer.balance)
+      ]);
+    }
+    
+    // Generate table
+    autoTable(doc, {
+      head: headers,
+      body: rows,
+      startY: 25,
+      margin: { left: 14, right: 14 },
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [248, 250, 252], textColor: [17, 24, 39], fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 25, halign: 'left' },
+        1: { cellWidth: 20, halign: 'right' },
+        2: { cellWidth: 20, halign: 'right' },
+        3: { cellWidth: 20, halign: 'right' },
+        4: { cellWidth: 20, halign: 'right' },
+        5: { cellWidth: 20, halign: 'right' },
+        6: { cellWidth: 22, halign: 'right' },
+        7: { cellWidth: 21, halign: 'right' },
+        8: { cellWidth: 20, halign: 'right' }
+      },
+      didParseCell: function(data) {
+        // Style footer row
+        if (footer && data.row.index === rows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      }
+    });
+    
+    // Save the PDF
+    doc.save("accounts-receivable.pdf");
   }, [footer]);
 
   const exportToJson = React.useCallback((data: AccountReceivableRow[]) => {
