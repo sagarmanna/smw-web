@@ -309,10 +309,9 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
             enableSearch={false}
             enableExport={true}
             enableFilter={false}
-            enablePagination={false}
             enablePrint={false}
             enableShowAll={false}
-            pageSize={10}
+            // pageSize={10}
             title={undefined}
           />
         </Card>
@@ -326,10 +325,9 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
             enableSearch={false}
             enableExport={true}
             enableFilter={false}
-            enablePagination={false}
             enablePrint={false}
             enableShowAll={false}
-            pageSize={10}
+            // pageSize={10}
             title={undefined}
           />
         </Card>

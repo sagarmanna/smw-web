@@ -5,20 +5,18 @@ import {
   ColumnDef,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { Card } from "@/components/ui/card";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DateRangePicker } from "@/components/DateRangePicker";
+ 
 
 // Import components and types
 import { 
   TableHeader, 
   TableBody, 
-  TablePagination, 
   ServerSidePagination,
   TableToolbar, 
   ExportDialog,
@@ -33,6 +31,7 @@ export interface CustomTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   title?: string;
+  tableTitle?: string;
   columnGroups?: ColumnGroup[]; // Optional column grouping
   footerRow?: TData; // Optional footer row data
   
@@ -46,7 +45,6 @@ export interface CustomTableProps<TData, TValue> {
   enableSearch?: boolean;
   enableExport?: boolean;
   enableFilter?: boolean;
-  enablePagination?: boolean;
   enablePrint?: boolean;
   enableShowAll?: boolean;
   enableDateRangePicker?: boolean;
@@ -78,10 +76,7 @@ export interface CustomTableProps<TData, TValue> {
   // Print configuration
   onPrint?: () => void;
   
-  // Pagination configuration
-  pageSize?: number;
-  showPageSizeOptions?: boolean;
-  pageSizeOptions?: number[];
+  // Pagination configuration (removed - using server-side only)
   
   // Server-side pagination configuration
   serverSidePagination?: {
@@ -114,12 +109,16 @@ export interface CustomTableProps<TData, TValue> {
   className?: string;
   headerClassName?: string;
   rowClassName?: string | ((row: TData) => string);
+  
+  // Row interaction
+  onRowClick?: (row: TData) => void;
 }
 
 export function CustomTable<TData, TValue>({
   data,
   columns,
   title,
+  tableTitle,
   columnGroups,
   footerRow,
   
@@ -133,7 +132,6 @@ export function CustomTable<TData, TValue>({
   enableSearch = false,
   enableExport = false,
   enableFilter = false,
-  enablePagination = true,
   enablePrint = true,
   enableShowAll = true,
   enableDateRangePicker = false,
@@ -158,8 +156,7 @@ export function CustomTable<TData, TValue>({
   // Print configuration
   onPrint,
   
-  // Pagination configuration
-  pageSize = 10,
+  // Pagination configuration (removed - using server-side only)
   
   // Server-side pagination configuration
   serverSidePagination,
@@ -187,14 +184,13 @@ export function CustomTable<TData, TValue>({
   className,
   headerClassName,
   rowClassName,
+  
+  // Row interaction
+  onRowClick,
 }: CustomTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
   const [showAll, setShowAll] = React.useState<boolean>(false);
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: pageSize,
-  });
   // Use controlled value if provided, otherwise use internal state
   const [internalRowsPerPage, setInternalRowsPerPage] = React.useState<number>(initialRowsPerPage);
   const rowsPerPage = controlledRowsPerPage !== undefined ? controlledRowsPerPage : internalRowsPerPage;
@@ -208,7 +204,7 @@ export function CustomTable<TData, TValue>({
       case "compact":
         return {
           card: "p-3 sm:p-4",
-          header: "px-2 sm:px-3 py-2 sm:py-2.5 text-xs font-semibold",
+          header: "px-2 sm:px-3 py-2 sm:py-2.5 text-sm font-semibold",
           cell: "px-2 sm:px-3 py-2 sm:py-2.5 text-xs",
           text: "text-xs",
         };
@@ -222,7 +218,7 @@ export function CustomTable<TData, TValue>({
       default: // normal
         return {
           card: "p-3 sm:p-4 md:p-5",
-          header: "px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold",
+          header: "px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base font-semibold",
           cell: "px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm",
           text: "text-xs sm:text-sm",
         };
@@ -247,62 +243,74 @@ export function CustomTable<TData, TValue>({
     rowsPerPageRef.current = newRowsPerPage;
     hasUserChangedRowsPerPageRef.current = true;
     
-    // If "All" is selected (-1), use a large number for pagination
-    const actualPageSize = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
-    setPagination(prev => ({ ...prev, pageIndex: 0, pageSize: actualPageSize }));
+    // Trigger server-side pagination change
     onRowsPerPageChange?.(newRowsPerPage);
   }, [onRowsPerPageChange, controlledRowsPerPage]);
 
-  const printCurrentTable = React.useCallback(() => {
-    const tableEl = tableContainerRef.current?.querySelector('table');
-    if (!tableEl) return;
-    const getOrdinal = (n: number) => {
-      const s = ["th", "st", "nd", "rd"], v = n % 100;
-      return s[(v - 20) % 10] || s[v] || s[0];
-    };
-    const fmt = (d: Date) => {
-      try {
-        const day = d.getDate();
-        const month = d.toLocaleString("en-US", { month: "long" });
-        const year = d.getFullYear();
-        return `${month} ${day}${getOrdinal(day)}, ${year}`;
-      } catch { return ""; }
-    };
-    const rangeHtml = (dateRange?.from && dateRange?.to)
-      ? `<div style="margin:4px 0 12px;color:#334155;">${fmt(dateRange.from)} to ${fmt(dateRange.to)}</div>`
-      : "";
-    const titleHtml = title ? `<h1 style=\"margin:0 0 6px;font-size:20px;font-weight:700;color:#0f172a;\">${title}</h1>` : "";
-    const styles = `
-      * { box-sizing: border-box; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol'; }
-      body { margin: 16px; color: #0f172a; }
-      table { width: 100%; border-collapse: collapse; }
-      thead th { background: #f1f5f9; font-weight: 600; }
-      th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
-      tbody tr:hover { background: transparent !important; }
-      tbody tr:last-child td { font-weight: 700; }
-    `;
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Report</title><style>${styles}</style></head><body>${titleHtml}${rangeHtml}${tableEl.outerHTML}</body></html>`;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-  }, [dateRange?.from, dateRange?.to, title]);
+  // legacy print removed
 
-  React.useEffect(() => {
-    const onHotkey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
-        e.preventDefault();
-        printCurrentTable();
-      }
-    };
-    window.addEventListener('keydown', onHotkey);
-    return () => window.removeEventListener('keydown', onHotkey);
-  }, [printCurrentTable]);
+  // Create a simplified table for printing: single header row with printable names
+  const createPrintedTable = (
+    tableEl: HTMLTableElement,
+    selectedIdx: number[],
+    headerNames: string[],
+    columnSizes: number[]
+  ) => {
+    const total = columnSizes.reduce((t, n) => t + n, 0) || 1;
+    const colPercents = columnSizes.map((n) => Math.max(6, Math.round((n / total) * 100)));
+
+    const bodyRows = Array.from(tableEl.querySelectorAll('tbody tr'));
+
+    const colgroup = `<colgroup>${colPercents
+      .map((p) => `<col style="width:${p}%;">`)
+      .join('')}</colgroup>`;
+
+    const thead = `<thead><tr>${headerNames
+      .map((name) => `<th>${name}</th>`)
+      .join('')}</tr></thead>`;
+
+    const tbody = `<tbody>${bodyRows
+      .map((tr) => {
+        const isFooter = (tr as HTMLElement).dataset.footer === 'true';
+        const tds = Array.from(tr.children) as HTMLElement[];
+        const cells = selectedIdx.map((i) => `<td>${(tds[i]?.textContent || '').trim()}</td>`);
+        return `<tr${isFooter ? ' class="__print-footer"' : ''}>${cells.join('')}</tr>`;
+      })
+      .join('')}</tbody>`;
+
+    return `<table>${colgroup}${thead}${tbody}</table>`;
+  };
+
+  // Helper function to create filtered table
+  const createFilteredTable = (tableEl: HTMLTableElement, selectedColumns: number[]) => {
+    const newTable = tableEl.cloneNode(true) as HTMLTableElement;
+    
+    // Filter header cells
+    const headerRows = newTable.querySelectorAll('thead tr');
+    headerRows.forEach(row => {
+      const cells = Array.from(row.children);
+      cells.forEach((cell, index) => {
+        if (!selectedColumns.includes(index)) {
+          cell.remove();
+        }
+      });
+    });
+    
+    // Filter body cells
+    const bodyRows = newTable.querySelectorAll('tbody tr');
+    bodyRows.forEach(row => {
+      const cells = Array.from(row.children);
+      cells.forEach((cell, index) => {
+        if (!selectedColumns.includes(index)) {
+          cell.remove();
+        }
+      });
+    });
+    
+    return newTable.outerHTML;
+  };
+
+  // legacy print hotkey removed
 
   type ExportKind = "html" | "csv" | "text" | "excel" | "pdf" | "json";
   const [confirmOpen, setConfirmOpen] = React.useState<boolean>(false);
@@ -357,50 +365,27 @@ export function CustomTable<TData, TValue>({
     return result;
   }, [data, enableSearch, globalFilter, getSearchValue]);
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('CustomTable - data length:', data.length, 'filteredData length:', filteredData.length, 'serverSidePagination:', serverSidePagination);
+  }, [data.length, filteredData.length, serverSidePagination]);
+
   const table = useReactTable({
     data: filteredData,
     columns,
     onSortingChange: enableSorting ? setSorting : undefined,
     onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
     getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,
     getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
       globalFilter: enableSearch ? globalFilter : "",
-      pagination: showAll || !enablePagination 
-        ? { pageIndex: 0, pageSize: filteredData.length } 
-        : {
-            ...pagination,
-            pageSize: rowsPerPage === -1 ? 999999 : pagination.pageSize
-          },
     },
-    manualPagination: false,
+    manualPagination: true, // Always use manual pagination (server-side)
   });
 
-  // Update pagination when showAll changes
-  React.useEffect(() => {
-    if (enablePagination) {
-      if (showAll) {
-        setPagination(prev => ({ ...prev, pageSize: filteredData.length, pageIndex: 0 }));
-      } else {
-        // Use rowsPerPage state if it's been set by user, otherwise use pageSize prop
-        const actualPageSize = hasUserChangedRowsPerPageRef.current ? 
-          (rowsPerPage === -1 ? 999999 : rowsPerPage) : 
-          pageSize;
-        setPagination(prev => ({ ...prev, pageSize: actualPageSize, pageIndex: 0 }));
-      }
-    }
-  }, [showAll, filteredData.length, enablePagination, pageSize, rowsPerPage]);
-
-  // Reset pagination when data changes
-  React.useEffect(() => {
-    if (enablePagination && !showAll) {
-      setPagination(prev => ({ ...prev, pageIndex: 0 }));
-    }
-  }, [filteredData, enablePagination, showAll]);
+  // No client-side pagination effects needed - using server-side only
 
   return (
     <TooltipProvider>
@@ -417,12 +402,11 @@ export function CustomTable<TData, TValue>({
             dateRange={dateRange}
             onDateRangeChange={onDateRangeChange}
             enablePrint={enablePrint}
-            onPrint={onPrint || printCurrentTable}
+            onPrint={onPrint}
             enableExport={enableExport}
             onExport={onExport}
             onStartExport={startExport}
             enableShowAll={enableShowAll}
-            enablePagination={enablePagination}
             showAll={showAll}
             onShowAllToggle={() => setShowAll((v) => !v)}
             enableRowsPerPage={enableRowsPerPage}
@@ -445,7 +429,7 @@ export function CustomTable<TData, TValue>({
           style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}
         >
           <div className="overflow-x-auto">
-            <table className={`w-full min-w-full ${getSizeClasses.text} divide-y divide-border/30`}>
+            <table className={`w-full min-w-full ${getSizeClasses.text} border-collapse`} style={{ border: '1px solid hsl(var(--border))' }}>
               <TableHeader
                 table={table}
                 columnGroups={columnGroups}
@@ -463,25 +447,20 @@ export function CustomTable<TData, TValue>({
                 getSizeClasses={getSizeClasses}
                 getRowClasses={getRowClasses}
                 rowClassName={rowClassName}
+                onRowClick={onRowClick}
               />
             </table>
           </div>
         </div>
         
-        {/* Pagination Controls */}
+        {/* Pagination Controls - Server-side only */}
         {serverSidePagination && onServerSidePageChange ? (
           <ServerSidePagination
             pagination={serverSidePagination}
             onPageChange={onServerSidePageChange}
-            enablePagination={enablePagination}
+            enablePagination={true}
           />
-        ) : (
-          <TablePagination
-            table={table}
-            showAll={showAll}
-            enablePagination={enablePagination}
-          />
-        )}
+        ) : null}
       </Card>
 
       {/* Export confirmation dialog */}

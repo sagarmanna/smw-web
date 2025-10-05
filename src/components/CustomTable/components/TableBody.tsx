@@ -13,6 +13,7 @@ interface TableBodyProps<TData, TValue = unknown> {
   };
   getRowClasses: (index: number) => string;
   rowClassName?: string | ((row: TData) => string);
+  onRowClick?: (row: TData) => void;
 }
 
 export function TableBody<TData, TValue = unknown>({
@@ -25,6 +26,7 @@ export function TableBody<TData, TValue = unknown>({
   getSizeClasses,
   getRowClasses,
   rowClassName,
+  onRowClick,
 }: TableBodyProps<TData, TValue>) {
   return (
     <tbody>
@@ -48,10 +50,19 @@ export function TableBody<TData, TValue = unknown>({
             return (
               <tr 
                 key={row.id} 
-                className={`${getRowClasses(index)} ${customRowClass || ""}`}
+                className={`${getRowClasses(index)} ${customRowClass || ""} border-b border-border/50 hover:bg-primary/10 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={`${getSizeClasses.cell} text-muted-foreground`}>
+                  <td 
+                    key={cell.id} 
+                    className={`${getSizeClasses.cell} text-muted-foreground border-r border-border/50`}
+                    style={{
+                      width: cell.column.columnDef.size ? `${cell.column.columnDef.size}px` : undefined,
+                      minWidth: cell.column.columnDef.minSize ? `${cell.column.columnDef.minSize}px` : undefined,
+                      maxWidth: cell.column.columnDef.maxSize ? `${cell.column.columnDef.maxSize}px` : undefined,
+                    }}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -60,7 +71,7 @@ export function TableBody<TData, TValue = unknown>({
           })}
           {/* Footer Row */}
           {footerRow && (
-            <tr className="bg-muted/50 border-t-2 border-border/50 font-semibold">
+            <tr data-footer="true" className="bg-muted/50 border-t-2 border-b border-border/50 font-semibold">
               {columns.map((column, index) => {
                 const accessorKey = 'accessorKey' in column ? column.accessorKey : `col-${index}`;
                 const cellValue = (footerRow as Record<string, unknown>)[accessorKey as string];
@@ -98,7 +109,15 @@ export function TableBody<TData, TValue = unknown>({
                 }
                 
                 return (
-                  <td key={`footer-${index}`} className={`${getSizeClasses.cell} font-bold text-foreground bg-muted/30`}>
+                  <td 
+                    key={`footer-${index}`} 
+                    className={`${getSizeClasses.cell} font-bold text-foreground bg-muted/30 border-r border-border/50`}
+                    style={{
+                      width: column.size ? `${column.size}px` : undefined,
+                      minWidth: column.minSize ? `${column.minSize}px` : undefined,
+                      maxWidth: column.maxSize ? `${column.maxSize}px` : undefined,
+                    }}
+                  >
                     {renderedValue}
                   </td>
                 );

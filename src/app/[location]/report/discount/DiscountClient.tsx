@@ -358,10 +358,9 @@ export function DiscountClient({ location }: DiscountClientProps) {
                 enableSearch={false}
                 enableExport={true}
                 enableFilter={false}
-                enablePagination={false}
                 enablePrint={true}
                 enableShowAll={false}
-                pageSize={10}
+                // pageSize={10}
                 title={undefined}
                 onPrint={handlePrint}
               />

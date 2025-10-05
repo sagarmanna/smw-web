@@ -6,6 +6,8 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { AccountReceivableRow, testApiConnection, getAccountReceivableList } from "./account-receivable.api";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface AccountReceivableClientProps {
   location: string;
@@ -15,6 +17,11 @@ const columns = [
   { 
     accessorKey: "customerName", 
     header: "Customer Name",
+    size: 150, // Reduced width to eliminate unnecessary space
+    minSize: 120,
+    maxSize: 200,
+    printable: true,
+    printableName: "Customer Name",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       const isFooter = row.original.id === -1;
       if (isFooter) {
@@ -24,69 +31,101 @@ const columns = [
       const status = row.original.status;
       if (status && status !== "Active") {
         return (
-          <div>
+          <div className="break-words">
             <span>{customer}</span>
             <span className="italic text-gray-500 ml-2">({status})</span>
           </div>
         );
       }
-      return customer;
+      return <span className="break-words">{customer}</span>;
     }
   },
   { 
     accessorKey: "aging_0_30", 
     header: "0-30",
+    size: 100,
+    minSize: 80,
+    maxSize: 120,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.aging_0_30)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.aging_0_30)}</span>;
     }
   },
   { 
     accessorKey: "aging_31_60", 
     header: "31-60",
+    size: 100,
+    minSize: 80,
+    maxSize: 120,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.aging_31_60)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.aging_31_60)}</span>;
     }
   },
   { 
     accessorKey: "aging_61_90", 
     header: "61-90",
+    size: 100,
+    minSize: 80,
+    maxSize: 120,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.aging_61_90)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.aging_61_90)}</span>;
     }
   },
   { 
     accessorKey: "aging_90_plus", 
     header: "90+",
+    size: 100,
+    minSize: 80,
+    maxSize: 120,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.aging_90_plus)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.aging_90_plus)}</span>;
     }
   },
   { 
     accessorKey: "total", 
     header: "Total",
+    size: 120,
+    minSize: 100,
+    maxSize: 150,
+    printable: true,
+    printableName: "OutStanding Invoices",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.total)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.total)}</span>;
     }
   },
   { 
     accessorKey: "prePaidLessons", 
     header: "Pre-Paid Lessons",
+    size: 140,
+    minSize: 120,
+    maxSize: 180,
+    printable: true,
+    printableName: "Pre-Paid Lessons",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.prePaidLessons)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.prePaidLessons)}</span>;
     }
   },
   { 
     accessorKey: "unusedCredits", 
     header: "Unused Credits",
+    size: 140,
+    minSize: 120,
+    maxSize: 180,
+    printable: true,
+    printableName: "Unused Credits",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.unusedCredits)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.unusedCredits)}</span>;
     }
   },
   { 
     accessorKey: "balance", 
     header: "Balance",
+    size: 120,
+    minSize: 100,
+    maxSize: 150,
+    printable: true,
+    printableName: "Balance",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.balance)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.balance)}</span>;
     }
   },
 ];
@@ -206,6 +245,11 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     setError(null);
   }, []);
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('AccountReceivableClient - accountReceivable length:', accountReceivable.length, 'pagination:', pagination);
+  }, [accountReceivable.length, pagination]);
+
   // Handle filter changes
   const handleFilterChange = React.useCallback((filterKey: string | undefined) => {
     setActiveFilter(filterKey);
@@ -214,6 +258,57 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     const limit = pagination.limit >= pagination.total ? 999999 : pagination.limit;
     fetchAccountReceivable(1, limit, filterKey);
   }, [fetchAccountReceivable, pagination.limit, pagination.total]);
+
+  // Handle row click to open customer details
+  const handleRowClick = React.useCallback((customerId: number) => {
+    const legacyUrl = process.env.NEXT_PUBLIC_LEGACY_URL;
+    if (legacyUrl && customerId) {
+      const url = `${legacyUrl}/${location}/account-receivable-report/view?id=${customerId}`;
+      window.open(url, '_blank');
+    }
+  }, [location]);
+
+  // Print handler for new print flow
+  const handlePrint = React.useCallback(() => {
+    type AnyCol = { printable?: boolean; printableName?: string; size?: number; accessorKey?: string } & { [k: string]: unknown };
+    const printable = (columns as AnyCol[])
+      .map((c) => ({
+        key: c.accessorKey as string | undefined,
+        header: c.printableName || (typeof c.header === 'string' ? (c.header as string) : ''),
+        size: c.size ?? 100,
+        printable: c.printable === true,
+      }))
+      .filter((c) => c.printable && c.key);
+
+    if (printable.length === 0) return;
+
+    const total = printable.reduce((t, c) => t + (c.size || 100), 0) || 1;
+    const columnsForPrint = printable.map((c, i) => ({
+      key: c.key!,
+      header: c.header,
+      align: (i === 0 ? 'left' : 'right') as 'left' | 'right',
+      widthPercent: Math.max(6, Math.round(((c.size || 100) / total) * 100)),
+    }));
+
+    const rowsForPrint = accountReceivable.map((r) => ({ ...r }));
+    const footerForPrint = footer ? { ...footer } : undefined;
+
+    const payload = {
+      title: 'Accounts Receivable Report',
+      columns: columnsForPrint,
+      rows: rowsForPrint,
+      footerRow: footerForPrint,
+    };
+
+    try {
+      sessionStorage.setItem('smw:print', JSON.stringify(payload));
+    } catch (e) {
+      console.error('Failed to save print data:', e);
+    }
+
+    const url = `${window.location.origin}/admin/v2/print`;
+    window.open(url, '_blank');
+  }, [accountReceivable, footer]);
 
   // Prepare footer row data
   const footerRow = React.useMemo(() => {
@@ -298,17 +393,74 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
   }, [footer]);
 
   const exportToPdf = React.useCallback((data: AccountReceivableRow[]) => {
-    const tableRows = data.map(r => 
-      `<tr><td>${r.customerName}</td><td>${formatCurrency(r.aging_0_30)}</td><td>${formatCurrency(r.aging_31_60)}</td><td>${formatCurrency(r.aging_61_90)}</td><td>${formatCurrency(r.aging_90_plus)}</td><td>${formatCurrency(r.total)}</td><td>${formatCurrency(r.prePaidLessons)}</td><td>${formatCurrency(r.unusedCredits)}</td><td>${formatCurrency(r.balance)}</td></tr>`
-    ).join("");
-    const footerRow = footer 
-      ? `<tr style="font-weight:bold;background:#f0f0f0;"><td>TOTALS</td><td>${formatCurrency(footer.aging_0_30)}</td><td>${formatCurrency(footer.aging_31_60)}</td><td>${formatCurrency(footer.aging_61_90)}</td><td>${formatCurrency(footer.aging_90_plus)}</td><td>${formatCurrency(footer.total)}</td><td>${formatCurrency(footer.prePaidLessons)}</td><td>${formatCurrency(footer.unusedCredits)}</td><td>${formatCurrency(footer.balance)}</td></tr>`
-      : "";
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Accounts Receivable PDF</title><style>table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px;text-align:left}</style></head><body><h3>Accounts Receivable</h3><table><thead><tr><th>Customer Name</th><th>0-30</th><th>31-60</th><th>61-90</th><th>90+</th><th>Total</th><th>Pre-Paid Lessons</th><th>Unused Credits</th><th>Balance</th></tr></thead><tbody>${tableRows}${footerRow}</tbody></table><script>window.onload=()=>window.print()</script></body></html>`;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url);
-    if (!w) download(blob, "accounts-receivable.html");
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text("Accounts Receivable Report", 14, 15);
+    
+    // Prepare table data
+    const headers = [
+      ["Customer Name", "0-30", "31-60", "61-90", "90+", "Total", "Pre-Paid Lessons", "Unused Credits", "Balance"]
+    ];
+    
+    const rows = data.map(r => [
+      r.customerName,
+      formatCurrency(r.aging_0_30),
+      formatCurrency(r.aging_31_60),
+      formatCurrency(r.aging_61_90),
+      formatCurrency(r.aging_90_plus),
+      formatCurrency(r.total),
+      formatCurrency(r.prePaidLessons),
+      formatCurrency(r.unusedCredits),
+      formatCurrency(r.balance)
+    ]);
+    
+    // Add footer row if exists
+    if (footer) {
+      rows.push([
+        "TOTALS",
+        formatCurrency(footer.aging_0_30),
+        formatCurrency(footer.aging_31_60),
+        formatCurrency(footer.aging_61_90),
+        formatCurrency(footer.aging_90_plus),
+        formatCurrency(footer.total),
+        formatCurrency(footer.prePaidLessons),
+        formatCurrency(footer.unusedCredits),
+        formatCurrency(footer.balance)
+      ]);
+    }
+    
+    // Generate table
+    autoTable(doc, {
+      head: headers,
+      body: rows,
+      startY: 25,
+      margin: { left: 14, right: 14 },
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [248, 250, 252], textColor: [17, 24, 39], fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 25, halign: 'left' },
+        1: { cellWidth: 20, halign: 'right' },
+        2: { cellWidth: 20, halign: 'right' },
+        3: { cellWidth: 20, halign: 'right' },
+        4: { cellWidth: 20, halign: 'right' },
+        5: { cellWidth: 20, halign: 'right' },
+        6: { cellWidth: 22, halign: 'right' },
+        7: { cellWidth: 21, halign: 'right' },
+        8: { cellWidth: 20, halign: 'right' }
+      },
+      didParseCell: function(data) {
+        // Style footer row
+        if (footer && data.row.index === rows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      }
+    });
+    
+    // Save the PDF
+    doc.save("accounts-receivable.pdf");
   }, [footer]);
 
   const exportToJson = React.useCallback((data: AccountReceivableRow[]) => {
@@ -402,10 +554,14 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           data={accountReceivable}
           columns={columns}
           footerRow={footerRow || undefined}
+          tableTitle="Accounts Receivable Report"
           
           // Visual configuration
           size="compact"
           variant="default"
+          
+          // Row interaction
+          onRowClick={(row) => handleRowClick(row.id)}
           
           // Column grouping configuration
           columnGroups={[
@@ -418,8 +574,8 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           // Feature flags - easily configurable
           enableExport={true}
           enableFilter={true}
-          enablePagination={true}
           enablePrint={true}
+          onPrint={handlePrint}
           enableShowAll={false}
           enableSorting={false}
           enableRowsPerPage={true}

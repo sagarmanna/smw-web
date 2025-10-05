@@ -439,7 +439,6 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
           enableSearch={false} // Disable search input
           enableExport={true} // Enable export icons
           enableFilter={false}
-          enablePagination={false} // Show all pages by default
           enablePrint={true} // Enable print
           enableShowAll={true}
           enableDateRangePicker={true} // Enable DateRangePicker

@@ -662,10 +662,9 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
             enableSearch={false}
             enableExport={true}
             enableFilter={true}
-            enablePagination={true}
             enablePrint={true}
             enableShowAll={true}
-            pageSize={20}
+            // pageSize={20}
             title={undefined}
             filterOptions={filterOptions}
             onExport={handleExport}

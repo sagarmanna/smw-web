@@ -58,10 +58,8 @@ export function SimpleDataTableTemplate() {
         data={data}
         columns={columns}
         size="compact"
-        enablePagination={true}
         enableRowsPerPage={true}
         isLoading={isLoading}
-        pageSize={20}
         initialRowsPerPage={20}
         onRowsPerPageChange={(newRowsPerPage) => {
           // Handle rows per page change
@@ -120,7 +118,6 @@ export function SearchableTableTemplate() {
       size="compact"
       enableSearch={true}
       enableExport={true}
-      enablePagination={true}
       searchPlaceholder="Search customers..."
       getSearchValue={(row) => `${row.customerName} ${row.email} ${row.phone}`}
       onExport={{
@@ -208,7 +205,7 @@ export function ServerSideTableTemplate() {
         columns={columns}
         size="compact"
         enableFilter={true}
-        enablePagination={false} // Using custom pagination
+        // Using custom pagination
         isLoading={isLoading}
         serverSideFilterOptions={[
           { key: "active", label: "Active" },
@@ -357,7 +354,6 @@ export function CompactDashboardTableTemplate() {
       size="compact"
       maxHeight="300px"
       stickyHeader={true}
-      enablePagination={false}
       enableSearch={false}
       enableExport={false}
       variant="striped"
@@ -424,7 +420,6 @@ export function TableWithActionsTemplate() {
       columns={columns}
       size="normal"
       enableSearch={true}
-      enablePagination={true}
       searchPlaceholder="Search users..."
       getSearchValue={(row) => `${row.name} ${row.email} ${row.role}`}
       rowClassName={(row) => (row.status === "inactive" ? "opacity-50" : "")}

@@ -22,7 +22,6 @@ export function BasicTableExample() {
       enableSearch={false}
       enableExport={false}
       enableFilter={false}
-      enablePagination={false}
       enablePrint={false}
       enableShowAll={false}
     />
@@ -52,7 +51,6 @@ export function FullFeaturedTableExample() {
       enableSearch={true}
       enableExport={true}
       enableFilter={true}
-      enablePagination={true}
       enablePrint={true}
       enableShowAll={true}
       
@@ -72,8 +70,7 @@ export function FullFeaturedTableExample() {
         json: (data) => console.log('Export JSON:', data),
       }}
       
-      // Pagination configuration
-      pageSize={5}
+      // Pagination configuration (removed - using server-side only)
     />
   );
 }
@@ -100,7 +97,6 @@ export function ReadOnlyTableExample() {
       enableSearch={false}
       enableExport={false}
       enableFilter={false}
-      enablePagination={false}
       enablePrint={false}
       enableShowAll={false}
     />
@@ -129,7 +125,6 @@ export function ExportOnlyTableExample() {
       enableSearch={false}
       enableExport={true}
       enableFilter={false}
-      enablePagination={false}
       enablePrint={true}
       enableShowAll={false}
       

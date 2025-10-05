@@ -43,7 +43,6 @@ interface TableToolbarProps<TData> {
   
   // Show All/Pages Toggle
   enableShowAll: boolean;
-  enablePagination: boolean;
   showAll: boolean;
   onShowAllToggle: () => void;
   
@@ -78,7 +77,6 @@ export function TableToolbar<TData>({
   onExport,
   onStartExport,
   enableShowAll,
-  enablePagination,
   showAll,
   onShowAllToggle,
   enableRowsPerPage,
@@ -190,7 +188,7 @@ export function TableToolbar<TData>({
       )}
       
       {/* Show All/Pages Toggle */}
-      {enableShowAll && enablePagination && (
+      {enableShowAll && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
