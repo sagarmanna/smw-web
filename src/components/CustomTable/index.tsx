@@ -44,11 +44,20 @@ export interface ColumnGroup {
   columnKeys: string[]; // accessorKeys that belong to this group
 }
 
+export type TableSize = "compact" | "normal" | "comfortable";
+export type TableVariant = "default" | "bordered" | "striped";
+
 export interface CustomTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   title?: string;
   columnGroups?: ColumnGroup[]; // Optional column grouping
+  
+  // Visual configuration
+  size?: TableSize; // compact, normal, comfortable
+  variant?: TableVariant; // default, bordered, striped
+  stickyHeader?: boolean; // Sticky table header on scroll
+  maxHeight?: string; // Max height for scrollable table (e.g., "500px", "70vh")
   
   // Feature flags
   enableSearch?: boolean;
@@ -58,6 +67,7 @@ export interface CustomTableProps<TData, TValue> {
   enablePrint?: boolean;
   enableShowAll?: boolean;
   enableDateRangePicker?: boolean;
+  enableSorting?: boolean; // Enable column sorting
   
   // Search configuration
   searchPlaceholder?: string;
@@ -92,10 +102,20 @@ export interface CustomTableProps<TData, TValue> {
   
   // Custom components
   customHeaderComponent?: React.ReactNode;
+  customEmptyState?: React.ReactNode;
+  customLoadingState?: React.ReactNode;
+  
+  // Loading state
+  isLoading?: boolean;
   
   // DateRangePicker configuration
   dateRange?: { from: Date; to: Date };
   onDateRangeChange?: (range: { from: Date; to: Date }) => void;
+  
+  // Custom styling
+  className?: string;
+  headerClassName?: string;
+  rowClassName?: string | ((row: TData) => string);
 }
 
 export function CustomTable<TData, TValue>({
@@ -103,6 +123,12 @@ export function CustomTable<TData, TValue>({
   columns,
   title,
   columnGroups,
+  
+  // Visual configuration
+  size = "compact",
+  variant = "default",
+  stickyHeader = false,
+  maxHeight,
   
   // Feature flags with defaults
   enableSearch = false,
@@ -112,6 +138,7 @@ export function CustomTable<TData, TValue>({
   enablePrint = true,
   enableShowAll = true,
   enableDateRangePicker = false,
+  enableSorting = true,
   
   // Search configuration
   searchPlaceholder = "Search...",
@@ -137,10 +164,20 @@ export function CustomTable<TData, TValue>({
   
   // Custom components
   customHeaderComponent,
+  customEmptyState,
+  customLoadingState,
+  
+  // Loading state
+  isLoading = false,
   
   // DateRangePicker configuration
   dateRange,
   onDateRangeChange,
+  
+  // Custom styling
+  className,
+  headerClassName,
+  rowClassName,
 }: CustomTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
@@ -150,6 +187,42 @@ export function CustomTable<TData, TValue>({
     pageSize: pageSize,
   });
   const tableContainerRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Get size-based classes
+  const getSizeClasses = React.useMemo(() => {
+    switch (size) {
+      case "compact":
+        return {
+          card: "p-2 sm:p-3",
+          header: "px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs",
+          cell: "px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs",
+          text: "text-xs",
+        };
+      case "comfortable":
+        return {
+          card: "p-4 sm:p-5 md:p-6",
+          header: "px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base",
+          cell: "px-4 sm:px-5 py-3 sm:py-4 text-sm",
+          text: "text-sm sm:text-base",
+        };
+      default: // normal
+        return {
+          card: "p-2 sm:p-3 md:p-4",
+          header: "px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm",
+          cell: "px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm",
+          text: "text-xs sm:text-sm",
+        };
+    }
+  }, [size]);
+
+  // Get variant-based row classes
+  const getRowClasses = React.useCallback((index: number) => {
+    const baseClasses = "hover:bg-muted/20";
+    if (variant === "striped") {
+      return `${baseClasses} ${index % 2 === 0 ? "" : "bg-muted/10"}`;
+    }
+    return baseClasses;
+  }, [variant]);
 
   const printCurrentTable = React.useCallback(() => {
     const tableEl = tableContainerRef.current?.querySelector('table');
@@ -295,7 +368,7 @@ export function CustomTable<TData, TValue>({
 
   return (
     <TooltipProvider>
-      <Card className="w-full p-2 sm:p-3 md:p-4">
+      <Card className={`w-full ${getSizeClasses.card} ${className || ""}`}>
         <div className={`flex flex-col gap-2 ${title ? 'md:flex-row md:items-center md:justify-between' : 'md:flex-row md:items-center md:justify-end'}`}>
           {title && <h2 className="text-base font-semibold md:text-lg">{title}</h2>}
           <div className="flex flex-wrap items-center gap-2 print:hidden">
@@ -498,10 +571,14 @@ export function CustomTable<TData, TValue>({
         </div>
         
         {/* Table */}
-        <div ref={tableContainerRef} className="mt-3 overflow-hidden rounded-md border">
+        <div 
+          ref={tableContainerRef} 
+          className="mt-3 overflow-hidden rounded-md border"
+          style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}
+        >
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-full">
-            <thead className="bg-muted/30">
+            <table className={`w-full min-w-full ${getSizeClasses.text}`}>
+            <thead className={`bg-muted/30 ${stickyHeader ? "sticky top-0 z-10" : ""} ${headerClassName || ""}`}>
               {columnGroups && columnGroups.length > 0 ? (
                 <>
                   {/* Column Group Header Row */}
@@ -518,7 +595,7 @@ export function CustomTable<TData, TValue>({
                             <th
                               key={`group-${columnKey}`}
                               colSpan={group.columnKeys.length}
-                              className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-center font-bold bg-muted/50 text-xs sm:text-sm"
+                              className={`border-b ${getSizeClasses.header} text-center font-bold bg-muted/50`}
                             >
                               {group.label}
                             </th>
@@ -532,7 +609,7 @@ export function CustomTable<TData, TValue>({
                         <th
                           key={`group-${columnKey}`}
                           rowSpan={2}
-                          className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold text-xs sm:text-sm"
+                          className={`border-b ${getSizeClasses.header} text-left font-semibold`}
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                         </th>
@@ -550,7 +627,7 @@ export function CustomTable<TData, TValue>({
                       }
                       
                       return (
-                        <th key={header.id} className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold text-xs sm:text-sm">
+                        <th key={header.id} className={`border-b ${getSizeClasses.header} text-left font-semibold`}>
                           {flexRender(header.column.columnDef.header, header.getContext())}
                         </th>
                       );
@@ -562,7 +639,7 @@ export function CustomTable<TData, TValue>({
                 table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <th key={header.id} className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-left font-semibold text-xs sm:text-sm">
+                      <th key={header.id} className={`border-b ${getSizeClasses.header} text-left font-semibold`}>
                         {flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
                     ))}
@@ -571,20 +648,39 @@ export function CustomTable<TData, TValue>({
               )}
             </thead>
             <tbody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-muted/20">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="border-b px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
+              {isLoading ? (
+                <tr>
+                  <td colSpan={columns.length} className={`h-24 border-b text-center ${getSizeClasses.cell}`}>
+                    {customLoadingState || (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                        <span>Loading...</span>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ) : table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row, index) => {
+                  const customRowClass = typeof rowClassName === "function" 
+                    ? rowClassName(row.original) 
+                    : rowClassName;
+                  return (
+                    <tr 
+                      key={row.id} 
+                      className={`${getRowClasses(index)} ${customRowClass || ""}`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className={`border-b ${getSizeClasses.cell}`}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={columns.length} className="h-24 border-b text-center text-xs sm:text-sm">
-                    No results.
+                  <td colSpan={columns.length} className={`h-24 border-b text-center ${getSizeClasses.cell}`}>
+                    {customEmptyState || "No results."}
                   </td>
                 </tr>
               )}

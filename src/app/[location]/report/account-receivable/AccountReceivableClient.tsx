@@ -428,6 +428,10 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           data={rows}
           columns={columns}
           
+          // Visual configuration
+          size="compact"
+          variant="default"
+          
           // Column grouping configuration
           columnGroups={[
             {
@@ -437,16 +441,12 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           ]}
           
           // Feature flags - easily configurable
-          enableSearch={false}
           enableExport={true}
-          enableFilter={true} // Enable filter button
-          enablePagination={false} // Disable client-side pagination
+          enableFilter={true}
+          enablePagination={false}
           enablePrint={true}
-          enableShowAll={false} // Disable show all for server-side pagination
-          
-          // Search configuration
-          searchPlaceholder="Search customers..."
-          getSearchValue={(r) => `${r.customerName} ${r.status}`}
+          enableShowAll={false}
+          enableSorting={false}
           
           // Server-side filter configuration
           serverSideFilterOptions={[
