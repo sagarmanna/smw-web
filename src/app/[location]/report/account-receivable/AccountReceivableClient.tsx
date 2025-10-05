@@ -476,7 +476,6 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
         data={accountReceivable}
         columns={columns}
         footerRow={footerRow || undefined}
-        tableTitle="Accounts Receivable Report"
         
         // Visual configuration
         size="compact"

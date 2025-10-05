@@ -16,6 +16,8 @@ export interface StudentBirthdayFilters {
   page?: number;
   startDate?: Date;
   endDate?: Date;
+  sort?: string;
+  order?: 'asc' | 'desc';
 }
 
 export interface StudentBirthdayAPIResponse {
@@ -52,6 +54,9 @@ export async function getStudentBirthdayList(
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.startDate) params.append('startDate', format(filters.startDate, "yyyy-MM-dd"));
       if (filters.endDate) params.append('endDate', format(filters.endDate, "yyyy-MM-dd"));
+      // TODO: Uncomment this when the API is updated
+      // if (filters.sort) params.append('sort', filters.sort);
+      // if (filters.order) params.append('order', filters.order);
     }
 
     const queryString = params.toString();

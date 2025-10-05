@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { getStudentBirthdayList, StudentBirthday } from "./student-birthday.api";
 import { addDays } from "date-fns";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
@@ -19,6 +19,7 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
   });
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [dateRange, setDateRange] = React.useState({
     from: new Date(),
     to: addDays(new Date(), 7),
@@ -28,10 +29,13 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
     setIsLoading(true);
     setError(null);
     try {
+      const sort = sorting[0];
       const response = await getStudentBirthdayList(location, {
         page,
         startDate: startDate || dateRange.from,
         endDate: endDate || dateRange.to,
+        sort: sort?.id,
+        order: sort ? (sort.desc ? 'desc' : 'asc') : undefined,
       });
 
       if (response.success) {
@@ -47,11 +51,11 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [location, dateRange]);
+  }, [location, dateRange, sorting]);
 
   React.useEffect(() => {
     fetchStudentBirthdays(1, dateRange.from, dateRange.to);
-  }, [fetchStudentBirthdays, dateRange]);
+  }, [fetchStudentBirthdays, dateRange, sorting]);
 
   const handlePageChange = (newPage: number) => {
     fetchStudentBirthdays(newPage, dateRange.from, dateRange.to);
@@ -65,8 +69,6 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
   const refetch = () => {
     fetchStudentBirthdays(1, dateRange.from, dateRange.to);
   };
-
-  const { handlePrint } = usePrintReport<StudentBirthday>();
 
   const columns: ColumnDef<StudentBirthday>[] = [
     {
@@ -82,6 +84,8 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
       accessorKey: "birthDate",
       header: "Birth Date",
       size: 150,
+      // TODO: Uncomment this when the API is updated
+      // enableSorting: true,
       meta: {
         printable: true,
         printableName: "Birth Date",
@@ -116,6 +120,8 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
     },
   ];
 
+  const { handlePrint } = usePrintReport<StudentBirthday>();
+
   return (
     <ReportPageLayout
       title="Student Birthdays"
@@ -143,6 +149,11 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
         })}
         enableDateRangePicker={true}
         
+        // Sorting
+        manualSorting={true}
+        sorting={sorting}
+        onSortingChange={setSorting}
+
         // Server-side Pagination
         serverSidePagination={pagination}
         onServerSidePageChange={handlePageChange}

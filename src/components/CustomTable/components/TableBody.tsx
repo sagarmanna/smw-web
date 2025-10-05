@@ -100,7 +100,7 @@ export function TableBody<TData, TValue = unknown>({
                       renderValue: () => cellValue,
                     } as never;
                     renderedValue = flexRender(column.cell, mockContext as never);
-                  } catch (error) {
+                  } catch {
                     // Fallback to string if cell renderer fails
                     renderedValue = String(cellValue);
                   }
