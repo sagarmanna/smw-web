@@ -203,21 +203,21 @@ export function CustomTable<TData, TValue>({
     switch (size) {
       case "compact":
         return {
-          card: "p-3 sm:p-4",
+          // card: "p-3 sm:p-4",
           header: "px-2 sm:px-3 py-2 sm:py-2.5 text-sm font-semibold",
           cell: "px-2 sm:px-3 py-2 sm:py-2.5 text-xs",
           text: "text-xs",
         };
       case "comfortable":
         return {
-          card: "p-4 sm:p-5 md:p-6",
+          // card: "p-4 sm:p-5 md:p-6",
           header: "px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base font-semibold",
           cell: "px-4 sm:px-5 py-3 sm:py-4 text-sm",
           text: "text-sm sm:text-base",
         };
       default: // normal
         return {
-          card: "p-3 sm:p-4 md:p-5",
+          // card: "p-3 sm:p-4 md:p-5",
           header: "px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base font-semibold",
           cell: "px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm",
           text: "text-xs sm:text-sm",
@@ -389,7 +389,7 @@ export function CustomTable<TData, TValue>({
 
   return (
     <TooltipProvider>
-      <Card className={`w-full ${getSizeClasses.card} ${className || ""}`}>
+      <div className={`w-full ${className || ""}`}>
         <div className={`flex flex-col gap-2 ${title ? 'md:flex-row md:items-center md:justify-between' : 'md:flex-row md:items-center md:justify-end'}`}>
           {title && <h2 className="text-base font-semibold md:text-lg">{title}</h2>}
           
@@ -461,7 +461,7 @@ export function CustomTable<TData, TValue>({
             enablePagination={true}
           />
         ) : null}
-      </Card>
+      </div>
 
       {/* Export confirmation dialog */}
       <ExportDialog
