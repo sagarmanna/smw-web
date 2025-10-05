@@ -354,8 +354,8 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
   // Show empty state if no data
   if (!isLoading && rows.length === 0 && !error) {
     return (
-      <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
-        <div className="mx-auto max-w-screen-2xl">
+      <div className="w-full">
+        <div className="mx-auto">
           {/* Account Receivable Heading */}
           <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -389,8 +389,8 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
   }
 
   return (
-    <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
-      <div className="mx-auto max-w-screen-2xl">
+    <div className="w-full ">
+      <div className="mx-auto">
         {/* Account Receivable Heading */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -423,7 +423,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           columns={columns}
           
           // Feature flags - easily configurable
-          enableSearch={true}
+          enableSearch={false}
           enableExport={true}
           enableFilter={true} // Enable filter button
           enablePagination={false} // Disable client-side pagination
