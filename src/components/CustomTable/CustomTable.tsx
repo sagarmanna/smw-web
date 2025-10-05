@@ -207,23 +207,23 @@ export function CustomTable<TData, TValue>({
     switch (size) {
       case "compact":
         return {
-          card: "p-2 sm:p-3",
-          header: "px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs",
-          cell: "px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs",
+          card: "p-3 sm:p-4",
+          header: "px-2 sm:px-3 py-2 sm:py-2.5 text-xs font-semibold",
+          cell: "px-2 sm:px-3 py-2 sm:py-2.5 text-xs",
           text: "text-xs",
         };
       case "comfortable":
         return {
           card: "p-4 sm:p-5 md:p-6",
-          header: "px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base",
+          header: "px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base font-semibold",
           cell: "px-4 sm:px-5 py-3 sm:py-4 text-sm",
           text: "text-sm sm:text-base",
         };
       default: // normal
         return {
-          card: "p-2 sm:p-3 md:p-4",
-          header: "px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm",
-          cell: "px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm",
+          card: "p-3 sm:p-4 md:p-5",
+          header: "px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold",
+          cell: "px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm",
           text: "text-xs sm:text-sm",
         };
     }
@@ -231,9 +231,9 @@ export function CustomTable<TData, TValue>({
 
   // Get variant-based row classes
   const getRowClasses = React.useCallback((index: number) => {
-    const baseClasses = "hover:bg-muted/20";
+    const baseClasses = "transition-colors duration-150 hover:bg-muted/30";
     if (variant === "striped") {
-      return `${baseClasses} ${index % 2 === 0 ? "" : "bg-muted/10"}`;
+      return `${baseClasses} ${index % 2 === 0 ? "bg-muted/5" : "bg-background"}`;
     }
     return baseClasses;
   }, [variant]);
@@ -441,11 +441,11 @@ export function CustomTable<TData, TValue>({
         {/* Table */}
         <div 
           ref={tableContainerRef} 
-          className="mt-3 overflow-hidden rounded-md border"
+          className="mt-4 overflow-hidden rounded-lg border border-border/50 shadow-sm bg-card focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-ring/30"
           style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}
         >
           <div className="overflow-x-auto">
-            <table className={`w-full min-w-full ${getSizeClasses.text}`}>
+            <table className={`w-full min-w-full ${getSizeClasses.text} divide-y divide-border/30`}>
               <TableHeader
                 table={table}
                 columnGroups={columnGroups}

@@ -20,7 +20,7 @@ export function TableHeader<TData>({
   headerClassName,
 }: TableHeaderProps<TData>) {
   return (
-    <thead className={`bg-muted/30 ${stickyHeader ? "sticky top-0 z-10" : ""} ${headerClassName || ""}`}>
+    <thead className={`bg-muted/40 border-b border-border/50 ${stickyHeader ? "sticky top-0 z-10" : ""} ${headerClassName || ""}`}>
       {columnGroups && columnGroups.length > 0 ? (
         <>
           {/* Column Group Header Row */}
@@ -37,7 +37,7 @@ export function TableHeader<TData>({
                     <th
                       key={`group-${columnKey}`}
                       colSpan={group.columnKeys.length}
-                      className={`border-b ${getSizeClasses.header} text-center font-bold bg-muted/50`}
+                      className={`${getSizeClasses.header} text-center font-bold bg-muted/60 text-muted-foreground border-b border-border/30`}
                     >
                       {group.label}
                     </th>
@@ -51,7 +51,7 @@ export function TableHeader<TData>({
                 <th
                   key={`group-${columnKey}`}
                   rowSpan={2}
-                  className={`border-b ${getSizeClasses.header} text-left font-semibold`}
+                  className={`${getSizeClasses.header} text-left font-semibold text-foreground`}
                 >
                   {flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
@@ -69,7 +69,7 @@ export function TableHeader<TData>({
               }
               
               return (
-                <th key={header.id} className={`border-b ${getSizeClasses.header} text-left font-semibold`}>
+                <th key={header.id} className={`${getSizeClasses.header} text-left font-semibold text-foreground`}>
                   {flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
               );
@@ -81,7 +81,7 @@ export function TableHeader<TData>({
         table.getHeaderGroups().map((headerGroup) => (
           <tr key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <th key={header.id} className={`border-b ${getSizeClasses.header} text-left font-semibold`}>
+              <th key={header.id} className={`${getSizeClasses.header} text-left font-semibold text-foreground`}>
                 {flexRender(header.column.columnDef.header, header.getContext())}
               </th>
             ))}

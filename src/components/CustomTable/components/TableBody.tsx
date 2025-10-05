@@ -30,11 +30,11 @@ export function TableBody<TData, TValue = unknown>({
     <tbody>
       {isLoading ? (
         <tr>
-          <td colSpan={columns.length} className={`h-24 border-b text-center ${getSizeClasses.cell}`}>
+          <td colSpan={columns.length} className={`h-32 text-center ${getSizeClasses.cell}`}>
             {customLoadingState || (
-              <div className="flex items-center justify-center gap-2">
-                <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-                <span>Loading...</span>
+              <div className="flex items-center justify-center gap-3 text-muted-foreground">
+                <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
+                <span className="text-sm font-medium">Loading...</span>
               </div>
             )}
           </td>
@@ -51,7 +51,7 @@ export function TableBody<TData, TValue = unknown>({
                 className={`${getRowClasses(index)} ${customRowClass || ""}`}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={`border-b ${getSizeClasses.cell}`}>
+                  <td key={cell.id} className={`${getSizeClasses.cell} text-muted-foreground`}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -60,13 +60,13 @@ export function TableBody<TData, TValue = unknown>({
           })}
           {/* Footer Row */}
           {footerRow && (
-            <tr className="bg-muted/30 font-semibold">
+            <tr className="bg-muted/50 border-t-2 border-border/50 font-semibold">
               {columns.map((column, index) => {
                 const accessorKey = 'accessorKey' in column ? column.accessorKey : `col-${index}`;
                 const cellValue = (footerRow as Record<string, unknown>)[accessorKey as string];
                 
                 return (
-                  <td key={`footer-${index}`} className={`border-b ${getSizeClasses.cell} font-bold`}>
+                  <td key={`footer-${index}`} className={`${getSizeClasses.cell} font-bold text-foreground bg-muted/30`}>
                     {String(cellValue)}
                   </td>
                 );
@@ -76,8 +76,13 @@ export function TableBody<TData, TValue = unknown>({
         </>
       ) : (
         <tr>
-          <td colSpan={columns.length} className={`h-24 border-b text-center ${getSizeClasses.cell}`}>
-            {customEmptyState || "No results."}
+          <td colSpan={columns.length} className={`h-32 text-center ${getSizeClasses.cell}`}>
+            {customEmptyState || (
+              <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                <div className="text-4xl">📋</div>
+                <span className="text-sm font-medium">No results found</span>
+              </div>
+            )}
           </td>
         </tr>
       )}
