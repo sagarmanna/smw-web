@@ -108,6 +108,9 @@ export interface CustomTableProps<TData, TValue> {
   className?: string;
   headerClassName?: string;
   rowClassName?: string | ((row: TData) => string);
+  
+  // Row interaction
+  onRowClick?: (row: TData) => void;
 }
 
 export function CustomTable<TData, TValue>({
@@ -179,6 +182,9 @@ export function CustomTable<TData, TValue>({
   className,
   headerClassName,
   rowClassName,
+  
+  // Row interaction
+  onRowClick,
 }: CustomTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
@@ -425,6 +431,7 @@ export function CustomTable<TData, TValue>({
                 getSizeClasses={getSizeClasses}
                 getRowClasses={getRowClasses}
                 rowClassName={rowClassName}
+                onRowClick={onRowClick}
               />
             </table>
           </div>

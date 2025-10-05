@@ -13,6 +13,7 @@ interface TableBodyProps<TData, TValue = unknown> {
   };
   getRowClasses: (index: number) => string;
   rowClassName?: string | ((row: TData) => string);
+  onRowClick?: (row: TData) => void;
 }
 
 export function TableBody<TData, TValue = unknown>({
@@ -25,6 +26,7 @@ export function TableBody<TData, TValue = unknown>({
   getSizeClasses,
   getRowClasses,
   rowClassName,
+  onRowClick,
 }: TableBodyProps<TData, TValue>) {
   return (
     <tbody>
@@ -48,7 +50,8 @@ export function TableBody<TData, TValue = unknown>({
             return (
               <tr 
                 key={row.id} 
-                className={`${getRowClasses(index)} ${customRowClass || ""} border-b border-border/50 hover:bg-primary/10 transition-colors duration-150`}
+                className={`${getRowClasses(index)} ${customRowClass || ""} border-b border-border/50 hover:bg-primary/10 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td 

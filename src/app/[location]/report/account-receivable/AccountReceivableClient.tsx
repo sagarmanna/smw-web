@@ -247,6 +247,15 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     fetchAccountReceivable(1, limit, filterKey);
   }, [fetchAccountReceivable, pagination.limit, pagination.total]);
 
+  // Handle row click to open customer details
+  const handleRowClick = React.useCallback((customerId: number) => {
+    const legacyUrl = process.env.NEXT_PUBLIC_LEGACY_URL;
+    if (legacyUrl && customerId) {
+      const url = `${legacyUrl}/${location}/account-receivable-report/view?id=${customerId}`;
+      window.open(url, '_blank');
+    }
+  }, [location]);
+
   // Prepare footer row data
   const footerRow = React.useMemo(() => {
     if (footer) {
@@ -438,6 +447,9 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           // Visual configuration
           size="compact"
           variant="default"
+          
+          // Row interaction
+          onRowClick={(row) => handleRowClick(row.id)}
           
           // Column grouping configuration
           columnGroups={[
