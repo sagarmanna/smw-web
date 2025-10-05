@@ -65,9 +65,41 @@ export function TableBody<TData, TValue = unknown>({
                 const accessorKey = 'accessorKey' in column ? column.accessorKey : `col-${index}`;
                 const cellValue = (footerRow as Record<string, unknown>)[accessorKey as string];
                 
+                // Use the column's cell renderer if available, otherwise fallback to string
+                let renderedValue: React.ReactNode;
+                if (column.cell) {
+                  try {
+                    // Create a minimal mock context for the cell renderer
+                    const mockContext = {
+                      column: column,
+                      row: { original: footerRow },
+                      cell: { 
+                        id: `footer-${index}`, 
+                        column: column, 
+                        row: { original: footerRow }, 
+                        getValue: () => cellValue, 
+                        renderValue: () => cellValue,
+                        getContext: () => mockContext,
+                        getIsAggregated: () => false,
+                        getIsGrouped: () => false,
+                        getIsPlaceholder: () => false
+                      },
+                      table: {} as never,
+                      getValue: () => cellValue,
+                      renderValue: () => cellValue,
+                    } as never;
+                    renderedValue = flexRender(column.cell, mockContext as never);
+                  } catch (error) {
+                    // Fallback to string if cell renderer fails
+                    renderedValue = String(cellValue);
+                  }
+                } else {
+                  renderedValue = String(cellValue);
+                }
+                
                 return (
                   <td key={`footer-${index}`} className={`${getSizeClasses.cell} font-bold text-foreground bg-muted/30`}>
-                    {String(cellValue)}
+                    {renderedValue}
                   </td>
                 );
               })}

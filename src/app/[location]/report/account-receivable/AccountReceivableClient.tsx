@@ -5,6 +5,7 @@ import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { AccountReceivableRow, testApiConnection, getAccountReceivableList } from "./account-receivable.api";
 import { toast } from "sonner";
+import { formatCurrency } from "@/utils";
 
 interface AccountReceivableClientProps {
   location: string;
@@ -462,13 +463,6 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
   );
 }
 
-// Utility functions
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(value);
-};
 
 const download = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
