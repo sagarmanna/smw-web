@@ -3,11 +3,13 @@
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { AccountReceivableRow, testApiConnection, getAccountReceivableList } from "./account-receivable.api";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { usePrintReport } from "@/hooks/usePrintReport";
 
 interface AccountReceivableClientProps {
   location: string;
@@ -20,8 +22,10 @@ const columns = [
     size: 150, // Reduced width to eliminate unnecessary space
     minSize: 120,
     maxSize: 200,
-    printable: true,
-    printableName: "Customer Name",
+    meta: {
+      printable: true,
+      printableName: "Customer Name",
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       const isFooter = row.original.id === -1;
       if (isFooter) {
@@ -86,8 +90,10 @@ const columns = [
     size: 120,
     minSize: 100,
     maxSize: 150,
-    printable: true,
-    printableName: "OutStanding Invoices",
+    meta: {
+      printable: true,
+      printableName: "OutStanding Invoices",
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.total)}</span>;
     }
@@ -98,8 +104,10 @@ const columns = [
     size: 140,
     minSize: 120,
     maxSize: 180,
-    printable: true,
-    printableName: "Pre-Paid Lessons",
+    meta: {
+      printable: true,
+      printableName: "Pre-Paid Lessons",
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.prePaidLessons)}</span>;
     }
@@ -110,8 +118,10 @@ const columns = [
     size: 140,
     minSize: 120,
     maxSize: 180,
-    printable: true,
-    printableName: "Unused Credits",
+    meta: {
+      printable: true,
+      printableName: "Unused Credits",
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.unusedCredits)}</span>;
     }
@@ -122,8 +132,10 @@ const columns = [
     size: 120,
     minSize: 100,
     maxSize: 150,
-    printable: true,
-    printableName: "Balance",
+    meta: {
+      printable: true,
+      printableName: "Balance",
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.balance)}</span>;
     }
@@ -157,6 +169,8 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     total: 0,
     totalPages: 0
   });
+
+  const { handlePrint } = usePrintReport<AccountReceivableRow>();
 
   // Fetch account receivable data
   const fetchAccountReceivable = React.useCallback(async (page = 1, limit = 20, filterKey?: string) => {
@@ -267,48 +281,6 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
       window.open(url, '_blank');
     }
   }, [location]);
-
-  // Print handler for new print flow
-  const handlePrint = React.useCallback(() => {
-    type AnyCol = { printable?: boolean; printableName?: string; size?: number; accessorKey?: string } & { [k: string]: unknown };
-    const printable = (columns as AnyCol[])
-      .map((c) => ({
-        key: c.accessorKey as string | undefined,
-        header: c.printableName || (typeof c.header === 'string' ? (c.header as string) : ''),
-        size: c.size ?? 100,
-        printable: c.printable === true,
-      }))
-      .filter((c) => c.printable && c.key);
-
-    if (printable.length === 0) return;
-
-    const total = printable.reduce((t, c) => t + (c.size || 100), 0) || 1;
-    const columnsForPrint = printable.map((c, i) => ({
-      key: c.key!,
-      header: c.header,
-      align: (i === 0 ? 'left' : 'right') as 'left' | 'right',
-      widthPercent: Math.max(6, Math.round(((c.size || 100) / total) * 100)),
-    }));
-
-    const rowsForPrint = accountReceivable.map((r) => ({ ...r }));
-    const footerForPrint = footer ? { ...footer } : undefined;
-
-    const payload = {
-      title: 'Accounts Receivable Report',
-      columns: columnsForPrint,
-      rows: rowsForPrint,
-      footerRow: footerForPrint,
-    };
-
-    try {
-      sessionStorage.setItem('smw:print', JSON.stringify(payload));
-    } catch (e) {
-      console.error('Failed to save print data:', e);
-    }
-
-    const url = `${window.location.origin}/admin/v2/print`;
-    window.open(url, '_blank');
-  }, [accountReceivable, footer]);
 
   // Prepare footer row data
   const footerRow = React.useMemo(() => {
@@ -483,139 +455,93 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     );
   }
 
-  // Show empty state if no data
-  if (!isLoading && accountReceivable.length === 0 && !error) {
-    return (
-      <div className="w-full">
-        <div className="mx-auto">
-          {/* Account Receivable Heading */}
-          <div className="mb-4 sm:mb-6 px-2 sm:px-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Accounts Receivable</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  Track outstanding balances and customer payments
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Empty State */}
-          <div className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
-            <div className="text-center max-w-md">
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100">No account receivable data found</h3>
-              <p className="mt-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                There are no account receivable records available for this location.
-              </p>
-              <button
-                onClick={() => refetch()}
-                className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-blue-700"
-              >
-                Refresh Data
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="w-full ">
-      <div className="mx-auto">
-        {/* Account Receivable Heading */}
-        <div className="mb-4 sm:mb-6 px-2 sm:px-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Accounts Receivable</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Track outstanding balances and customer payments
-              </p>
-            </div>
-            </div>
-            {error && (
-            <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-xs sm:text-sm text-red-700 dark:text-red-400">
-                <span className="break-words">Failed to load account receivable data: {error}</span>
-                <button
-                  onClick={() => {
-                    clearErrors();
-                    refetch();
-                  }}
-                  className="rounded bg-red-100 dark:bg-red-800 px-3 py-1.5 text-xs hover:bg-red-200 dark:hover:bg-red-700 whitespace-nowrap self-start sm:self-auto"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-        </div>
-
-        {/* CustomTable with feature flags */}
-        <CustomTable
-          data={accountReceivable}
-          columns={columns}
-          footerRow={footerRow || undefined}
-          tableTitle="Accounts Receivable Report"
-          
-          // Visual configuration
-          size="compact"
-          variant="default"
-          
-          // Row interaction
-          onRowClick={(row) => handleRowClick(row.id)}
-          
-          // Column grouping configuration
-          columnGroups={[
-            {
-              label: "Outstanding Invoices",
-              columnKeys: ["aging_0_30", "aging_31_60", "aging_61_90", "aging_90_plus", "total"]
-            }
-          ]}
-          
-          // Feature flags - easily configurable
-          enableExport={true}
-          enableFilter={true}
-          enablePrint={true}
-          onPrint={handlePrint}
-          enableShowAll={false}
-          enableSorting={false}
-          enableRowsPerPage={true}
-          
-          // Server-side filter configuration
-          serverSideFilterOptions={[
-            { key: 'active', label: 'Active Customers' },
-            { key: 'inactive', label: 'Inactive Customers' },
-          ]}
-          activeServerSideFilter={activeFilter}
-          onServerSideFilterChange={handleFilterChange}
-          
-          // Rows per page configuration
-          rowsPerPage={rowsPerPage}
-          rowsPerPageOptions={[5, 10, 20, 50, 100]}
-          onRowsPerPageChange={(newRowsPerPage) => {
-            // Update parent state
-            setRowsPerPage(newRowsPerPage);
-            // Reset to page 1 when rows per page changes
-            // If "All" is selected (-1), use a large number to fetch all records
-            const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
-            fetchAccountReceivable(1, actualLimit, activeFilter);
-          }}
-          
-          // Server-side pagination configuration
-          serverSidePagination={pagination}
-          onServerSidePageChange={handlePageChange}
-          
-          // Export configuration
-          onExport={{
-            html: (data) => exportToHtml(data as AccountReceivableRow[]),
-            csv: (data) => exportToCsv(data as AccountReceivableRow[]),
-            text: (data) => exportToText(data as AccountReceivableRow[]),
-            excel: (data) => exportToExcel(data as AccountReceivableRow[]),
-            pdf: (data) => exportToPdf(data as AccountReceivableRow[]),
-            json: (data) => exportToJson(data as AccountReceivableRow[]),
-          }}
-        />
-      </div>
-    </div>
+    <ReportPageLayout
+      title="Accounts Receivable"
+      subtitle="Track outstanding balances and customer payments"
+      isLoading={isLoading}
+      error={error}
+      isEmpty={accountReceivable.length === 0}
+      onRetry={() => {
+        clearErrors();
+        refetch();
+      }}
+      emptyStateProps={{
+        title: "No account receivable data found",
+        description: "There are no account receivable records available for this location.",
+      }}
+    >
+      {/* CustomTable with feature flags */}
+      <CustomTable
+        data={accountReceivable}
+        columns={columns}
+        footerRow={footerRow || undefined}
+        tableTitle="Accounts Receivable Report"
+        
+        // Visual configuration
+        size="compact"
+        variant="default"
+        
+        // Row interaction
+        onRowClick={(row) => handleRowClick(row.id)}
+        
+        // Column grouping configuration
+        columnGroups={[
+          {
+            label: "Outstanding Invoices",
+            columnKeys: ["aging_0_30", "aging_31_60", "aging_61_90", "aging_90_plus", "total"]
+          }
+        ]}
+        
+        // Feature flags - easily configurable
+        enableExport={true}
+        enableFilter={true}
+        enablePrint={true}
+        onPrint={() => handlePrint({
+          reportTitle: 'Accounts Receivable Report',
+          columns,
+          data: accountReceivable,
+          footer: footerRow || undefined,
+        })}
+        enableShowAll={false}
+        enableSorting={false}
+        enableRowsPerPage={true}
+        
+        // Server-side filter configuration
+        serverSideFilterOptions={[
+          { key: 'active', label: 'Active Customers' },
+          { key: 'inactive', label: 'Inactive Customers' },
+        ]}
+        activeServerSideFilter={activeFilter}
+        onServerSideFilterChange={handleFilterChange}
+        
+        // Rows per page configuration
+        rowsPerPage={rowsPerPage}
+        rowsPerPageOptions={[5, 10, 20, 50, 100]}
+        onRowsPerPageChange={(newRowsPerPage) => {
+          // Update parent state
+          setRowsPerPage(newRowsPerPage);
+          // Reset to page 1 when rows per page changes
+          // If "All" is selected (-1), use a large number to fetch all records
+          const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
+          fetchAccountReceivable(1, actualLimit, activeFilter);
+        }}
+        
+        // Server-side pagination configuration
+        serverSidePagination={pagination}
+        onServerSidePageChange={handlePageChange}
+        
+        // Export configuration
+        onExport={{
+          html: (data) => exportToHtml(data as AccountReceivableRow[]),
+          csv: (data) => exportToCsv(data as AccountReceivableRow[]),
+          text: (data) => exportToText(data as AccountReceivableRow[]),
+          excel: (data) => exportToExcel(data as AccountReceivableRow[]),
+          pdf: (data) => exportToPdf(data as AccountReceivableRow[]),
+          json: (data) => exportToJson(data as AccountReceivableRow[]),
+        }}
+      />
+    </ReportPageLayout>
   );
 }
 
