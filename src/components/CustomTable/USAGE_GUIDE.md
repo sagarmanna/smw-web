@@ -197,7 +197,30 @@ Configure pagination settings.
 />
 ```
 
-### 5. Column Grouping
+### 5. Rows Per Page Selector
+Enable rows per page selector in the table header (appears before filter icon).
+```tsx
+<CustomTable
+  data={data}
+  columns={columns}
+  enableRowsPerPage={true}
+  initialRowsPerPage={20}
+  rowsPerPageOptions={[5, 10, 20, 50, 100]}
+  onRowsPerPageChange={(newRowsPerPage) => {
+    // Handle rows per page change (e.g., trigger API call)
+    // "All" option sends -1, handle it appropriately
+    const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
+    fetchData(1, actualLimit);
+  }}
+/>
+```
+
+**Features:**
+- Shows current selection in button (e.g., "20" or "All")
+- Includes "All" option to show all records
+- Automatically handles large datasets with "All" selection
+
+### 6. Column Grouping
 Group related columns with a header.
 ```tsx
 <CustomTable
@@ -216,7 +239,7 @@ Group related columns with a header.
 />
 ```
 
-### 6. Date Range Picker
+### 7. Date Range Picker
 Add date range filtering.
 ```tsx
 const [dateRange, setDateRange] = useState({ 
@@ -233,7 +256,7 @@ const [dateRange, setDateRange] = useState({
 />
 ```
 
-### 7. Loading State
+### 8. Loading State
 Show loading indicator while fetching data.
 ```tsx
 <CustomTable
@@ -249,7 +272,7 @@ Show loading indicator while fetching data.
 />
 ```
 
-### 8. Empty State
+### 9. Empty State
 Customize the empty state message.
 ```tsx
 <CustomTable
@@ -264,7 +287,7 @@ Customize the empty state message.
 />
 ```
 
-### 9. Sticky Header
+### 10. Sticky Header
 Keep header visible while scrolling.
 ```tsx
 <CustomTable
@@ -275,7 +298,29 @@ Keep header visible while scrolling.
 />
 ```
 
-### 10. Custom Styling
+### 11. Footer Row
+Add a footer row with totals or summary data. The CustomTable automatically handles footer styling.
+```tsx
+const footerData = {
+  name: "TOTALS",
+  amount: 15000,
+  count: 25,
+};
+
+<CustomTable
+  data={data}
+  columns={columns}
+  footerRow={footerData} // Optional footer row
+/>
+```
+
+**Smart Footer Handling:**
+- Footer rows automatically get `id: -1` for identification
+- Footer styling (bold, background) is applied automatically
+- No need to check `isFooter` in column cell renderers
+- Works with any column cell renderer
+
+### 12. Custom Styling
 Apply custom classes to table elements.
 ```tsx
 <CustomTable
@@ -475,12 +520,14 @@ function DashboardSummary() {
 | `enableShowAll` | `boolean` | `true` | Enable show all toggle |
 | `enableSorting` | `boolean` | `true` | Enable column sorting |
 | `enableDateRangePicker` | `boolean` | `false` | Enable date range picker |
+| `enableRowsPerPage` | `boolean` | `false` | Enable rows per page selector |
 
 ### Data & Loading
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `data` | `TData[]` | **required** | Table data |
 | `columns` | `ColumnDef[]` | **required** | Column definitions |
+| `footerRow` | `TData` | `undefined` | Optional footer row data |
 | `isLoading` | `boolean` | `false` | Show loading state |
 | `customLoadingState` | `ReactNode` | Default spinner | Custom loading component |
 | `customEmptyState` | `ReactNode` | "No results." | Custom empty state |
@@ -502,6 +549,13 @@ function DashboardSummary() {
 | `serverSideFilterOptions` | `ServerSideFilterOption[]` | `undefined` | Server-side filter options |
 | `activeServerSideFilter` | `string` | `undefined` | Active server filter key |
 | `onServerSideFilterChange` | `(key) => void` | `undefined` | Server filter change handler |
+
+### Rows Per Page Configuration
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `initialRowsPerPage` | `number` | `20` | Initial rows per page |
+| `rowsPerPageOptions` | `number[]` | `[5, 10, 20, 50, 100]` | Available options |
+| `onRowsPerPageChange` | `(rowsPerPage: number) => void` | `undefined` | Change handler |
 
 ---
 

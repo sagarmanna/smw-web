@@ -59,8 +59,14 @@ export function SimpleDataTableTemplate() {
         columns={columns}
         size="compact"
         enablePagination={true}
+        enableRowsPerPage={true}
         isLoading={isLoading}
         pageSize={20}
+        initialRowsPerPage={20}
+        onRowsPerPageChange={(newRowsPerPage) => {
+          // Handle rows per page change
+          console.log("Rows per page changed to:", newRowsPerPage);
+        }}
       />
     </div>
   );
@@ -80,7 +86,7 @@ interface SearchableRow {
 }
 
 export function SearchableTableTemplate() {
-  const [data, setData] = React.useState<SearchableRow[]>([]);
+  const [data] = React.useState<SearchableRow[]>([]);
 
   const columns: ColumnDef<SearchableRow>[] = [
     { accessorKey: "customerName", header: "Customer Name" },
@@ -259,7 +265,7 @@ interface GroupedColumnsRow {
 }
 
 export function GroupedColumnsTableTemplate() {
-  const [data, setData] = React.useState<GroupedColumnsRow[]>([]);
+  const [data] = React.useState<GroupedColumnsRow[]>([]);
 
   const columns: ColumnDef<GroupedColumnsRow>[] = [
     { accessorKey: "product", header: "Product" },
@@ -373,7 +379,7 @@ interface UserRow {
 }
 
 export function TableWithActionsTemplate() {
-  const [data, setData] = React.useState<UserRow[]>([]);
+  const [data] = React.useState<UserRow[]>([]);
 
   const handleEdit = (user: UserRow) => {
     console.log("Edit user:", user);
@@ -439,7 +445,7 @@ interface TimeBasedRow {
 }
 
 export function DateRangeTableTemplate() {
-  const [data, setData] = React.useState<TimeBasedRow[]>([]);
+  const [data] = React.useState<TimeBasedRow[]>([]);
   const [dateRange, setDateRange] = React.useState({
     from: new Date(),
     to: new Date(),

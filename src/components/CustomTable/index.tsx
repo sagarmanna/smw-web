@@ -10,6 +10,7 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  CellContext,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +53,7 @@ export interface CustomTableProps<TData, TValue> {
   data: TData[];
   title?: string;
   columnGroups?: ColumnGroup[]; // Optional column grouping
+  footerRow?: TData; // Optional footer row data
   
   // Visual configuration
   size?: TableSize; // compact, normal, comfortable
@@ -68,6 +70,7 @@ export interface CustomTableProps<TData, TValue> {
   enableShowAll?: boolean;
   enableDateRangePicker?: boolean;
   enableSorting?: boolean; // Enable column sorting
+  enableRowsPerPage?: boolean; // Enable rows per page selector
   
   // Search configuration
   searchPlaceholder?: string;
@@ -100,6 +103,12 @@ export interface CustomTableProps<TData, TValue> {
   showPageSizeOptions?: boolean;
   pageSizeOptions?: number[];
   
+  // Rows per page configuration
+  initialRowsPerPage?: number; // Initial rows per page (default: 20)
+  rowsPerPageOptions?: number[]; // Available options (default: [5, 10, 20, 50, 100])
+  onRowsPerPageChange?: (rowsPerPage: number) => void; // Callback when rows per page changes
+  rowsPerPage?: number; // Controlled rows per page value
+  
   // Custom components
   customHeaderComponent?: React.ReactNode;
   customEmptyState?: React.ReactNode;
@@ -123,6 +132,7 @@ export function CustomTable<TData, TValue>({
   columns,
   title,
   columnGroups,
+  footerRow,
   
   // Visual configuration
   size = "compact",
@@ -139,6 +149,7 @@ export function CustomTable<TData, TValue>({
   enableShowAll = true,
   enableDateRangePicker = false,
   enableSorting = true,
+  enableRowsPerPage = false,
   
   // Search configuration
   searchPlaceholder = "Search...",
@@ -146,7 +157,6 @@ export function CustomTable<TData, TValue>({
   
   // Filter configuration (client-side)
   filterOptions,
-  initialFilterKey,
   
   // Server-side filter configuration
   serverSideFilterOptions,
@@ -161,6 +171,12 @@ export function CustomTable<TData, TValue>({
   
   // Pagination configuration
   pageSize = 10,
+  
+  // Rows per page configuration
+  initialRowsPerPage = 20,
+  rowsPerPageOptions = [5, 10, 20, 50, 100],
+  onRowsPerPageChange,
+  rowsPerPage: controlledRowsPerPage,
   
   // Custom components
   customHeaderComponent,
@@ -186,6 +202,11 @@ export function CustomTable<TData, TValue>({
     pageIndex: 0,
     pageSize: pageSize,
   });
+  // Use controlled value if provided, otherwise use internal state
+  const [internalRowsPerPage, setInternalRowsPerPage] = React.useState<number>(initialRowsPerPage);
+  const rowsPerPage = controlledRowsPerPage !== undefined ? controlledRowsPerPage : internalRowsPerPage;
+  const rowsPerPageRef = React.useRef<number>(rowsPerPage);
+  const hasUserChangedRowsPerPageRef = React.useRef<boolean>(false);
   const tableContainerRef = React.useRef<HTMLDivElement | null>(null);
 
   // Get size-based classes
@@ -223,6 +244,21 @@ export function CustomTable<TData, TValue>({
     }
     return baseClasses;
   }, [variant]);
+
+  // Handle rows per page change
+  const handleRowsPerPageChange = React.useCallback((newRowsPerPage: number) => {
+    // Update internal state only if not controlled
+    if (controlledRowsPerPage === undefined) {
+      setInternalRowsPerPage(newRowsPerPage);
+    }
+    rowsPerPageRef.current = newRowsPerPage;
+    hasUserChangedRowsPerPageRef.current = true;
+    
+    // If "All" is selected (-1), use a large number for pagination
+    const actualPageSize = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
+    setPagination(prev => ({ ...prev, pageIndex: 0, pageSize: actualPageSize }));
+    onRowsPerPageChange?.(newRowsPerPage);
+  }, [onRowsPerPageChange, controlledRowsPerPage]);
 
   const printCurrentTable = React.useCallback(() => {
     const tableEl = tableContainerRef.current?.querySelector('table');
@@ -331,19 +367,22 @@ export function CustomTable<TData, TValue>({
   const table = useReactTable({
     data: filteredData,
     columns,
-    onSortingChange: setSorting,
+    onSortingChange: enableSorting ? setSorting : undefined,
     onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
-    getSortedRowModel: getSortedRowModel(),
+    getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,
     getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
       globalFilter: enableSearch ? globalFilter : "",
       pagination: showAll || !enablePagination 
         ? { pageIndex: 0, pageSize: filteredData.length } 
-        : pagination,
+        : {
+            ...pagination,
+            pageSize: rowsPerPage === -1 ? 999999 : pagination.pageSize
+          },
     },
     manualPagination: false,
   });
@@ -354,10 +393,14 @@ export function CustomTable<TData, TValue>({
       if (showAll) {
         setPagination(prev => ({ ...prev, pageSize: filteredData.length, pageIndex: 0 }));
       } else {
-        setPagination(prev => ({ ...prev, pageSize: pageSize, pageIndex: 0 }));
+        // Use rowsPerPage state if it's been set by user, otherwise use pageSize prop
+        const actualPageSize = hasUserChangedRowsPerPageRef.current ? 
+          (rowsPerPage === -1 ? 999999 : rowsPerPage) : 
+          pageSize;
+        setPagination(prev => ({ ...prev, pageSize: actualPageSize, pageIndex: 0 }));
       }
     }
-  }, [showAll, filteredData.length, enablePagination, pageSize]);
+  }, [showAll, filteredData.length, enablePagination, pageSize, rowsPerPage]);
 
   // Reset pagination when data changes
   React.useEffect(() => {
@@ -365,6 +408,7 @@ export function CustomTable<TData, TValue>({
       setPagination(prev => ({ ...prev, pageIndex: 0 }));
     }
   }, [filteredData, enablePagination, showAll]);
+
 
   return (
     <TooltipProvider>
@@ -484,6 +528,64 @@ export function CustomTable<TData, TValue>({
                   <p>{showAll ? "Show Pages" : "Show All"}</p>
                 </TooltipContent>
               </Tooltip>
+            )}
+            
+            {/* Rows per page selector */}
+            {enableRowsPerPage && (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon" className="h-8 w-8">
+                        <span className="text-xs font-medium">
+                          {rowsPerPage === -1 ? "All" : rowsPerPage}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Rows per page</p>
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuLabel>Rows per page</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {rowsPerPageOptions.map((option) => (
+                    <DropdownMenuItem 
+                      key={option}
+                      onClick={() => handleRowsPerPageChange(option)}
+                      className={`cursor-pointer ${
+                        rowsPerPage === option 
+                          ? 'bg-primary/10 text-primary font-medium' 
+                          : ''
+                      }`}
+                    >
+                      <span className="flex items-center justify-between w-full">
+                        <span>{option}</span>
+                        {rowsPerPage === option && (
+                          <Check className="h-4 w-4 ml-auto" />
+                        )}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => handleRowsPerPageChange(-1)}
+                    className={`cursor-pointer ${
+                      rowsPerPage === -1 
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : ''
+                    }`}
+                  >
+                    <span className="flex items-center justify-between w-full">
+                      <span>All</span>
+                      {rowsPerPage === -1 && (
+                        <Check className="h-4 w-4 ml-auto" />
+                      )}
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             
             {/* Filter Dropdown */}
@@ -660,23 +762,46 @@ export function CustomTable<TData, TValue>({
                   </td>
                 </tr>
               ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row, index) => {
-                  const customRowClass = typeof rowClassName === "function" 
-                    ? rowClassName(row.original) 
-                    : rowClassName;
-                  return (
-                    <tr 
-                      key={row.id} 
-                      className={`${getRowClasses(index)} ${customRowClass || ""}`}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className={`border-b ${getSizeClasses.cell}`}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
+                <>
+                  {table.getRowModel().rows.map((row, index) => {
+                    const customRowClass = typeof rowClassName === "function" 
+                      ? rowClassName(row.original) 
+                      : rowClassName;
+                    return (
+                      <tr 
+                        key={row.id} 
+                        className={`${getRowClasses(index)} ${customRowClass || ""}`}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className={`border-b ${getSizeClasses.cell}`}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                  {/* Footer Row */}
+                  {footerRow && (
+                    <tr className="bg-muted/30 font-semibold">
+                      {columns.map((column, index) => {
+                        const accessorKey = 'accessorKey' in column ? column.accessorKey : `col-${index}`;
+                        const cellValue = (footerRow as Record<string, unknown>)[accessorKey as string];
+                        
+                        // Create a mock row with footer flag for cell rendering
+                        const mockRow = { 
+                          original: { ...footerRow, id: -1 }, // Ensure footer flag is set
+                          getValue: () => cellValue 
+                        };
+                        
+                        return (
+                          <td key={`footer-${index}`} className={`border-b ${getSizeClasses.cell} font-bold`}>
+                            {String(cellValue)}
+                          </td>
+                        );
+                      })}
                     </tr>
-                  );
-                })
+                  )}
+                </>
               ) : (
                 <tr>
                   <td colSpan={columns.length} className={`h-24 border-b text-center ${getSizeClasses.cell}`}>
