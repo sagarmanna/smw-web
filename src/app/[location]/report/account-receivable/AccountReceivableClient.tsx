@@ -206,6 +206,11 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     setError(null);
   }, []);
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('AccountReceivableClient - accountReceivable length:', accountReceivable.length, 'pagination:', pagination);
+  }, [accountReceivable.length, pagination]);
+
   // Handle filter changes
   const handleFilterChange = React.useCallback((filterKey: string | undefined) => {
     setActiveFilter(filterKey);
@@ -418,7 +423,6 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           // Feature flags - easily configurable
           enableExport={true}
           enableFilter={true}
-          enablePagination={true}
           enablePrint={true}
           enableShowAll={false}
           enableSorting={false}

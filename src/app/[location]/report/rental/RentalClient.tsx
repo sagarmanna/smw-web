@@ -248,7 +248,6 @@ export function RentalClient({ location }: RentalClientProps) {
           enableSearch={true}
           enableExport={true}
           enableFilter={true}
-          enablePagination={true}
           enablePrint={true}
           enableShowAll={true}
           
@@ -311,7 +310,7 @@ export function RentalClient({ location }: RentalClientProps) {
           }}
           
           // Pagination configuration
-          pageSize={10}
+          // pageSize={10}
         />
       </div>
     </div>

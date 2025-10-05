@@ -5,7 +5,6 @@ import {
   ColumnDef,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
@@ -18,7 +17,6 @@ import { DateRangePicker } from "@/components/DateRangePicker";
 import { 
   TableHeader, 
   TableBody, 
-  TablePagination, 
   ServerSidePagination,
   TableToolbar, 
   ExportDialog,
@@ -46,7 +44,6 @@ export interface CustomTableProps<TData, TValue> {
   enableSearch?: boolean;
   enableExport?: boolean;
   enableFilter?: boolean;
-  enablePagination?: boolean;
   enablePrint?: boolean;
   enableShowAll?: boolean;
   enableDateRangePicker?: boolean;
@@ -78,10 +75,7 @@ export interface CustomTableProps<TData, TValue> {
   // Print configuration
   onPrint?: () => void;
   
-  // Pagination configuration
-  pageSize?: number;
-  showPageSizeOptions?: boolean;
-  pageSizeOptions?: number[];
+  // Pagination configuration (removed - using server-side only)
   
   // Server-side pagination configuration
   serverSidePagination?: {
@@ -133,7 +127,6 @@ export function CustomTable<TData, TValue>({
   enableSearch = false,
   enableExport = false,
   enableFilter = false,
-  enablePagination = true,
   enablePrint = true,
   enableShowAll = true,
   enableDateRangePicker = false,
@@ -158,8 +151,7 @@ export function CustomTable<TData, TValue>({
   // Print configuration
   onPrint,
   
-  // Pagination configuration
-  pageSize = 10,
+  // Pagination configuration (removed - using server-side only)
   
   // Server-side pagination configuration
   serverSidePagination,
@@ -191,10 +183,6 @@ export function CustomTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
   const [showAll, setShowAll] = React.useState<boolean>(false);
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: pageSize,
-  });
   // Use controlled value if provided, otherwise use internal state
   const [internalRowsPerPage, setInternalRowsPerPage] = React.useState<number>(initialRowsPerPage);
   const rowsPerPage = controlledRowsPerPage !== undefined ? controlledRowsPerPage : internalRowsPerPage;
@@ -247,9 +235,7 @@ export function CustomTable<TData, TValue>({
     rowsPerPageRef.current = newRowsPerPage;
     hasUserChangedRowsPerPageRef.current = true;
     
-    // If "All" is selected (-1), use a large number for pagination
-    const actualPageSize = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
-    setPagination(prev => ({ ...prev, pageIndex: 0, pageSize: actualPageSize }));
+    // Trigger server-side pagination change
     onRowsPerPageChange?.(newRowsPerPage);
   }, [onRowsPerPageChange, controlledRowsPerPage]);
 
@@ -357,50 +343,27 @@ export function CustomTable<TData, TValue>({
     return result;
   }, [data, enableSearch, globalFilter, getSearchValue]);
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('CustomTable - data length:', data.length, 'filteredData length:', filteredData.length, 'serverSidePagination:', serverSidePagination);
+  }, [data.length, filteredData.length, serverSidePagination]);
+
   const table = useReactTable({
     data: filteredData,
     columns,
     onSortingChange: enableSorting ? setSorting : undefined,
     onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
     getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,
     getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
       globalFilter: enableSearch ? globalFilter : "",
-      pagination: showAll || !enablePagination 
-        ? { pageIndex: 0, pageSize: filteredData.length } 
-        : {
-            ...pagination,
-            pageSize: rowsPerPage === -1 ? 999999 : pagination.pageSize
-          },
     },
-    manualPagination: false,
+    manualPagination: true, // Always use manual pagination (server-side)
   });
 
-  // Update pagination when showAll changes
-  React.useEffect(() => {
-    if (enablePagination) {
-      if (showAll) {
-        setPagination(prev => ({ ...prev, pageSize: filteredData.length, pageIndex: 0 }));
-      } else {
-        // Use rowsPerPage state if it's been set by user, otherwise use pageSize prop
-        const actualPageSize = hasUserChangedRowsPerPageRef.current ? 
-          (rowsPerPage === -1 ? 999999 : rowsPerPage) : 
-          pageSize;
-        setPagination(prev => ({ ...prev, pageSize: actualPageSize, pageIndex: 0 }));
-      }
-    }
-  }, [showAll, filteredData.length, enablePagination, pageSize, rowsPerPage]);
-
-  // Reset pagination when data changes
-  React.useEffect(() => {
-    if (enablePagination && !showAll) {
-      setPagination(prev => ({ ...prev, pageIndex: 0 }));
-    }
-  }, [filteredData, enablePagination, showAll]);
+  // No client-side pagination effects needed - using server-side only
 
   return (
     <TooltipProvider>
@@ -422,7 +385,6 @@ export function CustomTable<TData, TValue>({
             onExport={onExport}
             onStartExport={startExport}
             enableShowAll={enableShowAll}
-            enablePagination={enablePagination}
             showAll={showAll}
             onShowAllToggle={() => setShowAll((v) => !v)}
             enableRowsPerPage={enableRowsPerPage}
@@ -468,20 +430,14 @@ export function CustomTable<TData, TValue>({
           </div>
         </div>
         
-        {/* Pagination Controls */}
+        {/* Pagination Controls - Server-side only */}
         {serverSidePagination && onServerSidePageChange ? (
           <ServerSidePagination
             pagination={serverSidePagination}
             onPageChange={onServerSidePageChange}
-            enablePagination={enablePagination}
+            enablePagination={true}
           />
-        ) : (
-          <TablePagination
-            table={table}
-            showAll={showAll}
-            enablePagination={enablePagination}
-          />
-        )}
+        ) : null}
       </Card>
 
       {/* Export confirmation dialog */}
