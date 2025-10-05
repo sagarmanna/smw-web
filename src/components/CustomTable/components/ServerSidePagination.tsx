@@ -1,47 +1,46 @@
 import * as React from "react";
-import { Table } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
-interface TablePaginationProps<TData> {
-  table: Table<TData>;
-  showAll: boolean;
-  enablePagination: boolean;
+interface ServerSidePaginationProps {
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  onPageChange: (page: number) => void;
+  enablePagination?: boolean;
 }
 
-export function TablePagination<TData>({
-  table,
-  showAll,
-  enablePagination,
-}: TablePaginationProps<TData>) {
+export function ServerSidePagination({
+  pagination,
+  onPageChange,
+  enablePagination = true,
+}: ServerSidePaginationProps) {
   if (!enablePagination) return null;
 
-  const totalRows = table.getFilteredRowModel().rows.length;
-  const currentPage = table.getState().pagination.pageIndex + 1;
-  const totalPages = table.getPageCount();
+  const startRecord = ((pagination.page - 1) * pagination.limit) + 1;
+  const endRecord = Math.min(pagination.page * pagination.limit, pagination.total);
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-t bg-muted/30 print:hidden">
       {/* Records Info */}
       <div className="text-muted-foreground text-sm">
-        {totalRows} row{totalRows !== 1 ? 's' : ''}
-        {!showAll && totalPages > 1 && (
-          <span className="ml-1">
-            (Page <span className="font-medium text-foreground">{currentPage}</span> of{" "}
-            <span className="font-medium text-foreground">{totalPages}</span>)
-          </span>
-        )}
+        Showing <span className="font-medium text-foreground">{startRecord}</span> to{" "}
+        <span className="font-medium text-foreground">{endRecord}</span> of{" "}
+        <span className="font-medium text-foreground">{pagination.total}</span> records
       </div>
       
       {/* Pagination Controls */}
-      {!showAll && totalPages > 1 && (
+      {pagination.totalPages > 1 && (
         <div className="flex items-center gap-1">
           {/* First Page */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => onPageChange(1)}
+            disabled={pagination.page === 1}
             className="h-8 w-8 p-0"
             title="First page"
           >
@@ -52,8 +51,8 @@ export function TablePagination<TData>({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => onPageChange(pagination.page - 1)}
+            disabled={pagination.page === 1}
             className="h-8 w-8 p-0"
             title="Previous page"
           >
@@ -63,8 +62,8 @@ export function TablePagination<TData>({
           {/* Page Info */}
           <div className="flex items-center gap-2 px-3">
             <span className="text-sm text-muted-foreground">
-              Page <span className="font-medium">{currentPage}</span> of{" "}
-              <span className="font-medium">{totalPages}</span>
+              Page <span className="font-medium">{pagination.page}</span> of{" "}
+              <span className="font-medium">{pagination.totalPages}</span>
             </span>
           </div>
           
@@ -72,8 +71,8 @@ export function TablePagination<TData>({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => onPageChange(pagination.page + 1)}
+            disabled={pagination.page === pagination.totalPages}
             className="h-8 w-8 p-0"
             title="Next page"
           >
@@ -84,8 +83,8 @@ export function TablePagination<TData>({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.setPageIndex(totalPages - 1)}
-            disabled={!table.getCanNextPage()}
+            onClick={() => onPageChange(pagination.totalPages)}
+            disabled={pagination.page === pagination.totalPages}
             className="h-8 w-8 p-0"
             title="Last page"
           >

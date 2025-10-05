@@ -19,6 +19,7 @@ import {
   TableHeader, 
   TableBody, 
   TablePagination, 
+  ServerSidePagination,
   TableToolbar, 
   ExportDialog,
   FilterOption, 
@@ -81,6 +82,15 @@ export interface CustomTableProps<TData, TValue> {
   pageSize?: number;
   showPageSizeOptions?: boolean;
   pageSizeOptions?: number[];
+  
+  // Server-side pagination configuration
+  serverSidePagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  onServerSidePageChange?: (page: number) => void;
   
   // Rows per page configuration
   initialRowsPerPage?: number; // Initial rows per page (default: 20)
@@ -150,6 +160,10 @@ export function CustomTable<TData, TValue>({
   
   // Pagination configuration
   pageSize = 10,
+  
+  // Server-side pagination configuration
+  serverSidePagination,
+  onServerSidePageChange,
   
   // Rows per page configuration
   initialRowsPerPage = 20,
@@ -455,11 +469,19 @@ export function CustomTable<TData, TValue>({
         </div>
         
         {/* Pagination Controls */}
-        <TablePagination
-          table={table}
-          showAll={showAll}
-          enablePagination={enablePagination}
-        />
+        {serverSidePagination && onServerSidePageChange ? (
+          <ServerSidePagination
+            pagination={serverSidePagination}
+            onPageChange={onServerSidePageChange}
+            enablePagination={enablePagination}
+          />
+        ) : (
+          <TablePagination
+            table={table}
+            showAll={showAll}
+            enablePagination={enablePagination}
+          />
+        )}
       </Card>
 
       {/* Export confirmation dialog */}

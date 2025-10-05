@@ -417,7 +417,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           // Feature flags - easily configurable
           enableExport={true}
           enableFilter={true}
-          enablePagination={false}
+          enablePagination={true}
           enablePrint={true}
           enableShowAll={false}
           enableSorting={false}
@@ -443,6 +443,10 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
             fetchAccountReceivable(1, actualLimit, activeFilter);
           }}
           
+          // Server-side pagination configuration
+          serverSidePagination={pagination}
+          onServerSidePageChange={handlePageChange}
+          
           // Export configuration
           onExport={{
             html: (data) => exportToHtml(data as AccountReceivableRow[]),
@@ -453,50 +457,6 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
             json: (data) => exportToJson(data as AccountReceivableRow[]),
           }}
         />
-        
-        {/* Custom Server-Side Pagination */}
-        <div className="flex flex-col gap-3 px-2 py-3 mt-4 border-t">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-muted-foreground text-xs sm:text-sm order-2 sm:order-1">
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} records
-            </div>
-          </div>
-          {pagination.totalPages > 1 && (
-            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-1 sm:gap-2">
-              <button 
-                onClick={() => handlePageChange(1)} 
-                disabled={pagination.page === 1}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                First
-              </button>
-              <button 
-                onClick={() => handlePageChange(pagination.page - 1)} 
-                disabled={pagination.page === 1}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Previous
-              </button>
-              <span className="text-xs sm:text-sm text-muted-foreground px-1 sm:px-2 whitespace-nowrap">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button 
-                onClick={() => handlePageChange(pagination.page + 1)} 
-                disabled={pagination.page === pagination.totalPages}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Next
-              </button>
-              <button 
-                onClick={() => handlePageChange(pagination.totalPages)} 
-                disabled={pagination.page === pagination.totalPages}
-                className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Last
-              </button>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

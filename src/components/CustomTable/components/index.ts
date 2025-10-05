@@ -2,6 +2,7 @@
 export { TableHeader } from "./TableHeader";
 export { TableBody } from "./TableBody";
 export { TablePagination } from "./TablePagination";
+export { ServerSidePagination } from "./ServerSidePagination";
 export { TableToolbar } from "./TableToolbar";
 export { ExportDialog } from "./ExportDialog";
 

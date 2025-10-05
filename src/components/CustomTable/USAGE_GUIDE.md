@@ -220,7 +220,34 @@ Enable rows per page selector in the table header (appears before filter icon).
 - Includes "All" option to show all records
 - Automatically handles large datasets with "All" selection
 
-### 6. Column Grouping
+### 6. Server-Side Pagination
+Use server-side pagination for large datasets that are fetched from the server.
+```tsx
+<CustomTable
+  data={data}
+  columns={columns}
+  serverSidePagination={{
+    page: 1,
+    limit: 20,
+    total: 1000,
+    totalPages: 50
+  }}
+  onServerSidePageChange={(page) => {
+    // Handle page change - fetch new data from server
+    fetchData(page);
+  }}
+/>
+```
+
+**Features:**
+- Server-controlled pagination for large datasets
+- Shows "Showing X to Y of Z records" format with highlighted numbers
+- Icon-based navigation buttons (First/Previous/Next/Last) with tooltips
+- Consistent styling with subtle background and proper spacing
+- Automatically disables when only one page
+- Integrates with existing table features
+
+### 7. Column Grouping
 Group related columns with a header.
 ```tsx
 <CustomTable
