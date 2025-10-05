@@ -266,6 +266,48 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     }
   }, [location]);
 
+  // Print handler for new print flow
+  const handlePrint = React.useCallback(() => {
+    type AnyCol = { printable?: boolean; printableName?: string; size?: number; accessorKey?: string } & { [k: string]: unknown };
+    const printable = (columns as AnyCol[])
+      .map((c) => ({
+        key: c.accessorKey as string | undefined,
+        header: c.printableName || (typeof c.header === 'string' ? (c.header as string) : ''),
+        size: c.size ?? 100,
+        printable: c.printable === true,
+      }))
+      .filter((c) => c.printable && c.key);
+
+    if (printable.length === 0) return;
+
+    const total = printable.reduce((t, c) => t + (c.size || 100), 0) || 1;
+    const columnsForPrint = printable.map((c, i) => ({
+      key: c.key!,
+      header: c.header,
+      align: (i === 0 ? 'left' : 'right') as 'left' | 'right',
+      widthPercent: Math.max(6, Math.round(((c.size || 100) / total) * 100)),
+    }));
+
+    const rowsForPrint = accountReceivable.map((r) => ({ ...r }));
+    const footerForPrint = footer ? { ...footer } : undefined;
+
+    const payload = {
+      title: 'Accounts Receivable Report',
+      columns: columnsForPrint,
+      rows: rowsForPrint,
+      footerRow: footerForPrint,
+    };
+
+    try {
+      sessionStorage.setItem('smw:print', JSON.stringify(payload));
+    } catch (e) {
+      console.error('Failed to save print data:', e);
+    }
+
+    const url = `${window.location.origin}/admin/v2/print`;
+    window.open(url, '_blank');
+  }, [accountReceivable, footer]);
+
   // Prepare footer row data
   const footerRow = React.useMemo(() => {
     if (footer) {
@@ -474,6 +516,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           enableExport={true}
           enableFilter={true}
           enablePrint={true}
+          onPrint={handlePrint}
           enableShowAll={false}
           enableSorting={false}
           enableRowsPerPage={true}
