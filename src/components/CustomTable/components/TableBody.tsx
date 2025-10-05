@@ -48,12 +48,12 @@ export function TableBody<TData, TValue = unknown>({
             return (
               <tr 
                 key={row.id} 
-                className={`${getRowClasses(index)} ${customRowClass || ""}`}
+                className={`${getRowClasses(index)} ${customRowClass || ""} border-b border-border/50 hover:bg-primary/10 transition-colors duration-150`}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td 
                     key={cell.id} 
-                    className={`${getSizeClasses.cell} text-muted-foreground`}
+                    className={`${getSizeClasses.cell} text-muted-foreground border-r border-border/50`}
                     style={{
                       width: cell.column.columnDef.size ? `${cell.column.columnDef.size}px` : undefined,
                       minWidth: cell.column.columnDef.minSize ? `${cell.column.columnDef.minSize}px` : undefined,
@@ -68,7 +68,7 @@ export function TableBody<TData, TValue = unknown>({
           })}
           {/* Footer Row */}
           {footerRow && (
-            <tr className="bg-muted/50 border-t-2 border-border/50 font-semibold">
+            <tr className="bg-muted/50 border-t-2 border-b border-border/50 font-semibold">
               {columns.map((column, index) => {
                 const accessorKey = 'accessorKey' in column ? column.accessorKey : `col-${index}`;
                 const cellValue = (footerRow as Record<string, unknown>)[accessorKey as string];
@@ -108,7 +108,7 @@ export function TableBody<TData, TValue = unknown>({
                 return (
                   <td 
                     key={`footer-${index}`} 
-                    className={`${getSizeClasses.cell} font-bold text-foreground bg-muted/30`}
+                    className={`${getSizeClasses.cell} font-bold text-foreground bg-muted/30 border-r border-border/50`}
                     style={{
                       width: column.size ? `${column.size}px` : undefined,
                       minWidth: column.minSize ? `${column.minSize}px` : undefined,

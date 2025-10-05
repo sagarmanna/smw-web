@@ -196,7 +196,7 @@ export function CustomTable<TData, TValue>({
       case "compact":
         return {
           card: "p-3 sm:p-4",
-          header: "px-2 sm:px-3 py-2 sm:py-2.5 text-xs font-semibold",
+          header: "px-2 sm:px-3 py-2 sm:py-2.5 text-sm font-semibold",
           cell: "px-2 sm:px-3 py-2 sm:py-2.5 text-xs",
           text: "text-xs",
         };
@@ -210,7 +210,7 @@ export function CustomTable<TData, TValue>({
       default: // normal
         return {
           card: "p-3 sm:p-4 md:p-5",
-          header: "px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold",
+          header: "px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base font-semibold",
           cell: "px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm",
           text: "text-xs sm:text-sm",
         };
@@ -407,7 +407,7 @@ export function CustomTable<TData, TValue>({
           style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}
         >
           <div className="overflow-x-auto">
-            <table className={`w-full min-w-full ${getSizeClasses.text} divide-y divide-border/30`}>
+            <table className={`w-full min-w-full ${getSizeClasses.text} border-collapse`} style={{ border: '1px solid hsl(var(--border))' }}>
               <TableHeader
                 table={table}
                 columnGroups={columnGroups}

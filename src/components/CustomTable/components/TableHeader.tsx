@@ -37,7 +37,7 @@ export function TableHeader<TData>({
                     <th
                       key={`group-${columnKey}`}
                       colSpan={group.columnKeys.length}
-                      className={`${getSizeClasses.header} text-center font-bold bg-muted/60 text-foreground border-b border-border/30`}
+                      className={`${getSizeClasses.header} text-center font-bold bg-muted/40 text-foreground border-b border-border/30`}
                     >
                       {group.label}
                     </th>
@@ -51,7 +51,7 @@ export function TableHeader<TData>({
                 <th
                   key={`group-${columnKey}`}
                   rowSpan={2}
-                  className={`${getSizeClasses.header} text-left font-semibold text-foreground`}
+                  className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
                   style={{
                     width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
                     minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
@@ -76,7 +76,7 @@ export function TableHeader<TData>({
               return (
                 <th 
                   key={header.id} 
-                  className={`${getSizeClasses.header} text-left font-semibold text-foreground`}
+                  className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
                   style={{
                     width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
                     minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
@@ -96,7 +96,7 @@ export function TableHeader<TData>({
             {headerGroup.headers.map((header) => (
               <th 
                 key={header.id} 
-                className={`${getSizeClasses.header} text-left font-semibold text-foreground`}
+                className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
                 style={{
                   width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
                   minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
