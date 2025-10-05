@@ -51,7 +51,15 @@ export function TableBody<TData, TValue = unknown>({
                 className={`${getRowClasses(index)} ${customRowClass || ""}`}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={`${getSizeClasses.cell} text-muted-foreground`}>
+                  <td 
+                    key={cell.id} 
+                    className={`${getSizeClasses.cell} text-muted-foreground`}
+                    style={{
+                      width: cell.column.columnDef.size ? `${cell.column.columnDef.size}px` : undefined,
+                      minWidth: cell.column.columnDef.minSize ? `${cell.column.columnDef.minSize}px` : undefined,
+                      maxWidth: cell.column.columnDef.maxSize ? `${cell.column.columnDef.maxSize}px` : undefined,
+                    }}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -98,7 +106,15 @@ export function TableBody<TData, TValue = unknown>({
                 }
                 
                 return (
-                  <td key={`footer-${index}`} className={`${getSizeClasses.cell} font-bold text-foreground bg-muted/30`}>
+                  <td 
+                    key={`footer-${index}`} 
+                    className={`${getSizeClasses.cell} font-bold text-foreground bg-muted/30`}
+                    style={{
+                      width: column.size ? `${column.size}px` : undefined,
+                      minWidth: column.minSize ? `${column.minSize}px` : undefined,
+                      maxWidth: column.maxSize ? `${column.maxSize}px` : undefined,
+                    }}
+                  >
                     {renderedValue}
                   </td>
                 );

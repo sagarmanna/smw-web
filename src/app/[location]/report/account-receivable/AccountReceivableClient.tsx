@@ -15,6 +15,9 @@ const columns = [
   { 
     accessorKey: "customerName", 
     header: "Customer Name",
+    size: 150, // Reduced width to eliminate unnecessary space
+    minSize: 120,
+    maxSize: 200,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       const isFooter = row.original.id === -1;
       if (isFooter) {
@@ -24,69 +27,93 @@ const columns = [
       const status = row.original.status;
       if (status && status !== "Active") {
         return (
-          <div>
+          <div className="break-words">
             <span>{customer}</span>
             <span className="italic text-gray-500 ml-2">({status})</span>
           </div>
         );
       }
-      return customer;
+      return <span className="break-words">{customer}</span>;
     }
   },
   { 
     accessorKey: "aging_0_30", 
     header: "0-30",
+    size: 100,
+    minSize: 80,
+    maxSize: 120,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.aging_0_30)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.aging_0_30)}</span>;
     }
   },
   { 
     accessorKey: "aging_31_60", 
     header: "31-60",
+    size: 100,
+    minSize: 80,
+    maxSize: 120,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.aging_31_60)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.aging_31_60)}</span>;
     }
   },
   { 
     accessorKey: "aging_61_90", 
     header: "61-90",
+    size: 100,
+    minSize: 80,
+    maxSize: 120,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.aging_61_90)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.aging_61_90)}</span>;
     }
   },
   { 
     accessorKey: "aging_90_plus", 
     header: "90+",
+    size: 100,
+    minSize: 80,
+    maxSize: 120,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.aging_90_plus)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.aging_90_plus)}</span>;
     }
   },
   { 
     accessorKey: "total", 
     header: "Total",
+    size: 120,
+    minSize: 100,
+    maxSize: 150,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.total)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.total)}</span>;
     }
   },
   { 
     accessorKey: "prePaidLessons", 
     header: "Pre-Paid Lessons",
+    size: 140,
+    minSize: 120,
+    maxSize: 180,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.prePaidLessons)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.prePaidLessons)}</span>;
     }
   },
   { 
     accessorKey: "unusedCredits", 
     header: "Unused Credits",
+    size: 140,
+    minSize: 120,
+    maxSize: 180,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.unusedCredits)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.unusedCredits)}</span>;
     }
   },
   { 
     accessorKey: "balance", 
     header: "Balance",
+    size: 120,
+    minSize: 100,
+    maxSize: 150,
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
-      return <span>{formatCurrency(row.original.balance)}</span>;
+      return <span className="text-right block">{formatCurrency(row.original.balance)}</span>;
     }
   },
 ];

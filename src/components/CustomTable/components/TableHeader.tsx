@@ -37,7 +37,7 @@ export function TableHeader<TData>({
                     <th
                       key={`group-${columnKey}`}
                       colSpan={group.columnKeys.length}
-                      className={`${getSizeClasses.header} text-center font-bold bg-muted/60 text-muted-foreground border-b border-border/30`}
+                      className={`${getSizeClasses.header} text-center font-bold bg-muted/60 text-foreground border-b border-border/30`}
                     >
                       {group.label}
                     </th>
@@ -52,6 +52,11 @@ export function TableHeader<TData>({
                   key={`group-${columnKey}`}
                   rowSpan={2}
                   className={`${getSizeClasses.header} text-left font-semibold text-foreground`}
+                  style={{
+                    width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                    minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                    maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                  }}
                 >
                   {flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
@@ -69,7 +74,15 @@ export function TableHeader<TData>({
               }
               
               return (
-                <th key={header.id} className={`${getSizeClasses.header} text-left font-semibold text-foreground`}>
+                <th 
+                  key={header.id} 
+                  className={`${getSizeClasses.header} text-left font-semibold text-foreground`}
+                  style={{
+                    width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                    minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                    maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                  }}
+                >
                   {flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
               );
@@ -81,7 +94,15 @@ export function TableHeader<TData>({
         table.getHeaderGroups().map((headerGroup) => (
           <tr key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <th key={header.id} className={`${getSizeClasses.header} text-left font-semibold text-foreground`}>
+              <th 
+                key={header.id} 
+                className={`${getSizeClasses.header} text-left font-semibold text-foreground`}
+                style={{
+                  width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                  minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                  maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                }}
+              >
                 {flexRender(header.column.columnDef.header, header.getContext())}
               </th>
             ))}
