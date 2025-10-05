@@ -11,7 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { Card } from "@/components/ui/card";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DateRangePicker } from "@/components/DateRangePicker";
+ 
 
 // Import components and types
 import { 
@@ -31,6 +31,7 @@ export interface CustomTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   title?: string;
+  tableTitle?: string;
   columnGroups?: ColumnGroup[]; // Optional column grouping
   footerRow?: TData; // Optional footer row data
   
@@ -117,6 +118,7 @@ export function CustomTable<TData, TValue>({
   data,
   columns,
   title,
+  tableTitle,
   columnGroups,
   footerRow,
   
@@ -245,56 +247,70 @@ export function CustomTable<TData, TValue>({
     onRowsPerPageChange?.(newRowsPerPage);
   }, [onRowsPerPageChange, controlledRowsPerPage]);
 
-  const printCurrentTable = React.useCallback(() => {
-    const tableEl = tableContainerRef.current?.querySelector('table');
-    if (!tableEl) return;
-    const getOrdinal = (n: number) => {
-      const s = ["th", "st", "nd", "rd"], v = n % 100;
-      return s[(v - 20) % 10] || s[v] || s[0];
-    };
-    const fmt = (d: Date) => {
-      try {
-        const day = d.getDate();
-        const month = d.toLocaleString("en-US", { month: "long" });
-        const year = d.getFullYear();
-        return `${month} ${day}${getOrdinal(day)}, ${year}`;
-      } catch { return ""; }
-    };
-    const rangeHtml = (dateRange?.from && dateRange?.to)
-      ? `<div style="margin:4px 0 12px;color:#334155;">${fmt(dateRange.from)} to ${fmt(dateRange.to)}</div>`
-      : "";
-    const titleHtml = title ? `<h1 style=\"margin:0 0 6px;font-size:20px;font-weight:700;color:#0f172a;\">${title}</h1>` : "";
-    const styles = `
-      * { box-sizing: border-box; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol'; }
-      body { margin: 16px; color: #0f172a; }
-      table { width: 100%; border-collapse: collapse; }
-      thead th { background: #f1f5f9; font-weight: 600; }
-      th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
-      tbody tr:hover { background: transparent !important; }
-      tbody tr:last-child td { font-weight: 700; }
-    `;
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Report</title><style>${styles}</style></head><body>${titleHtml}${rangeHtml}${tableEl.outerHTML}</body></html>`;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-  }, [dateRange?.from, dateRange?.to, title]);
+  // legacy print removed
 
-  React.useEffect(() => {
-    const onHotkey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
-        e.preventDefault();
-        printCurrentTable();
-      }
-    };
-    window.addEventListener('keydown', onHotkey);
-    return () => window.removeEventListener('keydown', onHotkey);
-  }, [printCurrentTable]);
+  // Create a simplified table for printing: single header row with printable names
+  const createPrintedTable = (
+    tableEl: HTMLTableElement,
+    selectedIdx: number[],
+    headerNames: string[],
+    columnSizes: number[]
+  ) => {
+    const total = columnSizes.reduce((t, n) => t + n, 0) || 1;
+    const colPercents = columnSizes.map((n) => Math.max(6, Math.round((n / total) * 100)));
+
+    const bodyRows = Array.from(tableEl.querySelectorAll('tbody tr'));
+
+    const colgroup = `<colgroup>${colPercents
+      .map((p) => `<col style="width:${p}%;">`)
+      .join('')}</colgroup>`;
+
+    const thead = `<thead><tr>${headerNames
+      .map((name) => `<th>${name}</th>`)
+      .join('')}</tr></thead>`;
+
+    const tbody = `<tbody>${bodyRows
+      .map((tr) => {
+        const isFooter = (tr as HTMLElement).dataset.footer === 'true';
+        const tds = Array.from(tr.children) as HTMLElement[];
+        const cells = selectedIdx.map((i) => `<td>${(tds[i]?.textContent || '').trim()}</td>`);
+        return `<tr${isFooter ? ' class="__print-footer"' : ''}>${cells.join('')}</tr>`;
+      })
+      .join('')}</tbody>`;
+
+    return `<table>${colgroup}${thead}${tbody}</table>`;
+  };
+
+  // Helper function to create filtered table
+  const createFilteredTable = (tableEl: HTMLTableElement, selectedColumns: number[]) => {
+    const newTable = tableEl.cloneNode(true) as HTMLTableElement;
+    
+    // Filter header cells
+    const headerRows = newTable.querySelectorAll('thead tr');
+    headerRows.forEach(row => {
+      const cells = Array.from(row.children);
+      cells.forEach((cell, index) => {
+        if (!selectedColumns.includes(index)) {
+          cell.remove();
+        }
+      });
+    });
+    
+    // Filter body cells
+    const bodyRows = newTable.querySelectorAll('tbody tr');
+    bodyRows.forEach(row => {
+      const cells = Array.from(row.children);
+      cells.forEach((cell, index) => {
+        if (!selectedColumns.includes(index)) {
+          cell.remove();
+        }
+      });
+    });
+    
+    return newTable.outerHTML;
+  };
+
+  // legacy print hotkey removed
 
   type ExportKind = "html" | "csv" | "text" | "excel" | "pdf" | "json";
   const [confirmOpen, setConfirmOpen] = React.useState<boolean>(false);
@@ -386,7 +402,7 @@ export function CustomTable<TData, TValue>({
             dateRange={dateRange}
             onDateRangeChange={onDateRangeChange}
             enablePrint={enablePrint}
-            onPrint={onPrint || printCurrentTable}
+            onPrint={onPrint}
             enableExport={enableExport}
             onExport={onExport}
             onStartExport={startExport}

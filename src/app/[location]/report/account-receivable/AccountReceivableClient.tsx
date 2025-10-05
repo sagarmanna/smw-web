@@ -18,6 +18,8 @@ const columns = [
     size: 150, // Reduced width to eliminate unnecessary space
     minSize: 120,
     maxSize: 200,
+    printable: true,
+    printableName: "Customer Name",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       const isFooter = row.original.id === -1;
       if (isFooter) {
@@ -82,6 +84,8 @@ const columns = [
     size: 120,
     minSize: 100,
     maxSize: 150,
+    printable: true,
+    printableName: "OutStanding Invoices",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.total)}</span>;
     }
@@ -92,6 +96,8 @@ const columns = [
     size: 140,
     minSize: 120,
     maxSize: 180,
+    printable: true,
+    printableName: "Pre-Paid Lessons",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.prePaidLessons)}</span>;
     }
@@ -102,6 +108,8 @@ const columns = [
     size: 140,
     minSize: 120,
     maxSize: 180,
+    printable: true,
+    printableName: "Unused Credits",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.unusedCredits)}</span>;
     }
@@ -112,6 +120,8 @@ const columns = [
     size: 120,
     minSize: 100,
     maxSize: 150,
+    printable: true,
+    printableName: "Balance",
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.balance)}</span>;
     }
@@ -443,6 +453,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           data={accountReceivable}
           columns={columns}
           footerRow={footerRow || undefined}
+          tableTitle="Accounts Receivable Report"
           
           // Visual configuration
           size="compact"

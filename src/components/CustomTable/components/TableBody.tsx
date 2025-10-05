@@ -71,7 +71,7 @@ export function TableBody<TData, TValue = unknown>({
           })}
           {/* Footer Row */}
           {footerRow && (
-            <tr className="bg-muted/50 border-t-2 border-b border-border/50 font-semibold">
+            <tr data-footer="true" className="bg-muted/50 border-t-2 border-b border-border/50 font-semibold">
               {columns.map((column, index) => {
                 const accessorKey = 'accessorKey' in column ? column.accessorKey : `col-${index}`;
                 const cellValue = (footerRow as Record<string, unknown>)[accessorKey as string];
