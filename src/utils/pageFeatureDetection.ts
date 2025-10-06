@@ -8,12 +8,11 @@ export const getCurrentPageFeature = (pathname: string): string => {
   const slugToFeatureMap: { [key: string]: string } = {
     'dashboard': 'dashboard',
     'schedule': 'schedule',
-    // 'account-receivable': 'accountReceivable',
+    'account-receivable': 'accountReceivable',
     'student-birthday': 'birthdays',
     'payment': 'paymentsReport',
     'items': 'reportItems',
     'rental': 'rental',
-    // Add other slug-to-feature mappings here
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -26,14 +25,13 @@ export const getLegacyUrl = (feature: string, location: string): string => {
   const featureToUrlMap: { [key: string]: string } = {
     dashboard: `/dashboard`,
     schedule: `/schedule`,
-    // accountReceivable: `/report/account-receivable-report`,
-    items: `/report/items`,
+    accountReceivable: `/report/account-receivable-report`,
     birthdays: `/report/student-birthday`,
     paymentsReport: `/report/payment`,
     reportItems: `/report/items`,
-    // Add other feature-to-legacy-URL mappings here
+    rental: `/report/rental`,
   };
   
-  const legacyPath = featureToUrlMap[feature] || '/dashboard'; // Default to dashboard if not found
-  return `${legacyBaseUrl}${legacyPath}`;
+  const legacyPath = featureToUrlMap[feature] || '/dashboard';
+  return `${legacyBaseUrl}/${location}${legacyPath}`;
 };
