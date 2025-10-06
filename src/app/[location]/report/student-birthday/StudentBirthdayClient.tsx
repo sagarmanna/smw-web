@@ -166,7 +166,6 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
         enableSearch={false}
         enableExport={false}
         enableFilter={false}
-        enableShowAll={false}
         enableRowsPerPage={false}
       />
     </ReportPageLayout>

@@ -440,7 +440,6 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
           enableExport={true} // Enable export icons
           enableFilter={false}
           enablePrint={true} // Enable print
-          enableShowAll={true}
           enableDateRangePicker={true} // Enable DateRangePicker
           
           // DateRangePicker configuration

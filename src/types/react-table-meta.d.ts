@@ -10,5 +10,6 @@ declare module "@tanstack/react-table" {
   interface ColumnMeta<TData, TValue> {
     printable?: boolean;
     printableName?: string;
+    exportFormatter?: (value: TValue) => string | number;
   }
 }
