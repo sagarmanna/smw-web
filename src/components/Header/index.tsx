@@ -104,7 +104,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
         'menu-flags': '/admin/menu-flags', // Special case for admin pages
       };
       
-      const legacyPath = legacyPageMap[currentPage] || `/${currentPage}`;
+      let legacyPath;
+      if (legacyPageMap[currentPage]) {
+        legacyPath = legacyPageMap[currentPage];
+      } else {
+        legacyPath = pathname.replace('/v2', '');
+      }
+      
       const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL || 'http://localhost:8080'}${legacyPath}`;
       
       // Redirect to legacy page
