@@ -34,11 +34,14 @@ export interface ItemAPIResponse {
   success: boolean;
   data: {
     body: Item[];
-    meta: {
+    footer?: {
+      amount: number;
+    };
+    meta?: {
       startDate: string;
       endDate: string;
       location: string;
-      totalAmount: number;
+      totalAmount?: number;
     };
     pagination: {
       page: number;
