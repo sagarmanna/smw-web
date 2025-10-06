@@ -44,7 +44,8 @@ export default function PageAccessControl({ children }: PageAccessControlProps) 
   const currentMenuItem = findMenuItemByUrl(menuItems, pathname);
 
   // If no menu item is found for the current path, deny access
-  if (!currentMenuItem) {
+
+  if (!currentMenuItem && !pathname.includes('/dashboard')) {
     return <AccessDeniedCard />;
   }
   
