@@ -50,13 +50,19 @@ export const ItemsClient = ({ location }: { location: string }) => {
         setData(items);
         setPagination(response.data.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
         
-        // Calculate total amount from items if not provided by API
-        const calculatedTotal = items.reduce((sum: number, item: Item) => {
-          const amount = typeof item.amount === 'string' ? parseFloat(item.amount) : item.amount;
-          return sum + (amount || 0);
-        }, 0);
-        console.log('Calculated total:', calculatedTotal);
-        setTotalAmount(response.data.meta?.totalAmount || calculatedTotal);
+        const apiTotal = response.data.footer?.amount;
+        
+        if (apiTotal !== undefined) {
+          setTotalAmount(apiTotal);
+        } else {
+          // Calculate total amount from items if not provided by API
+          const calculatedTotal = items.reduce((sum: number, item: Item) => {
+            const amount = typeof item.amount === 'string' ? parseFloat(item.amount) : item.amount;
+            return sum + (amount || 0);
+          }, 0);
+          console.log('Calculated total:', calculatedTotal);
+          setTotalAmount(response.data.meta?.totalAmount || calculatedTotal);
+        }
       } else {
         console.error('Items API error:', response.message);
         setError(response.message || "An unknown error occurred");
