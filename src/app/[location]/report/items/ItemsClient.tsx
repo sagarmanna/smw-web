@@ -104,23 +104,13 @@ export const ItemsClient = ({ location }: { location: string }) => {
       },
     },
     {
-      accessorKey: "itemName",
-      header: "Item Name",
-      size: 200,
-      enableSorting: false,
-      meta: {
-        printable: true,
-        printableName: "Item Name",
-      },
-    },
-    {
       accessorKey: "itemCode",
-      header: "Item Code",
+      header: "Item",
       size: 200,
       enableSorting: false,
       meta: {
         printable: true,
-        printableName: "Item Code",
+        printableName: "Item",
       },
     },
     {
@@ -150,7 +140,7 @@ export const ItemsClient = ({ location }: { location: string }) => {
       id: "-1",
       date: "",
       dateLabel: "",
-      itemName: "TOTAL",
+      itemName: "",
       itemCode: "TOTAL",
       amount: totalAmount,
     };
