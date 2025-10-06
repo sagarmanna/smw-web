@@ -44,7 +44,6 @@ export interface CustomTableProps<TData, TValue> {
   enableExport?: boolean;
   enableFilter?: boolean;
   enablePrint?: boolean;
-  enableShowAll?: boolean;
   enableDateRangePicker?: boolean;
   enableSorting?: boolean; // Enable column sorting
   enableRowsPerPage?: boolean; // Enable rows per page selector
@@ -135,7 +134,6 @@ export function CustomTable<TData, TValue>({
   enableExport = false,
   enableFilter = false,
   enablePrint = true,
-  enableShowAll = true,
   enableDateRangePicker = false,
   enableSorting = true,
   enableRowsPerPage = false,
@@ -212,7 +210,6 @@ export function CustomTable<TData, TValue>({
     onSortingChange?.(newSorting);
   };
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
-  const [showAll, setShowAll] = React.useState<boolean>(false);
   // Use controlled value if provided, otherwise use internal state
   const [internalRowsPerPage, setInternalRowsPerPage] = React.useState<number>(initialRowsPerPage);
   const rowsPerPage = controlledRowsPerPage !== undefined ? controlledRowsPerPage : internalRowsPerPage;
@@ -364,9 +361,6 @@ export function CustomTable<TData, TValue>({
             enableExport={enableExport}
             onExport={onExport}
             onStartExport={startExport}
-            enableShowAll={enableShowAll}
-            showAll={showAll}
-            onShowAllToggle={() => setShowAll((v) => !v)}
             enableRowsPerPage={enableRowsPerPage}
             rowsPerPage={rowsPerPage}
             rowsPerPageOptions={rowsPerPageOptions}

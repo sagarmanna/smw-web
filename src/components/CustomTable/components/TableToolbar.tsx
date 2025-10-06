@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Download, Filter, Printer, Infinity, List, Search, Check } from "lucide-react";
+import { Download, Filter, Printer, List, Search, Check } from "lucide-react";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { FilterOption, ServerSideFilterOption } from "./types";
 
@@ -41,11 +41,6 @@ interface TableToolbarProps<TData> {
   };
   onStartExport: (kind: "html" | "csv" | "text" | "excel" | "pdf" | "json") => void;
   
-  // Show All/Pages Toggle
-  enableShowAll: boolean;
-  showAll: boolean;
-  onShowAllToggle: () => void;
-  
   // Rows per page
   enableRowsPerPage: boolean;
   rowsPerPage: number;
@@ -76,9 +71,6 @@ export function TableToolbar<TData>({
   enableExport,
   onExport,
   onStartExport,
-  enableShowAll,
-  showAll,
-  onShowAllToggle,
   enableRowsPerPage,
   rowsPerPage,
   rowsPerPageOptions,
@@ -185,25 +177,6 @@ export function TableToolbar<TData>({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
-      
-      {/* Show All/Pages Toggle */}
-      {enableShowAll && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onShowAllToggle}
-            >
-              {showAll ? <List className="h-4 w-4" /> : <Infinity className="h-4 w-4" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{showAll ? "Show Pages" : "Show All"}</p>
-          </TooltipContent>
-        </Tooltip>
       )}
       
       {/* Rows per page selector */}

@@ -7,9 +7,8 @@ import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { AccountReceivableRow, testApiConnection, getAccountReceivableList } from "./account-receivable.api";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { usePrintReport } from "@/hooks/usePrintReport";
+import { useExportableData } from "@/hooks/useExportableData";
 
 interface AccountReceivableClientProps {
   location: string;
@@ -50,6 +49,9 @@ const columns = [
     size: 100,
     minSize: 80,
     maxSize: 120,
+    meta: {
+      exportFormatter: (value: unknown) => formatCurrency(value as number),
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.aging_0_30)}</span>;
     }
@@ -60,6 +62,9 @@ const columns = [
     size: 100,
     minSize: 80,
     maxSize: 120,
+    meta: {
+      exportFormatter: (value: unknown) => formatCurrency(value as number),
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.aging_31_60)}</span>;
     }
@@ -70,6 +75,9 @@ const columns = [
     size: 100,
     minSize: 80,
     maxSize: 120,
+    meta: {
+      exportFormatter: (value: unknown) => formatCurrency(value as number),
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.aging_61_90)}</span>;
     }
@@ -80,6 +88,9 @@ const columns = [
     size: 100,
     minSize: 80,
     maxSize: 120,
+    meta: {
+      exportFormatter: (value: unknown) => formatCurrency(value as number),
+    },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.aging_90_plus)}</span>;
     }
@@ -93,6 +104,7 @@ const columns = [
     meta: {
       printable: true,
       printableName: "OutStanding Invoices",
+      exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.total)}</span>;
@@ -107,6 +119,7 @@ const columns = [
     meta: {
       printable: true,
       printableName: "Pre-Paid Lessons",
+      exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.prePaidLessons)}</span>;
@@ -121,6 +134,7 @@ const columns = [
     meta: {
       printable: true,
       printableName: "Unused Credits",
+      exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.unusedCredits)}</span>;
@@ -135,6 +149,7 @@ const columns = [
     meta: {
       printable: true,
       printableName: "Balance",
+      exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
       return <span className="text-right block">{formatCurrency(row.original.balance)}</span>;
@@ -302,145 +317,20 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     return null;
   }, [footer]);
 
+  const {
+    exportToCsv,
+    exportToPdf,
+    exportToHtml,
+    exportToJson,
+    exportToText,
+    exportToExcel,
+  } = useExportableData({
+    reportTitle: 'Accounts Receivable Report',
+    columns,
+    data: accountReceivable,
+    footer: footerRow || undefined,
+  });
 
-  // Export functions with footer access
-  const exportToHtml = React.useCallback((data: AccountReceivableRow[]) => {
-    const head = `<!doctype html><html><head><meta charset="utf-8"><title>Accounts Receivable</title></head><body>`;
-    const tail = `</body></html>`;
-    const tableRows = data.map(r => 
-      `<tr><td>${r.customerName}</td><td>${formatCurrency(r.aging_0_30)}</td><td>${formatCurrency(r.aging_31_60)}</td><td>${formatCurrency(r.aging_61_90)}</td><td>${formatCurrency(r.aging_90_plus)}</td><td>${formatCurrency(r.total)}</td><td>${formatCurrency(r.prePaidLessons)}</td><td>${formatCurrency(r.unusedCredits)}</td><td>${formatCurrency(r.balance)}</td></tr>`
-    ).join("");
-    const footerRow = footer 
-      ? `<tr style="font-weight:bold;background:#f0f0f0;"><td>TOTALS</td><td>${formatCurrency(footer.aging_0_30)}</td><td>${formatCurrency(footer.aging_31_60)}</td><td>${formatCurrency(footer.aging_61_90)}</td><td>${formatCurrency(footer.aging_90_plus)}</td><td>${formatCurrency(footer.total)}</td><td>${formatCurrency(footer.prePaidLessons)}</td><td>${formatCurrency(footer.unusedCredits)}</td><td>${formatCurrency(footer.balance)}</td></tr>`
-      : "";
-    const html = `${head}<h3>Accounts Receivable</h3><table border="1" cellspacing="0" cellpadding="4"><thead><tr><th>Customer Name</th><th>0-30</th><th>31-60</th><th>61-90</th><th>90+</th><th>Total</th><th>Pre-Paid Lessons</th><th>Unused Credits</th><th>Balance</th></tr></thead><tbody>${tableRows}${footerRow}</tbody></table>${tail}`;
-    download(new Blob([html], { type: "text/html;charset=utf-8;" }), "accounts-receivable.html");
-  }, [footer]);
-
-  const exportToCsv = React.useCallback((data: AccountReceivableRow[]) => {
-    const headers = ["Customer Name", "0-30", "31-60", "61-90", "90+", "Total", "Pre-Paid Lessons", "Unused Credits", "Balance"];
-    const lines = data.map(r => 
-      [r.customerName, r.aging_0_30, r.aging_31_60, r.aging_61_90, r.aging_90_plus, r.total, r.prePaidLessons, r.unusedCredits, r.balance]
-        .map(field => `"${String(field).replace(/"/g, '""')}"`)
-        .join(",")
-    );
-    const footerLine = footer 
-      ? ["TOTALS", footer.aging_0_30, footer.aging_31_60, footer.aging_61_90, footer.aging_90_plus, footer.total, footer.prePaidLessons, footer.unusedCredits, footer.balance]
-          .map(field => `"${String(field).replace(/"/g, '""')}"`)
-          .join(",")
-      : "";
-    const csvContent = footerLine 
-      ? [headers.join(","), ...lines, footerLine].join("\r\n")
-      : [headers.join(","), ...lines].join("\r\n");
-    download(new Blob([csvContent], { type: "text/csv;charset=utf-8;" }), "accounts-receivable.csv");
-  }, [footer]);
-
-  const exportToText = React.useCallback((data: AccountReceivableRow[]) => {
-    const lines = data.map(r => 
-      `${r.customerName}\t${formatCurrency(r.aging_0_30)}\t${formatCurrency(r.aging_31_60)}\t${formatCurrency(r.aging_61_90)}\t${formatCurrency(r.aging_90_plus)}\t${formatCurrency(r.total)}\t${formatCurrency(r.prePaidLessons)}\t${formatCurrency(r.unusedCredits)}\t${formatCurrency(r.balance)}`
-    );
-    const footerLine = footer 
-      ? `TOTALS\t${formatCurrency(footer.aging_0_30)}\t${formatCurrency(footer.aging_31_60)}\t${formatCurrency(footer.aging_61_90)}\t${formatCurrency(footer.aging_90_plus)}\t${formatCurrency(footer.total)}\t${formatCurrency(footer.prePaidLessons)}\t${formatCurrency(footer.unusedCredits)}\t${formatCurrency(footer.balance)}`
-      : "";
-    const content = footerLine ? [...lines, footerLine].join("\r\n") : lines.join("\r\n");
-    download(new Blob([content], { type: "text/plain;charset=utf-8;" }), "accounts-receivable.txt");
-  }, [footer]);
-
-  const exportToExcel = React.useCallback((data: AccountReceivableRow[]) => {
-    const headers = ["Customer Name", "0-30", "31-60", "61-90", "90+", "Total", "Pre-Paid Lessons", "Unused Credits", "Balance"];
-    const lines = data.map(r => 
-      [r.customerName, r.aging_0_30, r.aging_31_60, r.aging_61_90, r.aging_90_plus, r.total, r.prePaidLessons, r.unusedCredits, r.balance]
-        .map(field => `"${String(field).replace(/"/g, '""')}"`)
-        .join(",")
-    );
-    const footerLine = footer 
-      ? ["TOTALS", footer.aging_0_30, footer.aging_31_60, footer.aging_61_90, footer.aging_90_plus, footer.total, footer.prePaidLessons, footer.unusedCredits, footer.balance]
-          .map(field => `"${String(field).replace(/"/g, '""')}"`)
-          .join(",")
-      : "";
-    const excelContent = footerLine 
-      ? [headers.join(","), ...lines, footerLine].join("\r\n")
-      : [headers.join(","), ...lines].join("\r\n");
-    download(new Blob([excelContent], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8;" }), "accounts-receivable.xlsx");
-  }, [footer]);
-
-  const exportToPdf = React.useCallback((data: AccountReceivableRow[]) => {
-    const doc = new jsPDF();
-    
-    // Add title
-    doc.setFontSize(16);
-    doc.text("Accounts Receivable Report", 14, 15);
-    
-    // Prepare table data
-    const headers = [
-      ["Customer Name", "0-30", "31-60", "61-90", "90+", "Total", "Pre-Paid Lessons", "Unused Credits", "Balance"]
-    ];
-    
-    const rows = data.map(r => [
-      r.customerName,
-      formatCurrency(r.aging_0_30),
-      formatCurrency(r.aging_31_60),
-      formatCurrency(r.aging_61_90),
-      formatCurrency(r.aging_90_plus),
-      formatCurrency(r.total),
-      formatCurrency(r.prePaidLessons),
-      formatCurrency(r.unusedCredits),
-      formatCurrency(r.balance)
-    ]);
-    
-    // Add footer row if exists
-    if (footer) {
-      rows.push([
-        "TOTALS",
-        formatCurrency(footer.aging_0_30),
-        formatCurrency(footer.aging_31_60),
-        formatCurrency(footer.aging_61_90),
-        formatCurrency(footer.aging_90_plus),
-        formatCurrency(footer.total),
-        formatCurrency(footer.prePaidLessons),
-        formatCurrency(footer.unusedCredits),
-        formatCurrency(footer.balance)
-      ]);
-    }
-    
-    // Generate table
-    autoTable(doc, {
-      head: headers,
-      body: rows,
-      startY: 25,
-      margin: { left: 14, right: 14 },
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [248, 250, 252], textColor: [17, 24, 39], fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 25, halign: 'left' },
-        1: { cellWidth: 20, halign: 'right' },
-        2: { cellWidth: 20, halign: 'right' },
-        3: { cellWidth: 20, halign: 'right' },
-        4: { cellWidth: 20, halign: 'right' },
-        5: { cellWidth: 20, halign: 'right' },
-        6: { cellWidth: 22, halign: 'right' },
-        7: { cellWidth: 21, halign: 'right' },
-        8: { cellWidth: 20, halign: 'right' }
-      },
-      didParseCell: function(data) {
-        // Style footer row
-        if (footer && data.row.index === rows.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [241, 245, 249];
-        }
-      }
-    });
-    
-    // Save the PDF
-    doc.save("accounts-receivable.pdf");
-  }, [footer]);
-
-  const exportToJson = React.useCallback((data: AccountReceivableRow[]) => {
-    const exportData = footer 
-      ? { data: data, totals: footer }
-      : { data: data };
-    download(new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json;charset=utf-8;" }), "accounts-receivable.json");
-  }, [footer]);
 
   // Show loading animation
   if (isLoading) {
@@ -502,7 +392,6 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           data: accountReceivable,
           footer: footerRow || undefined,
         })}
-        enableShowAll={false}
         enableSorting={false}
         enableRowsPerPage={true}
         
@@ -532,24 +421,14 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
         
         // Export configuration
         onExport={{
-          html: (data) => exportToHtml(data as AccountReceivableRow[]),
-          csv: (data) => exportToCsv(data as AccountReceivableRow[]),
-          text: (data) => exportToText(data as AccountReceivableRow[]),
-          excel: (data) => exportToExcel(data as AccountReceivableRow[]),
-          pdf: (data) => exportToPdf(data as AccountReceivableRow[]),
-          json: (data) => exportToJson(data as AccountReceivableRow[]),
+          html: exportToHtml,
+          csv: exportToCsv,
+          text: exportToText,
+          excel: exportToExcel,
+          pdf: exportToPdf,
+          json: exportToJson,
         }}
       />
     </ReportPageLayout>
   );
 }
-
-
-const download = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-};

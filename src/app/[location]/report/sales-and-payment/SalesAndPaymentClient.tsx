@@ -310,8 +310,6 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
             enableExport={true}
             enableFilter={false}
             enablePrint={false}
-            enableShowAll={false}
-            // pageSize={10}
             title={undefined}
           />
         </Card>
@@ -326,8 +324,6 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
             enableExport={true}
             enableFilter={false}
             enablePrint={false}
-            enableShowAll={false}
-            // pageSize={10}
             title={undefined}
           />
         </Card>
