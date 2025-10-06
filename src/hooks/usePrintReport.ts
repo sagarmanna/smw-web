@@ -19,6 +19,7 @@ export function usePrintReport<TData>() {
           header: c.meta?.printableName || (typeof c.header === 'string' ? c.header : ''),
           size: c.size ?? 100,
           printable: c.meta?.printable === true,
+          formatter: c.meta?.exportFormatter,
         }))
         .filter((c) => c.printable && c.key);
 
@@ -32,8 +33,19 @@ export function usePrintReport<TData>() {
         widthPercent: Math.max(6, Math.round(((c.size || 100) / total) * 100)),
       }));
 
-      const rowsForPrint = data.map((r) => ({ ...r }));
-      const footerForPrint = footer ? { ...footer } : undefined;
+      const formatRow = (row: TData) => {
+        const formattedRow: Record<string, unknown> = {};
+        printable.forEach(col => {
+          if (col.key) {
+            const value = (row as Record<string, unknown>)[col.key];
+            formattedRow[col.key] = col.formatter ? col.formatter(value) : value;
+          }
+        });
+        return formattedRow;
+      };
+
+      const rowsForPrint = data.map(formatRow);
+      const footerForPrint = footer ? formatRow(footer) : undefined;
 
       const payload = {
         title: reportTitle,

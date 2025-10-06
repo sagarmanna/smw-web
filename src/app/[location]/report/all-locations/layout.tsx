@@ -12,14 +12,14 @@ export async function generateMetadata({ params }: ReportLayoutProps): Promise<M
   const { location } = await params;
 
   const formattedLocation = formatLocationName(location);
-
+  
   return {
-    title: `Items Report - ${formattedLocation} | SMW`,
-    description: `View items and transactions for ${formattedLocation}.`,
-    keywords: ['Items Report', 'Transactions', 'Sales Items', location],
+    title: `All Locations Report - ${formattedLocation} | SMW`,
+    description: `View statistics and financial data for all locations.`,
+    keywords: ['All Locations', 'Financial Report', 'Location Stats', location],
     openGraph: {
-      title: `${formattedLocation} Items Report`,
-      description: `View items and transactions for ${formattedLocation}.`,
+      title: `${formattedLocation} - All Locations Report`,
+      description: `View statistics and financial data for all locations.`,
       type: 'website',
     },
   };
