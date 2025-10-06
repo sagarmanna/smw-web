@@ -72,20 +72,22 @@ export const ItemsClient = ({ location }: { location: string }) => {
   }, [location, dateRange, sorting]);
 
   React.useEffect(() => {
-    fetchItems(1, rowsPerPage, dateRange.from, dateRange.to);
+    const limit = rowsPerPage === -1 ? 999999 : rowsPerPage;
+    fetchItems(1, limit, dateRange.from, dateRange.to);
   }, [fetchItems, dateRange, sorting, rowsPerPage]);
 
   const handlePageChange = (newPage: number) => {
-    fetchItems(newPage, rowsPerPage, dateRange.from, dateRange.to);
+    const limit = rowsPerPage === -1 ? 999999 : rowsPerPage;
+    fetchItems(newPage, limit, dateRange.from, dateRange.to);
   };
   
   const handleDateRangeChange = (newDateRange: { from: Date; to: Date }) => {
     setDateRange(newDateRange);
-    fetchItems(1, rowsPerPage, newDateRange.from, newDateRange.to);
   };
 
   const refetch = () => {
-    fetchItems(1, rowsPerPage, dateRange.from, dateRange.to);
+    const limit = rowsPerPage === -1 ? 999999 : rowsPerPage;
+    fetchItems(1, limit, dateRange.from, dateRange.to);
   };
 
   const columns: ColumnDef<Item>[] = [
@@ -121,7 +123,7 @@ export const ItemsClient = ({ location }: { location: string }) => {
         const amount = typeof row.original.amount === 'string' 
           ? parseFloat(row.original.amount) 
           : row.original.amount;
-        return formatCurrency(amount);
+        return <span className="text-right block">{formatCurrency(amount)}</span>;
       },
       enableSorting: false,
       meta: {
@@ -217,21 +219,12 @@ export const ItemsClient = ({ location }: { location: string }) => {
   
         // Disabled Features
         enableSearch={false}
-        enableExport={true}
-        onExport={{
-          html: exportToHtml,
-          csv: exportToCsv,
-          text: exportToText,
-          excel: exportToExcel,
-          pdf: exportToPdf,
-          json: exportToJson,
-        }}
+        enableExport={false}
         enableFilter={false}
         enableRowsPerPage={true}
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={(newRowsPerPage) => {
           setRowsPerPage(newRowsPerPage);
-          handlePageChange(1);
         }}
       />
     </ReportPageLayout>
