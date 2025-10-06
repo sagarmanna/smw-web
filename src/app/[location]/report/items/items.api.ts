@@ -22,6 +22,7 @@ export interface Item {
 
 export interface ItemFilters {
   page?: number;
+  limit?: number;
   startDate?: Date;
   endDate?: Date;
   sort?: string;
@@ -62,6 +63,7 @@ export async function getItemsList(
     // Add filter parameters
     if (filters) {
       if (filters.page) params.append('page', filters.page.toString());
+      if (filters.limit) params.append('limit', filters.limit.toString());
       if (filters.startDate) params.append('startDate', format(filters.startDate, "yyyy-MM-dd"));
       if (filters.endDate) params.append('endDate', format(filters.endDate, "yyyy-MM-dd"));
       if (filters.sort) params.append('sort', filters.sort);

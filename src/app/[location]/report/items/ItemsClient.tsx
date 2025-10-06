@@ -8,6 +8,8 @@ import { addDays } from "date-fns";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { useExportableData } from "@/hooks/useExportableData";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 
 // Client Component
 export const ItemsClient = ({ location }: { location: string }) => {
@@ -26,14 +28,16 @@ export const ItemsClient = ({ location }: { location: string }) => {
     to: addDays(new Date(), 7),
   });
   const [totalAmount, setTotalAmount] = React.useState(0);
+  const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
 
-  const fetchItems = React.useCallback(async (page: number, startDate?: Date, endDate?: Date) => {
+  const fetchItems = React.useCallback(async (page: number, limit: number, startDate?: Date, endDate?: Date) => {
     setIsLoading(true);
     setError(null);
     try {
       const sort = sorting[0];
       const response = await getItemsList(location, {
         page,
+        limit,
         startDate: startDate || dateRange.from,
         endDate: endDate || dateRange.to,
         sort: sort?.id,
@@ -68,26 +72,26 @@ export const ItemsClient = ({ location }: { location: string }) => {
   }, [location, dateRange, sorting]);
 
   React.useEffect(() => {
-    fetchItems(1, dateRange.from, dateRange.to);
-  }, [fetchItems, dateRange, sorting]);
+    fetchItems(1, rowsPerPage, dateRange.from, dateRange.to);
+  }, [fetchItems, dateRange, sorting, rowsPerPage]);
 
   const handlePageChange = (newPage: number) => {
-    fetchItems(newPage, dateRange.from, dateRange.to);
+    fetchItems(newPage, rowsPerPage, dateRange.from, dateRange.to);
   };
   
   const handleDateRangeChange = (newDateRange: { from: Date; to: Date }) => {
     setDateRange(newDateRange);
-    fetchItems(1, newDateRange.from, newDateRange.to);
+    fetchItems(1, rowsPerPage, newDateRange.from, newDateRange.to);
   };
 
   const refetch = () => {
-    fetchItems(1, dateRange.from, dateRange.to);
+    fetchItems(1, rowsPerPage, dateRange.from, dateRange.to);
   };
 
   const columns: ColumnDef<Item>[] = [
     {
       accessorKey: "dateLabel",
-      header: "",
+      header: "Date",
       size: 150,
       cell: ({ row }) => {
         // Use the pre-formatted dateLabel from API
@@ -100,13 +104,23 @@ export const ItemsClient = ({ location }: { location: string }) => {
       },
     },
     {
-      accessorKey: "itemCode",
-      header: "Item",
+      accessorKey: "itemName",
+      header: "Item Name",
       size: 200,
       enableSorting: false,
       meta: {
         printable: true,
-        printableName: "Item",
+        printableName: "Item Name",
+      },
+    },
+    {
+      accessorKey: "itemCode",
+      header: "Item Code",
+      size: 200,
+      enableSorting: false,
+      meta: {
+        printable: true,
+        printableName: "Item Code",
       },
     },
     {
@@ -123,6 +137,7 @@ export const ItemsClient = ({ location }: { location: string }) => {
       meta: {
         printable: true,
         printableName: "Amount",
+        exportFormatter: (value: unknown) => formatCurrency(value as number),
       },
     },
   ];
@@ -142,6 +157,32 @@ export const ItemsClient = ({ location }: { location: string }) => {
   }, [data.length, totalAmount]);
 
   const { handlePrint } = usePrintReport<Item>();
+
+  const {
+    exportToCsv,
+    exportToPdf,
+    exportToHtml,
+    exportToJson,
+    exportToText,
+    exportToExcel,
+  } = useExportableData({
+    reportTitle: 'Items Report',
+    columns,
+    data,
+    footer: footerRow,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[600px]">
+        <LoadingAnimation
+          size="xl"
+          text="Loading items data..."
+          className="text-center"
+        />
+      </div>
+    );
+  }
 
   return (
     <ReportPageLayout
@@ -191,9 +232,22 @@ export const ItemsClient = ({ location }: { location: string }) => {
   
         // Disabled Features
         enableSearch={false}
-        enableExport={false}
+        enableExport={true}
+        onExport={{
+          html: exportToHtml,
+          csv: exportToCsv,
+          text: exportToText,
+          excel: exportToExcel,
+          pdf: exportToPdf,
+          json: exportToJson,
+        }}
         enableFilter={false}
-        enableRowsPerPage={false}
+        enableRowsPerPage={true}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={(newRowsPerPage) => {
+          setRowsPerPage(newRowsPerPage);
+          handlePageChange(1);
+        }}
       />
     </ReportPageLayout>
   );

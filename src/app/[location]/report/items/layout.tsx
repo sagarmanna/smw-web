@@ -12,11 +12,11 @@ export async function generateMetadata({ params }: ReportLayoutProps): Promise<M
   const { location } = await params;
 
   const formattedLocation = formatLocationName(location);
-  
+
   return {
     title: `Items Report - ${formattedLocation} | SMW`,
     description: `View items and transactions for ${formattedLocation}.`,
-    keywords: ['Items Report', 'Transactions', 'Lessons', 'Items', location],
+    keywords: ['Items Report', 'Transactions', 'Sales Items', location],
     openGraph: {
       title: `${formattedLocation} Items Report`,
       description: `View items and transactions for ${formattedLocation}.`,
