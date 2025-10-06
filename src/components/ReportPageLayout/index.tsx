@@ -31,12 +31,7 @@ interface ReportPageLayoutProps {
   subtitle: string;
   isLoading: boolean;
   error: string | null;
-  isEmpty: boolean;
   onRetry: () => void;
-  emptyStateProps: {
-    title: string;
-    description: string;
-  };
   children: React.ReactNode;
 }
 
@@ -45,13 +40,9 @@ export const ReportPageLayout: React.FC<ReportPageLayoutProps> = ({
   subtitle,
   isLoading,
   error,
-  isEmpty,
   onRetry,
-  emptyStateProps,
   children,
 }) => {
-  const showEmptyState = !isLoading && isEmpty && !error;
-
   return (
     <div className="w-full">
       <div className="mx-auto">
@@ -78,15 +69,7 @@ export const ReportPageLayout: React.FC<ReportPageLayoutProps> = ({
           )}
         </div>
         
-        {showEmptyState ? (
-          <EmptyState 
-            title={emptyStateProps.title}
-            description={emptyStateProps.description}
-            onRefresh={onRetry}
-          />
-        ) : (
-          children
-        )}
+        {children}
       </div>
     </div>
   );

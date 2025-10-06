@@ -136,12 +136,7 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
       subtitle="Statistics and financial data for all locations"
       isLoading={isLoading}
       error={error}
-      isEmpty={locationData.length === 0}
       onRetry={fetchData}
-      emptyStateProps={{
-        title: "No data available",
-        description: "There is no data available for the selected date range.",
-      }}
     >
       <CustomTable
         data={locationData}

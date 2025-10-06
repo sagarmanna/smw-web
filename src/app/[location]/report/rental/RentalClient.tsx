@@ -148,14 +148,9 @@ export function RentalClient({ location }: RentalClientProps) {
       subtitle="View and manage equipment rentals"
       isLoading={isLoading}
       error={error}
-      isEmpty={rentals.length === 0 && !activeFilter}
       onRetry={() => {
         clearErrors();
         refetch();
-      }}
-      emptyStateProps={{
-        title: "No rental data found",
-        description: "There are no rental records available for this location.",
       }}
     >
       <CustomTable

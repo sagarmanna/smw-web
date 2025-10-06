@@ -190,12 +190,7 @@ export const ItemsClient = ({ location }: { location: string }) => {
       subtitle="View items and transactions"
       isLoading={isLoading}
       error={error}
-      isEmpty={data.length === 0}
       onRetry={refetch}
-      emptyStateProps={{
-        title: "No items found",
-        description: "There are no items available for the selected date range.",
-      }}
     >
       <CustomTable
         columns={columns}

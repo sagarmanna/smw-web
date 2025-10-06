@@ -141,12 +141,7 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
       subtitle="View upcoming student birthdays"
       isLoading={isLoading}
       error={error}
-      isEmpty={data.length === 0}
       onRetry={refetch}
-      emptyStateProps={{
-        title: "No student birthdays found",
-        description: "There are no student birthdays available for the selected date range.",
-      }}
     >
       <CustomTable
         columns={columns}

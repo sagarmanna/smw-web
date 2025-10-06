@@ -351,14 +351,9 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
       subtitle="Track outstanding balances and customer payments"
       isLoading={isLoading}
       error={error}
-      isEmpty={accountReceivable.length === 0}
       onRetry={() => {
         clearErrors();
         refetch();
-      }}
-      emptyStateProps={{
-        title: "No account receivable data found",
-        description: "There are no account receivable records available for this location.",
       }}
     >
       {/* CustomTable with feature flags */}
