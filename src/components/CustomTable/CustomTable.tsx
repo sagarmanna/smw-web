@@ -64,6 +64,7 @@ export interface CustomTableProps<TData, TValue> {
   serverSideFilterOptions?: ServerSideFilterOption[];
   activeServerSideFilter?: string;
   onServerSideFilterChange?: (filterKey: string | undefined) => void;
+  defaultFilterLabel?: string;
   
   // Export configuration
   onExport?: {
@@ -154,6 +155,7 @@ export function CustomTable<TData, TValue>({
   serverSideFilterOptions,
   activeServerSideFilter,
   onServerSideFilterChange,
+  defaultFilterLabel,
   
   // Export configuration
   onExport,
@@ -370,6 +372,7 @@ export function CustomTable<TData, TValue>({
             serverSideFilterOptions={serverSideFilterOptions}
             activeServerSideFilter={activeServerSideFilter}
             onServerSideFilterChange={onServerSideFilterChange}
+            defaultFilterLabel={defaultFilterLabel}
             customHeaderComponent={customHeaderComponent}
           />
         </div>

@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: ReportLayoutProps): Promise<M
   const { location } = await params;
 
   const formattedLocation = formatLocationName(location);
-  
+
   return {
     title: `Student Birthdays - ${formattedLocation} | SMW`,
     description: `View upcoming student birthdays for ${formattedLocation}.`,

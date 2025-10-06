@@ -8,5 +8,8 @@ interface AllLocationsPageProps {
 
 export default async function AllLocationsPage({ params }: AllLocationsPageProps) {
   const { location } = await params;
-  return <AllLocationsClient location={location} />;
+
+  return (
+    <AllLocationsClient location={location} />
+  )
 }

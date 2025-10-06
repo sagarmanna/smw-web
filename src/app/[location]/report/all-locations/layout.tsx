@@ -10,9 +10,7 @@ interface ReportLayoutProps {
 
 export async function generateMetadata({ params }: ReportLayoutProps): Promise<Metadata> {
   const { location } = await params;
-
   const formattedLocation = formatLocationName(location);
-  
   return {
     title: `All Locations Report - ${formattedLocation} | SMW`,
     description: `View statistics and financial data for all locations.`,

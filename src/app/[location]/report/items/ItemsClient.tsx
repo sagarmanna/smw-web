@@ -8,7 +8,6 @@ import { addDays } from "date-fns";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { useExportableData } from "@/hooks/useExportableData";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 
 // Client Component
@@ -149,20 +148,6 @@ export const ItemsClient = ({ location }: { location: string }) => {
   }, [data.length, totalAmount]);
 
   const { handlePrint } = usePrintReport<Item>();
-
-  const {
-    exportToCsv,
-    exportToPdf,
-    exportToHtml,
-    exportToJson,
-    exportToText,
-    exportToExcel,
-  } = useExportableData({
-    reportTitle: 'Items Report',
-    columns,
-    data,
-    footer: footerRow,
-  });
 
   if (isLoading) {
     return (
