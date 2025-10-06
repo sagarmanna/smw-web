@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import PageAccessControl from "../PageAccessControl";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -47,7 +48,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className={sidebarOpen ? "w-[83%]" : "w-full"}>
         <main className="p-2 xl:p-4 transition-all duration-300 w-full">
           <div className="mx-auto">
-            {children}
+            <PageAccessControl>{children}</PageAccessControl>
           </div>
         </main>
         </div>
