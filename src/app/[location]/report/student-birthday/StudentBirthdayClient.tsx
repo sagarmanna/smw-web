@@ -7,6 +7,7 @@ import { getStudentBirthdayList, StudentBirthday } from "./student-birthday.api"
 import { addDays } from "date-fns";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { usePrintReport } from "@/hooks/usePrintReport";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 
 // Client Component
 export const StudentBirthdayClient = ({ location }: { location: string }) => {
@@ -121,6 +122,18 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
   ];
 
   const { handlePrint } = usePrintReport<StudentBirthday>();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[600px]">
+        <LoadingAnimation
+          size="xl"
+          text="Loading student birthdays..."
+          className="text-center"
+        />
+      </div>
+    );
+  }
 
   return (
     <ReportPageLayout
