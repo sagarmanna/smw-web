@@ -53,6 +53,7 @@ interface TableToolbarProps<TData> {
   serverSideFilterOptions?: ServerSideFilterOption[];
   activeServerSideFilter?: string;
   onServerSideFilterChange?: (filterKey: string | undefined) => void;
+  defaultFilterLabel?: string;
   
   // Custom header component
   customHeaderComponent?: React.ReactNode;
@@ -80,6 +81,7 @@ export function TableToolbar<TData>({
   serverSideFilterOptions,
   activeServerSideFilter,
   onServerSideFilterChange,
+  defaultFilterLabel = "All",
   customHeaderComponent,
 }: TableToolbarProps<TData>) {
   return (
@@ -268,7 +270,7 @@ export function TableToolbar<TData>({
                   }`}
                 >
                   <span className="flex items-center justify-between w-full">
-                    <span>All Customers</span>
+                    <span>{defaultFilterLabel}</span>
                     {!activeServerSideFilter && (
                       <Check className="h-4 w-4 ml-auto" />
                     )}

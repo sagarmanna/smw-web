@@ -11,13 +11,14 @@ interface ReportLayoutProps {
 export async function generateMetadata({ params }: ReportLayoutProps): Promise<Metadata> {
   const { location } = await params;
   const formattedLocation = formatLocationName(location);
+
   return {
-    title: `Rental Report - ${formattedLocation} | SMW`,
-    description: `View and manage equipment rentals for ${formattedLocation}.`,
-    keywords: ['Rental Report', 'Equipment Rental', 'Manage Rentals', location],
+    title: `Payments Report - ${formattedLocation} | SMW`,
+    description: `View and export payment records for ${formattedLocation}.`,
+    keywords: ['Payments Report', 'Payment History', 'Transactions', location],
     openGraph: {
-      title: `${formattedLocation} Rental Report`,
-      description: `View and manage equipment rentals for ${formattedLocation}.`,
+      title: `${formattedLocation} Payments Report`,
+      description: `View and export payment records for ${formattedLocation}.`,
       type: 'website',
     },
   };
