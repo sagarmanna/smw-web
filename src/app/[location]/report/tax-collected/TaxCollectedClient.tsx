@@ -15,25 +15,47 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [dateRange, setDateRange] = React.useState({
-    from: new Date(),
-    to: addDays(new Date(), 7),
+  const [dateRange, setDateRange] = React.useState(() => {
+    // Try to get date range from localStorage on initial load
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('tax-collected-date-range');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          return {
+            from: new Date(parsed.from),
+            to: new Date(parsed.to),
+          };
+        } catch (error) {
+          console.log('Failed to parse saved date range:', error);
+        }
+      }
+    }
+    return {
+      from: new Date(),
+      to: addDays(new Date(), 7),
+    };
   });
   const [totals, setTotals] = React.useState({
     subtotal: 0,
     tax: 0,
     total: 0,
   });
-  const [summarizeResults, setSummarizeResults] = React.useState(false);
+  const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
 
-  const fetchTaxCollectedItems = React.useCallback(async (startDate?: Date, endDate?: Date) => {
+  // Use ref to store current date range to avoid stale closures
+  const dateRangeRef = React.useRef(dateRange);
+  dateRangeRef.current = dateRange;
+
+  const fetchTaxCollectedItems = React.useCallback(async (startDate: Date, endDate: Date) => {
     setIsLoading(true);
     setError(null);
     try {
       const sort = sorting[0];
+
       const response = await getTaxCollectedList(location, {
-        startDate: startDate || dateRange.from,
-        endDate: endDate || dateRange.to,
+        startDate,
+        endDate,
         sort: sort?.id,
         order: sort ? (sort.desc ? 'desc' : 'asc') : undefined,
       });
@@ -57,15 +79,39 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [location, dateRange, sorting]);
+  }, [location, sorting]);
 
+  // Effect for initial load and location/sorting changes - preserves date range
   React.useEffect(() => {
-    fetchTaxCollectedItems(dateRange.from, dateRange.to);
-  }, [fetchTaxCollectedItems, dateRange, sorting]);
+    console.log('Location/sorting changed, using date range:', {
+      from: dateRangeRef.current.from.toISOString().split('T')[0],
+      to: dateRangeRef.current.to.toISOString().split('T')[0],
+      location
+    });
+    fetchTaxCollectedItems(dateRangeRef.current.from, dateRangeRef.current.to);
+  }, [location, sorting, fetchTaxCollectedItems]);
   
   const handleDateRangeChange = (newDateRange: { from: Date; to: Date }) => {
+    console.log('Date range changed to:', {
+      from: newDateRange.from.toISOString().split('T')[0],
+      to: newDateRange.to.toISOString().split('T')[0],
+      location
+    });
+    
+    // Save to localStorage for persistence across location changes
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tax-collected-date-range', JSON.stringify({
+        from: newDateRange.from.toISOString(),
+        to: newDateRange.to.toISOString(),
+      }));
+    }
+    
     setDateRange(newDateRange);
     fetchTaxCollectedItems(newDateRange.from, newDateRange.to);
+  };
+
+  const handleFilterChange = (filterKey: string | undefined) => {
+    setActiveFilter(filterKey);
   };
 
   const refetch = () => {
@@ -251,26 +297,15 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
     },
   ];
 
-  // Filter options for the table
-  const filterOptions = React.useMemo(() => {
-    return [{
-      key: 'summarize-results',
-      label: 'Summarize Results',
-      checked: summarizeResults,
-      onToggle: setSummarizeResults,
-      predicate: () => true // This doesn't filter data, it's handled in processedData
-    }];
-  }, [summarizeResults]);
-
-  // Process data based on summarize results setting
+  // Process data based on filter setting
   const processedDisplayData = React.useMemo(() => {
-    if (!summarizeResults) {
+    if (activeFilter !== 'summary_only') {
       return displayData;
     }
     
-    // If summarize results is enabled, show only date headers and totals
+    // If summary only is enabled, show only date headers and totals
     return displayData.filter(row => row.isDateHeader || row.isDateTotal);
-  }, [displayData, summarizeResults]);
+  }, [displayData, activeFilter]);
 
   // Create footer row with totals
   const footerRow = React.useMemo(() => {
@@ -328,12 +363,17 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
         onDateRangeChange={handleDateRangeChange}
 
         // Filter configuration
-        filterOptions={filterOptions}
+        enableFilter={true}
+        serverSideFilterOptions={[
+          { key: 'summary_only', label: 'Summary Only' },
+        ]}
+        activeServerSideFilter={activeFilter}
+        onServerSideFilterChange={handleFilterChange}
+        defaultFilterLabel="All Transactions"
   
         // Disabled Features
         enableSearch={false}
         enableExport={false}
-        enableFilter={true}
         enableRowsPerPage={false}
       />
     </ReportPageLayout>

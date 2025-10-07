@@ -73,7 +73,7 @@ export async function getTaxCollectedList(
     }
 
     const queryString = params.toString();
-    const url = `/admin/v2/burlington/report/tax-collected${queryString ? `?${queryString}` : ''}`;
+    const url = `/admin/v2/${location}/report/tax-collected${queryString ? `?${queryString}` : ''}`;
     
     const response = await apiClient.get(url);
 
