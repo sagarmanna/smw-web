@@ -158,14 +158,14 @@ export const RoyaltyClient = ({ location }: { location: string }) => {
               {Object.entries(data)
                 .filter(([key]) => key !== 'Total')
                 .map(([key, value]) => (
-                  <li key={key} className="flex items-center justify-between py-4">
+                  <li key={key} className="flex items-center justify-between py-2">
                     <p className="text-sm text-gray-600 dark:text-gray-400">{key}</p>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatCurrency(parseFloat(value))}</p>
                   </li>
                 ))}
             </ul>
             {data.Total && (
-              <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-base font-semibold text-gray-900 dark:text-gray-100">Total</p>
                 <p className="text-base font-bold text-gray-900 dark:text-gray-100">{formatCurrency(parseFloat(data.Total))}</p>
               </div>
