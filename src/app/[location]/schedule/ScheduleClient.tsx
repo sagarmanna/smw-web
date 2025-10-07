@@ -670,7 +670,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
             size="sm"
             onClick={() => setIsFullScreen(true)}
             title="Enter Fullscreen"
-            className="h-7 w-7 p-0"
+            className="h-7 w-7 p-0 hidden md:flex"
           >
             <Maximize className="h-3 w-3" />
           </Button>
