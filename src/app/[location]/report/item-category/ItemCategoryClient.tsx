@@ -10,7 +10,11 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { getItemCategories, getAllItemCategoryData, ItemCategoryRow, ItemCategoryOption } from "./item-category.api";
+import { getItemCategory, ItemCategoryRow, ItemCategoryOption, ItemCategoryFooter, getItemCategories } from "./item-category.api";
+import { ReportPageLayout } from "@/components/ReportPageLayout";
+import { formatCurrency } from "@/utils/formatCurrency";
+import { usePrintReport } from "@/hooks/usePrintReport";
+import { useExportableData } from "@/hooks/useExportableData";
 
 interface ItemCategoryClientProps {
   location: string;
@@ -18,6 +22,7 @@ interface ItemCategoryClientProps {
 
 export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   const [data, setData] = React.useState<ItemCategoryRow[]>([]);
+  const [footer, setFooter] = React.useState<ItemCategoryFooter | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
   const [itemCategories, setItemCategories] = React.useState<ItemCategoryOption[]>([]);
@@ -25,6 +30,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   const [categoriesLoading, setCategoriesLoading] = React.useState<boolean>(true);
   const [categorySearchTerm, setCategorySearchTerm] = React.useState<string>("");
   const [summariesOnly, setSummariesOnly] = React.useState<boolean>(false);
+  const [activeViewFilter, setActiveViewFilter] = React.useState<string>('detailed');
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
   const [pagination, setPagination] = React.useState({
     page: 1,
@@ -32,6 +38,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     total: 0,
     totalPages: 0
   });
+  const isFetchingCategoriesRef = React.useRef(false);
+  const isFetchingDataRef = React.useRef(false);
 
   const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => {
     const now = new Date();
@@ -40,16 +48,15 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     return { from, to };
   });
 
+  const { handlePrint } = usePrintReport<ItemCategoryRow>();
+
   const formatRangeParam = (d: Date) => format(d, "yyyy-MM-dd");
 
-  // Parse the specific date format from API: "Wednesday, October 1st, 2025"
   const parseInvoiceDate = (dateString: string): Date => {
     if (!dateString) return new Date();
-    
     try {
       const cleanDate = dateString.replace(/(\d+)(st|nd|rd|th)/, '$1');
       const parsedDate = new Date(cleanDate);
-      
       if (isNaN(parsedDate.getTime())) {
         const match = dateString.match(/(\w+), (\w+) (\d+)(st|nd|rd|th), (\d{4})/);
         if (match) {
@@ -58,54 +65,43 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
           return new Date(parseInt(year), monthIndex, parseInt(day));
         }
       }
-      
       return parsedDate;
     } catch (error) {
-      // console.error('Error parsing invoice date:', dateString, error);
       return new Date();
     }
   };
 
-  // Handle category dropdown open/close
   const handleCategoryDropdownChange = (open: boolean) => {
-    if (!open) {
-      setCategorySearchTerm("");
-    }
+    if (!open) setCategorySearchTerm("");
   };
 
-  // Fetch item categories for dropdown
   React.useEffect(() => {
     const fetchCategories = async () => {
+      if (isFetchingCategoriesRef.current) return;
+      isFetchingCategoriesRef.current = true;
+
       try {
         setCategoriesLoading(true);
         const response = await getItemCategories(location);
         if (response.success) {
           setItemCategories(response.data);
         } else {
-          // console.error('Failed to fetch categories:', response.message);
-          setItemCategories([
-            { id: "equipment", name: "Equipment" },
-            { id: "clothing", name: "Clothing" },
-            { id: "accessories", name: "Accessories" }
-          ]);
+          setItemCategories([]);
         }
       } catch (error) {
-        // console.error('Error fetching categories:', error);
-        setItemCategories([
-          { id: "equipment", name: "Equipment" },
-          { id: "clothing", name: "Clothing" },
-          { id: "accessories", name: "Accessories" }
-        ]);
+        setItemCategories([]);
       } finally {
         setCategoriesLoading(false);
+        isFetchingCategoriesRef.current = false;
       }
     };
-
     fetchCategories();
   }, [location]);
 
-  // Fetch table data from API
   const fetchItemCategoryData = React.useCallback(async (page = 1, limit = 20) => {
+    if (isFetchingDataRef.current) return;
+    isFetchingDataRef.current = true;
+
     try {
       setIsLoading(true);
       setError(null);
@@ -116,200 +112,122 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       const selectedCategoryData = itemCategories.find(cat => cat.name === selectedCategory);
       const categoryId = selectedCategoryData?.id;
       
-      // console.log('API Call Parameters:', {
-      //   location,
-      //   startDate,
-      //   endDate,
-      //   categoryId,
-      //   selectedCategory,
-      //   page,
-      //   limit
-      // });
-      
-      const response = await getAllItemCategoryData(location, startDate, endDate, categoryId);
-      
-      // console.log('API Response:', response);
-      // console.log('Total rows returned:', response.data?.length);
-      
-      if (response.data && response.data.length > 0) {
-        const uniqueDates = [...new Set(response.data.map(row => row.date))];
-        // console.log('Unique dates in API response:', uniqueDates);
-      }
+      const response = await getItemCategory(location, startDate, endDate, categoryId, page, limit);
       
       if (response.success) {
         setData(response.data);
-        // Calculate pagination info
-        const total = response.data.length;
-        const actualLimit = limit === -1 ? total : limit;
-        const totalPages = limit === -1 ? 1 : Math.ceil(total / limit);
-        
-        // console.log('Pagination calculated:', {
-        //   page,
-        //   limit: actualLimit,
-        //   total,
-        //   totalPages
-        // });
-        
-        setPagination({
-          page,
-          limit: actualLimit,
-          total,
-          totalPages
-        });
+        setFooter(response.footer || null);
+        if (response.pagination) {
+          setPagination(response.pagination);
+        } else {
+          // Fallback for APIs without pagination meta
+          const total = response.data.length;
+          setPagination({ page, limit, total, totalPages: Math.ceil(total / limit) });
+        }
       } else {
         setError(response.message || "Failed to fetch data");
         setData([]);
         setPagination({ page: 1, limit: 20, total: 0, totalPages: 0 });
       }
     } catch (error) {
-      // console.error('Error fetching data:', error);
       setError("An error occurred while fetching data");
       setData([]);
       setPagination({ page: 1, limit: 20, total: 0, totalPages: 0 });
     } finally {
       setIsLoading(false);
+      isFetchingDataRef.current = false;
     }
   }, [location, range, selectedCategory, itemCategories]);
 
-  // Initial data fetch
   React.useEffect(() => {
-    if (itemCategories.length > 0 || selectedCategory === "All") {
-      fetchItemCategoryData(1, 20);
+    // Only fetch data if categories have been loaded or "All" is selected
+    if (!categoriesLoading) {
+      fetchItemCategoryData(pagination.page, pagination.limit);
     }
-  }, [location, range, selectedCategory, itemCategories, fetchItemCategoryData]);
+  }, [categoriesLoading, fetchItemCategoryData, pagination.page, pagination.limit]);
+  
+  const refetch = React.useCallback(() => {
+    fetchItemCategoryData(pagination.page, pagination.limit);
+  }, [fetchItemCategoryData, pagination.page, pagination.limit]);
 
-  // Handle pagination change
   const handlePageChange = React.useCallback((page: number) => {
-    fetchItemCategoryData(page, pagination.limit);
-  }, [fetchItemCategoryData, pagination.limit]);
+    setPagination(p => ({ ...p, page }));
+  }, []);
 
-  // Handle rows per page change
   const handleRowsPerPageChange = React.useCallback((newRowsPerPage: number) => {
     setRowsPerPage(newRowsPerPage);
-    const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
-    fetchItemCategoryData(1, actualLimit);
-  }, [fetchItemCategoryData]);
+    setPagination(p => ({ ...p, page: 1, limit: newRowsPerPage }));
+  }, []);
+
+  const handleViewFilterChange = (filterKey: string | undefined) => {
+    const newFilter = filterKey || 'detailed';
+    setActiveViewFilter(newFilter);
+    setSummariesOnly(newFilter === 'summaries');
+  };
 
   // Dynamic columns based on summaries mode
   const columns = React.useMemo(() => {
     const baseColumns = [
       { 
         accessorKey: "date", 
-        header: "",
+        header: "Date",
         size: 250,
+        meta: { printable: true, printableName: "Date" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-          const isGrandTotal = row.original.isGrandTotal;
-          
-          if (isGrandTotal) return null;
-          
-          if (row.original.date && typeof row.original.date === 'string' && row.original.date.includes(',')) {
-            return (
-              <div className="whitespace-nowrap text-left py-2">
-                {row.original.date}
-              </div>
-            );
-          }
+          if (row.original.isGrandTotal) return null;
+          if (row.original.date?.includes(',')) return <div className="whitespace-nowrap text-left py-2">{row.original.date}</div>;
           
           const date = parseInvoiceDate(row.original.date || "");
-          const options: Intl.DateTimeFormatOptions = {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          };
-          return (
-            <div className="whitespace-nowrap text-left py-2">
-              {date.toLocaleDateString('en-US', options)}
-            </div>
-          );
+          return <div className="whitespace-nowrap text-left py-2">{format(date, "EEEE, MMMM do, yyyy")}</div>;
         }
       },
       { 
         accessorKey: "itemCategory", 
         header: "Item Category",
         size: 150,
+        meta: { printable: true, printableName: "Item Category" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-          const value = row.original.itemCategory;
-          const isGrandTotal = row.original.isGrandTotal;
-          
-          if (isGrandTotal) return null;
-          
-          return (
-            <div className="text-left py-2">
-              <span className="font-bold">{value}</span>
-            </div>
-          );
+          if (row.original.isGrandTotal) return null;
+          return <div className="text-left py-2"><span className="font-bold">{row.original.itemCategory}</span></div>;
         }
       },
       {
         accessorKey: "subtotal",
         header: "Subtotal",
         size: 120,
+        meta: { printable: true, printableName: "Subtotal", exportFormatter: (v: unknown) => formatCurrency(v as number) },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-          const isGrandTotal = row.original.isGrandTotal;
-          
-          if (isGrandTotal) {
-            return (
-              <div className="text-right font-bold text-lg py-2">
-                {row.original.subtotal.toFixed(2)}
-              </div>
-            );
+          const value = row.original.subtotal;
+          if (row.original.isGrandTotal) {
+            return <div className="text-right font-bold text-lg py-2">{formatCurrency(value)}</div>;
           }
-          
-          const value = `$${row.original.subtotal.toFixed(2)}`;
-          return (
-            <div className="text-right whitespace-nowrap py-2">
-              {value}
-            </div>
-          );
+          return <div className="text-right whitespace-nowrap py-2">{formatCurrency(value)}</div>;
         },
       },
       {
         accessorKey: "tax",
         header: "Tax",
         size: 100,
+        meta: { printable: true, printableName: "Tax", exportFormatter: (v: unknown) => formatCurrency(v as number) },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-          const taxValue = row.original.tax;
-          const isGrandTotal = row.original.isGrandTotal;
-          
-          if (isGrandTotal) {
-            const value = taxValue === 0 ? '0' : taxValue.toFixed(2);
-            return (
-              <div className="text-right font-bold text-lg py-2">
-                {value}
-              </div>
-            );
+          const value = row.original.tax;
+          if (row.original.isGrandTotal) {
+            return <div className="text-right font-bold text-lg py-2">{formatCurrency(value)}</div>;
           }
-          
-          const value = taxValue === 0 ? '$0' : `$${taxValue.toFixed(2)}`;
-          return (
-            <div className="text-right whitespace-nowrap py-2">
-              {value}
-            </div>
-          );
+          return <div className="text-right whitespace-nowrap py-2">{formatCurrency(value)}</div>;
         },
       },
       {
         accessorKey: "total",
         header: "Total",
         size: 120,
+        meta: { printable: true, printableName: "Total", exportFormatter: (v: unknown) => formatCurrency(v as number) },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-          const isGrandTotal = row.original.isGrandTotal;
-          
-          if (isGrandTotal) {
-            return (
-              <div className="text-right font-bold text-lg py-2">
-                {row.original.total.toFixed(2)}
-              </div>
-            );
+          const value = row.original.total;
+          if (row.original.isGrandTotal) {
+            return <div className="text-right font-bold text-lg py-2">{formatCurrency(value)}</div>;
           }
-          
-          const value = `$${row.original.total.toFixed(2)}`;
-          return (
-            <div className="text-right whitespace-nowrap py-2">
-              {value}
-            </div>
-          );
+          return <div className="text-right whitespace-nowrap py-2">{formatCurrency(value)}</div>;
         },
       },
     ];
@@ -324,77 +242,42 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         accessorKey: "id",
         header: "ID",
         size: 100,
+        meta: { printable: true, printableName: "ID" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-          const value = row.original.id;
-          const isSummary = row.original.isSummary;
-          const isGrandTotal = row.original.isGrandTotal;
-          
-          if (isSummary || isGrandTotal) return null;
-          
-          return (
-            <div className="whitespace-nowrap text-ellipsis overflow-hidden py-2" style={{ maxWidth: '80px' }}>
-              {value || 'N/A'}
-            </div>
-          );
+          if (row.original.isSummary || row.original.isGrandTotal) return null;
+          return <div className="whitespace-nowrap text-ellipsis overflow-hidden py-2" style={{ maxWidth: '80px' }}>{row.original.id || 'N/A'}</div>;
         },
       },
       {
         accessorKey: "customer",
         header: "Customer",
         size: 150,
+        meta: { printable: true, printableName: "Customer" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-          const value = row.original.customer;
-          const isSummary = row.original.isSummary;
-          const isGrandTotal = row.original.isGrandTotal;
-          
-          if (isSummary || isGrandTotal) return null;
-          
-          return (
-            <div className="whitespace-nowrap text-ellipsis overflow-hidden py-2">
-              {value}
-            </div>
-          );
+          if (row.original.isSummary || row.original.isGrandTotal) return null;
+          return <div className="whitespace-nowrap text-ellipsis overflow-hidden py-2">{row.original.customer}</div>;
         },
       },
       {
         accessorKey: "description",
         header: "Description",
         size: 300,
+        meta: { printable: true, printableName: "Description" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-          const value = row.original.description;
-          const isGrandTotal = row.original.isGrandTotal;
-          
-          if (isGrandTotal) return null;
-          
-          return (
-            <div className="text-ellipsis overflow-hidden py-2">
-              {value}
-            </div>
-          );
+          if (row.original.isGrandTotal) return null;
+          return <div className="text-ellipsis overflow-hidden py-2">{row.original.description}</div>;
         },
       },
       ...baseColumns.slice(2),
     ];
   }, [summariesOnly]);
 
-  // Filter categories based on search term
   const filteredCategories = React.useMemo(() => {
     if (!categorySearchTerm) return itemCategories;
     return itemCategories.filter(category => 
       category.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
     );
   }, [itemCategories, categorySearchTerm]);
-
-  // Filter options for the table
-  const filterOptions = React.useMemo(() => {
-    return [{
-      key: 'summaries-only',
-      label: 'Summaries Only',
-      checked: summariesOnly,
-      onToggle: setSummariesOnly,
-      predicate: () => true
-    }];
-  }, [summariesOnly]);
 
   // Process data based on summaries only setting
   const processedData = React.useMemo(() => {
@@ -467,73 +350,41 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     return result;
   }, [data, summariesOnly, range]);
 
-  // Paginate the data FIRST
-  const paginatedDataBeforeTotals = React.useMemo(() => {
-    if (rowsPerPage === -1) {
-      // Show all
-      return processedData;
-    }
+  const footerRow = React.useMemo(() => {
+    if (!footer) return undefined;
+    return {
+      id: '',
+      customer: '',
+      description: '',
+      itemCategory: '',
+      date: 'GRAND TOTAL',
+      isGrandTotal: true,
+      ...footer,
+    };
+  }, [footer]);
 
-    const startIdx = (pagination.page - 1) * rowsPerPage;
-    const endIdx = startIdx + rowsPerPage;
+  const {
+    exportToCsv,
+    exportToPdf,
+    exportToHtml,
+    exportToJson,
+    exportToText,
+    exportToExcel,
+  } = useExportableData({
+    reportTitle: 'Items Sold by Category Report',
+    columns,
+    data: processedData,
+    footer: footerRow,
+  });
 
-    return processedData.slice(startIdx, endIdx);
-  }, [processedData, pagination.page, rowsPerPage]);
-
-  // Calculate grand total from ONLY the current page's data
-  const grandTotalRow = React.useMemo(() => {
-    const baseData = paginatedDataBeforeTotals;
-    
-    if (summariesOnly) {
-      const grandTotals = baseData.reduce((acc, row) => {
-        const summaryRow = row as ItemCategoryRow & { subtotalSum?: number; subtotalCount?: number };
-        return {
-          subtotal: acc.subtotal + (summaryRow.subtotalSum || summaryRow.subtotal),
-          tax: acc.tax + summaryRow.tax,
-          total: acc.total + summaryRow.total,
-          subtotalCount: acc.subtotalCount + (summaryRow.subtotalCount || 0)
-        };
-      }, { subtotal: 0, tax: 0, total: 0, subtotalCount: 0 });
-
-      return {
-        itemCategory: '',
-        id: '',
-        customer: '',
-        description: `${grandTotals.subtotalCount} subtotal(s)`,
-        subtotal: grandTotals.subtotal,
-        tax: grandTotals.tax,
-        total: grandTotals.total,
-        date: '',
-        isGrandTotal: true
-      };
-    } else {
-      const grandTotals = baseData.reduce((acc, row) => ({
-        subtotal: acc.subtotal + row.subtotal,
-        tax: acc.tax + row.tax,
-        total: acc.total + row.total
-      }), { subtotal: 0, tax: 0, total: 0 });
-
-      return {
-        itemCategory: '',
-        id: '',
-        customer: '',
-        description: '',
-        subtotal: grandTotals.subtotal,
-        tax: grandTotals.tax,
-        total: grandTotals.total,
-        date: '',
-        isGrandTotal: true
-      };
-    }
-  }, [paginatedDataBeforeTotals, summariesOnly]);
-
-  // Add grand total row to paginated data
-  const dataWithTotal = React.useMemo(() => {
-    return [...paginatedDataBeforeTotals, grandTotalRow];
-  }, [paginatedDataBeforeTotals, grandTotalRow]);
-
-  // dataWithTotal already has pagination applied and grand total for current page
-  const paginatedDataWithTotal = dataWithTotal;
+  const onPrintClick = () => {
+    handlePrint({
+      reportTitle: 'Items Sold by Category Report',
+      columns,
+      data: processedData,
+      footer: footerRow,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -543,123 +394,94 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     );
   }
 
-  const dateLabel = (() => {
-    const from = range.from;
-    const to = range.to;
-    const sameDay = from.toDateString() === to.toDateString();
-    if (sameDay) return format(from, "MMMM do, yyyy");
-    const fromStr = format(from, "MMM do, yyyy");
-    const toStr = format(to, "MMM do, yyyy");
-    return `${fromStr} - ${toStr}`;
-  })();
-
-  const handleExport = {
-    csv: (data: ItemCategoryRow[]) => {
-      const headers = ["Item Category", "ID", "Customer", "Description", "Subtotal", "Tax", "Total"];
-      const csvContent = [
-        headers.join(","),
-        ...data.map(row => [
-          `"${row.itemCategory}"`,
-          `"${row.id}"`,
-          `"${row.customer}"`,
-          `"${row.description}"`,
-          row.subtotal.toFixed(2),
-          row.tax.toFixed(2),
-          row.total.toFixed(2)
-        ].join(","))
-      ].join("\n");
-      
-      const blob = new Blob([csvContent], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const categorySuffix = selectedCategory !== "All" ? `-${selectedCategory.replace(/\s+/g, '-')}` : "";
-      a.download = `items-sold-by-category${categorySuffix}-${dateLabel.replace(/\s+/g, '-')}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
-
   return (
-    <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
-      <div className="mx-auto max-w-screen-2xl space-y-4">
+    <ReportPageLayout
+      title="Items Sold by Category"
+      subtitle="Detailed report of items sold, grouped by category"
+      isLoading={isLoading}
+      error={error}
+      onRetry={refetch}
+    >
         {/* Top filters */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <DateRangePicker value={range} onChange={(r) => r && setRange(r)} />
-              <Select 
-                value={selectedCategory} 
-                onValueChange={setSelectedCategory} 
-                disabled={categoriesLoading}
-                onOpenChange={handleCategoryDropdownChange}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder={categoriesLoading ? "Loading..." : "Select Category"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className="p-2">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search categories..."
-                        value={categorySearchTerm}
-                        onChange={(e) => setCategorySearchTerm(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="pl-8 h-8"
-                      />
-                    </div>
+        <CustomTable
+          data={processedData}
+          columns={columns}
+          footerRow={footerRow}
+          enableSearch={false}
+          enableExport={true}
+          // enableFilter={true}
+          enablePrint={true}
+          onPrint={onPrintClick}
+          enableRowsPerPage={true}
+          onExport={{
+            csv: exportToCsv,
+            pdf: exportToPdf,
+            html: exportToHtml,
+            json: exportToJson,
+            text: exportToText,
+            excel: exportToExcel,
+          }}
+          rowsPerPage={rowsPerPage}
+          rowsPerPageOptions={[5, 10, 20, 50, 100]}
+          onRowsPerPageChange={handleRowsPerPageChange}
+          serverSidePagination={pagination}
+          onServerSidePageChange={handlePageChange}
+          // Server-side filter configuration
+          serverSideFilterOptions={[
+            { key: 'summaries', label: 'Summary Only' },
+          ]}
+          activeServerSideFilter={activeViewFilter}
+          onServerSideFilterChange={handleViewFilterChange}
+          defaultFilterLabel="All Items"
+          // Date Range Picker Props
+          enableDateRangePicker={true}
+          dateRange={range}
+          onDateRangeChange={(r) => r && setRange(r)}
+          // Custom header for category filter
+          customHeaderComponent={
+            <Select 
+              value={selectedCategory} 
+              onValueChange={setSelectedCategory} 
+              disabled={categoriesLoading}
+              onOpenChange={handleCategoryDropdownChange}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder={categoriesLoading ? "Loading..." : "Select Category"} />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="p-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search categories..."
+                      value={categorySearchTerm}
+                      onChange={(e) => setCategorySearchTerm(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="pl-8 h-8"
+                    />
                   </div>
-                  <div className="max-h-60 overflow-y-auto">
-                    <div className="px-2 py-1.5 text-sm font-medium text-muted-foreground border-b">
-                      Category
-                    </div>
-                    <SelectItem value="All">All Categories</SelectItem>
-                    {filteredCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.name}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                    {filteredCategories.length === 0 && categorySearchTerm && (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        No categories found
-                      </div>
-                    )}
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  <div className="px-2 py-1.5 text-sm font-medium text-muted-foreground border-b">
+                    Category
                   </div>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Main table */}
-        <Card className="p-3 md:p-4">
-          <div className="mb-4">
-            <h2 className="text-base font-semibold md:text-lg">Items Sold by Category</h2>
-          </div>
-          <CustomTable
-            data={paginatedDataWithTotal}
-            columns={columns}
-            enableSearch={false}
-            enableExport={true}
-            enableFilter={true}
-            enablePrint={true}
-            enableRowsPerPage={true}
-            title={undefined}
-            filterOptions={filterOptions}
-            onExport={handleExport}
-            rowsPerPage={rowsPerPage}
-            rowsPerPageOptions={[5, 10, 20, 50, 100]}
-            onRowsPerPageChange={handleRowsPerPageChange}
-            serverSidePagination={pagination}
-            onServerSidePageChange={handlePageChange}
-          />
-        </Card>
-        
-        {error && (
-          <div className="text-sm text-red-600">{error}</div>
-        )}
-      </div>
-    </div>
+                  <SelectItem value="All">All Categories</SelectItem>
+                  {filteredCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                  {filteredCategories.length === 0 && categorySearchTerm && (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No categories found
+                    </div>
+                  )}
+                </div>
+              </SelectContent>
+            </Select>
+          }
+        />
+      {error && <div className="text-sm text-red-600">{error}</div>}
+    </ReportPageLayout>
   );
 }
