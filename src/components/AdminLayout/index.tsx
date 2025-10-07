@@ -44,7 +44,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         />
         </div>
         <div className={sidebarOpen ? "w-[calc(100%-280px)]" : "w-full"}>
-        <main className={`${sidebarOpen ? "p-2 xl:px-0" : "p-2 xl:p-4"} transition-all duration-300 w-full `}>
+        <main className={`${sidebarOpen ? "p-2 xl:pl-0" : "p-2 xl:p-4"} transition-all duration-300 w-full `}>
           <div className="mx-auto">
             <PageAccessControl>{children}</PageAccessControl>
           </div>
