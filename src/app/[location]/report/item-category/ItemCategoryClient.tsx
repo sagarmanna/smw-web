@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import * as React from "react";
@@ -24,6 +25,13 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   const [categoriesLoading, setCategoriesLoading] = React.useState<boolean>(true);
   const [categorySearchTerm, setCategorySearchTerm] = React.useState<string>("");
   const [summariesOnly, setSummariesOnly] = React.useState<boolean>(false);
+  const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
+  const [pagination, setPagination] = React.useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  });
 
   const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => {
     const now = new Date();
@@ -39,13 +47,10 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     if (!dateString) return new Date();
     
     try {
-      // Handle the specific format: "Wednesday, October 1st, 2025"
       const cleanDate = dateString.replace(/(\d+)(st|nd|rd|th)/, '$1');
       const parsedDate = new Date(cleanDate);
       
-      // If parsing failed, try alternative approach
       if (isNaN(parsedDate.getTime())) {
-        // Extract month, day, year from the string
         const match = dateString.match(/(\w+), (\w+) (\d+)(st|nd|rd|th), (\d{4})/);
         if (match) {
           const [, , month, day, , year] = match;
@@ -56,7 +61,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       
       return parsedDate;
     } catch (error) {
-      console.error('Error parsing invoice date:', dateString, error);
+      // console.error('Error parsing invoice date:', dateString, error);
       return new Date();
     }
   };
@@ -64,7 +69,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   // Handle category dropdown open/close
   const handleCategoryDropdownChange = (open: boolean) => {
     if (!open) {
-      setCategorySearchTerm(""); // Clear search when dropdown closes
+      setCategorySearchTerm("");
     }
   };
 
@@ -77,8 +82,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         if (response.success) {
           setItemCategories(response.data);
         } else {
-          console.error('Failed to fetch categories:', response.message);
-          // Fallback to mock categories if API fails
+          // console.error('Failed to fetch categories:', response.message);
           setItemCategories([
             { id: "equipment", name: "Equipment" },
             { id: "clothing", name: "Clothing" },
@@ -86,8 +90,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
           ]);
         }
       } catch (error) {
-        console.error('Error fetching categories:', error);
-        // Fallback to mock categories
+        // console.error('Error fetching categories:', error);
         setItemCategories([
           { id: "equipment", name: "Equipment" },
           { id: "clothing", name: "Clothing" },
@@ -102,64 +105,90 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   }, [location]);
 
   // Fetch table data from API
-  React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const startDate = formatRangeParam(range.from);
-        const endDate = formatRangeParam(range.to);
-        
-        // Get category ID from selected category
-        const selectedCategoryData = itemCategories.find(cat => cat.name === selectedCategory);
-        const categoryId = selectedCategoryData?.id;
-        
-        // Debug logging for API parameters
-        console.log('API Call Parameters:', {
-          location,
-          startDate,
-          endDate,
-          categoryId,
-          selectedCategory,
-          rangeFrom: range.from,
-          rangeTo: range.to
-        });
-        
-        // Use the getAllItemCategoryData function to fetch all pages
-        const response = await getAllItemCategoryData(location, startDate, endDate, categoryId);
-        
-        // Debug logging
-        console.log('API Response:', response);
-        console.log('Total rows returned:', response.data?.length);
-        console.log('Sample row data:', response.data[0]);
-        
-        // Log all unique dates in the response
-        if (response.data && response.data.length > 0) {
-          const uniqueDates = [...new Set(response.data.map(row => row.date))];
-          console.log('Unique dates in API response:', uniqueDates);
-        }
-        
-        if (response.success) {
-          setData(response.data);
-        } else {
-          setError(response.message || "Failed to fetch data");
-          setData([]);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setError("An error occurred while fetching data");
-        setData([]);
-      } finally {
-        setIsLoading(false);
+  const fetchItemCategoryData = React.useCallback(async (page = 1, limit = 20) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const startDate = formatRangeParam(range.from);
+      const endDate = formatRangeParam(range.to);
+      
+      const selectedCategoryData = itemCategories.find(cat => cat.name === selectedCategory);
+      const categoryId = selectedCategoryData?.id;
+      
+      // console.log('API Call Parameters:', {
+      //   location,
+      //   startDate,
+      //   endDate,
+      //   categoryId,
+      //   selectedCategory,
+      //   page,
+      //   limit
+      // });
+      
+      const response = await getAllItemCategoryData(location, startDate, endDate, categoryId);
+      
+      // console.log('API Response:', response);
+      // console.log('Total rows returned:', response.data?.length);
+      
+      if (response.data && response.data.length > 0) {
+        const uniqueDates = [...new Set(response.data.map(row => row.date))];
+        // console.log('Unique dates in API response:', uniqueDates);
       }
-    };
-
-    // Only fetch if we have categories loaded and not in initial loading state
-    if (itemCategories.length > 0 || selectedCategory === "All") {
-      fetchData();
+      
+      if (response.success) {
+        setData(response.data);
+        // Calculate pagination info
+        const total = response.data.length;
+        const actualLimit = limit === -1 ? total : limit;
+        const totalPages = limit === -1 ? 1 : Math.ceil(total / limit);
+        
+        // console.log('Pagination calculated:', {
+        //   page,
+        //   limit: actualLimit,
+        //   total,
+        //   totalPages
+        // });
+        
+        setPagination({
+          page,
+          limit: actualLimit,
+          total,
+          totalPages
+        });
+      } else {
+        setError(response.message || "Failed to fetch data");
+        setData([]);
+        setPagination({ page: 1, limit: 20, total: 0, totalPages: 0 });
+      }
+    } catch (error) {
+      // console.error('Error fetching data:', error);
+      setError("An error occurred while fetching data");
+      setData([]);
+      setPagination({ page: 1, limit: 20, total: 0, totalPages: 0 });
+    } finally {
+      setIsLoading(false);
     }
   }, [location, range, selectedCategory, itemCategories]);
+
+  // Initial data fetch
+  React.useEffect(() => {
+    if (itemCategories.length > 0 || selectedCategory === "All") {
+      fetchItemCategoryData(1, 20);
+    }
+  }, [location, range, selectedCategory, itemCategories, fetchItemCategoryData]);
+
+  // Handle pagination change
+  const handlePageChange = React.useCallback((page: number) => {
+    fetchItemCategoryData(page, pagination.limit);
+  }, [fetchItemCategoryData, pagination.limit]);
+
+  // Handle rows per page change
+  const handleRowsPerPageChange = React.useCallback((newRowsPerPage: number) => {
+    setRowsPerPage(newRowsPerPage);
+    const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
+    fetchItemCategoryData(1, actualLimit);
+  }, [fetchItemCategoryData]);
 
   // Dynamic columns based on summaries mode
   const columns = React.useMemo(() => {
@@ -171,10 +200,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
           const isGrandTotal = row.original.isGrandTotal;
           
-          // Hide date column in grand total row
           if (isGrandTotal) return null;
           
-          // If the date is already in the correct format from API, display it as is
           if (row.original.date && typeof row.original.date === 'string' && row.original.date.includes(',')) {
             return (
               <div className="whitespace-nowrap text-left py-2">
@@ -183,7 +210,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
             );
           }
           
-          // Otherwise, parse and format the date
           const date = parseInvoiceDate(row.original.date || "");
           const options: Intl.DateTimeFormatOptions = {
             weekday: 'long',
@@ -206,7 +232,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
           const value = row.original.itemCategory;
           const isGrandTotal = row.original.isGrandTotal;
           
-          // Hide item category column in grand total row
           if (isGrandTotal) return null;
           
           return (
@@ -224,7 +249,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
           const isGrandTotal = row.original.isGrandTotal;
           
           if (isGrandTotal) {
-            // Show grand total value in subtotal column - right aligned to match other values
             return (
               <div className="text-right font-bold text-lg py-2">
                 {row.original.subtotal.toFixed(2)}
@@ -249,7 +273,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
           const isGrandTotal = row.original.isGrandTotal;
           
           if (isGrandTotal) {
-            // Show grand total value - right aligned to match other values
             const value = taxValue === 0 ? '0' : taxValue.toFixed(2);
             return (
               <div className="text-right font-bold text-lg py-2">
@@ -258,7 +281,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
             );
           }
           
-          // Show 0 instead of 0.00 when tax is zero
           const value = taxValue === 0 ? '$0' : `$${taxValue.toFixed(2)}`;
           return (
             <div className="text-right whitespace-nowrap py-2">
@@ -275,7 +297,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
           const isGrandTotal = row.original.isGrandTotal;
           
           if (isGrandTotal) {
-            // Show grand total value - right aligned to match other values
             return (
               <div className="text-right font-bold text-lg py-2">
                 {row.original.total.toFixed(2)}
@@ -293,44 +314,39 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       },
     ];
 
-    // In summaries mode, only show the 5 columns: date, itemCategory, subtotal, tax, total
     if (summariesOnly) {
       return baseColumns;
     }
 
-    // In normal mode, add the additional columns
     return [
-      ...baseColumns.slice(0, 2), // date and itemCategory
-    {
-      accessorKey: "id",
-      header: "ID",
+      ...baseColumns.slice(0, 2),
+      {
+        accessorKey: "id",
+        header: "ID",
         size: 100,
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-        const value = row.original.id;
+          const value = row.original.id;
           const isSummary = row.original.isSummary;
           const isGrandTotal = row.original.isGrandTotal;
           
-          // Hide ID column in summary mode or grand total row
           if (isSummary || isGrandTotal) return null;
           
-          // Show fallback if no ID with proper styling
           return (
             <div className="whitespace-nowrap text-ellipsis overflow-hidden py-2" style={{ maxWidth: '80px' }}>
               {value || 'N/A'}
             </div>
           );
+        },
       },
-    },
-    {
-      accessorKey: "customer",
-      header: "Customer",
+      {
+        accessorKey: "customer",
+        header: "Customer",
         size: 150,
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-        const value = row.original.customer;
+          const value = row.original.customer;
           const isSummary = row.original.isSummary;
           const isGrandTotal = row.original.isGrandTotal;
           
-          // Hide customer column in summary mode or grand total row
           if (isSummary || isGrandTotal) return null;
           
           return (
@@ -338,17 +354,16 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
               {value}
             </div>
           );
+        },
       },
-    },
-    {
-      accessorKey: "description",
-      header: "Description",
+      {
+        accessorKey: "description",
+        header: "Description",
         size: 300,
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
-        const value = row.original.description;
+          const value = row.original.description;
           const isGrandTotal = row.original.isGrandTotal;
           
-          // Hide description column in grand total row
           if (isGrandTotal) return null;
           
           return (
@@ -358,7 +373,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
           );
         },
       },
-      ...baseColumns.slice(2), // subtotal, tax, total
+      ...baseColumns.slice(2),
     ];
   }, [summariesOnly]);
 
@@ -370,85 +385,51 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     );
   }, [itemCategories, categorySearchTerm]);
 
-  // Filter options for the table - only Summaries Only checkbox
+  // Filter options for the table
   const filterOptions = React.useMemo(() => {
     return [{
       key: 'summaries-only',
       label: 'Summaries Only',
       checked: summariesOnly,
       onToggle: setSummariesOnly,
-      predicate: () => true // This doesn't filter data, it's handled in processedData
+      predicate: () => true
     }];
   }, [summariesOnly]);
 
   // Process data based on summaries only setting
   const processedData = React.useMemo(() => {
     if (!summariesOnly) {
-      console.log('Main table mode - returning raw data:', data.length, 'rows');
-      console.log('Main table data sample:', data.slice(0, 3));
       return data;
     }
 
-    console.log('Summaries mode - processing data:', data.length, 'rows');
-    console.log('Date range:', range.from, 'to', range.to);
-
-    // Filter data by selected date range first
     const filteredData = data.filter(row => {
-      if (!row.date) {
-        console.log('Row without date:', row);
-        return false;
-      }
+      if (!row.date) return false;
       
-      // Parse the invoice date from API using the specific format
       const rowDate = parseInvoiceDate(row.date);
       const startDate = new Date(range.from);
       const endDate = new Date(range.to);
       
-      // Set time to start/end of day for proper comparison
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
       rowDate.setHours(0, 0, 0, 0);
       
-      const isInRange = rowDate >= startDate && rowDate <= endDate;
-      console.log('Invoice date check:', {
-        originalDate: row.date,
-        parsedDate: rowDate.toDateString(),
-        startDate: startDate.toDateString(),
-        endDate: endDate.toDateString(),
-        isInRange,
-        subtotal: row.subtotal,
-        itemCategory: row.itemCategory
-      });
-      
-      return isInRange;
+      return rowDate >= startDate && rowDate <= endDate;
     });
 
-    console.log('Filtered data for summaries:', filteredData.length, 'rows');
-
-    // Group filtered data by invoice date and calculate summaries
     const groupedData = filteredData.reduce((acc, row) => {
-      // Parse the invoice date using the specific format
       const invoiceDate = parseInvoiceDate(row.date || "");
       const dateKey = invoiceDate.toDateString();
-      
-      console.log('Processing row for grouping by invoice date:', {
-        originalInvoiceDate: row.date,
-        parsedInvoiceDate: invoiceDate.toDateString(),
-        dateKey,
-        subtotal: row.subtotal,
-        itemCategory: row.itemCategory
-      });
       
       if (!acc[dateKey]) {
         acc[dateKey] = {
           date: dateKey,
-          originalDate: row.date || '', // Keep original date format for display
+          originalDate: row.date || '',
           itemCategory: row.itemCategory,
           subtotal: 0,
           tax: 0,
           total: 0,
           count: 0,
-          subtotalValues: [] // Store individual subtotal values for average calculation
+          subtotalValues: []
         };
       }
       
@@ -461,79 +442,78 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       return acc;
     }, {} as Record<string, { date: string; originalDate: string; itemCategory: string; subtotal: number; tax: number; total: number; count: number; subtotalValues: number[] }>);
 
-    console.log('Grouped data:', groupedData);
-
-    // Convert grouped data to array and format, sorted by date
     const result = Object.values(groupedData)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map((summary) => {
-        // Calculate average subtotal for this day
         const averageSubtotal = summary.subtotalValues.length > 0 
           ? summary.subtotal / summary.subtotalValues.length 
           : 0;
 
-        const summaryRow = {
+        return {
           itemCategory: summary.itemCategory,
-          id: '', // No ID in summaries
-          customer: '', // No customer in summaries
-          description: `${summary.count} item(s)`, // Description shows count
-          subtotal: averageSubtotal, // Show average subtotal instead of sum
+          id: '',
+          customer: '',
+          description: `${summary.count} item(s)`,
+          subtotal: averageSubtotal,
           tax: summary.tax,
           total: summary.total,
-          date: summary.originalDate || summary.date, // Use original date format for display
+          date: summary.originalDate || summary.date,
           isSummary: true,
-          subtotalCount: summary.count, // Store count for grand total calculation
-          subtotalSum: summary.subtotal // Store sum for grand total calculation
+          subtotalCount: summary.count,
+          subtotalSum: summary.subtotal
         };
-
-        console.log('Created summary row:', summaryRow);
-        return summaryRow;
       });
 
-    console.log('Final summaries result with only data days:', result);
     return result;
   }, [data, summariesOnly, range]);
 
-  // Add grand total row
-  const dataWithTotal = React.useMemo(() => {
-    const baseData = processedData;
+  // Paginate the data FIRST
+  const paginatedDataBeforeTotals = React.useMemo(() => {
+    if (rowsPerPage === -1) {
+      // Show all
+      return processedData;
+    }
+
+    const startIdx = (pagination.page - 1) * rowsPerPage;
+    const endIdx = startIdx + rowsPerPage;
+
+    return processedData.slice(startIdx, endIdx);
+  }, [processedData, pagination.page, rowsPerPage]);
+
+  // Calculate grand total from ONLY the current page's data
+  const grandTotalRow = React.useMemo(() => {
+    const baseData = paginatedDataBeforeTotals;
     
     if (summariesOnly) {
-      // In summaries mode, calculate grand totals from filtered data
       const grandTotals = baseData.reduce((acc, row) => {
         const summaryRow = row as ItemCategoryRow & { subtotalSum?: number; subtotalCount?: number };
         return {
-          subtotal: acc.subtotal + (summaryRow.subtotalSum || summaryRow.subtotal), // Use sum, not average
+          subtotal: acc.subtotal + (summaryRow.subtotalSum || summaryRow.subtotal),
           tax: acc.tax + summaryRow.tax,
           total: acc.total + summaryRow.total,
-          subtotalCount: acc.subtotalCount + (summaryRow.subtotalCount || 0) // Count of subtotals
+          subtotalCount: acc.subtotalCount + (summaryRow.subtotalCount || 0)
         };
       }, { subtotal: 0, tax: 0, total: 0, subtotalCount: 0 });
 
-      // Add grand total row with count information
-      const grandTotalRow = {
-        itemCategory: '', // Empty item category column
+      return {
+        itemCategory: '',
         id: '',
         customer: '',
-        description: `${grandTotals.subtotalCount} subtotal(s)`, // Show count of subtotals
+        description: `${grandTotals.subtotalCount} subtotal(s)`,
         subtotal: grandTotals.subtotal,
         tax: grandTotals.tax,
         total: grandTotals.total,
         date: '',
         isGrandTotal: true
       };
-
-      return [...baseData, grandTotalRow];
     } else {
-      // In normal mode, use regular calculation
       const grandTotals = baseData.reduce((acc, row) => ({
         subtotal: acc.subtotal + row.subtotal,
         tax: acc.tax + row.tax,
         total: acc.total + row.total
       }), { subtotal: 0, tax: 0, total: 0 });
 
-      // Add grand total row
-      const grandTotalRow = {
+      return {
         itemCategory: '',
         id: '',
         customer: '',
@@ -544,10 +524,16 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         date: '',
         isGrandTotal: true
       };
-
-      return [...baseData, grandTotalRow];
     }
-  }, [processedData, summariesOnly]);
+  }, [paginatedDataBeforeTotals, summariesOnly]);
+
+  // Add grand total row to paginated data
+  const dataWithTotal = React.useMemo(() => {
+    return [...paginatedDataBeforeTotals, grandTotalRow];
+  }, [paginatedDataBeforeTotals, grandTotalRow]);
+
+  // dataWithTotal already has pagination applied and grand total for current page
+  const paginatedDataWithTotal = dataWithTotal;
 
   if (isLoading) {
     return (
@@ -557,7 +543,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     );
   }
 
-  // Format selected date or range for display/print
   const dateLabel = (() => {
     const from = range.from;
     const to = range.to;
@@ -567,7 +552,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     const toStr = format(to, "MMM do, yyyy");
     return `${fromStr} - ${toStr}`;
   })();
-
 
   const handleExport = {
     csv: (data: ItemCategoryRow[]) => {
@@ -646,9 +630,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
               </Select>
             </div>
           </div>
-          
-          {/* Action buttons */}
-          
         </div>
 
         {/* Main table */}
@@ -657,16 +638,21 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
             <h2 className="text-base font-semibold md:text-lg">Items Sold by Category</h2>
           </div>
           <CustomTable
-            data={dataWithTotal}
+            data={paginatedDataWithTotal}
             columns={columns}
             enableSearch={false}
             enableExport={true}
             enableFilter={true}
             enablePrint={true}
-            // pageSize={20}
+            enableRowsPerPage={true}
             title={undefined}
             filterOptions={filterOptions}
             onExport={handleExport}
+            rowsPerPage={rowsPerPage}
+            rowsPerPageOptions={[5, 10, 20, 50, 100]}
+            onRowsPerPageChange={handleRowsPerPageChange}
+            serverSidePagination={pagination}
+            onServerSidePageChange={handlePageChange}
           />
         </Card>
         
@@ -677,4 +663,3 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     </div>
   );
 }
-
