@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import * as React from "react";
@@ -60,7 +61,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       
       return parsedDate;
     } catch (error) {
-      console.error('Error parsing invoice date:', dateString, error);
+      // console.error('Error parsing invoice date:', dateString, error);
       return new Date();
     }
   };
@@ -81,7 +82,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         if (response.success) {
           setItemCategories(response.data);
         } else {
-          console.error('Failed to fetch categories:', response.message);
+          // console.error('Failed to fetch categories:', response.message);
           setItemCategories([
             { id: "equipment", name: "Equipment" },
             { id: "clothing", name: "Clothing" },
@@ -89,7 +90,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
           ]);
         }
       } catch (error) {
-        console.error('Error fetching categories:', error);
+        // console.error('Error fetching categories:', error);
         setItemCategories([
           { id: "equipment", name: "Equipment" },
           { id: "clothing", name: "Clothing" },
@@ -115,24 +116,24 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       const selectedCategoryData = itemCategories.find(cat => cat.name === selectedCategory);
       const categoryId = selectedCategoryData?.id;
       
-      console.log('API Call Parameters:', {
-        location,
-        startDate,
-        endDate,
-        categoryId,
-        selectedCategory,
-        page,
-        limit
-      });
+      // console.log('API Call Parameters:', {
+      //   location,
+      //   startDate,
+      //   endDate,
+      //   categoryId,
+      //   selectedCategory,
+      //   page,
+      //   limit
+      // });
       
       const response = await getAllItemCategoryData(location, startDate, endDate, categoryId);
       
-      console.log('API Response:', response);
-      console.log('Total rows returned:', response.data?.length);
+      // console.log('API Response:', response);
+      // console.log('Total rows returned:', response.data?.length);
       
       if (response.data && response.data.length > 0) {
         const uniqueDates = [...new Set(response.data.map(row => row.date))];
-        console.log('Unique dates in API response:', uniqueDates);
+        // console.log('Unique dates in API response:', uniqueDates);
       }
       
       if (response.success) {
@@ -142,12 +143,12 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         const actualLimit = limit === -1 ? total : limit;
         const totalPages = limit === -1 ? 1 : Math.ceil(total / limit);
         
-        console.log('Pagination calculated:', {
-          page,
-          limit: actualLimit,
-          total,
-          totalPages
-        });
+        // console.log('Pagination calculated:', {
+        //   page,
+        //   limit: actualLimit,
+        //   total,
+        //   totalPages
+        // });
         
         setPagination({
           page,
@@ -161,7 +162,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         setPagination({ page: 1, limit: 20, total: 0, totalPages: 0 });
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      // console.error('Error fetching data:', error);
       setError("An error occurred while fetching data");
       setData([]);
       setPagination({ page: 1, limit: 20, total: 0, totalPages: 0 });
