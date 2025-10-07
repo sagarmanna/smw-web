@@ -9,12 +9,13 @@ import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReactBigCalendarWrapper, CalendarWrapperRef } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { CalendarIcon, Tv, Filter, Clock } from "lucide-react";
+import { CalendarIcon, Tv, Filter, Clock, Maximize, Minimize } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent, ClassroomViewAvailability } from "./schedule.api";
 import { updateLesson, modifyClassroom, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
+import { ScheduleFilters } from "./ScheduleFilters";
 
 interface ScheduleClientProps {
   location: string;
@@ -53,6 +54,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [showAll, setShowAll] = useState<boolean>(false);
   const [mobileDatePickerOpen, setMobileDatePickerOpen] = useState<boolean>(false);
   const [desktopDatePickerOpen, setDesktopDatePickerOpen] = useState<boolean>(false);
+  const [fullscreenDatePickerOpen, setFullscreenDatePickerOpen] = useState<boolean>(false);
+  const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   
   // Initial loading state
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
@@ -662,6 +665,15 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           >
               <Tv className="h-3 w-3" />
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsFullScreen(true)}
+            title="Enter Fullscreen"
+            className="h-7 w-7 p-0 hidden md:flex"
+          >
+            <Maximize className="h-3 w-3" />
+          </Button>
         </div>
       </div>
 
@@ -686,275 +698,44 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         
               {/* Mobile: 50/50 layout, Desktop: Keep horizontal */}
             <div className="flex flex-col md:flex-row gap-2 md:gap-3">
-              {/* Mobile: Mixed layout - Filter by + Date in same row, others full width */}
-              <div className="flex flex-col md:hidden gap-2">
-                {/* First row: Filter by (50%) and Date (50%) - Only show in teacher view */}
-                {currentView === "teacher" && (
-                  <div className="flex gap-2 mt-1">
-                    {/* Filter by label - 50% */}
-                    <div className="w-1/2 flex items-center gap-1 text-xs">
-                      <Filter className="h-3 w-3" />
-                      <span className="font-medium">Filter by:</span>
-                    </div>
-                    
-                    {/* Date Picker - 50% */}
-                    <div className="w-1/2">
-                      <Popover open={mobileDatePickerOpen} onOpenChange={setMobileDatePickerOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className={cn(
-                              "w-full h-6 px-1 text-xs justify-center font-normal",
-                              !safeSelectedDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-1 h-3 w-3" />
-                            {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <div className="p-2 border-b">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={goToToday}
-                                className="w-full h-8 text-xs"
-                              >
-                                <Clock className="mr-1 h-3 w-3" />
-                                Today
-                              </Button>
-                            </div>
-                            <Calendar
-                              mode="single"
-                              selected={safeSelectedDate}
-                              defaultMonth={safeSelectedDate}
-                              onSelect={(date) => {
-                                if (date) {
-                                  handleDateSelect(date, () => setMobileDatePickerOpen(false));
-                                }
-                              }}
-                              captionLayout="dropdown"
-                              fromYear={2005}
-                              toYear={2125}
-                            />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                )}
+              {/* Mobile Filters */}
+              <ScheduleFilters
+                isMobile
+                currentView={currentView}
+                selectedDate={safeSelectedDate}
+                onDateSelect={(date) => handleDateSelect(date, () => setMobileDatePickerOpen(false))}
+                datePickerOpen={mobileDatePickerOpen}
+                setDatePickerOpen={setMobileDatePickerOpen}
+                recentDates={recentDates}
+                goToToday={goToToday}
+                programs={programs}
+                selectedProgram={selectedProgram}
+                onProgramChange={setSelectedProgram}
+                programsLoading={programsLoading}
+                filteredTeachers={filteredTeachers}
+                selectedTeacher={selectedTeacher}
+                onTeacherChange={setSelectedTeacher}
+                teachersLoading={teachersLoading}
+              />
 
-                {/* Date Picker - mobile full width for classroom view */}
-                {currentView === "classroom" && (
-                  <div className="w-full">
-                    <Popover open={mobileDatePickerOpen} onOpenChange={setMobileDatePickerOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "w-full h-6 px-1 text-xs justify-center font-normal",
-                            !safeSelectedDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-1 h-3 w-3" />
-                          {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                          <div className="p-2 border-b">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={goToToday}
-                              className="w-full h-8 text-xs"
-                            >
-                              <Clock className="mr-1 h-3 w-3" />
-                              Today
-                            </Button>
-                          </div>
-                          <Calendar
-                            mode="single"
-                            selected={safeSelectedDate}
-                            defaultMonth={safeSelectedDate}
-                            onSelect={(date) => {
-                              if (date) {
-                                handleDateSelect(date, () => setMobileDatePickerOpen(false));
-                              }
-                            }}
-                            captionLayout="dropdown"
-                            fromYear={2005}
-                            toYear={2125}
-                          />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
-
-                {/* Program Filter - mobile full width - Only show in teacher view */}
-                {currentView === "teacher" && (
-                  <div className="w-full">
-                    <Combobox
-                      options={[
-                        { value: "all", label: "All Programs" },
-                        ...programs.map((program) => ({
-                          value: program.id.toString(),
-                          label: program.name,
-                        }))
-                      ]}
-                      value={selectedProgram || "all"}
-                      onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
-                      placeholder={programsLoading ? "Loading..." : "Program"}
-                      searchPlaceholder="Search programs..."
-                      emptyText="No programs found."
-                      disabled={programsLoading}
-                    />
-                  </div>
-                )}
-
-                {/* Teacher Filter - mobile full width - Only show in teacher view */}
-                {currentView === "teacher" && (
-                  <div className="w-full mb-2">
-                    <Combobox
-                      options={[
-                        { value: "all", label: "All Teachers" },
-                        ...filteredTeachers.map((teacher) => ({
-                          value: teacher.id.toString(),
-                          label: teacher.name,
-                        }))
-                      ]}
-                      value={selectedTeacher || "all"}
-                      onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
-                      placeholder={teachersLoading ? "Loading..." : "Teacher"}
-                      searchPlaceholder="Search teachers..."
-                      emptyText="No teachers found."
-                      disabled={teachersLoading}
-                    />
-                  </div>
-                )}
-          </div>
-
-              {/* Desktop: Original horizontal layout */}
-              <div className="hidden md:flex items-center gap-2">
-                {currentView === "teacher" && (
-                  <div className="flex items-center gap-1">
-                    <Filter className="h-3 w-3" />
-                    <span className="font-medium text-xs">Filters:</span>
-                  </div>
-                )}
-        
-                {/* Date Picker - desktop */}
-                <Popover open={desktopDatePickerOpen} onOpenChange={setDesktopDatePickerOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-                      size="sm"
-              className={cn(
-                        "h-7 px-2 text-xs justify-start font-normal min-w-[180px] min-h-[34px]",
-                !safeSelectedDate && "text-muted-foreground"
-              )}
-            >
-                      <CalendarIcon className="mr-1 h-3 w-3" />
-                      {safeSelectedDate ? format(safeSelectedDate, "MMM dd, yyyy") : "Pick date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <div className="flex">
-              {/* Recent Dates Sidebar - Desktop Only */}
-              <div className="w-32 p-2 border-r bg-gray-50 dark:bg-gray-800">
-                <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Recent Dates</div>
-                <div className="space-y-1">
-                  {recentDates.length === 0 ? (
-                    <div className="text-xs text-gray-400 dark:text-gray-500">No recent dates</div>
-                  ) : (
-                    recentDates.map((date, index) => (
-                      <Button
-                        key={date.toDateString()}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDateSelect(date, () => setDesktopDatePickerOpen(false))}
-                        className="w-full h-6 text-xs justify-start p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                      >
-                        {format(date, "MMM dd, yyyy")}
-                      </Button>
-                    ))
-                  )}
-                </div>
-              </div>
-              
-              {/* Main Calendar */}
-              <div className="flex-1">
-                <div className="p-2 border-b">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={goToToday}
-                    className="w-full h-8 text-xs"
-                  >
-                    <Clock className="mr-1 h-3 w-3" />
-                    Today
-                  </Button>
-                </div>
-                <Calendar
-                  mode="single"
-                  selected={safeSelectedDate}
-                  defaultMonth={safeSelectedDate}
-                  onSelect={(date) => {
-                    if (date) {
-                      handleDateSelect(date, () => setDesktopDatePickerOpen(false));
-                    }
-                  }}
-                  captionLayout="dropdown"
-                  fromYear={2005}
-                  toYear={2125}
-                />
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-                {/* Program Filter - desktop - Only show in teacher view */}
-                {currentView === "teacher" && (
-                  <div className="min-w-[100px]">
-                    <Combobox
-                      options={[
-                        { value: "all", label: "All Programs" },
-                        ...programs.map((program) => ({
-                          value: program.id.toString(),
-                          label: program.name,
-                        }))
-                      ]}
-                      value={selectedProgram || "all"}
-                      onValueChange={(value) => setSelectedProgram(value === "all" ? "" : value)}
-                      placeholder={programsLoading ? "Loading..." : "Program"}
-                      searchPlaceholder="Search programs..."
-                      emptyText="No programs found."
-                      disabled={programsLoading}
-                    />
-                  </div>
-                )}
-
-                {/* Teacher Filter - desktop - Only show in teacher view */}
-                {currentView === "teacher" && (
-                  <div className="min-w-[100px]">
-                    <Combobox
-                      options={[
-                        { value: "all", label: "All Teachers" },
-                        ...filteredTeachers.map((teacher) => ({
-                          value: teacher.id.toString(),
-                          label: teacher.name,
-                        }))
-                      ]}
-                      value={selectedTeacher || "all"}
-                      onValueChange={(value) => setSelectedTeacher(value === "all" ? "" : value)}
-                      placeholder={teachersLoading ? "Loading..." : "Teacher"}
-                      searchPlaceholder="Search teachers..."
-                      emptyText="No teachers found."
-                      disabled={teachersLoading}
-                    />
-                  </div>
-                )}
-              </div>
+              {/* Desktop Filters */}
+              <ScheduleFilters
+                currentView={currentView}
+                selectedDate={safeSelectedDate}
+                onDateSelect={(date) => handleDateSelect(date, () => setDesktopDatePickerOpen(false))}
+                datePickerOpen={desktopDatePickerOpen}
+                setDatePickerOpen={setDesktopDatePickerOpen}
+                recentDates={recentDates}
+                goToToday={goToToday}
+                programs={programs}
+                selectedProgram={selectedProgram}
+                onProgramChange={setSelectedProgram}
+                programsLoading={programsLoading}
+                filteredTeachers={filteredTeachers}
+                selectedTeacher={selectedTeacher}
+                onTeacherChange={setSelectedTeacher}
+                teachersLoading={teachersLoading}
+              />
             </div>
           </div>
         </div>
@@ -1015,6 +796,114 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       </Tabs>
       </div>
 
+      {isFullScreen && (
+        <div className="fixed inset-0 z-[100] bg-background p-4 flex flex-col gap-4">
+          {/* Fullscreen Header */}
+          <div className="flex justify-between items-center flex-shrink-0">
+            <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
+              Schedule for {format(safeSelectedDate, "EEEE, MMMM do, yyyy")}
+            </h1>
+      
+            <div className="flex items-center gap-2">
+              <ScheduleFilters
+                currentView={currentView}
+                selectedDate={safeSelectedDate}
+                onDateSelect={(date) => handleDateSelect(date, () => setFullscreenDatePickerOpen(false))}
+                datePickerOpen={fullscreenDatePickerOpen}
+                setDatePickerOpen={setFullscreenDatePickerOpen}
+                recentDates={recentDates}
+                goToToday={() => {
+                  goToToday();
+                  setFullscreenDatePickerOpen(false);
+                }}
+                programs={programs}
+                selectedProgram={selectedProgram}
+                onProgramChange={setSelectedProgram}
+                programsLoading={programsLoading}
+                filteredTeachers={filteredTeachers}
+                selectedTeacher={selectedTeacher}
+                onTeacherChange={setSelectedTeacher}
+                teachersLoading={teachersLoading}
+                popoverContentProps={{ style: { zIndex: 101 } }}
+              />
+      
+              {currentView === 'teacher' && (
+                <div className="flex items-center space-x-1">
+                  <input
+                    id="show-all-fullscreen"
+                    type="checkbox"
+                    checked={showAll}
+                    onChange={(e) => setShowAll(e.target.checked)}
+                    className="rounded border-gray-300 h-3 w-3"
+                  />
+                  <label htmlFor="show-all-fullscreen" className="text-xs font-medium">
+                    Show All
+                  </label>
+                </div>
+              )}
+      
+              {/* Exit Fullscreen Button */}
+              <Button variant="outline" size="sm" onClick={() => setIsFullScreen(false)} title="Exit Fullscreen" className="h-7 w-7 p-0">
+                <Minimize className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+      
+          {/* Fullscreen Calendar */}
+          <div className="flex-1 relative overflow-y-auto">
+            <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")} className="h-full flex flex-col">
+              <TabsContent value="teacher" className="flex-1">
+                <div className="h-full">
+                  <ReactBigCalendarWrapper
+                    ref={teacherCalendarRef}
+                    events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
+                    resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
+                    date={safeSelectedDate}
+                    onNavigate={setSelectedDate}
+                    onEventClick={handleEventClick}
+                    onEventDrop={handleEventDrop}
+                    onEventResize={handleEventResize}
+                    editable={true}
+                    showAll={showAll}
+                    selectedProgram={selectedProgram}
+                    selectedTeacher={selectedTeacher}
+                    minTime={timeRange.minTime}
+                    maxTime={timeRange.maxTime}
+                    availability={teacherViewAvailability}
+                    viewType="teacher"
+                    updatingEvents={updatingEvents}
+                    teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
+                    classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="classroom" className="flex-1">
+                <div className="h-full">
+                  <ReactBigCalendarWrapper
+                    ref={classroomCalendarRef}
+                    events={convertClassroomViewEventsToCalendar(classroomViewEvents)}
+                    resources={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title, description: classroom.description }))}
+                    date={safeSelectedDate}
+                    onNavigate={setSelectedDate}
+                    onEventClick={handleEventClick}
+                    onEventDrop={handleEventDrop}
+                    onEventResize={handleEventResize}
+                    onClassroomChange={handleClassroomChange}
+                    editable={true}
+                    minTime={timeRange.minTime}
+                    maxTime={timeRange.maxTime}
+                    availability={classroomViewAvailability}
+                    viewType="classroom"
+                    updatingEvents={updatingEvents}
+                    teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
+                    classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
