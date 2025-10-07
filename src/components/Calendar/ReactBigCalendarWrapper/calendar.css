@@ -198,12 +198,12 @@
 }
 
 .rbc-timeslot-group .rbc-time-slot:first-child {
-  border-bottom: 1px dotted rgba(255, 255, 255, 0.5);
+  border-bottom: 1px dotted rgb(255, 255, 255);
 }
 
 /* Hourly solid lines - every hour separator */
 .rbc-timeslot-group {
-  border-bottom: 1px solid rgba(192, 189, 187, 0.3);
+  border-bottom: 1px solid rgb(255, 255, 255);
 }
 
 /* Alternative selector for hourly lines */

@@ -26,7 +26,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   // Check if we're on mobile
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768); // md breakpoint
+      setIsMobile(window.innerWidth < 1280); // xl breakpoint
     };
     
     checkMobile();
@@ -140,20 +140,22 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && isMobile && (
         <div 
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden"
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 xl:hidden"
           onClick={onClose}
         />
       )}
       
       {/* Sidebar */}
-      <aside className={`
-        fixed md:relative inset-y-0 z-50 md:z-auto left-0 transform transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        ${isOpen ? 'md:flex' : 'md:hidden'} md:flex-col
-      `}>
-        <div className="flex flex-col flex-grow pt-5 overflow-y-auto overflow-x-hidden bg-background border-r h-full">
+      <aside className={cn(`
+        fixed xl:relative inset-y-0 z-50 xl:z-auto left-0 transform transition-transform duration-300 ease-in-out
+        w-64 bg-background border-r
+        flex flex-col flex-shrink-0`,
+        isMobile ? (isOpen ? 'translate-x-0' : '-translate-x-full') : '',
+        !isMobile && !isOpen && 'hidden'
+      )}>
+        <div className="flex flex-col flex-grow pt-5 overflow-y-auto overflow-x-hidden h-full">
           {/* Mobile Logo */}
-          <div className="flex items-center justify-center px-4 pb-4 md:hidden">
+          <div className="flex items-center justify-center px-4 pb-4 xl:hidden">
             <Link href="/">
               <Image
                 src={theme === "dark" ? "/admin/v2/SMW-dark.png" : "/admin/v2/SMW.png"}
