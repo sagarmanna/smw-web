@@ -10,19 +10,17 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if we're on mobile
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = window.innerWidth < 768; // md breakpoint
+      const mobile = window.innerWidth < 1280; // Use xl breakpoint
       setIsMobile(mobile);
       
-      // On mobile, sidebar should be closed by default
-      if (mobile) {
-        setSidebarOpen(false);
-      }
+      // Desktop defaults to open, mobile to closed
+      setSidebarOpen(!mobile);
     };
     
     checkMobile();
@@ -39,14 +37,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <div className="min-h-screen bg-background">
       <Header onMenuClick={handleMenuClick} />
       <div className="flex">
-        <div className={sidebarOpen ? "w-1/6" : "w-0"}>
+        <div className={sidebarOpen ? "w-[280px]" : "w-0"}>
         <Sidebar 
           isOpen={sidebarOpen} 
           onClose={() => setSidebarOpen(false)} 
         />
         </div>
-        <div className={sidebarOpen ? "w-[83%]" : "w-full"}>
-        <main className="p-2 xl:p-4 transition-all duration-300 w-full">
+        <div className={sidebarOpen ? "w-[calc(100%-280px)]" : "w-full"}>
+        <main className={`${sidebarOpen ? "p-2 xl:px-0" : "p-2 xl:p-4"} transition-all duration-300 w-full `}>
           <div className="mx-auto">
             <PageAccessControl>{children}</PageAccessControl>
           </div>

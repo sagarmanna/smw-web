@@ -229,6 +229,11 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   const minDate = parseTimeToDate(minTime);
   const maxDate = parseTimeToDate(maxTime);
 
+  // Dynamically set calendar height based on the number of time slots
+  const durationMinutes = (maxDate.getTime() - minDate.getTime()) / (1000 * 60);
+  const numberOfRows = durationMinutes / 30; // Each time slot is 30 mins as per timeslots={2}
+  const calendarHeight = numberOfRows > 16 ? '100%' : '100vh';
+
   // Filter events based on filters and timeline visibility
   const filteredEvents = optimisticEvents.filter(event => {
     // Filter by teacher (if specific teacher is selected)
@@ -732,7 +737,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             max={maxDate}
             eventPropGetter={eventPropGetter}
             slotPropGetter={slotPropGetter}
-            style={{ height: '100%' }}
+            style={{ height: calendarHeight }}
             className={isMobileView ? 'mobile-calendar' : ''}
           />
         </div>
