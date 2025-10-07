@@ -18,7 +18,7 @@ export interface TaxCollectedItem {
 // API response structure
 export interface TaxCollectedAPIResponseData {
   dateLabel: string;
-  rows: {
+  items: {
     sourceId: string;
     customer: string;
     subtotal: string; // API returns as string
@@ -73,7 +73,7 @@ export async function getTaxCollectedList(
     }
 
     const queryString = params.toString();
-    const url = `/admin/v2/training-location/report/tax-collected${queryString ? `?${queryString}` : ''}`;
+    const url = `/admin/v2/burlington/report/tax-collected${queryString ? `?${queryString}` : ''}`;
     
     const response = await apiClient.get(url);
 
@@ -88,13 +88,13 @@ export async function getTaxCollectedList(
     let totalAmount = 0;
     
     if (responseData.body && Array.isArray(responseData.body)) {
-      // API returns { body: [{ dateLabel: "...", rows: [...] }, ...] }
+      // API returns { body: [{ dateLabel: "...", items: [...] }, ...] }
       
-      // Flatten the data - each item in body has its own rows array
+      // Flatten the data - each item in body has its own items array
       items = [];
-      responseData.body.forEach((dateGroup: { dateLabel: string; rows: Array<{ sourceId: string; customer: string; subtotal: string; tax: string; total: string }> }) => {
-        if (dateGroup.rows && Array.isArray(dateGroup.rows)) {
-          const dateRows = dateGroup.rows.map((item: { sourceId: string; customer: string; subtotal: string; tax: string; total: string }) => ({
+      responseData.body.forEach((dateGroup: { dateLabel: string; items: Array<{ sourceId: string; customer: string; subtotal: string; tax: string; total: string }> }) => {
+        if (dateGroup.items && Array.isArray(dateGroup.items)) {
+          const dateItems = dateGroup.items.map((item: { sourceId: string; customer: string; subtotal: string; tax: string; total: string }) => ({
             sourceId: item.sourceId || '',
             customer: item.customer || '',
             subtotal: parseFloat(item.subtotal) || 0,
@@ -103,11 +103,25 @@ export async function getTaxCollectedList(
             date: dateGroup.dateLabel || '',
             dateLabel: dateGroup.dateLabel || ''
           }));
-          items = items.concat(dateRows);
+          items = items.concat(dateItems);
         }
       });
+    } else if (responseData.items && Array.isArray(responseData.items)) {
+      // API returns { dateLabel: "...", items: [...] }
+      items = responseData.items.map((item: { sourceId: string; customer: string; subtotal: string; tax: string; total: string }) => {
+        const transformedItem = {
+          sourceId: item.sourceId || '',
+          customer: item.customer || '',
+          subtotal: parseFloat(item.subtotal) || 0,
+          tax: parseFloat(item.tax) || 0,
+          total: parseFloat(item.total) || 0,
+          date: responseData.dateLabel || '',
+          dateLabel: responseData.dateLabel || ''
+        };
+        return transformedItem;
+      });
     } else if (responseData.rows && Array.isArray(responseData.rows)) {
-      // API returns { dateLabel: "...", rows: [...] }
+      // Fallback: API returns { dateLabel: "...", rows: [...] } (legacy support)
       items = responseData.rows.map((item: { sourceId: string; customer: string; subtotal: string; tax: string; total: string }) => {
         const transformedItem = {
           sourceId: item.sourceId || '',
