@@ -65,7 +65,7 @@ export async function getRoyaltyFreeList(
     }
 
     const queryString = params.toString();
-    const url = `/admin/v2/training-location/report/royalty-free${queryString ? `?${queryString}` : ''}`;
+    const url = `/admin/v2/${location}/report/royalty-free${queryString ? `?${queryString}` : ''}`;
     
     const response = await apiClient.get(url);
 
