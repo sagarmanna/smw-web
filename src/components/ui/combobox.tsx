@@ -19,6 +19,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+type PopoverContentProps = React.ComponentProps<typeof PopoverContent>;
+
 interface ComboboxProps {
   options: Array<{
     value: string
@@ -31,6 +33,7 @@ interface ComboboxProps {
   emptyText?: string
   className?: string
   disabled?: boolean
+  popoverContentProps?: Omit<PopoverContentProps, 'children'>;
 }
 
 export function Combobox({
@@ -42,6 +45,7 @@ export function Combobox({
   emptyText = "No option found.",
   className,
   disabled = false,
+  popoverContentProps,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -61,7 +65,7 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-[200px] p-0" {...popoverContentProps}>
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
