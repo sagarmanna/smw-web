@@ -279,7 +279,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   }, [itemCategories, categorySearchTerm]);
 
   const footerRow = React.useMemo(() => {
-    console.log('footer', footer)
     if (!footer || !summariesOnly) return undefined;
     return {
       id: '',
