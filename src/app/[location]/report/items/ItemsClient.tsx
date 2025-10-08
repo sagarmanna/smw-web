@@ -4,7 +4,7 @@ import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { getItemsList, Item } from "./items.api";
-import { addDays } from "date-fns";
+
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -24,7 +24,7 @@ export const ItemsClient = ({ location }: { location: string }) => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [dateRange, setDateRange] = React.useState({
     from: new Date(),
-    to: addDays(new Date(), 7),
+    to:new Date(),
   });
   const [totalAmount, setTotalAmount] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
