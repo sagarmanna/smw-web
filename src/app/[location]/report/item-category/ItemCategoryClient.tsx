@@ -43,8 +43,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
 
   const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => {
     const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const from = now;
+    const to = now;
     return { from, to };
   });
 
@@ -279,7 +279,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   }, [itemCategories, categorySearchTerm]);
 
   const footerRow = React.useMemo(() => {
-    if (!footer) return undefined;
+    console.log('footer', footer)
+    if (!footer || !summariesOnly) return undefined;
     return {
       id: '',
       customer: '',
@@ -314,11 +315,16 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     });
   };
 
+  // Show loading animation
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
-        <LoadingAnimation size="xl" text="Loading report..." className="text-center" />
-      </div>
+        <LoadingAnimation 
+          size="xl" 
+          text="Loading item category data..." 
+          className="text-center"
+        />
+      </div>  
     );
   }
 

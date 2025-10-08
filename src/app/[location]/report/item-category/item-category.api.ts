@@ -105,11 +105,7 @@ export async function getItemCategory(
     const response = await apiClient.get(url, { params });
 
     const body = extractBodyArray(response.data);
-    
-    // Debug logging
-    console.log('Raw API response data:', response.data);
-    console.log('Extracted body array:', body);
-    console.log('Sample raw row:', body[0]);
+  
     
     const rows = body.map((row: unknown) => {
       const r = row as Record<string, unknown>;
@@ -133,38 +129,6 @@ export async function getItemCategory(
         date: r.dateLabel ?? r.invoiceDate ?? r.invoice_date ?? r.date ?? r.Date ?? r.createdAt ?? r.created_at ?? r.transactionDate ?? r.transaction_date,
       } as ItemCategoryRow;
       
-      // Debug logging for ID and date mapping
-      console.log('Raw row fields:', {
-        id: r.id,
-        ID: r.ID,
-        Id: r.Id,
-        itemId: r.itemId,
-        item_id: r.item_id,
-        transactionId: r.transactionId,
-        transaction_id: r.transaction_id,
-        lessonId: r.lessonId,
-        lesson_id: r.lesson_id,
-        orderId: r.orderId,
-        order_id: r.order_id,
-        receiptId: r.receiptId,
-        receipt_id: r.receipt_id,
-        invoiceId: r.invoiceId,
-        invoice_id: r.invoice_id,
-        bookingId: r.bookingId,
-        booking_id: r.booking_id,
-        mappedId: mappedRow.id,
-        // Date fields
-        invoiceDate: r.invoiceDate,
-        invoice_date: r.invoice_date,
-        date: r.date,
-        Date: r.Date,
-        createdAt: r.createdAt,
-        created_at: r.created_at,
-        transactionDate: r.transactionDate,
-        transaction_date: r.transaction_date,
-        mappedDate: mappedRow.date,
-        allKeys: Object.keys(r)
-      });
       
       return mappedRow;
     });
@@ -172,21 +136,7 @@ export async function getItemCategory(
     // extract footer totals if provided
     let footer: ItemCategoryFooter | undefined;
     const d = response.data as Record<string, unknown>;
-    let f: unknown;
-    if (d?.data && typeof d.data === 'object' && d.data !== null) {
-      const dataObj = d.data as Record<string, unknown>;
-      f = dataObj.footer;
-    } else {
-      f = d?.footer;
-    }
-    if (Array.isArray(f) && f.length > 0) {
-      const footerData = f[0] as Record<string, unknown>;
-      footer = {
-        subtotal: toNumber(footerData.subtotal),
-        tax: toNumber(footerData.tax),
-        total: toNumber(footerData.total),
-      };
-    }
+
 
     let meta: unknown;
     if (d?.data && typeof d.data === 'object' && d.data !== null) {
@@ -211,7 +161,7 @@ export async function getItemCategory(
     return { 
       success: true, 
       data: rows, 
-      footer, 
+      footer: response?.data?.data?.footer, 
       meta: meta as { startDate?: string; endDate?: string; location?: string } | undefined,
       pagination,
     };
