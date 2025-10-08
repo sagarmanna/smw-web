@@ -156,25 +156,25 @@ export async function getDiscounts(
     const url = `/admin/v2/${location}/report/discounts`;
     const params = { startDate, endDate };
 
-    console.log('=== DISCOUNT API REQUEST ===');
-    console.log('URL:', url);
-    console.log('Params:', params);
-    console.log('Page:', page);
-    console.log('Limit:', limit);
-    console.log('Filter:', filter);
+    // console.log('=== DISCOUNT API REQUEST ===');
+    // console.log('URL:', url);
+    // console.log('Params:', params);
+    // console.log('Page:', page);
+    // console.log('Limit:', limit);
+    // console.log('Filter:', filter);
 
     const response = await apiClient.get(url, { params });
 
-    console.log('=== RAW API RESPONSE ===');
-    console.log('Full Response:', response);
-    console.log('Response Data:', response.data);
-    console.log('Response Status:', response.status);
-    console.log('Response Headers:', response.headers);
+    // console.log('=== RAW API RESPONSE ===');
+    // console.log('Full Response:', response);
+    // console.log('Response Data:', response.data);
+    // console.log('Response Status:', response.status);
+    // console.log('Response Headers:', response.headers);
 
     const body = extractBodyArray(response.data);
-    console.log('=== EXTRACTED BODY ===');
-    console.log('Body Array Length:', body.length);
-    console.log('Body:', body);
+    // console.log('=== EXTRACTED BODY ===');
+    // console.log('Body Array Length:', body.length);
+    // console.log('Body:', body);
     const rows = body.map((row: unknown) => {
       const r = row as Record<string, unknown>;
       return {
@@ -192,35 +192,35 @@ export async function getDiscounts(
       } as DiscountRow;
     });
 
-    console.log('=== MAPPED ROWS ===');
-    console.log('Mapped Rows Count:', rows.length);
-    console.log('First Row:', rows[0]);
-    console.log('All Rows:', rows);
+    // console.log('=== MAPPED ROWS ===');
+    // console.log('Mapped Rows Count:', rows.length);
+    // console.log('First Row:', rows[0]);
+    // console.log('All Rows:', rows);
 
     // Apply filter
     const filteredRows = applyFilter(rows, filter);
 
-    console.log('=== FILTER APPLIED ===');
-    console.log('Filter Type:', filter);
-    console.log('Filtered Rows Count:', filteredRows.length);
-    console.log('Filtered Rows:', filteredRows);
+    // console.log('=== FILTER APPLIED ===');
+    // console.log('Filter Type:', filter);
+    // console.log('Filtered Rows Count:', filteredRows.length);
+    // console.log('Filtered Rows:', filteredRows);
 
     // Apply pagination
     const { paginatedRows, total, totalPages } = paginateRows(filteredRows, page, limit);
 
-    console.log('=== PAGINATION APPLIED ===');
-    console.log('Page:', page);
-    console.log('Limit:', limit);
-    console.log('Total Records:', total);
-    console.log('Total Pages:', totalPages);
-    console.log('Current Page Rows Count:', paginatedRows.length);
-    console.log('Paginated Rows:', paginatedRows);
+    // console.log('=== PAGINATION APPLIED ===');
+    // console.log('Page:', page);
+    // console.log('Limit:', limit);
+    // console.log('Total Records:', total);
+    // console.log('Total Pages:', totalPages);
+    // console.log('Current Page Rows Count:', paginatedRows.length);
+    // console.log('Paginated Rows:', paginatedRows);
 
     // Calculate footer for ONLY the current page rows (not all filtered data)
     const footer = calculateFooter(paginatedRows);
 
-    console.log('=== FOOTER CALCULATED ===');
-    console.log('Footer:', footer);
+    // console.log('=== FOOTER CALCULATED ===');
+    // console.log('Footer:', footer);
 
     // Extract meta information
     let meta: unknown;
@@ -248,10 +248,10 @@ export async function getDiscounts(
     const apiError = error as { response?: { status?: number; statusText?: string; data?: { message?: string } } };
     const errorMessage = apiError.response?.data?.message || `${apiError.response?.status}: ${apiError.response?.statusText}` || "Failed to fetch discounts";
     
-    console.error('=== API ERROR ===');
-    console.error('Error Message:', errorMessage);
-    console.error('Full Error:', error);
-    console.error('Error Response:', apiError.response);
+    // console.error('=== API ERROR ===');
+    // console.error('Error Message:', errorMessage);
+    // console.error('Full Error:', error);
+    // console.error('Error Response:', apiError.response);
 
     return {
       success: false,
