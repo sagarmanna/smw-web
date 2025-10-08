@@ -293,8 +293,8 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
   };
 
   return (
-    <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
-      <div className="mx-auto max-w-screen-2xl space-y-4">
+    <div className="w-full">
+      <div className="mx-auto">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-lg font-semibold text-card-foreground">Sales and Payments Report</h1>
