@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import * as React from "react";
@@ -7,15 +8,159 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Card } from "@/components/ui/card";
 import { getDiscounts, DiscountRow } from "./discount.api";
+import { useExportableData } from "@/hooks/useExportableData";
 
 interface DiscountClientProps {
   location: string;
 }
 
+const columns = [
+  {
+    accessorKey: "customer",
+    header: "Customer",
+    meta: {
+      printable: true,
+      printableName: "Customer",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.customer;
+      return (
+        <span className="font-semibold whitespace-normal break-words">{value || '-'}</span>
+      );
+    }
+  },
+  {
+    accessorKey: "code",
+    header: "Code",
+    meta: {
+      printable: true,
+      printableName: "Code",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.code;
+      return value || '-';
+    },
+  },
+  {
+    accessorKey: "description",
+    header: "Description",
+    meta: {
+      printable: true,
+      printableName: "Description",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.description;
+      return <span className="truncate max-w-[150px] block" title={value || ''}>{value || '-'}</span>;
+    },
+  },
+  {
+    accessorKey: "pf",
+    header: "PF",
+    meta: {
+      printable: true,
+      printableName: "PF",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.pf;
+      return value || '-';
+    },
+  },
+  {
+    accessorKey: "qty",
+    header: "Qty",
+    meta: {
+      printable: true,
+      printableName: "Qty",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.qty;
+      return value || '-';
+    },
+  },
+  {
+    accessorKey: "pfPercent",
+    header: "PF(%)",
+    meta: {
+      printable: true,
+      printableName: "PF(%)",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.pfPercent;
+      return value || '-';
+    },
+  },
+  {
+    accessorKey: "enrolDollar",
+    header: "Enrol($)",
+    meta: {
+      printable: true,
+      printableName: "Enrol($)",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.enrolDollar;
+      return value || '-';
+    },
+  },
+  {
+    accessorKey: "customerPercent",
+    header: "Customer(%)",
+    meta: {
+      printable: true,
+      printableName: "Customer(%)",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.customerPercent;
+      return value || '-';
+    },
+  },
+  {
+    accessorKey: "itemDollar",
+    header: "Item($)",
+    meta: {
+      printable: true,
+      printableName: "Item($)",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.itemDollar;
+      return value || '-';
+    },
+  },
+  {
+    accessorKey: "netDollar",
+    header: "Net($)",
+    meta: {
+      printable: true,
+      printableName: "Net($)",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.netDollar;
+      return <span className="text-right block">{value || '-'}</span>;
+    },
+  },
+  {
+    accessorKey: "price",
+    header: "Price",
+    meta: {
+      printable: true,
+      printableName: "Price",
+    },
+    cell: ({ row }: { row: { original: DiscountRow } }) => {
+      const value = row.original.price;
+      return <span className="text-right block">{value || '-'}</span>;
+    },
+  },
+];
+
 export function DiscountClient({ location }: DiscountClientProps) {
   const [discounts, setDiscounts] = React.useState<DiscountRow[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [pagination, setPagination] = React.useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  });
 
   const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => {
     const now = new Date();
@@ -24,29 +169,79 @@ export function DiscountClient({ location }: DiscountClientProps) {
     return { from, to };
   });
 
+  const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
+  const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
+
   const formatRangeParam = (d: Date) => format(d, "yyyy-MM-dd");
 
-  const load = React.useCallback(async () => {
+  const dateLabel = (() => {
+    const from = range.from;
+    const to = range.to;
+    const sameDay = from.toDateString() === to.toDateString();
+    if (sameDay) return format(from, "MMMM do, yyyy");
+    const fromStr = format(from, "MMM do, yyyy");
+    const toStr = format(to, "MMM do, yyyy");
+    return `${fromStr} - ${toStr}`;
+  })();
+
+  const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData({
+    reportTitle: `Discount Report - ${dateLabel}`,
+    columns,
+    data: discounts,
+  });
+
+  const load = React.useCallback(async (page = 1, limit = 20, filter?: string) => {
     try {
       setIsLoading(true);
       setError(null);
       const startDate = formatRangeParam(range.from);
       const endDate = formatRangeParam(range.to);
-      const discountsRes = await getDiscounts(location, startDate, endDate);
-      setDiscounts(discountsRes.success ? discountsRes.data : []);
-      if (!discountsRes.success) setError(discountsRes.message || "Failed to fetch discounts");
+      const discountsRes = await getDiscounts(location, startDate, endDate, page, limit, filter);
+      
+      if (discountsRes.success) {
+        setDiscounts(discountsRes.data || []);
+        setPagination({
+          page: page,
+          limit: limit,
+          total: discountsRes.pagination?.total || (discountsRes.data || []).length,
+          totalPages: discountsRes.pagination?.totalPages || 1
+        });
+      } else {
+        setError(discountsRes.message || "Failed to fetch discounts");
+        setDiscounts([]);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unexpected error";
       setError(msg);
+      setDiscounts([]);
     } finally {
       setIsLoading(false);
     }
   }, [location, range.from, range.to]);
 
   React.useEffect(() => {
-    // initial and whenever date range/location changes
-    load();
-  }, [load]);
+    load(1, rowsPerPage, activeFilter);
+  }, [load, activeFilter]);
+
+  const handlePageChange = React.useCallback((page: number) => {
+    load(page, rowsPerPage, activeFilter);
+  }, [load, rowsPerPage, activeFilter]);
+
+  const handleRowsPerPageChange = React.useCallback((newRowsPerPage: number) => {
+    setRowsPerPage(newRowsPerPage);
+    const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
+    load(1, actualLimit, activeFilter);
+  }, [load, activeFilter]);
+
+  const handleFilterChange = React.useCallback((filterKey: string | undefined) => {
+    setActiveFilter(filterKey);
+    load(1, rowsPerPage, filterKey);
+  }, [load, rowsPerPage]);
+
+  const handleDateRangeChange = React.useCallback((newRange: { from: Date; to: Date }) => {
+    setRange(newRange);
+    load(1, rowsPerPage, activeFilter);
+  }, [load, rowsPerPage, activeFilter]);
 
   // helper: parse currency/number-like strings safely
   const toNumber = (s: string): number => {
@@ -63,8 +258,9 @@ export function DiscountClient({ location }: DiscountClientProps) {
     );
   }
 
-  // Create simple table data for UI (flat structure)
+  // Create table data for UI (flat structure)
   const netTotal = discounts.reduce((sum, r) => sum + toNumber(r.netDollar), 0);
+  const priceTotal = discounts.reduce((sum, r) => sum + toNumber(r.price), 0);
 
   const tableData = [
     ...discounts,
@@ -79,7 +275,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       customerPercent: '',
       itemDollar: '',
       netDollar: `$${netTotal.toFixed(2)}`,
-      price: '',
+      price: `$${priceTotal.toFixed(2)}`,
       isTotal: true,
     } as DiscountRow & { isTotal?: boolean },
   ];
@@ -172,21 +368,10 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "Price",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.price;
-        return row.original.isTotal ? '' : (value || '-');
+        return row.original.isTotal ? <span className="font-bold">{value || '-'}</span> : (value || '-');
       },
     },
   ];
-
-  // Format selected date or range for display/print (avoid hook to keep order stable)
-  const dateLabel = (() => {
-    const from = range.from;
-    const to = range.to;
-    const sameDay = from.toDateString() === to.toDateString();
-    if (sameDay) return format(from, "MMMM do, yyyy");
-    const fromStr = format(from, "MMM do, yyyy");
-    const toStr = format(to, "MMM do, yyyy");
-    return `${fromStr} - ${toStr}`;
-  })();
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -205,6 +390,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
     // Build print rows with customer grouping and subtotals
     const printRows: string[] = [];
     let grandTotal = 0;
+    let grandPriceTotal = 0;
 
     Object.entries(groupedDiscounts).forEach(([customer, customerDiscounts]) => {
       // Add customer group header
@@ -235,13 +421,15 @@ export function DiscountClient({ location }: DiscountClientProps) {
 
       // Calculate and add customer subtotal
       const customerSubtotal = customerDiscounts.reduce((sum, discount) => sum + toNumber(discount.netDollar), 0);
+      const customerPriceSubtotal = customerDiscounts.reduce((sum, discount) => sum + toNumber(discount.price), 0);
       grandTotal += customerSubtotal;
+      grandPriceTotal += customerPriceSubtotal;
       
       printRows.push(`
         <tr style="background-color: #f0f0f0;">
           <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;" colspan="9">Subtotal:</td>
           <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${customerSubtotal.toFixed(2)}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;"></td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${customerPriceSubtotal.toFixed(2)}</td>
         </tr>
       `);
     });
@@ -251,7 +439,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       <tr style="background-color: #e0e0e0; font-weight: bold;">
         <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;" colspan="9">Total:</td>
         <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${grandTotal.toFixed(2)}</td>
-        <td style="border: 1px solid #ddd; padding: 8px;"></td>
+        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${grandPriceTotal.toFixed(2)}</td>
       </tr>
     `);
 
@@ -341,10 +529,10 @@ export function DiscountClient({ location }: DiscountClientProps) {
       <div className="mx-auto max-w-screen-2xl space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            
-            <div className="mt-2"><DateRangePicker value={range} onChange={(r) => r && setRange(r)} /></div>
+            <h1 className="text-2xl font-bold">Discount Report</h1>
+            <p className="text-sm text-muted-foreground mt-1">Period: {dateLabel}</p>
+            <div className="mt-2"><DateRangePicker value={range} onChange={(r) => r && handleDateRangeChange(r)} /></div>
           </div>
-          
         </div>
 
         {/* Discount Table */}
@@ -357,11 +545,31 @@ export function DiscountClient({ location }: DiscountClientProps) {
                 columns={discountColumns}
                 enableSearch={false}
                 enableExport={true}
-                enableFilter={false}
+                enableFilter={true}
                 enablePrint={true}
-                // pageSize={10}
+                enableRowsPerPage={true}
+                enableSorting={false}
                 title={undefined}
                 onPrint={handlePrint}
+                onExport={{
+                  html: exportToHtml,
+                  csv: exportToCsv,
+                  text: exportToText,
+                  excel: exportToExcel,
+                  pdf: exportToPdf,
+                  json: exportToJson,
+                }}
+                serverSideFilterOptions={[
+                  { key: 'all', label: 'All Discounts' },
+                  { key: 'high-value', label: 'High Value (>$1000)' },
+                  { key: 'low-value', label: 'Low Value (<$1000)' },
+                ]}
+                activeServerSideFilter={activeFilter}
+                onServerSideFilterChange={handleFilterChange}
+                rowsPerPageOptions={[5, 10, 20, 50, 100]}
+                onRowsPerPageChange={handleRowsPerPageChange}
+                serverSidePagination={pagination}
+                onServerSidePageChange={handlePageChange}
               />
             </div>
           </div>
