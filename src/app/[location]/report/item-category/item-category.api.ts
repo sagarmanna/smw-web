@@ -17,12 +17,20 @@ export interface ItemCategoryFooter {
   total: number;
 }
 
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface ItemCategoryApiResponse {
   success: boolean;
   data: ItemCategoryRow[];
   message?: string;
   footer?: ItemCategoryFooter;
   meta?: { startDate?: string; endDate?: string; location?: string };
+  pagination?: Pagination;
 }
 
 export interface ItemCategoryOption {
@@ -110,7 +118,7 @@ export async function getItemCategory(
       
       const mappedRow = {
         itemCategory:
-          r.itemCategory ?? r.itemCategoryName ?? r.ItemCategory ?? r["Item Category"] ?? r.category ?? r.Category ?? "",
+          r.itemCategory ?? r.itemCategoryName ?? r.ItemCategory ?? r["Item Category"] ?? r.category ?? r.Category ?? r.categoryName ?? "",
         id: String(r.id ?? r.ID ?? r.Id ?? r.itemId ?? r.item_id ?? r.transactionId ?? r.transaction_id ?? r.lessonId ?? r.lesson_id ?? r.orderId ?? r.order_id ?? r.receiptId ?? r.receipt_id ?? r.invoiceId ?? r.invoice_id ?? r.bookingId ?? r.booking_id ?? ""),
         customer:
           r.customer ?? r.customerName ?? r.Customer ?? r["Customer"] ?? r.client ?? r.Client ?? "",
@@ -185,11 +193,24 @@ export async function getItemCategory(
       meta = d?.meta;
     }
 
+    let pagination: Pagination | undefined;
+    let p: unknown;
+    if (d?.data && typeof d.data === 'object' && d.data !== null) {
+      const dataObj = d.data as Record<string, unknown>;
+      p = dataObj.pagination;
+    } else {
+      p = d?.pagination;
+    }
+    if (p) {
+      pagination = p as Pagination;
+    }
+
     return { 
       success: true, 
       data: rows, 
       footer, 
-      meta: meta as { startDate?: string; endDate?: string; location?: string } | undefined 
+      meta: meta as { startDate?: string; endDate?: string; location?: string } | undefined,
+      pagination,
     };
   } catch (error: unknown) {
     const apiError = error as { response?: { status?: number; statusText?: string; data?: { message?: string } } };
