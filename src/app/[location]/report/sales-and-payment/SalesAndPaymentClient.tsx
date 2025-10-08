@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { getPayments, getSales, PaymentsRow, SalesRow } from "./sales-and-payment.api";
+import { formatCurrency } from "@/utils";
 
 
 interface SalesAndPaymentClientProps {
@@ -71,7 +72,7 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
       accessorKey: "subtotal",
       header: "Subtotal",
       cell: ({ row }: { row: { original: SalesRow & { isTotal?: boolean } } }) => {
-        const value = `$${row.original.subtotal.toFixed(2)}`;
+        const value = formatCurrency(row.original.subtotal);
         const isTotal = row.original.isTotal;
         return isTotal ? 
           <span className="font-bold text-right block">{value}</span> : 
@@ -82,7 +83,7 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
       accessorKey: "tax",
       header: "Tax",
       cell: ({ row }: { row: { original: SalesRow & { isTotal?: boolean } } }) => {
-        const value = `$${row.original.tax.toFixed(2)}`;
+        const value = formatCurrency(row.original.tax);
         const isTotal = row.original.isTotal;
         return isTotal ? 
           <span className="font-bold text-right block">{value}</span> : 
@@ -93,7 +94,7 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
       accessorKey: "total",
       header: "Total",
       cell: ({ row }: { row: { original: SalesRow & { isTotal?: boolean } } }) => {
-        const value = `$${row.original.total.toFixed(2)}`;
+        const value = formatCurrency(row.original.total);
         const isTotal = row.original.isTotal;
         return isTotal ? 
           <span className="font-bold text-right block">{value}</span> : 
