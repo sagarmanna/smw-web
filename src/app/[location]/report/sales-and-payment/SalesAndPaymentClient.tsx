@@ -73,7 +73,9 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
       cell: ({ row }: { row: { original: SalesRow & { isTotal?: boolean } } }) => {
         const value = `$${row.original.subtotal.toFixed(2)}`;
         const isTotal = row.original.isTotal;
-        return isTotal ? <span className="font-bold">{value}</span> : value;
+        return isTotal ? 
+          <span className="font-bold text-right block">{value}</span> : 
+          <span className="text-right block">{value}</span>;
       },
     },
     {
@@ -82,7 +84,9 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
       cell: ({ row }: { row: { original: SalesRow & { isTotal?: boolean } } }) => {
         const value = `$${row.original.tax.toFixed(2)}`;
         const isTotal = row.original.isTotal;
-        return isTotal ? <span className="font-bold">{value}</span> : value;
+        return isTotal ? 
+          <span className="font-bold text-right block">{value}</span> : 
+          <span className="text-right block">{value}</span>;
       },
     },
     {
@@ -91,7 +95,9 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
       cell: ({ row }: { row: { original: SalesRow & { isTotal?: boolean } } }) => {
         const value = `$${row.original.total.toFixed(2)}`;
         const isTotal = row.original.isTotal;
-        return isTotal ? <span className="font-bold">{value}</span> : value;
+        return isTotal ? 
+          <span className="font-bold text-right block">{value}</span> : 
+          <span className="text-right block">{value}</span>;
       },
     },
   ];
@@ -112,7 +118,9 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
       cell: ({ row }: { row: { original: PaymentsRow & { isTotal?: boolean } } }) => {
         const value = `$${row.original.subtotal.toFixed(2)}`;
         const isTotal = row.original.isTotal;
-        return isTotal ? <span className="font-bold">{value}</span> : value;
+        return isTotal ? 
+          <span className="font-bold text-right block">{value}</span> : 
+          <span className="text-right block">{value}</span>;
       },
     },
   ];
@@ -334,5 +342,3 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
     </div>
   );
 }
-
-
