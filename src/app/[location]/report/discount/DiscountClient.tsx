@@ -5,7 +5,6 @@ import * as React from "react";
 import { format } from "date-fns";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { DateRangePicker } from "@/components/DateRangePicker";
 import { Card } from "@/components/ui/card";
 import { getDiscounts, DiscountRow } from "./discount.api";
 import { useExportableData } from "@/hooks/useExportableData";
@@ -62,7 +61,7 @@ const columns = [
     },
     cell: ({ row }: { row: { original: DiscountRow } }) => {
       const value = row.original.pf;
-      return value || '-';
+      return <span className="text-right block">{value || '-'}</span>;
     },
   },
   {
@@ -74,7 +73,7 @@ const columns = [
     },
     cell: ({ row }: { row: { original: DiscountRow } }) => {
       const value = row.original.qty;
-      return value || '-';
+      return <span className="text-right block">{value || '-'}</span>;
     },
   },
   {
@@ -86,7 +85,7 @@ const columns = [
     },
     cell: ({ row }: { row: { original: DiscountRow } }) => {
       const value = row.original.pfPercent;
-      return value || '-';
+      return <span className="text-right block">{value || '-'}</span>;
     },
   },
   {
@@ -98,7 +97,7 @@ const columns = [
     },
     cell: ({ row }: { row: { original: DiscountRow } }) => {
       const value = row.original.enrolDollar;
-      return value || '-';
+      return <span className="text-right block">{value || '-'}</span>;
     },
   },
   {
@@ -110,7 +109,7 @@ const columns = [
     },
     cell: ({ row }: { row: { original: DiscountRow } }) => {
       const value = row.original.customerPercent;
-      return value || '-';
+      return <span className="text-right block">{value || '-'}</span>;
     },
   },
   {
@@ -122,7 +121,7 @@ const columns = [
     },
     cell: ({ row }: { row: { original: DiscountRow } }) => {
       const value = row.original.itemDollar;
-      return value || '-';
+      return <span className="text-right block">{value || '-'}</span>;
     },
   },
   {
@@ -170,7 +169,6 @@ export function DiscountClient({ location }: DiscountClientProps) {
   });
 
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
-  const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
 
   const formatRangeParam = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -190,13 +188,13 @@ export function DiscountClient({ location }: DiscountClientProps) {
     data: discounts,
   });
 
-  const load = React.useCallback(async (page = 1, limit = 20, filter?: string) => {
+  const load = React.useCallback(async (page = 1, limit = 20) => {
     try {
       setIsLoading(true);
       setError(null);
       const startDate = formatRangeParam(range.from);
       const endDate = formatRangeParam(range.to);
-      const discountsRes = await getDiscounts(location, startDate, endDate, page, limit, filter);
+      const discountsRes = await getDiscounts(location, startDate, endDate, page, limit);
       
       if (discountsRes.success) {
         setDiscounts(discountsRes.data || []);
@@ -220,28 +218,23 @@ export function DiscountClient({ location }: DiscountClientProps) {
   }, [location, range.from, range.to]);
 
   React.useEffect(() => {
-    load(1, rowsPerPage, activeFilter);
-  }, [load, activeFilter]);
+    load(1, rowsPerPage);
+  }, [load]);
 
   const handlePageChange = React.useCallback((page: number) => {
-    load(page, rowsPerPage, activeFilter);
-  }, [load, rowsPerPage, activeFilter]);
+    load(page, rowsPerPage);
+  }, [load, rowsPerPage]);
 
   const handleRowsPerPageChange = React.useCallback((newRowsPerPage: number) => {
     setRowsPerPage(newRowsPerPage);
     const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
-    load(1, actualLimit, activeFilter);
-  }, [load, activeFilter]);
-
-  const handleFilterChange = React.useCallback((filterKey: string | undefined) => {
-    setActiveFilter(filterKey);
-    load(1, rowsPerPage, filterKey);
-  }, [load, rowsPerPage]);
+    load(1, actualLimit);
+  }, [load]);
 
   const handleDateRangeChange = React.useCallback((newRange: { from: Date; to: Date }) => {
     setRange(newRange);
-    load(1, rowsPerPage, activeFilter);
-  }, [load, rowsPerPage, activeFilter]);
+    load(1, rowsPerPage);
+  }, [load, rowsPerPage]);
 
   // helper: parse currency/number-like strings safely
   const toNumber = (s: string): number => {
@@ -312,7 +305,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "PF",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.pf;
-        return row.original.isTotal ? '' : (value || '-');
+        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
       },
     },
     {
@@ -320,7 +313,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "Qty",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.qty;
-        return row.original.isTotal ? '' : (value || '-');
+        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
       },
     },
     {
@@ -328,7 +321,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "PF(%)",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.pfPercent;
-        return row.original.isTotal ? '' : (value || '-');
+        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
       },
     },
     {
@@ -336,7 +329,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "Enrol($)",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.enrolDollar;
-        return row.original.isTotal ? '' : (value || '-');
+        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
       },
     },
     {
@@ -344,7 +337,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "Customer(%)",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.customerPercent;
-        return row.original.isTotal ? '' : (value || '-');
+        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
       },
     },
     {
@@ -352,7 +345,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "Item($)",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.itemDollar;
-        return row.original.isTotal ? '' : (value || '-');
+        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
       },
     },
     {
@@ -360,7 +353,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "Net($)",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.netDollar;
-        return row.original.isTotal ? <span className="font-bold">{value || '-'}</span> : (value || '-');
+        return <span className={`text-right block ${row.original.isTotal ? 'font-bold' : ''}`}>{value || '-'}</span>;
       },
     },
     {
@@ -368,7 +361,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       header: "Price",
       cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
         const value = row.original.price;
-        return row.original.isTotal ? <span className="font-bold">{value || '-'}</span> : (value || '-');
+        return <span className={`text-right block ${row.original.isTotal ? 'font-bold' : ''}`}>{value || '-'}</span>;
       },
     },
   ];
@@ -531,13 +524,11 @@ export function DiscountClient({ location }: DiscountClientProps) {
           <div>
             <h1 className="text-2xl font-bold">Discount Report</h1>
             <p className="text-sm text-muted-foreground mt-1">Period: {dateLabel}</p>
-            <div className="mt-2"><DateRangePicker value={range} onChange={(r) => r && handleDateRangeChange(r)} /></div>
           </div>
         </div>
 
         {/* Discount Table */}
         <Card className="p-3 md:p-4">
-          <h1 className="text-lg font-semibold text-card-foreground">Discount Report</h1>
           <div className="overflow-x-auto">
             <div className="min-w-[800px]">
               <CustomTable
@@ -545,10 +536,13 @@ export function DiscountClient({ location }: DiscountClientProps) {
                 columns={discountColumns}
                 enableSearch={false}
                 enableExport={true}
-                enableFilter={true}
+                enableFilter={false}
                 enablePrint={true}
                 enableRowsPerPage={true}
                 enableSorting={false}
+                enableDateRangePicker={true}
+                dateRange={range}
+                onDateRangeChange={handleDateRangeChange}
                 title={undefined}
                 onPrint={handlePrint}
                 onExport={{
@@ -559,13 +553,6 @@ export function DiscountClient({ location }: DiscountClientProps) {
                   pdf: exportToPdf,
                   json: exportToJson,
                 }}
-                serverSideFilterOptions={[
-                  { key: 'all', label: 'All Discounts' },
-                  { key: 'high-value', label: 'High Value (>$1000)' },
-                  { key: 'low-value', label: 'Low Value (<$1000)' },
-                ]}
-                activeServerSideFilter={activeFilter}
-                onServerSideFilterChange={handleFilterChange}
                 initialRowsPerPage={rowsPerPage}
                 rowsPerPage={rowsPerPage}
                 rowsPerPageOptions={[5, 10, 20, 50, 100]}
