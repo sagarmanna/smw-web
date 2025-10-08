@@ -23,8 +23,8 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
 
   const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => {
     const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const from = now;
+    const to =now;
     return { from, to };
   });
 
