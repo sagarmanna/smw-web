@@ -98,7 +98,11 @@ export async function getItemCategory(
     
     // Add limit parameter if provided
     if (limit) {
-      params.limit = limit;
+      if(limit < 0){
+      params.limit = 99999;
+      }else {
+        params.limit = limit;
+      }
     }
 
     params.summaryOnly = !!summaryOnly;
@@ -128,6 +132,7 @@ export async function getItemCategory(
         tax,
         total: total || subtotal + tax,
         date: r.dateLabel ?? r.invoiceDate ?? r.invoice_date ?? r.date ?? r.Date ?? r.createdAt ?? r.created_at ?? r.transactionDate ?? r.transaction_date,
+        invoiceId: r.invoiceId
       } as ItemCategoryRow;
       
       
