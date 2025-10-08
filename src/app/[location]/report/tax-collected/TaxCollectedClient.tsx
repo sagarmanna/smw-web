@@ -187,12 +187,12 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
     {
       accessorKey: "sourceId",
       header: "Source ID",
-      size: 120,
+      size: 150,
       enableSorting: false,
       cell: ({ row }) => {
         if (row.original.isDateHeader) {
           return (
-            <div className="font-bold text-foreground col-span-2">
+            <div className="date-header-cell font-bold text-foreground text-start">
               {row.original.dateLabel}
             </div>
           );
@@ -200,7 +200,11 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
         if (row.original.isDateTotal) {
           return null; // Date total row - handled in respective columns
         }
-        return row.original.sourceId;
+        return (
+          <div className={`text-start ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
+            {row.original.sourceId}
+          </div>
+        );
       },
       meta: {
         printable: true,
@@ -214,12 +218,19 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       enableSorting: false,
       cell: ({ row }) => {
         if (row.original.isDateHeader) {
-          return null; // Date header spans source ID and customer columns
+          return null; // Date header spans both Source ID and Customer columns
         }
         if (row.original.isDateTotal) {
           return null; // Date total row - handled in respective columns
         }
-        return row.original.customer;
+        // Check if this is a footer row
+        const isFooterRow = 'isFooterRow' in row.original && (row.original as { isFooterRow?: boolean }).isFooterRow;
+        
+        return (
+          <div className={`text-start ${isFooterRow ? 'font-bold' : ''} ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
+            {row.original.customer}
+          </div>
+        );
       },
       meta: {
         printable: true,
@@ -232,16 +243,27 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       size: 120,
       cell: ({ row }) => {
         if (row.original.isDateHeader) {
-          return null; // Date header spans source ID and customer columns
+          return null; // Date header is handled in the first column
         }
         if (row.original.isDateTotal) {
           return (
-            <div className="font-bold text-foreground bg-muted/20 px-2 py-1 rounded">
+            <div className={`font-bold rounded text-end ${
+              activeFilter === 'summary_only' 
+                ? 'text-muted-foreground bg-muted/10 px-2 py-1' 
+                : 'text-foreground bg-muted/20 px-2 py-1'
+            }`}>
               {formatCurrency(row.original.subtotal)}
             </div>
           );
         }
-        return formatCurrency(row.original.subtotal);
+        // Check if this is a footer row
+        const isFooterRow = 'isFooterRow' in row.original && (row.original as { isFooterRow?: boolean }).isFooterRow;
+        
+        return (
+          <div className={`text-end ${isFooterRow ? 'font-bold' : ''} ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
+            {formatCurrency(row.original.subtotal)}
+          </div>
+        );
       },
       enableSorting: false,
       meta: {
@@ -255,16 +277,27 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       size: 120,
       cell: ({ row }) => {
         if (row.original.isDateHeader) {
-          return null; // Date header spans source ID and customer columns
+          return null; // Date header is handled in the first column
         }
         if (row.original.isDateTotal) {
           return (
-            <div className="font-bold text-foreground bg-muted/20 px-2 py-1 rounded">
+            <div className={`font-bold rounded text-end ${
+              activeFilter === 'summary_only' 
+                ? 'text-muted-foreground bg-muted/10 px-2 py-1' 
+                : 'text-foreground bg-muted/20 px-2 py-1'
+            }`}>
               {formatCurrency(row.original.tax)}
             </div>
           );
         }
-        return formatCurrency(row.original.tax);
+        // Check if this is a footer row
+        const isFooterRow = 'isFooterRow' in row.original && (row.original as { isFooterRow?: boolean }).isFooterRow;
+        
+        return (
+          <div className={`text-end ${isFooterRow ? 'font-bold' : ''} ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
+            {formatCurrency(row.original.tax)}
+          </div>
+        );
       },
       enableSorting: false,
       meta: {
@@ -278,16 +311,27 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       size: 120,
       cell: ({ row }) => {
         if (row.original.isDateHeader) {
-          return null; // Date header spans source ID and customer columns
+          return null; // Date header is handled in the first column
         }
         if (row.original.isDateTotal) {
           return (
-            <div className="font-bold text-foreground bg-muted/20 px-2 py-1 rounded">
+            <div className={`font-bold rounded text-end ${
+              activeFilter === 'summary_only' 
+                ? 'text-muted-foreground bg-muted/10 px-2 py-1' 
+                : 'text-foreground bg-muted/20 px-2 py-1'
+            }`}>
               {formatCurrency(row.original.total)}
             </div>
           );
         }
-        return formatCurrency(row.original.total);
+        // Check if this is a footer row
+        const isFooterRow = 'isFooterRow' in row.original && (row.original as { isFooterRow?: boolean }).isFooterRow;
+        
+        return (
+          <div className={`text-end ${isFooterRow ? 'font-bold' : ''} ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
+            {formatCurrency(row.original.total)}
+          </div>
+        );
       },
       enableSorting: false,
       meta: {
@@ -319,13 +363,40 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       total: totals.total,
       date: "",
       dateLabel: "",
+      isFooterRow: true, // Add identifier for footer row
     };
   }, [data.length, totals]);
 
   const { handlePrint } = usePrintReport<TaxCollectedItem>();
 
-
   return (
+    <>
+      <style jsx>{`
+        .date-header-cell {
+          position: relative;
+          grid-column: 1 / 3;
+        }
+        .date-header-cell::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          background-color: var(--muted);
+          z-index: -1;
+        }
+        /* Table header alignment */
+        table th:nth-child(1),
+        table th:nth-child(2) {
+          text-align: left;
+        }
+        table th:nth-child(3),
+        table th:nth-child(4),
+        table th:nth-child(5) {
+          text-align: right;
+        }
+      `}</style>
     <ReportPageLayout
       title="Tax Collected"
       subtitle="View tax collected transactions and details"
@@ -333,10 +404,10 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       error={error}
       onRetry={refetch}
     >
-      <CustomTable
-        columns={columns}
-        data={processedDisplayData}
-        footerRow={footerRow}
+       <CustomTable
+         columns={columns}
+         data={processedDisplayData}
+         footerRow={footerRow}
         isLoading={isLoading}
         
         // Visual configuration
@@ -377,5 +448,6 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
         enableRowsPerPage={false}
       />
     </ReportPageLayout>
+    </>
   );
 };
