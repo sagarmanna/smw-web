@@ -121,6 +121,15 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
     },
   ];
 
+    const handleRowClick = React.useCallback((id: string) => {
+      const legacyUrl = process.env.NEXT_PUBLIC_LEGACY_URL;
+      if (legacyUrl && id) {
+        const url = `${legacyUrl}/${location}/student/view?id=${id}`;
+        window.open(url, '_self');
+      }
+    }, [location]);
+
+
   const { handlePrint } = usePrintReport<StudentBirthday>();
 
   if (isLoading) {
@@ -147,6 +156,9 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
         columns={columns}
         data={data}
         isLoading={isLoading}
+
+        onRowClick={(row) => handleRowClick(row.studentId)}
+
         
         // Features
         enablePrint={true}
