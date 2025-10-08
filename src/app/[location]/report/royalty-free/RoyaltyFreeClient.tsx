@@ -8,6 +8,7 @@ import { addDays } from "date-fns";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 
 // Client Component
 export const RoyaltyFreeClient = ({ location }: { location: string }) => {
@@ -23,7 +24,7 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [dateRange, setDateRange] = React.useState({
     from: new Date(),
-    to: addDays(new Date(), 7),
+    to: new Date(),
   });
   const [totalAmount, setTotalAmount] = React.useState(0);
 
@@ -146,6 +147,19 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
   }, [data.length, totalAmount]);
 
   const { handlePrint } = usePrintReport<RoyaltyFreeItem>();
+
+   // Show loading animation
+   if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[600px]">
+        <LoadingAnimation 
+          size="xl" 
+          text="Loading royalty free data..." 
+          className="text-center"
+        />
+      </div>  
+    );
+  }
 
   return (
     <ReportPageLayout
