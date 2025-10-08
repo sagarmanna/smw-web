@@ -16,26 +16,12 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
   const [error, setError] = React.useState<string | null>(null);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [dateRange, setDateRange] = React.useState(() => {
-    // Try to get date range from localStorage on initial load
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('tax-collected-date-range');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          return {
-            from: new Date(parsed.from),
-            to: new Date(parsed.to),
-          };
-        } catch (error) {
-          console.log('Failed to parse saved date range:', error);
-        }
-      }
-    }
-    return {
-      from: new Date(),
-      to: new Date(),
-    };
+    const now = new Date();
+    const from = now;
+    const to = now;
+    return { from, to };
   });
+  
   const [totals, setTotals] = React.useState({
     subtotal: 0,
     tax: 0,

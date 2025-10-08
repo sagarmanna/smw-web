@@ -518,8 +518,8 @@ export function DiscountClient({ location }: DiscountClientProps) {
   };
 
   return (
-    <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8">
-      <div className="mx-auto max-w-screen-2xl space-y-4">
+    <div className="w-full">
+      <div className="mx-auto">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Discount Report</h1>
@@ -528,14 +528,14 @@ export function DiscountClient({ location }: DiscountClientProps) {
         </div>
 
         {/* Discount Table */}
-        <Card className="p-3 md:p-4">
+        {/* <Card className="p-3 md:p-4"> */}
           <div className="overflow-x-auto">
             <div className="min-w-[800px]">
               <CustomTable
                 data={tableData}
                 columns={discountColumns}
                 enableSearch={false}
-                enableExport={true}
+                // enableExport={true}
                 enableFilter={false}
                 enablePrint={true}
                 enableRowsPerPage={true}
@@ -545,14 +545,14 @@ export function DiscountClient({ location }: DiscountClientProps) {
                 onDateRangeChange={handleDateRangeChange}
                 title={undefined}
                 onPrint={handlePrint}
-                onExport={{
-                  html: exportToHtml,
-                  csv: exportToCsv,
-                  text: exportToText,
-                  excel: exportToExcel,
-                  pdf: exportToPdf,
-                  json: exportToJson,
-                }}
+                // onExport={{
+                //   html: exportToHtml,
+                //   csv: exportToCsv,
+                //   text: exportToText,
+                //   excel: exportToExcel,
+                //   pdf: exportToPdf,
+                //   json: exportToJson,
+                // }}
                 initialRowsPerPage={rowsPerPage}
                 rowsPerPage={rowsPerPage}
                 rowsPerPageOptions={[5, 10, 20, 50, 100]}
@@ -562,7 +562,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
               />
             </div>
           </div>
-        </Card>
+        {/* </Card> */}
         
         {error && (
           <div className="text-sm text-red-600">{error}</div>

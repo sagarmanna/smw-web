@@ -9,6 +9,7 @@ export interface ItemCategoryRow {
   tax: number;
   total: number;
   date?: string;
+  invoiceId?: string;
 }
 
 export interface ItemCategoryFooter {
@@ -219,8 +220,6 @@ export async function getAllItemCategoryData(
   summaryOnly?: boolean
 ): Promise<ItemCategoryApiResponse> {
   try {
-    console.log('Fetching all data for date range:', startDate, 'to', endDate);
-    
     // First, get page 1 to understand pagination structure
     const firstPageResponse = await getItemCategory(location, startDate, endDate, categoryId, 1, undefined, summaryOnly);
     
@@ -233,12 +232,8 @@ export async function getAllItemCategoryData(
     
     if (!paginationInfo || paginationInfo.totalPages <= 1) {
       // No pagination or only one page, return the first page data
-      console.log('No pagination or single page, returning first page data');
       return firstPageResponse;
     }
-    
-    console.log('Pagination info:', paginationInfo);
-    console.log(`Fetching all ${paginationInfo.totalPages} pages...`);
     
     // Fetch all remaining pages
     const allData = [...firstPageResponse.data];
@@ -259,8 +254,6 @@ export async function getAllItemCategoryData(
         console.warn(`Failed to fetch page:`, pageResponse.message);
       }
     }
-    
-    console.log(`Successfully fetched ${allData.length} total records from ${paginationInfo.totalPages} pages`);
     
     return {
       success: true,

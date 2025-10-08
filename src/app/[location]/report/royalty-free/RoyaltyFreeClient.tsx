@@ -92,12 +92,12 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
       },
     },
     {
-      accessorKey: "dateLabel",
+      accessorKey: "date",
       header: "Date",
       size: 150,
       cell: ({ row }) => {
         // Use the pre-formatted dateLabel from API
-        return row.original.dateLabel || "";
+        return row.original.date || "";
       },
       enableSorting: false,
       meta: {
@@ -138,10 +138,10 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
     if (data.length === 0) return undefined;
     
     return {
-      id: "-1",
+      id: "TOTAL",
       date: "",
       dateLabel: "",
-      description: "TOTAL",
+      description: "",
       total: totalAmount,
     };
   }, [data.length, totalAmount]);
