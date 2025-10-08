@@ -183,13 +183,14 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
     return result;
   }, [groupedData]);
 
-  const columns: ColumnDef<TaxCollectedItem & { isDateHeader?: boolean; isDateTotal?: boolean }, unknown>[] = [
+  const columns: ColumnDef<TaxCollectedItem & { isDateHeader?: boolean; isDateTotal?: boolean }, unknown>[] = React.useMemo(() => {
+    const allColumns = [
     {
       accessorKey: "sourceId",
       header: "Source ID",
       size: 150,
       enableSorting: false,
-      cell: ({ row }) => {
+      cell: ({ row }: { row: { original: TaxCollectedItem & { isDateHeader?: boolean; isDateTotal?: boolean } } }) => {
         if (row.original.isDateHeader) {
           return (
             <div className="date-header-cell font-bold text-foreground text-start">
@@ -199,6 +200,14 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
         }
         if (row.original.isDateTotal) {
           return null; // Date total row - handled in respective columns
+        }
+        // For summary rows, show the date label in the first column
+        if (activeFilter === 'summary_only') {
+          return (
+            <div className="font-bold text-start">
+              {row.original.dateLabel}
+            </div>
+          );
         }
         return (
           <div className={`text-start ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
@@ -216,7 +225,11 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       header: "Customer",
       size: 200,
       enableSorting: false,
-      cell: ({ row }) => {
+      meta: {
+        printable: true,
+        printableName: "Customer",
+      },
+      cell: ({ row }: { row: { original: TaxCollectedItem & { isDateHeader?: boolean; isDateTotal?: boolean } } }) => {
         if (row.original.isDateHeader) {
           return null; // Date header spans both Source ID and Customer columns
         }
@@ -226,22 +239,23 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
         // Check if this is a footer row
         const isFooterRow = 'isFooterRow' in row.original && (row.original as { isFooterRow?: boolean }).isFooterRow;
         
+        // For summary rows, hide the customer column
+        if (activeFilter === 'summary_only') {
+          return null;
+        }
+        
         return (
           <div className={`text-start ${isFooterRow ? 'font-bold' : ''} ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
             {row.original.customer}
           </div>
         );
       },
-      meta: {
-        printable: true,
-        printableName: "Customer",
-      },
     },
     {
       accessorKey: "subtotal",
       header: "Subtotal",
       size: 120,
-      cell: ({ row }) => {
+      cell: ({ row }: { row: { original: TaxCollectedItem & { isDateHeader?: boolean; isDateTotal?: boolean } } }) => {
         if (row.original.isDateHeader) {
           return null; // Date header is handled in the first column
         }
@@ -259,8 +273,17 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
         // Check if this is a footer row
         const isFooterRow = 'isFooterRow' in row.original && (row.original as { isFooterRow?: boolean }).isFooterRow;
         
+        // For summary rows, show values with bold font weight
+        if (activeFilter === 'summary_only') {
+          return (
+            <div className="font-bold text-end">
+              {formatCurrency(row.original.subtotal)}
+            </div>
+          );
+        }
+        
         return (
-          <div className={`text-end ${isFooterRow ? 'font-bold' : ''} ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
+          <div className={`text-end ${isFooterRow ? 'font-bold ' : ''} ${activeFilter === 'summary_only' && !isFooterRow ? 'font-bold' : ''}`}>
             {formatCurrency(row.original.subtotal)}
           </div>
         );
@@ -275,7 +298,7 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       accessorKey: "tax",
       header: "Tax",
       size: 120,
-      cell: ({ row }) => {
+      cell: ({ row }: { row: { original: TaxCollectedItem & { isDateHeader?: boolean; isDateTotal?: boolean } } }) => {
         if (row.original.isDateHeader) {
           return null; // Date header is handled in the first column
         }
@@ -293,8 +316,17 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
         // Check if this is a footer row
         const isFooterRow = 'isFooterRow' in row.original && (row.original as { isFooterRow?: boolean }).isFooterRow;
         
+        // For summary rows, show values with bold font weight
+        if (activeFilter === 'summary_only') {
+          return (
+            <div className="font-bold text-end">
+              {formatCurrency(row.original.tax)}
+            </div>
+          );
+        }
+        
         return (
-          <div className={`text-end ${isFooterRow ? 'font-bold' : ''} ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
+          <div className={`text-end ${isFooterRow ? 'font-bold text-foreground' : ''} ${activeFilter === 'summary_only' && !isFooterRow ? 'text-muted-foreground' : ''}`}>
             {formatCurrency(row.original.tax)}
           </div>
         );
@@ -309,7 +341,7 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       accessorKey: "total",
       header: "Total",
       size: 120,
-      cell: ({ row }) => {
+      cell: ({ row }: { row: { original: TaxCollectedItem & { isDateHeader?: boolean; isDateTotal?: boolean } } }) => {
         if (row.original.isDateHeader) {
           return null; // Date header is handled in the first column
         }
@@ -327,8 +359,17 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
         // Check if this is a footer row
         const isFooterRow = 'isFooterRow' in row.original && (row.original as { isFooterRow?: boolean }).isFooterRow;
         
+        // For summary rows, show values with bold font weight
+        if (activeFilter === 'summary_only') {
+          return (
+            <div className="font-bold text-end">
+              {formatCurrency(row.original.total)}
+            </div>
+          );
+        }
+        
         return (
-          <div className={`text-end ${isFooterRow ? 'font-bold' : ''} ${activeFilter === 'summary_only' ? 'text-muted-foreground' : ''}`}>
+          <div className={`text-end ${isFooterRow ? 'font-bold  text-foreground' : ''} ${activeFilter === 'summary_only' && !isFooterRow ? 'text-muted-foreground' : ''}`}>
             {formatCurrency(row.original.total)}
           </div>
         );
@@ -341,15 +382,50 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
     },
   ];
 
+    // Filter out Customer column when in summary mode
+    if (activeFilter === 'summary_only') {
+      return allColumns.filter(col => col.accessorKey !== 'customer');
+    }
+    
+    return allColumns;
+  }, [activeFilter]);
+
   // Process data based on filter setting
   const processedDisplayData = React.useMemo(() => {
     if (activeFilter !== 'summary_only') {
       return displayData;
     }
     
-    // If summary only is enabled, show only date headers and totals
-    return displayData.filter(row => row.isDateHeader || row.isDateTotal);
-  }, [displayData, activeFilter]);
+    // If summary only is enabled, create combined rows with all values
+    const summaryData: (TaxCollectedItem & { isDateHeader?: boolean; isDateTotal?: boolean })[] = [];
+    
+    Object.entries(groupedData).forEach(([dateLabel, items]) => {
+      // Calculate totals for this date group
+      const groupTotals = items.reduce(
+        (totals, item) => ({
+          subtotal: totals.subtotal + (item.subtotal || 0),
+          tax: totals.tax + (item.tax || 0),
+          total: totals.total + (item.total || 0),
+        }),
+        { subtotal: 0, tax: 0, total: 0 }
+      );
+
+      // Create a single summary row with all values
+      summaryData.push({
+        isDateHeader: false,
+        isDateTotal: false,
+        dateLabel,
+        subtotal: groupTotals.subtotal,
+        tax: groupTotals.tax,
+        total: groupTotals.total,
+        sourceId: dateLabel, // Use date as the identifier
+        customer: '', // Empty for summary rows
+        date: '',
+      });
+    });
+    
+    return summaryData;
+  }, [displayData, activeFilter, groupedData]);
 
   // Create footer row with totals
   const footerRow = React.useMemo(() => {
