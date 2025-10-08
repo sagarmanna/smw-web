@@ -79,9 +79,6 @@ export async function getItemsList(
     
     const response = await apiClient.get(url);
 
-    // Debug logging to understand the response structure
-    console.log('Items API Response:', response.data);
-
     return {
       success: true,
       data: response.data.data || response.data,

@@ -44,9 +44,7 @@ export const ItemsClient = ({ location }: { location: string }) => {
       });
 
       if (response.success) {
-        console.log('Items data received:', response.data);
         const items = response.data.body || [];
-        console.log('Sample item:', items[0]); // Log first item to see structure
         setData(items);
         setPagination(response.data.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
         
@@ -60,7 +58,6 @@ export const ItemsClient = ({ location }: { location: string }) => {
             const amount = typeof item.amount === 'string' ? parseFloat(item.amount) : item.amount;
             return sum + (amount || 0);
           }, 0);
-          console.log('Calculated total:', calculatedTotal);
           setTotalAmount(response.data.meta?.totalAmount || calculatedTotal);
         }
       } else {

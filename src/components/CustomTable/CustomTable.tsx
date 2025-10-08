@@ -321,10 +321,6 @@ export function CustomTable<TData, TValue>({
     return result;
   }, [data, enableSearch, globalFilter, getSearchValue]);
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('CustomTable - data length:', data.length, 'filteredData length:', filteredData.length, 'serverSidePagination:', serverSidePagination);
-  }, [data.length, filteredData.length, serverSidePagination]);
 
   const table = useReactTable({
     data: filteredData,

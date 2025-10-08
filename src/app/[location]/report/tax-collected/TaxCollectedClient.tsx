@@ -83,20 +83,10 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
 
   // Effect for initial load and location/sorting changes - preserves date range
   React.useEffect(() => {
-    console.log('Location/sorting changed, using date range:', {
-      from: dateRangeRef.current.from.toISOString().split('T')[0],
-      to: dateRangeRef.current.to.toISOString().split('T')[0],
-      location
-    });
     fetchTaxCollectedItems(dateRangeRef.current.from, dateRangeRef.current.to);
   }, [location, sorting, fetchTaxCollectedItems]);
   
   const handleDateRangeChange = (newDateRange: { from: Date; to: Date }) => {
-    console.log('Date range changed to:', {
-      from: newDateRange.from.toISOString().split('T')[0],
-      to: newDateRange.to.toISOString().split('T')[0],
-      location
-    });
     
     // Save to localStorage for persistence across location changes
     if (typeof window !== 'undefined') {
