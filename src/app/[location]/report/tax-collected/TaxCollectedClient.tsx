@@ -4,7 +4,7 @@ import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { getTaxCollectedList, TaxCollectedItem } from "./tax-collected.api";
-import { addDays } from "date-fns";
+
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -33,7 +33,7 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
     }
     return {
       from: new Date(),
-      to: addDays(new Date(), 7),
+      to: new Date(),
     };
   });
   const [totals, setTotals] = React.useState({
@@ -292,6 +292,7 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       meta: {
         printable: true,
         printableName: "Subtotal",
+        exportFormatter: (value: unknown) => formatCurrency(value as number),
       },
     },
     {
@@ -335,6 +336,7 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       meta: {
         printable: true,
         printableName: "Tax",
+        exportFormatter: (value: unknown) => formatCurrency(value as number),
       },
     },
     {
@@ -378,6 +380,7 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
       meta: {
         printable: true,
         printableName: "Total",
+        exportFormatter: (value: unknown) => formatCurrency(value as number),
       },
     },
   ];
