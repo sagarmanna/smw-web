@@ -274,10 +274,11 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   const handleRowClick = React.useCallback((id: string | undefined) => {
     const legacyUrl = process.env.NEXT_PUBLIC_LEGACY_URL;
     if (legacyUrl && id) {
-      const url = `${legacyUrl}/${location}/student/view?id=${id}`;
+      const url = `${legacyUrl}/${location}/invoice/view?id=${id}`;
       window.open(url, '_self');
     }
   }, [location]);
+
 
   const filteredCategories = React.useMemo(() => {
     if (!categorySearchTerm) return itemCategories;
