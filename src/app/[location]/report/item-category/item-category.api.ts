@@ -84,11 +84,12 @@ export async function getItemCategory(
   endDate: string,
   categoryId?: string,
   page: number = 1,
-  limit?: number
+  limit?: number,
+  summaryOnly?: boolean
 ): Promise<ItemCategoryApiResponse> {
   try {
     const url = `/admin/v2/${location}/report/item-category`;
-    const params: Record<string, string | number> = { startDate, endDate, page };
+    const params: Record<string, string | number | boolean> = { startDate, endDate, page };
     
     if (categoryId && categoryId !== "All") {
       params.categoryId = categoryId;
@@ -98,6 +99,8 @@ export async function getItemCategory(
     if (limit) {
       params.limit = limit;
     }
+
+    params.summaryOnly = !!summaryOnly;
 
     const response = await apiClient.get(url, { params });
 
@@ -119,7 +122,7 @@ export async function getItemCategory(
       const mappedRow = {
         itemCategory:
           r.itemCategory ?? r.itemCategoryName ?? r.ItemCategory ?? r["Item Category"] ?? r.category ?? r.Category ?? r.categoryName ?? "",
-        id: String(r.id ?? r.ID ?? r.Id ?? r.itemId ?? r.item_id ?? r.transactionId ?? r.transaction_id ?? r.lessonId ?? r.lesson_id ?? r.orderId ?? r.order_id ?? r.receiptId ?? r.receipt_id ?? r.invoiceId ?? r.invoice_id ?? r.bookingId ?? r.booking_id ?? ""),
+        id: String(r.invoiceNumber ?? r.id ?? r.ID ?? r.Id ?? r.itemId ?? r.item_id ?? r.transactionId ?? r.transaction_id ?? r.lessonId ?? r.lesson_id ?? r.orderId ?? r.order_id ?? r.receiptId ?? r.receipt_id ?? r.invoiceId ?? r.invoice_id ?? r.bookingId ?? r.booking_id ?? ""),
         customer:
           r.customer ?? r.customerName ?? r.Customer ?? r["Customer"] ?? r.client ?? r.Client ?? "",
         description:
@@ -127,7 +130,7 @@ export async function getItemCategory(
         subtotal,
         tax,
         total: total || subtotal + tax,
-        date: r.invoiceDate ?? r.invoice_date ?? r.date ?? r.Date ?? r.createdAt ?? r.created_at ?? r.transactionDate ?? r.transaction_date,
+        date: r.dateLabel ?? r.invoiceDate ?? r.invoice_date ?? r.date ?? r.Date ?? r.createdAt ?? r.created_at ?? r.transactionDate ?? r.transaction_date,
       } as ItemCategoryRow;
       
       // Debug logging for ID and date mapping
@@ -262,13 +265,14 @@ export async function getAllItemCategoryData(
   location: string,
   startDate: string,
   endDate: string,
-  categoryId?: string
+  categoryId?: string,
+  summaryOnly?: boolean
 ): Promise<ItemCategoryApiResponse> {
   try {
     console.log('Fetching all data for date range:', startDate, 'to', endDate);
     
     // First, get page 1 to understand pagination structure
-    const firstPageResponse = await getItemCategory(location, startDate, endDate, categoryId, 1);
+    const firstPageResponse = await getItemCategory(location, startDate, endDate, categoryId, 1, undefined, summaryOnly);
     
     if (!firstPageResponse.success) {
       return firstPageResponse;
@@ -291,7 +295,7 @@ export async function getAllItemCategoryData(
     const promises = [];
     
     for (let page = 2; page <= paginationInfo.totalPages; page++) {
-      promises.push(getItemCategory(location, startDate, endDate, categoryId, page));
+      promises.push(getItemCategory(location, startDate, endDate, categoryId, page, undefined, summaryOnly));
     }
     
     // Wait for all pages to load

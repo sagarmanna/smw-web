@@ -30,7 +30,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   const [categoriesLoading, setCategoriesLoading] = React.useState<boolean>(true);
   const [categorySearchTerm, setCategorySearchTerm] = React.useState<string>("");
   const [summariesOnly, setSummariesOnly] = React.useState<boolean>(false);
-  const [activeViewFilter, setActiveViewFilter] = React.useState<string>('detailed');
+  const [activeViewFilter, setActiveViewFilter] = React.useState<string | undefined>(undefined);
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
   const [pagination, setPagination] = React.useState({
     page: 1,
@@ -112,7 +112,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       const selectedCategoryData = itemCategories.find(cat => cat.name === selectedCategory);
       const categoryId = selectedCategoryData?.id;
       
-      const response = await getItemCategory(location, startDate, endDate, categoryId, page, limit);
+      const response = await getItemCategory(location, startDate, endDate, categoryId, page, limit, summariesOnly);
       
       if (response.success) {
         setData(response.data);
@@ -137,7 +137,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       setIsLoading(false);
       isFetchingDataRef.current = false;
     }
-  }, [location, range, selectedCategory, itemCategories]);
+  }, [location, range, selectedCategory, itemCategories, summariesOnly]);
 
   React.useEffect(() => {
     // Only fetch data if categories have been loaded or "All" is selected
@@ -160,9 +160,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   }, []);
 
   const handleViewFilterChange = (filterKey: string | undefined) => {
-    const newFilter = filterKey || 'detailed';
-    setActiveViewFilter(newFilter);
-    setSummariesOnly(newFilter === 'summaries');
+    setActiveViewFilter(filterKey);
+    setSummariesOnly(filterKey === 'summaries');
   };
 
   // Dynamic columns based on summaries mode
@@ -279,77 +278,6 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     );
   }, [itemCategories, categorySearchTerm]);
 
-  // Process data based on summaries only setting
-  const processedData = React.useMemo(() => {
-    if (!summariesOnly) {
-      return data;
-    }
-
-    const filteredData = data.filter(row => {
-      if (!row.date) return false;
-      
-      const rowDate = parseInvoiceDate(row.date);
-      const startDate = new Date(range.from);
-      const endDate = new Date(range.to);
-      
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
-      rowDate.setHours(0, 0, 0, 0);
-      
-      return rowDate >= startDate && rowDate <= endDate;
-    });
-
-    const groupedData = filteredData.reduce((acc, row) => {
-      const invoiceDate = parseInvoiceDate(row.date || "");
-      const dateKey = invoiceDate.toDateString();
-      
-      if (!acc[dateKey]) {
-        acc[dateKey] = {
-          date: dateKey,
-          originalDate: row.date || '',
-          itemCategory: row.itemCategory,
-          subtotal: 0,
-          tax: 0,
-          total: 0,
-          count: 0,
-          subtotalValues: []
-        };
-      }
-      
-      acc[dateKey].subtotal += row.subtotal;
-      acc[dateKey].tax += row.tax;
-      acc[dateKey].total += row.total;
-      acc[dateKey].count += 1;
-      acc[dateKey].subtotalValues.push(row.subtotal);
-      
-      return acc;
-    }, {} as Record<string, { date: string; originalDate: string; itemCategory: string; subtotal: number; tax: number; total: number; count: number; subtotalValues: number[] }>);
-
-    const result = Object.values(groupedData)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map((summary) => {
-        const averageSubtotal = summary.subtotalValues.length > 0 
-          ? summary.subtotal / summary.subtotalValues.length 
-          : 0;
-
-        return {
-          itemCategory: summary.itemCategory,
-          id: '',
-          customer: '',
-          description: `${summary.count} item(s)`,
-          subtotal: averageSubtotal,
-          tax: summary.tax,
-          total: summary.total,
-          date: summary.originalDate || summary.date,
-          isSummary: true,
-          subtotalCount: summary.count,
-          subtotalSum: summary.subtotal
-        };
-      });
-
-    return result;
-  }, [data, summariesOnly, range]);
-
   const footerRow = React.useMemo(() => {
     if (!footer) return undefined;
     return {
@@ -373,7 +301,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   } = useExportableData({
     reportTitle: 'Items Sold by Category Report',
     columns,
-    data: processedData,
+    data: data,
     footer: footerRow,
   });
 
@@ -381,7 +309,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     handlePrint({
       reportTitle: 'Items Sold by Category Report',
       columns,
-      data: processedData,
+      data: data,
       footer: footerRow,
     });
   };
@@ -404,12 +332,12 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     >
         {/* Top filters */}
         <CustomTable
-          data={processedData}
+          data={data}
           columns={columns}
           footerRow={footerRow}
           enableSearch={false}
           enableExport={true}
-          // enableFilter={true}
+          enableFilter={true}
           enablePrint={true}
           onPrint={onPrintClick}
           enableRowsPerPage={true}
