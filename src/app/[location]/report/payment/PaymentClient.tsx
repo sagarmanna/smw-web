@@ -4,7 +4,7 @@ import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { getPaymentList, Payment, PaymentSummary } from "./payment.api";
-import { subDays } from "date-fns";
+
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -44,7 +44,7 @@ export const PaymentClient = ({ location }: { location: string }) => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [dateRange, setDateRange] = React.useState({ from: subDays(new Date(), 30), to: new Date() });
+  const [dateRange, setDateRange] = React.useState({ from: new Date(), to: new Date() });
   const [footer, setFooter] = React.useState<{ amount: string; } | null>(null);
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
   const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
