@@ -28,31 +28,31 @@ const columns: ColumnDef<LocationStats>[] = [
   {
     accessorKey: "revenue",
     header: "Revenue",
-    cell: ({ row }) => formatCurrency(row.original.revenue),
+    cell: ({ row }) => <span className="text-right block">{formatCurrency(row.original.revenue)}</span>,
     meta: { printable: true, printableName: "Revenue", exportFormatter: (value: unknown) => formatCurrency(value as number) },
   },
   {
     accessorKey: "royalty",
     header: "Royalty",
-    cell: ({ row }) => formatCurrency(row.original.royalty),
+    cell: ({ row }) => <span className="text-right block">{formatCurrency(row.original.royalty)}</span>,
     meta: { printable: true, printableName: "Royalty", exportFormatter: (value: unknown) => formatCurrency(value as number) },
   },
   {
     accessorKey: "advertisement",
     header: "Advertisement",
-    cell: ({ row }) => formatCurrency(row.original.advertisement),
+    cell: ({ row }) => <span className="text-right block">{formatCurrency(row.original.advertisement)}</span>,
     meta: { printable: true, printableName: "Advertisement", exportFormatter: (value: unknown) => formatCurrency(value as number) },
   },
   {
     accessorKey: "hst",
     header: "HST",
-    cell: ({ row }) => formatCurrency(row.original.hst),
+    cell: ({ row }) => <span className="text-right block">{formatCurrency(row.original.hst)}</span>,
     meta: { printable: true, printableName: "HST", exportFormatter: (value: unknown) => formatCurrency(value as number) },
   },
   {
     accessorKey: "total",
     header: "Total",
-    cell: ({ row }) => formatCurrency(row.original.total),
+    cell: ({ row }) => <span className="text-right block">{formatCurrency(row.original.total)}</span>,
     meta: { printable: true, printableName: "Total", exportFormatter: (value: unknown) => formatCurrency(value as number) },
   }
 ];
@@ -61,10 +61,9 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [locationData, setLocationData] = React.useState<LocationStats[]>([]);
-  const [pagination, setPagination] = React.useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [dateRange, setDateRange] = React.useState({
-    from: new Date(2025, 8, 1),
-    to: new Date(2025, 8, 30),
+    from: new Date(),
+    to: new Date(),
   });
 
   const fetchData = React.useCallback(async () => {
@@ -142,11 +141,13 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
         data={locationData}
         columns={columns}
         footerRow={footerRow}
+
+        // Date Range Picker
         enableDateRangePicker={true}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
-        // serverSidePagination={pagination}
-        // onServerSidePageChange={(page) => setPagination(p => ({ ...p, page }))}
+
+        // Features
         enablePrint={true}
         onPrint={() => handlePrint({
           reportTitle: 'All Locations Report',
@@ -163,6 +164,12 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
           pdf: exportToPdf,
           json: exportToJson,
         }}
+
+        // Disabled Features
+        enableSearch={false}
+        enableFilter={false}
+        enableSorting={false}
+        enableRowsPerPage={false}
       />
     </ReportPageLayout>
   );
