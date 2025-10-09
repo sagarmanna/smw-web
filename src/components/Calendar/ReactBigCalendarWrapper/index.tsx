@@ -86,6 +86,7 @@ interface ReactBigCalendarWrapperProps {
   // Mobile editing props
   teachers?: Array<{ id: number; title: string }>; // For mobile teacher selection
   classrooms?: Array<{ id: number; title: string }>; // For mobile classroom selection
+  height?: string;
 }
 
 export interface CalendarWrapperRef {
@@ -133,7 +134,8 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   viewType = 'teacher',
   updatingEvents = new Set(),
   teachers = [],
-  classrooms = []
+  classrooms = [],
+  height = '70vh',
 }, ref) {
   // State for optimistic updates
   const [optimisticEvents, setOptimisticEvents] = useState<CalendarEvent[]>([]);
@@ -702,9 +704,10 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
         
         
         <div 
-          className="w-full"
+          className="w-full modern-scrollbar"
           style={{ 
-            position: 'relative'
+            position: 'relative',
+            height: height
           }}
         > 
           <BigCalendarWithDragDrop
@@ -737,7 +740,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             max={maxDate}
             eventPropGetter={eventPropGetter}
             slotPropGetter={slotPropGetter}
-            style={{ height: calendarHeight }}
+            // style={{ height: '80vh' }}
             className={isMobileView ? 'mobile-calendar' : ''}
           />
         </div>

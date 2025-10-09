@@ -5,6 +5,62 @@
   --teacher-unavailability-color: #cccccc !important;
 }
 
+/* Ultra-minimal modern scrollbar styles */
+.modern-scrollbar {
+  scrollbar-width: thin !important; /* Firefox */
+  scrollbar-color: #94a3b8 transparent !important; /* Firefox - minimal colors */
+  -ms-overflow-style: auto !important; /* IE and Edge */
+}
+
+.modern-scrollbar::-webkit-scrollbar {
+  width: 2px !important; /* Ultra-thin scrollbar */
+  height: 2px !important;
+}
+
+.modern-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important; /* Invisible track */
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8 !important; /* Simple solid color */
+  border-radius: 2px !important;
+  border: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important; /* Slightly darker on hover */
+  width: 3px !important; /* Slightly wider on hover */
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #475569 !important; /* Darker when active */
+}
+
+/* Mobile-specific ultra-minimal adjustments */
+@media (max-width: 768px) {
+  .modern-scrollbar::-webkit-scrollbar {
+    width: 1px !important; /* Ultra-thin on mobile */
+    height: 1px !important;
+  }
+  
+  .modern-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 1px !important;
+  }
+  
+  .modern-scrollbar::-webkit-scrollbar-thumb:hover {
+    width: 2px !important; /* Slightly wider on mobile hover */
+  }
+}
+
+/* High DPI display support */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .modern-scrollbar::-webkit-scrollbar {
+    width: 1px !important; /* Ultra-thin on high DPI displays */
+    height: 1px !important;
+  }
+}
+
 /* Fix year dropdown font size and spacing consistency */
 .rdp-dropdown select option {
   font-size: 14px !important;
@@ -263,29 +319,36 @@
   }
 }
 
-/* Enable scrollbars for better UX */
+/* Ultra-minimal scrollbar styles for teacher view */
 .teacher-view .rbc-calendar {
   scrollbar-width: thin !important; /* Firefox */
+  scrollbar-color: #94a3b8 transparent !important; /* Firefox - minimal colors */
   -ms-overflow-style: auto !important; /* IE and Edge */
 }
 
 .teacher-view .rbc-calendar::-webkit-scrollbar {
-  width: 8px !important; /* Chrome, Safari, Opera */
-  height: 8px !important;
+  width: 2px !important; /* Ultra-thin scrollbar */
+  height: 2px !important;
 }
 
 .teacher-view .rbc-calendar::-webkit-scrollbar-track {
-  background: #f1f1f1 !important;
-  border-radius: 4px !important;
+  background: transparent !important; /* Invisible track */
 }
 
 .teacher-view .rbc-calendar::-webkit-scrollbar-thumb {
-  background: #c1c1c1 !important;
-  border-radius: 4px !important;
+  background: #94a3b8 !important; /* Simple solid color */
+  border-radius: 2px !important;
+  border: none !important;
+  transition: all 0.15s ease !important;
 }
 
 .teacher-view .rbc-calendar::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8 !important;
+  background: #64748b !important; /* Slightly darker on hover */
+  width: 3px !important; /* Slightly wider on hover */
+}
+
+.teacher-view .rbc-calendar::-webkit-scrollbar-thumb:active {
+  background: #475569 !important; /* Darker when active */
 }
 
 .rbc-event-label {
@@ -367,29 +430,36 @@
   }
 }
 
-/* Enable scrollbars for classroom view */
+/* Ultra-minimal scrollbar styles for classroom view */
 .classroom-view .rbc-calendar {
   scrollbar-width: thin !important; /* Firefox */
+  scrollbar-color: #94a3b8 transparent !important; /* Firefox - minimal colors */
   -ms-overflow-style: auto !important; /* IE and Edge */
 }
 
 .classroom-view .rbc-calendar::-webkit-scrollbar {
-  width: 8px !important; /* Chrome, Safari, Opera */
-  height: 8px !important;
+  width: 2px !important; /* Ultra-thin scrollbar */
+  height: 2px !important;
 }
 
 .classroom-view .rbc-calendar::-webkit-scrollbar-track {
-  background: #f1f1f1 !important;
-  border-radius: 4px !important;
+  background: transparent !important; /* Invisible track */
 }
 
 .classroom-view .rbc-calendar::-webkit-scrollbar-thumb {
-  background: #c1c1c1 !important;
-  border-radius: 4px !important;
+  background: #94a3b8 !important; /* Simple solid color */
+  border-radius: 2px !important;
+  border: none !important;
+  transition: all 0.15s ease !important;
 }
 
 .classroom-view .rbc-calendar::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8 !important;
+  background: #64748b !important; /* Slightly darker on hover */
+  width: 3px !important; /* Slightly wider on hover */
+}
+
+.classroom-view .rbc-calendar::-webkit-scrollbar-thumb:active {
+  background: #475569 !important; /* Darker when active */
 }
 
 /* iOS-specific fixes for calendar events visibility */
