@@ -1,5 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+// financial-summary.api.ts
+
 export interface PaidUnscheduledGroupLesson {
+  lessonId: string;
+  studentName: string;
+  customerName: string;
+  date: string;
+  duration: string;
+  amount: number;
+  paidAmount: number;
+  balance: number;
+}
+
+export interface PrepaidFutureGroupLesson {
   lessonId: string;
   studentName: string;
   customerName: string;
@@ -63,6 +76,7 @@ export interface InactiveCustomerWithCredit {
 }
 
 export interface FinancialSummaryData {
+  prepaidFutureGroupLessons: PrepaidFutureGroupLesson[];
   paidUnscheduledGroupLessons: PaidUnscheduledGroupLesson[];
   prepaidFuturePrivateLessons: PrepaidFuturePrivateLesson[];
   paidUnscheduledPrivateLessons: PaidUnscheduledPrivateLesson[];
@@ -74,6 +88,18 @@ export interface FinancialSummaryData {
 
 // Mock data generator
 const mockData: FinancialSummaryData = {
+  prepaidFutureGroupLessons: [
+    { 
+      lessonId: "4794226", 
+      studentName: "Test student22", 
+      customerName: "Test customer22", 
+      date: "Oct 15, 2025 @ 10:45 AM", 
+      duration: "00:30", 
+      amount: 112.50, 
+      paidAmount: 112.50, 
+      balance: 0.00 
+    },
+  ],
   paidUnscheduledGroupLessons: [
     { lessonId: "169901", studentName: "Danish Leena", customerName: "Danish Leena", date: "Dec 25, 2018 @ 03:00 PM", duration: "01:00", amount: 15.63, paidAmount: 15.63, balance: 0.00 },
     { lessonId: "194075", studentName: "Jim Carter", customerName: "John Carter", date: "Jan 10, 2019 @ 04:00 PM", duration: "01:00", amount: 31.25, paidAmount: 31.25, balance: 0.00 },
