@@ -386,7 +386,7 @@
 .rbc-day-slot .available-slot {
   opacity: 0.6 !important;
   background-color: #505050 !important;
-  border: 1px solid #505050 !important;
+  border: none !important; /* Remove border to prevent grid misalignment */
 }
 
 .rbc-day-slot .normal-slot {
