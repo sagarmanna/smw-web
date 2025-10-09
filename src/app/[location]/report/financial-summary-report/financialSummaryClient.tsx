@@ -16,7 +16,7 @@ interface FinancialSummaryClientProps {
   location: string;
 }
 
-const formatCurrency = (value: number) => `${Math.abs(value).toFixed(2)}${value < 0 ? ' CR' : ''}`;
+const formatCurrency = (value: number) => `$${Math.abs(value).toFixed(2)}${value < 0 ? ' CR' : ''}`;
 
 export function FinancialSummaryClient({ location }: FinancialSummaryClientProps) {
   const [data, setData] = React.useState<FinancialSummaryData | null>(null);
@@ -29,6 +29,9 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
   });
 
   // Individual pagination states for each table
+  const [prepaidGroupPage, setPrepaidGroupPage] = React.useState(1);
+  const [prepaidGroupLimit, setPrepaidGroupLimit] = React.useState(10);
+  
   const [paidGroupPage, setPaidGroupPage] = React.useState(1);
   const [paidGroupLimit, setPaidGroupLimit] = React.useState(10);
   
@@ -155,6 +158,12 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
   ];
 
   // Export hooks for each table (must be called before any conditional returns)
+  const prepaidGroupExport = useExportableData({
+    reportTitle: 'Prepaid Future Group Lessons',
+    columns: groupLessonColumns,
+    data: data?.prepaidFutureGroupLessons || [],
+  });
+
   const paidGroupExport = useExportableData({
     reportTitle: 'Paid Unscheduled Group Lessons',
     columns: groupLessonColumns,
@@ -217,21 +226,52 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
     return data.slice(startIndex, endIndex);
   };
 
-  // Conditional returns AFTER all hooks
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <LoadingAnimation size="xl" text="Loading financial summary..." className="text-center" />
-      </div>
-    );
-  }
-
-  if (!data) {
-    return <div>No data available</div>;
-  }
-
   // Assert data is not null for TypeScript after the check above
   const financialData = data;
+
+  // Calculate summary totals
+  const summaryData = [
+    { 
+      particulars: "Prepaid Future Group Lessons", 
+      count: financialData.prepaidFutureGroupLessons.length, 
+      total: financialData.prepaidFutureGroupLessons.reduce((sum, item) => sum + item.amount, 0) 
+    },
+    { 
+      particulars: "Paid Unscheduled Group Lessons", 
+      count: financialData.paidUnscheduledGroupLessons.length, 
+      total: financialData.paidUnscheduledGroupLessons.reduce((sum, item) => sum + item.amount, 0) 
+    },
+    { 
+      particulars: "Prepaid Future Private Lessons", 
+      count: financialData.prepaidFuturePrivateLessons.length, 
+      total: financialData.prepaidFuturePrivateLessons.reduce((sum, item) => sum + item.amount, 0) 
+    },
+    { 
+      particulars: "Paid Unscheduled Private Lessons", 
+      count: financialData.paidUnscheduledPrivateLessons.length, 
+      total: financialData.paidUnscheduledPrivateLessons.reduce((sum, item) => sum + item.amount, 0) 
+    },
+    { 
+      particulars: "Active Outstanding Invoices", 
+      count: financialData.activeOutstandingInvoices.length, 
+      total: financialData.activeOutstandingInvoices.reduce((sum, item) => sum + item.balance, 0) 
+    },
+    { 
+      particulars: "Inactive Outstanding Invoices", 
+      count: financialData.inactiveOutstandingInvoices.length, 
+      total: financialData.inactiveOutstandingInvoices.reduce((sum, item) => sum + item.balance, 0) 
+    },
+    { 
+      particulars: "Number of Active Customers", 
+      count: financialData.activeCustomersWithCredit.length, 
+      total: null 
+    },
+    { 
+      particulars: "Number of Active Enrolments", 
+      count: financialData.prepaidFutureGroupLessons.length + financialData.prepaidFuturePrivateLessons.length, 
+      total: null 
+    },
+  ];
 
   return (
     <div className="w-full space-y-6">
@@ -246,6 +286,41 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           </div>
         </div>
       </div>
+
+      {/* Prepaid Future Group Lessons */}
+      <Card className="p-4">
+        <CustomTable 
+          title="Prepaid Future Group Lessons"
+          data={getPaginatedData(financialData.prepaidFutureGroupLessons, prepaidGroupPage, prepaidGroupLimit)} 
+          columns={groupLessonColumns} 
+          enableSearch={false} 
+          enableExport={true}
+          enableFilter={false} 
+          enablePrint={false}
+          enableRowsPerPage={true}
+          rowsPerPage={prepaidGroupLimit}
+          onRowsPerPageChange={(newLimit) => {
+            setPrepaidGroupLimit(newLimit);
+            setPrepaidGroupPage(1);
+          }}
+          rowsPerPageOptions={[5, 10, 20, 50]}
+          serverSidePagination={{
+            page: prepaidGroupPage,
+            limit: prepaidGroupLimit,
+            total: financialData.prepaidFutureGroupLessons.length,
+            totalPages: Math.ceil(financialData.prepaidFutureGroupLessons.length / prepaidGroupLimit),
+          }}
+          onServerSidePageChange={setPrepaidGroupPage}
+          onExport={{
+            html: prepaidGroupExport.exportToHtml,
+            csv: prepaidGroupExport.exportToCsv,
+            text: prepaidGroupExport.exportToText,
+            excel: prepaidGroupExport.exportToExcel,
+            pdf: prepaidGroupExport.exportToPdf,
+            json: prepaidGroupExport.exportToJson,
+          }}
+        />
+      </Card>
 
       {/* Paid Unscheduled Group Lessons */}
       <Card className="p-4">
@@ -491,6 +566,58 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           }}
         />
       </Card>
+
+      
+     {/* Summary Table - Bottom */}
+{/* Summary Table - Bottom */}
+{/* Summary Table - Bottom */}
+<Card className="p-4">
+  <h2 className="text-base font-semibold md:text-lg mb-4">Summary</h2>
+  <div className="overflow-hidden rounded-lg border border-border/50 shadow-sm bg-card">
+    <div className="overflow-x-auto">
+      <table
+        className="w-full min-w-full text-xs border-collapse"
+        style={{ border: '1px solid hsl(var(--border))' }}
+      >
+        <thead>
+          <tr className="bg-muted/30">
+            <th className="text-left px-2 sm:px-3 py-2 sm:py-2.5 text-sm font-semibold border-b border-r border-border/50">
+              Particulars
+            </th>
+            <th className="text-right px-2 sm:px-3 py-2 sm:py-2.5 text-sm font-semibold border-b border-r border-border/50">
+              Count
+            </th>
+            <th className="text-right px-2 sm:px-3 py-2 sm:py-2.5 text-sm font-semibold border-b border-border/50">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {summaryData.map((row, index) => (
+            <tr
+              key={index}
+              className={`${
+                index % 2 === 0 ? 'bg-muted/5' : 'bg-background'
+              } border-b border-border/50 hover:bg-primary/10 transition-colors duration-150`}
+            >
+              <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-xs text-muted-foreground border-r border-border/50">
+                {row.particulars}
+              </td>
+              <td className="text-right px-2 sm:px-3 py-2 sm:py-2.5 text-xs font-medium text-foreground border-r border-border/50">
+                {row.count}
+              </td>
+              <td className="text-right px-2 sm:px-3 py-2 sm:py-2.5 text-xs font-medium text-foreground border-border/50">
+                {row.total && row.total > 0 ? `$${row.total.toFixed(2)}` : '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Card>
+
+
 
       {error && <div className="text-sm text-red-600">{error}</div>}
     </div>
