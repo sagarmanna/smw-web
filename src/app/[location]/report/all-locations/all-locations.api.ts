@@ -70,16 +70,16 @@ function findFirstArrayOfObjects(input: unknown, maxDepth = 5): Record<string, u
 
 export async function getAllLocationsData({
   location,
-  fromDate,
-  toDate,
+  startDate,
+  endDate,
 }: {
   location: string;
-  fromDate: string;
-  toDate: string;
+  startDate: string;
+  endDate: string;
 }): Promise<{ success: boolean; data: LocationStats[]; message?: string; }> {
   try {
     const response = await apiClient.get(`/admin/v2/${location}/report/all-locations`, {
-      params: { fromDate, toDate },
+      params: { startDate, endDate },
     });
 
     const locationDataArray = findFirstArrayOfObjects(response.data) || [];

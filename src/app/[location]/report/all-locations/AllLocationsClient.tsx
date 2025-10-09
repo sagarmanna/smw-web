@@ -23,6 +23,9 @@ const columns: ColumnDef<LocationStats>[] = [
   {
     accessorKey: "activeEnrolments",
     header: "Active Enrolments",
+
+
+    cell: ({ row }) => <span className="text-right block">{row.original.activeEnrolments}</span>,
     meta: { printable: true, printableName: "Active Enrolments" },
   },
   {
@@ -66,15 +69,17 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
     to: new Date(),
   });
 
+
   const fetchData = React.useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const fromDate = dateRange.from.toISOString().split('T')[0];
-      const toDate = dateRange.to.toISOString().split('T')[0];
+      // Use local date formatting to avoid timezone issues
+      const startDate = `${dateRange.from.getFullYear()}-${String(dateRange.from.getMonth() + 1).padStart(2, '0')}-${String(dateRange.from.getDate()).padStart(2, '0')}`;
+      const endDate = `${dateRange.to.getFullYear()}-${String(dateRange.to.getMonth() + 1).padStart(2, '0')}-${String(dateRange.to.getDate()).padStart(2, '0')}`;
       
-      const response = await getAllLocationsData({ location, fromDate, toDate });
+      const response = await getAllLocationsData({ location, startDate, endDate });
       
       if (response.success) {
         setLocationData(response.data);
