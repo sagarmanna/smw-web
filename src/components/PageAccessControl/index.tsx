@@ -45,7 +45,7 @@ export default function PageAccessControl({ children }: PageAccessControlProps) 
 
   // If no menu item is found for the current path, deny access
 
-  if (!currentMenuItem && !pathname.includes('/dashboard') && !pathname.includes('/menu-flags')) {
+  if (!currentMenuItem && !pathname.includes('/dashboard') && !pathname.includes('/menu-flags') && !pathname.includes('/customers')) {
     return <AccessDeniedCard />;
   }
   
