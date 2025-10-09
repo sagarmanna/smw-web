@@ -57,8 +57,8 @@ export function CustomersClient({ location }: CustomersClientProps) {
     },
     {
       accessorKey: "balance",
-      header: () => <span>Balance</span>,
-      cell: ({ row }) => <span className="tabular-nums">{formatCurrency(row.original.balance)}</span>,
+      header: () => <span className="text-right">Balance</span>,
+      cell: ({ row }) => <span className="tabular-nums text-right block">{formatCurrency(row.original.balance)}</span>,
       enableSorting: true,
       meta: { printable: true, printableName: "Balance", exportFormatter: (v: unknown) => typeof v === 'number' ? formatCurrency(v) : String(v ?? '') },
     },
@@ -94,7 +94,17 @@ export function CustomersClient({ location }: CustomersClientProps) {
     fetchData();
   }, [fetchData]);
 
-  const footerRow = undefined;
+  const footerRow = React.useMemo(() => {
+    const totalBalance = rows.reduce((sum, row) => sum + row.balance, 0);
+    return {
+      id: 0,
+      firstName: "",
+      lastName: "",
+      email: "",
+      student: "Total:",
+      balance: totalBalance,
+    };
+  }, [rows]);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<CustomerRow>({
     reportTitle: "Customers",
