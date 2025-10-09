@@ -766,6 +766,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  updatingEvents={updatingEvents}
                  teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
                  classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
+                 height="75vh"  
                />
            </div>
          </TabsContent>
@@ -790,6 +791,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  updatingEvents={updatingEvents}
                  teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
                  classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
+                 height="75vh"
                />
            </div>
          </TabsContent>
@@ -874,6 +876,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                     updatingEvents={updatingEvents}
                     teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
                     classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
+                    height="85vh"
                   />
                 </div>
               </TabsContent>
@@ -897,6 +900,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                     updatingEvents={updatingEvents}
                     teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
                     classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
+                    height="85vh"
                   />
                 </div>
               </TabsContent>
