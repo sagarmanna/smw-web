@@ -166,6 +166,8 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
           reportTitle: 'Student Birthdays Report',
           columns,
           data,
+          location,
+          dateRange,
         })}
         enableDateRangePicker={true}
         
