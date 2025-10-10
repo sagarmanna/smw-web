@@ -7,7 +7,6 @@ import * as React from "react";
 import { format } from "date-fns";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { DateRangePicker } from "@/components/DateRangePicker";
 import { Card } from "@/components/ui/card";
 import { getFinancialSummary, FinancialSummaryData } from "./financial-summary.api";
 import { useExportableData } from "@/hooks/useExportableData";
@@ -278,12 +277,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">Financial Summary Report</h1>
-          <div className="mt-2">
-            <DateRangePicker 
-              value={range} 
-              onChange={(r) => r && setRange(r)} 
-            />
-          </div>
+          <p className="text-sm text-muted-foreground mt-1">Comprehensive overview of financial data including prepaid lessons, outstanding invoices, and customer credits</p>
         </div>
       </div>
 
