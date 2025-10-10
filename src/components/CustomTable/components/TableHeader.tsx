@@ -2,6 +2,8 @@ import * as React from "react";
 import { flexRender, Table, Header } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 import { ColumnGroup } from "./types";
+import { ColumnFilterComponent } from "./ColumnFilter";
+import { ColumnFilter } from "../CustomTable";
 
 interface TableHeaderProps<TData> {
   table: Table<TData>;
@@ -11,6 +13,9 @@ interface TableHeaderProps<TData> {
   };
   stickyHeader?: boolean;
   headerClassName?: string;
+  enableColumnFilters?: boolean;
+  columnFilters?: Record<string, unknown>;
+  onColumnFilterChange?: (columnKey: string, filterValue: unknown) => void;
 }
 
 export function TableHeader<TData>({
@@ -19,6 +24,9 @@ export function TableHeader<TData>({
   getSizeClasses,
   stickyHeader = false,
   headerClassName,
+  enableColumnFilters = false,
+  columnFilters = {},
+  onColumnFilterChange,
 }: TableHeaderProps<TData>) {
   // Helper function to render a sortable header
   const renderSortableHeader = (header: Header<TData, unknown>) => {
@@ -43,10 +51,38 @@ export function TableHeader<TData>({
       </div>
     );
   };
+
+  // Helper function to render column filter
+  const renderColumnFilter = (header: Header<TData, unknown>) => {
+    if (!enableColumnFilters || !onColumnFilterChange) return null;
+    
+    const columnKey = header.column.id;
+    const filterConfig = (header.column.columnDef as { filter?: ColumnFilter }).filter;
+    
+    if (!filterConfig) return null;
+
+    const handleFilterChange = (value: unknown) => {
+      onColumnFilterChange(columnKey, value);
+    };
+
+    const handleFilterClear = () => {
+      onColumnFilterChange(columnKey, null);
+    };
+
+    return (
+      <ColumnFilterComponent
+        columnKey={columnKey}
+        filter={filterConfig}
+        value={columnFilters[columnKey]}
+        onValueChange={handleFilterChange}
+        onClear={handleFilterClear}
+      />
+    );
+  };
   
-  return (
-    <thead className={`bg-muted/40 border-b border-border/50 ${stickyHeader ? "sticky top-0 z-10" : ""} ${headerClassName || ""}`}>
-      {columnGroups && columnGroups.length > 0 ? (
+  const renderHeaderRows = () => {
+    if (columnGroups && columnGroups.length > 0) {
+      return (
         <>
           {/* Column Group Header Row */}
           <tr>
@@ -62,6 +98,7 @@ export function TableHeader<TData>({
                     <th
                       key={`group-${columnKey}`}
                       colSpan={group.columnKeys.length}
+                      rowSpan={enableColumnFilters ? 1 : 2}
                       className={`${getSizeClasses.header} text-center font-bold bg-muted/40 text-foreground border-b border-border/30`}
                     >
                       {group.label}
@@ -75,7 +112,7 @@ export function TableHeader<TData>({
               return (
                 <th
                   key={`group-${columnKey}`}
-                  rowSpan={2}
+                  rowSpan={enableColumnFilters ? 2 : 2}
                   className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
                   style={{
                     width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
@@ -113,27 +150,82 @@ export function TableHeader<TData>({
               );
             })}
           </tr>
+          {/* Column Filter Row */}
+          {enableColumnFilters && (
+            <tr>
+              {table.getHeaderGroups()[0]?.headers.map((header) => {
+                const columnKey = header.column.id;
+                const isInGroup = columnGroups.some(g => g.columnKeys.includes(columnKey));
+                
+                if (!isInGroup) {
+                  return null; // Already rendered with rowSpan in previous row
+                }
+                
+                return (
+                  <th 
+                    key={`filter-${header.id}`} 
+                    className={`px-2 py-1 text-center border-r border-border/50`}
+                    style={{
+                      width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                      minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                      maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                    }}
+                  >
+                    {renderColumnFilter(header)}
+                  </th>
+                );
+              })}
+            </tr>
+          )}
         </>
-      ) : (
-        /* Standard single header row when no groups */
-        table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <th 
-                key={header.id} 
-                className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
-                style={{
-                  width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
-                  minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
-                  maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
-                }}
-              >
-                {renderSortableHeader(header)}
-              </th>
-            ))}
-          </tr>
-        ))
-      )}
+      );
+    } else {
+      return (
+        <>
+          {/* Standard single header row when no groups */}
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th 
+                  key={header.id} 
+                  className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
+                  style={{
+                    width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                    minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                    maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                  }}
+                >
+                  {renderSortableHeader(header)}
+                </th>
+              ))}
+            </tr>
+          ))}
+          {/* Column Filter Row */}
+          {enableColumnFilters && (
+            <tr>
+              {table.getHeaderGroups()[0]?.headers.map((header) => (
+                <th 
+                  key={`filter-${header.id}`} 
+                  className={`px-2 py-1 text-center border-r border-border/50`}
+                  style={{
+                    width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                    minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                    maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                  }}
+                >
+                  {renderColumnFilter(header)}
+                </th>
+              ))}
+            </tr>
+          )}
+        </>
+      );
+    }
+  };
+
+  return (
+    <thead className={`bg-muted/40 border-b border-border/50 ${stickyHeader ? "sticky top-0 z-10" : ""} ${headerClassName || ""}`}>
+      {renderHeaderRows()}
     </thead>
   );
 }

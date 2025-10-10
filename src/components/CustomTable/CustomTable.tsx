@@ -26,6 +26,14 @@ import {
   TableVariant 
 } from "./components";
 
+// Column filter types
+export interface ColumnFilter {
+  type: "date" | "date-range" | "string" | "dropdown";
+  initialValue?: unknown;
+  options?: { value: string; label: string }[]; // For dropdown type
+  disabled?: (date: Date) => boolean; // Function to disable specific dates
+}
+
 export interface CustomTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -115,6 +123,11 @@ export interface CustomTableProps<TData, TValue> {
   
   // Row interaction
   onRowClick?: (row: TData) => void;
+  
+  // Column-level filtering
+  enableColumnFilters?: boolean; // Enable column-level filtering
+  onColumnFilterChange?: (columnKey: string, filterValue: unknown) => void; // Callback when column filter changes
+  columnFilters?: Record<string, unknown>; // External column filter state
 }
 
 export function CustomTable<TData, TValue>({
@@ -194,6 +207,11 @@ export function CustomTable<TData, TValue>({
   
   // Row interaction
   onRowClick,
+  
+  // Column-level filtering
+  enableColumnFilters = false,
+  onColumnFilterChange,
+  columnFilters: externalColumnFilters,
 }: CustomTableProps<TData, TValue>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
 
@@ -218,6 +236,29 @@ export function CustomTable<TData, TValue>({
   const rowsPerPageRef = React.useRef<number>(rowsPerPage);
   const hasUserChangedRowsPerPageRef = React.useRef<boolean>(false);
   const tableContainerRef = React.useRef<HTMLDivElement | null>(null);
+  
+  // Initialize column filters with initial values from column definitions
+  const initialColumnFilters = React.useMemo(() => {
+    const filters: Record<string, unknown> = {};
+    columns.forEach(column => {
+      const filterConfig = (column as { filter?: { initialValue?: unknown } }).filter;
+      if (filterConfig && filterConfig.initialValue !== undefined) {
+        filters[column.id || (column as { accessorKey?: string }).accessorKey || ''] = filterConfig.initialValue;
+      }
+    });
+    return filters;
+  }, [columns]);
+
+  // Column filter state - use external if provided, otherwise use internal
+  const [internalColumnFilters, setInternalColumnFilters] = React.useState<Record<string, unknown>>(initialColumnFilters);
+  const columnFilters = externalColumnFilters ?? internalColumnFilters;
+
+  // Update internal column filters when columns change (only if not using external)
+  React.useEffect(() => {
+    if (!externalColumnFilters) {
+      setInternalColumnFilters(initialColumnFilters);
+    }
+  }, [initialColumnFilters, externalColumnFilters]);
 
   // Get size-based classes
   const getSizeClasses = React.useMemo(() => {
@@ -267,6 +308,20 @@ export function CustomTable<TData, TValue>({
     // Trigger server-side pagination change
     onRowsPerPageChange?.(newRowsPerPage);
   }, [onRowsPerPageChange, controlledRowsPerPage]);
+
+  // Handle column filter change
+  const handleColumnFilterChange = React.useCallback((columnKey: string, filterValue: unknown) => {
+    // Update internal state only if not using external state
+    if (!externalColumnFilters) {
+      setInternalColumnFilters(prev => ({
+        ...prev,
+        [columnKey]: filterValue
+      }));
+    }
+    
+    // Call the external callback if provided
+    onColumnFilterChange?.(columnKey, filterValue);
+  }, [onColumnFilterChange, externalColumnFilters]);
 
   type ExportKind = "html" | "csv" | "text" | "excel" | "pdf" | "json";
   const [confirmOpen, setConfirmOpen] = React.useState<boolean>(false);
@@ -387,6 +442,9 @@ export function CustomTable<TData, TValue>({
                 getSizeClasses={getSizeClasses}
                 stickyHeader={stickyHeader}
                 headerClassName={headerClassName}
+                enableColumnFilters={enableColumnFilters}
+                columnFilters={columnFilters}
+                onColumnFilterChange={handleColumnFilterChange}
               />
               <TableBody
                 table={table}

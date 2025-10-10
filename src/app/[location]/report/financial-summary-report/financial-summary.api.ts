@@ -169,6 +169,28 @@ async function safeGet<T>(
   }
 }
 
+async function safeGetPaginated<T>(
+  endpoint: string,
+  url: string,
+  params?: Record<string, unknown>
+): Promise<T> {
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timeout")), API_TIMEOUT)
+    );
+
+    const requestPromise = params
+      ? apiClient.get(url, { params })
+      : apiClient.get(url);
+
+    const response = await Promise.race([requestPromise, timeoutPromise]);
+    return response.data as T;
+  } catch (error: unknown) {
+    logApiError(endpoint, error);
+    throw error;
+  }
+}
+
 // ============================================================================
 // MAPPING FUNCTIONS
 // ============================================================================
@@ -209,110 +231,188 @@ function mapToCustomerCreditRecord(row: unknown): CustomerCreditRecord {
 }
 
 // ============================================================================
+// PAGINATED RESPONSE INTERFACES
+// ============================================================================
+
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+interface PaginatedResponse<T> {
+  success: boolean;
+  data: {
+    title: string;
+    body: T[];
+    pagination: PaginationInfo;
+  };
+  message: string;
+}
+
+// ============================================================================
 // INDIVIDUAL API FETCH FUNCTIONS
 // ============================================================================
 
-async function fetchPrepaidFuturePrivateLessons(
+export async function fetchPrepaidFuturePrivateLessons(
   location: string,
   startDate: string,
-  endDate: string
-): Promise<PrepaidFuturePrivateLesson[]> {
+  endDate: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: PrepaidFuturePrivateLesson[]; pagination: PaginationInfo }> {
   const url = `/admin/v2/${location}/report/financial-summary/prepaid-future-private-lessons`;
-  const params = { goToDate: endDate };
-  const rawData = await safeGet<unknown>(
+  const params = { goToDate: endDate, page, limit };
+  const response = await safeGetPaginated<PaginatedResponse<unknown>>(
     "Prepaid Future Private Lessons",
     url,
     params
   );
-  return rawData.map(mapToLessonRecord);
+  return {
+    data: response.data.body.map(mapToLessonRecord),
+    pagination: response.data.pagination
+  };
 }
 
-async function fetchPrepaidFutureGroupLessons(
+export async function fetchPrepaidFutureGroupLessons(
   location: string,
   startDate: string,
-  endDate: string
-): Promise<PrepaidFutureGroupLesson[]> {
+  endDate: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: PrepaidFutureGroupLesson[]; pagination: PaginationInfo }> {
   const url = `/admin/v2/${location}/report/financial-summary/prepaid-future-group-lessons`;
-  const params = { goToDate: endDate };
-  const rawData = await safeGet<unknown>(
+  const params = { goToDate: endDate, page, limit };
+  const response = await safeGetPaginated<PaginatedResponse<unknown>>(
     "Prepaid Future Group Lessons",
     url,
     params
   );
-  return rawData.map(mapToLessonRecord);
+  return {
+    data: response.data.body.map(mapToLessonRecord),
+    pagination: response.data.pagination
+  };
 }
 
-async function fetchPaidUnscheduledGroupLessons(
+export async function fetchPaidUnscheduledGroupLessons(
   location: string,
   startDate: string,
-  endDate: string
-): Promise<PaidUnscheduledGroupLesson[]> {
+  endDate: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: PaidUnscheduledGroupLesson[]; pagination: PaginationInfo }> {
   const url = `/admin/v2/${location}/report/financial-summary/paid-unscheduled-group-lessons`;
-  const params = { goToDate: endDate, page: 1, limit: 100 };
-  const rawData = await safeGet<unknown>(
+  const params = { goToDate: endDate, page, limit };
+  const response = await safeGetPaginated<PaginatedResponse<unknown>>(
     "Paid Unscheduled Group Lessons",
     url,
     params
   );
-  return rawData.map(mapToLessonRecord);
+  return {
+    data: response.data.body.map(mapToLessonRecord),
+    pagination: response.data.pagination
+  };
 }
 
-async function fetchPaidUnscheduledPrivateLessons(
+export async function fetchPaidUnscheduledPrivateLessons(
   location: string,
   startDate: string,
-  endDate: string
-): Promise<PaidUnscheduledPrivateLesson[]> {
+  endDate: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: PaidUnscheduledPrivateLesson[]; pagination: PaginationInfo }> {
   const url = `/admin/v2/${location}/report/financial-summary/paid-unscheduled-private-lessons`;
-  const rawData = await safeGet<unknown>(
+  const params = { goToDate: endDate, page, limit };
+  const response = await safeGetPaginated<PaginatedResponse<unknown>>(
     "Paid Unscheduled Private Lessons",
-    url
+    url,
+    params
   );
-  return rawData.map(mapToLessonRecord);
+  return {
+    data: response.data.body.map(mapToLessonRecord),
+    pagination: response.data.pagination
+  };
 }
 
-async function fetchActiveOutstandingInvoices(
+export async function fetchActiveOutstandingInvoices(
   location: string,
   startDate: string,
-  endDate: string
-): Promise<ActiveOutstandingInvoice[]> {
+  endDate: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: ActiveOutstandingInvoice[]; pagination: PaginationInfo }> {
   const url = `/admin/v2/${location}/report/financial-summary/active-outstanding-invoices`;
-  const rawData = await safeGet<unknown>("Active Outstanding Invoices", url);
-  return rawData.map(mapToInvoiceRecord);
+  const params = { goToDate: endDate, page, limit };
+  const response = await safeGetPaginated<PaginatedResponse<unknown>>(
+    "Active Outstanding Invoices",
+    url,
+    params
+  );
+  return {
+    data: response.data.body.map(mapToInvoiceRecord),
+    pagination: response.data.pagination
+  };
 }
 
-async function fetchInactiveOutstandingInvoices(
+export async function fetchInactiveOutstandingInvoices(
   location: string,
   startDate: string,
-  endDate: string
-): Promise<InactiveOutstandingInvoice[]> {
+  endDate: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: InactiveOutstandingInvoice[]; pagination: PaginationInfo }> {
   const url = `/admin/v2/${location}/report/financial-summary/inactive-outstanding-invoices`;
-  const rawData = await safeGet<unknown>("Inactive Outstanding Invoices", url);
-  return rawData.map(mapToInvoiceRecord);
+  const params = { goToDate: endDate, page, limit };
+  const response = await safeGetPaginated<PaginatedResponse<unknown>>(
+    "Inactive Outstanding Invoices",
+    url,
+    params
+  );
+  return {
+    data: response.data.body.map(mapToInvoiceRecord),
+    pagination: response.data.pagination
+  };
 }
 
-async function fetchActiveCustomersWithCredit(
+export async function fetchActiveCustomersWithCredit(
   location: string,
   startDate: string,
-  endDate: string
-): Promise<ActiveCustomerWithCredit[]> {
+  endDate: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: ActiveCustomerWithCredit[]; pagination: PaginationInfo }> {
   const url = `/admin/v2/${location}/report/financial-summary/active-customers-with-credit`;
-  const params = { goToDate: endDate };
-  const rawData = await safeGet<unknown>(
+  const params = { goToDate: endDate, page, limit };
+  const response = await safeGetPaginated<PaginatedResponse<unknown>>(
     "Active Customers With Credit",
     url,
     params
   );
-  return rawData.map(mapToCustomerCreditRecord);
+  return {
+    data: response.data.body.map(mapToCustomerCreditRecord),
+    pagination: response.data.pagination
+  };
 }
 
-async function fetchInactiveCustomersWithCredit(
+export async function fetchInactiveCustomersWithCredit(
   location: string,
   startDate: string,
-  endDate: string
-): Promise<InactiveCustomerWithCredit[]> {
+  endDate: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{ data: InactiveCustomerWithCredit[]; pagination: PaginationInfo }> {
   const url = `/admin/v2/${location}/report/financial-summary/inactive-customers-with-credit`;
-  const rawData = await safeGet<unknown>("Inactive Customers With Credit", url);
-  return rawData.map(mapToCustomerCreditRecord);
+  const params = { goToDate: endDate, page, limit };
+  const response = await safeGetPaginated<PaginatedResponse<unknown>>(
+    "Inactive Customers With Credit",
+    url,
+    params
+  );
+  return {
+    data: response.data.body.map(mapToCustomerCreditRecord),
+    pagination: response.data.pagination
+  };
 }
 
 // ============================================================================
@@ -333,37 +433,37 @@ export async function getFinancialSummary(
     const timestamp = new Date().toISOString();
 
     const [
-      prepaidFuturePrivateLessons,
-      prepaidFutureGroupLessons,
-      paidUnscheduledGroupLessons,
-      paidUnscheduledPrivateLessons,
-      activeOutstandingInvoices,
-      inactiveOutstandingInvoices,
-      activeCustomersWithCredit,
-      inactiveCustomersWithCredit,
+      prepaidFuturePrivateLessonsResult,
+      prepaidFutureGroupLessonsResult,
+      paidUnscheduledGroupLessonsResult,
+      paidUnscheduledPrivateLessonsResult,
+      activeOutstandingInvoicesResult,
+      inactiveOutstandingInvoicesResult,
+      activeCustomersWithCreditResult,
+      inactiveCustomersWithCreditResult,
     ] = await Promise.all([
-      fetchPrepaidFuturePrivateLessons(location, startDate, endDate),
-      fetchPrepaidFutureGroupLessons(location, startDate, endDate),
-      fetchPaidUnscheduledGroupLessons(location, startDate, endDate),
-      fetchPaidUnscheduledPrivateLessons(location, startDate, endDate),
-      fetchActiveOutstandingInvoices(location, startDate, endDate),
-      fetchInactiveOutstandingInvoices(location, startDate, endDate),
-      fetchActiveCustomersWithCredit(location, startDate, endDate),
-      fetchInactiveCustomersWithCredit(location, startDate, endDate),
+      fetchPrepaidFuturePrivateLessons(location, startDate, endDate, 1, 5),
+      fetchPrepaidFutureGroupLessons(location, startDate, endDate, 1, 5),
+      fetchPaidUnscheduledGroupLessons(location, startDate, endDate, 1, 5),
+      fetchPaidUnscheduledPrivateLessons(location, startDate, endDate, 1, 5),
+      fetchActiveOutstandingInvoices(location, startDate, endDate, 1, 5),
+      fetchInactiveOutstandingInvoices(location, startDate, endDate, 1, 5),
+      fetchActiveCustomersWithCredit(location, startDate, endDate, 1, 5),
+      fetchInactiveCustomersWithCredit(location, startDate, endDate, 1, 5),
     ]);
 
     const endTime = performance.now();
     const duration = Number((endTime - startTime).toFixed(2));
 
     const finalData: FinancialSummaryData = {
-      prepaidFutureGroupLessons,
-      paidUnscheduledGroupLessons,
-      prepaidFuturePrivateLessons,
-      paidUnscheduledPrivateLessons,
-      activeOutstandingInvoices,
-      inactiveOutstandingInvoices,
-      activeCustomersWithCredit,
-      inactiveCustomersWithCredit,
+      prepaidFutureGroupLessons: prepaidFutureGroupLessonsResult.data,
+      paidUnscheduledGroupLessons: paidUnscheduledGroupLessonsResult.data,
+      prepaidFuturePrivateLessons: prepaidFuturePrivateLessonsResult.data,
+      paidUnscheduledPrivateLessons: paidUnscheduledPrivateLessonsResult.data,
+      activeOutstandingInvoices: activeOutstandingInvoicesResult.data,
+      inactiveOutstandingInvoices: inactiveOutstandingInvoicesResult.data,
+      activeCustomersWithCredit: activeCustomersWithCreditResult.data,
+      inactiveCustomersWithCredit: inactiveCustomersWithCreditResult.data,
     };
 
    
