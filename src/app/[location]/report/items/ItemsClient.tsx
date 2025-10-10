@@ -189,6 +189,8 @@ export const ItemsClient = ({ location }: { location: string }) => {
           columns,
           data,
           footer: footerRow,
+          location,
+          dateRange,
         })}
         enableDateRangePicker={true}
         

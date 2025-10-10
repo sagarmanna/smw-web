@@ -249,7 +249,7 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
         </head>
         <body>
           <h1>Sales and Payments Report</h1>
-          <div class="date">${dateLabel}</div>
+          <div class="date"><strong>Location:</strong> ${location} | <strong>Date Range:</strong> ${dateLabel}</div>
           
           <h2>Sales</h2>
           <table>

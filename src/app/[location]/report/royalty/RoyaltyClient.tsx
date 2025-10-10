@@ -79,8 +79,7 @@ export const RoyaltyClient = ({ location }: { location: string }) => {
           </head>
           <body>
             <h1>Royalty Report</h1>
-            <p><strong>Location:</strong> ${meta?.location}</p>
-            <p><strong>Date Range:</strong> ${meta?.startDate} - ${meta?.endDate}</p>
+            <p><strong>Location:</strong> ${meta?.location} | <strong>Date Range:</strong> ${meta?.startDate} - ${meta?.endDate}</p>
             <table>
               ${Object.entries(data || {})
                 .filter(([key]) => key !== "Total")

@@ -481,7 +481,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
         </head>
         <body>
           <h1>Discount Report</h1>
-          <div class="date">${dateLabel}</div>
+          <div class="date"><strong>Location:</strong> ${location} | <strong>Date Range:</strong> ${dateLabel}</div>
           
           <table>
             <thead>
