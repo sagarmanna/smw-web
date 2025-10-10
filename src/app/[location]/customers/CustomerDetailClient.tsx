@@ -23,16 +23,148 @@ import {
 import { formatCurrency } from "@/utils/formatCurrency";
 import { LessonsDueCard, OutstandingInvoiceCard, CreditsCard, BalanceCard } from "@/components/MetricCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CustomTable } from "@/components/CustomTable";
+import { ColumnDef } from "@tanstack/react-table";
+import { InfoCard } from "@/components/InfoCard";
+import { KeyValueDisplay } from "@/components/KeyValueDisplay";
+import { EmptyStateCard } from "@/components/EmptyStateCard";
+import { DiscountCard } from "@/components/DiscountCard";
+import { OpeningBalanceCard } from "@/components/OpeningBalanceCard";
 
 interface CustomerDetailClientProps {
   location: string;
   id: string;
 }
 
+interface InvoiceData {
+  id: string;
+  date: string;
+  status: string;
+  total: number;
+  balance: number;
+}
+
+interface OutstandingInvoiceData {
+  id: string;
+  date: string;
+  amount: number;
+  payments: number;
+  balanceDue: number;
+}
+
 export function CustomerDetailClient({ location, id }: CustomerDetailClientProps) {
   const router = useRouter();
   const [customer, setCustomer] = React.useState<CustomerRow | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
+
+  // Sample invoice data - replace with actual API call
+  const invoiceData: InvoiceData[] = [
+    { id: "I-92268", date: "Oct 09, 2025", status: "Owing", total: 32.50, balance: 32.50 },
+    { id: "I-92031", date: "Oct 06, 2025", status: "Owing", total: 31.53, balance: 31.53 },
+    { id: "I-92030", date: "Oct 04, 2025", status: "Owing", total: 27.03, balance: 27.03 },
+    { id: "I-92000", date: "Oct 03, 2025", status: "Owing", total: 28.75, balance: 28.75 },
+    { id: "I-91911", date: "Oct 02, 2025", status: "Owing", total: 65.00, balance: 65.00 },
+    { id: "I-91833", date: "Oct 01, 2025", status: "Owing", total: 45.25, balance: 45.25 },
+    { id: "I-91853", date: "Sep 30, 2025", status: "Owing", total: 38.90, balance: 38.90 },
+    { id: "I-91834", date: "Sep 29, 2025", status: "Owing", total: 52.15, balance: 52.15 },
+    { id: "I-91831", date: "Sep 28, 2025", status: "Owing", total: 41.75, balance: 41.75 },
+    { id: "I-91772", date: "Sep 27, 2025", status: "Owing", total: 33.40, balance: 33.40 },
+  ];
+
+  // Sample outstanding invoices data - replace with actual API call
+  const outstandingInvoiceData: OutstandingInvoiceData[] = [
+    { id: "I-33387", date: "Nov 07, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-33767", date: "Nov 14, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-34076", date: "Nov 21, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-34412", date: "Nov 28, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-34789", date: "Dec 05, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-35123", date: "Dec 12, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-35456", date: "Dec 19, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-35789", date: "Dec 26, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-36123", date: "Jan 02, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-36456", date: "Jan 09, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-36789", date: "Jan 16, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-37123", date: "Jan 23, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-37456", date: "Jan 30, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-37789", date: "Feb 06, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-38123", date: "Feb 13, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-38456", date: "Feb 20, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+    { id: "I-38789", date: "Feb 27, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+  ];
+
+  // Invoice table columns
+  const invoiceColumns: ColumnDef<InvoiceData>[] = [
+    {
+      accessorKey: "id",
+      header: "ID",
+      cell: ({ row }) => (
+        <div className="font-medium ">{row.getValue("id")}</div>
+      ),
+    },
+    {
+      accessorKey: "date",
+      header: "Date",
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+          {row.getValue("status")}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "total",
+      header: "Total",
+      cell: ({ row }) => (
+        <div className="text-right">{formatCurrency(row.getValue("total"))}</div>
+      ),
+    },
+    {
+      accessorKey: "balance",
+      header: "Balance",
+      cell: ({ row }) => (
+        <div className="text-right">{formatCurrency(row.getValue("balance"))}</div>
+      ),
+    },
+  ];
+
+  // Outstanding invoices table columns
+  const outstandingInvoiceColumns: ColumnDef<OutstandingInvoiceData>[] = [
+    {
+      accessorKey: "id",
+      header: "ID",
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("id")}</div>
+      ),
+    },
+    {
+      accessorKey: "date",
+      header: "Date",
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      cell: ({ row }) => (
+        <div className="text-right">{formatCurrency(row.getValue("amount"))}</div>
+      ),
+    },
+    {
+      accessorKey: "payments",
+      header: "Payments",
+      cell: ({ row }) => (
+        <div className="text-right">{formatCurrency(row.getValue("payments"))}</div>
+      ),
+    },
+    {
+      accessorKey: "balanceDue",
+      header: "Balance Due",
+      cell: ({ row }) => (
+        <div className="text-right">{formatCurrency(row.getValue("balanceDue"))}</div>
+      ),
+    },
+  ];
 
   React.useEffect(() => {
     const load = async () => {
@@ -120,88 +252,119 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Name</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">
-                    {loading ? "..." : customer ? `${customer.firstName} ${customer.lastName}` : "N/A"}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Role</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">Customer</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Referral Source</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">Drive By</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Status</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">Active</span>
-                </div>
-              </div>
-            </div>
+            <KeyValueDisplay 
+              label="Name" 
+              value={loading ? "..." : customer ? `${customer.firstName} ${customer.lastName}` : "N/A"} 
+            />
+            <KeyValueDisplay label="Role" value="Customer" />
+            <KeyValueDisplay label="Referral Source" value="Drive By" />
+            <KeyValueDisplay label="Status" value="Active" />
           </CardContent>
         </Card>
 
         {/* Email Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-semibold">Email</CardTitle>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-2 pt-0">
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Home</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">
-                    {loading ? "..." : customer ? customer.email : "N/A"}
-                  </span>
-                </div>
+        <InfoCard title="Email">
+          <div className="space-y-2">
+            <KeyValueDisplay 
+              label="Home" 
+              value={loading ? "..." : customer ? customer.email : "N/A"} 
+            />
+            <KeyValueDisplay label="Home" value="sample1@example.com" />
+          </div>
+        </InfoCard>
+      </div>
+
+      {/* Invoices and Additional Info Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Left Column - Invoice Cards */}
+        <div className="space-y-4">
+          {/* Invoices Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-lg font-semibold">Invoices</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <CustomTable
+                data={invoiceData}
+                columns={invoiceColumns}
+                size="compact"
+                variant="striped"
+                enableSorting={true}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+                className="border-0"
+              />
+              <div className="flex justify-end mt-3">
+                <Button variant="link" className="text-blue-600 p-0 h-auto">
+                  Show More
+                </Button>
               </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Home</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">sample1@example.com</span>
-                </div>
+            </CardContent>
+          </Card>
+
+          {/* Outstanding Invoices Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-lg font-semibold">Outstanding Invoices</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <CustomTable
+                data={outstandingInvoiceData}
+                columns={outstandingInvoiceColumns}
+                size="compact"
+                variant="striped"
+                enableSorting={true}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+                className="border-0"
+              />
+              <div className="flex justify-end mt-3">
+                <Button variant="link" className="text-blue-600 p-0 h-auto">
+                  Show More
+                </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Side Cards */}
+        <div className="space-y-4">
+          <EmptyStateCard 
+            title="Phone" 
+            emptyMessage="No phone numbers added" 
+          />
+          
+          <EmptyStateCard 
+            title="Addresses" 
+            emptyMessage="No addresses added" 
+          />
+          
+          <DiscountCard />
+          
+          <OpeningBalanceCard amount={0} />
+          
+          <EmptyStateCard 
+            title="Payment Preference" 
+            emptyMessage="No payment preferences set" 
+          />
+        </div>
       </div>
 
     </div>
   );
 }
+
 
 
