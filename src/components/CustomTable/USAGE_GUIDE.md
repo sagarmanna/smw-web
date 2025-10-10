@@ -161,7 +161,118 @@ const [activeFilter, setActiveFilter] = useState<string | undefined>();
 />
 ```
 
-### 3. Export
+### 3. Column-Level Filtering
+Enable individual column filters (date pickers, text inputs, dropdowns, etc.).
+
+#### Basic Setup
+```tsx
+// 1. Define columns with filter configuration
+const columns = [
+  { 
+    accessorKey: "name", 
+    header: "Name" 
+  },
+  { 
+    accessorKey: "date", 
+    header: "Date",
+    filter: { 
+      type: "date", 
+      initialValue: new Date(),
+      disabled: (date: Date) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return date < today; // Disable past dates
+      }
+    }
+  },
+  { 
+    accessorKey: "status", 
+    header: "Status",
+    filter: { 
+      type: "dropdown", 
+      options: [
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" }
+      ]
+    }
+  },
+  { 
+    accessorKey: "description", 
+    header: "Description",
+    filter: { 
+      type: "string" 
+    }
+  }
+];
+
+// 2. Enable column filters and provide handler
+const [columnFilters, setColumnFilters] = useState({});
+
+const handleColumnFilterChange = (columnKey, filterValue) => {
+  setColumnFilters(prev => ({
+    ...prev,
+    [columnKey]: filterValue
+  }));
+  
+  // Optional: Trigger API calls for specific columns
+  if (columnKey === 'date' && filterValue) {
+    // Fetch data for the selected date
+    fetchDataForDate(filterValue);
+  }
+};
+
+// 3. Use in CustomTable
+<CustomTable
+  data={data}
+  columns={columns}
+  enableColumnFilters={true}
+  onColumnFilterChange={handleColumnFilterChange}
+  columnFilters={columnFilters}
+/>
+```
+
+#### Filter Types
+- **`date`**: Date picker with calendar popup (displays in yyyy-MM-dd format)
+- **`date-range`**: Date range picker (currently implemented as single date)
+- **`string`**: Text input for string filtering
+- **`dropdown`**: Dropdown with predefined options
+
+#### Date Filter Options
+- **`initialValue`**: Default date value (e.g., `new Date()` for today)
+- **`disabled`**: Function to disable specific dates (e.g., disable past dates for future-only data)
+
+```tsx
+// Example: Disable past dates (only allow today and future)
+filter: {
+  type: "date",
+  initialValue: new Date(),
+  disabled: (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today; // Disable past dates
+  }
+}
+```
+
+#### External State Management
+For better control and API integration, manage column filter state externally:
+
+```tsx
+const [columnFilters, setColumnFilters] = useState({
+  date: new Date(),
+  status: 'active'
+});
+
+<CustomTable
+  data={data}
+  columns={columns}
+  enableColumnFilters={true}
+  onColumnFilterChange={handleColumnFilterChange}
+  columnFilters={columnFilters} // External state
+/>
+```
+
+### 4. Export
 Enable data export in multiple formats.
 ```tsx
 <CustomTable
