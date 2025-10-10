@@ -320,6 +320,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       columns,
       data: data,
       footer: footerRow,
+      location,
+      dateRange: range,
     });
   };
 

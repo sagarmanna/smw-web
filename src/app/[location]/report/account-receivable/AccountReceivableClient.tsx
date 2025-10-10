@@ -386,6 +386,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           columns,
           data: accountReceivable,
           footer: footerRow || undefined,
+          location,
         })}
         enableSorting={false}
         enableRowsPerPage={true}

@@ -476,6 +476,8 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
           columns,
           data: processedDisplayData,
           footer: footerRow,
+          location,
+          dateRange,
         })}
         enableDateRangePicker={true}
         

@@ -157,7 +157,14 @@ export const PaymentClient = ({ location }: { location: string }) => {
         size="compact"
         variant="default"
         enablePrint={true}
-        onPrint={() => handlePrint({ reportTitle: 'Payments Report', columns: columns as ColumnDef<Payment | PaymentSummary>[], data, footer: footerRow })}
+        onPrint={() => handlePrint({ 
+          reportTitle: 'Payments Report', 
+          columns: columns as ColumnDef<Payment | PaymentSummary>[], 
+          data, 
+          footer: footerRow,
+          location,
+          dateRange,
+        })}
         enableDateRangePicker={true}
         manualSorting={true}
         sorting={sorting}

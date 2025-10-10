@@ -189,6 +189,7 @@ export function RentalClient({ location }: RentalClientProps) {
           reportTitle: 'Rental Report',
           columns,
           data: rentals,
+          location,
         })}
         enableRowsPerPage={true}
         enableExport={true}

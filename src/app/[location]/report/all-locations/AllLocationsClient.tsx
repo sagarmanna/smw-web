@@ -159,6 +159,8 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
           columns,
           data: locationData,
           footer: footerRow,
+          location,
+          dateRange,
         })}
         enableExport={true}
         onExport={{
