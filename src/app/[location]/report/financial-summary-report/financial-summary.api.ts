@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // financial-summary.api.ts
 
-export interface PaidUnscheduledGroupLesson {
+import { apiClient } from "@/lib/api/client";
+
+// ============================================================================
+// BASE INTERFACES
+// ============================================================================
+
+interface LessonRecord {
   lessonId: string;
   studentName: string;
   customerName: string;
@@ -12,40 +18,7 @@ export interface PaidUnscheduledGroupLesson {
   balance: number;
 }
 
-export interface PrepaidFutureGroupLesson {
-  lessonId: string;
-  studentName: string;
-  customerName: string;
-  date: string;
-  duration: string;
-  amount: number;
-  paidAmount: number;
-  balance: number;
-}
-
-export interface PrepaidFuturePrivateLesson {
-  lessonId: string;
-  studentName: string;
-  customerName: string;
-  date: string;
-  duration: string;
-  amount: number;
-  paidAmount: number;
-  balance: number;
-}
-
-export interface PaidUnscheduledPrivateLesson {
-  lessonId: string;
-  studentName: string;
-  customerName: string;
-  date: string;
-  duration: string;
-  amount: number;
-  paidAmount: number;
-  balance: number;
-}
-
-export interface ActiveOutstandingInvoice {
+interface InvoiceRecord {
   invoiceId: string;
   customerName: string;
   date: string;
@@ -54,26 +27,24 @@ export interface ActiveOutstandingInvoice {
   balance: number;
 }
 
-export interface InactiveOutstandingInvoice {
-  invoiceId: string;
-  customerName: string;
-  date: string;
-  amount: number;
-  paidAmount: number;
-  balance: number;
-}
-
-export interface ActiveCustomerWithCredit {
+interface CustomerCreditRecord {
   customerId: string;
   customerName: string;
   balance: number;
 }
 
-export interface InactiveCustomerWithCredit {
-  customerId: string;
-  customerName: string;
-  balance: number;
-}
+// ============================================================================
+// PUBLIC TYPES (using type aliases to avoid empty interface warning)
+// ============================================================================
+
+export type PaidUnscheduledGroupLesson = LessonRecord;
+export type PrepaidFutureGroupLesson = LessonRecord;
+export type PrepaidFuturePrivateLesson = LessonRecord;
+export type PaidUnscheduledPrivateLesson = LessonRecord;
+export type ActiveOutstandingInvoice = InvoiceRecord;
+export type InactiveOutstandingInvoice = InvoiceRecord;
+export type ActiveCustomerWithCredit = CustomerCreditRecord;
+export type InactiveCustomerWithCredit = CustomerCreditRecord;
 
 export interface FinancialSummaryData {
   prepaidFutureGroupLessons: PrepaidFutureGroupLesson[];
@@ -86,74 +57,415 @@ export interface FinancialSummaryData {
   inactiveCustomersWithCredit: InactiveCustomerWithCredit[];
 }
 
-// Mock data generator
-const mockData: FinancialSummaryData = {
-  prepaidFutureGroupLessons: [
-    { 
-      lessonId: "4794226", 
-      studentName: "Test student22", 
-      customerName: "Test customer22", 
-      date: "Oct 15, 2025 @ 10:45 AM", 
-      duration: "00:30", 
-      amount: 112.50, 
-      paidAmount: 112.50, 
-      balance: 0.00 
-    },
-  ],
-  paidUnscheduledGroupLessons: [
-    { lessonId: "169901", studentName: "Danish Leena", customerName: "Danish Leena", date: "Dec 25, 2018 @ 03:00 PM", duration: "01:00", amount: 15.63, paidAmount: 15.63, balance: 0.00 },
-    { lessonId: "194075", studentName: "Jim Carter", customerName: "John Carter", date: "Jan 10, 2019 @ 04:00 PM", duration: "01:00", amount: 31.25, paidAmount: 31.25, balance: 0.00 },
-    { lessonId: "194075", studentName: "Julie Rockwell", customerName: "Sam Rockwell", date: "Jan 10, 2019 @ 04:00 PM", duration: "01:00", amount: 29.17, paidAmount: 29.17, balance: 0.00 },
-    { lessonId: "194075", studentName: "John Derin", customerName: "Jack Derin", date: "Jan 10, 2019 @ 04:00 PM", duration: "01:00", amount: 29.17, paidAmount: 29.17, balance: 0.00 },
-    { lessonId: "194075", studentName: "Kevin Laurel", customerName: "Liza Laurel", date: "Jan 10, 2019 @ 04:00 PM", duration: "01:00", amount: 29.17, paidAmount: 29.17, balance: 0.00 },
-  ],
-  prepaidFuturePrivateLessons: [
-    { lessonId: "3300007", studentName: "Sofi test", customerName: "Sento test", date: "Oct 15, 2025 @ 10:30 AM", duration: "00:30", amount: 26.68, paidAmount: 26.68, balance: 0.00 },
-    { lessonId: "3300008", studentName: "Sofi test", customerName: "Sento test", date: "Oct 22, 2025 @ 10:30 AM", duration: "00:30", amount: 26.68, paidAmount: 26.68, balance: 0.00 },
-    { lessonId: "3594148", studentName: "Sofi test", customerName: "Sento test", date: "Oct 10, 2025 @ 07:00 AM", duration: "01:00", amount: 59.38, paidAmount: 59.38, balance: 0.00 },
-    { lessonId: "3594149", studentName: "Sofi test", customerName: "Sento test", date: "Oct 17, 2025 @ 07:00 AM", duration: "01:00", amount: 59.38, paidAmount: 59.38, balance: 0.00 },
-    { lessonId: "3594150", studentName: "Sofi test", customerName: "Sento test", date: "Oct 24, 2025 @ 07:00 AM", duration: "01:00", amount: 59.38, paidAmount: 59.38, balance: 0.00 },
-  ],
-  paidUnscheduledPrivateLessons: [
-    { lessonId: "4691260", studentName: "Test student18", customerName: "Test customer18", date: "Aug 08, 2025 @ 02:30 PM", duration: "00:30", amount: 28.75, paidAmount: 28.75, balance: 0.00 },
-  ],
-  activeOutstandingInvoices: [
-    { invoiceId: "15967", customerName: "Thomad john", date: "Sep 10, 2018", amount: 28.75, paidAmount: 0.00, balance: 28.75 },
-    { invoiceId: "15968", customerName: "Thomad john", date: "Sep 17, 2018", amount: 28.75, paidAmount: 0.00, balance: 28.75 },
-    { invoiceId: "15969", customerName: "Thomad john", date: "Sep 24, 2018", amount: 28.75, paidAmount: 0.00, balance: 28.75 },
-    { invoiceId: "15976", customerName: "leena thomas", date: "Sep 10, 2018", amount: 27.00, paidAmount: 0.00, balance: 27.00 },
-    { invoiceId: "15977", customerName: "leena thomas", date: "Sep 17, 2018", amount: 27.00, paidAmount: 0.00, balance: 27.00 },
-  ],
-  inactiveOutstandingInvoices: [
-    { invoiceId: "20452", customerName: "Danish Len", date: "Sep 04, 2018", amount: 27.50, paidAmount: 0.00, balance: 27.50 },
-    { invoiceId: "20453", customerName: "Danish Len", date: "Sep 18, 2018", amount: 27.50, paidAmount: 0.00, balance: 27.50 },
-    { invoiceId: "20454", customerName: "Danish Len", date: "Sep 25, 2018", amount: 27.50, paidAmount: 0.00, balance: 27.50 },
-    { invoiceId: "20610", customerName: "Karkae Ranae", date: "Oct 02, 2018", amount: 15.63, paidAmount: 0.00, balance: 15.63 },
-    { invoiceId: "20615", customerName: "Karkae Ranae", date: "Oct 09, 2018", amount: 15.63, paidAmount: 0.00, balance: 15.63 },
-  ],
-  activeCustomersWithCredit: [
-    { customerId: "3884", customerName: "Jack Black", balance: -344.99 },
-    { customerId: "12771", customerName: "Heather O'Connell", balance: -58.50 },
-    { customerId: "14006", customerName: "Test customer22", balance: -100.00 },
-  ],
-  inactiveCustomersWithCredit: [
-    { customerId: "5557", customerName: "Debbie Daniel", balance: -89.69 },
-    { customerId: "7453", customerName: "Bill Tom", balance: -223.12 },
-    { customerId: "9761", customerName: "lola peters", balance: -130.00 },
-    { customerId: "12451", customerName: "Customer Refund Test", balance: -260.00 },
-  ],
+export interface SummaryData {
+  particulars: string;
+  count: number;
+  total: number | null;
+}
+
+export interface FinancialSummaryResponse {
+  success: boolean;
+  data: FinancialSummaryData;
+  message?: string;
+  metadata?: {
+    duration: number;
+    timestamp: string;
+  };
+}
+
+export interface SummaryStatsResponse {
+  success: boolean;
+  data: SummaryData[];
+  message?: string;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+const toNumber = (value: unknown): number => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "number") return value;
+  const cleaned = String(value).replace(/[$,]/g, "").trim();
+  const n = Number.parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
 };
+
+const ensureArray = (data: unknown): unknown[] => {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") return [data];
+  return [];
+};
+
+const extractBodyArray = (responseData: unknown): unknown[] => {
+  const d = responseData as Record<string, unknown>;
+  if (Array.isArray(d)) return d;
+  if (d?.data && typeof d.data === "object" && d.data !== null) {
+    const dataObj = d.data as Record<string, unknown>;
+    if (Array.isArray(dataObj.body)) return dataObj.body;
+    if (Array.isArray(dataObj.results)) return dataObj.results;
+    if (Array.isArray(dataObj.items)) return dataObj.items;
+    if (Array.isArray(dataObj.data)) return dataObj.data;
+  }
+  if (Array.isArray(d?.data)) return d.data;
+  if (Array.isArray(d?.results)) return d.results;
+  if (Array.isArray(d?.items)) return d.items;
+  if (Array.isArray(d?.body)) return d.body;
+  return ensureArray(d);
+};
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+interface ApiError {
+  response?: {
+    status?: number;
+    statusText?: string;
+    data?: unknown;
+  };
+  message?: string;
+}
+
+function logApiError(endpoint: string, error: unknown): void {
+  const err = error as ApiError;
+  // console.error(`❌ [${endpoint}] ERROR:`, {
+  //   status: err.response?.status,
+  //   statusText: err.response?.statusText,
+  //   data: err.response?.data,
+  //   message: err.message,
+  // });
+}
+
+// ============================================================================
+// GENERIC SAFE GET WITH TIMEOUT
+// ============================================================================
+
+const API_TIMEOUT = 10000; // 10 seconds
+
+async function safeGet<T>(
+  endpoint: string,
+  url: string,
+  params?: Record<string, unknown>
+): Promise<T[]> {
+  try {
+    // console.log(`📤 [${endpoint}] REQUEST:`, { url, params });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timeout")), API_TIMEOUT)
+    );
+
+    const requestPromise = params
+      ? apiClient.get(url, { params })
+      : apiClient.get(url);
+
+    const response = await Promise.race([requestPromise, timeoutPromise]);
+
+    // console.log(`📥 [${endpoint}] RESPONSE:`, response.data);
+
+    const body = extractBodyArray(response.data);
+
+    // console.log(`✅ [${endpoint}] PARSED:`, { count: body.length, data: body });
+
+    return body as T[];
+  } catch (error: unknown) {
+    logApiError(endpoint, error);
+    return [];
+  }
+}
+
+// ============================================================================
+// MAPPING FUNCTIONS
+// ============================================================================
+
+function mapToLessonRecord(row: unknown): LessonRecord {
+  const r = row as Record<string, unknown>;
+  return {
+    lessonId: String(r.lessonId ?? r.lesson_id ?? r.id ?? ""),
+    studentName: String(r.studentName ?? r.student_name ?? r.student ?? ""),
+    customerName: String(r.customerName ?? r.customer_name ?? r.customer ?? ""),
+    date: String(r.date ?? r.lesson_date ?? ""),
+    duration: String(r.duration ?? ""),
+    amount: toNumber(r.amount ?? r.total_amount),
+    paidAmount: toNumber(r.paidAmount ?? r.paid_amount ?? r.paid),
+    balance: toNumber(r.balance ?? r.remaining_balance),
+  };
+}
+
+function mapToInvoiceRecord(row: unknown): InvoiceRecord {
+  const r = row as Record<string, unknown>;
+  return {
+    invoiceId: String(r.invoiceId ?? r.invoice_id ?? r.id ?? ""),
+    customerName: String(r.customerName ?? r.customer_name ?? r.customer ?? ""),
+    date: String(r.date ?? r.invoice_date ?? ""),
+    amount: toNumber(r.amount ?? r.total_amount ?? r.total),
+    paidAmount: toNumber(r.paidAmount ?? r.paid_amount ?? r.paid),
+    balance: toNumber(r.balance ?? r.remaining_balance ?? r.outstanding),
+  };
+}
+
+function mapToCustomerCreditRecord(row: unknown): CustomerCreditRecord {
+  const r = row as Record<string, unknown>;
+  return {
+    customerId: String(r.customerId ?? r.customer_id ?? r.id ?? ""),
+    customerName: String(r.customerName ?? r.customer_name ?? r.name ?? ""),
+    balance: toNumber(r.balance ?? r.credit_balance ?? r.credit),
+  };
+}
+
+// ============================================================================
+// INDIVIDUAL API FETCH FUNCTIONS
+// ============================================================================
+
+async function fetchPrepaidFuturePrivateLessons(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<PrepaidFuturePrivateLesson[]> {
+  const url = `/admin/v2/${location}/report/financial-summary/prepaid-future-private-lessons`;
+  const params = { goToDate: endDate };
+  const rawData = await safeGet<unknown>(
+    "Prepaid Future Private Lessons",
+    url,
+    params
+  );
+  return rawData.map(mapToLessonRecord);
+}
+
+async function fetchPrepaidFutureGroupLessons(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<PrepaidFutureGroupLesson[]> {
+  const url = `/admin/v2/${location}/report/financial-summary/prepaid-future-group-lessons`;
+  const params = { goToDate: endDate };
+  const rawData = await safeGet<unknown>(
+    "Prepaid Future Group Lessons",
+    url,
+    params
+  );
+  return rawData.map(mapToLessonRecord);
+}
+
+async function fetchPaidUnscheduledGroupLessons(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<PaidUnscheduledGroupLesson[]> {
+  const url = `/admin/v2/${location}/report/financial-summary/paid-unscheduled-group-lessons`;
+  const params = { goToDate: endDate, page: 1, limit: 100 };
+  const rawData = await safeGet<unknown>(
+    "Paid Unscheduled Group Lessons",
+    url,
+    params
+  );
+  return rawData.map(mapToLessonRecord);
+}
+
+async function fetchPaidUnscheduledPrivateLessons(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<PaidUnscheduledPrivateLesson[]> {
+  const url = `/admin/v2/${location}/report/financial-summary/paid-unscheduled-private-lessons`;
+  const rawData = await safeGet<unknown>(
+    "Paid Unscheduled Private Lessons",
+    url
+  );
+  return rawData.map(mapToLessonRecord);
+}
+
+async function fetchActiveOutstandingInvoices(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<ActiveOutstandingInvoice[]> {
+  const url = `/admin/v2/${location}/report/financial-summary/active-outstanding-invoices`;
+  const rawData = await safeGet<unknown>("Active Outstanding Invoices", url);
+  return rawData.map(mapToInvoiceRecord);
+}
+
+async function fetchInactiveOutstandingInvoices(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<InactiveOutstandingInvoice[]> {
+  const url = `/admin/v2/${location}/report/financial-summary/inactive-outstanding-invoices`;
+  const rawData = await safeGet<unknown>("Inactive Outstanding Invoices", url);
+  return rawData.map(mapToInvoiceRecord);
+}
+
+async function fetchActiveCustomersWithCredit(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<ActiveCustomerWithCredit[]> {
+  const url = `/admin/v2/${location}/report/financial-summary/active-customers-with-credit`;
+  const params = { goToDate: endDate };
+  const rawData = await safeGet<unknown>(
+    "Active Customers With Credit",
+    url,
+    params
+  );
+  return rawData.map(mapToCustomerCreditRecord);
+}
+
+async function fetchInactiveCustomersWithCredit(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<InactiveCustomerWithCredit[]> {
+  const url = `/admin/v2/${location}/report/financial-summary/inactive-customers-with-credit`;
+  const rawData = await safeGet<unknown>("Inactive Customers With Credit", url);
+  return rawData.map(mapToCustomerCreditRecord);
+}
+
+// ============================================================================
+// MAIN EXPORT FUNCTIONS
+// ============================================================================
 
 export async function getFinancialSummary(
   location: string,
   startDate: string,
   endDate: string
-): Promise<{ success: boolean; data: FinancialSummaryData; message?: string }> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  return {
-    success: true,
-    data: mockData,
-  };
+): Promise<FinancialSummaryResponse> {
+  // console.log("🚀 [FINANCIAL SUMMARY] STARTING FETCH");
+  // console.log("📋 [FINANCIAL SUMMARY] INPUT PARAMS:", {
+  //   location,
+  //   startDate,
+  //   endDate,
+  // });
+
+  try {
+    // console.log("⏳ [FINANCIAL SUMMARY] Fetching all endpoints in parallel...");
+
+    const startTime = performance.now();
+    const timestamp = new Date().toISOString();
+
+    const [
+      prepaidFuturePrivateLessons,
+      prepaidFutureGroupLessons,
+      paidUnscheduledGroupLessons,
+      paidUnscheduledPrivateLessons,
+      activeOutstandingInvoices,
+      inactiveOutstandingInvoices,
+      activeCustomersWithCredit,
+      inactiveCustomersWithCredit,
+    ] = await Promise.all([
+      fetchPrepaidFuturePrivateLessons(location, startDate, endDate),
+      fetchPrepaidFutureGroupLessons(location, startDate, endDate),
+      fetchPaidUnscheduledGroupLessons(location, startDate, endDate),
+      fetchPaidUnscheduledPrivateLessons(location, startDate, endDate),
+      fetchActiveOutstandingInvoices(location, startDate, endDate),
+      fetchInactiveOutstandingInvoices(location, startDate, endDate),
+      fetchActiveCustomersWithCredit(location, startDate, endDate),
+      fetchInactiveCustomersWithCredit(location, startDate, endDate),
+    ]);
+
+    const endTime = performance.now();
+    const duration = Number((endTime - startTime).toFixed(2));
+
+    const finalData: FinancialSummaryData = {
+      prepaidFutureGroupLessons,
+      paidUnscheduledGroupLessons,
+      prepaidFuturePrivateLessons,
+      paidUnscheduledPrivateLessons,
+      activeOutstandingInvoices,
+      inactiveOutstandingInvoices,
+      activeCustomersWithCredit,
+      inactiveCustomersWithCredit,
+    };
+
+    // console.log("✅ [FINANCIAL SUMMARY] ALL FETCHES COMPLETED");
+    // console.log("📊 [FINANCIAL SUMMARY] SUMMARY:", {
+    //   duration: `${duration}ms`,
+    //   timestamp,
+    //   counts: {
+    //     prepaidFuturePrivateLessons: prepaidFuturePrivateLessons.length,
+    //     prepaidFutureGroupLessons: prepaidFutureGroupLessons.length,
+    //     paidUnscheduledGroupLessons: paidUnscheduledGroupLessons.length,
+    //     paidUnscheduledPrivateLessons: paidUnscheduledPrivateLessons.length,
+    //     activeOutstandingInvoices: activeOutstandingInvoices.length,
+    //     inactiveOutstandingInvoices: inactiveOutstandingInvoices.length,
+    //     activeCustomersWithCredit: activeCustomersWithCredit.length,
+    //     inactiveCustomersWithCredit: inactiveCustomersWithCredit.length,
+    //   },
+    // });
+
+    return {
+      success: true,
+      data: finalData,
+      metadata: {
+        duration,
+        timestamp,
+      },
+    };
+  } catch (error: unknown) {
+    const apiError = error as ApiError & { message?: string };
+
+    // console.error("❌ [FINANCIAL SUMMARY] FAILED:", apiError);
+
+    return {
+      success: false,
+      data: {
+        prepaidFutureGroupLessons: [],
+        paidUnscheduledGroupLessons: [],
+        prepaidFuturePrivateLessons: [],
+        paidUnscheduledPrivateLessons: [],
+        activeOutstandingInvoices: [],
+        inactiveOutstandingInvoices: [],
+        activeCustomersWithCredit: [],
+        inactiveCustomersWithCredit: [],
+      },
+      message:
+        (apiError.response?.data as { message?: string })?.message ||
+        apiError.message ||
+        `${apiError.response?.status}: ${apiError.response?.statusText}` ||
+        "Failed to fetch financial summary",
+    };
+  }
+}
+
+export async function getFinancialSummaryStats(
+  location: string,
+  startDate: string,
+  endDate: string
+): Promise<SummaryStatsResponse> {
+  try {
+    const url = `/admin/v2/${location}/report/financial-summary/summary`;
+    const params = { goToDate: endDate };
+
+    // console.log("📤 [Financial Summary Stats] REQUEST:", { url, params });
+
+    const response = await apiClient.get(url, { params });
+
+    // console.log("📥 [Financial Summary Stats] RESPONSE:", response.data);
+
+    const body = extractBodyArray(response.data);
+
+    // console.log("✅ [Financial Summary Stats] PARSED:", {
+    //   count: body.length,
+    //   data: body,
+    // });
+
+    const summaryData: SummaryData[] = body.map((row: unknown) => {
+      const r = row as Record<string, unknown>;
+      return {
+        particulars: String(r.particulars ?? r.category ?? r.name ?? ""),
+        count: toNumber(r.count ?? r.total_count ?? 0),
+        total: r.total !== undefined ? toNumber(r.total ?? r.amount) : null,
+      };
+    });
+
+    // console.log("📊 [Financial Summary Stats] FINAL:", summaryData);
+
+    return { success: true, data: summaryData };
+  } catch (error: unknown) {
+    logApiError("Financial Summary Stats", error);
+    return {
+      success: false,
+      data: [],
+      message: "Failed to fetch summary statistics",
+    };
+  }
 }
