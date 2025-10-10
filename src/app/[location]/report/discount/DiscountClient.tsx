@@ -8,6 +8,7 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { Card } from "@/components/ui/card";
 import { getDiscounts, DiscountRow } from "./discount.api";
 import { useExportableData } from "@/hooks/useExportableData";
+import { formatLocationName } from "@/utils";
 
 interface DiscountClientProps {
   location: string;
@@ -481,7 +482,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
         </head>
         <body>
           <h1>Discount Report</h1>
-          <div class="date">${dateLabel}</div>
+          <div class="date"><strong>Location:</strong> ${formatLocationName(location || "")} | <strong>Date Range:</strong> ${dateLabel}</div>
           
           <table>
             <thead>

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import { formatLocationName } from "@/utils";
 
 // Client Component
 export const RoyaltyClient = ({ location }: { location: string }) => {
@@ -79,8 +80,7 @@ export const RoyaltyClient = ({ location }: { location: string }) => {
           </head>
           <body>
             <h1>Royalty Report</h1>
-            <p><strong>Location:</strong> ${meta?.location}</p>
-            <p><strong>Date Range:</strong> ${meta?.startDate} - ${meta?.endDate}</p>
+            <p><strong>Location:</strong> ${formatLocationName(meta?.location || "")} | <strong>Date Range:</strong> ${meta?.startDate} - ${meta?.endDate}</p>
             <table>
               ${Object.entries(data || {})
                 .filter(([key]) => key !== "Total")

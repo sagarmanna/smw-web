@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { getPayments, getSales, PaymentsRow, SalesRow } from "./sales-and-payment.api";
-import { formatCurrency } from "@/utils";
+import { formatCurrency, formatLocationName } from "@/utils";
 
 
 interface SalesAndPaymentClientProps {
@@ -249,7 +249,7 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
         </head>
         <body>
           <h1>Sales and Payments Report</h1>
-          <div class="date">${dateLabel}</div>
+          <div class="date"><strong>Location:</strong> ${formatLocationName(location || "")} | <strong>Date Range:</strong> ${dateLabel}</div>
           
           <h2>Sales</h2>
           <table>
