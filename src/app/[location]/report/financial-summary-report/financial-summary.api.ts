@@ -129,12 +129,7 @@ interface ApiError {
 
 function logApiError(endpoint: string, error: unknown): void {
   const err = error as ApiError;
-  // console.error(`❌ [${endpoint}] ERROR:`, {
-  //   status: err.response?.status,
-  //   statusText: err.response?.statusText,
-  //   data: err.response?.data,
-  //   message: err.message,
-  // });
+  
 }
 
 // ============================================================================
@@ -149,7 +144,7 @@ async function safeGet<T>(
   params?: Record<string, unknown>
 ): Promise<T[]> {
   try {
-    // console.log(`📤 [${endpoint}] REQUEST:`, { url, params });
+    
 
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Request timeout")), API_TIMEOUT)
@@ -161,11 +156,11 @@ async function safeGet<T>(
 
     const response = await Promise.race([requestPromise, timeoutPromise]);
 
-    // console.log(`📥 [${endpoint}] RESPONSE:`, response.data);
+    
 
     const body = extractBodyArray(response.data);
 
-    // console.log(`✅ [${endpoint}] PARSED:`, { count: body.length, data: body });
+    
 
     return body as T[];
   } catch (error: unknown) {
@@ -329,15 +324,10 @@ export async function getFinancialSummary(
   startDate: string,
   endDate: string
 ): Promise<FinancialSummaryResponse> {
-  // console.log("🚀 [FINANCIAL SUMMARY] STARTING FETCH");
-  // console.log("📋 [FINANCIAL SUMMARY] INPUT PARAMS:", {
-  //   location,
-  //   startDate,
-  //   endDate,
-  // });
+ 
 
   try {
-    // console.log("⏳ [FINANCIAL SUMMARY] Fetching all endpoints in parallel...");
+    
 
     const startTime = performance.now();
     const timestamp = new Date().toISOString();
@@ -376,21 +366,7 @@ export async function getFinancialSummary(
       inactiveCustomersWithCredit,
     };
 
-    // console.log("✅ [FINANCIAL SUMMARY] ALL FETCHES COMPLETED");
-    // console.log("📊 [FINANCIAL SUMMARY] SUMMARY:", {
-    //   duration: `${duration}ms`,
-    //   timestamp,
-    //   counts: {
-    //     prepaidFuturePrivateLessons: prepaidFuturePrivateLessons.length,
-    //     prepaidFutureGroupLessons: prepaidFutureGroupLessons.length,
-    //     paidUnscheduledGroupLessons: paidUnscheduledGroupLessons.length,
-    //     paidUnscheduledPrivateLessons: paidUnscheduledPrivateLessons.length,
-    //     activeOutstandingInvoices: activeOutstandingInvoices.length,
-    //     inactiveOutstandingInvoices: inactiveOutstandingInvoices.length,
-    //     activeCustomersWithCredit: activeCustomersWithCredit.length,
-    //     inactiveCustomersWithCredit: inactiveCustomersWithCredit.length,
-    //   },
-    // });
+   
 
     return {
       success: true,
@@ -403,7 +379,7 @@ export async function getFinancialSummary(
   } catch (error: unknown) {
     const apiError = error as ApiError & { message?: string };
 
-    // console.error("❌ [FINANCIAL SUMMARY] FAILED:", apiError);
+    
 
     return {
       success: false,
@@ -435,18 +411,15 @@ export async function getFinancialSummaryStats(
     const url = `/admin/v2/${location}/report/financial-summary/summary`;
     const params = { goToDate: endDate };
 
-    // console.log("📤 [Financial Summary Stats] REQUEST:", { url, params });
+    
 
     const response = await apiClient.get(url, { params });
 
-    // console.log("📥 [Financial Summary Stats] RESPONSE:", response.data);
+    
 
     const body = extractBodyArray(response.data);
 
-    // console.log("✅ [Financial Summary Stats] PARSED:", {
-    //   count: body.length,
-    //   data: body,
-    // });
+   
 
     const summaryData: SummaryData[] = body.map((row: unknown) => {
       const r = row as Record<string, unknown>;
@@ -457,7 +430,7 @@ export async function getFinancialSummaryStats(
       };
     });
 
-    // console.log("📊 [Financial Summary Stats] FINAL:", summaryData);
+    
 
     return { success: true, data: summaryData };
   } catch (error: unknown) {
