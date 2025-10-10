@@ -1,13 +1,39 @@
 "use client";
 
+import { formatLocationName } from "@/utils";
 import * as React from "react";
 
 export default function PrintPage() {
   // Read exclusively from session storage for this flow
   type PrintColumn = { key: string; header: string; align?: 'left' | 'right'; widthPercent?: number };
   type PrintRow = Record<string, unknown>;
-  type PrintPayload = { title: string; columns: PrintColumn[]; rows: PrintRow[]; footerRow?: PrintRow };
+  type PrintPayload = { 
+    title: string; 
+    columns: PrintColumn[]; 
+    rows: PrintRow[]; 
+    footerRow?: PrintRow;
+    location?: string;
+    dateRange?: {
+      from: string;
+      to: string;
+    };
+  };
   const [print, setPrint] = React.useState<PrintPayload | null>(null);
+
+  const formatDateRange = (dateRange?: { from: string; to: string }) => {
+    if (!dateRange) return '';
+    
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    };
+    
+    return `${formatDate(dateRange.from)} - ${formatDate(dateRange.to)}`;
+  };
 
   React.useEffect(() => {
     try {
@@ -59,6 +85,13 @@ export default function PrintPage() {
       `}</style>
 
       <h1>{print.title}</h1>
+      
+      {(print.location || print.dateRange) && (
+        <div style={{ marginBottom: '16px', fontSize: '12px', color: '#64748b' }}>
+          {print.location && <span style={{ marginRight: '16px' }}><span style={{ fontWeight: 'bold' }}>Location:</span> {formatLocationName(print.location)}</span>}
+          {print.dateRange && <span><span style={{ fontWeight: 'bold' }}>Date Range:</span> {formatDateRange(print.dateRange)}</span>}
+        </div>
+      )}
 
       <table>
         <colgroup>

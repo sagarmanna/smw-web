@@ -6,11 +6,16 @@ interface PrintReportOptions<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   footer?: TData;
+  location?: string;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
 export function usePrintReport<TData>() {
   const handlePrint = useCallback(
-    ({ reportTitle, columns, data, footer }: PrintReportOptions<TData>) => {
+    ({ reportTitle, columns, data, footer, location, dateRange }: PrintReportOptions<TData>) => {
       type AnyCol = ColumnDef<TData, unknown>;
 
       const printable = (columns as AnyCol[])
@@ -52,6 +57,11 @@ export function usePrintReport<TData>() {
         columns: columnsForPrint,
         rows: rowsForPrint,
         footerRow: footerForPrint,
+        location,
+        dateRange: dateRange ? {
+          from: dateRange.from.toISOString(),
+          to: dateRange.to.toISOString(),
+        } : undefined,
       };
 
       try {
