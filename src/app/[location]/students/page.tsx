@@ -1,4 +1,4 @@
-import StudentsClient from "./StudentsClient";
+import { StudentsClient } from "./StudentsClient";
 
 interface StudentsPageProps {
   params: Promise<{
@@ -8,7 +8,7 @@ interface StudentsPageProps {
 
 export default async function StudentsPage({ params }: StudentsPageProps) {
   const { location } = await params;
-  return <StudentsClient location={location} />;
+  return <StudentsClient location={String(location)} />;
 }
 
 
