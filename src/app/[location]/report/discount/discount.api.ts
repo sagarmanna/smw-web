@@ -23,6 +23,7 @@ export interface DiscountFooter {
   itemDollar?: string;
   netDollar: string;
   price: string;
+  totalDiscount?: string;
 }
 
 export interface PaginationInfo {
@@ -186,14 +187,26 @@ export async function getDiscounts(
     // Calculate footer for ONLY the current page rows (not all filtered data)
     const footer = calculateFooter(paginatedRows);
 
-    // Extract meta information
+    // Extract meta information and totalDiscount from response
     let meta: unknown;
+    let totalDiscount: string | undefined;
     const d = response.data as Record<string, unknown>;
     if (d?.data && typeof d.data === 'object' && d.data !== null) {
       const dataObj = d.data as Record<string, unknown>;
       meta = dataObj.meta;
+      // Check for totalDiscount in various possible locations
+      const dataObjWithTotal = dataObj as Record<string, unknown> & { totalDiscount?: unknown; footer?: { totalDiscount?: unknown } };
+      const dWithTotal = d as Record<string, unknown> & { totalDiscount?: unknown; footer?: { totalDiscount?: unknown } };
+      totalDiscount = toStringExact(dataObjWithTotal.totalDiscount ?? dataObjWithTotal.footer?.totalDiscount ?? dWithTotal.totalDiscount ?? dWithTotal.footer?.totalDiscount);
     } else {
       meta = d?.meta;
+      const dWithTotal = d as Record<string, unknown> & { totalDiscount?: unknown; footer?: { totalDiscount?: unknown } };
+      totalDiscount = toStringExact(dWithTotal?.totalDiscount ?? dWithTotal?.footer?.totalDiscount);
+    }
+
+    // Update footer with totalDiscount if available
+    if (totalDiscount && totalDiscount !== "") {
+      footer.totalDiscount = totalDiscount;
     }
 
     return {

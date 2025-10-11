@@ -1,12 +1,10 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import * as React from "react";
 import { format } from "date-fns";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { Card } from "@/components/ui/card";
-import { getDiscounts, DiscountRow } from "./discount.api";
+import { getDiscounts, DiscountRow, DiscountFooter } from "./discount.api";
 import { useExportableData } from "@/hooks/useExportableData";
 import { formatLocationName } from "@/utils";
 
@@ -155,11 +153,12 @@ export function DiscountClient({ location }: DiscountClientProps) {
   const [discounts, setDiscounts] = React.useState<DiscountRow[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [footer, setFooter] = React.useState<DiscountFooter | null>(null);
   const [pagination, setPagination] = React.useState({
     page: 1,
-    limit: 20,
+    limit: -1, // -1 means show all rows
     total: 0,
-    totalPages: 0
+    totalPages: 1 // Only 1 page when showing all rows
   });
 
   const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => {
@@ -169,7 +168,6 @@ export function DiscountClient({ location }: DiscountClientProps) {
     return { from, to };
   });
 
-  const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
 
   const formatRangeParam = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -183,13 +181,14 @@ export function DiscountClient({ location }: DiscountClientProps) {
     return `${fromStr} - ${toStr}`;
   })();
 
-  const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData({
-    reportTitle: `Discount Report - ${dateLabel}`,
-    columns,
-    data: discounts,
-  });
+  // Export functions are available but not used in this component
+  // const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData({
+  //   reportTitle: `Discount Report - ${dateLabel}`,
+  //   columns,
+  //   data: discounts,
+  // });
 
-  const load = React.useCallback(async (page = 1, limit = 20) => {
+  const load = React.useCallback(async (page = 1, limit = -1) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -199,43 +198,40 @@ export function DiscountClient({ location }: DiscountClientProps) {
       
       if (discountsRes.success) {
         setDiscounts(discountsRes.data || []);
+        setFooter(discountsRes.footer || null);
         setPagination({
-          page: page,
-          limit: limit,
+          page: 1, // Always page 1 when showing all rows
+          limit: -1, // Always show all rows
           total: discountsRes.pagination?.total || (discountsRes.data || []).length,
-          totalPages: discountsRes.pagination?.totalPages || 1
+          totalPages: 1 // Only 1 page when showing all rows
         });
       } else {
         setError(discountsRes.message || "Failed to fetch discounts");
         setDiscounts([]);
+        setFooter(null);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unexpected error";
       setError(msg);
       setDiscounts([]);
+      setFooter(null);
     } finally {
       setIsLoading(false);
     }
   }, [location, range.from, range.to]);
 
   React.useEffect(() => {
-    load(1, rowsPerPage);
+    load(1, -1); // Always load all rows
   }, [load]);
 
   const handlePageChange = React.useCallback((page: number) => {
-    load(page, rowsPerPage);
-  }, [load, rowsPerPage]);
-
-  const handleRowsPerPageChange = React.useCallback((newRowsPerPage: number) => {
-    setRowsPerPage(newRowsPerPage);
-    const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
-    load(1, actualLimit);
+    load(page, -1); // Always load all rows
   }, [load]);
 
   const handleDateRangeChange = React.useCallback((newRange: { from: Date; to: Date }) => {
     setRange(newRange);
-    load(1, rowsPerPage);
-  }, [load, rowsPerPage]);
+    load(1, -1); // Always load all rows
+  }, [load]);
 
   // helper: parse currency/number-like strings safely
   const toNumber = (s: string): number => {
@@ -253,8 +249,8 @@ export function DiscountClient({ location }: DiscountClientProps) {
   }
 
   // Create table data for UI (flat structure)
-  const netTotal = discounts.reduce((sum, r) => sum + toNumber(r.netDollar), 0);
-  const priceTotal = discounts.reduce((sum, r) => sum + toNumber(r.price), 0);
+  // Use the total from API footer if available, otherwise calculate from current page data
+  const netTotalFromApi = footer?.totalDiscount ? parseFloat(footer.totalDiscount) : discounts.reduce((sum, r) => sum + toNumber(r.netDollar), 0);
 
   const tableData = [
     ...discounts,
@@ -268,8 +264,8 @@ export function DiscountClient({ location }: DiscountClientProps) {
       enrolDollar: '',
       customerPercent: '',
       itemDollar: '',
-      netDollar: `$${netTotal.toFixed(2)}`,
-      price: `$${priceTotal.toFixed(2)}`,
+      netDollar: `$${netTotalFromApi.toFixed(2)}`,
+      price: '', // No total for price column
       isTotal: true,
     } as DiscountRow & { isTotal?: boolean },
   ];
@@ -383,8 +379,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
 
     // Build print rows with customer grouping and subtotals
     const printRows: string[] = [];
-    let grandTotal = 0;
-    let grandPriceTotal = 0;
+    const grandTotal = netTotalFromApi; // Use the correct total from API
 
     Object.entries(groupedDiscounts).forEach(([customer, customerDiscounts]) => {
       // Add customer group header
@@ -415,15 +410,12 @@ export function DiscountClient({ location }: DiscountClientProps) {
 
       // Calculate and add customer subtotal
       const customerSubtotal = customerDiscounts.reduce((sum, discount) => sum + toNumber(discount.netDollar), 0);
-      const customerPriceSubtotal = customerDiscounts.reduce((sum, discount) => sum + toNumber(discount.price), 0);
-      grandTotal += customerSubtotal;
-      grandPriceTotal += customerPriceSubtotal;
       
       printRows.push(`
         <tr style="background-color: #f0f0f0;">
           <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;" colspan="9">Subtotal:</td>
           <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${customerSubtotal.toFixed(2)}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${customerPriceSubtotal.toFixed(2)}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;"></td>
         </tr>
       `);
     });
@@ -433,7 +425,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
       <tr style="background-color: #e0e0e0; font-weight: bold;">
         <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;" colspan="9">Total:</td>
         <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${grandTotal.toFixed(2)}</td>
-        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${grandPriceTotal.toFixed(2)}</td>
+        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;"></td>
       </tr>
     `);
 
@@ -539,7 +531,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
                 // enableExport={true}
                 enableFilter={false}
                 enablePrint={true}
-                enableRowsPerPage={true}
+                enableRowsPerPage={false}
                 enableSorting={false}
                 enableDateRangePicker={true}
                 dateRange={range}
@@ -554,10 +546,6 @@ export function DiscountClient({ location }: DiscountClientProps) {
                 //   pdf: exportToPdf,
                 //   json: exportToJson,
                 // }}
-                initialRowsPerPage={rowsPerPage}
-                rowsPerPage={rowsPerPage}
-                rowsPerPageOptions={[5, 10, 20, 50, 100]}
-                onRowsPerPageChange={handleRowsPerPageChange}
                 serverSidePagination={pagination}
                 onServerSidePageChange={handlePageChange}
               />

@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import { ColumnFilter } from "../CustomTable";
 
 interface ColumnFilterProps {
-  columnKey: string;
   filter: ColumnFilter;
   value: unknown;
   onValueChange: (value: unknown) => void;
@@ -20,7 +19,6 @@ interface ColumnFilterProps {
 }
 
 export function ColumnFilterComponent({
-  columnKey,
   filter,
   value,
   onValueChange,
