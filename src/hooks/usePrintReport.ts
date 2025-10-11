@@ -13,12 +13,11 @@ interface PrintReportOptions<TData> {
   };
   forceCompactMode?: boolean; // Force compact mode for tables with many columns
   customColumnWidths?: Record<string, string>; // Custom column widths for print layout
-  truncateColumns?: string[]; // Column headers that should be truncated
 }
 
 export function usePrintReport<TData>() {
   const handlePrint = useCallback(
-    ({ reportTitle, columns, data, footer, location, dateRange, forceCompactMode, customColumnWidths, truncateColumns }: PrintReportOptions<TData>) => {
+    ({ reportTitle, columns, data, footer, location, dateRange, forceCompactMode, customColumnWidths }: PrintReportOptions<TData>) => {
       type AnyCol = ColumnDef<TData, unknown>;
 
       const printable = (columns as AnyCol[])
@@ -71,13 +70,9 @@ export function usePrintReport<TData>() {
             const formattedValue = col.formatter ? col.formatter(value) : value || '';
             const align = i === 0 ? 'left' : 'right';
             
-            // Check if this column should be truncated
-            const shouldTruncate = truncateColumns && truncateColumns.includes(col.header);
-            const cellStyle = shouldTruncate 
-              ? `border: 1px solid #d1d5db; padding: 3px 2px; text-align: ${align}; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0;`
-              : `border: 1px solid #d1d5db; padding: 3px 2px; text-align: ${align}; font-size: 9px; word-break: break-word;`;
+            const cellStyle = `border: 1px solid #d1d5db; padding: 3px 2px; text-align: ${align}; font-size: 9px; word-break: break-word;`;
             
-            return `<td style="${cellStyle}" title="${shouldTruncate ? formattedValue : ''}">${formattedValue}</td>`;
+            return `<td style="${cellStyle}">${formattedValue}</td>`;
           }).join('');
           printRows.push(`<tr>${dataRow}</tr>`);
         });

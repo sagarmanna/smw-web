@@ -54,9 +54,9 @@ const columns = [
   {
     accessorKey: "description",
     header: "Description",
-    size: 150,
+    size: 240,
     minSize: 120,
-    maxSize: 180,
+    maxSize: 240,
     meta: {
       printable: true,
       printableName: "Description",
@@ -64,7 +64,7 @@ const columns = [
     cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.description;
       const isFooter = row.original.isFooter;
-      return <span className="truncate max-w-[150px] block print:text-xs print:max-w-20 whitespace-nowrap overflow-hidden text-ellipsis" title={value || ''}>
+      return <span className="block print:text-xs">
         {isFooter ? value : (value || '-')}
       </span>;
     },
@@ -72,9 +72,9 @@ const columns = [
   {
     accessorKey: "pf",
     header: "PF",
-    size: 80,
-    minSize: 60,
-    maxSize: 100,
+    size: 140,
+    minSize: 100,
+    maxSize: 140,
     meta: {
       printable: true,
       printableName: "PF",
@@ -82,15 +82,15 @@ const columns = [
     cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.pf;
       const isFooter = row.original.isFooter;
-      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
+      return <span className="print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "qty",
     header: "Qty",
-    size: 80,
-    minSize: 60,
-    maxSize: 100,
+    size: 60,
+    minSize: 50,
+    maxSize: 70,
     meta: {
       printable: true,
       printableName: "Qty",
@@ -104,9 +104,9 @@ const columns = [
   {
     accessorKey: "pfPercent",
     header: "PF(%)",
-    size: 70, // Reduced size
+    size: 60, // Reduced size
     minSize: 60,
-    maxSize: 80,
+    maxSize: 70,
     meta: {
       printable: true,
       printableName: "PF(%)",
@@ -267,17 +267,16 @@ export function DiscountClient({ location }: DiscountClientProps) {
       customColumnWidths: {
         'Customer': '18%',
         'Code': '8%',
-        'Description': '14%',
+        'Description': '18%',
         'Price': '12%',
         'Net($)': '9%',
         'Enrol($)': '8%',
         'Item($)': '8%',
         'Customer(%)': '8%',
-        'PF(%)': '7%',
-        'PF': '5%',
+        'PF(%)': '5%',
+        'PF': '8%',
         'Qty': '5%'
-      },
-      truncateColumns: ['Description'] // Specify which columns should be truncated
+      }
     });
   }, [handlePrint, dateLabel, discounts, footerRow, location, range]);
 
@@ -365,7 +364,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
   return (
     <ReportPageLayout
       title="Discount Report"
-      subtitle={`Period: ${dateLabel}`}
+      subtitle="Track discounts applied to customer transactions and analyze discount patterns"
       isLoading={isLoading}
       error={error}
       onRetry={() => {
