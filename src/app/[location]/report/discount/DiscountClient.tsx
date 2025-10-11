@@ -399,7 +399,6 @@ export function DiscountClient({ location }: DiscountClientProps) {
         variant="default"
         
         // Feature flags
-        enableExport={true}
         enableFilter={false}
         enablePrint={true}
         onPrint={handlePrintClick}
@@ -412,16 +411,6 @@ export function DiscountClient({ location }: DiscountClientProps) {
         // Server-side pagination configuration
         serverSidePagination={pagination}
         onServerSidePageChange={handlePageChange}
-        
-        // Export configuration
-        onExport={{
-          html: exportToHtml,
-          csv: exportToCsv,
-          text: exportToText,
-          excel: exportToExcel,
-          pdf: exportToPdf,
-          json: exportToJson,
-        }}
       />
     </ReportPageLayout>
   );
