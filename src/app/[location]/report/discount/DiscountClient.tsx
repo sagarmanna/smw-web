@@ -64,7 +64,7 @@ const columns = [
     cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.description;
       const isFooter = row.original.isFooter;
-      return <span className="truncate max-w-[150px] block print:text-xs print:max-w-20" title={value || ''}>
+      return <span className="truncate max-w-[150px] block print:text-xs print:max-w-20 whitespace-nowrap overflow-hidden text-ellipsis" title={value || ''}>
         {isFooter ? value : (value || '-')}
       </span>;
     },
@@ -219,7 +219,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
     return { from, to };
   });
 
-  const { handlePrint: defaultHandlePrint } = usePrintReport<DiscountRow>();
+  const { handlePrint } = usePrintReport<DiscountRow>();
 
   const formatRangeParam = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -254,149 +254,32 @@ export function DiscountClient({ location }: DiscountClientProps) {
     return null;
   }, [footer]);
 
-  // Custom print handler for better layout
-  const handlePrint = React.useCallback(() => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    // Create a more compact table for printing
-    const printRows: string[] = [];
-    
-    // Add header row
-    printRows.push(`
-      <tr style="background-color: #f3f4f6; font-weight: bold; font-size: 10px;">
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: left; width: 20%;">Customer</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: left; width: 8%;">Code</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: left; width: 15%;">Description</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: center; width: 6%;">PF</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: center; width: 6%;">Qty</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: center; width: 6%;">PF(%)</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: right; width: 8%;">Enrol($)</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: center; width: 8%;">Customer(%)</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: right; width: 8%;">Item($)</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: right; width: 8%;">Net($)</th>
-        <th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: right; width: 7%;">Price</th>
-      </tr>
-    `);
-
-    // Add data rows
-    discounts.forEach((discount) => {
-      printRows.push(`
-        <tr style="font-size: 9px;">
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; word-break: break-word;">${discount.customer || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;">${discount.code || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; word-break: break-word;">${discount.description || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: center;">${discount.pf || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: center;">${discount.qty || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: center;">${discount.pfPercent || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: right;">${discount.enrolDollar || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: center;">${discount.customerPercent || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: right;">${discount.itemDollar || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: right;">${discount.netDollar || ''}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: right;">${discount.price || ''}</td>
-        </tr>
-      `);
+  // Print handler using the enhanced common hook
+  const handlePrintClick = React.useCallback(() => {
+    handlePrint({
+      reportTitle: `Discount Report`,
+      columns,
+      data: discounts,
+      footer: footerRow || undefined,
+      location: formatLocationName(location || ""),
+      dateRange: range,
+      forceCompactMode: true, // Force compact mode for this table
+      customColumnWidths: {
+        'Customer': '18%',
+        'Code': '8%',
+        'Description': '14%',
+        'Price': '12%',
+        'Net($)': '9%',
+        'Enrol($)': '8%',
+        'Item($)': '8%',
+        'Customer(%)': '8%',
+        'PF(%)': '7%',
+        'PF': '5%',
+        'Qty': '5%'
+      },
+      truncateColumns: ['Description'] // Specify which columns should be truncated
     });
-
-    // Add footer row if available
-    if (footerRow) {
-      printRows.push(`
-        <tr style="background-color: #f9fafb; font-weight: bold; font-size: 9px;">
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;">${footerRow.customer}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: right;">${footerRow.netDollar}</td>
-          <td style="border: 1px solid #d1d5db; padding: 3px 2px;"></td>
-        </tr>
-      `);
-    }
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Discount Report - ${dateLabel}</title>
-          <style>
-            @page {
-              size: A4 landscape;
-              margin: 0.5in;
-            }
-            body {
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 0;
-              font-size: 10px;
-              color: #000;
-            }
-            h1 {
-              font-size: 16px;
-              margin-bottom: 5px;
-              text-align: center;
-            }
-            .date {
-              font-size: 12px;
-              margin-bottom: 15px;
-              text-align: center;
-              color: #666;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-              font-size: 9px;
-            }
-            th, td {
-              border: 1px solid #d1d5db;
-              padding: 3px 2px;
-              vertical-align: top;
-            }
-            th {
-              background-color: #f3f4f6;
-              font-weight: bold;
-              font-size: 10px;
-            }
-            .footer-row {
-              background-color: #f9fafb;
-              font-weight: bold;
-            }
-            @media print {
-              body { margin: 0; padding: 0; }
-              table { page-break-inside: auto; }
-              tr { page-break-inside: avoid; page-break-after: auto; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Discount Report</h1>
-          <div class="date"><strong>Location:</strong> ${formatLocationName(location || "")} | <strong>Date Range:</strong> ${dateLabel}</div>
-          
-          <table>
-            <thead>
-              ${printRows.slice(0, 1).join('')}
-            </thead>
-            <tbody>
-              ${printRows.slice(1).join('')}
-            </tbody>
-          </table>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-  }, [discounts, footerRow, dateLabel, location]);
+  }, [handlePrint, dateLabel, discounts, footerRow, location, range]);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData({
     reportTitle: `Discount Report - ${dateLabel}`,
@@ -503,7 +386,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
         enableExport={true}
         enableFilter={false}
         enablePrint={true}
-        onPrint={handlePrint}
+        onPrint={handlePrintClick}
         enableSorting={false}
         enableRowsPerPage={false}
         enableDateRangePicker={true}
