@@ -219,11 +219,19 @@ export function DiscountClient({ location }: DiscountClientProps) {
     return { from, to };
   });
 
+  // Use ref to store current range to avoid stale closure issues
+  const rangeRef = React.useRef(range);
+  const lastLocationRef = React.useRef<string | null>(null);
+  
+  React.useEffect(() => {
+    rangeRef.current = range;
+  }, [range]);
+
   const { handlePrint } = usePrintReport<DiscountRow>();
 
   const formatRangeParam = (d: Date) => format(d, "yyyy-MM-dd");
 
-  const dateLabel = (() => {
+  const dateLabel = React.useMemo(() => {
     const from = range.from;
     const to = range.to;
     const sameDay = from.toDateString() === to.toDateString();
@@ -231,7 +239,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
     const fromStr = format(from, "MMM do, yyyy");
     const toStr = format(to, "MMM do, yyyy");
     return `${fromStr} - ${toStr}`;
-  })();
+  }, [range.from, range.to]);
 
   // Prepare footer row data
   const footerRow = React.useMemo(() => {
@@ -278,7 +286,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
         'Qty': '5%'
       }
     });
-  }, [handlePrint, dateLabel, discounts, footerRow, location, range]);
+  }, [handlePrint, discounts, footerRow, location, range]);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData({
     reportTitle: `Discount Report - ${dateLabel}`,
@@ -286,13 +294,15 @@ export function DiscountClient({ location }: DiscountClientProps) {
     data: discounts,
   });
 
-  // Fetch discount data
-  const fetchDiscounts = React.useCallback(async () => {
+  // Fetch discount data - removed range dependencies to prevent double calls
+  const fetchDiscounts = React.useCallback(async (dateRange?: { from: Date; to: Date }) => {
+    const currentRange = dateRange || rangeRef.current;
+    const startDate = formatRangeParam(currentRange.from);
+    const endDate = formatRangeParam(currentRange.to);
+    
     try {
       setIsLoading(true);
       setError(null);
-      const startDate = formatRangeParam(range.from);
-      const endDate = formatRangeParam(range.to);
       const discountsRes = await getDiscounts(location, startDate, endDate);
       
       if (discountsRes.success) {
@@ -320,12 +330,18 @@ export function DiscountClient({ location }: DiscountClientProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [location, range.from, range.to]);
+  }, [location]); // Only depends on location
 
-  // Initial data fetch
+  // Initial data fetch - only on mount and when location changes
   React.useEffect(() => {
+    // Prevent duplicate calls in React Strict Mode (same location, same render cycle)
+    if (lastLocationRef.current === location) {
+      return;
+    }
+    
+    lastLocationRef.current = location;
     fetchDiscounts();
-  }, [fetchDiscounts]);
+  }, [location]); // Only depend on location, not fetchDiscounts
 
   // Refetch function
   const refetch = React.useCallback(() => {
@@ -340,7 +356,8 @@ export function DiscountClient({ location }: DiscountClientProps) {
 
   const handleDateRangeChange = React.useCallback((newRange: { from: Date; to: Date }) => {
     setRange(newRange);
-    fetchDiscounts();
+    // Call fetchDiscounts with the new range directly instead of relying on effect
+    fetchDiscounts(newRange);
   }, [fetchDiscounts]);
 
   // Clear errors function
