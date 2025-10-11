@@ -71,7 +71,6 @@ export function TableHeader<TData>({
 
     return (
       <ColumnFilterComponent
-        columnKey={columnKey}
         filter={filterConfig}
         value={columnFilters[columnKey]}
         onValueChange={handleFilterChange}
