@@ -26,20 +26,15 @@ export interface DiscountFooter {
   totalDiscount?: string;
 }
 
-export interface PaginationInfo {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
 
 export interface DiscountApiResponse {
   success: boolean;
-  data: DiscountRow[];
+  data: {
+    body: DiscountRow[];
+    footer: DiscountFooter;
+    meta: { startDate?: string; endDate?: string; location?: string };
+  };
   message?: string;
-  footer?: DiscountFooter;
-  pagination?: PaginationInfo;
-  meta?: { startDate?: string; endDate?: string; location?: string };
 }
 
 const toStringExact = (value: unknown): string => {
@@ -89,24 +84,6 @@ function applyFilter(rows: DiscountRow[], filter?: string): DiscountRow[] {
   });
 }
 
-// Helper function to apply client-side pagination
-function paginateRows(rows: DiscountRow[], page: number, limit: number): {
-  paginatedRows: DiscountRow[];
-  total: number;
-  totalPages: number;
-} {
-  const total = rows.length;
-  const totalPages = Math.ceil(total / limit);
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedRows = rows.slice(startIndex, endIndex);
-
-  return {
-    paginatedRows,
-    total,
-    totalPages
-  };
-}
 
 // Helper function to calculate footer totals
 function calculateFooter(rows: DiscountRow[]): DiscountFooter {
@@ -149,8 +126,6 @@ export async function getDiscounts(
   location: string,
   startDate: string,
   endDate: string,
-  page: number = 1,
-  limit: number = 20,
   filter?: string
 ): Promise<DiscountApiResponse> {
   try {
@@ -159,76 +134,90 @@ export async function getDiscounts(
 
     const response = await apiClient.get(url, { params });
 
-    const body = extractBodyArray(response.data);
-    const rows = body.map((row: unknown) => {
-      const r = row as Record<string, unknown>;
+    // Handle different response data structures
+    let discountData: {
+      body: Record<string, unknown>[];
+      footer: DiscountFooter;
+      meta: { startDate?: string; endDate?: string; location?: string };
+    } = {
+      body: [],
+      footer: {
+        netDollar: "$0.00",
+        price: "$0.00",
+      },
+      meta: {}
+    };
+
+    if (response.data && typeof response.data === 'object') {
+      // Check for nested data structures
+      if (response.data.data && response.data.data.body && Array.isArray(response.data.data.body)) {
+        // Handle: { data: { body: [...], footer: {...}, meta: {...} } }
+        discountData = response.data.data;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        // Handle: { data: [...] }
+        discountData.body = response.data.data;
+      } else if (response.data.body && Array.isArray(response.data.body)) {
+        // Handle: { body: [...] }
+        discountData = response.data;
+      } else if (Array.isArray(response.data)) {
+        // Handle: [...] directly
+        discountData.body = response.data;
+      }
+    }
+
+    // Transform data to ensure consistent field names
+    const transformedData = discountData.body.map((item: Record<string, unknown>): DiscountRow => {
       return {
-        customer: toStringExact(r.customer ?? r.Customer ?? r.customerName ?? r["Customer Name"] ?? ""),
-        code: toStringExact(r.code ?? r.Code ?? r.discountCode ?? r["Discount Code"] ?? ""),
-        description: toStringExact(r.description ?? r.Description ?? r.discountDescription ?? r["Discount Description"] ?? ""),
-        pf: toStringExact(r.pf ?? r.PF ?? ""),
-        qty: toStringExact(r.qty ?? r.Qty ?? r.quantity ?? r.Quantity),
-        pfPercent: toStringExact(r.pfPercent ?? r["PF(%)"] ?? r.pfPercentage ?? r["PF Percentage"]),
-        enrolDollar: toStringExact(r.enrolDollar ?? r["Enrol($)"] ?? r.enrolAmount ?? r["Enrol Amount"]),
-        customerPercent: toStringExact(r.customerPercent ?? r["Customer(%)"] ?? r.customerPercentage ?? r["Customer Percentage"]),
-        itemDollar: toStringExact(r.itemDollar ?? r["Item($)"] ?? r.itemAmount ?? r["Item Amount"]),
-        netDollar: toStringExact(r.netDollar ?? r["Net($)"] ?? r.netAmount ?? r["Net Amount"]),
-        price: toStringExact(r.price ?? r.Price ?? r.unitPrice ?? r["Unit Price"]),
-      } as DiscountRow;
+        customer: toStringExact(item.customer ?? item.Customer ?? item.customerName ?? item["Customer Name"] ?? ""),
+        code: toStringExact(item.code ?? item.Code ?? item.discountCode ?? item["Discount Code"] ?? ""),
+        description: toStringExact(item.description ?? item.Description ?? item.discountDescription ?? item["Discount Description"] ?? ""),
+        pf: toStringExact(item.pf ?? item.PF ?? ""),
+        qty: toStringExact(item.qty ?? item.Qty ?? item.quantity ?? item.Quantity),
+        pfPercent: toStringExact(item.pfPercent ?? item["PF(%)"] ?? item.pfPercentage ?? item["PF Percentage"]),
+        enrolDollar: toStringExact(item.enrolDollar ?? item["Enrol($)"] ?? item.enrolAmount ?? item["Enrol Amount"]),
+        customerPercent: toStringExact(item.customerPercent ?? item["Customer(%)"] ?? item.customerPercentage ?? item["Customer Percentage"]),
+        itemDollar: toStringExact(item.itemDollar ?? item["Item($)"] ?? item.itemAmount ?? item["Item Amount"]),
+        netDollar: toStringExact(item.netDollar ?? item["Net($)"] ?? item.netAmount ?? item["Net Amount"]),
+        price: toStringExact(item.price ?? item.Price ?? item.unitPrice ?? item["Unit Price"]),
+      };
     });
 
+    // Apply filter if needed
+    const filteredRows = applyFilter(transformedData, filter);
 
-    // Apply filter
-    const filteredRows = applyFilter(rows, filter);
-
-    // Apply pagination
-    const { paginatedRows, total, totalPages } = paginateRows(filteredRows, page, limit);
-
-    // Calculate footer for ONLY the current page rows (not all filtered data)
-    const footer = calculateFooter(paginatedRows);
-
-    // Extract meta information and totalDiscount from response
-    let meta: unknown;
-    let totalDiscount: string | undefined;
-    const d = response.data as Record<string, unknown>;
-    if (d?.data && typeof d.data === 'object' && d.data !== null) {
-      const dataObj = d.data as Record<string, unknown>;
-      meta = dataObj.meta;
-      // Check for totalDiscount in various possible locations
-      const dataObjWithTotal = dataObj as Record<string, unknown> & { totalDiscount?: unknown; footer?: { totalDiscount?: unknown } };
-      const dWithTotal = d as Record<string, unknown> & { totalDiscount?: unknown; footer?: { totalDiscount?: unknown } };
-      totalDiscount = toStringExact(dataObjWithTotal.totalDiscount ?? dataObjWithTotal.footer?.totalDiscount ?? dWithTotal.totalDiscount ?? dWithTotal.footer?.totalDiscount);
-    } else {
-      meta = d?.meta;
-      const dWithTotal = d as Record<string, unknown> & { totalDiscount?: unknown; footer?: { totalDiscount?: unknown } };
-      totalDiscount = toStringExact(dWithTotal?.totalDiscount ?? dWithTotal?.footer?.totalDiscount);
-    }
-
-    // Update footer with totalDiscount if available
-    if (totalDiscount && totalDiscount !== "") {
-      footer.totalDiscount = totalDiscount;
-    }
+    // Use footer from API response or calculate from all data
+    const footer = discountData.footer || calculateFooter(filteredRows);
 
     return {
       success: true,
-      data: paginatedRows,
-      footer,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages
+      data: {
+        body: filteredRows,
+        footer,
+        meta: discountData.meta || {}
       },
-      meta: meta as { startDate?: string; endDate?: string; location?: string } | undefined
+      message: 'Discount data fetched successfully'
     };
   } catch (error: unknown) {
-    const apiError = error as { response?: { status?: number; statusText?: string; data?: { message?: string } } };
-    const errorMessage = apiError.response?.data?.message || `${apiError.response?.status}: ${apiError.response?.statusText}` || "Failed to fetch discounts";
+    const apiError = error as { 
+      response?: { 
+        status?: number;
+        statusText?: string;
+        data?: { message?: string } 
+      };
+      code?: string;
+    };
     
     return {
       success: false,
-      data: [],
-      message: errorMessage,
+      data: {
+        body: [],
+        footer: {
+          netDollar: "$0.00",
+          price: "$0.00",
+        },
+        meta: {}
+      },
+      message: apiError.response?.data?.message || `${apiError.response?.status}: ${apiError.response?.statusText}` || "Failed to fetch discounts"
     };
   }
 }
