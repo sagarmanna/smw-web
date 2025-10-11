@@ -80,51 +80,75 @@ export function TableHeader<TData>({
   };
   
   const renderHeaderRows = () => {
-    if (columnGroups && columnGroups.length > 0) {
-      return (
-        <>
-          {/* Column Group Header Row */}
-          <tr>
-            {table.getHeaderGroups()[0]?.headers.map((header) => {
-              const columnKey = header.column.id;
-              const group = columnGroups.find(g => g.columnKeys.includes(columnKey));
-              
-              // Check if this is the first column in the group
-              if (group) {
-                const isFirstInGroup = group.columnKeys[0] === columnKey;
-                if (isFirstInGroup) {
-                  return (
-                    <th
-                      key={`group-${columnKey}`}
-                      colSpan={group.columnKeys.length}
-                      rowSpan={enableColumnFilters ? 1 : 2}
-                      className={`${getSizeClasses.header} text-center font-bold bg-muted/40 text-foreground border-b border-border/30`}
-                    >
-                      {group.label}
-                    </th>
-                  );
-                }
-                return null; // Skip other columns in the group
+    return columnGroups && columnGroups.length > 0 ? (
+      <>
+        {/* Column Group Header Row */}
+        <tr>
+          {table.getHeaderGroups()[0]?.headers.map((header) => {
+            const columnKey = header.column.id;
+            const group = columnGroups.find(g => g.columnKeys.includes(columnKey));
+            
+            // Check if this is the first column in the group
+            if (group) {
+              const isFirstInGroup = group.columnKeys[0] === columnKey;
+              if (isFirstInGroup) {
+                return (
+                  <th
+                    key={`group-${columnKey}`}
+                    colSpan={group.columnKeys.length}
+                    className={`${getSizeClasses.header} text-center font-bold bg-muted/40 text-foreground border-b border-border/30`}
+                  >
+                    {group.label}
+                  </th>
+                );
               }
-              
-              // Column not in any group
-              return (
-                <th
-                  key={`group-${columnKey}`}
-                  rowSpan={enableColumnFilters ? 2 : 2}
-                  className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
-                  style={{
-                    width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
-                    minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
-                    maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
-                  }}
-                >
-                  {renderSortableHeader(header)}
-                </th>
-              );
-            })}
-          </tr>
-          {/* Regular Column Header Row */}
+              return null; // Skip other columns in the group
+            }
+            
+            // Column not in any group
+            return (
+              <th
+                key={`group-${columnKey}`}
+                rowSpan={2}
+                className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
+                style={{
+                  width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                  minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                  maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                }}
+              >
+                {renderSortableHeader(header)}
+              </th>
+            );
+          })}
+        </tr>
+        {/* Regular Column Header Row */}
+        <tr>
+          {table.getHeaderGroups()[0]?.headers.map((header) => {
+            const columnKey = header.column.id;
+            const isInGroup = columnGroups.some(g => g.columnKeys.includes(columnKey));
+            
+            if (!isInGroup) {
+              return null; // Already rendered with rowSpan in previous row
+            }
+            
+            return (
+              <th
+                key={header.id}
+                className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
+                style={{
+                  width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                  minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                  maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                }}
+              >
+                {renderSortableHeader(header)}
+              </th>
+            );
+          })}
+        </tr>
+        {/* Column Filter Row */}
+        {enableColumnFilters && (
           <tr>
             {table.getHeaderGroups()[0]?.headers.map((header) => {
               const columnKey = header.column.id;
@@ -136,74 +160,6 @@ export function TableHeader<TData>({
               
               return (
                 <th 
-                  key={header.id} 
-                  className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
-                  style={{
-                    width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
-                    minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
-                    maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
-                  }}
-                >
-                  {renderSortableHeader(header)}
-                </th>
-              );
-            })}
-          </tr>
-          {/* Column Filter Row */}
-          {enableColumnFilters && (
-            <tr>
-              {table.getHeaderGroups()[0]?.headers.map((header) => {
-                const columnKey = header.column.id;
-                const isInGroup = columnGroups.some(g => g.columnKeys.includes(columnKey));
-                
-                if (!isInGroup) {
-                  return null; // Already rendered with rowSpan in previous row
-                }
-                
-                return (
-                  <th 
-                    key={`filter-${header.id}`} 
-                    className={`px-2 py-1 text-center border-r border-border/50`}
-                    style={{
-                      width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
-                      minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
-                      maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
-                    }}
-                  >
-                    {renderColumnFilter(header)}
-                  </th>
-                );
-              })}
-            </tr>
-          )}
-        </>
-      );
-    } else {
-      return (
-        <>
-          {/* Standard single header row when no groups */}
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th 
-                  key={header.id} 
-                  className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
-                  style={{
-                    width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
-                    minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
-                    maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
-                  }}
-                >
-                  {renderSortableHeader(header)}
-                </th>
-              ))}
-            </tr>
-          ))}
-          {/* Column Filter Row */}
-          {enableColumnFilters && (
-            <tr>
-              {table.getHeaderGroups()[0]?.headers.map((header) => (
-                <th 
                   key={`filter-${header.id}`} 
                   className={`px-2 py-1 text-center border-r border-border/50`}
                   style={{
@@ -214,12 +170,51 @@ export function TableHeader<TData>({
                 >
                   {renderColumnFilter(header)}
                 </th>
-              ))}
-            </tr>
-          )}
-        </>
-      );
-    }
+              );
+            })}
+          </tr>
+        )}
+      </>
+    ) : (
+      <>
+        {/* Standard single header row when no groups */}
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <th
+                key={header.id}
+                className={`${getSizeClasses.header} text-center font-semibold text-foreground border-r border-border/50`}
+                style={{
+                  width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                  minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                  maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                }}
+              >
+                {renderSortableHeader(header)}
+              </th>
+            ))}
+          </tr>
+        ))}
+        {/* Column Filter Row */}
+        {enableColumnFilters && (
+          <tr>
+            {table.getHeaderGroups()[0]?.headers.map((header) => (
+              <th 
+                key={`filter-${header.id}`} 
+                className={`px-2 py-1 text-center border-r border-border/50`}
+                style={{
+                  width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
+                  minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
+                  maxWidth: header.column.columnDef.maxSize ? `${header.column.columnDef.maxSize}px` : undefined,
+                }}
+              >
+                {renderColumnFilter(header)}
+              </th>
+            ))}
+          </tr>
+        )}
+      </>
+    );
   };
 
   return (
