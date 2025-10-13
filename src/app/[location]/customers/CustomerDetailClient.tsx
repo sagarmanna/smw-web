@@ -27,9 +27,7 @@ import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
-import { EmptyStateCard } from "@/components/EmptyStateCard";
-import { DiscountCard } from "@/components/DiscountCard";
-import { OpeningBalanceCard } from "@/components/OpeningBalanceCard";
+import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 
 interface CustomerDetailClientProps {
   location: string;
@@ -50,6 +48,49 @@ interface OutstandingInvoiceData {
   amount: number;
   payments: number;
   balanceDue: number;
+}
+
+interface EquipmentRentalData {
+  student: string;
+  startDate: string;
+  returnDate: string;
+  rentalTerm: string;
+  depositAmount: number;
+  equipmentReturned: string;
+  equipmentReturnedDate: string;
+}
+
+interface RecurringPaymentData {
+  toBeEnteredOn: string;
+  nextPaymentDate: string;
+  frequency: string;
+  expiryDate: string;
+  method: string;
+  amount: number;
+}
+
+interface PrivateLessonDueData {
+  lessonDate: string;
+  student: string;
+  program: string;
+  teacher: string;
+  amount: number;
+}
+
+interface GroupLessonDueData {
+  lessonDate: string;
+  student: string;
+  program: string;
+  teacher: string;
+  amount: number;
+}
+
+interface PaymentData {
+  date: string;
+  notes: string;
+  amount: number;
+  used: number;
+  remaining: number;
 }
 
 export function CustomerDetailClient({ location, id }: CustomerDetailClientProps) {
@@ -90,6 +131,60 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     { id: "I-38123", date: "Feb 13, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
     { id: "I-38456", date: "Feb 20, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
     { id: "I-38789", date: "Feb 27, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
+  ];
+
+  // Sample equipment rentals data - replace with actual API call
+  const equipmentRentalData: EquipmentRentalData[] = [
+    // Empty for now as shown in the image
+  ];
+
+  // Sample recurring payments data - replace with actual API call
+  const recurringPaymentData: RecurringPaymentData[] = [
+    // Empty for now as shown in the image
+  ];
+
+  // Sample private lesson due data - replace with actual API call
+  const privateLessonDueData: PrivateLessonDueData[] = [
+    { lessonDate: "Oct 13, 2025", student: "321123 123", program: "Ukulele", teacher: "Art Tatum", amount: 31.53 },
+    { lessonDate: "Oct 20, 2025", student: "321123 123", program: "xPiano Core", teacher: "Alexander Hamilton", amount: 28.75 },
+    { lessonDate: "Oct 27, 2025", student: "321123 123", program: "Guitar Core", teacher: "Amy Macaluso", amount: 32.50 },
+    { lessonDate: "Oct 10, 2025", student: "321123 123", program: "xTrombone", teacher: "Daniel Clain", amount: 27.03 },
+    { lessonDate: "Oct 17, 2025", student: "321123 123", program: "xGuitar Contemporary", teacher: "tes123 12345", amount: 31.53 },
+    { lessonDate: "Oct 24, 2025", student: "321123 123", program: "xPiano Hybrid", teacher: "Art Tatum", amount: 28.75 },
+    { lessonDate: "Oct 31, 2025", student: "321123 123", program: "Drums Core", teacher: "Alexander Hamilton", amount: 32.50 },
+    { lessonDate: "Nov 07, 2025", student: "321123 123", program: "Ukulele", teacher: "Amy Macaluso", amount: 27.03 },
+    { lessonDate: "Nov 14, 2025", student: "321123 123", program: "xPiano Core", teacher: "Daniel Clain", amount: 31.53 },
+    { lessonDate: "Nov 21, 2025", student: "321123 123", program: "Guitar Core", teacher: "tes123 12345", amount: 28.75 },
+    { lessonDate: "Nov 28, 2025", student: "321123 123", program: "xTrombone", teacher: "Art Tatum", amount: 32.50 },
+    { lessonDate: "Dec 05, 2025", student: "321123 123", program: "xGuitar Contemporary", teacher: "Alexander Hamilton", amount: 27.03 },
+    { lessonDate: "Dec 12, 2025", student: "321123 123", program: "xPiano Hybrid", teacher: "Amy Macaluso", amount: 31.53 },
+    { lessonDate: "Dec 19, 2025", student: "321123 123", program: "Drums Core", teacher: "Daniel Clain", amount: 28.75 },
+    { lessonDate: "Dec 26, 2025", student: "321123 123", program: "Ukulele", teacher: "tes123 12345", amount: 32.50 },
+    { lessonDate: "Jan 02, 2026", student: "321123 123", program: "xPiano Core", teacher: "Art Tatum", amount: 27.03 },
+    { lessonDate: "Jan 09, 2026", student: "321123 123", program: "Guitar Core", teacher: "Alexander Hamilton", amount: 31.53 },
+    { lessonDate: "Jan 16, 2026", student: "321123 123", program: "xTrombone", teacher: "Amy Macaluso", amount: 28.75 },
+    { lessonDate: "Jan 23, 2026", student: "321123 123", program: "xGuitar Contemporary", teacher: "Daniel Clain", amount: 32.50 },
+    { lessonDate: "Jan 30, 2026", student: "321123 123", program: "xPiano Hybrid", teacher: "tes123 12345", amount: 27.03 },
+    { lessonDate: "Feb 06, 2026", student: "321123 123", program: "Drums Core", teacher: "Art Tatum", amount: 31.53 },
+    { lessonDate: "Feb 13, 2026", student: "321123 123", program: "Ukulele", teacher: "Alexander Hamilton", amount: 28.75 },
+    { lessonDate: "Feb 20, 2026", student: "321123 123", program: "xPiano Core", teacher: "Amy Macaluso", amount: 32.50 },
+    { lessonDate: "Feb 27, 2026", student: "321123 123", program: "Guitar Core", teacher: "Daniel Clain", amount: 27.03 },
+    { lessonDate: "Mar 06, 2026", student: "321123 123", program: "xTrombone", teacher: "tes123 12345", amount: 31.53 },
+  ];
+
+  // Sample group lesson due data - replace with actual API call (empty as shown in image)
+  const groupLessonDueData: GroupLessonDueData[] = [
+    // Empty for now as shown in the image
+  ];
+
+  // Sample payments data - replace with actual API call
+  const paymentData: PaymentData[] = [
+    { date: "Mar 08, 2024", notes: "", amount: 3367.96, used: 3367.96, remaining: 0.00 },
+    { date: "Mar 08, 2024", notes: "", amount: 122.50, used: 122.50, remaining: 0.00 },
+    { date: "Nov 13, 2023", notes: "", amount: 18.45, used: 18.45, remaining: 0.00 },
+    { date: "Oct 15, 2023", notes: "", amount: 13890.21, used: 13890.21, remaining: 0.00 },
+    { date: "Sep 09, 2022", notes: "", amount: 60.27, used: 60.27, remaining: 0.00 },
+    { date: "Sep 09, 2022", notes: "", amount: 4621.04, used: 4621.04, remaining: 0.00 },
   ];
 
   // Invoice table columns
@@ -166,6 +261,207 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     },
   ];
 
+  // Equipment rentals table columns
+  const equipmentRentalColumns: ColumnDef<EquipmentRentalData>[] = [
+    {
+      accessorKey: "student",
+      header: "Student",
+    },
+    {
+      accessorKey: "startDate",
+      header: "Start Date",
+    },
+    {
+      accessorKey: "returnDate",
+      header: "Return Date",
+    },
+    {
+      accessorKey: "rentalTerm",
+      header: "Rental Term",
+    },
+    {
+      accessorKey: "depositAmount",
+      header: "Deposit Amount",
+      cell: ({ row }) => (
+        <div className="text-right">{formatCurrency(row.getValue("depositAmount"))}</div>
+      ),
+    },
+    {
+      accessorKey: "equipmentReturned",
+      header: "Equipment Returned",
+    },
+    {
+      accessorKey: "equipmentReturnedDate",
+      header: "Equipment Returned Date",
+    },
+  ];
+
+  // Recurring payments table columns
+  const recurringPaymentColumns: ColumnDef<RecurringPaymentData>[] = [
+    {
+      accessorKey: "toBeEnteredOn",
+      header: "To Be Entered On",
+    },
+    {
+      accessorKey: "nextPaymentDate",
+      header: "Next Payment Date",
+    },
+    {
+      accessorKey: "frequency",
+      header: "Frequency",
+    },
+    {
+      accessorKey: "expiryDate",
+      header: "Expiry Date",
+    },
+    {
+      accessorKey: "method",
+      header: "Method",
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      cell: ({ row }) => (
+        <div className="text-right">{formatCurrency(row.getValue("amount"))}</div>
+      ),
+    },
+  ];
+
+  // Private lesson due table columns
+  const privateLessonDueColumns: ColumnDef<PrivateLessonDueData>[] = [
+    {
+      accessorKey: "lessonDate",
+      header: "Lesson Date",
+    },
+    {
+      accessorKey: "student",
+      header: "Student",
+    },
+    {
+      accessorKey: "program",
+      header: "Program",
+    },
+    {
+      accessorKey: "teacher",
+      header: "Teacher",
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      cell: ({ row }) => {
+        // Handle both regular rows and footer rows
+        const value = row.getValue ? (row.getValue("amount") as number) : (row.original as PrivateLessonDueData).amount;
+        return (
+          <div className="text-right">{formatCurrency(value)}</div>
+        );
+      },
+    },
+  ];
+
+  // Calculate total for footer
+  const privateLessonDueTotal = privateLessonDueData.reduce((sum, item) => sum + item.amount, 0);
+  const privateLessonDueFooterRow: PrivateLessonDueData = {
+    lessonDate: "Total:",
+    student: "",
+    program: "",
+    teacher: "",
+    amount: privateLessonDueTotal,
+  };
+
+  // Group lesson due table columns
+  const groupLessonDueColumns: ColumnDef<GroupLessonDueData>[] = [
+    {
+      accessorKey: "lessonDate",
+      header: "Lesson Date",
+    },
+    {
+      accessorKey: "student",
+      header: "Student",
+    },
+    {
+      accessorKey: "program",
+      header: "Program",
+    },
+    {
+      accessorKey: "teacher",
+      header: "Teacher",
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      cell: ({ row }) => {
+        // Handle both regular rows and footer rows
+        const value = row.getValue ? (row.getValue("amount") as number) : (row.original as GroupLessonDueData).amount;
+        return (
+          <div className="text-right">{formatCurrency(value)}</div>
+        );
+      },
+    },
+  ];
+
+  // Payments table columns
+  const paymentColumns: ColumnDef<PaymentData>[] = [
+    {
+      accessorKey: "date",
+      header: "Date",
+    },
+    {
+      accessorKey: "notes",
+      header: "Notes",
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      cell: ({ row }) => {
+        // Handle both regular rows and footer rows
+        const value = row.getValue ? (row.getValue("amount") as number) : (row.original as PaymentData).amount;
+        // Don't show amount in footer row
+        if (value === 0 && (row.original as PaymentData).date === "") {
+          return <div className="text-right"></div>;
+        }
+        return (
+          <div className="text-right">{formatCurrency(value)}</div>
+        );
+      },
+    },
+    {
+      accessorKey: "used",
+      header: "Used",
+      cell: ({ row }) => {
+        // Handle both regular rows and footer rows
+        const value = row.getValue ? (row.getValue("used") as number) : (row.original as PaymentData).used;
+        // Don't show used in footer row
+        if (value === 0 && (row.original as PaymentData).date === "") {
+          return <div className="text-right"></div>;
+        }
+        return (
+          <div className="text-right">{formatCurrency(value)}</div>
+        );
+      },
+    },
+    {
+      accessorKey: "remaining",
+      header: "Remaining",
+      cell: ({ row }) => {
+        // Handle both regular rows and footer rows
+        const value = row.getValue ? (row.getValue("remaining") as number) : (row.original as PaymentData).remaining;
+        return (
+          <div className="text-right">{formatCurrency(value)}</div>
+        );
+      },
+    },
+  ];
+
+  // Calculate totals for payments footer (only remaining column)
+  const paymentRemainingTotal = paymentData.reduce((sum, item) => sum + item.remaining, 0);
+  const paymentFooterRow: PaymentData = {
+    date: "",
+    notes: "",
+    amount: 0,
+    used: 0,
+    remaining: paymentRemainingTotal,
+  };
+
   React.useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -174,7 +470,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       setLoading(false);
     };
     load();
-  }, [location, id]);
+  }, [location, id]);88
 
   return (
     <div className="space-y-4 bg-white px-2 sm:px-3">
@@ -298,7 +594,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
                 enableSearch={false}
                 enableFilter={false}
                 enableRowsPerPage={false}
-                className="border-0"
+                className="border-0 w-full"
               />
               <div className="flex justify-end mt-3">
                 <Button variant="link" className="text-blue-600 p-0 h-auto">
@@ -328,7 +624,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
                 enableSearch={false}
                 enableFilter={false}
                 enableRowsPerPage={false}
-                className="border-0"
+                className="border-0 w-full"
               />
               <div className="flex justify-end mt-3">
                 <Button variant="link" className="text-blue-600 p-0 h-auto">
@@ -337,30 +633,184 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
               </div>
             </CardContent>
           </Card>
+
+          {/* Equipment Rentals Card */}
+          
         </div>
 
         {/* Right Side Cards */}
         <div className="space-y-4">
-          <EmptyStateCard 
-            title="Phone" 
-            emptyMessage="No phone numbers added" 
-          />
+          <InfoCardWithAction title="Phone">
+            <div className="space-y-2">
+              <div className="text-sm text-gray-500">No phone numbers added</div>
+            </div>
+          </InfoCardWithAction>
           
-          <EmptyStateCard 
-            title="Addresses" 
-            emptyMessage="No addresses added" 
-          />
+          <InfoCardWithAction title="Addresses">
+            <div className="space-y-2">
+              <div className="text-sm text-gray-500">No addresses added</div>
+            </div>
+          </InfoCardWithAction>
           
-          <DiscountCard />
+          <InfoCardWithAction title="Discount (%)">
+            <div className="space-y-2">
+              <span className="font-semibold">Discount</span>
+            </div>
+          </InfoCardWithAction>
           
-          <OpeningBalanceCard amount={0} />
+          <InfoCardWithAction title="Opening Balance">
+            <KeyValueDisplay 
+              label="Amount" 
+              value={formatCurrency(0)} 
+            />
+          </InfoCardWithAction>
           
-          <EmptyStateCard 
-            title="Payment Preference" 
-            emptyMessage="No payment preferences set" 
-          />
+          <InfoCardWithAction title="Payment Preference">
+            <div className="space-y-2">
+              <div className="text-sm text-gray-500">No payment preferences set</div>
+            </div>
+          </InfoCardWithAction>
         </div>
+
+        
       </div>
+      <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-lg font-semibold">Equipment Rentals</CardTitle>
+               <div className="flex items-center gap-2">
+                 <div className="flex items-center space-x-2">
+                   <input 
+                     type="checkbox" 
+                     id="show-all-equipment" 
+                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                   />
+                   <label htmlFor="show-all-equipment" className="text-sm font-medium">
+                     Show All
+                   </label>
+                 </div>
+                 <Button variant="ghost" size="icon" className="h-8 w-8">
+                   <Plus className="h-4 w-4" />
+                 </Button>
+               </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <CustomTable
+                data={equipmentRentalData}
+                columns={equipmentRentalColumns}
+                size="compact"
+                variant="striped"
+                enableSorting={true}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+                className="border-0 w-full"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Recurring Payments Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-lg font-semibold">Recurring Payments</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <CustomTable
+                data={recurringPaymentData}
+                columns={recurringPaymentColumns}
+                size="compact"
+                variant="striped"
+                enableSorting={true}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+                className="border-0 w-full"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Private Lesson Due Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-lg font-semibold">Private Lesson Due</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <CustomTable
+                data={privateLessonDueData}
+                columns={privateLessonDueColumns}
+                footerRow={privateLessonDueFooterRow}
+                size="compact"
+                variant="striped"
+                enableSorting={true}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+                className="border-0 w-full"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Group Lesson Due Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-lg font-semibold">Group Lesson Due</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <CustomTable
+                data={groupLessonDueData}
+                columns={groupLessonDueColumns}
+                size="compact"
+                variant="striped"
+                enableSorting={true}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+                className="border-0 w-full"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Payments Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-lg font-semibold">Payments</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <CustomTable
+                data={paymentData}
+                columns={paymentColumns}
+                footerRow={paymentFooterRow}
+                size="compact"
+                variant="striped"
+                enableSorting={true}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+                className="border-0 w-full"
+              />
+            </CardContent>
+          </Card>
 
     </div>
   );
