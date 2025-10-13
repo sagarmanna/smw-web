@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+
 // StudentsClient.tsx - List Page
 "use client";
 
@@ -81,7 +81,7 @@ export function StudentsClient({ location }: StudentsClientProps) {
 
   React.useEffect(() => {
     load(1, rowsPerPage, activeFilter);
-  }, [load, activeFilter]);
+  }, [load, activeFilter, rowsPerPage]);
 
   const handlePageChange = React.useCallback((page: number) => {
     load(page, rowsPerPage, activeFilter);
