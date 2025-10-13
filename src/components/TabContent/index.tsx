@@ -5,20 +5,20 @@ import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 
-interface TabContentProps {
+interface TabContentProps<TData = unknown> {
   title: string;
-  data: unknown[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  columns: ColumnDef<any>[];
+  data: TData[];
+  columns: ColumnDef<TData>[];
   loading?: boolean;
   hasAddButton?: boolean;
   onAdd?: () => void;
   emptyState?: string;
   hasTable?: boolean;
-  footerRow?: unknown;
+  footerRow?: TData;
+  bottomContent?: React.ReactNode;
 }
 
-export function TabContent({
+export function TabContent<TData = unknown>({
   title,
   data,
   columns,
@@ -28,7 +28,8 @@ export function TabContent({
   emptyState = "No data available",
   hasTable = true,
   footerRow,
-}: TabContentProps) {
+  bottomContent,
+}: TabContentProps<TData>) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
@@ -61,6 +62,7 @@ export function TabContent({
             {emptyState}
           </div>
         )}
+        {bottomContent}
       </CardContent>
     </Card>
   );

@@ -4,14 +4,13 @@ import { CustomTable } from "@/components/CustomTable";
 import { Plus } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 
-interface TableCardProps {
+interface TableCardProps<TData = unknown> {
   title: string;
-  data: unknown[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  columns: ColumnDef<any>[];
+  data: TData[];
+  columns: ColumnDef<TData>[];
   loading?: boolean;
   onAdd?: () => void;
-  footerRow?: unknown;
+  footerRow?: TData;
   size?: "compact" | "normal" | "comfortable";
   variant?: "default" | "striped";
   enableSorting?: boolean;
@@ -23,7 +22,7 @@ interface TableCardProps {
   className?: string;
 }
 
-export function TableCard({ 
+export function TableCard<TData = unknown>({ 
   title,
   data, 
   columns,
@@ -39,7 +38,7 @@ export function TableCard({
   enableFilter = false,
   enableRowsPerPage = false,
   className = "border-0 w-full"
-}: TableCardProps) {
+}: TableCardProps<TData>) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">

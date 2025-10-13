@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { Settings, SlashIcon, Edit, ChevronDown } from "lucide-react";
+import { Settings, SlashIcon, Edit, ChevronDown, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -52,6 +53,7 @@ import {
 import { 
   CUSTOMER_TAB_CONFIGS, 
   TAB_ORDER,
+  StudentData,
   EnrolmentData,
   PrivateLessonData,
   GroupLessonData,
@@ -80,6 +82,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [paymentData, setPaymentData] = React.useState<PaymentData[]>([]);
 
   // Tab data states
+  const [studentData, setStudentData] = React.useState<StudentData[]>([]);
   const [enrolmentData, setEnrolmentData] = React.useState<EnrolmentData[]>([]);
   const [privateLessonData, setPrivateLessonData] = React.useState<PrivateLessonData[]>([]);
   const [groupLessonData, setGroupLessonData] = React.useState<GroupLessonData[]>([]);
@@ -109,7 +112,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
   // Tab data mapping for easy access
   const tabDataMap = {
-    studentData: [],
+    studentData,
     enrolmentData,
     privateLessonData,
     groupLessonData,
@@ -155,6 +158,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             setPaymentData(payments || []);
 
             // Load tab data (mock data for now)
+            setStudentData([
+              { name: "321123 123", birthDate: "Jan 06, 2005", customerName: "123 123" },
+            ]);
             setEnrolmentData([
               { studentName: "321123 123", programName: "Ukulele", teacherName: "Art Tatum", day: "Monday", fromTime: "08:00 AM", duration: "00:30", startDate: "Jan 31, 2022", renewalDate: "Jan 26, 2026" },
               { studentName: "321123 123", programName: "xPiano Core", teacherName: "Alexander Hamilton", day: "Friday", fromTime: "09:00 AM", duration: "00:30", startDate: "Apr 08, 2022", renewalDate: "Apr 24, 2026" },
@@ -167,28 +173,35 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             ]);
 
             setPrivateLessonData([
-              { studentName: "John Doe", teacherName: "Jane Smith", lessonDate: "2024-01-15", time: "10:00 AM", duration: "30 min", status: "Completed", notes: "Great progress" },
-              { studentName: "Jane Doe", teacherName: "Mike Johnson", lessonDate: "2024-01-16", time: "2:00 PM", duration: "45 min", status: "Scheduled", notes: "First lesson" },
+              { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 13, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+              { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 20, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+              { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 27, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 13, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 13, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 16, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:00 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 10:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 11:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xTrombone", date: "Oct 18, 2025 @ 10:45 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 20, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 20, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 23, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
             ]);
 
-            setGroupLessonData([
-              { studentName: "Alice Smith", programName: "Piano Basics", teacherName: "Sarah Wilson", lessonDate: "2024-01-17", time: "3:00 PM", duration: "60 min", status: "Completed" },
-              { studentName: "Bob Johnson", programName: "Guitar Advanced", teacherName: "Tom Brown", lessonDate: "2024-01-18", time: "4:00 PM", duration: "60 min", status: "Scheduled" },
-            ]);
+            setGroupLessonData([]);
 
-            setProformaInvoiceData([
-              { invoiceNumber: "PF-001", date: "2024-01-10", amount: 150.00, status: "Draft", dueDate: "2024-01-25" },
-              { invoiceNumber: "PF-002", date: "2024-01-12", amount: 200.00, status: "Sent", dueDate: "2024-01-27" },
-            ]);
+            setProformaInvoiceData([]);
 
-            setCommentData([
-              { date: "2024-01-15", author: "Admin", comment: "Customer called about lesson scheduling", type: "Note" },
-              { date: "2024-01-14", author: "Teacher", comment: "Student showing good progress", type: "Progress" },
-            ]);
+            setCommentData([]);
 
             setHistoryData([
-              { date: "2024-01-15", action: "Updated", description: "Customer information updated", user: "Admin" },
-              { date: "2024-01-10", action: "Created", description: "Customer account created", user: "System" },
+              { message: "On Sep 9, 2022, at 12:15 AM, seng Added new payment of $60.27 for 123 123" },
+              { message: "On Sep 9, 2022, at 12:53 AM, seng Added new payment of $4621.04 for 123 123" },
+              { message: "On Oct 15, 2023, at 07:00 PM, Prateek Panwar Added new payment of $13890.21 for 123 123" },
+              { message: "On Nov 13, 2023, at 02:51 PM, Giancarlo Macaluso Added new payment of $18.45 for 123 123" },
+              { message: "On Mar 8, 2024, at 10:43 AM, Prateek Panwar Added new payment of $3367.96 for 123 123" },
+              { message: "On Mar 8, 2024, at 10:45 AM, Prateek Panwar Added new payment of $122.50 for 123 123" },
             ]);
       } catch (error) {
         console.error('Error loading customer data:', error);
@@ -333,20 +346,20 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             enableFilter={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter}
             enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableRowsPerPage}
           />
-              </div>
+                </div>
 
         {/* Right Column - Info Cards */}
         <div className="space-y-4">
           <InfoCardWithAction title="Phone">
             <div className="space-y-2">
               <div className="text-sm text-gray-500">No phone numbers added</div>
-            </div>
+              </div>
           </InfoCardWithAction>
           
           <InfoCardWithAction title="Addresses">
             <div className="space-y-2">
               <div className="text-sm text-gray-500">No addresses added</div>
-                </div>
+            </div>
           </InfoCardWithAction>
           
           <InfoCardWithAction title="Discount (%)">
@@ -365,10 +378,10 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           <InfoCardWithAction title="Payment Preference">
             <div className="space-y-2">
               <div className="text-sm text-gray-500">No payment preferences set</div>
-            </div>
+                </div>
           </InfoCardWithAction>
-        </div>
-      </div>
+              </div>
+            </div>
 
       {/* Full Width Tables Below Outstanding Invoices */}
       <div className="space-y-4">
@@ -457,7 +470,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
       {/* Tabbed Interface */}
       <div className="mt-8">
-        <Tabs defaultValue="enrolments" className="w-full">
+        <Tabs defaultValue="students" className="w-full">
           <TabsList className="inline-flex h-12 items-center justify-start rounded-md bg-muted p-1.5 text-muted-foreground w-full overflow-x-auto gap-1">
             {TAB_ORDER.map((tabKey) => (
               <TabsTrigger 
@@ -474,6 +487,24 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             const config = CUSTOMER_TAB_CONFIGS[tabKey];
             const data = tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
             
+            // Define bottom content for comments tab
+            const commentsBottomContent = tabKey === "comments" ? (
+              <div className="mt-4 flex items-center space-x-2">
+                <Input
+                  type="text"
+                  placeholder="Type message"
+                  className="flex-grow"
+                />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : undefined;
+            
             return (
               <TabsContent key={tabKey} value={tabKey} className="mt-4">
                 <TabContent
@@ -485,6 +516,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
                   onAdd={() => console.log(`Add ${config.title.toLowerCase()}`)}
                   emptyState={config.emptyState}
                   hasTable={config.hasTable}
+                  bottomContent={commentsBottomContent}
                 />
               </TabsContent>
             );
