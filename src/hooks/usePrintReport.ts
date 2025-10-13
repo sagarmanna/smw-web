@@ -68,7 +68,8 @@ export function usePrintReport<TData>() {
           const dataRow = printable.map((col, i) => {
             const value = (row as Record<string, unknown>)[col.key!];
             const formattedValue = col.formatter ? col.formatter(value) : value || '';
-            const align = i === 0 ? 'left' : 'right';
+            // Code column should be left-aligned, others right-aligned
+            const align = (i === 0 || col.header === 'Code') ? 'left' : 'right';
             
             const cellStyle = `border: 1px solid #d1d5db; padding: 3px 2px; text-align: ${align}; font-size: 9px; word-break: break-word;`;
             
@@ -82,7 +83,8 @@ export function usePrintReport<TData>() {
           const footerRow = printable.map((col, i) => {
             const value = (footer as Record<string, unknown>)[col.key!];
             const formattedValue = col.formatter ? col.formatter(value) : value || '';
-            const align = i === 0 ? 'left' : 'right';
+            // Code column should be left-aligned, others right-aligned
+            const align = (i === 0 || col.header === 'Code') ? 'left' : 'right';
             return `<td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: ${align}; font-size: 9px; font-weight: bold; background-color: #f9fafb;">${formattedValue}</td>`;
           }).join('');
           printRows.push(`<tr>${footerRow}</tr>`);
@@ -107,7 +109,7 @@ export function usePrintReport<TData>() {
             <body>
               <h1>${reportTitle}</h1>
               ${location ? `<div class="date"><strong>Location:</strong> ${location}</div>` : ''}
-              ${dateRange ? `<div class="date"><strong>Date Range:</strong> ${new Date(dateRange.from).toLocaleDateString()} - ${new Date(dateRange.to).toLocaleDateString()}</div>` : ''}
+              ${dateRange ? `<div class="date"><strong>Date Range:</strong> ${new Date(dateRange.from).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${new Date(dateRange.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>` : ''}
               <table><tbody>${printRows.join('')}</tbody></table>
               <script>window.onload = function() { window.print(); };</script>
             </body>
