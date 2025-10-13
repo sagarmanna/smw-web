@@ -75,6 +75,19 @@ export function OpeningBalanceCard({
     setBalanceType(type);
   };
 
+  const modalActions = [
+    {
+      label: "Cancel",
+      onClick: handleCancel,
+      variant: "outline" as const
+    },
+    {
+      label: "Save",
+      onClick: handleSave,
+      variant: "default" as const
+    }
+  ];
+
   return (
     <>
       <InfoCard 
@@ -93,7 +106,8 @@ export function OpeningBalanceCard({
         onOpenChange={setIsModalOpen}
         title="Opening Balance"
         size="sm"
-        showFooter={false}
+        actions={modalActions}
+        showFooter={true}
       >
         <div className="space-y-4">
           {/* Amount Input */}
@@ -120,7 +134,7 @@ export function OpeningBalanceCard({
                 hasTyped && balanceAmount.trim() !== "" && !isAmountValid 
                   ? "border-red-600 text-gray-500" 
                   : isAmountValid 
-                  ? "border-green-600 text-blue-600" 
+                  ? "border-green-600 text-gray-900" 
                   : "border-gray-300 text-gray-500"
               }`}
               style={{
@@ -140,15 +154,16 @@ export function OpeningBalanceCard({
             )}
           </div>
 
-          {/* Balance Type Buttons */}
+          {/* Balance Type Selection */}
           <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Balance Type</Label>
             <div className="flex items-center space-x-3">
               <button
                 type="button"
                 onClick={() => handleTypeSelect("owing")}
                 className={`flex items-center space-x-2 ${
                   balanceType === "owing"
-                    ? "text-green-600" 
+                    ? "text-[#f3573f]" 
                     : showError && !isTypeSelected
                     ? "text-red-600"
                     : "text-gray-500"
@@ -156,16 +171,16 @@ export function OpeningBalanceCard({
               >
                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                   balanceType === "owing" 
-                    ? "border-green-600" 
+                    ? "border-[#f3573f]" 
                     : showError && !isTypeSelected
                     ? "border-red-600"
                     : "border-gray-400"
                 }`}>
                   {balanceType === "owing" && (
-                    <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                    <div className="w-2 h-2 rounded-full bg-[#f3573f]"></div>
                   )}
                 </div>
-                <span className="font-normal">Owing</span>
+                <span className="text-sm font-normal">Owing</span>
               </button>
 
               <button
@@ -173,7 +188,7 @@ export function OpeningBalanceCard({
                 onClick={() => handleTypeSelect("credit")}
                 className={`flex items-center space-x-2 ${
                   balanceType === "credit"
-                    ? "text-green-600" 
+                    ? "text-[#f3573f]" 
                     : showError && !isTypeSelected
                     ? "text-red-600"
                     : "text-gray-500"
@@ -181,16 +196,16 @@ export function OpeningBalanceCard({
               >
                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                   balanceType === "credit" 
-                    ? "border-green-600" 
+                    ? "border-[#f3573f]" 
                     : showError && !isTypeSelected
                     ? "border-red-600"
                     : "border-gray-400"
                 }`}>
                   {balanceType === "credit" && (
-                    <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                    <div className="w-2 h-2 rounded-full bg-[#f3573f]"></div>
                   )}
                 </div>
-                <span className="font-normal">Credit</span>
+                <span className="text-sm font-normal">Credit</span>
               </button>
             </div>
             {showError && !isTypeSelected && (
@@ -198,22 +213,6 @@ export function OpeningBalanceCard({
                 Please select a balance type.
               </p>
             )}
-          </div>
-
-          {/* Custom Footer */}
-          <div className="flex justify-end gap-2 pt-4">
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 text-sm font-medium text-white bg-cyan-500 rounded-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
-            >
-              Save
-            </button>
           </div>
         </div>
       </ReusableModal>
