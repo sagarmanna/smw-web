@@ -9,6 +9,7 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'dashboard': 'dashboard',
     'schedule': 'schedule',
     'account-receivable': 'accountReceivable',
+    'financial-summary-report': 'financialSummaryReport',
     'student-birthday': 'birthdays',
     'payment': 'paymentsReport',
     'items': 'reportItems',
@@ -32,7 +33,8 @@ export const getLegacyUrl = (feature: string, location: string): string => {
   const featureToUrlMap: { [key: string]: string } = {
     dashboard: `/dashboard`,
     schedule: `/schedule`,
-    accountReceivable: `/report/account-receivable-report`,
+    accountReceivable: `/report/account-receivable`,
+    financialSummaryReport: `/report/financial-summary-report`,
     birthdays: `/report/student-birthday`,
     paymentsReport: `/report/payment`,
     reportItems: `/report/items`,
