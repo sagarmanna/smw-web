@@ -4,7 +4,7 @@ import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
-import { AccountReceivableRow, testApiConnection, getAccountReceivableList } from "./account-receivable.api";
+import { AccountReceivableRow, getAccountReceivableList } from "./account-receivable.api";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils";
 import { usePrintReport } from "@/hooks/usePrintReport";
@@ -172,10 +172,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
   } | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [filters] = React.useState({
-    showAllActive: true,
-    showAllInActive: true
-  });
+  const [isInitialized, setIsInitialized] = React.useState<boolean>(false);
   const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
   const [pagination, setPagination] = React.useState({
@@ -187,6 +184,9 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
 
   const { handlePrint } = usePrintReport<AccountReceivableRow>();
 
+  // Use ref to track if we've already made the initial call
+  const initialCallMade = React.useRef(false);
+
   // Fetch account receivable data
   const fetchAccountReceivable = React.useCallback(async (page = 1, limit = 20, filterKey?: string) => {
     try {
@@ -194,7 +194,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
       setError(null);
       
       // Map filter key to API parameters
-      let apiFilters = { ...filters };
+      let apiFilters = { showAllActive: true, showAllInActive: true };
       if (filterKey === 'active') {
         apiFilters = { showAllActive: true, showAllInActive: false };
       } else if (filterKey === 'inactive') {
@@ -211,6 +211,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
         setAccountReceivable(response.data.body);
         setFooter(response.data.footer);
         setPagination(response.data.pagination);
+        setIsInitialized(true);
       } else {
         setError(response.message || 'Failed to fetch account receivable data');
         setAccountReceivable([]);
@@ -223,19 +224,8 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     } finally {
       setIsLoading(false);
     }
-  }, [location, filters]);
+  }, [location]);
 
-
-  // Test API connection on mount
-  React.useEffect(() => {
-    const testConnection = async () => {
-      const result = await testApiConnection();
-      if (!result.success) {
-        toast.error(`API Connection Failed: ${result.message}`);
-      }
-    };
-    testConnection();
-  }, []);
 
   // Handle errors with toast notifications
   React.useEffect(() => {
@@ -244,17 +234,23 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     }
   }, [error]);
 
-  // Initial data fetch with error handling
+  // Initial data fetch with error handling - single API call with parameters
   React.useEffect(() => {
-    const loadData = async () => {
-      try {
-        await fetchAccountReceivable(1, 20);
-      } catch (error) {
-        console.error('Error loading initial data:', error);
-      }
-    };
-    loadData();
-  }, [fetchAccountReceivable]);
+    if (!isInitialized && !initialCallMade.current) {
+      initialCallMade.current = true;
+      const loadData = async () => {
+        try {
+          // Load data with initial parameters instead of separate test call
+          await fetchAccountReceivable(1, 20);
+        } catch (error) {
+          console.error('Error loading initial data:', error);
+          // Reset the flag if there was an error so we can retry
+          initialCallMade.current = false;
+        }
+      };
+      loadData();
+    }
+  }, [location]); // Only depend on location, not fetchAccountReceivable
 
   // Refetch function
   const refetch = React.useCallback(() => {
@@ -274,10 +270,6 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     setError(null);
   }, []);
 
-  // // Debug logging
-  // React.useEffect(() => {
-  //   console.log('AccountReceivableClient - accountReceivable length:', accountReceivable.length, 'pagination:', pagination);
-  // }, [accountReceivable.length, pagination]);
 
   // Handle filter changes
   const handleFilterChange = React.useCallback((filterKey: string | undefined) => {
@@ -286,7 +278,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     // If showing all records, use a large number that will be adjusted by the API
     const limit = pagination.limit >= pagination.total ? 999999 : pagination.limit;
     fetchAccountReceivable(1, limit, filterKey);
-  }, [fetchAccountReceivable, pagination.limit, pagination.total]);
+  }, [fetchAccountReceivable, pagination.limit, pagination.total, activeFilter]);
 
   // Handle row click to open customer details
   const handleRowClick = React.useCallback((customerId: number) => {
