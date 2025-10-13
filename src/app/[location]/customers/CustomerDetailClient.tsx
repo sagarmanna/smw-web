@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { Settings, SlashIcon, Edit, ChevronDown, Plus } from "lucide-react";
+import { Settings, SlashIcon, Edit, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
