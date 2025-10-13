@@ -1,5 +1,4 @@
-
-// StudentDetailClient.tsx - Detail Page with Tabs
+// StudentDetailClient.tsx - Refactored with All Reusable Components
 "use client";
 
 import * as React from "react";
@@ -21,16 +20,28 @@ import {
   BreadcrumbLink,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { ReusableCard } from "@/components/TablesCards";
+import { ReusableModal } from "@/components/TablesModals";
+import { ReusableTabBar, TabItem } from "@/components/TablesTabBar";
+import { InfoField } from "@/components/TablesInfoField";
 import { getStudentById, StudentDetail } from "./students.api";
-import { EvaluationModal, EvaluationFormData } from "../students/components/EvaluationModal";
 
 interface StudentDetailClientProps {
   location: string;
   studentId: string;
+}
+
+interface EvaluationFormData {
+  examDate: string;
+  mark: string;
+  level: string;
+  program: string;
+  type: string;
+  teacher: string;
 }
 
 export function StudentDetailClient({ location, studentId }: StudentDetailClientProps) {
@@ -38,7 +49,30 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
   const [student, setStudent] = React.useState<StudentDetail | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  
+  // Modal states
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = React.useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = React.useState(false);
+  const [isAddLessonModalOpen, setIsAddLessonModalOpen] = React.useState(false);
+
+  // Form states
+  const [evaluationForm, setEvaluationForm] = React.useState<EvaluationFormData>({
+    examDate: "",
+    mark: "",
+    level: "",
+    program: "",
+    type: "",
+    teacher: "",
+  });
+
+  const [editProfileForm, setEditProfileForm] = React.useState({
+    firstName: "",
+    lastName: "",
+    birthday: "",
+    gender: "",
+    status: "",
+  });
 
   React.useEffect(() => {
     const load = async () => {
@@ -47,6 +81,13 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
         const result = await getStudentById(location, studentId);
         if (result.success) {
           setStudent(result.data);
+          setEditProfileForm({
+            firstName: result.data?.firstName ?? "",
+            lastName: result.data?.lastName ?? "",
+            birthday: result.data?.birthday ?? "",
+            gender: result.data?.gender ?? "",
+            status: result.data?.status ?? "",
+          });
         } else {
           setError(result.message || "Failed to fetch student");
         }
@@ -59,15 +100,40 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
     load();
   }, [location, studentId]);
 
-  const handleSaveEvaluation = (data: EvaluationFormData) => {
-    console.log("Saving evaluation:", data);
-    // Here you would typically make an API call to save the evaluation
-    // Then refresh the student data
-    // For now, we'll just log it
+  const handleSaveEvaluation = () => {
+    console.log("Saving evaluation:", evaluationForm);
+    // API call here
+    setIsEvaluationModalOpen(false);
+    setEvaluationForm({
+      examDate: "",
+      mark: "",
+      level: "",
+      program: "",
+      type: "",
+      teacher: "",
+    });
+  };
+
+  const handleEditProfile = () => {
+    console.log("Updating profile:", editProfileForm);
+    // API call here
+    setIsEditProfileModalOpen(false);
+  };
+
+  const handleDeleteStudent = () => {
+    console.log("Deleting student:", studentId);
+    // API call here
+    setIsDeleteModalOpen(false);
+    router.push(`/${location}/students`);
+  };
+
+  const handleAddLesson = () => {
+    console.log("Adding lesson");
+    // API call here
+    setIsAddLessonModalOpen(false);
   };
 
   const handlePrintEvaluations = () => {
-    // Create a printable version of evaluations
     const printWindow = window.open('', '_blank');
     if (printWindow && student) {
       printWindow.document.write(`
@@ -202,6 +268,106 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
     { accessorKey: "performedBy", header: "Performed By" },
   ];
 
+  // Define lesson tabs
+  const lessonTabs: TabItem[] = [
+    {
+      value: "private",
+      label: "Private Lessons",
+      content: (
+        <CustomTable
+          data={student.privateLessons}
+          columns={privateLessonColumns}
+          enableSearch={false}
+          enableExport={true}
+          enableFilter={false}
+          enablePrint={false}
+          enableRowsPerPage={false}
+          enableSorting={false}
+        />
+      ),
+    },
+    {
+      value: "group",
+      label: "Group Lessons",
+      content: (
+        <CustomTable
+          data={student.groupLessons}
+          columns={groupLessonColumns}
+          enableSearch={false}
+          enableExport={true}
+          enableFilter={false}
+          enablePrint={false}
+          enableRowsPerPage={false}
+          enableSorting={false}
+        />
+      ),
+    },
+    {
+      value: "absent",
+      label: "Absent Lessons",
+      content: (
+        <CustomTable
+          data={student.absentLessons}
+          columns={absentLessonColumns}
+          enableSearch={false}
+          enableExport={true}
+          enableFilter={false}
+          enablePrint={false}
+          enableRowsPerPage={false}
+          enableSorting={false}
+        />
+      ),
+    },
+    {
+      value: "unscheduled",
+      label: "Unscheduled Lessons",
+      content: (
+        <CustomTable
+          data={student.unscheduledLessons}
+          columns={unscheduledLessonColumns}
+          enableSearch={false}
+          enableExport={false}
+          enableFilter={false}
+          enablePrint={false}
+          enableRowsPerPage={false}
+          enableSorting={false}
+        />
+      ),
+    },
+    {
+      value: "comments",
+      label: "Comments",
+      content: (
+        <CustomTable
+          data={student.comments}
+          columns={commentColumns}
+          enableSearch={false}
+          enableExport={false}
+          enableFilter={false}
+          enablePrint={false}
+          enableRowsPerPage={false}
+          enableSorting={false}
+        />
+      ),
+    },
+    {
+      value: "history",
+      label: "History",
+      content: (
+        <CustomTable
+          data={student.history}
+          columns={historyColumns}
+          enableSearch={false}
+          enableExport={false}
+          enableFilter={false}
+          enablePrint={false}
+          enableRowsPerPage={false}
+          enableSorting={false}
+        />
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4 bg-white px-2 sm:px-3">
       {/* Breadcrumb header */}
@@ -229,12 +395,12 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => console.log('Edit Profile')}>Edit Profile</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Add Lesson')}>Add Lesson</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsEditProfileModalOpen(true)}>Edit Profile</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsAddLessonModalOpen(true)}>Add Lesson</DropdownMenuItem>
               <DropdownMenuItem onClick={() => console.log('View History')}>View History</DropdownMenuItem>
               <DropdownMenuItem onClick={() => console.log('Send Notification')}>Send Notification</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600" onClick={() => console.log('Delete')}>Delete</DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteModalOpen(true)}>Delete</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -243,275 +409,349 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
       {/* Details and Customer Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Details Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-lg font-semibold">Details</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Name</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">{student.firstName} {student.lastName}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Birthday</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">{student.birthday}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Age</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">{student.age}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Gender</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">{student.gender}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Status</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">{student.status}</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <ReusableCard
+          title="Details"
+          actions={[
+            { icon: Edit, onClick: () => setIsEditProfileModalOpen(true), label: 'Edit details' },
+            { icon: ChevronDown, onClick: () => console.log('Expand'), label: 'Expand' },
+          ]}
+        >
+          <div className="space-y-3">
+            <InfoField label="Name" value={`${student.firstName} ${student.lastName}`} />
+            <InfoField label="Birthday" value={student.birthday ?? ''} />
+            <InfoField label="Age" value={student.age ?? ''} />
+            <InfoField label="Gender" value={student.gender ?? ''} />
+            <InfoField label="Status" value={student.status} />
+          </div>
+        </ReusableCard>
 
         {/* Customer Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-lg font-semibold">Customer</CardTitle>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Customer</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">{student.customer}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="flex items-center w-full max-w-sm">
-                <div className="w-40 text-right pr-4">
-                  <span className="font-semibold text-gray-900">Phone</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-gray-700">{student.phone}</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <ReusableCard
+          title="Customer"
+          actions={[
+            { icon: Plus, onClick: () => console.log('Add'), label: 'Add customer' },
+          ]}
+        >
+          <div className="space-y-3">
+            <InfoField label="Customer" value={student.customer} />
+            <InfoField label="Phone" value={student.phone} />
+          </div>
+        </ReusableCard>
       </div>
 
       {/* Enrolments Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-lg font-semibold">Enrolments</CardTitle>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent>
+      <ReusableCard
+        title="Enrolments"
+        actions={[
+          { icon: ChevronDown, onClick: () => console.log('Expand'), label: 'Expand' },
+        ]}
+      >
+        <CustomTable
+          data={student.enrolments}
+          columns={enrolmentColumns}
+          enableSearch={false}
+          enableExport={false}
+          enableFilter={false}
+          enablePrint={false}
+          enableSorting={false}
+          enableRowsPerPage={false}
+        />
+      </ReusableCard>
+
+      {/* Evaluations Card */}
+      <ReusableCard
+        title="Evaluations"
+        actions={[
+          { 
+            icon: Printer, 
+            onClick: handlePrintEvaluations, 
+            label: 'Print evaluations' 
+          },
+          { 
+            icon: Plus, 
+            onClick: () => setIsEvaluationModalOpen(true), 
+            label: 'Add evaluation' 
+          },
+        ]}
+      >
+        {student.evaluations.length > 0 ? (
           <CustomTable
-            data={student.enrolments}
-            columns={enrolmentColumns}
+            data={student.evaluations}
+            columns={evaluationColumns}
             enableSearch={false}
             enableExport={false}
             enableFilter={false}
             enablePrint={false}
             enableSorting={false}
-            enableRowsPerPage={false}
           />
-        </CardContent>
-      </Card>
+        ) : (
+          <p className="text-sm text-muted-foreground">No evaluations found.</p>
+        )}
+      </ReusableCard>
 
-      {/* Evaluations Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-lg font-semibold">Evaluations</CardTitle>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={handlePrintEvaluations}
-              disabled={student.evaluations.length === 0}
-            >
-              <Printer className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={() => setIsEvaluationModalOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {student.evaluations.length > 0 ? (
-            <CustomTable
-              data={student.evaluations}
-              columns={evaluationColumns}
-              enableSearch={false}
-              enableExport={false}
-              enableFilter={false}
-              enablePrint={false}
-              enableSorting={false}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">No evaluations found.</p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Lessons Card with ReusableTabBar */}
+      <ReusableCard
+        title="Lessons"
+        actions={[
+          { icon: Plus, onClick: () => setIsAddLessonModalOpen(true), label: 'Add lesson' },
+        ]}
+      >
+        <ReusableTabBar
+          tabs={lessonTabs}
+          defaultValue="private"
+          onTabChange={(value) => console.log('Active lesson tab:', value)}
+        />
+      </ReusableCard>
 
-      {/* Lessons Card with Tabs */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-lg font-semibold">Lessons</CardTitle>
-          <Button variant="ghost" size="icon" className="h-8 w-8" style={{ zIndex: 10 }}>
-            <Plus className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="private" className="w-full">
-            <TabsList className="grid w-full grid-cols-6 mb-4">
-              <TabsTrigger value="private">Private Lessons</TabsTrigger>
-              <TabsTrigger value="group">Group Lessons</TabsTrigger>
-              <TabsTrigger value="absent">Absent Lessons</TabsTrigger>
-              <TabsTrigger value="unscheduled">Unscheduled Lessons</TabsTrigger>
-              <TabsTrigger value="comments">Comments</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="private" className="mt-0">
-              <CustomTable
-                data={student.privateLessons}
-                columns={privateLessonColumns}
-                enableSearch={false}
-                enableExport={true}
-                enableFilter={false}
-                enablePrint={false}
-                enableRowsPerPage={false}
-                enableSorting={false}
-              />
-            </TabsContent>
-
-            <TabsContent value="group" className="mt-0">
-              <CustomTable
-                data={student.groupLessons}
-                columns={groupLessonColumns}
-                enableSearch={false}
-                enableExport={true}
-                enableFilter={false}
-                enablePrint={false}
-                enableRowsPerPage={false}
-                enableSorting={false}
-              />
-            </TabsContent>
-
-            <TabsContent value="absent" className="mt-0">
-              <CustomTable
-                data={student.absentLessons}
-                columns={absentLessonColumns}
-                enableSearch={false}
-                enableExport={true}
-                enableFilter={false}
-                enablePrint={false}
-                enableRowsPerPage={false}
-                enableSorting={false}
-              />
-            </TabsContent>
-
-            <TabsContent value="unscheduled" className="mt-0">
-              <CustomTable
-                data={student.unscheduledLessons}
-                columns={unscheduledLessonColumns}
-                enableSearch={false}
-                enableExport={false}
-                enableFilter={false}
-                enablePrint={false}
-                enableRowsPerPage={false}
-                enableSorting={false}
-              />
-            </TabsContent>
-
-            <TabsContent value="comments" className="mt-0">
-              <CustomTable
-                data={student.comments}
-                columns={commentColumns}
-                enableSearch={false}
-                enableExport={false}
-                enableFilter={false}
-                enablePrint={false}
-                enableRowsPerPage={false}
-                enableSorting={false}
-              />
-            </TabsContent>
-
-            <TabsContent value="history" className="mt-0">
-              <CustomTable
-                data={student.history}
-                columns={historyColumns}
-                enableSearch={false}
-                enableExport={false}
-                enableFilter={false}
-                enablePrint={false}
-                enableRowsPerPage={false}
-                enableSorting={false}
-              />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Evaluation Modal */}
-      <EvaluationModal
+      {/* Add Evaluation Modal */}
+      <ReusableModal
         open={isEvaluationModalOpen}
         onOpenChange={setIsEvaluationModalOpen}
-        onSave={handleSaveEvaluation}
-        studentName={`${student.firstName} ${student.lastName}`}
-      />
+        title="Add Evaluation"
+        description={`Add a new evaluation for ${student.firstName} ${student.lastName}`}
+        size="lg"
+        actions={[
+          { 
+            label: 'Cancel', 
+            onClick: () => setIsEvaluationModalOpen(false), 
+            variant: 'outline' 
+          },
+          { 
+            label: 'Save Evaluation', 
+            onClick: handleSaveEvaluation, 
+            variant: 'default' 
+          },
+        ]}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="examDate">Exam Date</Label>
+              <Input
+                id="examDate"
+                type="date"
+                value={evaluationForm.examDate}
+                onChange={(e) => setEvaluationForm({ ...evaluationForm, examDate: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mark">Mark</Label>
+              <Input
+                id="mark"
+                type="text"
+                placeholder="Enter mark"
+                value={evaluationForm.mark}
+                onChange={(e) => setEvaluationForm({ ...evaluationForm, mark: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="level">Level</Label>
+              <Input
+                id="level"
+                type="text"
+                placeholder="Enter level"
+                value={evaluationForm.level}
+                onChange={(e) => setEvaluationForm({ ...evaluationForm, level: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="program">Program</Label>
+              <Input
+                id="program"
+                type="text"
+                placeholder="Enter program"
+                value={evaluationForm.program}
+                onChange={(e) => setEvaluationForm({ ...evaluationForm, program: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="type">Type</Label>
+              <Input
+                id="type"
+                type="text"
+                placeholder="Enter type"
+                value={evaluationForm.type}
+                onChange={(e) => setEvaluationForm({ ...evaluationForm, type: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="teacher">Teacher</Label>
+              <Input
+                id="teacher"
+                type="text"
+                placeholder="Enter teacher name"
+                value={evaluationForm.teacher}
+                onChange={(e) => setEvaluationForm({ ...evaluationForm, teacher: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+      </ReusableModal>
+
+      {/* Edit Profile Modal */}
+      <ReusableModal
+        open={isEditProfileModalOpen}
+        onOpenChange={setIsEditProfileModalOpen}
+        title="Edit Student Profile"
+        description="Update student information"
+        size="lg"
+        actions={[
+          { 
+            label: 'Cancel', 
+            onClick: () => setIsEditProfileModalOpen(false), 
+            variant: 'outline' 
+          },
+          { 
+            label: 'Save Changes', 
+            onClick: handleEditProfile, 
+            variant: 'default' 
+          },
+        ]}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                type="text"
+                value={editProfileForm.firstName}
+                onChange={(e) => setEditProfileForm({ ...editProfileForm, firstName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                type="text"
+                value={editProfileForm.lastName}
+                onChange={(e) => setEditProfileForm({ ...editProfileForm, lastName: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="birthday">Birthday</Label>
+            <Input
+              id="birthday"
+              type="date"
+              value={editProfileForm.birthday}
+              onChange={(e) => setEditProfileForm({ ...editProfileForm, birthday: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="gender">Gender</Label>
+              <Input
+                id="gender"
+                type="text"
+                value={editProfileForm.gender}
+                onChange={(e) => setEditProfileForm({ ...editProfileForm, gender: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Input
+                id="status"
+                type="text"
+                value={editProfileForm.status}
+                onChange={(e) => setEditProfileForm({ ...editProfileForm, status: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+      </ReusableModal>
+
+      {/* Delete Confirmation Modal */}
+      <ReusableModal
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        title="Delete Student"
+        description="Are you sure you want to delete this student? This action cannot be undone."
+        size="sm"
+        actions={[
+          { 
+            label: 'Cancel', 
+            onClick: () => setIsDeleteModalOpen(false), 
+            variant: 'outline' 
+          },
+          { 
+            label: 'Delete', 
+            onClick: handleDeleteStudent, 
+            variant: 'destructive' 
+          },
+        ]}
+      >
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            You are about to delete:
+          </p>
+          <div className="bg-muted p-3 rounded-md">
+            <p className="font-semibold">{student.firstName} {student.lastName}</p>
+            <p className="text-sm text-muted-foreground">ID: {student.id}</p>
+          </div>
+        </div>
+      </ReusableModal>
+
+      {/* Add Lesson Modal */}
+      <ReusableModal
+        open={isAddLessonModalOpen}
+        onOpenChange={setIsAddLessonModalOpen}
+        title="Add Lesson"
+        description="Schedule a new lesson for this student"
+        size="lg"
+        actions={[
+          { 
+            label: 'Cancel', 
+            onClick: () => setIsAddLessonModalOpen(false), 
+            variant: 'outline' 
+          },
+          { 
+            label: 'Add Lesson', 
+            onClick: handleAddLesson, 
+            variant: 'default' 
+          },
+        ]}
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="lessonProgram">Program</Label>
+            <Input
+              id="lessonProgram"
+              type="text"
+              placeholder="Select program"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="lessonDate">Date</Label>
+              <Input
+                id="lessonDate"
+                type="date"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lessonDuration">Duration (minutes)</Label>
+              <Input
+                id="lessonDuration"
+                type="number"
+                placeholder="30"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lessonTeacher">Teacher</Label>
+            <Input
+              id="lessonTeacher"
+              type="text"
+              placeholder="Select teacher"
+            />
+          </div>
+        </div>
+      </ReusableModal>
 
       {error && <div className="text-sm text-red-600 px-2">{error}</div>}
     </div>
