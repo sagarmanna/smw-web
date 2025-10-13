@@ -78,11 +78,12 @@ export function useExportableData<TData>({ reportTitle, columns, data, footer }:
   }, [data, footer, reportTitle]);
   
   const exportToText = useCallback(() => {
+    const headerLine = headers.join('\t');
     const lines = data.map(row => getFormattedRow(row).join('\t'));
     const footerLine = footer ? getFormattedRow(footer).join('\t') : '';
-    const content = [...lines, footerLine].join('\r\n');
+    const content = [headerLine, ...lines, footerLine].join('\r\n');
     download(new Blob([content], { type: 'text/plain;charset=utf-8;' }), `${reportTitle}.txt`);
-  }, [data, footer, getFormattedRow, reportTitle]);
+  }, [data, footer, headers, getFormattedRow, reportTitle]);
 
   const exportToExcel = useCallback(() => {
     const lines = data.map(row => getFormattedRow(row).map(field => `"${String(field).replace(/"/g, '""')}"`).join(","));
