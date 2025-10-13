@@ -92,7 +92,7 @@ export function DiscountCard({
           {discount > 0 ? (
             <span className="font-semibold">{discount}%</span>
           ) : (
-            <span className="text-gray-500 text-sm">No addresses added</span>
+            <span className="text-gray-500 text-sm">No discounts added</span>
           )}
         </div>
       </InfoCard>
