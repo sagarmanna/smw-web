@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 interface ExportableDataOptions<TData> {
   reportTitle: string;
@@ -86,10 +87,28 @@ export function useExportableData<TData>({ reportTitle, columns, data, footer }:
   }, [data, footer, headers, getFormattedRow, reportTitle]);
 
   const exportToExcel = useCallback(() => {
-    const lines = data.map(row => getFormattedRow(row).map(field => `"${String(field).replace(/"/g, '""')}"`).join(","));
-    const footerLine = footer ? getFormattedRow(footer).map(field => `"${String(field).replace(/"/g, '""')}"`).join(",") : "";
-    const excelContent = [headers.join(","), ...lines, footerLine].join("\r\n");
-    download(new Blob([excelContent], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8;" }), `${reportTitle}.xlsx`);
+    // Create worksheet data
+    const worksheetData = [
+      headers, // Header row
+      ...data.map(row => getFormattedRow(row)), // Data rows
+      ...(footer ? [getFormattedRow(footer)] : []) // Footer row if exists
+    ];
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+
+    // Generate Excel file buffer
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+    // Create blob and download
+    const blob = new Blob([excelBuffer], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    download(blob, `${reportTitle}.xlsx`);
   }, [data, footer, headers, getFormattedRow, reportTitle]);
 
 
