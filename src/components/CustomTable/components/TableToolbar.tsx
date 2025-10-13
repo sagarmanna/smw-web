@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Download, Filter, Printer, List, Search, Check } from "lucide-react";
+import { Download, Filter, Printer, Search, Check } from "lucide-react";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { FilterOption, ServerSideFilterOption } from "./types";
 

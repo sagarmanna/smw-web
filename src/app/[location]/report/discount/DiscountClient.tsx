@@ -1,13 +1,13 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import * as React from "react";
 import { format } from "date-fns";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { Card } from "@/components/ui/card";
-import { getDiscounts, DiscountRow } from "./discount.api";
+import { ReportPageLayout } from "@/components/ReportPageLayout";
+import { getDiscounts, DiscountRow, DiscountFooter } from "./discount.api";
 import { useExportableData } from "@/hooks/useExportableData";
+import { usePrintReport } from "@/hooks/usePrintReport";
 import { formatLocationName } from "@/utils";
 
 interface DiscountClientProps {
@@ -18,135 +18,183 @@ const columns = [
   {
     accessorKey: "customer",
     header: "Customer",
+    size: 200, // Increased size for Customer column
+    minSize: 180,
+    maxSize: 250,
     meta: {
       printable: true,
       printableName: "Customer",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.customer;
+      const isFooter = row.original.isFooter;
       return (
-        <span className="font-semibold whitespace-normal break-words">{value || '-'}</span>
+        <span className="font-semibold whitespace-normal break-words print:text-xs print:break-words">
+          {isFooter ? value : (value || '-')}
+        </span>
       );
     }
   },
   {
     accessorKey: "code",
     header: "Code",
+    size: 80,
+    minSize: 60,
+    maxSize: 100,
     meta: {
       printable: true,
       printableName: "Code",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.code;
-      return value || '-';
+      const isFooter = row.original.isFooter;
+      return <span className="print:text-xs">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "description",
     header: "Description",
+    size: 240,
+    minSize: 120,
+    maxSize: 240,
     meta: {
       printable: true,
       printableName: "Description",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.description;
-      return <span className="truncate max-w-[150px] block" title={value || ''}>{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="block print:text-xs">
+        {isFooter ? value : (value || '-')}
+      </span>;
     },
   },
   {
     accessorKey: "pf",
     header: "PF",
+    size: 140,
+    minSize: 100,
+    maxSize: 140,
     meta: {
       printable: true,
       printableName: "PF",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.pf;
-      return <span className="text-right block">{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "qty",
     header: "Qty",
+    size: 60,
+    minSize: 50,
+    maxSize: 70,
     meta: {
       printable: true,
       printableName: "Qty",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.qty;
-      return <span className="text-right block">{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "pfPercent",
     header: "PF(%)",
+    size: 60, // Reduced size
+    minSize: 60,
+    maxSize: 70,
     meta: {
       printable: true,
       printableName: "PF(%)",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.pfPercent;
-      return <span className="text-right block">{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "enrolDollar",
     header: "Enrol($)",
+    size: 80, // Reduced size
+    minSize: 70,
+    maxSize: 90,
     meta: {
       printable: true,
       printableName: "Enrol($)",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.enrolDollar;
-      return <span className="text-right block">{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "customerPercent",
     header: "Customer(%)",
+    size: 90, // Reduced size
+    minSize: 80,
+    maxSize: 100,
     meta: {
       printable: true,
       printableName: "Customer(%)",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.customerPercent;
-      return <span className="text-right block">{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "itemDollar",
     header: "Item($)",
+    size: 80, // Reduced size
+    minSize: 70,
+    maxSize: 90,
     meta: {
       printable: true,
       printableName: "Item($)",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.itemDollar;
-      return <span className="text-right block">{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "netDollar",
     header: "Net($)",
+    size: 80, // Reduced size
+    minSize: 70,
+    maxSize: 90,
     meta: {
       printable: true,
       printableName: "Net($)",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.netDollar;
-      return <span className="text-right block">{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
   {
     accessorKey: "price",
     header: "Price",
+    size: 80, // Reduced size
+    minSize: 70,
+    maxSize: 90,
     meta: {
       printable: true,
       printableName: "Price",
     },
-    cell: ({ row }: { row: { original: DiscountRow } }) => {
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
       const value = row.original.price;
-      return <span className="text-right block">{value || '-'}</span>;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
     },
   },
 ];
@@ -155,11 +203,13 @@ export function DiscountClient({ location }: DiscountClientProps) {
   const [discounts, setDiscounts] = React.useState<DiscountRow[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [footer, setFooter] = React.useState<DiscountFooter | null>(null);
+  const [meta, setMeta] = React.useState<{ startDate?: string; endDate?: string; location?: string } | null>(null);
   const [pagination, setPagination] = React.useState({
     page: 1,
-    limit: 20,
+    limit: 0, // 0 means show all rows (no limit)
     total: 0,
-    totalPages: 0
+    totalPages: 1 // Only 1 page when showing all rows
   });
 
   const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => {
@@ -169,11 +219,19 @@ export function DiscountClient({ location }: DiscountClientProps) {
     return { from, to };
   });
 
-  const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
+  // Use ref to store current range to avoid stale closure issues
+  const rangeRef = React.useRef(range);
+  const lastLocationRef = React.useRef<string | null>(null);
+  
+  React.useEffect(() => {
+    rangeRef.current = range;
+  }, [range]);
+
+  const { handlePrint } = usePrintReport<DiscountRow>();
 
   const formatRangeParam = (d: Date) => format(d, "yyyy-MM-dd");
 
-  const dateLabel = (() => {
+  const dateLabel = React.useMemo(() => {
     const from = range.from;
     const to = range.to;
     const sameDay = from.toDateString() === to.toDateString();
@@ -181,7 +239,54 @@ export function DiscountClient({ location }: DiscountClientProps) {
     const fromStr = format(from, "MMM do, yyyy");
     const toStr = format(to, "MMM do, yyyy");
     return `${fromStr} - ${toStr}`;
-  })();
+  }, [range.from, range.to]);
+
+  // Prepare footer row data
+  const footerRow = React.useMemo(() => {
+    if (footer) {
+      return {
+        customer: "TOTALS",
+        code: "",
+        description: "",
+        pf: "",
+        qty: "",
+        pfPercent: "",
+        enrolDollar: "",
+        customerPercent: "",
+        itemDollar: "",
+        netDollar: footer.totalDiscount || "",
+        price: "",
+        isFooter: true, // Add identifier for footer row
+      };
+    }
+    return null;
+  }, [footer]);
+
+  // Print handler using the enhanced common hook
+  const handlePrintClick = React.useCallback(() => {
+    handlePrint({
+      reportTitle: `Discount Report`,
+      columns,
+      data: discounts,
+      footer: footerRow || undefined,
+      location: formatLocationName(location || ""),
+      dateRange: range,
+      forceCompactMode: true, // Force compact mode for this table
+      customColumnWidths: {
+        'Customer': '18%',
+        'Code': '8%',
+        'Description': '18%',
+        'Price': '12%',
+        'Net($)': '9%',
+        'Enrol($)': '8%',
+        'Item($)': '8%',
+        'Customer(%)': '8%',
+        'PF(%)': '5%',
+        'PF': '8%',
+        'Qty': '5%'
+      }
+    });
+  }, [handlePrint, discounts, footerRow, location, range]);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData({
     reportTitle: `Discount Report - ${dateLabel}`,
@@ -189,386 +294,124 @@ export function DiscountClient({ location }: DiscountClientProps) {
     data: discounts,
   });
 
-  const load = React.useCallback(async (page = 1, limit = 20) => {
+  // Fetch discount data - removed range dependencies to prevent double calls
+  const fetchDiscounts = React.useCallback(async (dateRange?: { from: Date; to: Date }) => {
+    const currentRange = dateRange || rangeRef.current;
+    const startDate = formatRangeParam(currentRange.from);
+    const endDate = formatRangeParam(currentRange.to);
+    
     try {
       setIsLoading(true);
       setError(null);
-      const startDate = formatRangeParam(range.from);
-      const endDate = formatRangeParam(range.to);
-      const discountsRes = await getDiscounts(location, startDate, endDate, page, limit);
+      const discountsRes = await getDiscounts(location, startDate, endDate);
       
       if (discountsRes.success) {
-        setDiscounts(discountsRes.data || []);
+        setDiscounts(discountsRes.data.body || []);
+        setFooter(discountsRes.data.footer || null);
+        setMeta(discountsRes.data.meta || null);
         setPagination({
-          page: page,
-          limit: limit,
-          total: discountsRes.pagination?.total || (discountsRes.data || []).length,
-          totalPages: discountsRes.pagination?.totalPages || 1
+          page: 1,
+          limit: discountsRes.data.body?.length || 0, // Set limit to total number of records
+          total: discountsRes.data.body?.length || 0,
+          totalPages: 1 // Only 1 page when showing all rows
         });
       } else {
         setError(discountsRes.message || "Failed to fetch discounts");
         setDiscounts([]);
+        setFooter(null);
+        setMeta(null);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unexpected error";
       setError(msg);
       setDiscounts([]);
+      setFooter(null);
+      setMeta(null);
     } finally {
       setIsLoading(false);
     }
-  }, [location, range.from, range.to]);
+  }, [location]); // Only depends on location
 
+  // Initial data fetch - only on mount and when location changes
   React.useEffect(() => {
-    load(1, rowsPerPage);
-  }, [load]);
+    // Prevent duplicate calls in React Strict Mode (same location, same render cycle)
+    if (lastLocationRef.current === location) {
+      return;
+    }
+    
+    lastLocationRef.current = location;
+    fetchDiscounts();
+  }, [location]); // Only depend on location, not fetchDiscounts
 
+  // Refetch function
+  const refetch = React.useCallback(() => {
+    fetchDiscounts();
+  }, [fetchDiscounts]);
+
+  // Pagination handlers (kept for CustomTable compatibility but not used)
   const handlePageChange = React.useCallback((page: number) => {
-    load(page, rowsPerPage);
-  }, [load, rowsPerPage]);
-
-  const handleRowsPerPageChange = React.useCallback((newRowsPerPage: number) => {
-    setRowsPerPage(newRowsPerPage);
-    const actualLimit = newRowsPerPage === -1 ? 999999 : newRowsPerPage;
-    load(1, actualLimit);
-  }, [load]);
+    // No pagination needed, just refetch
+    fetchDiscounts();
+  }, [fetchDiscounts]);
 
   const handleDateRangeChange = React.useCallback((newRange: { from: Date; to: Date }) => {
     setRange(newRange);
-    load(1, rowsPerPage);
-  }, [load, rowsPerPage]);
+    // Call fetchDiscounts with the new range directly instead of relying on effect
+    fetchDiscounts(newRange);
+  }, [fetchDiscounts]);
 
-  // helper: parse currency/number-like strings safely
-  const toNumber = (s: string): number => {
-    if (!s) return 0;
-    const n = Number.parseFloat(String(s).replace(/[$,]/g, ''));
-    return Number.isFinite(n) ? n : 0;
-  };
+  // Clear errors function
+  const clearErrors = React.useCallback(() => {
+    setError(null);
+  }, []);
 
+  // Show loading animation
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
-        <LoadingAnimation size="xl" text="Loading discount report..." className="text-center" />
-      </div>
+        <LoadingAnimation 
+          size="xl" 
+          text="Loading discount report..." 
+          className="text-center"
+        />
+      </div>  
     );
   }
 
-  // Create table data for UI (flat structure)
-  const netTotal = discounts.reduce((sum, r) => sum + toNumber(r.netDollar), 0);
-  const priceTotal = discounts.reduce((sum, r) => sum + toNumber(r.price), 0);
-
-  const tableData = [
-    ...discounts,
-    {
-      customer: '',
-      code: '',
-      description: '',
-      pf: '',
-      qty: '',
-      pfPercent: '',
-      enrolDollar: '',
-      customerPercent: '',
-      itemDollar: '',
-      netDollar: `$${netTotal.toFixed(2)}`,
-      price: `$${priceTotal.toFixed(2)}`,
-      isTotal: true,
-    } as DiscountRow & { isTotal?: boolean },
-  ];
-
-  const discountColumns = [
-    { 
-      accessorKey: "customer", 
-      header: "Customer",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.customer;
-        return row.original.isTotal ? '' : (
-          <span className="font-semibold whitespace-normal break-words">{value || '-'}</span>
-        );
-      }
-    },
-    {
-      accessorKey: "code",
-      header: "Code",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.code;
-        return row.original.isTotal ? '' : (value || '-');
-      },
-    },
-    {
-      accessorKey: "description",
-      header: "Description",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.description;
-        return row.original.isTotal ? '' : <span className="truncate max-w-[150px] block" title={value || ''}>{value || '-'}</span>;
-      },
-    },
-    {
-      accessorKey: "pf",
-      header: "PF",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.pf;
-        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
-      },
-    },
-    {
-      accessorKey: "qty",
-      header: "Qty",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.qty;
-        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
-      },
-    },
-    {
-      accessorKey: "pfPercent",
-      header: "PF(%)",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.pfPercent;
-        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
-      },
-    },
-    {
-      accessorKey: "enrolDollar",
-      header: "Enrol($)",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.enrolDollar;
-        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
-      },
-    },
-    {
-      accessorKey: "customerPercent",
-      header: "Customer(%)",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.customerPercent;
-        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
-      },
-    },
-    {
-      accessorKey: "itemDollar",
-      header: "Item($)",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.itemDollar;
-        return row.original.isTotal ? '' : <span className="text-right block">{value || '-'}</span>;
-      },
-    },
-    {
-      accessorKey: "netDollar",
-      header: "Net($)",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.netDollar;
-        return <span className={`text-right block ${row.original.isTotal ? 'font-bold' : ''}`}>{value || '-'}</span>;
-      },
-    },
-    {
-      accessorKey: "price",
-      header: "Price",
-      cell: ({ row }: { row: { original: DiscountRow & { isTotal?: boolean } } }) => {
-        const value = row.original.price;
-        return <span className={`text-right block ${row.original.isTotal ? 'font-bold' : ''}`}>{value || '-'}</span>;
-      },
-    },
-  ];
-
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    // Group discounts by customer for print view
-    const groupedDiscounts = discounts.reduce((acc, discount) => {
-      const customer = discount.customer || 'Unknown';
-      if (!acc[customer]) {
-        acc[customer] = [];
-      }
-      acc[customer].push(discount);
-      return acc;
-    }, {} as Record<string, DiscountRow[]>);
-
-    // Build print rows with customer grouping and subtotals
-    const printRows: string[] = [];
-    let grandTotal = 0;
-    let grandPriceTotal = 0;
-
-    Object.entries(groupedDiscounts).forEach(([customer, customerDiscounts]) => {
-      // Add customer group header
-      printRows.push(`
-        <tr style="background-color: #f8f9fa; font-weight: bold;">
-          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;" colspan="11">${customer}</td>
-        </tr>
-      `);
-
-      // Add customer's discount rows
-      customerDiscounts.forEach((discount) => {
-        printRows.push(`
-          <tr>
-            <td style="border: 1px solid #ddd; padding: 8px;"></td>
-            <td style="border: 1px solid #ddd; padding: 8px;">${discount.code || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px;">${discount.description || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${discount.pf || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${discount.qty || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${discount.pfPercent || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${discount.enrolDollar || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${discount.customerPercent || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${discount.itemDollar || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${discount.netDollar || ''}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${discount.price || ''}</td>
-          </tr>
-        `);
-      });
-
-      // Calculate and add customer subtotal
-      const customerSubtotal = customerDiscounts.reduce((sum, discount) => sum + toNumber(discount.netDollar), 0);
-      const customerPriceSubtotal = customerDiscounts.reduce((sum, discount) => sum + toNumber(discount.price), 0);
-      grandTotal += customerSubtotal;
-      grandPriceTotal += customerPriceSubtotal;
-      
-      printRows.push(`
-        <tr style="background-color: #f0f0f0;">
-          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;" colspan="9">Subtotal:</td>
-          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${customerSubtotal.toFixed(2)}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${customerPriceSubtotal.toFixed(2)}</td>
-        </tr>
-      `);
-    });
-
-    // Add grand total row
-    printRows.push(`
-      <tr style="background-color: #e0e0e0; font-weight: bold;">
-        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;" colspan="9">Total:</td>
-        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${grandTotal.toFixed(2)}</td>
-        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold; text-align: right;">$${grandPriceTotal.toFixed(2)}</td>
-      </tr>
-    `);
-
-    const discountTableRows = printRows.join('');
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Discount Report - ${dateLabel}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              color: #000;
-            }
-            h1 {
-              font-size: 24px;
-              margin-bottom: 5px;
-            }
-            .date {
-              font-size: 16px;
-              margin-bottom: 20px;
-              color: #666;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 30px;
-            }
-            th {
-              background-color: #f0f0f0;
-              border: 1px solid #ddd;
-              padding: 10px;
-              text-align: left;
-              font-weight: bold;
-            }
-            td {
-              border: 1px solid #ddd;
-              padding: 8px;
-            }
-            @media print {
-              body { margin: 0; padding: 20px; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Discount Report</h1>
-          <div class="date"><strong>Location:</strong> ${formatLocationName(location || "")} | <strong>Date Range:</strong> ${dateLabel}</div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Code</th>
-                <th>Description</th>
-                <th style="text-align: right;">PF</th>
-                <th style="text-align: right;">Qty</th>
-                <th style="text-align: right;">PF(%)</th>
-                <th style="text-align: right;">Enrol($)</th>
-                <th style="text-align: right;">Customer(%)</th>
-                <th style="text-align: right;">Item($)</th>
-                <th style="text-align: right;">Net($)</th>
-                <th style="text-align: right;">Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${discountTableRows}
-            </tbody>
-          </table>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-  };
-
   return (
-    <div className="w-full">
-      <div className="mx-auto">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Discount Report</h1>
-            <p className="text-sm text-muted-foreground mt-1">Period: {dateLabel}</p>
-          </div>
-        </div>
-
-        {/* Discount Table */}
-        {/* <Card className="p-3 md:p-4"> */}
-          <div className="overflow-x-auto">
-            <div className="min-w-[800px]">
-              <CustomTable
-                data={tableData}
-                columns={discountColumns}
-                enableSearch={false}
-                // enableExport={true}
-                enableFilter={false}
-                enablePrint={true}
-                enableRowsPerPage={true}
-                enableSorting={false}
-                enableDateRangePicker={true}
-                dateRange={range}
-                onDateRangeChange={handleDateRangeChange}
-                title={undefined}
-                onPrint={handlePrint}
-                // onExport={{
-                //   html: exportToHtml,
-                //   csv: exportToCsv,
-                //   text: exportToText,
-                //   excel: exportToExcel,
-                //   pdf: exportToPdf,
-                //   json: exportToJson,
-                // }}
-                initialRowsPerPage={rowsPerPage}
-                rowsPerPage={rowsPerPage}
-                rowsPerPageOptions={[5, 10, 20, 50, 100]}
-                onRowsPerPageChange={handleRowsPerPageChange}
-                serverSidePagination={pagination}
-                onServerSidePageChange={handlePageChange}
-              />
-            </div>
-          </div>
-        {/* </Card> */}
+    <ReportPageLayout
+      title="Discount Report"
+      subtitle="Track discounts applied to customer transactions and analyze discount patterns"
+      isLoading={isLoading}
+      error={error}
+      onRetry={() => {
+        clearErrors();
+        refetch();
+      }}
+    >
+      <CustomTable
+        data={discounts}
+        columns={columns}
+        footerRow={footerRow || undefined}
         
-        {error && (
-          <div className="text-sm text-red-600">{error}</div>
-        )}
-      </div>
-    </div>
+        // Visual configuration
+        size="compact"
+        variant="default"
+        
+        // Feature flags
+        enableFilter={false}
+        enablePrint={true}
+        onPrint={handlePrintClick}
+        enableSorting={false}
+        enableRowsPerPage={false}
+        enableDateRangePicker={true}
+        dateRange={range}
+        onDateRangeChange={handleDateRangeChange}
+        
+        // Server-side pagination configuration
+        serverSidePagination={pagination}
+        onServerSidePageChange={handlePageChange}
+      />
+    </ReportPageLayout>
   );
 }

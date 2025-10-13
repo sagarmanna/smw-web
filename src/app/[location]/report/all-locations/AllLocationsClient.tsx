@@ -64,9 +64,15 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [locationData, setLocationData] = React.useState<LocationStats[]>([]);
-  const [dateRange, setDateRange] = React.useState({
-    from: new Date(),
-    to: new Date(),
+  const [dateRange, setDateRange] = React.useState(() => {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    
+    return {
+      from: lastMonth,
+      to: lastDayOfLastMonth,
+    };
   });
 
 
