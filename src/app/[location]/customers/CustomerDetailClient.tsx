@@ -43,6 +43,7 @@ import { TabContent } from "@/components/TabContent";
 import { AddressCard } from "./components/AddressCard";
 import { DiscountCard } from "./components/DiscountCard";
 import { OpeningBalanceCard } from "./components/OpeningBalanceCard";
+import { PhoneCard } from "./components/PhoneCard";
 import { 
   InvoiceData, 
   OutstandingInvoiceData, 
@@ -64,6 +65,12 @@ import {
   CommentData,
   HistoryData
 } from "./tabConfigs";
+
+interface PhoneNumber {
+  id: string;
+  label: string;
+  number: string;
+}
 
 interface CustomerDetailClientProps {
   location: string;
@@ -94,6 +101,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
 
   // Additional customer data states
+  const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
   const [addresses, setAddresses] = React.useState<Array<{
     id: string;
     label: string;
@@ -366,11 +374,10 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
         {/* Right Column - Info Cards */}
         <div className="space-y-4">
-          <InfoCardWithAction title="Phone">
-            <div className="space-y-2">
-              <div className="text-sm text-gray-500">No phone numbers added</div>
-            </div>
-          </InfoCardWithAction>
+          <PhoneCard 
+            phones={phones}
+            onSave={(newPhones) => setPhones(newPhones)}
+          />
           
           <AddressCard 
             addresses={addresses}
