@@ -67,7 +67,7 @@ export const studentColumns: ColumnDef<StudentData>[] = [
     accessorKey: "birthDate", 
     header: "Birth Date",
     cell: ({ row }) => (
-      <span className="text-blue-600 font-medium">
+      <span className=" font-medium">
         {row.getValue("birthDate")}
       </span>
     ),
@@ -196,7 +196,7 @@ export const CUSTOMER_TAB_CONFIGS: Record<string, TabConfig<unknown>> = {
   enrolments: {
     id: "enrolments",
     title: "Enrolments",
-    hasAddButton: true,
+    hasAddButton: false,
     hasTable: true,
     columns: enrolmentColumns as ColumnDef<unknown>[],
     dataKey: "enrolmentData",
@@ -204,7 +204,7 @@ export const CUSTOMER_TAB_CONFIGS: Record<string, TabConfig<unknown>> = {
   "private-lessons": {
     id: "private-lessons",
     title: "Private Lessons",
-    hasAddButton: true,
+    hasAddButton: false,
     hasTable: true,
     columns: privateLessonColumns as ColumnDef<unknown>[],
     dataKey: "privateLessonData",
@@ -212,7 +212,7 @@ export const CUSTOMER_TAB_CONFIGS: Record<string, TabConfig<unknown>> = {
   "group-lessons": {
     id: "group-lessons",
     title: "Group Lessons",
-    hasAddButton: true,
+    hasAddButton: false,
     hasTable: true,
     columns: groupLessonColumns as ColumnDef<unknown>[],
     dataKey: "groupLessonData",
@@ -228,7 +228,7 @@ export const CUSTOMER_TAB_CONFIGS: Record<string, TabConfig<unknown>> = {
   comments: {
     id: "comments",
     title: "Comments",
-    hasAddButton: true,
+    hasAddButton: false,
     hasTable: false,
     emptyState: "No results found.",
     columns: commentColumns as ColumnDef<unknown>[],

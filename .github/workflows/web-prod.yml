@@ -37,7 +37,7 @@ jobs:
       - name: 'Build and Push Store Image'
         run: |
           IMAGE_NAME=ghcr.io/arcadia-music-academy/smw-web:${{ steps.commit.outputs.short }}
-          LATEST_TAG=ghcr.io/arcadia-music-academy/smw-api:latest
+          LATEST_TAG=ghcr.io/arcadia-music-academy/smw-web:latest
           docker build . --tag $IMAGE_NAME
           docker tag $IMAGE_NAME $LATEST_TAG
           docker push $IMAGE_NAME
