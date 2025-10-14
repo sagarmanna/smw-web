@@ -2,13 +2,13 @@
 
 import React, { useState } from "react";
 import { InfoCard } from "@/components/InfoCard";
+import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea"; 
+import { Pencil, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface PhoneNumber {
   id: string;
@@ -32,7 +32,6 @@ export function PhoneCard({
   className 
 }: PhoneCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [phoneList, setPhoneList] = useState<PhoneNumber[]>([]);
   const [editingPhone, setEditingPhone] = useState<PhoneNumber | null>(null);
   const [currentPhone, setCurrentPhone] = useState({ 
     label: "Home", 
@@ -70,14 +69,15 @@ export function PhoneCard({
 
   const handleAddClick = () => {
     setIsModalOpen(true);
-    setPhoneList(phones.length > 0 ? [...phones] : []);
     setEditingPhone(null);
     setCurrentPhone({ label: "Home", number: "", extension: "", note: "" });
     setErrors({ number: "" });
     if (onAddClick) onAddClick();
   };
 
-  const handleEditPhone = (phone: PhoneNumber) => {
+  const handleEditClick = (e: React.MouseEvent, phone: PhoneNumber) => {
+    e.stopPropagation();
+    setIsModalOpen(true);
     setEditingPhone(phone);
     setCurrentPhone({
       label: phone.label,
@@ -88,31 +88,42 @@ export function PhoneCard({
     setErrors({ number: "" });
   };
 
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    handleRemovePhone(id);
+  };
+
   const handleRemovePhone = (id: string) => {
-    setPhoneList(phoneList.filter(phone => phone.id !== id));
+    const updatedPhones = phones.filter(phone => phone.id !== id);
+    if (onSave) onSave(updatedPhones);
+    setIsModalOpen(false);
+    setEditingPhone(null);
+    setCurrentPhone({ label: "Home", number: "", extension: "", note: "" });
+    setErrors({ number: "" });
   };
 
   const handleSave = () => {
     if (!validateForm()) return;
 
-    let updatedList = [...phoneList];
+    let updatedPhones: PhoneNumber[];
 
     if (editingPhone) {
-      updatedList = phoneList.map(phone => 
+      // Update existing phone
+      updatedPhones = phones.map(phone => 
         phone.id === editingPhone.id 
           ? { ...phone, ...currentPhone }
           : phone
       );
     } else {
+      // Add new phone
       const newPhone: PhoneNumber = {
         id: Date.now().toString(),
         ...currentPhone
       };
-      updatedList = [...phoneList, newPhone];
+      updatedPhones = [...phones, newPhone];
     }
 
-    setPhoneList(updatedList);
-    if (onSave) onSave(updatedList);
+    if (onSave) onSave(updatedPhones);
 
     setIsModalOpen(false);
     setEditingPhone(null);
@@ -121,7 +132,6 @@ export function PhoneCard({
   };
 
   const handleCancel = () => {
-    setPhoneList([]);
     setEditingPhone(null);
     setCurrentPhone({ label: "Home", number: "", extension: "", note: "" });
     setErrors({ number: "" });
@@ -139,12 +149,30 @@ export function PhoneCard({
         <div className="space-y-2">
           {phones.length > 0 ? (
             phones.map(phone => (
-              <div key={phone.id} className="flex justify-between items-start">
-                <span className="text-sm text-gray-600">{phone.label}</span>
-                <div className="text-right">
-                  <div className="font-medium">{phone.number}</div>
-                  {phone.extension && <div className="text-xs text-gray-500">Ext: {phone.extension}</div>}
-                  {phone.note && <div className="text-xs text-gray-500 mt-1">{phone.note}</div>}
+              <div
+                key={phone.id}
+                className="flex items-center justify-between hover:bg-gray-50 p-2 rounded -mx-2 group"
+              >
+                <KeyValueDisplay
+                  label={phone.label}
+                  value={`${phone.number}${phone.extension ? ` Ext: ${phone.extension}` : ''}${phone.note ? ` - ${phone.note}` : ''}`}
+                  className="justify-start flex-1"
+                />
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => handleEditClick(e, phone)}
+                    className="p-1.5 hover:bg-gray-200 rounded"
+                    aria-label="Edit phone"
+                  >
+                    <Pencil className="h-4 w-4 text-gray-600" />
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteClick(e, phone.id)}
+                    className="p-1.5 hover:bg-red-100 rounded"
+                    aria-label="Delete phone"
+                  >
+                    <Trash2 className="h-4 w-4 text-red-600" />
+                  </button>
                 </div>
               </div>
             ))
@@ -163,33 +191,12 @@ export function PhoneCard({
         showFooter={true}
       >
         <div className="space-y-4">
-          {phoneList.length > 0 && !editingPhone && (
-            <div className="space-y-2 pb-4 border-b">
-              {phoneList.map(phone => (
-                <div key={phone.id} className="flex items-center gap-2 p-3 border rounded-md hover:bg-gray-50">
-                  <div className="flex-1 cursor-pointer" onClick={() => handleEditPhone(phone)}>
-                    <div className="text-sm text-gray-600">{phone.label}</div>
-                    <div className="font-medium">{phone.number}</div>
-                    {phone.extension && <div className="text-xs text-gray-500">Ext: {phone.extension}</div>}
-                    {phone.note && <div className="text-xs text-gray-500 mt-1">{phone.note}</div>}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemovePhone(phone.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
+          {editingPhone && (
+            <div className="text-sm text-blue-600 mb-2">Editing phone number</div>
           )}
 
           {/* Phone Form */}
           <div className="space-y-4">
-            {editingPhone && <div className="text-sm text-blue-600 mb-2">Editing phone number</div>}
-
             <div className="space-y-2">
               <Label htmlFor="phone-number">Number <span className="text-red-500">*</span></Label>
               <Input

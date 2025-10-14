@@ -1,9 +1,13 @@
+"use client";
+
 import React, { useState } from "react";
 import { InfoCard } from "@/components/InfoCard";
+import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface Address {
   id: string;
@@ -29,6 +33,7 @@ export function AddressCard({
   className 
 }: AddressCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [currentAddress, setCurrentAddress] = useState<Partial<Address>>({
     label: "Home",
     address: "",
@@ -46,6 +51,7 @@ export function AddressCard({
 
   const handleAddClick = () => {
     setIsModalOpen(true);
+    setEditingAddress(null);
     setCurrentAddress({
       label: "Home",
       address: "",
@@ -65,6 +71,31 @@ export function AddressCard({
     }
   };
 
+  const handleEditClick = (e: React.MouseEvent, addr: Address) => {
+    e.stopPropagation();
+    setIsModalOpen(true);
+    setEditingAddress(addr);
+    setCurrentAddress({
+      label: addr.label,
+      address: addr.address,
+      city: addr.city,
+      province: addr.province,
+      country: addr.country,
+      postalCode: addr.postalCode
+    });
+    setErrors({
+      address: false,
+      city: false,
+      postalCode: false
+    });
+    setShowErrors(false);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    handleRemoveAddress(id);
+  };
+
   const validateForm = () => {
     const newErrors = {
       address: !currentAddress.address?.trim(),
@@ -80,6 +111,22 @@ export function AddressCard({
     if (onSave) {
       onSave(updatedAddresses);
     }
+    setIsModalOpen(false);
+    setEditingAddress(null);
+    setCurrentAddress({
+      label: "Home",
+      address: "",
+      city: "",
+      province: "Ontario",
+      country: "Canada",
+      postalCode: ""
+    });
+    setErrors({
+      address: false,
+      city: false,
+      postalCode: false
+    });
+    setShowErrors(false);
   };
 
   const handleSave = () => {
@@ -89,18 +136,39 @@ export function AddressCard({
       return;
     }
 
-    const newAddress: Address = {
-      id: Date.now().toString(),
-      label: currentAddress.label || "Home",
-      address: currentAddress.address || "",
-      city: currentAddress.city || "",
-      province: currentAddress.province || "Ontario",
-      country: currentAddress.country || "Canada",
-      postalCode: currentAddress.postalCode || ""
-    };
+    let updatedAddresses: Address[];
+
+    if (editingAddress) {
+      // Update existing address
+      updatedAddresses = addresses.map(addr =>
+        addr.id === editingAddress.id
+          ? {
+              ...addr,
+              label: currentAddress.label || "Home",
+              address: currentAddress.address || "",
+              city: currentAddress.city || "",
+              province: currentAddress.province || "Ontario",
+              country: currentAddress.country || "Canada",
+              postalCode: currentAddress.postalCode || ""
+            }
+          : addr
+      );
+    } else {
+      // Add new address
+      const newAddress: Address = {
+        id: Date.now().toString(),
+        label: currentAddress.label || "Home",
+        address: currentAddress.address || "",
+        city: currentAddress.city || "",
+        province: currentAddress.province || "Ontario",
+        country: currentAddress.country || "Canada",
+        postalCode: currentAddress.postalCode || ""
+      };
+      updatedAddresses = [...addresses, newAddress];
+    }
 
     if (onSave) {
-      onSave([...addresses, newAddress]);
+      onSave(updatedAddresses);
     }
     
     setCurrentAddress({
@@ -117,6 +185,7 @@ export function AddressCard({
       postalCode: false
     });
     setShowErrors(false);
+    setEditingAddress(null);
     setIsModalOpen(false);
   };
 
@@ -135,6 +204,7 @@ export function AddressCard({
       postalCode: false
     });
     setShowErrors(false);
+    setEditingAddress(null);
     setIsModalOpen(false);
   };
 
@@ -151,11 +221,6 @@ export function AddressCard({
     }
   ];
 
-  const formatAddress = (addr: Address) => {
-    const parts = [addr.address, addr.city, addr.province, addr.postalCode].filter(Boolean);
-    return parts.join(", ");
-  };
-
   return (
     <>
       <InfoCard 
@@ -166,17 +231,31 @@ export function AddressCard({
         <div className="space-y-2">
           {addresses.length > 0 ? (
             addresses.map((addr) => (
-              <div key={addr.id} className="flex justify-between items-start space-y-1">
-                <div>
-                  <div className="text-sm text-gray-600">{addr.label}</div>
-                  <div className="text-sm">{formatAddress(addr)}</div>
+              <div
+                key={addr.id}
+                className="flex items-center justify-between hover:bg-gray-50 p-2 rounded -mx-2 group"
+              >
+                <KeyValueDisplay
+                  label={addr.label}
+                  value={`${addr.address}, ${addr.city}, ${addr.province}, ${addr.country}`}
+                  className="justify-start flex-1"
+                />
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => handleEditClick(e, addr)}
+                    className="p-1.5 hover:bg-gray-200 rounded"
+                    aria-label="Edit address"
+                  >
+                    <Pencil className="h-4 w-4 text-gray-600" />
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteClick(e, addr.id)}
+                    className="p-1.5 hover:bg-red-100 rounded"
+                    aria-label="Delete address"
+                  >
+                    <Trash2 className="h-4 w-4 text-red-600" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleRemoveAddress(addr.id)}
-                  className="text-red-600 hover:text-red-800 text-sm"
-                >
-                  Remove
-                </button>
               </div>
             ))
           ) : (
@@ -194,6 +273,10 @@ export function AddressCard({
         showFooter={true}
       >
         <div className="space-y-4">
+          {editingAddress && (
+            <div className="text-sm text-blue-600 mb-2">Editing address</div>
+          )}
+
           {/* Address Form */}
           <div className="space-y-3">
             <div className="space-y-2">
