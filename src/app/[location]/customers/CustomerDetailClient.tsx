@@ -40,6 +40,9 @@ import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
 import { TabContent } from "@/components/TabContent";
+import { AddressCard } from "./components/AddressCard";
+import { DiscountCard } from "./components/DiscountCard";
+import { OpeningBalanceCard } from "./components/OpeningBalanceCard";
 import { 
   InvoiceData, 
   OutstandingInvoiceData, 
@@ -89,6 +92,19 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [proformaInvoiceData, setProformaInvoiceData] = React.useState<ProformaInvoiceData[]>([]);
   const [commentData, setCommentData] = React.useState<CommentData[]>([]);
   const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
+
+  // Additional customer data states
+  const [addresses, setAddresses] = React.useState<Array<{
+    id: string;
+    label: string;
+    address: string;
+    city: string;
+    province: string;
+    country: string;
+    postalCode: string;
+  }>>([]);
+  const [discount, setDiscount] = React.useState<number>(0);
+  const [openingBalance, setOpeningBalance] = React.useState<number>(0);
 
   // Calculate footer for private lesson due
   const privateLessonDueTotal = privateLessonDueData.reduce((sum, item) => sum + item.amount, 0);
@@ -149,64 +165,64 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           getCustomerPayments(location, Number(id))
         ]);
         
-            setInvoiceData(invoices || []);
-            setOutstandingInvoiceData(outstandingInvoices || []);
-            setEquipmentRentalData(equipmentRentals || []);
-            setRecurringPaymentData(recurringPayments || []);
-            setPrivateLessonDueData(privateLessonDue || []);
-            setGroupLessonDueData(groupLessonDue || []);
-            setPaymentData(payments || []);
+        setInvoiceData(invoices || []);
+        setOutstandingInvoiceData(outstandingInvoices || []);
+        setEquipmentRentalData(equipmentRentals || []);
+        setRecurringPaymentData(recurringPayments || []);
+        setPrivateLessonDueData(privateLessonDue || []);
+        setGroupLessonDueData(groupLessonDue || []);
+        setPaymentData(payments || []);
 
-            // Load tab data (mock data for now)
-            setStudentData([
-              { name: "321123 123", birthDate: "Jan 06, 2005", customerName: "123 123" },
-            ]);
-            setEnrolmentData([
-              { studentName: "321123 123", programName: "Ukulele", teacherName: "Art Tatum", day: "Monday", fromTime: "08:00 AM", duration: "00:30", startDate: "Jan 31, 2022", renewalDate: "Jan 26, 2026" },
-              { studentName: "321123 123", programName: "xPiano Core", teacherName: "Alexander Hamilton", day: "Friday", fromTime: "09:00 AM", duration: "00:30", startDate: "Apr 08, 2022", renewalDate: "Apr 24, 2026" },
-              { studentName: "321123 123", programName: "Guitar Core", teacherName: "Daniel Clain", day: "Thursday", fromTime: "10:15 AM", duration: "00:30", startDate: "Jun 03, 2022", renewalDate: "May 22, 2026" },
-              { studentName: "321123 123", programName: "Drums Core", teacherName: "Amy Macaluso", day: "Saturday", fromTime: "11:15 AM", duration: "00:30", startDate: "Jul 01, 2022", renewalDate: "Jun 26, 2026" },
-              { studentName: "321123 123", programName: "xTrombone", teacherName: "tes123 12345", day: "Saturday", fromTime: "11:30 AM", duration: "00:30", startDate: "Apr 28, 2022", renewalDate: "Sep 24, 2026" },
-              { studentName: "321123 123", programName: "xGuitar Contemporary", teacherName: "Art Tatum", day: "Friday", fromTime: "10:45 AM", duration: "00:30", startDate: "May 07, 2022", renewalDate: "Dec 26, 2026" },
-              { studentName: "321123 123", programName: "xPiano Hybrid", teacherName: "Alexander Hamilton", day: "Monday", fromTime: "09:30 AM", duration: "00:30", startDate: "Dec 30, 2022", renewalDate: "Mar 26, 2027" },
-              { studentName: "321123 123", programName: "Ukulele", teacherName: "Daniel Clain", day: "Saturday", fromTime: "12:00 PM", duration: "00:30", startDate: "Mar 20, 2023", renewalDate: "May 24, 2027" },
-            ]);
+        // Load tab data (mock data for now)
+        setStudentData([
+          { name: "321123 123", birthDate: "Jan 06, 2005", customerName: "123 123" },
+        ]);
+        setEnrolmentData([
+          { studentName: "321123 123", programName: "Ukulele", teacherName: "Art Tatum", day: "Monday", fromTime: "08:00 AM", duration: "00:30", startDate: "Jan 31, 2022", renewalDate: "Jan 26, 2026" },
+          { studentName: "321123 123", programName: "xPiano Core", teacherName: "Alexander Hamilton", day: "Friday", fromTime: "09:00 AM", duration: "00:30", startDate: "Apr 08, 2022", renewalDate: "Apr 24, 2026" },
+          { studentName: "321123 123", programName: "Guitar Core", teacherName: "Daniel Clain", day: "Thursday", fromTime: "10:15 AM", duration: "00:30", startDate: "Jun 03, 2022", renewalDate: "May 22, 2026" },
+          { studentName: "321123 123", programName: "Drums Core", teacherName: "Amy Macaluso", day: "Saturday", fromTime: "11:15 AM", duration: "00:30", startDate: "Jul 01, 2022", renewalDate: "Jun 26, 2026" },
+          { studentName: "321123 123", programName: "xTrombone", teacherName: "tes123 12345", day: "Saturday", fromTime: "11:30 AM", duration: "00:30", startDate: "Apr 28, 2022", renewalDate: "Sep 24, 2026" },
+          { studentName: "321123 123", programName: "xGuitar Contemporary", teacherName: "Art Tatum", day: "Friday", fromTime: "10:45 AM", duration: "00:30", startDate: "May 07, 2022", renewalDate: "Dec 26, 2026" },
+          { studentName: "321123 123", programName: "xPiano Hybrid", teacherName: "Alexander Hamilton", day: "Monday", fromTime: "09:30 AM", duration: "00:30", startDate: "Dec 30, 2022", renewalDate: "Mar 26, 2027" },
+          { studentName: "321123 123", programName: "Ukulele", teacherName: "Daniel Clain", day: "Saturday", fromTime: "12:00 PM", duration: "00:30", startDate: "Mar 20, 2023", renewalDate: "May 24, 2027" },
+        ]);
 
-            setPrivateLessonData([
-              { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 13, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-              { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 20, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-              { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 27, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 13, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 13, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 16, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:00 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 10:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 11:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xTrombone", date: "Oct 18, 2025 @ 10:45 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 20, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 20, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-              { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 23, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-            ]);
+        setPrivateLessonData([
+          { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 13, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+          { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 20, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+          { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 27, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 13, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 13, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 16, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:00 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 10:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 11:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xTrombone", date: "Oct 18, 2025 @ 10:45 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 20, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 20, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
+          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 23, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
+        ]);
 
-            setGroupLessonData([]);
+        setGroupLessonData([]);
 
-            setProformaInvoiceData([]);
+        setProformaInvoiceData([]);
 
-            setCommentData([]);
+        setCommentData([]);
 
-            setHistoryData([
-              { message: "On Sep 9, 2022, at 12:15 AM, seng Added new payment of $60.27 for 123 123" },
-              { message: "On Sep 9, 2022, at 12:53 AM, seng Added new payment of $4621.04 for 123 123" },
-              { message: "On Oct 15, 2023, at 07:00 PM, Prateek Panwar Added new payment of $13890.21 for 123 123" },
-              { message: "On Nov 13, 2023, at 02:51 PM, Giancarlo Macaluso Added new payment of $18.45 for 123 123" },
-              { message: "On Mar 8, 2024, at 10:43 AM, Prateek Panwar Added new payment of $3367.96 for 123 123" },
-              { message: "On Mar 8, 2024, at 10:45 AM, Prateek Panwar Added new payment of $122.50 for 123 123" },
-            ]);
+        setHistoryData([
+          { message: "On Sep 9, 2022, at 12:15 AM, seng Added new payment of $60.27 for 123 123" },
+          { message: "On Sep 9, 2022, at 12:53 AM, seng Added new payment of $4621.04 for 123 123" },
+          { message: "On Oct 15, 2023, at 07:00 PM, Prateek Panwar Added new payment of $13890.21 for 123 123" },
+          { message: "On Nov 13, 2023, at 02:51 PM, Giancarlo Macaluso Added new payment of $18.45 for 123 123" },
+          { message: "On Mar 8, 2024, at 10:43 AM, Prateek Panwar Added new payment of $3367.96 for 123 123" },
+          { message: "On Mar 8, 2024, at 10:45 AM, Prateek Panwar Added new payment of $122.50 for 123 123" },
+        ]);
       } catch (error) {
         console.error('Error loading customer data:', error);
       } finally {
-      setLoading(false);
+        setLoading(false);
       }
     };
     
@@ -307,9 +323,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
               value={loading ? "..." : customer ? customer.email : "N/A"} 
             />
             <KeyValueDisplay label="Home" value="sample1@example.com" />
-                </div>
+          </div>
         </InfoCard>
-                </div>
+      </div>
 
       {/* Tables and Additional Info Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -346,42 +362,41 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             enableFilter={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter}
             enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableRowsPerPage}
           />
-                </div>
+        </div>
 
         {/* Right Column - Info Cards */}
         <div className="space-y-4">
           <InfoCardWithAction title="Phone">
             <div className="space-y-2">
               <div className="text-sm text-gray-500">No phone numbers added</div>
-              </div>
-          </InfoCardWithAction>
-          
-          <InfoCardWithAction title="Addresses">
-            <div className="space-y-2">
-              <div className="text-sm text-gray-500">No addresses added</div>
             </div>
           </InfoCardWithAction>
           
-          <InfoCardWithAction title="Discount (%)">
-            <div className="space-y-2">
-              <span className="font-semibold">Discount</span>
-                </div>
-          </InfoCardWithAction>
+          <AddressCard 
+            addresses={addresses}
+            onSave={(newAddresses) => setAddresses(newAddresses)}
+          />
           
-          <InfoCardWithAction title="Opening Balance">
-            <KeyValueDisplay 
-              label="Amount" 
-              value={formatCurrency(0)} 
-            />
-          </InfoCardWithAction>
+          <DiscountCard 
+            discount={discount}
+            onSave={(newDiscount) => setDiscount(newDiscount)}
+          />
+          
+          <OpeningBalanceCard 
+            amount={openingBalance}
+            onSave={(amount, type) => {
+              // Handle the balance type (owing/credit) if needed
+              setOpeningBalance(type === "owing" ? amount : -amount);
+            }}
+          />
           
           <InfoCardWithAction title="Payment Preference">
             <div className="space-y-2">
               <div className="text-sm text-gray-500">No payment preferences set</div>
-                </div>
-          </InfoCardWithAction>
-              </div>
             </div>
+          </InfoCardWithAction>
+        </div>
+      </div>
 
       {/* Full Width Tables Below Outstanding Invoices */}
       <div className="space-y-4">
