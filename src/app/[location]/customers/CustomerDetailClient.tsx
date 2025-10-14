@@ -35,15 +35,16 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { LessonsDueCard, OutstandingInvoiceCard, CreditsCard, BalanceCard } from "@/components/MetricCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
 import { TabContent } from "@/components/TabContent";
 import { AddressCard } from "./components/AddressCard";
+import { EmailCard } from "./components/EmailCard";
 import { DiscountCard } from "./components/DiscountCard";
 import { OpeningBalanceCard } from "./components/OpeningBalanceCard";
 import { PhoneCard } from "./components/PhoneCard";
+
 import { 
   InvoiceData, 
   OutstandingInvoiceData, 
@@ -70,6 +71,13 @@ interface PhoneNumber {
   id: string;
   label: string;
   number: string;
+}
+
+interface Email {
+  id: string;
+  label: string;
+  email: string;
+  note?: string;
 }
 
 interface CustomerDetailClientProps {
@@ -103,6 +111,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
+  const [emails, setEmails] = React.useState<Email[]>([]);
   const [addresses, setAddresses] = React.useState<Array<{
     id: string;
     label: string;
@@ -215,11 +224,8 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         ]);
 
         setGroupLessonData([]);
-
         setProformaInvoiceData([]);
-
         setCommentData([]);
-
         setHistoryData([
           { message: "On Sep 9, 2022, at 12:15 AM, seng Added new payment of $60.27 for 123 123" },
           { message: "On Sep 9, 2022, at 12:53 AM, seng Added new payment of $4621.04 for 123 123" },
@@ -325,15 +331,11 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         </Card>
 
         {/* Email Card */}
-        <InfoCard title="Email">
-          <div className="space-y-2">
-            <KeyValueDisplay 
-              label="Home" 
-              value={loading ? "..." : customer ? customer.email : "N/A"} 
-            />
-            <KeyValueDisplay label="Home" value="sample1@example.com" />
-          </div>
-        </InfoCard>
+        <EmailCard 
+          emails={emails}
+          onAddClick={() => console.log('Add email clicked')}
+          onSave={setEmails}
+        />
       </div>
 
       {/* Tables and Additional Info Section */}
@@ -395,7 +397,6 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           <OpeningBalanceCard 
             amount={openingBalance}
             onSave={(amount, type) => {
-              // Handle the balance type (owing/credit) if needed
               setOpeningBalance(type === "owing" ? amount : -amount);
             }}
           />
