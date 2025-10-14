@@ -30,6 +30,7 @@ import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { EmptyStateCard } from "@/components/EmptyStateCard";
 import { DiscountCard } from "@/components/DiscountCard";
 import { OpeningBalanceCard } from "@/components/OpeningBalanceCard";
+import { AddressCard } from "./components/AddressCard";
 
 interface CustomerDetailClientProps {
   location: string;
@@ -52,10 +53,21 @@ interface OutstandingInvoiceData {
   balanceDue: number;
 }
 
+export interface Address {
+  id: string;
+  label: string;
+  address: string;
+  city: string;
+  province: string;
+  country: string;
+  postalCode: string;
+}
+
 export function CustomerDetailClient({ location, id }: CustomerDetailClientProps) {
   const router = useRouter();
   const [customer, setCustomer] = React.useState<CustomerRow | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
+  const [addresses, setAddresses] = React.useState<Address[]>([]);
 
   // Sample invoice data - replace with actual API call
   const invoiceData: InvoiceData[] = [
@@ -346,9 +358,12 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             emptyMessage="No phone numbers added" 
           />
           
-          <EmptyStateCard 
-            title="Addresses" 
-            emptyMessage="No addresses added" 
+          <AddressCard
+            addresses={addresses}
+            onSave={(newAddresses) => {
+              setAddresses(newAddresses);
+              console.log('Save addresses:', newAddresses);
+            }}
           />
           
           <DiscountCard />
@@ -365,6 +380,3 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     </div>
   );
 }
-
-
-
