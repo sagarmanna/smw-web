@@ -71,6 +71,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const router = useRouter();
   const [customer, setCustomer] = React.useState<CustomerRow | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
+  const [showAllEquipment, setShowAllEquipment] = React.useState<boolean>(false);
   
   // Table data states
   const [invoiceData, setInvoiceData] = React.useState<InvoiceData[]>([]);
@@ -329,6 +330,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             enableSearch={CUSTOMER_TABLE_CONFIGS.invoices.enableSearch}
             enableFilter={CUSTOMER_TABLE_CONFIGS.invoices.enableFilter}
             enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.invoices.enableRowsPerPage}
+            iconType="chevron"
           />
           
           <TableCard 
@@ -345,6 +347,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             enableSearch={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableSearch}
             enableFilter={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter}
             enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableRowsPerPage}
+            iconType="chevron"
           />
                 </div>
 
@@ -399,6 +402,11 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enableSearch={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableFilter}
           enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableRowsPerPage}
+          iconType="plus"
+          showCheckbox={true}
+          checkboxLabel="Show All"
+          checkboxChecked={showAllEquipment}
+          onCheckboxChange={setShowAllEquipment}
         />
         
         <TableCard 
@@ -415,6 +423,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enableSearch={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableFilter}
           enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableRowsPerPage}
+          iconType="plus"
         />
         
         <TableCard 
@@ -432,6 +441,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enableSearch={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableFilter}
           enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableRowsPerPage}
+          iconType="none"
         />
         
         <TableCard 
@@ -448,6 +458,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enableSearch={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableFilter}
           enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableRowsPerPage}
+          iconType="none"
         />
         
         <TableCard 
@@ -465,6 +476,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enableSearch={CUSTOMER_TABLE_CONFIGS.payments.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.payments.enableFilter}
           enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.payments.enableRowsPerPage}
+          iconType="chevron"
         />
       </div>
 

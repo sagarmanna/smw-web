@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/CustomTable";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TableCardProps<TData = unknown> {
   title: string;
@@ -20,6 +21,11 @@ interface TableCardProps<TData = unknown> {
   enableFilter?: boolean;
   enableRowsPerPage?: boolean;
   className?: string;
+  iconType?: "plus" | "chevron" | "none";
+  showCheckbox?: boolean;
+  checkboxLabel?: string;
+  checkboxChecked?: boolean;
+  onCheckboxChange?: (checked: boolean) => void;
 }
 
 export function TableCard<TData = unknown>({ 
@@ -37,17 +43,43 @@ export function TableCard<TData = unknown>({
   enableSearch = false,
   enableFilter = false,
   enableRowsPerPage = false,
-  className = "border-0 w-full"
+  className = "border-0 w-full",
+  iconType = "plus",
+  showCheckbox = false,
+  checkboxLabel = "Show All",
+  checkboxChecked = false,
+  onCheckboxChange
 }: TableCardProps<TData>) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-        {onAdd && (
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onAdd}>
-            <Plus className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {showCheckbox && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id={`${title}-checkbox`}
+                checked={checkboxChecked}
+                onCheckedChange={(checked: boolean) => onCheckboxChange?.(checked)}
+              />
+              <label
+                htmlFor={`${title}-checkbox`}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                {checkboxLabel}
+              </label>
+            </div>
+          )}
+          {onAdd && iconType !== "none" && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onAdd}>
+              {iconType === "chevron" ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         <CustomTable
