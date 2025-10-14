@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // students.api.ts - Updated Mock Data API
 export interface Student {
   id: string;
@@ -213,8 +212,40 @@ export async function getStudentById(
 ): Promise<{ success: boolean; data: StudentDetail | null; message?: string }> {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
+  // Find the basic student data first
+  const basicStudent = mockStudents.find(s => s.id === studentId);
+
+  if (!basicStudent) {
+    return {
+      success: false,
+      data: null,
+      message: "Student not found"
+    };
+  }
+
+  // If it's the special mock student, return full details
+  if (studentId === mockStudentDetail.id) {
+    return {
+      success: true,
+      data: mockStudentDetail
+    };
+  }
+
+  // For other students, create a basic detail view with empty arrays
+  const studentDetail: StudentDetail = {
+    ...basicStudent,
+    enrolments: [],
+    evaluations: [],
+    privateLessons: [],
+    groupLessons: [],
+    absentLessons: [],
+    unscheduledLessons: [],
+    comments: [],
+    history: []
+  };
+
   return {
     success: true,
-    data: mockStudentDetail
+    data: studentDetail
   };
 }

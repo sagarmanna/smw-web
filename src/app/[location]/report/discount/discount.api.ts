@@ -126,11 +126,16 @@ export async function getDiscounts(
   location: string,
   startDate: string,
   endDate: string,
-  filter?: string
+  filter?: string,
+  summaryOnly?: boolean
 ): Promise<DiscountApiResponse> {
   try {
     const url = `/admin/v2/${location}/report/discounts`;
-    const params = { startDate, endDate };
+    const params: { startDate: string; endDate: string; summaryOnly?: boolean } = { startDate, endDate };
+    
+    if (summaryOnly !== undefined) {
+      params.summaryOnly = summaryOnly;
+    }
 
     const response = await apiClient.get(url, { params });
 

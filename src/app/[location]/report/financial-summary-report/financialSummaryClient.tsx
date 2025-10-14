@@ -5,9 +5,9 @@ import { format } from "date-fns";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { Card } from "@/components/ui/card";
-import { 
-  getFinancialSummaryStats, 
-  FinancialSummaryData, 
+import {
+  getFinancialSummaryStats,
+  FinancialSummaryData,
   SummaryData,
   fetchPrepaidFutureGroupLessons,
   fetchPrepaidFuturePrivateLessons,
@@ -40,29 +40,29 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
   // Individual pagination states for each table
   const [prepaidGroupPage, setPrepaidGroupPage] = React.useState(1);
   const [prepaidGroupLimit, setPrepaidGroupLimit] = React.useState(5);
-  
+
   // Separate column filter states for each table
   const [prepaidGroupColumnFilters, setPrepaidGroupColumnFilters] = React.useState<Record<string, unknown>>({});
   const [prepaidPrivateColumnFilters, setPrepaidPrivateColumnFilters] = React.useState<Record<string, unknown>>({});
-  
+
   const [paidGroupPage, setPaidGroupPage] = React.useState(1);
   const [paidGroupLimit, setPaidGroupLimit] = React.useState(5);
-  
+
   const [prepaidPrivatePage, setPrepaidPrivatePage] = React.useState(1);
   const [prepaidPrivateLimit, setPrepaidPrivateLimit] = React.useState(5);
-  
+
   const [paidPrivatePage, setPaidPrivatePage] = React.useState(1);
   const [paidPrivateLimit, setPaidPrivateLimit] = React.useState(5);
-  
+
   const [activeInvoicesPage, setActiveInvoicesPage] = React.useState(1);
   const [activeInvoicesLimit, setActiveInvoicesLimit] = React.useState(5);
-  
+
   const [inactiveInvoicesPage, setInactiveInvoicesPage] = React.useState(1);
   const [inactiveInvoicesLimit, setInactiveInvoicesLimit] = React.useState(5);
-  
+
   const [activeCreditPage, setActiveCreditPage] = React.useState(1);
   const [activeCreditLimit, setActiveCreditLimit] = React.useState(5);
-  
+
   const [inactiveCreditPage, setInactiveCreditPage] = React.useState(1);
   const [inactiveCreditLimit, setInactiveCreditLimit] = React.useState(5);
 
@@ -121,14 +121,14 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
   const load = React.useCallback(async () => {
     if (isLoadingRef.current) return; // Prevent multiple simultaneous calls
-    
+
     try {
       isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
       const startDate = formatRangeParam(range.from);
       const endDate = formatRangeParam(range.to);
-      
+
       // Load financial data and summary data in parallel
       const [summaryResult, prepaidGroupResult, prepaidPrivateResult, paidGroupResult, paidPrivateResult, activeInvoicesResult, inactiveInvoicesResult, activeCreditResult, inactiveCreditResult] = await Promise.all([
         getFinancialSummaryStats(location, startDate, endDate),
@@ -141,7 +141,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         fetchActiveCustomersWithCredit(location, startDate, endDate, activeCreditPage, activeCreditLimit),
         fetchInactiveCustomersWithCredit(location, startDate, endDate, inactiveCreditPage, inactiveCreditLimit)
       ]);
-      
+
       // Set the financial data
       const financialData: FinancialSummaryData = {
         prepaidFutureGroupLessons: prepaidGroupResult.data,
@@ -154,7 +154,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         inactiveCustomersWithCredit: inactiveCreditResult.data
       };
       setData(financialData);
-      
+
       if (summaryResult.success) {
         setSummaryData(summaryResult.data);
       } else {
@@ -182,7 +182,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
   // Load data when location or range changes
   React.useEffect(() => {
     if (location) {
-    load();
+      load();
     }
   }, [location, range.from, range.to, load]);
 
@@ -192,33 +192,33 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       ...prev,
       [columnKey]: filterValue
     }));
-    
+
     // If it's a date filter, reload only the prepaid group lessons data
     if (columnKey === 'date' && filterValue && filterValue instanceof Date) {
       try {
         const endDate = formatRangeParam(filterValue);
         const result = await fetchPrepaidFutureGroupLessons(location, endDate, endDate, prepaidGroupPage, prepaidGroupLimit);
-        
+
         setData(prev => {
           if (!prev) return null;
-          
+
           const updatedData = {
             ...prev,
             prepaidFutureGroupLessons: result.data
           };
-          
+
           // Update pagination state
           setPrepaidGroupPagination(result.pagination);
-          
+
           // Update summary data with new counts and totals
           setSummaryData(prevSummary => {
             const newSummary = [...prevSummary];
-            
+
             // Find and update Prepaid Future Group Lessons row
-            const groupLessonsIndex = newSummary.findIndex(item => 
+            const groupLessonsIndex = newSummary.findIndex(item =>
               item.particulars === "Prepaid Future Group Lessons"
             );
-            
+
             if (groupLessonsIndex !== -1) {
               newSummary[groupLessonsIndex] = {
                 particulars: "Prepaid Future Group Lessons",
@@ -226,10 +226,10 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
                 total: result.data.reduce((sum, item) => sum + item.amount, 0)
               };
             }
-            
+
             return newSummary;
           });
-          
+
           return updatedData;
         });
       } catch (error) {
@@ -244,32 +244,32 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       ...prev,
       [columnKey]: filterValue
     }));
-    
+
     if (columnKey === 'date' && filterValue && filterValue instanceof Date) {
       try {
         const endDate = formatRangeParam(filterValue);
         const result = await fetchPrepaidFuturePrivateLessons(location, endDate, endDate, prepaidPrivatePage, prepaidPrivateLimit);
-        
+
         setData(prev => {
           if (!prev) return null;
-          
+
           const updatedData = {
             ...prev,
             prepaidFuturePrivateLessons: result.data
           };
-          
+
           // Update pagination state
           setPrepaidPrivatePagination(result.pagination);
-          
+
           // Update summary data with new counts and totals
           setSummaryData(prevSummary => {
             const newSummary = [...prevSummary];
-            
+
             // Find and update Prepaid Future Private Lessons row
-            const privateLessonsIndex = newSummary.findIndex(item => 
+            const privateLessonsIndex = newSummary.findIndex(item =>
               item.particulars === "Prepaid Future Private Lessons"
             );
-            
+
             if (privateLessonsIndex !== -1) {
               newSummary[privateLessonsIndex] = {
                 particulars: "Prepaid Future Private Lessons",
@@ -277,10 +277,10 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
                 total: result.data.reduce((sum, item) => sum + item.amount, 0)
               };
             }
-            
+
             return newSummary;
           });
-          
+
           return updatedData;
         });
       } catch (error) {
@@ -296,7 +296,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       const endDate = formatRangeParam((prepaidGroupColumnFilters.date instanceof Date ? prepaidGroupColumnFilters.date : new Date()));
       const apiLimit = prepaidGroupLimit === -1 ? 99999 : prepaidGroupLimit;
       const result = await fetchPrepaidFutureGroupLessons(location, endDate, endDate, page, apiLimit);
-      
+
       setData(prev => {
         if (!prev) return null;
         return {
@@ -304,7 +304,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           prepaidFutureGroupLessons: result.data
         };
       });
-      
+
       setPrepaidGroupPagination(result.pagination);
     } catch (error) {
       console.error("Failed to fetch prepaid group lessons:", error);
@@ -318,7 +318,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       const endDate = formatRangeParam((prepaidPrivateColumnFilters.date instanceof Date ? prepaidPrivateColumnFilters.date : new Date()));
       const apiLimit = prepaidPrivateLimit === -1 ? 99999 : prepaidPrivateLimit;
       const result = await fetchPrepaidFuturePrivateLessons(location, endDate, endDate, page, apiLimit);
-      
+
       setData(prev => {
         if (!prev) return null;
         return {
@@ -326,7 +326,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           prepaidFuturePrivateLessons: result.data
         };
       });
-      
+
       setPrepaidPrivatePagination(result.pagination);
     } catch (error) {
       console.error("Failed to fetch prepaid private lessons:", error);
@@ -340,7 +340,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       const endDate = formatRangeParam(range.to);
       const apiLimit = paidGroupLimit === -1 ? 99999 : paidGroupLimit;
       const result = await fetchPaidUnscheduledGroupLessons(location, formatRangeParam(range.from), endDate, page, apiLimit);
-      
+
       setData(prev => {
         if (!prev) return null;
         return {
@@ -348,7 +348,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           paidUnscheduledGroupLessons: result.data
         };
       });
-      
+
       setPaidGroupPagination(result.pagination);
     } catch (error) {
       console.error("Failed to fetch paid group lessons:", error);
@@ -362,7 +362,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       const endDate = formatRangeParam(range.to);
       const apiLimit = paidPrivateLimit === -1 ? 99999 : paidPrivateLimit;
       const result = await fetchPaidUnscheduledPrivateLessons(location, formatRangeParam(range.from), endDate, page, apiLimit);
-      
+
       setData(prev => {
         if (!prev) return null;
         return {
@@ -370,7 +370,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           paidUnscheduledPrivateLessons: result.data
         };
       });
-      
+
       setPaidPrivatePagination(result.pagination);
     } catch (error) {
       console.error("Failed to fetch paid private lessons:", error);
@@ -384,7 +384,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       const endDate = formatRangeParam(range.to);
       const apiLimit = activeInvoicesLimit === -1 ? 99999 : activeInvoicesLimit;
       const result = await fetchActiveOutstandingInvoices(location, formatRangeParam(range.from), endDate, page, apiLimit);
-      
+
       setData(prev => {
         if (!prev) return null;
         return {
@@ -392,7 +392,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           activeOutstandingInvoices: result.data
         };
       });
-      
+
       setActiveInvoicesPagination(result.pagination);
     } catch (error) {
       console.error("Failed to fetch active invoices:", error);
@@ -406,7 +406,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       const endDate = formatRangeParam(range.to);
       const apiLimit = inactiveInvoicesLimit === -1 ? 99999 : inactiveInvoicesLimit;
       const result = await fetchInactiveOutstandingInvoices(location, formatRangeParam(range.from), endDate, page, apiLimit);
-      
+
       setData(prev => {
         if (!prev) return null;
         return {
@@ -414,7 +414,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           inactiveOutstandingInvoices: result.data
         };
       });
-      
+
       setInactiveInvoicesPagination(result.pagination);
     } catch (error) {
       console.error("Failed to fetch inactive invoices:", error);
@@ -428,7 +428,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       const endDate = formatRangeParam(range.to);
       const apiLimit = activeCreditLimit === -1 ? 99999 : activeCreditLimit;
       const result = await fetchActiveCustomersWithCredit(location, formatRangeParam(range.from), endDate, page, apiLimit);
-      
+
       setData(prev => {
         if (!prev) return null;
         return {
@@ -436,7 +436,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           activeCustomersWithCredit: result.data
         };
       });
-      
+
       setActiveCreditPagination(result.pagination);
     } catch (error) {
       console.error("Failed to fetch active credit:", error);
@@ -450,7 +450,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       const endDate = formatRangeParam(range.to);
       const apiLimit = inactiveCreditLimit === -1 ? 99999 : inactiveCreditLimit;
       const result = await fetchInactiveCustomersWithCredit(location, formatRangeParam(range.from), endDate, page, apiLimit);
-      
+
       setData(prev => {
         if (!prev) return null;
         return {
@@ -458,7 +458,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           inactiveCustomersWithCredit: result.data
         };
       });
-      
+
       setInactiveCreditPagination(result.pagination);
     } catch (error) {
       console.error("Failed to fetch inactive credit:", error);
@@ -485,39 +485,39 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
   // Column definitions for each table (moved before conditional returns)
   const groupLessonColumns = [
-    { 
-      accessorKey: "lessonId", 
-      header: "Lesson ID", 
+    {
+      accessorKey: "lessonId",
+      header: "Lesson ID",
       size: 100,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "studentName", 
-      header: "Student Name", 
+    {
+      accessorKey: "studentName",
+      header: "Student Name",
       size: 150,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "customerName", 
-      header: "Customer Name", 
+    {
+      accessorKey: "customerName",
+      header: "Customer Name",
       size: 150,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "date", 
-      header: "Date", 
+    {
+      accessorKey: "date",
+      header: "Date",
       size: 150,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "duration", 
-      header: "Duration", 
+    {
+      accessorKey: "duration",
+      header: "Duration",
       size: 100,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "amount", 
-      header: "Amount", 
+    {
+      accessorKey: "amount",
+      header: "Amount",
       size: 100,
       cell: ({ row }: { row: { original: { amount: number } } }) => <span className="text-right block">{formatCurrency(row.original.amount)}</span>,
       meta: {
@@ -525,9 +525,9 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         exportFormatter: (value: unknown) => formatCurrency(value as number),
       }
     },
-    { 
-      accessorKey: "paidAmount", 
-      header: "Paid Amount", 
+    {
+      accessorKey: "paidAmount",
+      header: "Paid Amount",
       size: 100,
       cell: ({ row }: { row: { original: { paidAmount: number } } }) => <span className="text-right block">{formatCurrency(row.original.paidAmount)}</span>,
       meta: {
@@ -535,9 +535,9 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         exportFormatter: (value: unknown) => formatCurrency(value as number),
       }
     },
-    { 
-      accessorKey: "balance", 
-      header: "Balance", 
+    {
+      accessorKey: "balance",
+      header: "Balance",
       size: 100,
       cell: ({ row }: { row: { original: { balance: number } } }) => <span className="text-right block">{formatCurrency(row.original.balance)}</span>,
       meta: {
@@ -549,30 +549,30 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
   // Column definitions with date filters for lesson tables
   const lessonColumnsWithDateFilter = [
-    { 
-      accessorKey: "lessonId", 
-      header: "Lesson ID", 
+    {
+      accessorKey: "lessonId",
+      header: "Lesson ID",
       size: 100,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "studentName", 
-      header: "Student Name", 
+    {
+      accessorKey: "studentName",
+      header: "Student Name",
       size: 150,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "customerName", 
-      header: "Customer Name", 
+    {
+      accessorKey: "customerName",
+      header: "Customer Name",
       size: 150,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "date", 
-      header: "Date", 
+    {
+      accessorKey: "date",
+      header: "Date",
       size: 150,
-      filter: { 
-        type: "date", 
+      filter: {
+        type: "date",
         initialValue: new Date(),
         disabled: (date: Date) => {
           const today = new Date();
@@ -582,15 +582,15 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
       },
       meta: { printable: true }
     },
-    { 
-      accessorKey: "duration", 
-      header: "Duration", 
+    {
+      accessorKey: "duration",
+      header: "Duration",
       size: 100,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "amount", 
-      header: "Amount", 
+    {
+      accessorKey: "amount",
+      header: "Amount",
       size: 100,
       cell: ({ row }: { row: { original: { amount: number } } }) => <span className="text-right block">{formatCurrency(row.original.amount)}</span>,
       meta: {
@@ -598,9 +598,9 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         exportFormatter: (value: unknown) => formatCurrency(value as number),
       }
     },
-    { 
-      accessorKey: "paidAmount", 
-      header: "Paid Amount", 
+    {
+      accessorKey: "paidAmount",
+      header: "Paid Amount",
       size: 100,
       cell: ({ row }: { row: { original: { paidAmount: number } } }) => <span className="text-right block">{formatCurrency(row.original.paidAmount)}</span>,
       meta: {
@@ -608,9 +608,9 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         exportFormatter: (value: unknown) => formatCurrency(value as number),
       }
     },
-    { 
-      accessorKey: "balance", 
-      header: "Balance", 
+    {
+      accessorKey: "balance",
+      header: "Balance",
       size: 100,
       cell: ({ row }: { row: { original: { balance: number } } }) => <span className="text-right block">{formatCurrency(row.original.balance)}</span>,
       meta: {
@@ -622,21 +622,21 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
   // Summary table columns
   const summaryColumns = [
-    { 
-      accessorKey: "particulars", 
+    {
+      accessorKey: "particulars",
       header: "Particulars",
       size: 300,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "count", 
+    {
+      accessorKey: "count",
       header: "Count",
       size: 80,
       cell: ({ row }: { row: { original: { count: number } } }) => <span className="text-right block">{row.original.count}</span>,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "total", 
+    {
+      accessorKey: "total",
       header: "Total",
       size: 120,
       cell: ({ row }: { row: { original: { total: number | null } } }) => {
@@ -655,27 +655,27 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
 
   const invoiceColumns = [
-    { 
-      accessorKey: "invoiceId", 
-      header: "Invoice ID", 
+    {
+      accessorKey: "invoiceId",
+      header: "Invoice ID",
       size: 100,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "customerName", 
-      header: "Customer Name", 
+    {
+      accessorKey: "customerName",
+      header: "Customer Name",
       size: 150,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "date", 
-      header: "Date", 
+    {
+      accessorKey: "date",
+      header: "Date",
       size: 150,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "amount", 
-      header: "Amount", 
+    {
+      accessorKey: "amount",
+      header: "Amount",
       size: 100,
       cell: ({ row }: { row: { original: { amount: number } } }) => <span className="text-right block">{formatCurrency(row.original.amount)}</span>,
       meta: {
@@ -683,9 +683,9 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         exportFormatter: (value: unknown) => formatCurrency(value as number),
       }
     },
-    { 
-      accessorKey: "paidAmount", 
-      header: "Paid Amount", 
+    {
+      accessorKey: "paidAmount",
+      header: "Paid Amount",
       size: 100,
       cell: ({ row }: { row: { original: { paidAmount: number } } }) => <span className="text-right block">{formatCurrency(row.original.paidAmount)}</span>,
       meta: {
@@ -693,9 +693,9 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         exportFormatter: (value: unknown) => formatCurrency(value as number),
       }
     },
-    { 
-      accessorKey: "balance", 
-      header: "Balance", 
+    {
+      accessorKey: "balance",
+      header: "Balance",
       size: 100,
       cell: ({ row }: { row: { original: { balance: number } } }) => <span className="text-right block">{formatCurrency(row.original.balance)}</span>,
       meta: {
@@ -706,21 +706,21 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
   ];
 
   const creditColumns = [
-    { 
-      accessorKey: "customerId", 
-      header: "Customer ID", 
+    {
+      accessorKey: "customerId",
+      header: "Customer ID",
       size: 100,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "customerName", 
-      header: "Customer Name", 
+    {
+      accessorKey: "customerName",
+      header: "Customer Name",
       size: 200,
       meta: { printable: true }
     },
-    { 
-      accessorKey: "balance", 
-      header: "Balance", 
+    {
+      accessorKey: "balance",
+      header: "Balance",
       size: 100,
       cell: ({ row }: { row: { original: { balance: number } } }) => <span className="text-right block">{formatCurrency(row.original.balance)}</span>,
       meta: {
@@ -809,13 +809,13 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
       {/* Prepaid Future Group Lessons */}
       <Card className="p-4">
-        <CustomTable 
+        <CustomTable
           title="Prepaid Future Group Lessons"
-          data={financialData.prepaidFutureGroupLessons} 
-          columns={lessonColumnsWithDateFilter} 
-          enableSearch={false} 
+          data={financialData.prepaidFutureGroupLessons}
+          columns={lessonColumnsWithDateFilter}
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableColumnFilters={true}
           onColumnFilterChange={handlePrepaidGroupFilterChange}
@@ -854,13 +854,13 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
       {/* Paid Unscheduled Group Lessons */}
       <Card className="p-4">
-        <CustomTable 
+        <CustomTable
           title="Paid Unscheduled Group Lessons"
-          data={financialData.paidUnscheduledGroupLessons} 
-          columns={groupLessonColumns} 
-          enableSearch={false} 
+          data={financialData.paidUnscheduledGroupLessons}
+          columns={groupLessonColumns}
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableRowsPerPage={true}
           rowsPerPage={paidGroupLimit}
@@ -896,16 +896,16 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
       {/* Prepaid Future Private Lessons */}
       <Card className="p-4">
-        <CustomTable 
+        <CustomTable
           title="Prepaid Future Private Lessons"
-          data={financialData.prepaidFuturePrivateLessons} 
+          data={financialData.prepaidFuturePrivateLessons}
           columns={lessonColumnsWithDateFilter}
           enableColumnFilters={true}
           onColumnFilterChange={handlePrepaidPrivateFilterChange}
           columnFilters={prepaidPrivateColumnFilters}
-          enableSearch={false} 
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableRowsPerPage={true}
           rowsPerPage={prepaidPrivateLimit}
@@ -941,13 +941,13 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
       {/* Paid Unscheduled Private Lessons */}
       <Card className="p-4">
-        <CustomTable 
+        <CustomTable
           title="Paid Unscheduled Private Lessons"
-          data={financialData.paidUnscheduledPrivateLessons} 
-          columns={groupLessonColumns} 
-          enableSearch={false} 
+          data={financialData.paidUnscheduledPrivateLessons}
+          columns={groupLessonColumns}
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableRowsPerPage={true}
           rowsPerPage={paidPrivateLimit}
@@ -983,13 +983,13 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
       {/* Active Outstanding Invoices */}
       <Card className="p-4">
-        <CustomTable 
+        <CustomTable
           title="Active Outstanding Invoices"
-          data={financialData.activeOutstandingInvoices} 
-          columns={invoiceColumns} 
-          enableSearch={false} 
+          data={financialData.activeOutstandingInvoices}
+          columns={invoiceColumns}
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableRowsPerPage={true}
           rowsPerPage={activeInvoicesLimit}
@@ -1025,13 +1025,13 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
       {/* Inactive Outstanding Invoices */}
       <Card className="p-4">
-        <CustomTable 
+        <CustomTable
           title="Inactive Outstanding Invoices"
-          data={financialData.inactiveOutstandingInvoices} 
-          columns={invoiceColumns} 
-          enableSearch={false} 
+          data={financialData.inactiveOutstandingInvoices}
+          columns={invoiceColumns}
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableRowsPerPage={true}
           rowsPerPage={inactiveInvoicesLimit}
@@ -1067,13 +1067,13 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
       {/* Active Customers With Credit */}
       <Card className="p-4">
-        <CustomTable 
+        <CustomTable
           title="Active Customers With Credit"
-          data={financialData.activeCustomersWithCredit} 
-          columns={creditColumns} 
-          enableSearch={false} 
+          data={financialData.activeCustomersWithCredit}
+          columns={creditColumns}
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableRowsPerPage={true}
           rowsPerPage={activeCreditLimit}
@@ -1109,13 +1109,13 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
 
       {/* Inactive Customers With Credit */}
       <Card className="p-4">
-        <CustomTable 
+        <CustomTable
           title="Inactive Customers With Credit"
-          data={financialData.inactiveCustomersWithCredit} 
-          columns={creditColumns} 
-          enableSearch={false} 
+          data={financialData.inactiveCustomersWithCredit}
+          columns={creditColumns}
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableRowsPerPage={true}
           rowsPerPage={inactiveCreditLimit}
@@ -1149,25 +1149,21 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
         />
       </Card>
 
-      
-{/* Summary Table - Bottom */}
-<Card className="p-4">
-        <CustomTable 
+
+      {/* Summary Table - Bottom */}
+      <Card className="p-4">
+        <CustomTable
           title="Summary"
-          data={summaryData} 
-          columns={summaryColumns} 
-          enableSearch={false} 
+          data={summaryData}
+          columns={summaryColumns}
+          enableSearch={false}
           enableExport={true}
-          enableFilter={false} 
+          enableFilter={false}
           enablePrint={false}
           enableColumnFilters={false}
           size="compact"
         />
-</Card>
-
-
-
-      {error && <div className="text-sm text-red-600">{error}</div>}
+      </Card>
     </div>
   );
 }

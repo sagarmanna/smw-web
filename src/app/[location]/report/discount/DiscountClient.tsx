@@ -14,7 +14,8 @@ interface DiscountClientProps {
   location: string;
 }
 
-const columns = [
+// All discounts columns (detailed view)
+const allDiscountsColumns = [
   {
     accessorKey: "customer",
     header: "Customer",
@@ -199,6 +200,78 @@ const columns = [
   },
 ];
 
+// Summary columns (only Customer, Code, Net($), Price)
+const summaryColumns = [
+  {
+    accessorKey: "customer",
+    header: "Customer",
+    size: 300, // Larger size since fewer columns
+    minSize: 250,
+    maxSize: 400,
+    meta: {
+      printable: true,
+      printableName: "Customer",
+    },
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
+      const value = row.original.customer;
+      const isFooter = row.original.isFooter;
+      return (
+        <span className="font-semibold whitespace-normal break-words print:text-xs print:break-words">
+          {isFooter ? value : (value || '-')}
+        </span>
+      );
+    }
+  },
+  {
+    accessorKey: "code",
+    header: "Code",
+    size: 120,
+    minSize: 100,
+    maxSize: 150,
+    meta: {
+      printable: true,
+      printableName: "Code",
+    },
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
+      const value = row.original.code;
+      const isFooter = row.original.isFooter;
+      return <span className="print:text-xs">{isFooter ? value : (value || '-')}</span>;
+    },
+  },
+  {
+    accessorKey: "netDollar",
+    header: "Net($)",
+    size: 120,
+    minSize: 100,
+    maxSize: 150,
+    meta: {
+      printable: true,
+      printableName: "Net($)",
+    },
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
+      const value = row.original.netDollar;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
+    },
+  },
+  {
+    accessorKey: "price",
+    header: "Price",
+    size: 120,
+    minSize: 100,
+    maxSize: 150,
+    meta: {
+      printable: true,
+      printableName: "Price",
+    },
+    cell: ({ row }: { row: { original: DiscountRow & { isFooter?: boolean } } }) => {
+      const value = row.original.price;
+      const isFooter = row.original.isFooter;
+      return <span className="text-right block print:text-xs print:text-right">{isFooter ? value : (value || '-')}</span>;
+    },
+  },
+];
+
 export function DiscountClient({ location }: DiscountClientProps) {
   const [discounts, setDiscounts] = React.useState<DiscountRow[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
@@ -211,6 +284,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
     total: 0,
     totalPages: 1 // Only 1 page when showing all rows
   });
+  const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
 
   const [range, setRange] = React.useState<{ from: Date; to: Date }>(() => {
     const now = new Date();
@@ -241,55 +315,87 @@ export function DiscountClient({ location }: DiscountClientProps) {
     return `${fromStr} - ${toStr}`;
   }, [range.from, range.to]);
 
+  // Dynamic column selection based on active filter
+  const columns = React.useMemo(() => {
+    return activeFilter === 'summary_only' ? summaryColumns : allDiscountsColumns;
+  }, [activeFilter]);
+
   // Prepare footer row data
   const footerRow = React.useMemo(() => {
     if (footer) {
-      return {
-        customer: "TOTALS",
-        code: "",
-        description: "",
-        pf: "",
-        qty: "",
-        pfPercent: "",
-        enrolDollar: "",
-        customerPercent: "",
-        itemDollar: "",
-        netDollar: footer.totalDiscount || "",
-        price: "",
-        isFooter: true, // Add identifier for footer row
-      };
+      if (activeFilter === 'summary_only') {
+        // Summary footer - only show relevant columns
+        return {
+          customer: "TOTALS",
+          code: "",
+          description: "",
+          pf: "",
+          qty: "",
+          pfPercent: "",
+          enrolDollar: "",
+          customerPercent: "",
+          itemDollar: "",
+          netDollar: footer.totalDiscount || "",
+          price: "",
+          isFooter: true,
+        };
+      } else {
+        // All discounts footer - show all columns
+        return {
+          customer: "TOTALS",
+          code: "",
+          description: "",
+          pf: "",
+          qty: "",
+          pfPercent: "",
+          enrolDollar: "",
+          customerPercent: "",
+          itemDollar: "",
+          netDollar: footer.totalDiscount || "",
+          price: "",
+          isFooter: true, // Add identifier for footer row
+        };
+      }
     }
     return null;
-  }, [footer]);
+  }, [footer, activeFilter]);
 
   // Print handler using the enhanced common hook
   const handlePrintClick = React.useCallback(() => {
+    const isSummary = activeFilter === 'summary_only';
+    const customColumnWidths: Record<string, string> = isSummary ? {
+      'Customer': '40%',
+      'Code': '20%',
+      'Net($)': '20%',
+      'Price': '20%'
+    } : {
+      'Customer': '18%',
+      'Code': '8%',
+      'Description': '18%',
+      'Price': '12%',
+      'Net($)': '9%',
+      'Enrol($)': '8%',
+      'Item($)': '8%',
+      'Customer(%)': '8%',
+      'PF(%)': '5%',
+      'PF': '8%',
+      'Qty': '5%'
+    };
+
     handlePrint({
-      reportTitle: `Discount Report`,
+      reportTitle: `Discount Report${isSummary ? ' - Summary' : ''}`,
       columns,
       data: discounts,
       footer: footerRow || undefined,
       location: formatLocationName(location || ""),
       dateRange: range,
       forceCompactMode: true, // Force compact mode for this table
-      customColumnWidths: {
-        'Customer': '18%',
-        'Code': '8%',
-        'Description': '18%',
-        'Price': '12%',
-        'Net($)': '9%',
-        'Enrol($)': '8%',
-        'Item($)': '8%',
-        'Customer(%)': '8%',
-        'PF(%)': '5%',
-        'PF': '8%',
-        'Qty': '5%'
-      }
+      customColumnWidths
     });
-  }, [handlePrint, discounts, footerRow, location, range]);
+  }, [handlePrint, discounts, footerRow, location, range, activeFilter, columns]);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData({
-    reportTitle: `Discount Report - ${dateLabel}`,
+    reportTitle: `Discount Report${activeFilter === 'summary_only' ? ' - Summary' : ''} - ${dateLabel}`,
     columns,
     data: discounts,
   });
@@ -299,11 +405,12 @@ export function DiscountClient({ location }: DiscountClientProps) {
     const currentRange = dateRange || rangeRef.current;
     const startDate = formatRangeParam(currentRange.from);
     const endDate = formatRangeParam(currentRange.to);
+    const summaryOnly = activeFilter === 'summary_only';
     
     try {
       setIsLoading(true);
       setError(null);
-      const discountsRes = await getDiscounts(location, startDate, endDate);
+      const discountsRes = await getDiscounts(location, startDate, endDate, undefined, summaryOnly);
       
       if (discountsRes.success) {
         setDiscounts(discountsRes.data.body || []);
@@ -330,7 +437,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [location]); // Only depends on location
+  }, [location, activeFilter]); // Depends on location and activeFilter
 
   // Initial data fetch - only on mount and when location changes
   React.useEffect(() => {
@@ -342,6 +449,11 @@ export function DiscountClient({ location }: DiscountClientProps) {
     lastLocationRef.current = location;
     fetchDiscounts();
   }, [location]); // Only depend on location, not fetchDiscounts
+
+  // Refetch when filter changes
+  React.useEffect(() => {
+    fetchDiscounts();
+  }, [activeFilter, fetchDiscounts]);
 
   // Refetch function
   const refetch = React.useCallback(() => {
@@ -359,6 +471,11 @@ export function DiscountClient({ location }: DiscountClientProps) {
     // Call fetchDiscounts with the new range directly instead of relying on effect
     fetchDiscounts(newRange);
   }, [fetchDiscounts]);
+
+  const handleFilterChange = React.useCallback((filterKey: string | undefined) => {
+    setActiveFilter(filterKey);
+    setPagination(p => ({ ...p, page: 1 }));
+  }, []);
 
   // Clear errors function
   const clearErrors = React.useCallback(() => {
@@ -399,7 +516,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
         variant="default"
         
         // Feature flags
-        enableFilter={false}
+        enableFilter={true}
         enablePrint={true}
         onPrint={handlePrintClick}
         enableSorting={false}
@@ -407,6 +524,14 @@ export function DiscountClient({ location }: DiscountClientProps) {
         enableDateRangePicker={true}
         dateRange={range}
         onDateRangeChange={handleDateRangeChange}
+        
+        // Server-side filter configuration
+        serverSideFilterOptions={[
+          { key: 'summary_only', label: 'Summary Only' },
+        ]}
+        activeServerSideFilter={activeFilter}
+        onServerSideFilterChange={handleFilterChange}
+        defaultFilterLabel="All Discounts"
         
         // Server-side pagination configuration
         serverSidePagination={pagination}

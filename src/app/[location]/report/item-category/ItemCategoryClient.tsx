@@ -173,6 +173,10 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         size: 250,
         meta: { printable: true, printableName: "Date" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
+          const isFooter = row.original.id === 'TOTALS_ROW';
+          if (isFooter) {
+            return <span className="font-bold">TOTALS</span>;
+          }
           if (row.original.isGrandTotal) return null;
           if (row.original.date?.includes(',')) return <div className="whitespace-nowrap text-left py-2">{row.original.date}</div>;
           
@@ -186,6 +190,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         size: 150,
         meta: { printable: true, printableName: "Item Category" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
+          const isFooter = row.original.id === 'TOTALS_ROW';
+          if (isFooter) return null;
           if (row.original.isGrandTotal) return null;
           return <div className="text-left py-2"><span className="font-bold">{row.original.itemCategory}</span></div>;
         }
@@ -196,9 +202,13 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         size: 120,
         meta: { printable: true, printableName: "Subtotal", exportFormatter: (v: unknown) => formatCurrency(v as number) },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
+          const isFooter = row.original.id === 'TOTALS_ROW';
+          if (isFooter) {
+            return <span className="text-right block font-bold">{formatCurrency(row.original.subtotal)}</span>;
+          }
           const value = row.original.subtotal;
           if (row.original.isGrandTotal) {
-            return <div className="text-right font-bold text-lg py-2">{formatCurrency(value)}</div>;
+            return <div className="text-right font-bold text-lg py-2">{typeof value === 'string' ? value : formatCurrency(value)}</div>;
           }
           return <div className="text-right whitespace-nowrap py-2">{formatCurrency(value)}</div>;
         },
@@ -209,9 +219,13 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         size: 100,
         meta: { printable: true, printableName: "Tax", exportFormatter: (v: unknown) => formatCurrency(v as number) },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
+          const isFooter = row.original.id === 'TOTALS_ROW';
+          if (isFooter) {
+            return <span className="text-right block font-bold">{formatCurrency(row.original.tax)}</span>;
+          }
           const value = row.original.tax;
           if (row.original.isGrandTotal) {
-            return <div className="text-right font-bold text-lg py-2">{formatCurrency(value)}</div>;
+            return <div className="text-right font-bold text-lg py-2">{typeof value === 'string' ? value : formatCurrency(value)}</div>;
           }
           return <div className="text-right whitespace-nowrap py-2">{formatCurrency(value)}</div>;
         },
@@ -222,9 +236,13 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         size: 120,
         meta: { printable: true, printableName: "Total", exportFormatter: (v: unknown) => formatCurrency(v as number) },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
+          const isFooter = row.original.id === 'TOTALS_ROW';
+          if (isFooter) {
+            return <span className="text-right block font-bold">{formatCurrency(row.original.total)}</span>;
+          }
           const value = row.original.total;
           if (row.original.isGrandTotal) {
-            return <div className="text-right font-bold text-lg py-2">{formatCurrency(value)}</div>;
+            return <div className="text-right font-bold text-lg py-2">{typeof value === 'string' ? value : formatCurrency(value)}</div>;
           }
           return <div className="text-right whitespace-nowrap py-2">{formatCurrency(value)}</div>;
         },
@@ -241,8 +259,17 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         accessorKey: "id",
         header: "ID",
         size: 100,
-        meta: { printable: true, printableName: "ID" },
+        meta: { 
+          printable: true, 
+          printableName: "ID",
+          exportFormatter: (value: unknown) => {
+            if (value === 'TOTALS_ROW') return '';
+            return String(value || 'N/A');
+          }
+        },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
+          const isFooter = row.original.id === 'TOTALS_ROW';
+          if (isFooter) return <span className="text-muted-foreground"></span>; // Show em dash for footer
           if (row.original.isSummary || row.original.isGrandTotal) return null;
           return <div className="whitespace-nowrap text-ellipsis overflow-hidden py-2" style={{ maxWidth: '80px' }}>{row.original.id || 'N/A'}</div>;
         },
@@ -253,6 +280,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         size: 150,
         meta: { printable: true, printableName: "Customer" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
+          const isFooter = row.original.id === 'TOTALS_ROW';
+          if (isFooter) return null;
           if (row.original.isSummary || row.original.isGrandTotal) return null;
           return <div className="whitespace-nowrap text-ellipsis overflow-hidden py-2">{row.original.customer}</div>;
         },
@@ -263,6 +292,8 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
         size: 300,
         meta: { printable: true, printableName: "Description" },
         cell: ({ row }: { row: { original: ItemCategoryRow & { isSummary?: boolean; isGrandTotal?: boolean } } }) => {
+          const isFooter = row.original.id === 'TOTALS_ROW';
+          if (isFooter) return null;
           if (row.original.isGrandTotal) return null;
           return <div className="text-ellipsis overflow-hidden py-2">{row.original.description}</div>;
         },
@@ -288,15 +319,17 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
   }, [itemCategories, categorySearchTerm]);
 
   const footerRow = React.useMemo(() => {
-    if (!footer || !summariesOnly) return undefined;
+    if (!footer) return undefined;
+    
     return {
-      id: '',
+      id: 'TOTALS_ROW', // Special ID to identify footer row
       customer: '',
       description: '',
       itemCategory: '',
-      date: 'GRAND TOTAL',
-      isGrandTotal: true,
-      ...footer,
+      date: 'TOTALS',
+      subtotal: footer.subtotal,
+      tax: footer.tax,
+      total: footer.total,
     };
   }, [footer]);
 
