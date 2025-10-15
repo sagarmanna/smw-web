@@ -477,6 +477,13 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enableFilter={CUSTOMER_TABLE_CONFIGS.payments.enableFilter}
           enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.payments.enableRowsPerPage}
           iconType="chevron"
+          dropdownItems={[
+            {
+              label: "Receive Payment",
+              onClick: () => console.log('Receive Payment clicked')
+            }
+          ]}
+          dropdownLabel="Payment Actions"
         />
       </div>
 
