@@ -379,6 +379,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           data: accountReceivable,
           footer: footerRow || undefined,
           location,
+          rightAlignedColumns: ["OutStanding Invoices",	"Pre-Paid Lessons",	"Unused Credits",	"Balance"],
         })}
         enableSorting={false}
         enableRowsPerPage={true}

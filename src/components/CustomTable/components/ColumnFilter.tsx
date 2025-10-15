@@ -64,7 +64,7 @@ export function ColumnFilterComponent({
                 variant="outline"
                 size="sm"
                 className={cn(
-                  "h-6 w-full px-1 text-xs justify-center font-normal",
+                  "h-8 w-full px-2 text-sm justify-center font-normal",
                   !hasValue && "text-muted-foreground",
                   className
                 )}
@@ -81,7 +81,7 @@ export function ColumnFilterComponent({
                     onValueChange(new Date());
                     setOpen(false);
                   }}
-                  className="w-full h-6 text-xs"
+                  className="w-full h-8 text-sm"
                 >
                   Today
                 </Button>
@@ -108,7 +108,7 @@ export function ColumnFilterComponent({
                 onEnter();
               }
             }}
-            className={cn("h-6 text-xs", className)}
+            className={cn("h-8 text-sm", className)}
           />
         );
 
@@ -120,7 +120,7 @@ export function ColumnFilterComponent({
                 variant="outline"
                 size="sm"
                 className={cn(
-                  "h-6 w-full px-1 text-xs justify-center font-normal",
+                  "h-8 w-full px-2 text-sm justify-center font-normal",
                   !hasValue && "text-muted-foreground",
                   className
                 )}
@@ -140,7 +140,7 @@ export function ColumnFilterComponent({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDropdownChange(option.value)}
-                    className="w-full h-6 text-xs justify-start"
+                    className="w-full h-8 text-sm justify-start"
                   >
                     {option.label}
                   </Button>
@@ -160,7 +160,7 @@ export function ColumnFilterComponent({
                 variant="outline"
                 size="sm"
                 className={cn(
-                  "h-6 w-full px-1 text-xs justify-center font-normal",
+                  "h-8 w-full px-2 text-sm justify-center font-normal",
                   !hasValue && "text-muted-foreground",
                   className
                 )}
@@ -177,7 +177,7 @@ export function ColumnFilterComponent({
                     onValueChange(new Date());
                     setOpen(false);
                   }}
-                  className="w-full h-6 text-xs"
+                  className="w-full h-8 text-sm"
                 >
                   Today
                 </Button>
@@ -209,7 +209,7 @@ export function ColumnFilterComponent({
           variant="ghost"
           size="sm"
           onClick={onClear}
-          className="h-6 w-6 p-0 hover:bg-muted"
+          className="h-8 w-8 p-0 hover:bg-muted"
         >
           <X className="h-3 w-3" />
         </Button>

@@ -5,7 +5,7 @@ import * as React from "react";
 
 export default function PrintPage() {
   // Read exclusively from session storage for this flow
-  type PrintColumn = { key: string; header: string; align?: 'left' | 'right'; widthPercent?: number };
+  type PrintColumn = { key: string; header: string; align?: 'left' | 'right' | 'center'; headerAlign?: 'left' | 'right' | 'center'; widthPercent?: number };
   type PrintRow = Record<string, unknown>;
   type PrintPayload = { 
     title: string; 
@@ -78,8 +78,6 @@ export default function PrintPage() {
         thead th { background: #f8fafc; color: #111827; font-weight: 700; font-size: 12.5px; padding: 8px 10px; border-bottom: 2px solid #e5e7eb; text-align: center; vertical-align: bottom; word-break: break-word; }
         tbody td { font-size: 12px; padding: 6px 10px; border-top: 1px solid #e5e7eb; vertical-align: top; word-break: break-word; }
         tbody tr:nth-child(even) { background: #fafafa; }
-        th:first-child, td:first-child { text-align: left; }
-        th:not(:first-child), td:not(:first-child) { text-align: right; }
         tbody tr.__print-footer { background: #f1f5f9; }
         tbody tr.__print-footer td { font-weight: 700; border-top: 2px solid #e5e7eb; }
       `}</style>
@@ -102,7 +100,7 @@ export default function PrintPage() {
         <thead>
           <tr>
             {print.columns.map((c: PrintColumn) => (
-              <th key={c.key}>{c.header}</th>
+              <th key={c.key} style={{ textAlign: c.headerAlign || 'center' }}>{c.header}</th>
             ))}
           </tr>
         </thead>

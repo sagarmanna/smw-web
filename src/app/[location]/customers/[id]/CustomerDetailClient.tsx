@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { Settings, SlashIcon, Edit, ChevronDown, Plus } from "lucide-react";
+import { Settings, SlashIcon, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,9 +33,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { LessonsDueCard, OutstandingInvoiceCard, CreditsCard, BalanceCard } from "@/components/MetricCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
 import { TabContent } from "@/components/TabContent";
@@ -46,6 +44,7 @@ import { OpeningBalanceCard } from "../components/OpeningBalanceCard";
 import { PhoneCard } from "../components/PhoneCard";
 import { RecurringPaymentModal } from "../components/RecurringPaymentModal";
 import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
+import { DetailsCard } from "../components/DetailsCard";
 
 import { 
   InvoiceData, 
@@ -98,6 +97,13 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] = React.useState<boolean>(false);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] = React.useState<boolean>(false);
 
+  // Local state for editable customer details
+  const [localFirstName, setLocalFirstName] = React.useState<string>("");
+  const [localLastName, setLocalLastName] = React.useState<string>("");
+  const [referralSource, setReferralSource] = React.useState<string>("Drive By");
+  const [status, setStatus] = React.useState<string>("Active");
+  const [picture, setPicture] = React.useState<string | undefined>(undefined);
+
   // Handle adding new student
   const handleAddStudent = (studentData: { firstName: string; lastName: string; customerName: string; birthDate: string; gender: string }) => {
     // TODO: Implement actual student creation logic
@@ -111,7 +117,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   };
 
   // Handle adding new recurring payment
-  const handleAddRecurringPayment = (data: unknown) => {
+  const handleAddRecurringPayment = () => {
     // TODO: Implement actual recurring payment creation logic
     // For now, just close the modal
     setIsRecurringPaymentModalOpen(false);
@@ -197,6 +203,12 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         const customerData = await getCustomerById(location, Number(id));
         setCustomer(customerData);
         
+        // Set local names from loaded customer data
+        if (customerData) {
+          setLocalFirstName(customerData.firstName);
+          setLocalLastName(customerData.lastName);
+        }
+        
         // Load all table data in parallel
         const [
           invoices,
@@ -242,6 +254,38 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     loadData();
   }, [location, id]);
 
+  // Handle details save
+  const handleDetailsSave = React.useCallback((newData: {
+    firstName: string;
+    lastName: string;
+    role: string;
+    referralSource: string;
+    status: string;
+    picture?: string;
+  }) => {
+    // Update local names immediately
+    setLocalFirstName(newData.firstName);
+    setLocalLastName(newData.lastName);
+    
+    // Update customer state with new data
+    setCustomer(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        firstName: newData.firstName,
+        lastName: newData.lastName,
+      };
+    });
+    
+    // Update additional states
+    setReferralSource(newData.referralSource);
+    setStatus(newData.status);
+    setPicture(newData.picture);
+    
+    console.log("Saved customer details:", newData);
+    // TODO: Call API to update customer details
+  }, []);
+
   return (
     <div className="space-y-4 bg-white px-2 sm:px-3">
       {/* Breadcrumb header (shadcn) */}
@@ -254,7 +298,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             <SlashIcon className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
             <BreadcrumbItem>
               <BreadcrumbPage className="truncate max-w-[70vw] sm:max-w-none">
-                {loading ? "Loading..." : customer ? `${customer.firstName} ${customer.lastName}` : id}
+                {loading ? "Loading..." : localFirstName && localLastName ? `${localFirstName} ${localLastName}` : id}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -305,28 +349,18 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       {/* Details and Email Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Details Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-lg font-semibold">Details</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <KeyValueDisplay 
-              label="Name" 
-              value={loading ? "..." : customer ? `${customer.firstName} ${customer.lastName}` : "N/A"} 
-            />
-            <KeyValueDisplay label="Role" value="Customer" />
-            <KeyValueDisplay label="Referral Source" value="Drive By" />
-            <KeyValueDisplay label="Status" value="Active" />
-          </CardContent>
-        </Card>
+        <DetailsCard 
+          data={{
+            firstName: localFirstName,
+            lastName: localLastName,
+            role: "Customer",
+            referralSource: referralSource,
+            status: status,
+            picture: picture
+          }}
+          onSave={handleDetailsSave}
+          loading={loading}
+        />
 
         {/* Email Card */}
         <EmailCard 

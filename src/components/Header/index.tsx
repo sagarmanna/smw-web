@@ -102,6 +102,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         'dashboard': '/dashboard',
         'schedule': '/schedule',
         'menu-flags': '/admin/menu-flags', // Special case for admin pages
+        'customers': '/user/index?UserSearch%5Brole_name%5D=customer',
       };
       
       let legacyPath;

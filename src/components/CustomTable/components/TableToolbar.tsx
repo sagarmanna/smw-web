@@ -103,7 +103,7 @@ export function TableToolbar<TData>({
           <Search className="h-4 w-4 text-muted-foreground" />
           <input
             placeholder={searchPlaceholder}
-            className="h-8 w-full max-w-xs rounded border px-2 text-sm"
+            className="h-8 w-full max-w-xs rounded border border-input bg-background px-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             value={globalFilter}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onGlobalFilterChange(e.target.value)}
           />
