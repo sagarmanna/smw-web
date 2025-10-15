@@ -58,11 +58,11 @@ export function ReusableModal({
       case "destructive":
         return `${baseClasses} text-white bg-red-600 hover:bg-red-700 focus:ring-red-500`;
       case "outline":
-        return `${baseClasses} text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:ring-gray-500`;
+        return `${baseClasses} text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-gray-500`;
       case "secondary":
-        return `${baseClasses} text-gray-700 bg-gray-100 hover:bg-gray-200 focus:ring-gray-500`;
+        return `${baseClasses} text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:ring-gray-500`;
       case "ghost":
-        return `${baseClasses} text-gray-700 hover:bg-gray-100 focus:ring-gray-500`;
+        return `${baseClasses} text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:ring-gray-500`;
       case "link":
         return `${baseClasses} text-[#f3573f] underline-offset-4 hover:underline focus:ring-[#f3573f]`;
       default:
@@ -74,8 +74,8 @@ export function ReusableModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${sizeClasses[size]} ${className || ""}`}>
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-gray-900">{title}</DialogTitle>
-          {description && <DialogDescription className="text-sm text-gray-600">{description}</DialogDescription>}
+          <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</DialogTitle>
+          {description && <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">{description}</DialogDescription>}
         </DialogHeader>
         
         <div className="py-4">{children}</div>

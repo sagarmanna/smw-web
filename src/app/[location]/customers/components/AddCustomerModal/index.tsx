@@ -199,10 +199,10 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
               onChange={(e) => handleInputChange("firstname", e.target.value)}
               placeholder="Enter first name"
               disabled={isSubmitting}
-              className={errors.firstname ? "border-red-600" : ""}
+              className={errors.firstname ? "border-red-600 dark:border-red-400" : ""}
             />
             {errors.firstname && (
-              <p className="text-sm text-red-600">{errors.firstname}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{errors.firstname}</p>
             )}
           </div>
           
@@ -214,10 +214,10 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
               onChange={(e) => handleInputChange("lastname", e.target.value)}
               placeholder="Enter last name"
               disabled={isSubmitting}
-              className={errors.lastname ? "border-red-600" : ""}
+              className={errors.lastname ? "border-red-600 dark:border-red-400" : ""}
             />
             {errors.lastname && (
-              <p className="text-sm text-red-600">{errors.lastname}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{errors.lastname}</p>
             )}
           </div>
         </div>
@@ -231,10 +231,10 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
             onChange={(e) => handleInputChange("email", e.target.value)}
             placeholder="Enter email address"
             disabled={isSubmitting}
-            className={errors.email ? "border-red-600" : ""}
+            className={errors.email ? "border-red-600 dark:border-red-400" : ""}
           />
           {errors.email && (
-            <p className="text-sm text-red-600">{errors.email}</p>
+            <p className="text-sm text-red-600 dark:text-red-400">{errors.email}</p>
           )}
         </div>
 
@@ -257,7 +257,7 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
             </SelectContent>
           </Select>
           {isLoading && (
-            <p className="text-sm text-gray-500">Loading referral sources...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading referral sources...</p>
           )}
         </div>
 
@@ -280,8 +280,8 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
         })()}
 
         {errors.submit && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-600">{errors.submit}</p>
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+            <p className="text-sm text-red-600 dark:text-red-400">{errors.submit}</p>
           </div>
         )}
 

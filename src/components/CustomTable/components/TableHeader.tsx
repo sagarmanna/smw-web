@@ -164,7 +164,7 @@ export function TableHeader<TData>({
               return (
                 <th 
                   key={`filter-${header.id}`} 
-                  className={`px-2 py-1 text-center border-r border-border/50`}
+                  className={`px-2 py-2 text-center border-r border-border/50`}
                   style={{
                     width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
                     minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
@@ -204,7 +204,7 @@ export function TableHeader<TData>({
             {table.getHeaderGroups()[0]?.headers.map((header) => (
               <th 
                 key={`filter-${header.id}`} 
-                className={`px-2 py-1 text-center border-r border-border/50`}
+                className={`px-2 py-2 text-center border-r border-border/50`}
                 style={{
                   width: header.column.columnDef.size ? `${header.column.columnDef.size}px` : undefined,
                   minWidth: header.column.columnDef.minSize ? `${header.column.columnDef.minSize}px` : undefined,
