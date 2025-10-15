@@ -13,7 +13,7 @@ interface CustomersClientProps {
   location: string;
 }
 
-export function CustomersClient({ location }: CustomersClientProps) {
+export function CustomersListingClient({ location }: CustomersClientProps) {
   const router = useRouter();
   const [rows, setRows] = React.useState<CustomerRow[]>([]);
   const [total, setTotal] = React.useState<number>(0);
@@ -178,7 +178,7 @@ export function CustomersClient({ location }: CustomersClientProps) {
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row) => {
           // Navigate once per click: push with explicit query param key to avoid parsing quirks
-          router.push(`customers?id=${row.id}`);
+          router.push(`customers/${row.id}`);
         }}
         rowClassName="cursor-pointer"
       />

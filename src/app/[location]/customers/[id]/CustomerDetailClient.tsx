@@ -23,7 +23,7 @@ import {
   getCustomerPrivateLessonDue,
   getCustomerGroupLessonDue,
   getCustomerPayments
-} from "./customers.api";
+} from "../customers.api";
 import { 
   Breadcrumb,
   BreadcrumbList,
@@ -39,11 +39,11 @@ import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
 import { TabContent } from "@/components/TabContent";
-import { AddressCard } from "./components/AddressCard";
-import { EmailCard } from "./components/EmailCard";
-import { DiscountCard } from "./components/DiscountCard";
-import { OpeningBalanceCard } from "./components/OpeningBalanceCard";
-import { PhoneCard } from "./components/PhoneCard";
+import { AddressCard } from "../components/AddressCard";
+import { EmailCard } from "../components/EmailCard";
+import { DiscountCard } from "../components/DiscountCard";
+import { OpeningBalanceCard } from "../components/OpeningBalanceCard";
+import { PhoneCard } from "../components/PhoneCard";
 
 import { 
   InvoiceData, 
@@ -54,7 +54,7 @@ import {
   GroupLessonDueData, 
   PaymentData,
   CUSTOMER_TABLE_CONFIGS
-} from "./tableConfigs";
+} from "../tableConfigs";
 import { 
   CUSTOMER_TAB_CONFIGS, 
   TAB_ORDER,
@@ -65,7 +65,7 @@ import {
   ProformaInvoiceData,
   CommentData,
   HistoryData
-} from "./tabConfigs";
+} from "../tabConfigs";
 
 interface PhoneNumber {
   id: string;
