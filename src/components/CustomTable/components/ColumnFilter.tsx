@@ -15,6 +15,7 @@ interface ColumnFilterProps {
   value: unknown;
   onValueChange: (value: unknown) => void;
   onClear: () => void;
+  onEnter?: () => void;
   className?: string;
 }
 
@@ -23,6 +24,7 @@ export function ColumnFilterComponent({
   value,
   onValueChange,
   onClear,
+  onEnter,
   className,
 }: ColumnFilterProps) {
   const [open, setOpen] = React.useState(false);
@@ -99,9 +101,13 @@ export function ColumnFilterComponent({
       case "string":
         return (
           <Input
-            placeholder="Filter..."
             value={isString(currentValue) ? currentValue : ""}
             onChange={handleStringChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && onEnter) {
+                onEnter();
+              }
+            }}
             className={cn("h-6 text-xs", className)}
           />
         );
@@ -128,14 +134,6 @@ export function ColumnFilterComponent({
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <div className="p-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDropdownChange("")}
-                  className="w-full h-6 text-xs justify-start"
-                >
-                  All
-                </Button>
                 {filter.options?.map((option) => (
                   <Button
                     key={option.value}

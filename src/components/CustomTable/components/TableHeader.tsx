@@ -16,6 +16,7 @@ interface TableHeaderProps<TData> {
   enableColumnFilters?: boolean;
   columnFilters?: Record<string, unknown>;
   onColumnFilterChange?: (columnKey: string, filterValue: unknown) => void;
+  onColumnFilterEnter?: (columnKey: string) => void;
 }
 
 export function TableHeader<TData>({
@@ -27,6 +28,7 @@ export function TableHeader<TData>({
   enableColumnFilters = false,
   columnFilters = {},
   onColumnFilterChange,
+  onColumnFilterEnter,
 }: TableHeaderProps<TData>) {
   // Helper function to render a sortable header
   const renderSortableHeader = (header: Header<TData, unknown>) => {
@@ -75,6 +77,7 @@ export function TableHeader<TData>({
         value={columnFilters[columnKey]}
         onValueChange={handleFilterChange}
         onClear={handleFilterClear}
+        onEnter={onColumnFilterEnter ? () => onColumnFilterEnter(columnKey) : undefined}
       />
     );
   };

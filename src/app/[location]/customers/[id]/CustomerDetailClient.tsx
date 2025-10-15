@@ -23,7 +23,7 @@ import {
   getCustomerPrivateLessonDue,
   getCustomerGroupLessonDue,
   getCustomerPayments
-} from "./customers.api";
+} from "../customers.api";
 import { 
   Breadcrumb,
   BreadcrumbList,
@@ -35,15 +35,16 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { LessonsDueCard, OutstandingInvoiceCard, CreditsCard, BalanceCard } from "@/components/MetricCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
 import { TabContent } from "@/components/TabContent";
-import { AddressCard } from "./components/AddressCard";
-import { DiscountCard } from "./components/DiscountCard";
-import { OpeningBalanceCard } from "./components/OpeningBalanceCard";
-import { PhoneCard } from "./components/PhoneCard";
+import { AddressCard } from "../components/AddressCard";
+import { EmailCard } from "../components/EmailCard";
+import { DiscountCard } from "../components/DiscountCard";
+import { OpeningBalanceCard } from "../components/OpeningBalanceCard";
+import { PhoneCard } from "../components/PhoneCard";
+
 import { 
   InvoiceData, 
   OutstandingInvoiceData, 
@@ -53,7 +54,7 @@ import {
   GroupLessonDueData, 
   PaymentData,
   CUSTOMER_TABLE_CONFIGS
-} from "./tableConfigs";
+} from "../tableConfigs";
 import { 
   CUSTOMER_TAB_CONFIGS, 
   TAB_ORDER,
@@ -64,14 +65,21 @@ import {
   ProformaInvoiceData,
   CommentData,
   HistoryData
-} from "./tabConfigs";
-import { mockCustomerTabData } from "./mockData/customersMockData";
-import AddStudentModal from "./components/AddStudentModal/index";
+} from "../tabConfigs";
+import { mockCustomerTabData } from "../mockData/customersMockData";
+import AddStudentModal from "../components/AddStudentModal/index";
 
 interface PhoneNumber {
   id: string;
   label: string;
   number: string;
+}
+
+interface Email {
+  id: string;
+  label: string;
+  email: string;
+  note?: string;
 }
 
 interface CustomerDetailClientProps {
@@ -119,6 +127,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
+  const [emails, setEmails] = React.useState<Email[]>([]);
   const [addresses, setAddresses] = React.useState<Array<{
     id: string;
     label: string;
@@ -271,7 +280,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           loading={loading} 
         />
         <BalanceCard 
-          value={customer ? formatCurrency(customer.balance) : formatCurrency(0)} 
+          value={customer ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)} 
           loading={loading} 
         />
       </div>
@@ -303,15 +312,11 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         </Card>
 
         {/* Email Card */}
-        <InfoCard title="Email">
-          <div className="space-y-2">
-            <KeyValueDisplay 
-              label="Home" 
-              value={loading ? "..." : customer ? customer.email : "N/A"} 
-            />
-            <KeyValueDisplay label="Home" value="sample1@example.com" />
-          </div>
-        </InfoCard>
+        <EmailCard 
+          emails={emails}
+          onAddClick={() => console.log('Add email clicked')}
+          onSave={setEmails}
+        />
       </div>
 
       {/* Tables and Additional Info Section */}
@@ -373,7 +378,6 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           <OpeningBalanceCard 
             amount={openingBalance}
             onSave={(amount, type) => {
-              // Handle the balance type (owing/credit) if needed
               setOpeningBalance(type === "owing" ? amount : -amount);
             }}
           />

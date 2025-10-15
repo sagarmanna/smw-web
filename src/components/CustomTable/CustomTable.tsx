@@ -127,6 +127,7 @@ export interface CustomTableProps<TData, TValue> {
   // Column-level filtering
   enableColumnFilters?: boolean; // Enable column-level filtering
   onColumnFilterChange?: (columnKey: string, filterValue: unknown) => void; // Callback when column filter changes
+  onColumnFilterEnter?: (columnKey: string) => void; // Callback when Enter is pressed in column filter
   columnFilters?: Record<string, unknown>; // External column filter state
 }
 
@@ -211,6 +212,7 @@ export function CustomTable<TData, TValue>({
   // Column-level filtering
   enableColumnFilters = false,
   onColumnFilterChange,
+  onColumnFilterEnter,
   columnFilters: externalColumnFilters,
 }: CustomTableProps<TData, TValue>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
@@ -445,6 +447,7 @@ export function CustomTable<TData, TValue>({
                 enableColumnFilters={enableColumnFilters}
                 columnFilters={columnFilters}
                 onColumnFilterChange={handleColumnFilterChange}
+                onColumnFilterEnter={onColumnFilterEnter}
               />
               <TableBody
                 table={table}
