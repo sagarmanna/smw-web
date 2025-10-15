@@ -96,7 +96,6 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
   // Handle adding new student
   const handleAddStudent = (studentData: { firstName: string; lastName: string; customerName: string; birthDate: string; gender: string }) => {
-    console.log('Adding new student:', studentData);
     // TODO: Implement actual student creation logic
     // For now, just add to mock data
     const newStudent = {
@@ -252,14 +251,14 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => console.log('Receive Payment')}>Receive Payment</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Print Statement')}>Print Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Email Statement')}>Email Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('A/R Report Detail')}>A/R Report Detail</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Items Purchased by Category')}>Items Purchased by Category</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Notify Via Email')}>Notify Via Email</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Receive Payment</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Print Statement</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Email Statement</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>A/R Report Detail</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Items Purchased by Category</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Notify Via Email</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600" onClick={() => console.log('Delete')}>Delete</DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600" onClick={() => {}}>Delete</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -314,7 +313,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         {/* Email Card */}
         <EmailCard 
           emails={emails}
-          onAddClick={() => console.log('Add email clicked')}
+          onAddClick={() => {}}
           onSave={setEmails}
         />
       </div>
@@ -328,7 +327,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             data={invoiceData} 
             columns={CUSTOMER_TABLE_CONFIGS.invoices.columns}
             loading={loading}
-            onAdd={() => console.log('Add invoice')}
+            onAdd={() => {}}
             size={CUSTOMER_TABLE_CONFIGS.invoices.size}
             variant={CUSTOMER_TABLE_CONFIGS.invoices.variant}
             enableSorting={CUSTOMER_TABLE_CONFIGS.invoices.enableSorting}
@@ -345,7 +344,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             data={outstandingInvoiceData} 
             columns={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.columns}
             loading={loading}
-            onAdd={() => console.log('Add outstanding invoice')}
+            onAdd={() => {}}
             size={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.size}
             variant={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.variant}
             enableSorting={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableSorting}
@@ -397,7 +396,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={equipmentRentalData} 
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
           loading={loading}
-          onAdd={() => console.log('Add equipment rental')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSorting}
@@ -418,7 +417,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={recurringPaymentData} 
           columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
           loading={loading}
-          onAdd={() => console.log('Add recurring payment')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.recurringPayments.size}
           variant={CUSTOMER_TABLE_CONFIGS.recurringPayments.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSorting}
@@ -436,7 +435,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           columns={CUSTOMER_TABLE_CONFIGS.privateLessonDue.columns}
           loading={loading}
           footerRow={privateLessonDueFooterRow}
-          onAdd={() => console.log('Add private lesson')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.privateLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.privateLessonDue.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableSorting}
@@ -453,7 +452,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={groupLessonDueData} 
           columns={CUSTOMER_TABLE_CONFIGS.groupLessonDue.columns}
           loading={loading}
-          onAdd={() => console.log('Add group lesson')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.groupLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.groupLessonDue.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableSorting}
@@ -471,7 +470,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
           loading={loading}
           footerRow={paymentFooterRow}
-          onAdd={() => console.log('Add payment')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.payments.size}
           variant={CUSTOMER_TABLE_CONFIGS.payments.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.payments.enableSorting}
@@ -484,7 +483,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           dropdownItems={[
             {
               label: "Receive Payment",
-              onClick: () => console.log('Receive Payment clicked')
+              onClick: () => {}
             }
           ]}
           dropdownLabel="Payment Actions"
@@ -540,7 +539,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
                     if (tabKey === "students") {
                       setIsAddStudentModalOpen(true);
                     } else {
-                      console.log(`Add ${config.title.toLowerCase()}`);
+                      // TODO: Implement add functionality for other tabs
                     }
                   }}
                   emptyState={config.emptyState}
