@@ -21,6 +21,7 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'tax-collected': 'taxCollected',
     'royalty-free': 'royaltyFree',
     'royalty': 'royalty',
+    'customers': 'customers',
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -46,6 +47,7 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     taxCollected: `/report/tax-collected`,
     royaltyFree: `/report/royalty-free`,
     royalty: `/report/royalty`,
+    customers: `/user/index?UserSearch%5Brole_name%5D=customer`,
   };
   
   const legacyPath = featureToUrlMap[feature] || '/dashboard';

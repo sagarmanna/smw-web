@@ -304,7 +304,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       id: 'customers',
       title: 'Customers',
       icon: <User className="h-4 w-4" />,
-      url: '/user/index?UserSearch[role_name]=customer',
+      url: getMenuSource(locationFlags, 'customers') === 'legacy' ? '/user/index?UserSearch[role_name]=customer' : '/customers',
       source: getMenuSource(locationFlags, 'customers') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'customers') ? ('no' as const) : ('yes' as const),
