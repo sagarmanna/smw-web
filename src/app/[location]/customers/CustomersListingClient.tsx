@@ -405,6 +405,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row) => {
           // Navigate once per click: push with explicit query param key to avoid parsing quirks
+          // TODO: Remove this once we have a proper customer page
           if(isDev()){
             router.push(`customers/${row.id}`);
           } else {

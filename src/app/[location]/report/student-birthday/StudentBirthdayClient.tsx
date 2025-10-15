@@ -85,8 +85,6 @@ export const StudentBirthdayClient = ({ location }: { location: string }) => {
       accessorKey: "birthDate",
       header: "Birth Date",
       size: 150,
-      // TODO: Uncomment this when the API is updated
-      // enableSorting: true,
       meta: {
         printable: true,
         printableName: "Birth Date",
