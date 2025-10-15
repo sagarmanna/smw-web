@@ -194,7 +194,7 @@ export function DetailsCard({
 
   const handleMergeClick = () => {
     // TODO: Implement merge functionality
-    console.log("Merge clicked");
+    
   };
 
   const handlePasswordSave = () => {
@@ -210,7 +210,7 @@ export function DetailsCard({
     }
 
     // TODO: Save password via API
-    console.log("Password saved");
+    
     setIsPasswordModalOpen(false);
     setPassword("");
     setConfirmPassword("");
