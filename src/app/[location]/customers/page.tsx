@@ -1,6 +1,4 @@
-import { CustomersClient } from "./CustomersClient";
-import { CustomerDetailClient } from "./CustomerDetailClient";
-import CustomersPageClient from "./CustomersPageClient";
+import { CustomersListingClient } from "./CustomersListingClient";
 
 interface CustomersPageProps {
   params: Promise<{
@@ -10,7 +8,7 @@ interface CustomersPageProps {
 
 export default async function CustomersPage({ params }: CustomersPageProps) {
   const { location } = await params;
-  return <CustomersPageClient location={location} />;
+  return <CustomersListingClient location={location} />;
 }
 
 
