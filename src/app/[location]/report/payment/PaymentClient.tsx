@@ -164,6 +164,7 @@ export const PaymentClient = ({ location }: { location: string }) => {
           footer: footerRow,
           location,
           dateRange,
+          rightAlignedColumns: ["Amount"],
         })}
         enableDateRangePicker={true}
         manualSorting={true}

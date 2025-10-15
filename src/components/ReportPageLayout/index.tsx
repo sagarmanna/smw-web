@@ -33,6 +33,7 @@ interface ReportPageLayoutProps {
   error: string | null;
   onRetry: () => void;
   children: React.ReactNode;
+  actions?: React.ReactNode;
 }
 
 export const ReportPageLayout: React.FC<ReportPageLayoutProps> = ({
@@ -42,6 +43,7 @@ export const ReportPageLayout: React.FC<ReportPageLayoutProps> = ({
   error,
   onRetry,
   children,
+  actions,
 }) => {
   return (
     <div className="w-full">
@@ -55,6 +57,11 @@ export const ReportPageLayout: React.FC<ReportPageLayoutProps> = ({
                 {subtitle}
               </p>
             </div>
+            {actions && (
+              <div className="flex-shrink-0">
+                {actions}
+              </div>
+            )}
           </div>
           {error && (
             <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-xs sm:text-sm text-red-700 dark:text-red-400">

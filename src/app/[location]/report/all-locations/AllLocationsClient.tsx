@@ -167,6 +167,7 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
           footer: footerRow,
           location,
           dateRange,
+          rightAlignedColumns: ["Active Enrolments",	"Revenue",	"Royalty",	"Advertisement",	"HST",	"Total"],
         })}
         enableExport={true}
         onExport={{

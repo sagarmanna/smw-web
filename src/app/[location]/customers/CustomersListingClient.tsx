@@ -9,6 +9,10 @@ import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
 import { useRouter } from "next/navigation";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { usePrintReport } from "@/hooks/usePrintReport";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { AddCustomerModal } from "./components/AddCustomerModal";
 
 interface CustomersClientProps {
   location: string;
@@ -29,6 +33,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
   const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
   // Column filter state for individual column filters
   const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
+  // Modal state
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = React.useState(false);
   // Using client-side search via CustomTable; no separate server search state for now
 
   const columns = React.useMemo<ColumnDef<CustomerRow>[]>(() => [
@@ -296,6 +302,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     footer: footerRow,
   });
 
+  const { handlePrint } = usePrintReport<CustomerRow>();
+
     // Show full-page loading animation while fetching data
     if (isLoading) {
       return (
@@ -330,6 +338,15 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       isLoading={isLoading}
       error={null}
       onRetry={fetchData}
+      actions={
+        <Button 
+          onClick={() => setIsAddCustomerModalOpen(true)} 
+          className="bg-primary hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Customer
+        </Button>
+      }
     >
       <CustomTable
         data={rows}
@@ -353,7 +370,15 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         activeServerSideFilter={activeFilter}
         onServerSideFilterChange={(key) => { setActiveFilter(key); setPage(1); }}
         enableRowsPerPage={true}
-        enablePrint={false}
+        enablePrint={true}
+        onPrint={() => handlePrint({
+          reportTitle: 'Customers Report',
+          columns,
+          data: rows,
+          footer: footerRow || undefined,
+          location,
+          rightAlignedColumns: ['Balance'], // Only Balance column should be right-aligned
+        })}
         enableColumnFilters={true}
         onColumnFilterChange={handleColumnFilterChange}
         onColumnFilterEnter={handleColumnFilterEnter}
@@ -382,6 +407,16 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
           router.push(`customers/${row.id}`);
         }}
         rowClassName="cursor-pointer"
+      />
+      
+      <AddCustomerModal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        onSuccess={() => {
+          // Refresh the data after successful customer creation
+          fetchData();
+        }}
+        location={location}
       />
     </ReportPageLayout>
   );

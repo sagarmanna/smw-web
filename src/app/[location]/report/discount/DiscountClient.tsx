@@ -390,7 +390,9 @@ export function DiscountClient({ location }: DiscountClientProps) {
       location: formatLocationName(location || ""),
       dateRange: range,
       forceCompactMode: true, // Force compact mode for this table
-      customColumnWidths
+      customColumnWidths,
+      // Qty PF(%) Enrol($) Customer(%) Item($) Net($) Price
+      rightAlignedColumns: ["Qty",	"PF(%)",	"Enrol($)",	"Customer(%)",	"Item($)",	"Net($)",	"Price"],
     });
   }, [handlePrint, discounts, footerRow, location, range, activeFilter, columns]);
 

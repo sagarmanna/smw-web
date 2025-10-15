@@ -123,7 +123,7 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
         const total = typeof row.original.total === 'string' 
           ? parseFloat(row.original.total) 
           : row.original.total;
-        return formatCurrency(total);
+        return <span className="text-right block">{formatCurrency(total)}</span>;
       },
       enableSorting: false,
       meta: {
@@ -188,6 +188,7 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
           footer: footerRow,
           location,
           dateRange,
+          rightAlignedColumns: ["Total"],
         })}
         enableDateRangePicker={true}
         
