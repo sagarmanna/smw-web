@@ -42,6 +42,7 @@ import { EmailCard } from "../components/EmailCard";
 import { DiscountCard } from "../components/DiscountCard";
 import { OpeningBalanceCard } from "../components/OpeningBalanceCard";
 import { PhoneCard } from "../components/PhoneCard";
+import { RecurringPaymentModal } from "../components/RecurringPaymentModal";
 import { DetailsCard } from "../components/DetailsCard";
 
 import { 
@@ -92,6 +93,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [loading, setLoading] = React.useState<boolean>(true);
   const [showAllEquipment, setShowAllEquipment] = React.useState<boolean>(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = React.useState<boolean>(false);
+  const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] = React.useState<boolean>(false);
 
   // Local state for editable customer details
   const [localFirstName, setLocalFirstName] = React.useState<string>("");
@@ -110,6 +112,13 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       customerName: studentData.customerName,
     };
     setStudentData(prev => [...prev, newStudent]);
+  };
+
+  // Handle adding new recurring payment
+  const handleAddRecurringPayment = () => {
+    // TODO: Implement actual recurring payment creation logic
+    // For now, just close the modal
+    setIsRecurringPaymentModalOpen(false);
   };
   
   // Table data states
@@ -451,7 +460,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={recurringPaymentData} 
           columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
           loading={loading}
-          onAdd={() => {}}
+          onAdd={() => setIsRecurringPaymentModalOpen(true)}
           size={CUSTOMER_TABLE_CONFIGS.recurringPayments.size}
           variant={CUSTOMER_TABLE_CONFIGS.recurringPayments.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSorting}
@@ -591,6 +600,14 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         open={isAddStudentModalOpen}
         onOpenChange={setIsAddStudentModalOpen}
         onSave={handleAddStudent}
+      />
+
+      {/* Recurring Payment Modal */}
+      <RecurringPaymentModal
+        open={isRecurringPaymentModalOpen}
+        onOpenChange={setIsRecurringPaymentModalOpen}
+        onSave={handleAddRecurringPayment}
+        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
       />
     </div>
   );
