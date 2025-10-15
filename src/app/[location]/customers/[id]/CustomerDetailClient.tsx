@@ -299,7 +299,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           loading={loading} 
         />
         <BalanceCard 
-          value={customer ? formatCurrency(customer.balance) : formatCurrency(0)} 
+          value={customer ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)} 
           loading={loading} 
         />
       </div>
