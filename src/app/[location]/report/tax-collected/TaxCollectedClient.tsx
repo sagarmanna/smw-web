@@ -478,6 +478,7 @@ export const TaxCollectedClient = ({ location }: { location: string }) => {
           footer: footerRow,
           location,
           dateRange,
+          rightAlignedColumns: ["Subtotal",	"Tax",	"Total"],
         })}
         enableDateRangePicker={true}
         

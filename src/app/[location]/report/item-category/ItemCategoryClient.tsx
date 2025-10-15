@@ -355,6 +355,7 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
       footer: footerRow,
       location,
       dateRange: range,
+      rightAlignedColumns: ["Subtotal",	"Tax",	"Total"],
     });
   };
 
