@@ -67,7 +67,7 @@ export async function getCustomers(
     
     // Add parameters if they exist
     if (query.page) params.append('page', query.page.toString());
-    if (query.limit) params.append('limit', query.limit.toString());
+    if (query.limit) params.append('limit', query.limit == -1 ? '99999' : query.limit.toString());
     if (query.showActive !== undefined) params.append('showActive', query.showActive.toString());
     if (query.showInActive !== undefined) params.append('showInActive', query.showInActive.toString());
     if (query.firstName) params.append('firstName', query.firstName);
