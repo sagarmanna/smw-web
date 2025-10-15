@@ -45,6 +45,7 @@ import { DiscountCard } from "../components/DiscountCard";
 import { OpeningBalanceCard } from "../components/OpeningBalanceCard";
 import { PhoneCard } from "../components/PhoneCard";
 import { RecurringPaymentModal } from "../components/RecurringPaymentModal";
+import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 
 import { 
   InvoiceData, 
@@ -95,6 +96,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [showAllEquipment, setShowAllEquipment] = React.useState<boolean>(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = React.useState<boolean>(false);
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] = React.useState<boolean>(false);
+  const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] = React.useState<boolean>(false);
 
   // Handle adding new student
   const handleAddStudent = (studentData: { firstName: string; lastName: string; customerName: string; birthDate: string; gender: string }) => {
@@ -113,6 +115,13 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     // TODO: Implement actual recurring payment creation logic
     // For now, just close the modal
     setIsRecurringPaymentModalOpen(false);
+  };
+
+  // Handle adding new equipment rental
+  const handleAddEquipmentRental = (data: unknown) => {
+    // TODO: Implement actual equipment rental creation logic
+    // For now, just close the modal
+    setIsEquipmentRentalsModalOpen(false);
   };
   
   // Table data states
@@ -288,7 +297,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           loading={loading} 
         />
         <BalanceCard 
-          value={customer ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)} 
+          value={customer && customer.balance ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)} 
           loading={loading} 
         />
       </div>
@@ -362,7 +371,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             enableSearch={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableSearch}
             enableFilter={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter}
             enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableRowsPerPage}
-            iconType="chevron"
+            iconType="none"
           />
         </div>
 
@@ -405,7 +414,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={equipmentRentalData} 
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
           loading={loading}
-          onAdd={() => {}}
+          onAdd={() => setIsEquipmentRentalsModalOpen(true)}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSorting}
@@ -574,6 +583,15 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         onOpenChange={setIsRecurringPaymentModalOpen}
         onSave={handleAddRecurringPayment}
         customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
+      />
+
+      {/* Equipment Rentals Modal */}
+      <EquipmentRentalsModal
+        open={isEquipmentRentalsModalOpen}
+        onOpenChange={setIsEquipmentRentalsModalOpen}
+        onSave={handleAddEquipmentRental}
+        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
+        customerEmail={customer?.email}
       />
     </div>
   );
