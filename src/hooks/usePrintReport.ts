@@ -13,11 +13,12 @@ interface PrintReportOptions<TData> {
   };
   forceCompactMode?: boolean; // Force compact mode for tables with many columns
   customColumnWidths?: Record<string, string>; // Custom column widths for print layout
+  rightAlignedColumns?: string[]; // Array of column headers that should be right-aligned
 }
 
 export function usePrintReport<TData>() {
   const handlePrint = useCallback(
-    ({ reportTitle, columns, data, footer, location, dateRange, forceCompactMode, customColumnWidths }: PrintReportOptions<TData>) => {
+    ({ reportTitle, columns, data, footer, location, dateRange, forceCompactMode, customColumnWidths, rightAlignedColumns = [] }: PrintReportOptions<TData>) => {
       type AnyCol = ColumnDef<TData, unknown>;
 
       const printable = (columns as AnyCol[])
@@ -31,6 +32,18 @@ export function usePrintReport<TData>() {
         .filter((c) => c.printable && c.key);
 
       if (printable.length === 0) return;
+
+      // Helper function to determine column alignment
+      const getColumnAlignment = (columnHeader: string, columnIndex: number): 'left' | 'right' => {
+        // If column is in the rightAlignedColumns array, align right
+        if (rightAlignedColumns.includes(columnHeader)) {
+          return 'right';
+        }else{
+          return 'left';
+        }
+        // Default: first column left, others right (backward compatibility)
+        // return columnIndex === 0 ? 'left' : 'right';
+      };
 
       // Auto-detect if table needs compact mode (more than 8 columns or forceCompactMode)
       const needsCompactMode = forceCompactMode || printable.length > 8;
@@ -57,7 +70,6 @@ export function usePrintReport<TData>() {
             else width = '8%'; // Other columns
           }
           
-          const align = i === 0 ? 'left' : 'right';
           return `<th style="border: 1px solid #d1d5db; padding: 4px 2px; text-align: center; width: ${width}; font-size: 10px; background-color: #f3f4f6; font-weight: bold;">${col.header}</th>`;
         }).join('');
         
@@ -68,8 +80,7 @@ export function usePrintReport<TData>() {
           const dataRow = printable.map((col, i) => {
             const value = (row as Record<string, unknown>)[col.key!];
             const formattedValue = col.formatter ? col.formatter(value) : value || '';
-            // Code column should be left-aligned, others right-aligned
-            const align = (i === 0 || col.header === 'Code') ? 'left' : 'right';
+            const align = getColumnAlignment(col.header, i);
             
             const cellStyle = `border: 1px solid #d1d5db; padding: 3px 2px; text-align: ${align}; font-size: 9px; word-break: break-word;`;
             
@@ -83,8 +94,7 @@ export function usePrintReport<TData>() {
           const footerRow = printable.map((col, i) => {
             const value = (footer as Record<string, unknown>)[col.key!];
             const formattedValue = col.formatter ? col.formatter(value) : value || '';
-            // Code column should be left-aligned, others right-aligned
-            const align = (i === 0 || col.header === 'Code') ? 'left' : 'right';
+            const align = getColumnAlignment(col.header, i);
             return `<td style="border: 1px solid #d1d5db; padding: 3px 2px; text-align: ${align}; font-size: 9px; font-weight: bold; background-color: #f9fafb;">${formattedValue}</td>`;
           }).join('');
           printRows.push(`<tr>${footerRow}</tr>`);
@@ -126,7 +136,8 @@ export function usePrintReport<TData>() {
       const columnsForPrint = printable.map((c, i) => ({
         key: c.key!,
         header: c.header,
-        align: (i === 0 ? 'left' : 'right') as 'left' | 'right',
+        align: getColumnAlignment(c.header, i),
+        headerAlign: 'center' as 'left' | 'right' | 'center', // Headers always center-aligned
         widthPercent: Math.max(6, Math.round(((c.size || 100) / total) * 100)),
       }));
 

@@ -9,6 +9,7 @@ import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
 import { useRouter } from "next/navigation";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { usePrintReport } from "@/hooks/usePrintReport";
 
 interface CustomersClientProps {
   location: string;
@@ -296,6 +297,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     footer: footerRow,
   });
 
+  const { handlePrint } = usePrintReport<CustomerRow>();
+
     // Show full-page loading animation while fetching data
     if (isLoading) {
       return (
@@ -353,7 +356,15 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         activeServerSideFilter={activeFilter}
         onServerSideFilterChange={(key) => { setActiveFilter(key); setPage(1); }}
         enableRowsPerPage={true}
-        enablePrint={false}
+        enablePrint={true}
+        onPrint={() => handlePrint({
+          reportTitle: 'Customers Report',
+          columns,
+          data: rows,
+          footer: footerRow || undefined,
+          location,
+          rightAlignedColumns: ['Balance'], // Only Balance column should be right-aligned
+        })}
         enableColumnFilters={true}
         onColumnFilterChange={handleColumnFilterChange}
         onColumnFilterEnter={handleColumnFilterEnter}
