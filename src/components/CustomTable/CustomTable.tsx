@@ -433,7 +433,7 @@ export function CustomTable<TData, TValue>({
         {/* Table */}
         <div 
           ref={tableContainerRef} 
-          className="mt-4 overflow-hidden rounded-lg border border-border/50 shadow-sm bg-card focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-ring/30"
+          className="mt-4 overflow-hidden rounded-lg border border-border/50 shadow-sm bg-card"
           style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}
         >
           <div className="overflow-x-auto">
