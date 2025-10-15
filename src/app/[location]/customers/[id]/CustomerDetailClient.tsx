@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { Settings, SlashIcon, Edit, ChevronDown, Plus } from "lucide-react";
+import { Settings, SlashIcon, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,9 +33,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { LessonsDueCard, OutstandingInvoiceCard, CreditsCard, BalanceCard } from "@/components/MetricCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
 import { TabContent } from "@/components/TabContent";
@@ -44,6 +42,8 @@ import { EmailCard } from "../components/EmailCard";
 import { DiscountCard } from "../components/DiscountCard";
 import { OpeningBalanceCard } from "../components/OpeningBalanceCard";
 import { PhoneCard } from "../components/PhoneCard";
+import { RecurringPaymentModal } from "../components/RecurringPaymentModal";
+import { DetailsCard } from "../components/DetailsCard";
 
 import { 
   InvoiceData, 
@@ -66,6 +66,8 @@ import {
   CommentData,
   HistoryData
 } from "../tabConfigs";
+import { mockCustomerTabData } from "../mockData/customersMockData";
+import AddStudentModal from "../components/AddStudentModal/index";
 
 interface PhoneNumber {
   id: string;
@@ -90,6 +92,34 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [customer, setCustomer] = React.useState<CustomerRow | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [showAllEquipment, setShowAllEquipment] = React.useState<boolean>(false);
+  const [isAddStudentModalOpen, setIsAddStudentModalOpen] = React.useState<boolean>(false);
+  const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] = React.useState<boolean>(false);
+
+  // Local state for editable customer details
+  const [localFirstName, setLocalFirstName] = React.useState<string>("");
+  const [localLastName, setLocalLastName] = React.useState<string>("");
+  const [referralSource, setReferralSource] = React.useState<string>("Drive By");
+  const [status, setStatus] = React.useState<string>("Active");
+  const [picture, setPicture] = React.useState<string | undefined>(undefined);
+
+  // Handle adding new student
+  const handleAddStudent = (studentData: { firstName: string; lastName: string; customerName: string; birthDate: string; gender: string }) => {
+    // TODO: Implement actual student creation logic
+    // For now, just add to mock data
+    const newStudent = {
+      name: `${studentData.firstName} ${studentData.lastName}`,
+      birthDate: studentData.birthDate,
+      customerName: studentData.customerName,
+    };
+    setStudentData(prev => [...prev, newStudent]);
+  };
+
+  // Handle adding new recurring payment
+  const handleAddRecurringPayment = () => {
+    // TODO: Implement actual recurring payment creation logic
+    // For now, just close the modal
+    setIsRecurringPaymentModalOpen(false);
+  };
   
   // Table data states
   const [invoiceData, setInvoiceData] = React.useState<InvoiceData[]>([]);
@@ -164,6 +194,12 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         const customerData = await getCustomerById(location, Number(id));
         setCustomer(customerData);
         
+        // Set local names from loaded customer data
+        if (customerData) {
+          setLocalFirstName(customerData.firstName);
+          setLocalLastName(customerData.lastName);
+        }
+        
         // Load all table data in parallel
         const [
           invoices,
@@ -192,48 +228,13 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         setPaymentData(payments || []);
 
         // Load tab data (mock data for now)
-        setStudentData([
-          { name: "321123 123", birthDate: "Jan 06, 2005", customerName: "123 123" },
-        ]);
-        setEnrolmentData([
-          { studentName: "321123 123", programName: "Ukulele", teacherName: "Art Tatum", day: "Monday", fromTime: "08:00 AM", duration: "00:30", startDate: "Jan 31, 2022", renewalDate: "Jan 26, 2026" },
-          { studentName: "321123 123", programName: "xPiano Core", teacherName: "Alexander Hamilton", day: "Friday", fromTime: "09:00 AM", duration: "00:30", startDate: "Apr 08, 2022", renewalDate: "Apr 24, 2026" },
-          { studentName: "321123 123", programName: "Guitar Core", teacherName: "Daniel Clain", day: "Thursday", fromTime: "10:15 AM", duration: "00:30", startDate: "Jun 03, 2022", renewalDate: "May 22, 2026" },
-          { studentName: "321123 123", programName: "Drums Core", teacherName: "Amy Macaluso", day: "Saturday", fromTime: "11:15 AM", duration: "00:30", startDate: "Jul 01, 2022", renewalDate: "Jun 26, 2026" },
-          { studentName: "321123 123", programName: "xTrombone", teacherName: "tes123 12345", day: "Saturday", fromTime: "11:30 AM", duration: "00:30", startDate: "Apr 28, 2022", renewalDate: "Sep 24, 2026" },
-          { studentName: "321123 123", programName: "xGuitar Contemporary", teacherName: "Art Tatum", day: "Friday", fromTime: "10:45 AM", duration: "00:30", startDate: "May 07, 2022", renewalDate: "Dec 26, 2026" },
-          { studentName: "321123 123", programName: "xPiano Hybrid", teacherName: "Alexander Hamilton", day: "Monday", fromTime: "09:30 AM", duration: "00:30", startDate: "Dec 30, 2022", renewalDate: "Mar 26, 2027" },
-          { studentName: "321123 123", programName: "Ukulele", teacherName: "Daniel Clain", day: "Saturday", fromTime: "12:00 PM", duration: "00:30", startDate: "Mar 20, 2023", renewalDate: "May 24, 2027" },
-        ]);
-
-        setPrivateLessonData([
-          { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 13, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-          { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 20, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-          { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 27, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 13, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 13, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 16, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:00 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 10:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 11:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xTrombone", date: "Oct 18, 2025 @ 10:45 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 20, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 20, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-          { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 23, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-        ]);
-
-        setGroupLessonData([]);
-        setProformaInvoiceData([]);
-        setCommentData([]);
-        setHistoryData([
-          { message: "On Sep 9, 2022, at 12:15 AM, seng Added new payment of $60.27 for 123 123" },
-          { message: "On Sep 9, 2022, at 12:53 AM, seng Added new payment of $4621.04 for 123 123" },
-          { message: "On Oct 15, 2023, at 07:00 PM, Prateek Panwar Added new payment of $13890.21 for 123 123" },
-          { message: "On Nov 13, 2023, at 02:51 PM, Giancarlo Macaluso Added new payment of $18.45 for 123 123" },
-          { message: "On Mar 8, 2024, at 10:43 AM, Prateek Panwar Added new payment of $3367.96 for 123 123" },
-          { message: "On Mar 8, 2024, at 10:45 AM, Prateek Panwar Added new payment of $122.50 for 123 123" },
-        ]);
+        setStudentData(mockCustomerTabData.studentData);
+        setEnrolmentData(mockCustomerTabData.enrolmentData);
+        setPrivateLessonData(mockCustomerTabData.privateLessonData);
+        setGroupLessonData(mockCustomerTabData.groupLessonData);
+        setProformaInvoiceData(mockCustomerTabData.proformaInvoiceData);
+        setCommentData(mockCustomerTabData.commentData);
+        setHistoryData(mockCustomerTabData.historyData);
       } catch (error) {
         console.error('Error loading customer data:', error);
       } finally {
@@ -243,6 +244,38 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     
     loadData();
   }, [location, id]);
+
+  // Handle details save
+  const handleDetailsSave = React.useCallback((newData: {
+    firstName: string;
+    lastName: string;
+    role: string;
+    referralSource: string;
+    status: string;
+    picture?: string;
+  }) => {
+    // Update local names immediately
+    setLocalFirstName(newData.firstName);
+    setLocalLastName(newData.lastName);
+    
+    // Update customer state with new data
+    setCustomer(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        firstName: newData.firstName,
+        lastName: newData.lastName,
+      };
+    });
+    
+    // Update additional states
+    setReferralSource(newData.referralSource);
+    setStatus(newData.status);
+    setPicture(newData.picture);
+    
+    console.log("Saved customer details:", newData);
+    // TODO: Call API to update customer details
+  }, []);
 
   return (
     <div className="space-y-4 bg-white px-2 sm:px-3">
@@ -256,7 +289,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             <SlashIcon className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
             <BreadcrumbItem>
               <BreadcrumbPage className="truncate max-w-[70vw] sm:max-w-none">
-                {loading ? "Loading..." : customer ? `${customer.firstName} ${customer.lastName}` : id}
+                {loading ? "Loading..." : localFirstName && localLastName ? `${localFirstName} ${localLastName}` : id}
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -271,14 +304,14 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => console.log('Receive Payment')}>Receive Payment</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Print Statement')}>Print Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Email Statement')}>Email Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('A/R Report Detail')}>A/R Report Detail</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Items Purchased by Category')}>Items Purchased by Category</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Notify Via Email')}>Notify Via Email</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Receive Payment</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Print Statement</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Email Statement</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>A/R Report Detail</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Items Purchased by Category</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Notify Via Email</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600" onClick={() => console.log('Delete')}>Delete</DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600" onClick={() => {}}>Delete</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -307,33 +340,23 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       {/* Details and Email Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Details Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-lg font-semibold">Details</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <KeyValueDisplay 
-              label="Name" 
-              value={loading ? "..." : customer ? `${customer.firstName} ${customer.lastName}` : "N/A"} 
-            />
-            <KeyValueDisplay label="Role" value="Customer" />
-            <KeyValueDisplay label="Referral Source" value="Drive By" />
-            <KeyValueDisplay label="Status" value="Active" />
-          </CardContent>
-        </Card>
+        <DetailsCard 
+          data={{
+            firstName: localFirstName,
+            lastName: localLastName,
+            role: "Customer",
+            referralSource: referralSource,
+            status: status,
+            picture: picture
+          }}
+          onSave={handleDetailsSave}
+          loading={loading}
+        />
 
         {/* Email Card */}
         <EmailCard 
           emails={emails}
-          onAddClick={() => console.log('Add email clicked')}
+          onAddClick={() => {}}
           onSave={setEmails}
         />
       </div>
@@ -347,7 +370,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             data={invoiceData} 
             columns={CUSTOMER_TABLE_CONFIGS.invoices.columns}
             loading={loading}
-            onAdd={() => console.log('Add invoice')}
+            onAdd={() => {}}
             size={CUSTOMER_TABLE_CONFIGS.invoices.size}
             variant={CUSTOMER_TABLE_CONFIGS.invoices.variant}
             enableSorting={CUSTOMER_TABLE_CONFIGS.invoices.enableSorting}
@@ -364,7 +387,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             data={outstandingInvoiceData} 
             columns={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.columns}
             loading={loading}
-            onAdd={() => console.log('Add outstanding invoice')}
+            onAdd={() => {}}
             size={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.size}
             variant={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.variant}
             enableSorting={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableSorting}
@@ -416,7 +439,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={equipmentRentalData} 
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
           loading={loading}
-          onAdd={() => console.log('Add equipment rental')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSorting}
@@ -437,7 +460,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={recurringPaymentData} 
           columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
           loading={loading}
-          onAdd={() => console.log('Add recurring payment')}
+          onAdd={() => setIsRecurringPaymentModalOpen(true)}
           size={CUSTOMER_TABLE_CONFIGS.recurringPayments.size}
           variant={CUSTOMER_TABLE_CONFIGS.recurringPayments.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSorting}
@@ -455,7 +478,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           columns={CUSTOMER_TABLE_CONFIGS.privateLessonDue.columns}
           loading={loading}
           footerRow={privateLessonDueFooterRow}
-          onAdd={() => console.log('Add private lesson')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.privateLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.privateLessonDue.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableSorting}
@@ -472,7 +495,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={groupLessonDueData} 
           columns={CUSTOMER_TABLE_CONFIGS.groupLessonDue.columns}
           loading={loading}
-          onAdd={() => console.log('Add group lesson')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.groupLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.groupLessonDue.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableSorting}
@@ -490,7 +513,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
           loading={loading}
           footerRow={paymentFooterRow}
-          onAdd={() => console.log('Add payment')}
+          onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.payments.size}
           variant={CUSTOMER_TABLE_CONFIGS.payments.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.payments.enableSorting}
@@ -500,6 +523,13 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enableFilter={CUSTOMER_TABLE_CONFIGS.payments.enableFilter}
           enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.payments.enableRowsPerPage}
           iconType="chevron"
+          dropdownItems={[
+            {
+              label: "Receive Payment",
+              onClick: () => {}
+            }
+          ]}
+          dropdownLabel="Payment Actions"
         />
       </div>
 
@@ -548,7 +578,13 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
                   columns={config.columns || []}
                   loading={loading}
                   hasAddButton={config.hasAddButton}
-                  onAdd={() => console.log(`Add ${config.title.toLowerCase()}`)}
+                  onAdd={() => {
+                    if (tabKey === "students") {
+                      setIsAddStudentModalOpen(true);
+                    } else {
+                      // TODO: Implement add functionality for other tabs
+                    }
+                  }}
                   emptyState={config.emptyState}
                   hasTable={config.hasTable}
                   bottomContent={commentsBottomContent}
@@ -558,6 +594,21 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           })}
         </Tabs>
       </div>
+
+      {/* Add Student Modal */}
+      <AddStudentModal
+        open={isAddStudentModalOpen}
+        onOpenChange={setIsAddStudentModalOpen}
+        onSave={handleAddStudent}
+      />
+
+      {/* Recurring Payment Modal */}
+      <RecurringPaymentModal
+        open={isRecurringPaymentModalOpen}
+        onOpenChange={setIsRecurringPaymentModalOpen}
+        onSave={handleAddRecurringPayment}
+        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
+      />
     </div>
   );
 }

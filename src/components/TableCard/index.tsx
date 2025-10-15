@@ -4,6 +4,20 @@ import { CustomTable } from "@/components/CustomTable";
 import { Plus, ChevronDown } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+
+interface DropdownMenuItem {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
 
 interface TableCardProps<TData = unknown> {
   title: string;
@@ -26,6 +40,8 @@ interface TableCardProps<TData = unknown> {
   checkboxLabel?: string;
   checkboxChecked?: boolean;
   onCheckboxChange?: (checked: boolean) => void;
+  dropdownItems?: DropdownMenuItem[];
+  dropdownLabel?: string;
 }
 
 export function TableCard<TData = unknown>({ 
@@ -48,7 +64,9 @@ export function TableCard<TData = unknown>({
   showCheckbox = false,
   checkboxLabel = "Show All",
   checkboxChecked = false,
-  onCheckboxChange
+  onCheckboxChange,
+  dropdownItems = [],
+  dropdownLabel = "Actions"
 }: TableCardProps<TData>) {
   return (
     <Card>
@@ -71,13 +89,32 @@ export function TableCard<TData = unknown>({
             </div>
           )}
           {onAdd && iconType !== "none" && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onAdd}>
-              {iconType === "chevron" ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
+            iconType === "chevron" && dropdownItems.length > 0 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {/* <DropdownMenuLabel>{dropdownLabel}</DropdownMenuLabel>
+                  <DropdownMenuSeparator /> */}
+                  {dropdownItems.map((item, index) => (
+                    <DropdownMenuItem
+                      key={index}
+                      onClick={item.onClick}
+                      disabled={item.disabled}
+                    >
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onAdd}>
                 <Plus className="h-4 w-4" />
-              )}
-            </Button>
+              </Button>
+            )
           )}
         </div>
       </CardHeader>
