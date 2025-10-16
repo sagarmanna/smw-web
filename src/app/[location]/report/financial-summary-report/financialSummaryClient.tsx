@@ -19,6 +19,7 @@ import {
   fetchInactiveCustomersWithCredit
 } from "./financial-summary.api";
 import { useExportableData } from "@/hooks/useExportableData";
+import { usePrintReport } from "@/hooks/usePrintReport";
 import { formatCurrency } from "@/utils/formatCurrency";
 
 interface FinancialSummaryClientProps {
@@ -831,6 +832,20 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
     location: location,
   });
 
+  const summaryExport = useExportableData({
+    reportTitle: 'Financial Summary Report',
+    columns: summaryColumns,
+    data: summaryData,
+    rightAlignedColumns: ['Count', 'Total'],
+    columnWidths: {
+      'Count': 25,
+      'Total': 30,
+    },
+    location: location,
+  });
+
+  const { handlePrint } = usePrintReport<SummaryData>();
+
   // Conditional returns AFTER all hooks
   if (isLoading) {
     return (
@@ -1210,8 +1225,23 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
           columns={summaryColumns}
           enableSearch={false}
           enableExport={true}
+          onExport={{
+            html: summaryExport.exportToHtml,
+            csv: summaryExport.exportToCsv,
+            text: summaryExport.exportToText,
+            excel: summaryExport.exportToExcel,
+            pdf: summaryExport.exportToPdf,
+            json: summaryExport.exportToJson,
+          }}
           enableFilter={false}
-          enablePrint={false}
+          enablePrint={true}
+          onPrint={() => handlePrint({
+            reportTitle: 'Financial Summary Report',
+            columns: summaryColumns,
+            data: summaryData,
+            location: location,
+            rightAlignedColumns: ['Count', 'Total'],
+          })}
           enableColumnFilters={false}
           size="compact"
         />
