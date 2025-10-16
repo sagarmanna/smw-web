@@ -429,9 +429,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             }}
           />
           
-          <InfoCardWithAction title="Payment Preference">
+          <InfoCardWithAction title="Payment Preference" showAddButton={false}>
             <div className="space-y-2">
-              <div className="text-sm text-gray-500">No payment preferences set</div>
+              <div className="text-sm text-gray-500">Payment Preference</div>
             </div>
           </InfoCardWithAction>
         </div>
