@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { Settings, SlashIcon, Plus } from "lucide-react";
+import { Settings, Plus, Slash } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -45,6 +45,7 @@ import { PhoneCard } from "../components/PhoneCard";
 import { RecurringPaymentModal } from "../components/RecurringPaymentModal";
 import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
+import { InvoiceTable } from "../components/InvoicesTable";
 
 import { 
   InvoiceData, 
@@ -106,8 +107,6 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
   // Handle adding new student
   const handleAddStudent = (studentData: { firstName: string; lastName: string; customerName: string; birthDate: string; gender: string }) => {
-    // TODO: Implement actual student creation logic
-    // For now, just add to mock data
     const newStudent = {
       name: `${studentData.firstName} ${studentData.lastName}`,
       birthDate: studentData.birthDate,
@@ -118,16 +117,23 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
   // Handle adding new recurring payment
   const handleAddRecurringPayment = () => {
-    // TODO: Implement actual recurring payment creation logic
-    // For now, just close the modal
     setIsRecurringPaymentModalOpen(false);
   };
 
   // Handle adding new equipment rental
   const handleAddEquipmentRental = (data: unknown) => {
-    // TODO: Implement actual equipment rental creation logic
-    // For now, just close the modal
     setIsEquipmentRentalsModalOpen(false);
+  };
+
+  // Handle invoice actions
+  const handleAddInvoice = () => {
+    console.log("Add new invoice");
+    // TODO: Implement invoice creation logic
+  };
+
+  const handlePrintInvoice = (invoiceId: string) => {
+    console.log("Print invoice:", invoiceId);
+    // TODO: Implement invoice printing logic
   };
   
   // Table data states
@@ -295,7 +301,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             <BreadcrumbItem>
               <BreadcrumbLink href="#" onClick={(e) => { e.preventDefault(); router.push("customers"); }}>Customers</BreadcrumbLink>
             </BreadcrumbItem>
-            <SlashIcon className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
+            <Slash className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
             <BreadcrumbItem>
               <BreadcrumbPage className="truncate max-w-[70vw] sm:max-w-none">
                 {loading ? "Loading..." : localFirstName && localLastName ? `${localFirstName} ${localLastName}` : id}
@@ -374,21 +380,11 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Left Column - Main Tables */}
         <div className="space-y-4">
-          <TableCard 
-            title="Invoices"
-            data={invoiceData} 
-            columns={CUSTOMER_TABLE_CONFIGS.invoices.columns}
+          <InvoiceTable
+            data={invoiceData}
             loading={loading}
-            onAdd={() => {}}
-            size={CUSTOMER_TABLE_CONFIGS.invoices.size}
-            variant={CUSTOMER_TABLE_CONFIGS.invoices.variant}
-            enableSorting={CUSTOMER_TABLE_CONFIGS.invoices.enableSorting}
-            enableExport={CUSTOMER_TABLE_CONFIGS.invoices.enableExport}
-            enablePrint={CUSTOMER_TABLE_CONFIGS.invoices.enablePrint}
-            enableSearch={CUSTOMER_TABLE_CONFIGS.invoices.enableSearch}
-            enableFilter={CUSTOMER_TABLE_CONFIGS.invoices.enableFilter}
-            enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.invoices.enableRowsPerPage}
-            iconType="chevron"
+            onAddInvoice={handleAddInvoice}
+            onPrintInvoice={handlePrintInvoice}
           />
           
           <TableCard 

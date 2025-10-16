@@ -48,9 +48,11 @@ export function DetailsCard({
 }: DetailsCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [firstName, setFirstName] = useState(data.firstName);
-  const [lastName, setLastName] = useState(data.lastName);
-  const [referralSource, setReferralSource] = useState(data.referralSource);
+
+  // Default safe state initialization
+  const [firstName, setFirstName] = useState(data.firstName || "");
+  const [lastName, setLastName] = useState(data.lastName || "");
+  const [referralSource, setReferralSource] = useState(data.referralSource || "");
   const [picture, setPicture] = useState(data.picture || "");
   
   const [showError, setShowError] = useState(false);
@@ -66,17 +68,16 @@ export function DetailsCard({
 
   // Sync local state with prop data when it changes
   useEffect(() => {
-    setFirstName(data.firstName);
-    setLastName(data.lastName);
-    setReferralSource(data.referralSource);
+    setFirstName(data.firstName || "");
+    setLastName(data.lastName || "");
+    setReferralSource(data.referralSource || "");
     setPicture(data.picture || "");
   }, [data.firstName, data.lastName, data.referralSource, data.picture]);
 
   const handleEditClick = () => {
-    // Reset form with current data
-    setFirstName(data.firstName);
-    setLastName(data.lastName);
-    setReferralSource(data.referralSource);
+    setFirstName(data.firstName || "");
+    setLastName(data.lastName || "");
+    setReferralSource(data.referralSource || "");
     setPicture(data.picture || "");
     setShowError(false);
     setFirstNameTouched(false);
@@ -84,13 +85,13 @@ export function DetailsCard({
     setIsModalOpen(true);
   };
 
-  const isFirstNameValid = firstName.trim() !== "";
-  const isLastNameValid = lastName.trim() !== "";
-  const isReferralSourceValid = referralSource !== "";
+  // ✅ Safe validation with optional chaining
+  const isFirstNameValid = (firstName?.trim() ?? "") !== "";
+  const isLastNameValid = (lastName?.trim() ?? "") !== "";
+  const isReferralSourceValid = (referralSource?.trim() ?? "") !== "";
   const isFormValid = isFirstNameValid && isLastNameValid && isReferralSourceValid;
 
   const handleSave = () => {
-    // Show error state if validation fails
     if (!isFormValid) {
       setShowError(true);
       setFirstNameTouched(true);
@@ -98,7 +99,6 @@ export function DetailsCard({
       return;
     }
 
-    // Call onSave callback if provided
     if (onSave) {
       onSave({
         firstName: firstName.trim(),
@@ -110,7 +110,6 @@ export function DetailsCard({
       });
     }
 
-    // Close modal
     setIsModalOpen(false);
     setShowError(false);
     setFirstNameTouched(false);
@@ -118,9 +117,9 @@ export function DetailsCard({
   };
 
   const handleCancel = () => {
-    setFirstName(data.firstName);
-    setLastName(data.lastName);
-    setReferralSource(data.referralSource);
+    setFirstName(data.firstName || "");
+    setLastName(data.lastName || "");
+    setReferralSource(data.referralSource || "");
     setPicture(data.picture || "");
     setShowError(false);
     setFirstNameTouched(false);
@@ -163,22 +162,14 @@ export function DetailsCard({
   ];
 
   const getInputClassName = (isValid: boolean, isTouched: boolean) => {
-    if (isTouched && !isValid) {
-      return "border-red-600 text-gray-500";
-    }
-    if (isTouched && isValid) {
-      return "border-green-600 text-gray-900";
-    }
+    if (isTouched && !isValid) return "border-red-600 text-gray-500";
+    if (isTouched && isValid) return "border-green-600 text-gray-900";
     return "border-gray-300 text-gray-500";
   };
 
   const getLabelClassName = (isValid: boolean, isTouched: boolean) => {
-    if (isTouched && !isValid) {
-      return "text-red-600";
-    }
-    if (isTouched && isValid) {
-      return "text-green-600";
-    }
+    if (isTouched && !isValid) return "text-red-600";
+    if (isTouched && isValid) return "text-green-600";
     return "text-gray-700";
   };
 
@@ -194,12 +185,11 @@ export function DetailsCard({
 
   const handleMergeClick = () => {
     // TODO: Implement merge functionality
-    
   };
 
   const handlePasswordSave = () => {
-    const isPasswordValid = password.trim() !== "";
-    const isConfirmPasswordValid = confirmPassword.trim() !== "";
+    const isPasswordValid = (password?.trim() ?? "") !== "";
+    const isConfirmPasswordValid = (confirmPassword?.trim() ?? "") !== "";
     const doPasswordsMatch = password === confirmPassword;
 
     if (!isPasswordValid || !isConfirmPasswordValid || !doPasswordsMatch) {
@@ -210,7 +200,7 @@ export function DetailsCard({
     }
 
     // TODO: Save password via API
-    
+
     setIsPasswordModalOpen(false);
     setPassword("");
     setConfirmPassword("");
@@ -238,8 +228,8 @@ export function DetailsCard({
     setConfirmPasswordTouched(true);
   };
 
-  const isPasswordValid = password.trim() !== "";
-  const isConfirmPasswordValid = confirmPassword.trim() !== "";
+  const isPasswordValid = (password?.trim() ?? "") !== "";
+  const isConfirmPasswordValid = (confirmPassword?.trim() ?? "") !== "";
   const doPasswordsMatch = password === confirmPassword && password !== "";
 
   const passwordModalActions = [
@@ -271,11 +261,7 @@ export function DetailsCard({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                >
+                <Button variant="ghost" size="icon" className="h-8 w-8">
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -318,6 +304,7 @@ export function DetailsCard({
         </CardContent>
       </Card>
 
+      {/* Edit Modal */}
       <ReusableModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
@@ -343,18 +330,11 @@ export function DetailsCard({
                 value={firstName}
                 onChange={handleFirstNameChange}
                 className={`focus:ring-0 focus:outline-none ${getInputClassName(isFirstNameValid, firstNameTouched)}`}
-                style={{ boxShadow: 'none' }}
+                style={{ boxShadow: "none" }}
                 placeholder="Enter first name"
               />
-              {firstNameTouched && !isFirstNameValid && (
-                <p className="text-sm text-red-600">
-                  First name cannot be blank.
-                </p>
-              )}
-              {showError && !firstNameTouched && !isFirstNameValid && (
-                <p className="text-sm text-red-600">
-                  First name cannot be blank.
-                </p>
+              {(firstNameTouched || showError) && !isFirstNameValid && (
+                <p className="text-sm text-red-600">First name cannot be blank.</p>
               )}
             </div>
 
@@ -372,25 +352,18 @@ export function DetailsCard({
                 value={lastName}
                 onChange={handleLastNameChange}
                 className={`focus:ring-0 focus:outline-none ${getInputClassName(isLastNameValid, lastNameTouched)}`}
-                style={{ boxShadow: 'none' }}
+                style={{ boxShadow: "none" }}
                 placeholder="Enter last name"
               />
-              {lastNameTouched && !isLastNameValid && (
-                <p className="text-sm text-red-600">
-                  Last name cannot be blank.
-                </p>
-              )}
-              {showError && !lastNameTouched && !isLastNameValid && (
-                <p className="text-sm text-red-600">
-                  Last name cannot be blank.
-                </p>
+              {(lastNameTouched || showError) && !isLastNameValid && (
+                <p className="text-sm text-red-600">Last name cannot be blank.</p>
               )}
             </div>
           </div>
 
           {/* Referral Source */}
           <div className="space-y-3">
-            <Label className={`text-sm font-medium ${showError && !isReferralSourceValid ? 'text-red-600' : 'text-gray-700'}`}>
+            <Label className={`text-sm font-medium ${showError && !isReferralSourceValid ? "text-red-600" : "text-gray-700"}`}>
               How did you find us?
             </Label>
             <div className="space-y-2">
@@ -406,10 +379,9 @@ export function DetailsCard({
                         ? "border-red-600"
                         : "border-gray-400"
                     }`}
-                    aria-label={`Select ${source}`}
                   >
                     {referralSource === source && (
-                      <div className="w-2 h-2 rounded-full bg-[#f3573f]"></div>
+                      <div className="w-2 h-2 rounded-full bg-[#f3573f]" />
                     )}
                   </button>
                   <button
@@ -417,10 +389,10 @@ export function DetailsCard({
                     onClick={() => setReferralSource(source)}
                     className={`text-sm font-normal text-left ${
                       referralSource === source 
-                        ? 'text-[#f3573f]' 
+                        ? "text-[#f3573f]" 
                         : showError && !isReferralSourceValid 
-                        ? 'text-red-600' 
-                        : 'text-gray-500'
+                        ? "text-red-600" 
+                        : "text-gray-500"
                     }`}
                   >
                     {source}
@@ -429,9 +401,7 @@ export function DetailsCard({
               ))}
             </div>
             {showError && !isReferralSourceValid && (
-              <p className="text-sm text-red-600">
-                Please select how you found us.
-              </p>
+              <p className="text-sm text-red-600">Please select how you found us.</p>
             )}
           </div>
 
@@ -492,7 +462,7 @@ export function DetailsCard({
       <ReusableModal
         open={isPasswordModalOpen}
         onOpenChange={setIsPasswordModalOpen}
-        title="Edit"
+        title="Set Password"
         size="sm"
         actions={passwordModalActions}
         showFooter={true}
@@ -512,18 +482,11 @@ export function DetailsCard({
               value={password}
               onChange={handlePasswordChange}
               className={`focus:ring-0 focus:outline-none ${getInputClassName(isPasswordValid, passwordTouched)}`}
-              style={{ boxShadow: 'none' }}
+              style={{ boxShadow: "none" }}
               placeholder="Enter password"
             />
-            {passwordTouched && !isPasswordValid && (
-              <p className="text-sm text-red-600">
-                Password cannot be blank.
-              </p>
-            )}
-            {showPasswordError && !passwordTouched && !isPasswordValid && (
-              <p className="text-sm text-red-600">
-                Password cannot be blank.
-              </p>
+            {(passwordTouched || showPasswordError) && !isPasswordValid && (
+              <p className="text-sm text-red-600">Password cannot be blank.</p>
             )}
           </div>
 
@@ -541,28 +504,14 @@ export function DetailsCard({
               value={confirmPassword}
               onChange={handleConfirmPasswordChange}
               className={`focus:ring-0 focus:outline-none ${getInputClassName(isConfirmPasswordValid && doPasswordsMatch, confirmPasswordTouched)}`}
-              style={{ boxShadow: 'none' }}
+              style={{ boxShadow: "none" }}
               placeholder="Confirm password"
             />
-            {confirmPasswordTouched && !isConfirmPasswordValid && (
-              <p className="text-sm text-red-600">
-                Confirm password cannot be blank.
-              </p>
+            {(confirmPasswordTouched || showPasswordError) && !isConfirmPasswordValid && (
+              <p className="text-sm text-red-600">Confirm password cannot be blank.</p>
             )}
-            {confirmPasswordTouched && isConfirmPasswordValid && !doPasswordsMatch && (
-              <p className="text-sm text-red-600">
-                Passwords do not match.
-              </p>
-            )}
-            {showPasswordError && !confirmPasswordTouched && !isConfirmPasswordValid && (
-              <p className="text-sm text-red-600">
-                Confirm password cannot be blank.
-              </p>
-            )}
-            {showPasswordError && confirmPasswordTouched && isConfirmPasswordValid && !doPasswordsMatch && (
-              <p className="text-sm text-red-600">
-                Passwords do not match.
-              </p>
+            {(confirmPasswordTouched || showPasswordError) && isConfirmPasswordValid && !doPasswordsMatch && (
+              <p className="text-sm text-red-600">Passwords do not match.</p>
             )}
           </div>
         </div>
