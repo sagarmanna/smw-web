@@ -297,10 +297,15 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
   }, [footerData]);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<CustomerRow>({
-    reportTitle: "Customers",
+    reportTitle: "Customers List",
     columns,
     data: rows,
     footer: footerRow,
+    rightAlignedColumns: ['Balance'], // Only Balance column should be right-aligned
+    columnWidths: {
+      'Balance': 30, // Increase Balance column width in PDF
+    },
+    location: location, // Pass location for PDF header
   });
 
   const { handlePrint } = usePrintReport<CustomerRow>();

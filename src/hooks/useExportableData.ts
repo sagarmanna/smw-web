@@ -3,12 +3,16 @@ import { ColumnDef } from '@tanstack/react-table';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { formatLocationName } from '@/utils/textUtils';
 
 interface ExportableDataOptions<TData> {
   reportTitle: string;
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   footer?: TData;
+  rightAlignedColumns?: string[]; // Array of column headers that should be right-aligned
+  columnWidths?: Record<string, number>; // Custom column widths for PDF export
+  location?: string; // Location to display in PDF header
 }
 
 const download = (blob: Blob, filename: string) => {
@@ -20,7 +24,7 @@ const download = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
-export function useExportableData<TData>({ reportTitle, columns, data, footer }: ExportableDataOptions<TData>) {
+export function useExportableData<TData>({ reportTitle, columns, data, footer, rightAlignedColumns = [], columnWidths = {}, location }: ExportableDataOptions<TData>) {
   const getExportableColumns = useCallback(() => {
     return columns.filter(c => c.meta?.printable);
   }, [columns]);
@@ -51,19 +55,73 @@ export function useExportableData<TData>({ reportTitle, columns, data, footer }:
   }, [data, footer, headers, getFormattedRow, reportTitle]);
 
   const exportToPdf = useCallback(() => {
-    const doc = new jsPDF();
-    doc.text(reportTitle, 14, 15);
+    // Determine orientation based on number of columns
+    const useLandscape = headers.length > 4;
+    const doc = new jsPDF(useLandscape ? 'landscape' : 'portrait');
+    
+    // Get page dimensions
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Add title on the left with larger font
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(reportTitle, 14, 20);
+    
+    // Add location and generation date on the right with better styling
+    const rightMargin = 14;
+    let rightY = 15;
+    
+    // Set font for header info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    if (location) {
+      const formattedLocation = formatLocationName(location);
+      doc.text(`Location: ${formattedLocation}`, pageWidth - rightMargin, rightY, { align: 'right' });
+      rightY += 5;
+    }
+    
+    // Add generation date in the specified format with better styling
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).replace(/,/g, '');
+    doc.text(`Generated: ${formattedDate}`, pageWidth - rightMargin, rightY, { align: 'right' });
+    
     const body = data.map(row => getFormattedRow(row));
     if (footer) {
       body.push(getFormattedRow(footer));
     }
+    
+    // Create column styles for alignment and widths
+    const columnStyles: Record<string, { halign: 'left' | 'right' | 'center'; cellWidth?: number }> = {};
+    headers.forEach((header, index) => {
+      const isRightAligned = rightAlignedColumns.includes(header);
+      const customWidth = columnWidths[header];
+      
+      columnStyles[index] = {
+        halign: isRightAligned ? 'right' : 'left'
+      };
+      
+      if (customWidth) {
+        columnStyles[index].cellWidth = customWidth;
+      }
+    });
+    
+    // Start table below the header information with proper spacing
+    const startY = location ? 35 : 30;
+    
     autoTable(doc, {
       head: [headers],
       body: body,
-      startY: 25,
+      startY: startY,
+      columnStyles: columnStyles,
     });
     doc.save(`${reportTitle}.pdf`);
-  }, [data, footer, headers, getFormattedRow, reportTitle]);
+  }, [data, footer, headers, getFormattedRow, reportTitle, rightAlignedColumns, columnWidths, location]);
 
   // Add other export formats here...
   const exportToHtml = useCallback(() => {
