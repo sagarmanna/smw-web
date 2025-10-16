@@ -26,9 +26,21 @@ import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ReusableCard } from "@/components/TablesCards";
 import { ReusableModal } from "@/components/TablesModals";
-import { ReusableTabBar, TabItem } from "@/components/TablesTabBar";
 import { InfoField } from "@/components/TablesInfoField";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabContent } from "@/components/TabContent";
 import { getStudentById, StudentDetail } from "./students.api";
+import { 
+  STUDENT_TAB_CONFIGS, 
+  STUDENT_TAB_ORDER,
+  PrivateLessonData,
+  GroupLessonData,
+  AbsentLessonData,
+  UnscheduledLessonData,
+  CommentData,
+  HistoryData
+} from "./studentTabConfigs";
+import { mockStudentTabData } from "./mockData/studentMockData";
 
 interface StudentDetailClientProps {
   location: string;
@@ -74,6 +86,25 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
     status: "",
   });
 
+  // Tab data states
+  const [privateLessonData, setPrivateLessonData] = React.useState<PrivateLessonData[]>([]);
+  const [groupLessonData, setGroupLessonData] = React.useState<GroupLessonData[]>([]);
+  const [absentLessonData, setAbsentLessonData] = React.useState<AbsentLessonData[]>([]);
+  const [unscheduledLessonData, setUnscheduledLessonData] = React.useState<UnscheduledLessonData[]>([]);
+  const [commentData, setCommentData] = React.useState<CommentData[]>([]);
+  const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
+  const [showAllUnscheduled, setShowAllUnscheduled] = React.useState<boolean>(false);
+
+  // Tab data mapping for easy access
+  const tabDataMap: Record<string, unknown[]> = {
+    privateLessonData,
+    groupLessonData,
+    absentLessonData,
+    unscheduledLessonData,
+    commentData,
+    historyData,
+  };
+
   React.useEffect(() => {
     const load = async () => {
       try {
@@ -91,6 +122,14 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
         } else {
           setError(result.message || "Failed to fetch student");
         }
+
+        // Load tab data (mock data for now)
+        setPrivateLessonData(mockStudentTabData.privateLessonData);
+        setGroupLessonData(mockStudentTabData.groupLessonData);
+        setAbsentLessonData(mockStudentTabData.absentLessonData);
+        setUnscheduledLessonData(mockStudentTabData.unscheduledLessonData);
+        setCommentData(mockStudentTabData.commentData);
+        setHistoryData(mockStudentTabData.historyData);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unexpected error");
       } finally {
@@ -101,8 +140,7 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
   }, [location, studentId]);
 
   const handleSaveEvaluation = () => {
-    console.log("Saving evaluation:", evaluationForm);
-    // API call here
+    // TODO: Implement save evaluation API call
     setIsEvaluationModalOpen(false);
     setEvaluationForm({
       examDate: "",
@@ -115,22 +153,30 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
   };
 
   const handleEditProfile = () => {
-    console.log("Updating profile:", editProfileForm);
-    // API call here
+    // TODO: Implement update profile API call
     setIsEditProfileModalOpen(false);
   };
 
   const handleDeleteStudent = () => {
-    console.log("Deleting student:", studentId);
-    // API call here
+    // TODO: Implement delete student API call
     setIsDeleteModalOpen(false);
     router.push(`/${location}/students`);
   };
 
   const handleAddLesson = () => {
-    console.log("Adding lesson");
-    // API call here
+    // TODO: Implement add lesson API call
     setIsAddLessonModalOpen(false);
+  };
+
+  const handleShowMore = (_tabKey: string) => {
+    // TODO: Implement show more functionality
+    // This could load more data, expand the table, or navigate to a detailed view
+  };
+
+  const handleShowAllChange = (checked: boolean) => {
+    setShowAllUnscheduled(checked);
+    // TODO: Implement show all functionality
+    // This could filter the data or show/hide certain rows
   };
 
   const handlePrintEvaluations = () => {
@@ -204,16 +250,6 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
     return <div>Student not found</div>;
   }
 
-  const enrolmentColumns = [
-    { accessorKey: "program", header: "Program" },
-    { accessorKey: "teacher", header: "Teacher" },
-    { accessorKey: "day", header: "Day" },
-    { accessorKey: "fromTime", header: "From Time" },
-    { accessorKey: "duration", header: "Duration" },
-    { accessorKey: "startDate", header: "Start Date" },
-    { accessorKey: "endDate", header: "End Date" },
-  ];
-
   const evaluationColumns = [
     { accessorKey: "examDate", header: "Exam Date" },
     { accessorKey: "mark", header: "Mark" },
@@ -223,149 +259,14 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
     { accessorKey: "teacher", header: "Teacher" },
   ];
 
-  const privateLessonColumns = [
-    { accessorKey: "dueDate", header: "Due Date" },
-    { accessorKey: "programName", header: "Program Name" },
-    { accessorKey: "date", header: "Date" },
+  const enrolmentColumns = [
+    { accessorKey: "program", header: "Program" },
+    { accessorKey: "teacher", header: "Teacher" },
+    { accessorKey: "day", header: "Day" },
+    { accessorKey: "fromTime", header: "From Time" },
     { accessorKey: "duration", header: "Duration" },
-    { accessorKey: "status", header: "Status" },
-    { accessorKey: "price", header: "Price", cell: ({ row }: { row: { original: { price: number } } }) => `$${row.original.price.toFixed(2)}` },
-    { accessorKey: "owing", header: "Owing", cell: ({ row }: { row: { original: { owing: number } } }) => `$${row.original.owing.toFixed(2)}` },
-    { accessorKey: "online", header: "Online" },
-  ];
-
-  const groupLessonColumns = [
-    { accessorKey: "program", header: "Program" },
-    { accessorKey: "date", header: "Date" },
-    { accessorKey: "duration", header: "Duration" },
-    { accessorKey: "status", header: "Status" },
-    { accessorKey: "attendance", header: "Attendance" },
-  ];
-
-  const absentLessonColumns = [
-    { accessorKey: "program", header: "Program" },
-    { accessorKey: "date", header: "Date" },
-    { accessorKey: "reason", header: "Reason" },
-    { accessorKey: "notifiedDate", header: "Notified Date" },
-  ];
-
-  const unscheduledLessonColumns = [
-    { accessorKey: "program", header: "Program" },
-    { accessorKey: "lessonsRemaining", header: "Lessons Remaining" },
-    { accessorKey: "expiryDate", header: "Expiry Date" },
-  ];
-
-  const commentColumns = [
-    { accessorKey: "date", header: "Date" },
-    { accessorKey: "author", header: "Author" },
-    { accessorKey: "comment", header: "Comment" },
-  ];
-
-  const historyColumns = [
-    { accessorKey: "date", header: "Date" },
-    { accessorKey: "action", header: "Action" },
-    { accessorKey: "details", header: "Details" },
-    { accessorKey: "performedBy", header: "Performed By" },
-  ];
-
-  // Define lesson tabs
-  const lessonTabs: TabItem[] = [
-    {
-      value: "private",
-      label: "Private Lessons",
-      content: (
-        <CustomTable
-          data={student.privateLessons}
-          columns={privateLessonColumns}
-          enableSearch={false}
-          enableExport={true}
-          enableFilter={false}
-          enablePrint={false}
-          enableRowsPerPage={false}
-          enableSorting={false}
-        />
-      ),
-    },
-    {
-      value: "group",
-      label: "Group Lessons",
-      content: (
-        <CustomTable
-          data={student.groupLessons}
-          columns={groupLessonColumns}
-          enableSearch={false}
-          enableExport={true}
-          enableFilter={false}
-          enablePrint={false}
-          enableRowsPerPage={false}
-          enableSorting={false}
-        />
-      ),
-    },
-    {
-      value: "absent",
-      label: "Absent Lessons",
-      content: (
-        <CustomTable
-          data={student.absentLessons}
-          columns={absentLessonColumns}
-          enableSearch={false}
-          enableExport={true}
-          enableFilter={false}
-          enablePrint={false}
-          enableRowsPerPage={false}
-          enableSorting={false}
-        />
-      ),
-    },
-    {
-      value: "unscheduled",
-      label: "Unscheduled Lessons",
-      content: (
-        <CustomTable
-          data={student.unscheduledLessons}
-          columns={unscheduledLessonColumns}
-          enableSearch={false}
-          enableExport={false}
-          enableFilter={false}
-          enablePrint={false}
-          enableRowsPerPage={false}
-          enableSorting={false}
-        />
-      ),
-    },
-    {
-      value: "comments",
-      label: "Comments",
-      content: (
-        <CustomTable
-          data={student.comments}
-          columns={commentColumns}
-          enableSearch={false}
-          enableExport={false}
-          enableFilter={false}
-          enablePrint={false}
-          enableRowsPerPage={false}
-          enableSorting={false}
-        />
-      ),
-    },
-    {
-      value: "history",
-      label: "History",
-      content: (
-        <CustomTable
-          data={student.history}
-          columns={historyColumns}
-          enableSearch={false}
-          enableExport={false}
-          enableFilter={false}
-          enablePrint={false}
-          enableRowsPerPage={false}
-          enableSorting={false}
-        />
-      ),
-    },
+    { accessorKey: "startDate", header: "Start Date" },
+    { accessorKey: "endDate", header: "End Date" },
   ];
 
   return (
@@ -397,8 +298,8 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsEditProfileModalOpen(true)}>Edit Profile</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsAddLessonModalOpen(true)}>Add Lesson</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('View History')}>View History</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Send Notification')}>Send Notification</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {/* TODO: Implement view history */}}>View History</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {/* TODO: Implement send notification */}}>Send Notification</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteModalOpen(true)}>Delete</DropdownMenuItem>
             </DropdownMenuContent>
@@ -413,7 +314,7 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
           title="Details"
           actions={[
             { icon: Edit, onClick: () => setIsEditProfileModalOpen(true), label: 'Edit details' },
-            { icon: ChevronDown, onClick: () => console.log('Expand'), label: 'Expand' },
+            { icon: ChevronDown, onClick: () => {/* TODO: Implement expand */}, label: 'Expand' },
           ]}
         >
           <div className="space-y-3">
@@ -429,7 +330,7 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
         <ReusableCard
           title="Customer"
           actions={[
-            { icon: Plus, onClick: () => console.log('Add'), label: 'Add customer' },
+            { icon: Plus, onClick: () => {/* TODO: Implement add */}, label: 'Add customer' },
           ]}
         >
           <div className="space-y-3">
@@ -443,11 +344,11 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
       <ReusableCard
         title="Enrolments"
         actions={[
-          { icon: ChevronDown, onClick: () => console.log('Expand'), label: 'Expand' },
+          { icon: ChevronDown, onClick: () => {/* TODO: Implement expand */}, label: 'Expand' },
         ]}
       >
         <CustomTable
-          data={student.enrolments}
+          data={mockStudentTabData.enrolmentData}
           columns={enrolmentColumns}
           enableSearch={false}
           enableExport={false}
@@ -489,19 +390,74 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
         )}
       </ReusableCard>
 
-      {/* Lessons Card with ReusableTabBar */}
-      <ReusableCard
-        title="Lessons"
-        actions={[
-          { icon: Plus, onClick: () => setIsAddLessonModalOpen(true), label: 'Add lesson' },
-        ]}
-      >
-        <ReusableTabBar
-          tabs={lessonTabs}
-          defaultValue="private"
-          onTabChange={(value) => console.log('Active lesson tab:', value)}
-        />
-      </ReusableCard>
+      {/* Tabbed Interface */}
+      <div className="mt-8">
+        <Tabs defaultValue="private-lessons" className="w-full">
+          <TabsList className="inline-flex h-12 items-center justify-start rounded-md bg-muted p-1.5 text-muted-foreground w-full overflow-x-auto gap-1">
+            {STUDENT_TAB_ORDER.map((tabKey) => (
+              <TabsTrigger 
+                key={tabKey} 
+                value={tabKey} 
+                className="whitespace-nowrap px-6 py-2 text-sm font-medium min-w-fit"
+              >
+                {STUDENT_TAB_CONFIGS[tabKey].title}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {STUDENT_TAB_ORDER.map((tabKey) => {
+            const config = STUDENT_TAB_CONFIGS[tabKey];
+            const data = tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
+            
+            // Define bottom content for comments tab
+            const commentsBottomContent = tabKey === "comments" ? (
+              <div className="mt-4 flex items-center space-x-2">
+                <Input
+                  type="text"
+                  placeholder="Type message"
+                  className="flex-grow"
+                />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : undefined;
+            
+            return (
+              <TabsContent key={tabKey} value={tabKey} className="mt-4">
+                <TabContent
+                  title={config.title}
+                  data={data}
+                  columns={config.columns || []}
+                  loading={isLoading}
+                  hasAddButton={config.hasAddButton}
+                  onAdd={() => {
+                    if (tabKey === "private-lessons") {
+                      setIsAddLessonModalOpen(true);
+                    } else {
+                      // TODO: Implement add functionality for other tabs
+                    }
+                  }}
+                  emptyState={config.emptyState}
+                  hasTable={config.hasTable}
+                  bottomContent={commentsBottomContent}
+                  showMoreButton={config.showMoreButton}
+                  onShowMore={() => handleShowMore(tabKey)}
+                  showAllCheckbox={config.showAllCheckbox}
+                  showAllChecked={tabKey === "unscheduled-lessons" ? showAllUnscheduled : false}
+                  onShowAllChange={handleShowAllChange}
+                  dropdownItems={config.dropdownItems}
+                  dropdownLabel={config.dropdownLabel}
+                />
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      </div>
 
       {/* Add Evaluation Modal */}
       <ReusableModal
