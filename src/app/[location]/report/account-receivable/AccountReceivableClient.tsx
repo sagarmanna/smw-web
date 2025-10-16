@@ -321,6 +321,14 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     columns,
     data: accountReceivable,
     footer: footerRow || undefined,
+    rightAlignedColumns: ["OutStanding Invoices", "Pre-Paid Lessons", "Unused Credits", "Balance"],
+    columnWidths: {
+      'OutStanding Invoices': 30,
+      'Pre-Paid Lessons': 30,
+      'Unused Credits': 30,
+      'Balance': 30,
+    },
+    location: location,
   });
 
 

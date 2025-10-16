@@ -126,6 +126,16 @@ export function AllLocationsClient({ location }: AllLocationsClientProps) {
     columns,
     data: locationData,
     footer: footerRow,
+    rightAlignedColumns: ["Active Enrolments", "Revenue", "Royalty", "Advertisement", "HST", "Total"],
+    columnWidths: {
+      'Active Enrolments': 30,
+      'Revenue': 30,
+      'Royalty': 30,
+      'Advertisement': 30,
+      'HST': 30,
+      'Total': 30,
+    },
+    location: location,
   });
 
   if (isLoading) {

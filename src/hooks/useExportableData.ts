@@ -61,24 +61,32 @@ export function useExportableData<TData>({ reportTitle, columns, data, footer, r
     
     // Get page dimensions
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
     
-    // Add title on the left with larger font
-    doc.setFontSize(16);
+    // Add a subtle header line
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.line(14, 12, pageWidth - 14, 12);
+    
+    // Add title on the left with larger font and better spacing
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(reportTitle, 14, 20);
+    doc.setTextColor(40, 40, 40); // Dark gray instead of pure black
+    doc.text(reportTitle, 14, 25);
     
     // Add location and generation date on the right with better styling
     const rightMargin = 14;
-    let rightY = 15;
+    let rightY = 18;
     
     // Set font for header info
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100); // Medium gray for metadata
     
     if (location) {
       const formattedLocation = formatLocationName(location);
       doc.text(`Location: ${formattedLocation}`, pageWidth - rightMargin, rightY, { align: 'right' });
-      rightY += 5;
+      rightY += 4;
     }
     
     // Add generation date in the specified format with better styling
@@ -90,6 +98,11 @@ export function useExportableData<TData>({ reportTitle, columns, data, footer, r
       year: 'numeric'
     }).replace(/,/g, '');
     doc.text(`Generated: ${formattedDate}`, pageWidth - rightMargin, rightY, { align: 'right' });
+    
+    // Add total records count
+    const totalRecords = data.length;
+    rightY += 4;
+    doc.text(`Records: ${totalRecords}`, pageWidth - rightMargin, rightY, { align: 'right' });
     
     const body = data.map(row => getFormattedRow(row));
     if (footer) {
@@ -112,14 +125,68 @@ export function useExportableData<TData>({ reportTitle, columns, data, footer, r
     });
     
     // Start table below the header information with proper spacing
-    const startY = location ? 35 : 30;
+    const startY = location ? 40 : 35;
     
     autoTable(doc, {
       head: [headers],
       body: body,
       startY: startY,
       columnStyles: columnStyles,
+      margin: { left: 14, right: 14 },
+      styles: {
+        lineColor: [220, 220, 220], // Very light gray lines
+        lineWidth: 0.1,
+        fontSize: 9, // Slightly smaller font for better fit
+        cellPadding: { top: 3, right: 4, bottom: 3, left: 4 }, // Better padding
+        textColor: [40, 40, 40], // Dark gray text
+      },
+      headStyles: {
+        fillColor: [248, 249, 250], // Very light gray background for headers
+        textColor: [40, 40, 40], // Dark gray text
+        lineColor: [220, 220, 220], // Very light gray lines
+        lineWidth: 0.1,
+        fontSize: 9,
+        fontStyle: 'bold',
+        cellPadding: { top: 4, right: 4, bottom: 4, left: 4 },
+      },
+      bodyStyles: {
+        lineColor: [220, 220, 220], // Very light gray lines
+        lineWidth: 0.1,
+        fontSize: 9,
+        cellPadding: { top: 3, right: 4, bottom: 3, left: 4 },
+        textColor: [40, 40, 40], // Dark gray text
+      },
+      alternateRowStyles: {
+        fillColor: [252, 252, 252], // Very subtle alternate row color
+      },
+      // Add footer styling if footer exists
+      ...(footer && {
+        footStyles: {
+          fillColor: [240, 240, 240], // Light gray for footer
+          textColor: [40, 40, 40],
+          lineColor: [220, 220, 220],
+          lineWidth: 0.1,
+          fontSize: 9,
+          fontStyle: 'bold',
+          cellPadding: { top: 4, right: 4, bottom: 4, left: 4 },
+        }
+      }),
+      // Add page break handling
+      pageBreak: 'auto',
+      tableWidth: 'auto',
+      showHead: 'everyPage', // Show headers on every page
     });
+    
+    // Add footer with page numbers
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
+    }
+    
     doc.save(`${reportTitle}.pdf`);
   }, [data, footer, headers, getFormattedRow, reportTitle, rightAlignedColumns, columnWidths, location]);
 
