@@ -112,7 +112,7 @@ export function ColumnFilterComponent({
             }}
             placeholder={placeholder}
             className={cn(
-              "h-8 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:ring-offset-0 border-border/50 focus-visible:border-ring/50",
+              "h-8 text-sm text-foreground placeholder:text-muted-foreground/80 placeholder:font-normal focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:ring-offset-0 border-border/50 focus-visible:border-ring/50",
               className
             )}
           />
