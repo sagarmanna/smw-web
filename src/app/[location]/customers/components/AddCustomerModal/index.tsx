@@ -34,6 +34,7 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [isValidatingEmail, setIsValidatingEmail] = React.useState(false);
 
   // Load referral sources when modal opens
   React.useEffect(() => {
@@ -62,6 +63,40 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
+    
+    // Validate email in real-time when user types
+    if (field === 'email' && value.trim()) {
+      validateEmail(value.trim());
+    }
+  };
+
+  const validateEmail = async (email: string) => {
+    // Basic email format validation first
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return; // Don't validate format, let the form validation handle it
+    }
+
+    try {
+      setIsValidatingEmail(true);
+      const response = await apiClient.get(`/admin/v2/${location}/user/validate-email?email=${encodeURIComponent(email)}`);
+      
+      if (response.data?.success) {
+        const { exists } = response.data.data;
+        if (exists) {
+          setErrors(prev => ({ ...prev, email: "This email is already registered for a customer in this location" }));
+        } else {
+          // Clear email error if it was a duplicate error
+          if (errors.email && errors.email.includes("already registered")) {
+            setErrors(prev => ({ ...prev, email: "" }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to validate email:", error);
+      // Don't show error to user for validation failures, just log it
+    } finally {
+      setIsValidatingEmail(false);
+    }
   };
 
   const validateForm = () => {
@@ -81,8 +116,16 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
       newErrors.email = "Please enter a valid email address";
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    // Don't override existing email errors (like duplicate email)
+    if (!errors.email) {
+      setErrors(newErrors);
+    } else {
+      setErrors(prev => ({ ...prev, ...newErrors }));
+    }
+    
+    // Check if there are any errors (including existing ones)
+    const allErrors = { ...errors, ...newErrors };
+    return Object.keys(allErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,7 +218,7 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
       label: isSubmitting ? "Creating..." : "Create Customer",
       onClick: handleModalSubmit,
       variant: "default" as const,
-      disabled: isSubmitting,
+      disabled: isSubmitting || isValidatingEmail,
       className: "bg-primary hover:bg-primary/90"
     }
   ];
@@ -224,15 +267,22 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
 
         <div className="space-y-2">
           <Label htmlFor="email">Email *</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => handleInputChange("email", e.target.value)}
-            placeholder="Enter email address"
-            disabled={isSubmitting}
-            className={errors.email ? "border-red-600 dark:border-red-400" : ""}
-          />
+          <div className="relative">
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              placeholder="Enter email address"
+              disabled={isSubmitting}
+              className={errors.email ? "border-red-600 dark:border-red-400" : ""}
+            />
+            {isValidatingEmail && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+              </div>
+            )}
+          </div>
           {errors.email && (
             <p className="text-sm text-red-600 dark:text-red-400">{errors.email}</p>
           )}
