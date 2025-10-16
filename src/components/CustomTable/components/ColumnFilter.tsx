@@ -17,6 +17,7 @@ interface ColumnFilterProps {
   onClear: () => void;
   onEnter?: () => void;
   className?: string;
+  placeholder?: string;
 }
 
 export function ColumnFilterComponent({
@@ -26,6 +27,7 @@ export function ColumnFilterComponent({
   onClear,
   onEnter,
   className,
+  placeholder = "Filter...",
 }: ColumnFilterProps) {
   const [open, setOpen] = React.useState(false);
   
@@ -108,7 +110,7 @@ export function ColumnFilterComponent({
                 onEnter();
               }
             }}
-            placeholder="Filter..."
+            placeholder={placeholder}
             className={cn(
               "h-8 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:ring-offset-0 border-border/50 focus-visible:border-ring/50",
               className

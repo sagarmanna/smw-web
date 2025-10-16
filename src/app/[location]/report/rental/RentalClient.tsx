@@ -132,6 +132,11 @@ export function RentalClient({ location }: RentalClientProps) {
     reportTitle: 'Rental Report',
     columns,
     data: rentals,
+    rightAlignedColumns: ['Amount'],
+    columnWidths: {
+      'Amount': 30,
+    },
+    location: location,
   });
 
   if (isLoading && rentals.length === 0) {

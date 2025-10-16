@@ -735,48 +735,100 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
     reportTitle: 'Prepaid Future Group Lessons',
     columns: lessonColumnsWithDateFilter,
     data: data?.prepaidFutureGroupLessons || [],
+    rightAlignedColumns: ['Amount', 'Paid Amount', 'Balance'],
+    columnWidths: {
+      'Amount': 30,
+      'Paid Amount': 30,
+      'Balance': 30
+    },
+    location: location,
   });
 
   const paidGroupExport = useExportableData({
     reportTitle: 'Paid Unscheduled Group Lessons',
     columns: groupLessonColumns,
     data: data?.paidUnscheduledGroupLessons || [],
+    rightAlignedColumns: ['Amount', 'Paid Amount', 'Balance'],
+    columnWidths: {
+      'Amount': 30,
+      'Paid Amount': 30,
+      'Balance': 30,
+    },
+    location: location,
   });
 
   const prepaidPrivateExport = useExportableData({
     reportTitle: 'Prepaid Future Private Lessons',
     columns: lessonColumnsWithDateFilter,
     data: data?.prepaidFuturePrivateLessons || [],
+    rightAlignedColumns: ['Amount', 'Paid Amount', 'Balance'],
+    columnWidths: {
+      'Amount': 30,
+      'Paid Amount': 30,
+      'Balance': 30,
+    },
+    location: location,
   });
 
   const paidPrivateExport = useExportableData({
     reportTitle: 'Paid Unscheduled Private Lessons',
     columns: groupLessonColumns,
     data: data?.paidUnscheduledPrivateLessons || [],
+    rightAlignedColumns: ['Amount', 'Paid Amount', 'Balance'],
+    columnWidths: {
+      'Amount': 30,
+      'Paid Amount': 30,
+      'Balance': 30,
+    },
+    location: location,
   });
 
   const activeInvoicesExport = useExportableData({
     reportTitle: 'Active Outstanding Invoices',
     columns: invoiceColumns,
     data: data?.activeOutstandingInvoices || [],
+    rightAlignedColumns: ['Amount', 'Paid Amount', 'Balance'],
+    columnWidths: {
+      'Amount': 30,
+      'Paid Amount': 30,
+      'Balance': 30,
+    },
+    location: location,
   });
 
   const inactiveInvoicesExport = useExportableData({
     reportTitle: 'Inactive Outstanding Invoices',
     columns: invoiceColumns,
     data: data?.inactiveOutstandingInvoices || [],
+    rightAlignedColumns: ['Amount', 'Paid Amount', 'Balance'],
+    columnWidths: {
+      'Amount': 30,
+      'Paid Amount': 30,
+      'Balance': 30,
+    },
+    location: location,
   });
 
   const activeCreditExport = useExportableData({
     reportTitle: 'Active Customers With Credit',
     columns: creditColumns,
     data: data?.activeCustomersWithCredit || [],
+    rightAlignedColumns: ['Balance'],
+    columnWidths: {
+      'Balance': 30,
+    },
+    location: location,
   });
 
   const inactiveCreditExport = useExportableData({
     reportTitle: 'Inactive Customers With Credit',
     columns: creditColumns,
     data: data?.inactiveCustomersWithCredit || [],
+    rightAlignedColumns: ['Balance'],
+    columnWidths: {
+      'Balance': 30,
+    },
+    location: location,
   });
 
   // Conditional returns AFTER all hooks

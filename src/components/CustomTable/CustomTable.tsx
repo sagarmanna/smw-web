@@ -129,6 +129,7 @@ export interface CustomTableProps<TData, TValue> {
   onColumnFilterChange?: (columnKey: string, filterValue: unknown) => void; // Callback when column filter changes
   onColumnFilterEnter?: (columnKey: string) => void; // Callback when Enter is pressed in column filter
   columnFilters?: Record<string, unknown>; // External column filter state
+  columnFilterPlaceholders?: Record<string, string>; // Custom placeholders for column filters
 }
 
 export function CustomTable<TData, TValue>({
@@ -214,6 +215,7 @@ export function CustomTable<TData, TValue>({
   onColumnFilterChange,
   onColumnFilterEnter,
   columnFilters: externalColumnFilters,
+  columnFilterPlaceholders = {},
 }: CustomTableProps<TData, TValue>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
 
@@ -448,6 +450,7 @@ export function CustomTable<TData, TValue>({
                 columnFilters={columnFilters}
                 onColumnFilterChange={handleColumnFilterChange}
                 onColumnFilterEnter={onColumnFilterEnter}
+                columnFilterPlaceholders={columnFilterPlaceholders}
               />
               <TableBody
                 table={table}

@@ -345,6 +345,13 @@ export function ItemCategoryClient({ location }: ItemCategoryClientProps) {
     columns,
     data: data,
     footer: footerRow,
+    rightAlignedColumns: ["Subtotal", "Tax", "Total"],
+    columnWidths: {
+      'Subtotal': 30,
+      'Tax': 30,
+      'Total': 30,
+    },
+    location: location,
   });
 
   const onPrintClick = () => {
