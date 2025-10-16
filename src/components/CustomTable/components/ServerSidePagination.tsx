@@ -20,8 +20,8 @@ export function ServerSidePagination({
 }: ServerSidePaginationProps) {
   if (!enablePagination) return null;
 
-  const startRecord = ((pagination.page - 1) * pagination.limit) + 1;
-  const endRecord = Math.min(pagination.page * pagination.limit, pagination.total);
+  const startRecord = pagination.limit === -1 ? 1 : ((pagination.page - 1) * pagination.limit) + 1;
+  const endRecord = pagination.limit === -1 ? pagination.total : Math.min(pagination.page * pagination.limit, pagination.total);
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-t bg-muted/30 print:hidden">

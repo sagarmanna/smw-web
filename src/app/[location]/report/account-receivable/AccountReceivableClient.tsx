@@ -50,6 +50,8 @@ const columns = [
     minSize: 80,
     maxSize: 120,
     meta: {
+      printable: true,
+      printableName: "0-30",
       exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
@@ -63,6 +65,8 @@ const columns = [
     minSize: 80,
     maxSize: 120,
     meta: {
+      printable: true,
+      printableName: "31-60",
       exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
@@ -76,6 +80,8 @@ const columns = [
     minSize: 80,
     maxSize: 120,
     meta: {
+      printable: true,
+      printableName: "61-90",
       exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
@@ -89,6 +95,8 @@ const columns = [
     minSize: 80,
     maxSize: 120,
     meta: {
+      printable: true,
+      printableName: "90+",
       exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
@@ -103,7 +111,7 @@ const columns = [
     maxSize: 150,
     meta: {
       printable: true,
-      printableName: "OutStanding Invoices",
+      printableName: "Total",
       exportFormatter: (value: unknown) => formatCurrency(value as number),
     },
     cell: ({ row }: { row: { original: AccountReceivableRow } }) => {
@@ -321,9 +329,13 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
     columns,
     data: accountReceivable,
     footer: footerRow || undefined,
-    rightAlignedColumns: ["OutStanding Invoices", "Pre-Paid Lessons", "Unused Credits", "Balance"],
+    rightAlignedColumns: ["0-30", "31-60", "61-90", "90+", "Total", "Pre-Paid Lessons", "Unused Credits", "Balance"],
     columnWidths: {
-      'OutStanding Invoices': 30,
+      '0-30': 25,
+      '31-60': 25,
+      '61-90': 25,
+      '90+': 25,
+      'Total': 30,
       'Pre-Paid Lessons': 30,
       'Unused Credits': 30,
       'Balance': 30,
@@ -387,7 +399,7 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           data: accountReceivable,
           footer: footerRow || undefined,
           location,
-          rightAlignedColumns: ["OutStanding Invoices",	"Pre-Paid Lessons",	"Unused Credits",	"Balance"],
+          rightAlignedColumns: ["Total",	"Pre-Paid Lessons",	"Unused Credits",	"Balance"],
         })}
         enableSorting={false}
         enableRowsPerPage={true}

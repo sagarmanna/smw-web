@@ -31,7 +31,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [page, setPage] = React.useState<number>(1);
   const [pageSize, setPageSize] = React.useState<number>(20);
-  const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
+  const [activeFilter, setActiveFilter] = React.useState<string | undefined>("active");
   // Column filter state for individual column filters
   const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
   // Modal state
@@ -390,10 +390,10 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         onColumnFilterEnter={handleColumnFilterEnter}
         columnFilters={columnFilters}
         columnFilterPlaceholders={{
-          firstName: "First name...",
-          lastName: "Last name...",
-          email: "Email address...",
-          students: "Student name...",
+          firstName: "Enter first name",
+          lastName: "Enter last name",
+          email: "Enter email address",
+          students: "Enter student name",
         }}
 
         // Sorting and pagination (server-side)
@@ -423,7 +423,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
             window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${row.id}`;
           }
         }}
-        rowClassName="cursor-pointer"
+        rowClassName={(row) => `cursor-pointer ${!row.isActive ? 'opacity-60 hover:opacity-80' : ''}`}
       />
       
       <AddCustomerModal

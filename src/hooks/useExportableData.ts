@@ -124,6 +124,7 @@ export function useExportableData<TData>({ reportTitle, columns, data, footer, r
       }
     });
     
+    
     // Start table below the header information with proper spacing
     const startY = location ? 40 : 35;
     
@@ -148,6 +149,7 @@ export function useExportableData<TData>({ reportTitle, columns, data, footer, r
         fontSize: 9,
         fontStyle: 'bold',
         cellPadding: { top: 4, right: 4, bottom: 4, left: 4 },
+        halign: 'center', // Center align all headers
       },
       bodyStyles: {
         lineColor: [220, 220, 220], // Very light gray lines
