@@ -389,6 +389,12 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         onColumnFilterChange={handleColumnFilterChange}
         onColumnFilterEnter={handleColumnFilterEnter}
         columnFilters={columnFilters}
+        columnFilterPlaceholders={{
+          firstName: "First name...",
+          lastName: "Last name...",
+          email: "Email address...",
+          students: "Student name...",
+        }}
 
         // Sorting and pagination (server-side)
         manualSorting={true}
