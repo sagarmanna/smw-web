@@ -13,6 +13,7 @@ import { usePrintReport } from "@/hooks/usePrintReport";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AddCustomerModal } from "./components/AddCustomerModal";
+import { isDev } from "@/utils/env";
 
 interface CustomersClientProps {
   location: string;
@@ -404,7 +405,12 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row) => {
           // Navigate once per click: push with explicit query param key to avoid parsing quirks
-          router.push(`customers/${row.id}`);
+          // TODO: Remove this once we have a proper customer page
+          if(isDev()){
+            router.push(`customers/${row.id}`);
+          } else {
+            window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${row.id}`;
+          }
         }}
         rowClassName="cursor-pointer"
       />

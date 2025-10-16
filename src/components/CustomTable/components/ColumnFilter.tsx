@@ -108,7 +108,11 @@ export function ColumnFilterComponent({
                 onEnter();
               }
             }}
-            className={cn("h-8 text-sm", className)}
+            placeholder="Filter..."
+            className={cn(
+              "h-8 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:ring-offset-0 border-border/50 focus-visible:border-ring/50",
+              className
+            )}
           />
         );
 
