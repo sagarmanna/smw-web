@@ -18,7 +18,8 @@ import {
   getCustomerPayments
 } from "../customers.api";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { LessonsDueCard, OutstandingInvoiceCard, CreditsCard, BalanceCard } from "@/components/MetricCard";
+import { SummaryCard } from "@/components/SummaryCard";
+import { BookOpen, FileText, Star, DollarSign } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
@@ -314,21 +315,33 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
       {/* Payment History Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-4">
-        <LessonsDueCard 
-          value={formatCurrency(821.52)} 
-          loading={loading} 
+        <SummaryCard
+          title="Lessons Due"
+          value={formatCurrency(821.52)}
+          icon={<BookOpen className="h-6 w-6 text-white" />}
+          iconBackgroundColor="bg-cyan-500"
+          loading={loading}
         />
-        <OutstandingInvoiceCard 
-          value={formatCurrency(20741.84)} 
-          loading={loading} 
+        <SummaryCard
+          title="Outstanding Invoice"
+          value={formatCurrency(20741.84)}
+          icon={<FileText className="h-6 w-6 text-white" />}
+          iconBackgroundColor="bg-orange-500"
+          loading={loading}
         />
-        <CreditsCard 
-          value={formatCurrency(0.00)} 
-          loading={loading} 
+        <SummaryCard
+          title="Credits"
+          value={formatCurrency(0.00)}
+          icon={<Star className="h-6 w-6 text-white" />}
+          iconBackgroundColor="bg-green-500"
+          loading={loading}
         />
-        <BalanceCard 
-          value={customer && customer.balance ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)} 
-          loading={loading} 
+        <SummaryCard
+          title="Balance"
+          value={customer && customer.balance ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)}
+          icon={<DollarSign className="h-6 w-6 text-white" />}
+          iconBackgroundColor="bg-orange-400"
+          loading={loading}
         />
       </div>
 
