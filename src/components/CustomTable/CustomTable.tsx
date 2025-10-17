@@ -185,7 +185,7 @@ export function CustomTable<TData, TValue>({
   onServerSidePageChange,
   
   // Rows per page configuration
-  initialRowsPerPage = 20,
+  initialRowsPerPage = 10,
   rowsPerPageOptions = [5, 10, 20, 50, 100],
   onRowsPerPageChange,
   rowsPerPage: controlledRowsPerPage,

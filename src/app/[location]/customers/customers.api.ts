@@ -322,15 +322,11 @@ export interface StudentsResponse {
     body: Array<{
       id: number;
       fullName: string;
-      firstName?: string;
-      lastName?: string;
+     
       birthDate: string;
       customerName: string;
       status: number;
-      phone?: string;
-      email?: string;
-      gender?: string;
-      notes?: string;
+      isActive: boolean;
     }>;
     pagination: {
       page: number;

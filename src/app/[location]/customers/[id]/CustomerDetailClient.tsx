@@ -83,6 +83,22 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [loading, setLoading] = React.useState<boolean>(true);
   const [studentsLoading, setStudentsLoading] = React.useState<boolean>(false);
   const [studentsError, setStudentsError] = React.useState<string | null>(null);
+  const [studentsPagination, setStudentsPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
+  const [studentsRowsPerPage, setStudentsRowsPerPage] = React.useState<number>(10);
+
+  // Simple pagination state for all tabs
+  const [tabPagination, setTabPagination] = React.useState<Record<string, {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  }>>({});
+  const [tabRowsPerPage, setTabRowsPerPage] = React.useState<Record<string, number>>({});
   const [showAllEquipment, setShowAllEquipment] = React.useState<boolean>(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = React.useState<boolean>(false);
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] = React.useState<boolean>(false);
@@ -98,7 +114,49 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   // Handle adding new student
   const handleAddStudent = (studentData: StudentData) => {
     setStudentData(prev => [...prev, studentData]);
+    // Update pagination when adding new student
+    setStudentsPagination(prev => ({
+      ...prev,
+      total: prev.total + 1,
+      totalPages: Math.ceil((prev.total + 1) / prev.limit)
+    }));
   };
+
+  // Handle students pagination
+  const handleStudentsPageChange = (page: number) => {
+    setStudentsPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleStudentsRowsPerPageChange = (rowsPerPage: number) => {
+    setStudentsRowsPerPage(rowsPerPage);
+    setStudentsPagination(prev => ({
+      ...prev,
+      limit: rowsPerPage,
+      page: 1, // Reset to first page when changing rows per page
+      totalPages: Math.ceil(prev.total / rowsPerPage)
+    }));
+  };
+
+  // Simple pagination handlers for all tabs (following AccountReceivableClient pattern)
+  const handleTabPageChange = React.useCallback((tabKey: string, page: number) => {
+    setTabPagination(prev => ({
+      ...prev,
+      [tabKey]: { ...prev[tabKey], page }
+    }));
+  }, []);
+
+  const handleTabRowsPerPageChange = React.useCallback((tabKey: string, rowsPerPage: number) => {
+    setTabRowsPerPage(prev => ({ ...prev, [tabKey]: rowsPerPage }));
+    setTabPagination(prev => ({
+      ...prev,
+      [tabKey]: {
+        ...prev[tabKey],
+        limit: rowsPerPage,
+        page: 1, // Reset to first page when changing rows per page
+        totalPages: Math.ceil((prev[tabKey]?.total || 0) / rowsPerPage)
+      }
+    }));
+  }, []);
 
   // Handle adding new recurring payment
   const handleAddRecurringPayment = () => {
@@ -231,6 +289,12 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         try {
           const students = await getCustomerStudents(location, Number(id));
           setStudentData(students);
+          // Update pagination state based on API response
+          setStudentsPagination(prev => ({
+            ...prev,
+            total: students.length,
+            totalPages: Math.ceil(students.length / prev.limit)
+          }));
         } catch (error) {
           setStudentsError('Failed to load students data');
           setStudentData([]);
@@ -254,6 +318,45 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     
     loadData();
   }, [location, id]);
+
+  // Initialize pagination after data is loaded
+  React.useEffect(() => {
+    if (!loading && studentData.length >= 0) {
+      // Use keys that exactly match TAB_ORDER/CUSTOMER_TAB_CONFIGS ids
+      const tabData = {
+        students: studentData,
+        enrolments: enrolmentData,
+        "private-lessons": privateLessonData,
+        "group-lessons": groupLessonData,
+        "proforma-invoices": proformaInvoiceData,
+        comments: commentData,
+        history: historyData,
+      } as Record<string, unknown[]>;
+
+      const initialPagination: Record<string, {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      }> = {};
+      const initialRowsPerPage: Record<string, number> = {};
+
+      Object.entries(tabData).forEach(([key, data]) => {
+        const total = Array.isArray(data) ? data.length : 0;
+        const limit = 10;
+        initialPagination[key] = {
+          page: 1,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        };
+        initialRowsPerPage[key] = limit;
+      });
+
+      setTabPagination(initialPagination);
+      setTabRowsPerPage(initialRowsPerPage);
+    }
+  }, [loading, studentData, enrolmentData, privateLessonData, groupLessonData, proformaInvoiceData, commentData, historyData]);
 
   // Handle details save
   const handleDetailsSave = React.useCallback((newData: {
@@ -556,7 +659,19 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
           {TAB_ORDER.map((tabKey) => {
             const config = CUSTOMER_TAB_CONFIGS[tabKey];
-            const data = tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
+            const fullData = tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
+            
+            // Get pagination info for this tab
+            const pagination = tabPagination[tabKey];
+            const rowsPerPage = tabRowsPerPage[tabKey] || 10;
+            
+            // Slice data based on current page and rows per page (like AccountReceivableClient)
+            const startIndex = pagination ? (pagination.page - 1) * pagination.limit : 0;
+            const endIndex = pagination ? startIndex + pagination.limit : fullData.length;
+            const data = fullData.slice(startIndex, endIndex);
+            
+            // Show pagination if total records > 10
+            const shouldShowPagination = pagination && pagination.total > 10;
             
             // Use specific loading state for students tab
             const isLoading = tabKey === "students" ? studentsLoading : loading;
@@ -599,6 +714,14 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
                   emptyState={config.emptyState}
                   hasTable={config.hasTable}
                   bottomContent={commentsBottomContent}
+                  // Simple pagination following AccountReceivableClient pattern
+                  enablePagination={shouldShowPagination}
+                  serverSidePagination={shouldShowPagination ? tabPagination[tabKey] : undefined}
+                  onPageChange={shouldShowPagination ? (page: number) => handleTabPageChange(tabKey, page) : undefined}
+                  onRowsPerPageChange={shouldShowPagination ? (rowsPerPage: number) => handleTabRowsPerPageChange(tabKey, rowsPerPage) : undefined}
+                  rowsPerPage={tabRowsPerPage[tabKey] || 10}
+                  rowsPerPageOptions={[5, 10, 20, 50, 100]}
+                  initialRowsPerPage={10}
                 />
               </TabsContent>
             );

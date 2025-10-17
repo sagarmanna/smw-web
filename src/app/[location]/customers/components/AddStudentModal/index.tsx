@@ -162,7 +162,6 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
             id="customerName"
             value={formData.customerName}
             onChange={(e) => handleInputChange("customerName", e.target.value)}
-            className="bg-gray-50"
             placeholder="Enter customer name"
           />
         </div>
@@ -175,7 +174,7 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
             type="date"
             value={formData.birthDate}
             onChange={(e) => handleInputChange("birthDate", e.target.value)}
-            className={`bg-gray-50 ${errors.birthDate ? "border-red-500" : ""}`}
+            className={errors.birthDate ? "border-red-500" : ""}
           />
           {errors.birthDate && (
             <p className="text-sm text-red-500">{errors.birthDate}</p>

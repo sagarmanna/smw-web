@@ -39,6 +39,20 @@ interface TabContentProps<TData = unknown> {
   onShowAllChange?: (checked: boolean) => void;
   dropdownItems?: DropdownMenuItem[];
   dropdownLabel?: string;
+  
+  // Pagination props
+  enablePagination?: boolean;
+  serverSidePagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  onPageChange?: (page: number) => void;
+  onRowsPerPageChange?: (rowsPerPage: number) => void;
+  rowsPerPage?: number;
+  rowsPerPageOptions?: number[];
+  initialRowsPerPage?: number;
 }
 
 export function TabContent<TData = unknown>({
@@ -60,6 +74,15 @@ export function TabContent<TData = unknown>({
   onShowAllChange,
   dropdownItems = [],
   dropdownLabel = "Actions",
+  
+  // Pagination props with defaults
+  enablePagination = true,
+  serverSidePagination,
+  onPageChange,
+  onRowsPerPageChange,
+  rowsPerPage,
+  rowsPerPageOptions = [5, 10, 20, 50, 100],
+  initialRowsPerPage = 10,
 }: TabContentProps<TData>) {
   return (
     <Card>
@@ -128,10 +151,16 @@ export function TabContent<TData = unknown>({
               enablePrint={false}
               enableSearch={false}
               enableFilter={false}
-              enableRowsPerPage={false}
+              enableRowsPerPage={enablePagination}
               className="border-0 w-full"
               isLoading={loading}
               footerRow={footerRow}
+              serverSidePagination={serverSidePagination}
+              onServerSidePageChange={onPageChange}
+              onRowsPerPageChange={onRowsPerPageChange}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={rowsPerPageOptions}
+              initialRowsPerPage={initialRowsPerPage}
             />
           </>
         ) : (
