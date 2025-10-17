@@ -138,7 +138,7 @@ export function EmailCard({
             emails.map(email => (
               <div
                 key={email.id}
-                className="flex items-center justify-between hover:bg-gray-50 p-2 rounded -mx-2 group"
+                className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 group"
               >
                 <KeyValueDisplay
                   label={email.label}
@@ -148,23 +148,23 @@ export function EmailCard({
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={(e) => handleEditClick(e, email)}
-                    className="p-1.5 hover:bg-gray-200 rounded"
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
                     aria-label="Edit email"
                   >
-                    <Pencil className="h-4 w-4 text-gray-600" />
+                    <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                   </button>
                   <button
                     onClick={(e) => handleDeleteClick(e, email.id)}
-                    className="p-1.5 hover:bg-red-100 rounded"
+                    className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
                     aria-label="Delete email"
                   >
-                    <Trash2 className="h-4 w-4 text-red-600" />
+                    <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                   </button>
                 </div>
               </div>
             ))
           ) : (
-            <span className="text-gray-500 text-sm">No emails added</span>
+            <span className="text-gray-500 dark:text-gray-400 text-sm">No emails added</span>
           )}
         </div>
       </InfoCard>
@@ -179,7 +179,7 @@ export function EmailCard({
       >
         <div className="space-y-4">
           {editingEmail && (
-            <div className="text-sm text-blue-600 mb-2">Editing email</div>
+            <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">Editing email</div>
           )}
 
           {/* Email Form */}
@@ -224,6 +224,7 @@ export function EmailCard({
                 }
                 placeholder="Enter note"
                 rows={3}
+                className="resize-none"
               />
             </div>
           </div>
