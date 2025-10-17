@@ -1,5 +1,4 @@
 import { 
-  StudentData, 
   EnrolmentData, 
   PrivateLessonData, 
   GroupLessonData, 
@@ -20,10 +19,6 @@ export interface RecurringPaymentEnrolmentData {
 
 // Mock data for customer detail tabs
 export const mockCustomerTabData = {
-  studentData: [
-    { name: "321123 123", birthDate: "Jan 06, 2005", customerName: "123 123" },
-  ] as StudentData[],
-
   enrolmentData: [
     { studentName: "321123 123", programName: "Ukulele", teacherName: "Art Tatum", day: "Monday", fromTime: "08:00 AM", duration: "00:30", startDate: "Jan 31, 2022", renewalDate: "Jan 26, 2026" },
     { studentName: "321123 123", programName: "xPiano Core", teacherName: "Alexander Hamilton", day: "Friday", fromTime: "09:00 AM", duration: "00:30", startDate: "Apr 08, 2022", renewalDate: "Apr 24, 2026" },

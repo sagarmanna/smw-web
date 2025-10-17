@@ -8,6 +8,7 @@ import {
   GroupLessonDueData, 
   PaymentData 
 } from './tableConfigs';
+import { StudentData } from './tabConfigs';
 
 export interface CustomerRow {
   id: number;
@@ -86,7 +87,6 @@ export async function getCustomers(
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error fetching customers list:', error);
     return {
       success: false,
       message: apiError.response?.data?.message || 'Failed to fetch customers',
@@ -122,8 +122,6 @@ export async function getCustomerById(
     );
     return response.data.success ? response.data.data : null;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error fetching customer by id:', error);
     return null;
   }
 }
@@ -311,6 +309,81 @@ export async function getCustomerPayments(
   // return response.data;
   
   return [];
+}
+
+// --------------------
+// Students API function
+// --------------------
+
+export interface StudentsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: Array<{
+      id: number;
+      fullName: string;
+      firstName?: string;
+      lastName?: string;
+      birthDate: string;
+      customerName: string;
+      status: number;
+      phone?: string;
+      email?: string;
+      gender?: string;
+      notes?: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export async function getCustomerStudents(
+  location: string,
+  customerId: number
+): Promise<StudentData[]> {
+  try {
+    const response = await apiClient.get<StudentsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/students`
+    );
+    
+    if (response.data.success) {
+      // Extract students from the nested structure: data.body
+      const students = response.data.data?.body;
+      
+      // Check if data exists and is an array
+      if (!students) {
+        return [];
+      }
+      
+      if (!Array.isArray(students)) {
+        return [];
+      }
+      
+      // Transform API data to match our interface
+      return students.map(student => ({
+        id: student.id?.toString() || '',
+        firstName: student.firstName || '',
+        lastName: student.lastName || '',
+        name: student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+        birthDate: student.birthDate || '',
+        customerName: student.customerName || '',
+        customerId: customerId.toString(),
+        phone: student.phone || '',
+        email: student.email || '',
+        gender: student.gender || '',
+        status: student.status === 1 ? 'Active' : 'Inactive',
+        notes: student.notes || ''
+      }));
+    } else {
+      return [];
+    }
+  } catch (error: unknown) {
+    return [];
+  }
 }
 
 

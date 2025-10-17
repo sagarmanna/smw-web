@@ -10,6 +10,7 @@ interface TabContentProps<TData = unknown> {
   data: TData[];
   columns: ColumnDef<TData>[];
   loading?: boolean;
+  error?: string | null;
   hasAddButton?: boolean;
   onAdd?: () => void;
   emptyState?: string;
@@ -23,6 +24,7 @@ export function TabContent<TData = unknown>({
   data,
   columns,
   loading = false,
+  error = null,
   hasAddButton = true,
   onAdd,
   emptyState = "No data available",
@@ -41,7 +43,12 @@ export function TabContent<TData = unknown>({
         )}
       </CardHeader>
       <CardContent className="pt-0">
-        {hasTable ? (
+        {error ? (
+          <div className="text-center py-8 text-red-500">
+            <p className="font-medium">Error loading data</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        ) : hasTable ? (
           <CustomTable
             data={data}
             columns={columns}

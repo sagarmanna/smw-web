@@ -3,9 +3,18 @@ import { formatCurrency } from "@/utils/formatCurrency";
 
 // Data interfaces
 export interface StudentData {
-  name: string;
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string; // Computed field for display
   birthDate: string;
   customerName: string;
+  customerId?: string;
+  phone?: string;
+  email?: string;
+  gender?: string;
+  status?: string;
+  notes?: string;
 }
 
 export interface EnrolmentData {
