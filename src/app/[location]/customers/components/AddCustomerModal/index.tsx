@@ -51,7 +51,6 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
         setReferralSources(response.data.data || []);
       }
     } catch (error) {
-      console.error("Failed to load referral sources:", error);
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +91,6 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
         }
       }
     } catch (error) {
-      console.error("Failed to validate email:", error);
       // Don't show error to user for validation failures, just log it
     } finally {
       setIsValidatingEmail(false);
@@ -169,7 +167,6 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
         setErrors({ submit: response.data?.message || "Failed to create customer" });
       }
     } catch (error: unknown) {
-      console.error("Failed to create customer:", error);
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { errors?: Record<string, string>; message?: string } } };
         if (axiosError.response?.data?.errors) {
