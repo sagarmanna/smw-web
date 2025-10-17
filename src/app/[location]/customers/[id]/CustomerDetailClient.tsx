@@ -301,7 +301,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   ];
 
   return (
-      <div className="space-y-4 bg-white">
+      <div className="bg-white dark:bg-black -mt-2">
 
       {/* Detail Header */}
       <DetailHeader
