@@ -162,15 +162,16 @@ export function DetailsCard({
   ];
 
   const getInputClassName = (isValid: boolean, isTouched: boolean) => {
-    if (isTouched && !isValid) return "border-red-600 text-gray-500";
-    if (isTouched && isValid) return "border-green-600 text-gray-900";
-    return "border-gray-300 text-gray-500";
+    const darkModeClasses = "dark:text-gray-100 dark:bg-gray-900 dark:placeholder:text-gray-500";
+    if (isTouched && !isValid) return `border-red-600 text-gray-900 ${darkModeClasses}`;
+    if (isTouched && isValid) return `border-green-600 text-gray-900 ${darkModeClasses}`;
+    return `border-gray-300 dark:border-gray-600 text-gray-900 ${darkModeClasses}`;
   };
 
   const getLabelClassName = (isValid: boolean, isTouched: boolean) => {
-    if (isTouched && !isValid) return "text-red-600";
-    if (isTouched && isValid) return "text-green-600";
-    return "text-gray-700";
+    if (isTouched && !isValid) return "text-red-600 dark:text-red-400";
+    if (isTouched && isValid) return "text-green-600 dark:text-green-400";
+    return "text-gray-700 dark:text-gray-300";
   };
 
   // Password handlers
@@ -334,7 +335,7 @@ export function DetailsCard({
                 placeholder="Enter first name"
               />
               {(firstNameTouched || showError) && !isFirstNameValid && (
-                <p className="text-sm text-red-600">First name cannot be blank.</p>
+                <p className="text-sm text-red-600 dark:text-red-400">First name cannot be blank.</p>
               )}
             </div>
 
@@ -356,14 +357,14 @@ export function DetailsCard({
                 placeholder="Enter last name"
               />
               {(lastNameTouched || showError) && !isLastNameValid && (
-                <p className="text-sm text-red-600">Last name cannot be blank.</p>
+                <p className="text-sm text-red-600 dark:text-red-400">Last name cannot be blank.</p>
               )}
             </div>
           </div>
 
           {/* Referral Source */}
           <div className="space-y-3">
-            <Label className={`text-sm font-medium ${showError && !isReferralSourceValid ? "text-red-600" : "text-gray-700"}`}>
+            <Label className={`text-sm font-medium ${showError && !isReferralSourceValid ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300"}`}>
               How did you find us?
             </Label>
             <div className="space-y-2">
@@ -376,8 +377,8 @@ export function DetailsCard({
                       referralSource === source 
                         ? "border-[#f3573f]" 
                         : showError && !isReferralSourceValid
-                        ? "border-red-600"
-                        : "border-gray-400"
+                        ? "border-red-600 dark:border-red-400"
+                        : "border-gray-400 dark:border-gray-500"
                     }`}
                   >
                     {referralSource === source && (
@@ -391,8 +392,8 @@ export function DetailsCard({
                       referralSource === source 
                         ? "text-[#f3573f]" 
                         : showError && !isReferralSourceValid 
-                        ? "text-red-600" 
-                        : "text-gray-500"
+                        ? "text-red-600 dark:text-red-400" 
+                        : "text-gray-500 dark:text-gray-400"
                     }`}
                   >
                     {source}
@@ -401,14 +402,14 @@ export function DetailsCard({
               ))}
             </div>
             {showError && !isReferralSourceValid && (
-              <p className="text-sm text-red-600">Please select how you found us.</p>
+              <p className="text-sm text-red-600 dark:text-red-400">Please select how you found us.</p>
             )}
           </div>
 
           {/* Picture Upload */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">Picture</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center">
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Picture</Label>
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 flex flex-col items-center justify-center dark:bg-gray-800">
               {picture ? (
                 <div className="relative w-24 h-24">
                   <Image 
@@ -429,9 +430,9 @@ export function DetailsCard({
                 </div>
               ) : (
                 <label htmlFor="picture-upload" className="cursor-pointer">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                  <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
                     <svg 
-                      className="w-8 h-8 text-gray-400" 
+                      className="w-8 h-8 text-gray-400 dark:text-gray-500" 
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
@@ -486,7 +487,7 @@ export function DetailsCard({
               placeholder="Enter password"
             />
             {(passwordTouched || showPasswordError) && !isPasswordValid && (
-              <p className="text-sm text-red-600">Password cannot be blank.</p>
+              <p className="text-sm text-red-600 dark:text-red-400">Password cannot be blank.</p>
             )}
           </div>
 
@@ -508,10 +509,10 @@ export function DetailsCard({
               placeholder="Confirm password"
             />
             {(confirmPasswordTouched || showPasswordError) && !isConfirmPasswordValid && (
-              <p className="text-sm text-red-600">Confirm password cannot be blank.</p>
+              <p className="text-sm text-red-600 dark:text-red-400">Confirm password cannot be blank.</p>
             )}
             {(confirmPasswordTouched || showPasswordError) && isConfirmPasswordValid && !doPasswordsMatch && (
-              <p className="text-sm text-red-600">Passwords do not match.</p>
+              <p className="text-sm text-red-600 dark:text-red-400">Passwords do not match.</p>
             )}
           </div>
         </div>
