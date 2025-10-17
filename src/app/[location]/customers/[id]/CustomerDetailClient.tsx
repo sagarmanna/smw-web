@@ -4,15 +4,8 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { Settings, Plus, Slash } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
+import { Plus } from "lucide-react";
+import { DetailHeader, ActionMenuGroup } from "@/components/DetailHeader";
 import { 
   getCustomerById, 
   CustomerRow,
@@ -24,15 +17,9 @@ import {
   getCustomerGroupLessonDue,
   getCustomerPayments
 } from "../customers.api";
-import { 
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { LessonsDueCard, OutstandingInvoiceCard, CreditsCard, BalanceCard } from "@/components/MetricCard";
+import { SummaryCard } from "@/components/SummaryCard";
+import { BookOpen, FileText, Star, DollarSign } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
@@ -292,68 +279,75 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     // TODO: Call API to update customer details
   }, []);
 
+  // Define action menu groups for customer
+  const customerActionMenuGroups: ActionMenuGroup[] = [
+    {
+      label: "Actions",
+      items: [
+        { label: "Receive Payment", onClick: () => {} },
+        { label: "Print Statement", onClick: () => {} },
+        { label: "Email Statement", onClick: () => {} },
+        { label: "A/R Report Detail", onClick: () => {} },
+        { label: "Items Purchased by Category", onClick: () => {} },
+        { label: "Notify Via Email", onClick: () => {} },
+      ],
+      separator: true
+    },
+    {
+      items: [
+        { label: "Delete", onClick: () => {}, variant: "destructive" }
+      ]
+    }
+  ];
+
   return (
-    <div className="space-y-4 bg-white px-2 sm:px-3">
-      {/* Breadcrumb header (shadcn) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md px-2 sm:px-3 py-2">
-        <Breadcrumb>
-          <BreadcrumbList className="text-xs sm:text-sm">
-            <BreadcrumbItem>
-              <BreadcrumbLink href="#" onClick={(e) => { e.preventDefault(); router.push("customers"); }}>Customers</BreadcrumbLink>
-            </BreadcrumbItem>
-            <Slash className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="truncate max-w-[70vw] sm:max-w-none">
-                {loading ? "Loading..." : localFirstName && localLastName ? `${localFirstName} ${localLastName}` : id}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <div className="flex items-center gap-1 sm:gap-2 self-end sm:self-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-8 sm:w-8" aria-label="Customer actions">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {}}>Receive Payment</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Print Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Email Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>A/R Report Detail</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Items Purchased by Category</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Notify Via Email</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600" onClick={() => {}}>Delete</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      <div className="space-y-4 bg-white">
+
+      {/* Detail Header */}
+      <DetailHeader
+        breadcrumbItems={[
+          { label: "Customers", onClick: () => router.push(`/${location}/customers/`) }
+        ]}
+        currentPageTitle={localFirstName && localLastName ? `${localFirstName} ${localLastName}` : id}
+        loading={loading}
+        actionMenuGroups={customerActionMenuGroups}
+        actionButtonAriaLabel="Customer actions"
+      />
 
       {/* Payment History Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-4">
-        <LessonsDueCard 
-          value={formatCurrency(821.52)} 
-          loading={loading} 
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pb-4">
+        <SummaryCard
+          title="Lessons Due"
+          value={formatCurrency(821.52)}
+          icon={<BookOpen className="h-6 w-6 text-white" />}
+          iconBackgroundColor="bg-cyan-500"
+          loading={loading}
         />
-        <OutstandingInvoiceCard 
-          value={formatCurrency(20741.84)} 
-          loading={loading} 
+        <SummaryCard
+          title="Outstanding Invoice"
+          value={formatCurrency(20741.84)}
+          icon={<FileText className="h-6 w-6 text-white" />}
+          iconBackgroundColor="bg-orange-500"
+          loading={loading}
         />
-        <CreditsCard 
-          value={formatCurrency(0.00)} 
-          loading={loading} 
+        <SummaryCard
+          title="Credits"
+          value={formatCurrency(0.00)}
+          icon={<Star className="h-6 w-6 text-white" />}
+          iconBackgroundColor="bg-green-500"
+          loading={loading}
         />
-        <BalanceCard 
-          value={customer && customer.balance ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)} 
-          loading={loading} 
+        <SummaryCard
+          title="Balance"
+          value={customer && customer.balance ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)}
+          icon={<DollarSign className="h-6 w-6 text-white" />}
+          iconBackgroundColor="bg-orange-400"
+          loading={loading}
         />
       </div>
 
       {/* Details and Email Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Details Card */}
         <DetailsCard 
           data={{
@@ -377,9 +371,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       </div>
 
       {/* Tables and Additional Info Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Left Column - Main Tables */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <InvoiceTable
             data={invoiceData}
             loading={loading}
@@ -406,7 +400,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         </div>
 
         {/* Right Column - Info Cards */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <PhoneCard 
             phones={phones}
             onSave={(newPhones) => setPhones(newPhones)}
@@ -438,7 +432,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       </div>
 
       {/* Full Width Tables Below Outstanding Invoices */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <TableCard 
           title="Equipment Rentals"
           data={equipmentRentalData} 
