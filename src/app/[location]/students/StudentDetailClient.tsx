@@ -1,10 +1,10 @@
-// StudentDetailClient.tsx - Refactored with All Reusable Components
+// StudentDetailClient.tsx - Complete Fixed Version
 "use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Settings, SlashIcon, Edit, ChevronDown, Plus, Printer } from "lucide-react";
+import { Settings, SlashIcon, Plus, Printer, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -26,9 +26,10 @@ import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ReusableCard } from "@/components/TablesCards";
 import { ReusableModal } from "@/components/TablesModals";
-import { InfoField } from "@/components/TablesInfoField";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabContent } from "@/components/TabContent";
+import { StudentDetailsCard } from "./components/StudentDetailsCard";
+import { StudentCustomerCard } from "./components/StudentCustomerCard";
 import { getStudentById, StudentDetail } from "./students.api";
 import { 
   STUDENT_TAB_CONFIGS, 
@@ -65,8 +66,8 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
   // Modal states
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
-  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = React.useState(false);
   const [isAddLessonModalOpen, setIsAddLessonModalOpen] = React.useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = React.useState(false);
 
   // Form states
   const [evaluationForm, setEvaluationForm] = React.useState<EvaluationFormData>({
@@ -76,14 +77,6 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
     program: "",
     type: "",
     teacher: "",
-  });
-
-  const [editProfileForm, setEditProfileForm] = React.useState({
-    firstName: "",
-    lastName: "",
-    birthday: "",
-    gender: "",
-    status: "",
   });
 
   // Tab data states
@@ -112,13 +105,6 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
         const result = await getStudentById(location, studentId);
         if (result.success) {
           setStudent(result.data);
-          setEditProfileForm({
-            firstName: result.data?.firstName ?? "",
-            lastName: result.data?.lastName ?? "",
-            birthday: result.data?.birthday ?? "",
-            gender: result.data?.gender ?? "",
-            status: result.data?.status ?? "",
-          });
         } else {
           setError(result.message || "Failed to fetch student");
         }
@@ -152,9 +138,27 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
     });
   };
 
-  const handleEditProfile = () => {
+  const handleEditProfile = (data: {
+    firstName: string;
+    lastName: string;
+    birthday: string;
+    gender: string;
+    notes: string;
+    age: string;
+  }) => {
+    if (student) {
+      // Update the student object with new values
+      setStudent({
+        ...student,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        birthday: data.birthday,
+        gender: data.gender,
+        notes: data.notes,
+        age: data.age,
+      });
+    }
     // TODO: Implement update profile API call
-    setIsEditProfileModalOpen(false);
   };
 
   const handleDeleteStudent = () => {
@@ -163,14 +167,20 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
     router.push(`/${location}/students`);
   };
 
+  const handleMergeStudent = () => {
+    // TODO: Implement merge student functionality
+    setIsMergeModalOpen(false);
+  };
+
   const handleAddLesson = () => {
     // TODO: Implement add lesson API call
     setIsAddLessonModalOpen(false);
   };
 
-  const handleShowMore = (_tabKey: string) => {
+  const handleShowMore = (tabKey: string) => {
     // TODO: Implement show more functionality
     // This could load more data, expand the table, or navigate to a detailed view
+    console.log('Show more for tab:', tabKey);
   };
 
   const handleShowAllChange = (checked: boolean) => {
@@ -296,7 +306,7 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setIsEditProfileModalOpen(true)}>Edit Profile</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {/* Edit is handled by the card */}}>Edit Profile</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsAddLessonModalOpen(true)}>Add Lesson</DropdownMenuItem>
               <DropdownMenuItem onClick={() => {/* TODO: Implement view history */}}>View History</DropdownMenuItem>
               <DropdownMenuItem onClick={() => {/* TODO: Implement send notification */}}>Send Notification</DropdownMenuItem>
@@ -310,34 +320,24 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
       {/* Details and Customer Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Details Card */}
-        <ReusableCard
-          title="Details"
-          actions={[
-            { icon: Edit, onClick: () => setIsEditProfileModalOpen(true), label: 'Edit details' },
-            { icon: ChevronDown, onClick: () => {/* TODO: Implement expand */}, label: 'Expand' },
-          ]}
-        >
-          <div className="space-y-3">
-            <InfoField label="Name" value={`${student.firstName} ${student.lastName}`} />
-            <InfoField label="Birthday" value={student.birthday ?? ''} />
-            <InfoField label="Age" value={student.age ?? ''} />
-            <InfoField label="Gender" value={student.gender ?? ''} />
-            <InfoField label="Status" value={student.status} />
-          </div>
-        </ReusableCard>
+        <StudentDetailsCard
+          firstName={student.firstName}
+          lastName={student.lastName}
+          birthday={student.birthday}
+          age={student.age}
+          gender={student.gender}
+          status={student.status}
+          notes={student.notes}
+          onEdit={handleEditProfile}
+          onDelete={() => setIsDeleteModalOpen(true)}
+          onMerge={() => setIsMergeModalOpen(true)}
+        />
 
         {/* Customer Card */}
-        <ReusableCard
-          title="Customer"
-          actions={[
-            { icon: Plus, onClick: () => {/* TODO: Implement add */}, label: 'Add customer' },
-          ]}
-        >
-          <div className="space-y-3">
-            <InfoField label="Customer" value={student.customer} />
-            <InfoField label="Phone" value={student.phone} />
-          </div>
-        </ReusableCard>
+        <StudentCustomerCard
+          customer={student.customer}
+          phone={student.phone}
+        />
       </div>
 
       {/* Enrolments Card */}
@@ -548,79 +548,6 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
         </div>
       </ReusableModal>
 
-      {/* Edit Profile Modal */}
-      <ReusableModal
-        open={isEditProfileModalOpen}
-        onOpenChange={setIsEditProfileModalOpen}
-        title="Edit Student Profile"
-        description="Update student information"
-        size="lg"
-        actions={[
-          { 
-            label: 'Cancel', 
-            onClick: () => setIsEditProfileModalOpen(false), 
-            variant: 'outline' 
-          },
-          { 
-            label: 'Save Changes', 
-            onClick: handleEditProfile, 
-            variant: 'default' 
-          },
-        ]}
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input
-                id="firstName"
-                type="text"
-                value={editProfileForm.firstName}
-                onChange={(e) => setEditProfileForm({ ...editProfileForm, firstName: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                type="text"
-                value={editProfileForm.lastName}
-                onChange={(e) => setEditProfileForm({ ...editProfileForm, lastName: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="birthday">Birthday</Label>
-            <Input
-              id="birthday"
-              type="date"
-              value={editProfileForm.birthday}
-              onChange={(e) => setEditProfileForm({ ...editProfileForm, birthday: e.target.value })}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="gender">Gender</Label>
-              <Input
-                id="gender"
-                type="text"
-                value={editProfileForm.gender}
-                onChange={(e) => setEditProfileForm({ ...editProfileForm, gender: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Input
-                id="status"
-                type="text"
-                value={editProfileForm.status}
-                onChange={(e) => setEditProfileForm({ ...editProfileForm, status: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-      </ReusableModal>
-
       {/* Delete Confirmation Modal */}
       <ReusableModal
         open={isDeleteModalOpen}
@@ -648,6 +575,41 @@ export function StudentDetailClient({ location, studentId }: StudentDetailClient
           <div className="bg-muted p-3 rounded-md">
             <p className="font-semibold">{student.firstName} {student.lastName}</p>
             <p className="text-sm text-muted-foreground">ID: {student.id}</p>
+          </div>
+        </div>
+      </ReusableModal>
+
+      {/* Merge Confirmation Modal */}
+      <ReusableModal
+        open={isMergeModalOpen}
+        onOpenChange={setIsMergeModalOpen}
+        title="Merge Student"
+        description="Select the student to merge with"
+        size="lg"
+        actions={[
+          { 
+            label: 'Cancel', 
+            onClick: () => setIsMergeModalOpen(false), 
+            variant: 'outline' 
+          },
+          { 
+            label: 'Merge', 
+            onClick: handleMergeStudent, 
+            variant: 'default' 
+          },
+        ]}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Select a student to merge with {student.firstName} {student.lastName}
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="mergeStudent">Search Student</Label>
+            <Input
+              id="mergeStudent"
+              type="text"
+              placeholder="Search by name or ID"
+            />
           </div>
         </div>
       </ReusableModal>
