@@ -59,6 +59,19 @@ export interface CustomersQuery {
   order?: 'asc' | 'desc';
 }
 
+export interface CustomerSummaryData {
+  lessonsDue: string;
+  outstandingInvoice: string;
+  totalCredits: string;
+  balance: string;
+}
+
+export interface CustomerSummaryResponse {
+  success: boolean;
+  message: string;
+  data: CustomerSummaryData;
+}
+
 export async function getCustomers(
   location: string,
   query: CustomersQuery
@@ -123,6 +136,32 @@ export async function getCustomerById(
     return response.data.success ? response.data.data : null;
   } catch (error: unknown) {
     return null;
+  }
+}
+
+export async function getCustomerSummary(
+  location: string,
+  customerId: number
+): Promise<CustomerSummaryResponse | null> {
+  try {
+    const response = await apiClient.get<CustomerSummaryResponse>(
+      `/admin/v2/${location}/customers/${customerId}/summary`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error('Error fetching customer summary:', error);
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to fetch customer summary',
+      data: {
+        lessonsDue: '$0.00',
+        outstandingInvoice: '$0.00',
+        totalCredits: '$0.00',
+        balance: '$0.00'
+      }
+    };
   }
 }
 
@@ -351,5 +390,6 @@ export async function getCustomerStudents(
     return [];
   }
 }
+
 
 

@@ -16,9 +16,10 @@ import {
   getCustomerPrivateLessonDue,
   getCustomerGroupLessonDue,
   getCustomerPayments,
-  getCustomerStudents
+  getCustomerStudents,
+  getCustomerSummary,
+  CustomerSummaryData
 } from "../customers.api";
-import { formatCurrency } from "@/utils/formatCurrency";
 import { SummaryCard } from "@/components/SummaryCard";
 import { BookOpen, FileText, Star, DollarSign } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -110,6 +111,14 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [referralSource, setReferralSource] = React.useState<string>("Drive By");
   const [status, setStatus] = React.useState<string>("Active");
   const [picture, setPicture] = React.useState<string | undefined>(undefined);
+
+  // Summary data state
+  const [summaryData, setSummaryData] = React.useState<CustomerSummaryData>({
+    lessonsDue: '$0.00',
+    outstandingInvoice: '$0.00',
+    totalCredits: '$0.00',
+    balance: '$0.00'
+  });
 
   // Handle adding new student
   const handleAddStudent = (studentData: StudentData) => {
@@ -254,6 +263,12 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         if (customerData) {
           setLocalFirstName(customerData.firstName);
           setLocalLastName(customerData.lastName);
+        }
+        
+        // Load customer summary
+        const summary = await getCustomerSummary(location, Number(id));
+        if (summary?.success && summary.data) {
+          setSummaryData(summary.data);
         }
         
         // Load all table data in parallel
@@ -428,28 +443,28 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pb-4">
         <SummaryCard
           title="Lessons Due"
-          value={formatCurrency(821.52)}
+          value={summaryData.lessonsDue}
           icon={<BookOpen className="h-6 w-6 text-white" />}
           iconBackgroundColor="bg-cyan-500"
           loading={loading}
         />
         <SummaryCard
           title="Outstanding Invoice"
-          value={formatCurrency(20741.84)}
+          value={summaryData.outstandingInvoice}
           icon={<FileText className="h-6 w-6 text-white" />}
           iconBackgroundColor="bg-orange-500"
           loading={loading}
         />
         <SummaryCard
           title="Credits"
-          value={formatCurrency(0.00)}
+          value={summaryData.totalCredits}
           icon={<Star className="h-6 w-6 text-white" />}
           iconBackgroundColor="bg-green-500"
           loading={loading}
         />
         <SummaryCard
           title="Balance"
-          value={customer && customer.balance ? formatCurrency(parseFloat(customer.balance.replace(/[^0-9.-]/g, '')) || 0) : formatCurrency(0)}
+          value={summaryData.balance}
           icon={<DollarSign className="h-6 w-6 text-white" />}
           iconBackgroundColor="bg-orange-400"
           loading={loading}
