@@ -4,15 +4,8 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { Settings, Plus, Slash } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
+import { Plus } from "lucide-react";
+import { DetailHeader, ActionMenuGroup } from "@/components/DetailHeader";
 import { 
   getCustomerById, 
   CustomerRow,
@@ -24,13 +17,6 @@ import {
   getCustomerGroupLessonDue,
   getCustomerPayments
 } from "../customers.api";
-import { 
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { LessonsDueCard, OutstandingInvoiceCard, CreditsCard, BalanceCard } from "@/components/MetricCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -292,45 +278,39 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     // TODO: Call API to update customer details
   }, []);
 
+  // Define action menu groups for customer
+  const customerActionMenuGroups: ActionMenuGroup[] = [
+    {
+      label: "Actions",
+      items: [
+        { label: "Receive Payment", onClick: () => {} },
+        { label: "Print Statement", onClick: () => {} },
+        { label: "Email Statement", onClick: () => {} },
+        { label: "A/R Report Detail", onClick: () => {} },
+        { label: "Items Purchased by Category", onClick: () => {} },
+        { label: "Notify Via Email", onClick: () => {} },
+      ],
+      separator: true
+    },
+    {
+      items: [
+        { label: "Delete", onClick: () => {}, variant: "destructive" }
+      ]
+    }
+  ];
+
   return (
     <div className="space-y-4 bg-white px-2 sm:px-3">
-      {/* Breadcrumb header (shadcn) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md px-2 sm:px-3 py-2">
-        <Breadcrumb>
-          <BreadcrumbList className="text-xs sm:text-sm">
-            <BreadcrumbItem>
-              <BreadcrumbLink href="#" onClick={(e) => { e.preventDefault(); router.push("customers"); }}>Customers</BreadcrumbLink>
-            </BreadcrumbItem>
-            <Slash className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="truncate max-w-[70vw] sm:max-w-none">
-                {loading ? "Loading..." : localFirstName && localLastName ? `${localFirstName} ${localLastName}` : id}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <div className="flex items-center gap-1 sm:gap-2 self-end sm:self-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-8 sm:w-8" aria-label="Customer actions">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {}}>Receive Payment</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Print Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Email Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>A/R Report Detail</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Items Purchased by Category</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Notify Via Email</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600" onClick={() => {}}>Delete</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      {/* Detail Header */}
+      <DetailHeader
+        breadcrumbItems={[
+          { label: "Customers", onClick: () => router.push(`/${location}/customers/`) }
+        ]}
+        currentPageTitle={localFirstName && localLastName ? `${localFirstName} ${localLastName}` : id}
+        loading={loading}
+        actionMenuGroups={customerActionMenuGroups}
+        actionButtonAriaLabel="Customer actions"
+      />
 
       {/* Payment History Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-4">
