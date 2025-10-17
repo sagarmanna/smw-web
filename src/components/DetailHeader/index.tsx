@@ -59,69 +59,92 @@ export function DetailHeader({
   className = "",
 }: DetailHeaderProps) {
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md px-2 sm:px-3 py-2 ${className}`}>
+    <div className={`flex items-center justify-between py-3 sm:py-4 ${className}`}>
       {/* Breadcrumb Section */}
-      <Breadcrumb>
-        <BreadcrumbList className="text-xs sm:text-sm">
-          {breadcrumbItems.map((item, index) => (
-            <React.Fragment key={index}>
-              <BreadcrumbItem>
-                {item.href || item.onClick ? (
-                  <BreadcrumbLink 
-                    href={item.href || "#"} 
-                    onClick={(e) => {
-                      if (item.onClick) {
-                        e.preventDefault();
-                        item.onClick();
-                      }
-                    }}
-                  >
-                    <span className="lg:text-lg font-medium text-blue-500">{item.label}</span>
-                  </BreadcrumbLink>
-                ) : (
-                  <BreadcrumbPage className="truncate max-w-[70vw] sm:max-w-none">
-                    {loading ? "Loading..." : item.label}
-                  </BreadcrumbPage>
+      <div className="flex-1 min-w-0">
+        <Breadcrumb>
+          <BreadcrumbList className="text-sm sm:text-base">
+            {breadcrumbItems.map((item, index) => (
+              <React.Fragment key={index}>
+                <BreadcrumbItem>
+                  {item.href || item.onClick ? (
+                    <BreadcrumbLink 
+                      href={item.href || "#"} 
+                      onClick={(e) => {
+                        if (item.onClick) {
+                          e.preventDefault();
+                          item.onClick();
+                        }
+                      }}
+                      className="text-lg text-blue-600 hover:text-blue-800 font-medium transition-colors duration-150"
+                    >
+                      {item.label}
+                    </BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbPage className="truncate max-w-[60vw] sm:max-w-[40vw] md:max-w-none">
+                      {loading ? (
+                        <span className="inline-flex items-center gap-2">
+                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
+                          Loading...
+                        </span>
+                      ) : (
+                        item.label
+                      )}
+                    </BreadcrumbPage>
+                  )}
+                </BreadcrumbItem>
+                {index < breadcrumbItems.length - 1 && (
+                  <Slash className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 mx-1 sm:mx-2 flex-shrink-0" />
                 )}
-              </BreadcrumbItem>
-              {index < breadcrumbItems.length - 1 && (
-                <Slash className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              )}
-            </React.Fragment>
-          ))}
-          {currentPageTitle && (
-            <>
-              <Slash className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="truncate max-w-[70vw] sm:max-w-none">
-                  {loading ? "Loading..." : currentPageTitle}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          )}
-        </BreadcrumbList>
-      </Breadcrumb>
+              </React.Fragment>
+            ))}
+            {currentPageTitle && (
+              <>
+                <Slash className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 mx-1 sm:mx-2 flex-shrink-0" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="truncate max-w-[60vw] sm:max-w-[40vw] md:max-w-none font-semibold text-gray-900">
+                    {loading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
+                        Loading...
+                      </span>
+                    ) : (
+                      currentPageTitle
+                    )}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            )}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
       {/* Actions Section */}
-      <div className="flex items-center gap-1 sm:gap-2 self-end sm:self-auto">
+      <div className="flex-shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 sm:h-8 sm:w-8" 
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200" 
               aria-label={actionButtonAriaLabel}
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuContent 
+            align="end" 
+            className="w-56 sm:w-64 p-1 bg-white border border-gray-200 shadow-lg rounded-lg"
+            sideOffset={8}
+          >
             {actionMenuGroups.map((group, groupIndex) => (
               <React.Fragment key={groupIndex}>
                 {group.label && (
                   <>
-                    <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {group.label}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="my-1" />
                   </>
                 )}
                 {group.items.map((item, itemIndex) => (
@@ -129,13 +152,20 @@ export function DetailHeader({
                     key={itemIndex}
                     onClick={item.onClick}
                     disabled={item.disabled}
-                    className={item.variant === "destructive" ? "text-red-600" : ""}
+                    className={`
+                      px-3 py-2 text-sm cursor-pointer rounded-md mx-1 transition-colors duration-150
+                      ${item.variant === "destructive" 
+                        ? "text-red-600 hover:text-red-700 hover:bg-red-50" 
+                        : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                      }
+                      ${item.disabled ? "opacity-50 cursor-not-allowed hover:bg-transparent" : ""}
+                    `}
                   >
                     {item.label}
                   </DropdownMenuItem>
                 ))}
                 {group.separator && groupIndex < actionMenuGroups.length - 1 && (
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="my-1" />
                 )}
               </React.Fragment>
             ))}

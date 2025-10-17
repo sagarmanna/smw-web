@@ -301,7 +301,8 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   ];
 
   return (
-    <div className="space-y-4 bg-white px-2 sm:px-3">
+      <div className="space-y-4 bg-white">
+
       {/* Detail Header */}
       <DetailHeader
         breadcrumbItems={[
@@ -314,7 +315,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       />
 
       {/* Payment History Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pb-4">
         <SummaryCard
           title="Lessons Due"
           value={formatCurrency(821.52)}
@@ -346,7 +347,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       </div>
 
       {/* Details and Email Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Details Card */}
         <DetailsCard 
           data={{
@@ -370,9 +371,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       </div>
 
       {/* Tables and Additional Info Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Left Column - Main Tables */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <InvoiceTable
             data={invoiceData}
             loading={loading}
@@ -399,7 +400,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         </div>
 
         {/* Right Column - Info Cards */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <PhoneCard 
             phones={phones}
             onSave={(newPhones) => setPhones(newPhones)}
@@ -431,7 +432,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       </div>
 
       {/* Full Width Tables Below Outstanding Invoices */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <TableCard 
           title="Equipment Rentals"
           data={equipmentRentalData} 
