@@ -5,11 +5,14 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { StudentData } from "../../tabConfigs";
+import { format } from "date-fns";
 
 interface AddStudentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (studentData: StudentFormData) => void;
+  onSave: (studentData: StudentData) => void;
+  customerName?: string;
 }
 
 interface StudentFormData {
@@ -20,16 +23,26 @@ interface StudentFormData {
   gender: "not-specified" | "male" | "female";
 }
 
-export default function AddStudentModal({ open, onOpenChange, onSave }: AddStudentModalProps) {
+export default function AddStudentModal({ open, onOpenChange, onSave, customerName }: AddStudentModalProps) {
   const [formData, setFormData] = React.useState<StudentFormData>({
     firstName: "",
-    lastName: "123",
-    customerName: "123 123",
+    lastName: "",
+    customerName: customerName || "",
     birthDate: "",
     gender: "not-specified",
   });
 
   const [errors, setErrors] = React.useState<Partial<StudentFormData>>({});
+
+  // Format date to "Feb 14, 2020" style
+  const formatBirthDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return format(date, "MMM d, yyyy");
+    } catch (error) {
+      return dateString; // Return original if formatting fails
+    }
+  };
 
   const handleInputChange = (field: keyof StudentFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -56,12 +69,23 @@ export default function AddStudentModal({ open, onOpenChange, onSave }: AddStude
 
   const handleSave = () => {
     if (validateForm()) {
-      onSave(formData);
+      const studentData: StudentData = {
+        id: Date.now(), // Temporary ID for new students
+        fullName: `${formData.firstName} ${formData.lastName}`,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        birthDate: formatBirthDate(formData.birthDate),
+        customerName: formData.customerName,
+        gender: formData.gender,
+        status: 1 // 1 = Active
+      };
+      
+      onSave(studentData);
       // Reset form
       setFormData({
         firstName: "",
-        lastName: "123",
-        customerName: "123 123",
+        lastName: "",
+        customerName: customerName || "",
         birthDate: "",
         gender: "not-specified",
       });
@@ -74,8 +98,8 @@ export default function AddStudentModal({ open, onOpenChange, onSave }: AddStude
     // Reset form
     setFormData({
       firstName: "",
-      lastName: "123",
-      customerName: "123 123",
+      lastName: "",
+      customerName: customerName || "",
       birthDate: "",
       gender: "not-specified",
     });

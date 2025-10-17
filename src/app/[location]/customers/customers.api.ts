@@ -350,37 +350,7 @@ export async function getCustomerStudents(
       `/admin/v2/${location}/customers/${customerId}/students`
     );
     
-    if (response.data.success) {
-      // Extract students from the nested structure: data.body
-      const students = response.data.data?.body;
-      
-      // Check if data exists and is an array
-      if (!students) {
-        return [];
-      }
-      
-      if (!Array.isArray(students)) {
-        return [];
-      }
-      
-      // Transform API data to match our interface
-      return students.map(student => ({
-        id: student.id?.toString() || '',
-        firstName: student.firstName || '',
-        lastName: student.lastName || '',
-        name: student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
-        birthDate: student.birthDate || '',
-        customerName: student.customerName || '',
-        customerId: customerId.toString(),
-        phone: student.phone || '',
-        email: student.email || '',
-        gender: student.gender || '',
-        status: student.status === 1 ? 'Active' : 'Inactive',
-        notes: student.notes || ''
-      }));
-    } else {
-      return [];
-    }
+    return response.data.data?.body || [];
   } catch (error: unknown) {
     return [];
   }

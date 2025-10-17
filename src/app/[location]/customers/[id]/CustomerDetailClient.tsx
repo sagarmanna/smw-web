@@ -96,19 +96,8 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [picture, setPicture] = React.useState<string | undefined>(undefined);
 
   // Handle adding new student
-  const handleAddStudent = (studentData: { firstName: string; lastName: string; customerName: string; birthDate: string; gender: string }) => {
-    const newStudent: StudentData = {
-      id: Date.now().toString(), // Temporary ID for new students
-      firstName: studentData.firstName,
-      lastName: studentData.lastName,
-      name: `${studentData.firstName} ${studentData.lastName}`,
-      birthDate: studentData.birthDate,
-      customerName: studentData.customerName,
-      customerId: id,
-      gender: studentData.gender,
-      status: 'Active'
-    };
-    setStudentData(prev => [...prev, newStudent]);
+  const handleAddStudent = (studentData: StudentData) => {
+    setStudentData(prev => [...prev, studentData]);
   };
 
   // Handle adding new recurring payment
@@ -622,6 +611,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         open={isAddStudentModalOpen}
         onOpenChange={setIsAddStudentModalOpen}
         onSave={handleAddStudent}
+        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
       />
 
       {/* Recurring Payment Modal */}
