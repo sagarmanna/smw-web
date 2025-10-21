@@ -5,19 +5,22 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface OpeningBalanceCardProps {
   amount?: number;
   onAddClick?: () => void;
   onSave?: (amount: number, type: "owing" | "credit") => void;
   className?: string;
+  loading?: boolean;
 }
 
 export function OpeningBalanceCard({ 
   amount = 0, 
   onAddClick, 
   onSave,
-  className 
+  className,
+  loading = false
 }: OpeningBalanceCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [balanceAmount, setBalanceAmount] = useState("");
@@ -94,11 +97,19 @@ export function OpeningBalanceCard({
         title="Opening Balance" 
         onAddClick={handleAddClick}
         className={className}
+        loading={loading}
       >
-        <KeyValueDisplay 
-          label="Amount" 
-          value={formatCurrency(amount)} 
-        />
+        {loading ? (
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        ) : (
+          <KeyValueDisplay 
+            label="Amount" 
+            value={formatCurrency(amount)} 
+          />
+        )}
       </InfoCard>
 
       <ReusableModal

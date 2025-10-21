@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus } from "lucide-react";
 
 interface InfoCardProps {
@@ -9,6 +10,7 @@ interface InfoCardProps {
   showAddButton?: boolean;
   onAddClick?: () => void;
   className?: string;
+  loading?: boolean;
 }
 
 export function InfoCard({ 
@@ -16,21 +18,26 @@ export function InfoCard({
   children, 
   showAddButton = true, 
   onAddClick,
-  className 
+  className,
+  loading = false
 }: InfoCardProps) {
   return (
     <Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-        {showAddButton && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={onAddClick}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+        {loading ? (
+          showAddButton && <Skeleton className="h-8 w-8 rounded-md" />
+        ) : (
+          showAddButton && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8"
+              onClick={onAddClick}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )
         )}
       </CardHeader>
       <CardContent className="pt-0">

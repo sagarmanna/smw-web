@@ -3,6 +3,7 @@ import { InfoCard } from "@/components/InfoCard";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
 
 interface DiscountCardProps {
@@ -10,13 +11,15 @@ interface DiscountCardProps {
   onAddClick?: () => void;
   onSave?: (discount: number) => void;
   className?: string;
+  loading?: boolean;
 }
 
 export function DiscountCard({ 
   discount = 0,
   onAddClick, 
   onSave,
-  className 
+  className,
+  loading = false
 }: DiscountCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [discountValue, setDiscountValue] = useState("");
@@ -87,12 +90,15 @@ export function DiscountCard({
         title="Discount (%)" 
         onAddClick={handleAddClick}
         className={className}
+        loading={loading}
       >
         <div className="space-y-2">
-          {discount > 0 ? (
+          {loading ? (
+            <Skeleton className="h-6 w-16" />
+          ) : discount > 0 ? (
             <span className="font-semibold">{discount}%</span>
           ) : (
-            <span className="text-gray-500 text-sm">No discounts added</span>
+            <span className="text-gray-500 dark:text-gray-400 text-sm">No discounts added</span>
           )}
         </div>
       </InfoCard>
@@ -122,10 +128,10 @@ export function DiscountCard({
               htmlFor="discount" 
               className={`text-sm font-medium ${
                 hasTyped && discountValue.trim() !== "" && !isDiscountValid() 
-                  ? "text-red-600" 
+                  ? "text-red-600 dark:text-red-400" 
                   : isDiscountValid() 
-                  ? "text-green-600" 
-                  : "text-gray-700"
+                  ? "text-green-600 dark:text-green-400" 
+                  : "text-gray-700 dark:text-gray-300"
               }`}
             >
               Discount
@@ -137,29 +143,29 @@ export function DiscountCard({
                 inputMode="decimal"
                 value={discountValue}
                 onChange={handleDiscountChange}
-                className={`text-right pr-10 focus:ring-0 focus:outline-none ${
+                className={`text-right pr-10 focus:ring-0 focus:outline-none bg-white dark:bg-gray-800 ${
                   hasTyped && discountValue.trim() !== "" && !isDiscountValid() 
-                    ? "border-red-600 text-gray-500" 
+                    ? "border-red-600 dark:border-red-500 text-gray-900 dark:text-gray-100" 
                     : isDiscountValid() 
-                    ? "border-green-600 text-gray-900" 
-                    : "border-gray-300 text-gray-500"
+                    ? "border-green-600 dark:border-green-500 text-gray-900 dark:text-gray-100" 
+                    : "border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                 }`}
                 style={{
                   boxShadow: 'none'
                 }}
                 placeholder=""
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">
                 %
               </span>
             </div>
             {hasTyped && discountValue.trim() !== "" && !isDiscountValid() && (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-red-600 dark:text-red-400">
                 Discount must be a number between 0 and 100.
               </p>
             )}
             {showError && discountValue.trim() === "" && (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-red-600 dark:text-red-400">
                 Discount cannot be blank.
               </p>
             )}
