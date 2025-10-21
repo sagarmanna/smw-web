@@ -7,6 +7,7 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -23,13 +24,15 @@ interface PhoneCardProps {
   onAddClick?: () => void;
   onSave?: (phones: PhoneNumber[]) => void;
   className?: string;
+  loading?: boolean;
 }
 
 export function PhoneCard({ 
   phones = [],
   onAddClick, 
   onSave,
-  className 
+  className,
+  loading = false
 }: PhoneCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPhone, setEditingPhone] = useState<PhoneNumber | null>(null);
@@ -145,9 +148,25 @@ export function PhoneCard({
 
   return (
     <>
-      <InfoCard title="Phone" onAddClick={handleAddClick} className={className}>
+      <InfoCard title="Phone" onAddClick={handleAddClick} className={className} loading={loading}>
         <div className="space-y-2">
-          {phones.length > 0 ? (
+          {loading ? (
+            // Skeleton loading state
+            <>
+              {[...Array(2)].map((_, index) => (
+                <div key={index} className="flex items-center justify-between p-2 rounded -mx-2">
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-40" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : phones.length > 0 ? (
             phones.map(phone => (
               <div
                 key={phone.id}

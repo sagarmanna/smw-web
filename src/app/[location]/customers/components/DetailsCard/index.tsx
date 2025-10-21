@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, ChevronDown } from "lucide-react";
+import { Edit, ChevronDown, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 
 interface DetailsData {
@@ -49,7 +49,6 @@ export function DetailsCard({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
-  // Default safe state initialization
   const [firstName, setFirstName] = useState(data.firstName || "");
   const [lastName, setLastName] = useState(data.lastName || "");
   const [referralSource, setReferralSource] = useState(data.referralSource || "");
@@ -59,14 +58,12 @@ export function DetailsCard({
   const [firstNameTouched, setFirstNameTouched] = useState(false);
   const [lastNameTouched, setLastNameTouched] = useState(false);
 
-  // Password states
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPasswordError, setShowPasswordError] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
 
-  // Sync local state with prop data when it changes
   useEffect(() => {
     setFirstName(data.firstName || "");
     setLastName(data.lastName || "");
@@ -85,7 +82,6 @@ export function DetailsCard({
     setIsModalOpen(true);
   };
 
-  // ✅ Safe validation with optional chaining
   const isFirstNameValid = (firstName?.trim() ?? "") !== "";
   const isLastNameValid = (lastName?.trim() ?? "") !== "";
   const isReferralSourceValid = (referralSource?.trim() ?? "") !== "";
@@ -174,7 +170,6 @@ export function DetailsCard({
     return "text-gray-700 dark:text-gray-300";
   };
 
-  // Password handlers
   const handleSetPasswordClick = () => {
     setPassword("");
     setConfirmPassword("");
@@ -199,8 +194,6 @@ export function DetailsCard({
       setConfirmPasswordTouched(true);
       return;
     }
-
-    // TODO: Save password via API
 
     setIsPasswordModalOpen(false);
     setPassword("");
@@ -251,61 +244,115 @@ export function DetailsCard({
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg font-semibold">Details</CardTitle>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={handleEditClick}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleMergeClick}>
-                  Merge
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSetPasswordClick}>
-                  Set Password
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={handleEditClick}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleMergeClick}>
+                    Merge
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSetPasswordClick}>
+                    Set Password
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="space-y-3">
-            <KeyValueDisplay 
-              label="Name" 
-              value={
-                loading 
-                  ? "..." 
-                  : (firstName?.trim() && lastName?.trim()) 
-                    ? `${firstName.trim()} ${lastName.trim()}` 
-                    : "N/A"
-              } 
-            />
-            <KeyValueDisplay 
-              label="Role" 
-              value={loading ? "..." : (data.role?.trim() || "Customer")} 
-            />
-            <KeyValueDisplay 
-              label="Referral Source" 
-              value={loading ? "..." : (referralSource?.trim() || "Drive By")} 
-            />
-            <KeyValueDisplay 
-              label="Status" 
-              value={loading ? "..." : (data.status?.trim() || "Active")} 
-            />
-          </div>
+          {loading ? (
+            <div className="space-y-3">
+              {[...Array(4)].map((_, index) => (
+                <div key={index} className="flex justify-center">
+                  <div className="flex items-center w-full max-w-sm">
+                    <div className="w-40 text-right pr-4">
+                      <Skeleton className="h-4 w-24 ml-auto" />
+                    </div>
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex justify-center">
+                <div className="flex items-center w-full max-w-sm">
+                  <div className="w-40 text-right pr-4">
+                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">Name</span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">
+                      {(firstName?.trim() && lastName?.trim()) 
+                        ? `${firstName.trim()} ${lastName.trim()}` 
+                        : "N/A"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-center">
+                <div className="flex items-center w-full max-w-sm">
+                  <div className="w-40 text-right pr-4">
+                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">Role</span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">
+                      {data.role?.trim() || "Customer"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-center">
+                <div className="flex items-center w-full max-w-sm">
+                  <div className="w-40 text-right pr-4">
+                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">Referral Source</span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">
+                      {referralSource?.trim() || "Drive By"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-center">
+                <div className="flex items-center w-full max-w-sm">
+                  <div className="w-40 text-right pr-4">
+                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">Status</span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">
+                      {data.status?.trim() || "Active"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Edit Modal */}
       <ReusableModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
@@ -315,9 +362,44 @@ export function DetailsCard({
         showFooter={true}
       >
         <div className="space-y-4">
-          {/* Name Fields */}
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              {picture ? (
+                <div className="relative w-24 h-24">
+                  <Image 
+                    src={picture} 
+                    alt="Customer" 
+                    width={96}
+                    height={96}
+                    className="rounded-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPicture("")}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                    aria-label="Remove picture"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <label htmlFor="picture-upload" className="cursor-pointer">
+                  <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                    <User className="w-12 h-12 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <input
+                    id="picture-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePictureUpload}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            {/* First Name */}
             <div className="space-y-2">
               <Label 
                 htmlFor="firstName" 
@@ -339,7 +421,6 @@ export function DetailsCard({
               )}
             </div>
 
-            {/* Last Name */}
             <div className="space-y-2">
               <Label 
                 htmlFor="lastName" 
@@ -362,7 +443,6 @@ export function DetailsCard({
             </div>
           </div>
 
-          {/* Referral Source */}
           <div className="space-y-3">
             <Label className={`text-sm font-medium ${showError && !isReferralSourceValid ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300"}`}>
               How did you find us?
@@ -405,61 +485,9 @@ export function DetailsCard({
               <p className="text-sm text-red-600 dark:text-red-400">Please select how you found us.</p>
             )}
           </div>
-
-          {/* Picture Upload */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Picture</Label>
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 flex flex-col items-center justify-center dark:bg-gray-800">
-              {picture ? (
-                <div className="relative w-24 h-24">
-                  <Image 
-                    src={picture} 
-                    alt="Customer" 
-                    width={96}
-                    height={96}
-                    className="rounded-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPicture("")}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                    aria-label="Remove picture"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <label htmlFor="picture-upload" className="cursor-pointer">
-                  <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                    <svg 
-                      className="w-8 h-8 text-gray-400 dark:text-gray-500" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M12 4v16m8-8H4" 
-                      />
-                    </svg>
-                  </div>
-                  <input
-                    id="picture-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePictureUpload}
-                    className="hidden"
-                  />
-                </label>
-              )}
-            </div>
-          </div>
         </div>
       </ReusableModal>
 
-      {/* Password Modal */}
       <ReusableModal
         open={isPasswordModalOpen}
         onOpenChange={setIsPasswordModalOpen}
@@ -469,7 +497,6 @@ export function DetailsCard({
         showFooter={true}
       >
         <div className="space-y-4">
-          {/* Password Field */}
           <div className="space-y-2">
             <Label 
               htmlFor="password" 
@@ -491,7 +518,6 @@ export function DetailsCard({
             )}
           </div>
 
-          {/* Confirm Password Field */}
           <div className="space-y-2">
             <Label 
               htmlFor="confirmPassword" 

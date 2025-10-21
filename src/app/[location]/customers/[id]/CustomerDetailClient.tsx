@@ -361,8 +361,8 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         />
       </div>
 
-      {/* Details and Email Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+      {/* Details and Info Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
         {/* Details Card */}
         <DetailsCard 
           data={{
@@ -377,16 +377,25 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           loading={loading}
         />
 
-        {/* Email Card */}
-        <EmailCard 
-          emails={emails}
-          onAddClick={() => {}}
-          onSave={setEmails}
-        />
+        {/* Right Column - Info Cards */}
+        <div className="space-y-3 sm:space-y-4">
+          <EmailCard 
+            emails={emails}
+            onAddClick={() => {}}
+            onSave={setEmails}
+            loading={loading}
+          />
+          
+          <PhoneCard 
+            phones={phones}
+            onSave={(newPhones) => setPhones(newPhones)}
+            loading={loading}
+          />
+        </div>
       </div>
 
       {/* Tables and Additional Info Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
         {/* Left Column - Main Tables */}
         <div className="space-y-3 sm:space-y-4">
           <InvoiceTable
@@ -416,19 +425,16 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
         {/* Right Column - Info Cards */}
         <div className="space-y-3 sm:space-y-4">
-          <PhoneCard 
-            phones={phones}
-            onSave={(newPhones) => setPhones(newPhones)}
-          />
-          
           <AddressCard 
             addresses={addresses}
             onSave={(newAddresses) => setAddresses(newAddresses)}
+            loading={loading}
           />
           
           <DiscountCard 
             discount={discount}
             onSave={(newDiscount) => setDiscount(newDiscount)}
+            loading={loading}
           />
           
           <OpeningBalanceCard 
@@ -436,6 +442,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             onSave={(amount, type) => {
               setOpeningBalance(type === "owing" ? amount : -amount);
             }}
+            loading={loading}
           />
           
           <InfoCardWithAction title="Payment Preference" showAddButton={false}>
@@ -447,7 +454,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       </div>
 
       {/* Full Width Tables Below Outstanding Invoices */}
-      <div className="space-y-3 sm:space-y-4">
+      <div className="space-y-3 sm:space-y-4 mt-4">
         <TableCard 
           title="Equipment Rentals"
           data={equipmentRentalData} 
