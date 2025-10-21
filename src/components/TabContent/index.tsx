@@ -25,6 +25,7 @@ interface TabContentProps<TData = unknown> {
   data: TData[];
   columns: ColumnDef<TData>[];
   loading?: boolean;
+  error?: string | null;
   hasAddButton?: boolean;
   onAdd?: () => void;
   emptyState?: string;
@@ -38,6 +39,20 @@ interface TabContentProps<TData = unknown> {
   onShowAllChange?: (checked: boolean) => void;
   dropdownItems?: DropdownMenuItem[];
   dropdownLabel?: string;
+  
+  // Pagination props
+  enablePagination?: boolean;
+  serverSidePagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  onPageChange?: (page: number) => void;
+  onRowsPerPageChange?: (rowsPerPage: number) => void;
+  rowsPerPage?: number;
+  rowsPerPageOptions?: number[];
+  initialRowsPerPage?: number;
 }
 
 export function TabContent<TData = unknown>({
@@ -45,6 +60,7 @@ export function TabContent<TData = unknown>({
   data,
   columns,
   loading = false,
+  error = null,
   hasAddButton = true,
   onAdd,
   emptyState = "No data available",
@@ -58,6 +74,15 @@ export function TabContent<TData = unknown>({
   onShowAllChange,
   dropdownItems = [],
   dropdownLabel = "Actions",
+  
+  // Pagination props with defaults
+  enablePagination = true,
+  serverSidePagination,
+  onPageChange,
+  onRowsPerPageChange,
+  rowsPerPage,
+  rowsPerPageOptions = [5, 10, 20, 50, 100],
+  initialRowsPerPage = 10,
 }: TabContentProps<TData>) {
   return (
     <Card>
@@ -92,39 +117,52 @@ export function TabContent<TData = unknown>({
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {showAllCheckbox && onShowAllChange && (
-          <div className="mb-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id={`${title}-checkbox`}
-                checked={showAllChecked}
-                onCheckedChange={(checked: boolean) => onShowAllChange(checked)}
-              />
-              <label
-                htmlFor={`${title}-checkbox`}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Show All
-              </label>
-            </div>
+        {error ? (
+          <div className="text-center py-8 text-red-500">
+            <p className="font-medium">Error loading data</p>
+            <p className="text-sm">{error}</p>
           </div>
-        )}
-        {hasTable ? (
-          <CustomTable
-            data={data}
-            columns={columns}
-            size="compact"
-            variant="striped"
-            enableSorting={true}
-            enableExport={false}
-            enablePrint={false}
-            enableSearch={false}
-            enableFilter={false}
-            enableRowsPerPage={false}
-            className="border-0 w-full"
-            isLoading={loading}
-            footerRow={footerRow}
-          />
+        ) : hasTable ? (
+          <>
+            {showAllCheckbox && onShowAllChange && (
+              <div className="mb-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`${title}-checkbox`}
+                    checked={showAllChecked}
+                    onCheckedChange={(checked: boolean) => onShowAllChange(checked)}
+                  />
+                  <label
+                    htmlFor={`${title}-checkbox`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Show All
+                  </label>
+                </div>
+              </div>
+            )}
+            <CustomTable
+              data={data}
+              columns={columns}
+              size="compact"
+              variant="striped"
+              enableSorting={true}
+              enableExport={false}
+              enablePrint={false}
+              enableSearch={false}
+              enableFilter={false}
+              enableRowsPerPage={enablePagination}
+              className="border-0 w-full"
+              isLoading={loading}
+              footerRow={footerRow}
+              serverSidePagination={serverSidePagination}
+              onServerSidePageChange={onPageChange}
+              onRowsPerPageChange={onRowsPerPageChange}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={rowsPerPageOptions}
+              initialRowsPerPage={initialRowsPerPage}
+            />
+          </>
         ) : (
           <div className="text-center py-8 text-gray-500">
             {emptyState}

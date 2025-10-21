@@ -3,9 +3,17 @@ import { formatCurrency } from "@/utils/formatCurrency";
 
 // Data interfaces
 export interface StudentData {
-  name: string;
+  id: number;
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
   birthDate: string;
   customerName: string;
+  status: number;
+  phone?: string;
+  email?: string;
+  gender?: string;
+  notes?: string;
 }
 
 export interface EnrolmentData {
@@ -62,7 +70,7 @@ export interface HistoryData {
 
 // Column definitions
 export const studentColumns: ColumnDef<StudentData>[] = [
-  { accessorKey: "name", header: "Name" },
+  { accessorKey: "fullName", header: "Name" },
   { 
     accessorKey: "birthDate", 
     header: "Birth Date",

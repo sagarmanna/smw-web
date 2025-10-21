@@ -8,6 +8,7 @@ import {
   GroupLessonDueData, 
   PaymentData 
 } from './tableConfigs';
+import { StudentData } from './tabConfigs';
 
 export interface CustomerRow {
   id: number;
@@ -99,7 +100,6 @@ export async function getCustomers(
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error fetching customers list:', error);
     return {
       success: false,
       message: apiError.response?.data?.message || 'Failed to fetch customers',
@@ -135,8 +135,6 @@ export async function getCustomerById(
     );
     return response.data.success ? response.data.data : null;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error fetching customer by id:', error);
     return null;
   }
 }
@@ -351,3 +349,47 @@ export async function getCustomerPayments(
   
   return [];
 }
+
+// --------------------
+// Students API function
+// --------------------
+
+export interface StudentsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: Array<{
+      id: number;
+      fullName: string;
+     
+      birthDate: string;
+      customerName: string;
+      status: number;
+      isActive: boolean;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export async function getCustomerStudents(
+  location: string,
+  customerId: number
+): Promise<StudentData[]> {
+  try {
+    const response = await apiClient.get<StudentsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/students`
+    );
+    
+    return response.data.data?.body || [];
+  } catch (error: unknown) {
+    return [];
+  }
+}
+
+
+
