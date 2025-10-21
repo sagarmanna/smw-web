@@ -151,7 +151,6 @@ export async function getCustomerSummary(
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error fetching customer summary:', error);
     return {
       success: false,
       message: apiError.response?.data?.message || 'Failed to fetch customer summary',

@@ -59,6 +59,7 @@ import {
 } from "../tabConfigs";
 import { mockCustomerTabData } from "../mockData/customersMockData";
 import AddStudentModal from "../components/AddStudentModal/index";
+import EmailStatementModal, { EmailFormData } from "../components/EmailStatementModal/index";
 
 interface PhoneNumber {
   id: string;
@@ -104,6 +105,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = React.useState<boolean>(false);
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] = React.useState<boolean>(false);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] = React.useState<boolean>(false);
+  const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] = React.useState<boolean>(false);
 
   // Local state for editable customer details
   const [localFirstName, setLocalFirstName] = React.useState<string>("");
@@ -175,6 +177,13 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   // Handle adding new equipment rental
   const handleAddEquipmentRental = (data: unknown) => {
     setIsEquipmentRentalsModalOpen(false);
+  };
+
+  // Handle email statement send
+  const handleSendEmailStatement = (emailData: EmailFormData) => {
+    // TODO: Implement API call to send email statement
+    setIsEmailStatementModalOpen(false);
+    // Show success toast notification
   };
 
   // Handle invoice actions
@@ -411,7 +420,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       items: [
         { label: "Receive Payment", onClick: () => {} },
         { label: "Print Statement", onClick: () => {} },
-        { label: "Email Statement", onClick: () => {} },
+        { label: "Email Statement", onClick: () => setIsEmailStatementModalOpen(true) },
         { label: "A/R Report Detail", onClick: () => {} },
         { label: "Items Purchased by Category", onClick: () => {} },
         { label: "Notify Via Email", onClick: () => {} },
@@ -767,6 +776,20 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         onSave={handleAddEquipmentRental}
         customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
         customerEmail={customer?.email}
+      />
+
+      {/* Email Statement Modal */}
+      <EmailStatementModal
+        open={isEmailStatementModalOpen}
+        onOpenChange={setIsEmailStatementModalOpen}
+        onSend={handleSendEmailStatement}
+        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
+        customerEmails={emails.map(e => e.email)}
+        locationName="Arcadia Academy of Music"
+        privateLessonDueData={privateLessonDueData}
+        groupLessonDueData={groupLessonDueData}
+        invoiceData={invoiceData}
+        totalBalance={summaryData.balance}
       />
     </div>
   );
