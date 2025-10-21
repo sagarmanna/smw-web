@@ -361,40 +361,33 @@ export function DetailsCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
+        <div className="space-y-3">
+          <div className="flex justify-center mb-4">
+            <div className="relative w-20 h-20">
               {picture ? (
-                <div className="relative w-24 h-24">
-                  <Image 
-                    src={picture} 
-                    alt="Customer" 
-                    width={96}
-                    height={96}
-                    className="rounded-full object-cover"
-                  />
+                <>
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+                    <Image 
+                      src={picture} 
+                      alt="Customer" 
+                      width={80}
+                      height={80}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => setPicture("")}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 z-10"
                     aria-label="Remove picture"
                   >
                     ×
                   </button>
-                </div>
+                </>
               ) : (
-                <label htmlFor="picture-upload" className="cursor-pointer">
-                  <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                    <User className="w-12 h-12 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <input
-                    id="picture-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePictureUpload}
-                    className="hidden"
-                  />
-                </label>
+                <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                  <User className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                </div>
               )}
             </div>
           </div>
@@ -484,6 +477,28 @@ export function DetailsCard({
             {showError && !isReferralSourceValid && (
               <p className="text-sm text-red-600 dark:text-red-400">Please select how you found us.</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="picture-upload" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Picture
+            </Label>
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
+              <label htmlFor="picture-upload" className="cursor-pointer flex flex-col items-center justify-center">
+                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-1">
+                  <svg className="w-6 h-6 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <input
+                  id="picture-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePictureUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
         </div>
       </ReusableModal>
