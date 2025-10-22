@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { InfoCard } from "@/components/InfoCard";
+import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Pencil } from "lucide-react";
 
 interface DiscountCardProps {
   discount?: number;
@@ -32,6 +33,12 @@ export function DiscountCard({
     if (onAddClick) {
       onAddClick();
     }
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsModalOpen(true);
+    setDiscountValue(discount > 0 ? discount.toString() : "");
   };
 
   const isDiscountValid = () => {
@@ -94,9 +101,29 @@ export function DiscountCard({
       >
         <div className="space-y-2">
           {loading ? (
-            <Skeleton className="h-6 w-16" />
+            <div className="flex items-center justify-between p-2 rounded -mx-2">
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
           ) : discount > 0 ? (
-            <span className="font-semibold">{discount}%</span>
+            <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 group">
+              <KeyValueDisplay
+                label="Discount"
+                value={`${discount}%`}
+                className="justify-start flex-1"
+              />
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={handleEditClick}
+                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                  aria-label="Edit discount"
+                >
+                  <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                </button>
+              </div>
+            </div>
           ) : (
             <span className="text-gray-500 dark:text-gray-400 text-sm">No discounts added</span>
           )}

@@ -12,6 +12,7 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import Image from "next/image";
 
 interface DetailsData {
@@ -295,59 +296,27 @@ export function DetailsCard({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex justify-center">
-                <div className="flex items-center w-full max-w-sm">
-                  <div className="w-40 text-right pr-4">
-                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">Name</span>
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-gray-700 dark:text-gray-300 text-xs">
-                      {(firstName?.trim() && lastName?.trim()) 
-                        ? `${firstName.trim()} ${lastName.trim()}` 
-                        : "N/A"}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <KeyValueDisplay
+                label="Name"
+                value={(firstName?.trim() && lastName?.trim()) 
+                  ? `${firstName.trim()} ${lastName.trim()}` 
+                  : "N/A"}
+              />
               
-              <div className="flex justify-center">
-                <div className="flex items-center w-full max-w-sm">
-                  <div className="w-40 text-right pr-4">
-                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">Role</span>
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-gray-700 dark:text-gray-300 text-xs">
-                      {data.role?.trim() || "Customer"}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <KeyValueDisplay
+                label="Role"
+                value={data.role?.trim() || "Customer"}
+              />
               
-              <div className="flex justify-center">
-                <div className="flex items-center w-full max-w-sm">
-                  <div className="w-40 text-right pr-4">
-                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">Referral Source</span>
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-gray-700 dark:text-gray-300 text-xs">
-                      {referralSource?.trim() || "Drive By"}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <KeyValueDisplay
+                label="Referral Source"
+                value={referralSource?.trim() || "Drive By"}
+              />
               
-              <div className="flex justify-center">
-                <div className="flex items-center w-full max-w-sm">
-                  <div className="w-40 text-right pr-4">
-                    <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">Status</span>
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-gray-700 dark:text-gray-300 text-xs">
-                      {data.status?.trim() || "Active"}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <KeyValueDisplay
+                label="Status"
+                value={data.status?.trim() || "Active"}
+              />
             </div>
           )}
         </CardContent>
@@ -361,7 +330,7 @@ export function DetailsCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto">
           <div className="flex justify-center mb-4">
             <div className="relative w-20 h-20">
               {picture ? (
