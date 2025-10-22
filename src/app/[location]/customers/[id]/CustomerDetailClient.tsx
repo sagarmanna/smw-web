@@ -18,7 +18,9 @@ import {
   getCustomerPayments,
   getCustomerStudents,
   getCustomerSummary,
-  CustomerSummaryData
+  getCustomerInfo,
+  CustomerSummaryData,
+  CustomerInfoData
 } from "../customers.api";
 import { SummaryCard } from "@/components/SummaryCard";
 import { BookOpen, FileText, Star, DollarSign } from "lucide-react";
@@ -65,6 +67,8 @@ interface PhoneNumber {
   id: string;
   label: string;
   number: string;
+  extension?: string;
+  note?: string;
 }
 
 interface Email {
@@ -72,6 +76,18 @@ interface Email {
   label: string;
   email: string;
   note?: string;
+  isPrimary?: boolean;
+}
+
+interface Address {
+  id: string;
+  label: string;
+  address: string;
+  city: string;
+  province: string;
+  country: string;
+  postalCode: string;
+  isPrimary?: boolean;
 }
 
 interface CustomerDetailClientProps {
@@ -82,6 +98,7 @@ interface CustomerDetailClientProps {
 export function CustomerDetailClient({ location, id }: CustomerDetailClientProps) {
   const router = useRouter();
   const [customer, setCustomer] = React.useState<CustomerRow | null>(null);
+  const [customerInfo, setCustomerInfo] = React.useState<CustomerInfoData | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [studentsLoading, setStudentsLoading] = React.useState<boolean>(false);
   const [studentsError, setStudentsError] = React.useState<string | null>(null);
@@ -113,6 +130,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [referralSource, setReferralSource] = React.useState<string>("Drive By");
   const [status, setStatus] = React.useState<string>("Active");
   const [picture, setPicture] = React.useState<string | undefined>(undefined);
+  const [role, setRole] = React.useState<string>("Customer");
 
   // Summary data state
   const [summaryData, setSummaryData] = React.useState<CustomerSummaryData>({
@@ -143,7 +161,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     setStudentsPagination(prev => ({
       ...prev,
       limit: rowsPerPage,
-      page: 1, // Reset to first page when changing rows per page
+      page: 1,
       totalPages: Math.ceil(prev.total / rowsPerPage)
     }));
   };
@@ -163,7 +181,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       [tabKey]: {
         ...prev[tabKey],
         limit: rowsPerPage,
-        page: 1, // Reset to first page when changing rows per page
+        page: 1,
         totalPages: Math.ceil((prev[tabKey]?.total || 0) / rowsPerPage)
       }
     }));
@@ -216,15 +234,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
   const [emails, setEmails] = React.useState<Email[]>([]);
-  const [addresses, setAddresses] = React.useState<Array<{
-    id: string;
-    label: string;
-    address: string;
-    city: string;
-    province: string;
-    country: string;
-    postalCode: string;
-  }>>([]);
+  const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [discount, setDiscount] = React.useState<number>(0);
   const [openingBalance, setOpeningBalance] = React.useState<number>(0);
 
@@ -274,7 +284,72 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           setLocalLastName(customerData.lastName);
         }
         
-        // Load customer summary
+        const infoResponse = await getCustomerInfo(location, Number(id));
+        
+        if (infoResponse?.success && infoResponse.data) {
+          setCustomerInfo(infoResponse.data);
+          
+          if (infoResponse.data.profile?.name) {
+            const nameParts = infoResponse.data.profile.name.split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+            setLocalFirstName(firstName);
+            setLocalLastName(lastName);
+          }
+          
+          if (infoResponse.data.profile) {
+            setRole(infoResponse.data.profile.role || 'Customer');
+            setReferralSource(infoResponse.data.profile.referralSource || 'Drive By');
+            setStatus(infoResponse.data.profile.status || 'Active');
+          }
+          
+          if (infoResponse.data.email && Array.isArray(infoResponse.data.email)) {
+            const formattedEmails = infoResponse.data.email.map(e => ({
+              id: String(e.id),
+              label: e.label,
+              email: e.email,
+              note: e.note,
+              isPrimary: e.isPrimary
+            }));
+            setEmails(formattedEmails);
+          }
+          
+          if (infoResponse.data.phone && Array.isArray(infoResponse.data.phone)) {
+            const formattedPhones = infoResponse.data.phone.map(p => ({
+              id: String(p.id),
+              label: p.label,
+              number: p.number,
+              extension: p.extension?.toString(),
+              note: p.note
+            }));
+            setPhones(formattedPhones);
+          }
+          
+          if (infoResponse.data.addresses && Array.isArray(infoResponse.data.addresses)) {
+            const formattedAddresses = infoResponse.data.addresses.map(a => ({
+              id: String(a.id),
+              label: a.label,
+              address: a.address,
+              city: a.city,
+              province: a.province,
+              country: a.country,
+              postalCode: a.postalCode,
+              isPrimary: a.isPrimary
+            }));
+            setAddresses(formattedAddresses);
+          }
+          
+          if (infoResponse.data.discount) {
+            setDiscount(infoResponse.data.discount.value || 0);
+          }
+          
+          if (infoResponse.data.openingBalance) {
+            const amount = infoResponse.data.openingBalance.amount || 0;
+            const type = infoResponse.data.openingBalance.type || 'owing';
+            setOpeningBalance(type === 'owing' ? amount : -amount);
+          }
+        }
+        
         const summary = await getCustomerSummary(location, Number(id));
         if (summary?.success && summary.data) {
           setSummaryData(summary.data);
@@ -334,7 +409,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         setCommentData(mockCustomerTabData.commentData);
         setHistoryData(mockCustomerTabData.historyData);
       } catch (error) {
-        // Error handling is done in individual API calls
+        console.error('Error loading customer data:', error);
       } finally {
         setLoading(false);
       }
@@ -405,7 +480,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       };
     });
     
-    // Update additional states
+    setRole(newData.role);
     setReferralSource(newData.referralSource);
     setStatus(newData.status);
     setPicture(newData.picture);
@@ -435,9 +510,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   ];
 
   return (
-      <div className="bg-white dark:bg-black -mt-2">
-
-      {/* Detail Header */}
+    <div className="bg-white dark:bg-black -mt-2">
       <DetailHeader
         breadcrumbItems={[
           { label: "Customers", onClick: () => router.push(`/${location}/customers/`) }
@@ -487,7 +560,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           data={{
             firstName: localFirstName,
             lastName: localLastName,
-            role: "Customer",
+            role: role,
             referralSource: referralSource,
             status: status,
             picture: picture
@@ -557,7 +630,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           />
           
           <OpeningBalanceCard 
-            amount={openingBalance}
+            amount={Math.abs(openingBalance)}
             onSave={(amount, type) => {
               setOpeningBalance(type === "owing" ? amount : -amount);
             }}

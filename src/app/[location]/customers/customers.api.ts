@@ -17,8 +17,8 @@ export interface CustomerRow {
   lastName: string;
   email: string;
   students: string;
-  balance: string; // API returns formatted currency string
-  totalBalance?: string; // API returns formatted currency string
+  balance: string;
+  totalBalance?: string;
 }
 
 export interface CustomersListResponse {
@@ -72,6 +72,57 @@ export interface CustomerSummaryResponse {
   data: CustomerSummaryData;
 }
 
+// NEW: Customer Info interfaces
+export interface CustomerInfoData {
+  profile: {
+    name: string;
+    role: string;
+    referralSource: string;
+    status: string;
+  };
+  email: Array<{
+    id: number;
+    email: string;
+    note?: string;
+    label: string;
+    isPrimary: boolean;
+  }>;
+  phone: Array<{
+    id: number;
+    number: string;
+    extension?: number;
+    note?: string;
+    label: string;
+    isPrimary: boolean;
+  }>;
+  addresses: Array<{
+    id: number;
+    address: string;
+    city: string;
+    province: string;
+    country: string;
+    postalCode: string;
+    label: string;
+    isPrimary: boolean;
+  }>;
+  discount: {
+    id: number;
+    value: number;
+  } | null;
+  openingBalance: {
+    id: number;
+    amount: number;
+    type: string;
+  } | null;
+  paymentPreference: Record<string, unknown> | null;
+}
+
+export interface CustomerInfoResponse {
+  success: boolean;
+  message: string;
+  data: CustomerInfoData;
+}
+
 export async function getCustomers(
   location: string,
   query: CustomersQuery
@@ -79,7 +130,6 @@ export async function getCustomers(
   try {
     const params = new URLSearchParams();
     
-    // Add parameters if they exist
     if (query.page) params.append('page', query.page.toString());
     if (query.limit) params.append('limit', query.limit == -1 ? '99999' : query.limit.toString());
     if (query.showActive !== undefined) params.append('showActive', query.showActive.toString());
@@ -164,6 +214,24 @@ export async function getCustomerSummary(
   }
 }
 
+// NEW: Customer Info function
+export async function getCustomerInfo(
+  location: string,
+  customerId: number
+): Promise<CustomerInfoResponse | null> {
+  try {
+    const response = await apiClient.get<CustomerInfoResponse>(
+      `/admin/v2/${location}/customers/${customerId}/info`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error('Error fetching customer info:', error);
+    return null;
+  }
+}
+
 // --------------------
 // Table data functions
 // --------------------
@@ -188,10 +256,6 @@ export async function getCustomerInvoices(
       { id: "I-91772", date: "Sep 27, 2025", status: "Owing", total: 33.40, balance: 33.40 },
     ];
   }
-  
-  // Future API call
-  // const response = await apiClient.get(`/admin/v2/${location}/customers/${customerId}/invoices`);
-  // return response.data;
   
   return [];
 }
@@ -224,10 +288,6 @@ export async function getCustomerOutstandingInvoices(
     ];
   }
   
-  // Future API call
-  // const response = await apiClient.get(`/admin/v2/${location}/customers/${customerId}/outstanding-invoices`);
-  // return response.data;
-  
   return [];
 }
 
@@ -238,12 +298,8 @@ export async function getCustomerEquipmentRentals(
   const USE_MOCK = true;
   
   if (USE_MOCK) {
-    return []; // Empty for now as shown in the image
+    return [];
   }
-  
-  // Future API call
-  // const response = await apiClient.get(`/admin/v2/${location}/customers/${customerId}/equipment-rentals`);
-  // return response.data;
   
   return [];
 }
@@ -255,12 +311,8 @@ export async function getCustomerRecurringPayments(
   const USE_MOCK = true;
   
   if (USE_MOCK) {
-    return []; // Empty for now as shown in the image
+    return [];
   }
-  
-  // Future API call
-  // const response = await apiClient.get(`/admin/v2/${location}/customers/${customerId}/recurring-payments`);
-  // return response.data;
   
   return [];
 }
@@ -301,10 +353,6 @@ export async function getCustomerPrivateLessonDue(
     ];
   }
   
-  // Future API call
-  // const response = await apiClient.get(`/admin/v2/${location}/customers/${customerId}/private-lesson-due`);
-  // return response.data;
-  
   return [];
 }
 
@@ -315,12 +363,8 @@ export async function getCustomerGroupLessonDue(
   const USE_MOCK = true;
   
   if (USE_MOCK) {
-    return []; // Empty for now as shown in the image
+    return [];
   }
-  
-  // Future API call
-  // const response = await apiClient.get(`/admin/v2/${location}/customers/${customerId}/group-lesson-due`);
-  // return response.data;
   
   return [];
 }
@@ -342,10 +386,6 @@ export async function getCustomerPayments(
     ];
   }
   
-  // Future API call
-  // const response = await apiClient.get(`/admin/v2/${location}/customers/${customerId}/payments`);
-  // return response.data;
-  
   return [];
 }
 
@@ -360,7 +400,6 @@ export interface StudentsResponse {
     body: Array<{
       id: number;
       fullName: string;
-     
       birthDate: string;
       customerName: string;
       status: number;
@@ -389,6 +428,4 @@ export async function getCustomerStudents(
     return [];
   }
 }
-
-
 
