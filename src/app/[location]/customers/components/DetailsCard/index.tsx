@@ -296,27 +296,32 @@ export function DetailsCard({
             </div>
           ) : (
             <div className="space-y-3">
-              <KeyValueDisplay
-                label="Name"
-                value={(firstName?.trim() && lastName?.trim()) 
-                  ? `${firstName.trim()} ${lastName.trim()}` 
-                  : "N/A"}
-              />
-              
-              <KeyValueDisplay
-                label="Role"
-                value={data.role?.trim() || "Customer"}
-              />
-              
-              <KeyValueDisplay
-                label="Referral Source"
-                value={referralSource?.trim() || "Drive By"}
-              />
-              
-              <KeyValueDisplay
-                label="Status"
-                value={data.status?.trim() || "Active"}
-              />
+              {[
+                {
+                  label: "Name",
+                  value: (firstName?.trim() && lastName?.trim()) 
+                    ? `${firstName.trim()} ${lastName.trim()}` 
+                    : "N/A"
+                },
+                {
+                  label: "Role",
+                  value: data.role?.trim() || "Customer"
+                },
+                {
+                  label: "Referral Source",
+                  value: referralSource?.trim() || "Drive By"
+                },
+                {
+                  label: "Status",
+                  value: data.status?.trim() || "Active"
+                }
+              ].map((item, index) => (
+                <KeyValueDisplay
+                  key={index}
+                  label={item.label}
+                  value={item.value}
+                />
+              ))}
             </div>
           )}
         </CardContent>
