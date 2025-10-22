@@ -6,13 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { X, Maximize2, Minimize2 } from "lucide-react";
-import dynamic from "next/dynamic";
-import "react-quill-new/dist/quill.snow.css";
-import "./quill-custom.css";
-
-// Dynamically import ReactQuill to avoid SSR issues
-const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
+import { X } from "lucide-react";
+import TipTapEmailEditor from "./TipTapEmailEditor";
+import "./tiptap-styles.css";
 
 interface EmailStatementModalProps {
   open: boolean;
@@ -97,46 +93,6 @@ export default function EmailStatementModal({
     };
   }, [isContentExpanded]);
 
-  // Quill editor modules configuration - comprehensive toolbar like in the image
-  const quillModules = React.useMemo(() => ({
-    toolbar: [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-      [{ 'font': [] }],
-      [{ 'size': ['small', false, 'large', 'huge'] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'script': 'sub' }, { 'script': 'super' }],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
-      [{ 'align': [] }],
-      ['blockquote', 'code-block'],
-      ['link', 'image', 'video'],
-      ['clean']
-    ],
-    clipboard: {
-      matchVisual: false,
-      matchers: [
-        // Preserve table HTML
-        ['table', (node: HTMLElement, delta: unknown) => delta],
-        ['tbody', (node: HTMLElement, delta: unknown) => delta],
-        ['thead', (node: HTMLElement, delta: unknown) => delta],
-        ['tr', (node: HTMLElement, delta: unknown) => delta],
-        ['td', (node: HTMLElement, delta: unknown) => delta],
-        ['th', (node: HTMLElement, delta: unknown) => delta],
-      ]
-    }
-  }), []);
-
-  const quillFormats = [
-    'header', 'font', 'size',
-    'bold', 'italic', 'underline', 'strike',
-    'color', 'background',
-    'script',
-    'list', 'indent',
-    'align',
-    'blockquote', 'code-block',
-    'link', 'image', 'video'
-  ];
-
   // Format currency helper
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -156,16 +112,27 @@ export default function EmailStatementModal({
       setRecipients(customerEmails.filter(email => email && email.trim() !== ""));
       setSubject(`Customer Statement from ${locationName}`);
       
-      // Set only the introductory text (tables will be shown separately as HTML preview)
-      const initialMessage = `<p>For your convenience, please see your next billing statement below. As a reminder, payments are due the first week of the month.</p><p>We would also like to take this opportunity to remind you that we have a number of convenient and more economical ways of making payments. These methods of payments with corresponding discounts are outlined in our Payment Method: Commitment Plan which can be found at our front desk.</p>`;
-      
-      setContent(initialMessage);
+      // Generate complete email content with text AND tables together
+      const completeContent = generateCompleteEmailHTML();
+      setContent(completeContent);
       contentInitialized.current = true;
     } else if (!open) {
       // Reset flag when modal closes
       contentInitialized.current = false;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, customerEmails, locationName]);
+
+  // Generate complete email HTML with introductory text AND tables
+  const generateCompleteEmailHTML = () => {
+    const introText = `<p>For your convenience, please see your next billing statement below. As a reminder, payments are due the first week of the month.</p>`;
+    
+    const tablesHTML = generateTablesHTML();
+    
+    const closingText = `<p>We would also like to take this opportunity to remind you that we have a number of convenient and more economical ways of making payments. These methods of payments with corresponding discounts are outlined in our Payment Method: Commitment Plan which can be found at our front desk.</p>`;
+    
+    return introText + tablesHTML + closingText;
+  };
 
   // Generate table HTML for email content (using real customer data)
   const generateTablesHTML = () => {
@@ -315,14 +282,11 @@ export default function EmailStatementModal({
 
   const handleSend = () => {
     if (validateForm()) {
-      // Combine editable text with generated HTML tables
-      const tablesHTML = generateTablesHTML();
-      const completeEmail = content + tablesHTML;
-      
+      // Content already includes text + tables (TipTap unified editor)
       onSend({
         recipients,
         subject,
-        content: completeEmail  // Editor text + HTML tables
+        content: content  // Complete email from TipTap editor
       });
       handleCancel();
     }
@@ -425,67 +389,41 @@ export default function EmailStatementModal({
           )}
         </div>
 
-         {/* Content Field with Rich Text Editor */}
+         {/* Content Field with Rich Text Editor - Unified Text + Tables */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="content">Content</Label>
-            {/* Maximize Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsContentExpanded(true);
-              }}
-              className="text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 transition-all p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-1.5 text-sm"
-              title="View in full screen"
-            >
-              <Maximize2 className="h-4 w-4" />
-              <span>Full Screen</span>
-            </button>
-          </div>
-          
-          {/* Editable Email Message Text */}
-          <div className={`rounded-md border ${errors.content ? "border-red-500" : "border-gray-300 dark:border-gray-600"} bg-white dark:bg-gray-800 overflow-hidden modal-quill-editor`}>
-            <ReactQuill
-              theme="snow"
-              value={content}
+          <Label htmlFor="content">Email Content (Text and Tables are editable)</Label>
+          <div className={`${errors.content ? "border border-red-500 rounded-md" : ""}`}>
+            <TipTapEmailEditor
+              content={content}
               onChange={(value) => {
                 setContent(value);
                 setErrors(prev => ({ ...prev, content: undefined }));
               }}
-              modules={quillModules}
-              formats={quillFormats}
-              placeholder="Enter email content..."
-              style={{ minHeight: '300px' }}
+              onFullscreenChange={setIsContentExpanded}
+              isFullscreen={isContentExpanded}
             />
           </div>
           
           {errors.content && (
-            <p className="text-sm text-red-500">{errors.content}</p>
+            <p className="text-sm text-red-500 mt-1">{errors.content}</p>
           )}
-        </div>
-
-        {/* HTML Table Preview (will be included in email) */}
-        <div className="space-y-2">
-          <Label>Customer Statement Tables (will be included in email)</Label>
-          <div 
-            className="border border-gray-300 dark:border-gray-600 rounded-md p-4 bg-white dark:bg-gray-800 max-h-[400px] overflow-y-auto"
-            dangerouslySetInnerHTML={{ __html: generateTablesHTML() }}
-          />
+          
+          <p className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+            ✨ You can now edit both text AND table cells directly! Click on any cell to modify values.
+          </p>
         </div>
       </div>
     </ReusableModal>
 
-    {/* Full Screen Content Overlay */}
+    {/* Full Screen Content Overlay - Handled by TipTap */}
     {isContentExpanded && (
       <div className="fixed inset-0 z-[9999] bg-white dark:bg-gray-900 flex flex-col fullscreen-overlay">
         {/* Full Screen Header */}
         <div className="px-6 py-4 border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Email Preview</h2>
-              <Badge variant="outline" className="text-xs">Full Screen Editor</Badge>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Email Editor - Full Screen</h2>
+              <Badge variant="outline" className="text-xs">Edit Text and Tables</Badge>
             </div>
             <button
               type="button"
@@ -493,7 +431,7 @@ export default function EmailStatementModal({
               className="text-gray-700 dark:text-gray-300 hover:text-white hover:bg-gray-800 dark:hover:bg-gray-700 transition-all px-4 py-2 rounded-md flex items-center gap-2 border border-gray-400 dark:border-gray-600 hover:border-gray-800 dark:hover:border-gray-500 font-medium"
               title="Exit full screen (ESC)"
             >
-              <Minimize2 className="h-5 w-5" />
+              <X className="h-5 w-5" />
               <span className="text-sm">Exit Full Screen</span>
             </button>
           </div>
@@ -517,45 +455,22 @@ export default function EmailStatementModal({
           </div>
         </div>
 
-        {/* Full Screen Content - Editable Text + HTML Table Preview */}
-        <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900" style={{ scrollBehavior: 'smooth' }}>
-          <div className="max-w-[1400px] mx-auto p-6 space-y-6">
+        {/* Full Screen Content - TipTap Editor */}
+        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-6">
+          <div className="max-w-[1400px] mx-auto">
             {/* Edit Notice */}
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md flex items-center gap-2 text-sm text-blue-800 dark:text-blue-200">
-              <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span><strong>Note:</strong> Edit the message text above. Tables below will be automatically included in the email.</span>
-            </div>
             
-            {/* Rich Text Editor - Editable Message Text */}
-            <div>
-              <Label className="text-base mb-2 block">Email Message Text (Editable)</Label>
-              <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md overflow-hidden">
-                <ReactQuill
-                  theme="snow"
-                  value={content}
-                  onChange={(value) => {
-                    setContent(value);
-                    setErrors(prev => ({ ...prev, content: undefined }));
-                  }}
-                  modules={quillModules}
-                  formats={quillFormats}
-                  placeholder="Enter email content..."
-                  className="fullscreen-quill-editor"
-                  style={{ minHeight: '300px' }}
-                />
-              </div>
-            </div>
-
-            {/* HTML Table Preview */}
-            <div>
-              <Label className="text-base mb-2 block">Customer Statement Tables (Preview - will be included in email)</Label>
-              <div 
-                className="border border-gray-300 dark:border-gray-700 rounded-md p-6 bg-white dark:bg-gray-800"
-                dangerouslySetInnerHTML={{ __html: generateTablesHTML() }}
-              />
-            </div>
+            
+            {/* TipTap Editor in Fullscreen */}
+            <TipTapEmailEditor
+              content={content}
+              onChange={(value) => {
+                setContent(value);
+                setErrors(prev => ({ ...prev, content: undefined }));
+              }}
+              isFullscreen={true}
+              className="fullscreen"
+            />
           </div>
         </div>
 
