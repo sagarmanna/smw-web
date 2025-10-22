@@ -7,6 +7,7 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2 } from "lucide-react";
 
 interface Address {
@@ -24,13 +25,15 @@ interface AddressCardProps {
   onAddClick?: () => void;
   onSave?: (addresses: Address[]) => void;
   className?: string;
+  loading?: boolean;
 }
 
 export function AddressCard({ 
   addresses = [],
   onAddClick, 
   onSave,
-  className 
+  className,
+  loading = false
 }: AddressCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
@@ -227,9 +230,26 @@ export function AddressCard({
         title="Addresses" 
         onAddClick={handleAddClick}
         className={className}
+        loading={loading}
       >
         <div className="space-y-2">
-          {addresses.length > 0 ? (
+          {loading ? (
+            // Skeleton loading state
+            <>
+              {[...Array(2)].map((_, index) => (
+                <div key={index} className="flex items-center justify-between p-2 rounded -mx-2">
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-full max-w-md" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : addresses.length > 0 ? (
             addresses.map((addr) => (
               <div
                 key={addr.id}
