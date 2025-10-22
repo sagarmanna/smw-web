@@ -97,6 +97,8 @@ export interface CustomTableProps<TData, TValue> {
     totalPages: number;
   };
   onServerSidePageChange?: (page: number) => void;
+  hideRecordCount?: boolean; // Hide record count in pagination
+  showRecordCountInToolbar?: boolean; // Show record count in toolbar (left side)
   
   // Rows per page configuration
   initialRowsPerPage?: number; // Initial rows per page (default: 20)
@@ -183,6 +185,8 @@ export function CustomTable<TData, TValue>({
   // Server-side pagination configuration
   serverSidePagination,
   onServerSidePageChange,
+  hideRecordCount = false,
+  showRecordCountInToolbar = false,
   
   // Rows per page configuration
   initialRowsPerPage = 10,
@@ -399,6 +403,20 @@ export function CustomTable<TData, TValue>({
 
   // No client-side pagination effects needed - using server-side only
 
+  // Calculate record count info for toolbar
+  const recordCountInfo = React.useMemo(() => {
+    if (showRecordCountInToolbar && serverSidePagination) {
+      const startRecord = serverSidePagination.total === 0 ? 0 : (serverSidePagination.page - 1) * serverSidePagination.limit + 1;
+      const endRecord = Math.min(serverSidePagination.page * serverSidePagination.limit, serverSidePagination.total);
+      return {
+        startRecord,
+        endRecord,
+        total: serverSidePagination.total,
+      };
+    }
+    return undefined;
+  }, [showRecordCountInToolbar, serverSidePagination]);
+
   return (
     <TooltipProvider>
       <div className={`w-full ${className || ""}`}>
@@ -429,6 +447,8 @@ export function CustomTable<TData, TValue>({
             onServerSideFilterChange={onServerSideFilterChange}
             defaultFilterLabel={defaultFilterLabel}
             customHeaderComponent={customHeaderComponent}
+            showRecordCount={showRecordCountInToolbar}
+            recordCountInfo={recordCountInfo}
           />
         </div>
         
@@ -474,6 +494,7 @@ export function CustomTable<TData, TValue>({
             pagination={serverSidePagination}
             onPageChange={onServerSidePageChange}
             enablePagination={true}
+            hideRecordCount={hideRecordCount}
           />
         ) : null}
       </div>

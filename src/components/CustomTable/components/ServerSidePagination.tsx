@@ -11,12 +11,14 @@ interface ServerSidePaginationProps {
   };
   onPageChange: (page: number) => void;
   enablePagination?: boolean;
+  hideRecordCount?: boolean;
 }
 
 export function ServerSidePagination({
   pagination,
   onPageChange,
   enablePagination = true,
+  hideRecordCount = false,
 }: ServerSidePaginationProps) {
   if (!enablePagination) return null;
 
@@ -24,13 +26,15 @@ export function ServerSidePagination({
   const endRecord = pagination.limit === -1 ? pagination.total : Math.min(pagination.page * pagination.limit, pagination.total);
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-t bg-muted/30 print:hidden">
+    <div className={`flex flex-col sm:flex-row sm:items-center ${hideRecordCount ? 'sm:justify-end' : 'sm:justify-between'} gap-3 px-4 py-3 border-t bg-muted/30 print:hidden`}>
       {/* Records Info */}
-      <div className="text-muted-foreground text-sm">
-        Showing <span className="font-medium text-foreground">{startRecord}</span> to{" "}
-        <span className="font-medium text-foreground">{endRecord}</span> of{" "}
-        <span className="font-medium text-foreground">{pagination.total}</span> records
-      </div>
+      {!hideRecordCount && (
+        <div className="text-muted-foreground text-sm">
+          Showing <span className="font-medium text-foreground">{startRecord}</span> to{" "}
+          <span className="font-medium text-foreground">{endRecord}</span> of{" "}
+          <span className="font-medium text-foreground">{pagination.total}</span> records
+        </div>
+      )}
       
       {/* Pagination Controls */}
       {pagination.totalPages > 1 && (
