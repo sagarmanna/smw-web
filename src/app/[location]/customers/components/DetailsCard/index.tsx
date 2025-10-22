@@ -59,6 +59,27 @@ export function DetailsCard({
   const [firstNameTouched, setFirstNameTouched] = useState(false);
   const [lastNameTouched, setLastNameTouched] = useState(false);
 
+  const [displayFields, setDisplayFields] = useState([
+    {
+      label: "Name",
+      value: (data.firstName?.trim() && data.lastName?.trim()) 
+        ? `${data.firstName.trim()} ${data.lastName.trim()}` 
+        : "N/A"
+    },
+    {
+      label: "Role",
+      value: data.role?.trim() || "Customer"
+    },
+    {
+      label: "Referral Source",
+      value: data.referralSource?.trim() || "Drive By"
+    },
+    {
+      label: "Status",
+      value: data.status?.trim() || "Active"
+    }
+  ]);
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPasswordError, setShowPasswordError] = useState(false);
@@ -70,7 +91,28 @@ export function DetailsCard({
     setLastName(data.lastName || "");
     setReferralSource(data.referralSource || "");
     setPicture(data.picture || "");
-  }, [data.firstName, data.lastName, data.referralSource, data.picture]);
+    
+    setDisplayFields([
+      {
+        label: "Name",
+        value: (data.firstName?.trim() && data.lastName?.trim()) 
+          ? `${data.firstName.trim()} ${data.lastName.trim()}` 
+          : "N/A"
+      },
+      {
+        label: "Role",
+        value: data.role?.trim() || "Customer"
+      },
+      {
+        label: "Referral Source",
+        value: data.referralSource?.trim() || "Drive By"
+      },
+      {
+        label: "Status",
+        value: data.status?.trim() || "Active"
+      }
+    ]);
+  }, [data.firstName, data.lastName, data.referralSource, data.picture, data.role, data.status]);
 
   const handleEditClick = () => {
     setFirstName(data.firstName || "");
@@ -296,26 +338,7 @@ export function DetailsCard({
             </div>
           ) : (
             <div className="space-y-3">
-              {[
-                {
-                  label: "Name",
-                  value: (firstName?.trim() && lastName?.trim()) 
-                    ? `${firstName.trim()} ${lastName.trim()}` 
-                    : "N/A"
-                },
-                {
-                  label: "Role",
-                  value: data.role?.trim() || "Customer"
-                },
-                {
-                  label: "Referral Source",
-                  value: referralSource?.trim() || "Drive By"
-                },
-                {
-                  label: "Status",
-                  value: data.status?.trim() || "Active"
-                }
-              ].map((item, index) => (
+              {displayFields.map((item, index) => (
                 <KeyValueDisplay
                   key={index}
                   label={item.label}
