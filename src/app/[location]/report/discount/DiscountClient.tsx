@@ -19,7 +19,7 @@ const allDiscountsColumns = [
   {
     accessorKey: "customer",
     header: "Customer",
-    size: 200, // Increased size for Customer column
+    size: 200,
     minSize: 180,
     maxSize: 250,
     meta: {
@@ -105,7 +105,7 @@ const allDiscountsColumns = [
   {
     accessorKey: "pfPercent",
     header: "PF(%)",
-    size: 60, // Reduced size
+    size: 60,
     minSize: 60,
     maxSize: 70,
     meta: {
@@ -121,7 +121,7 @@ const allDiscountsColumns = [
   {
     accessorKey: "enrolDollar",
     header: "Enrol($)",
-    size: 80, // Reduced size
+    size: 80,
     minSize: 70,
     maxSize: 90,
     meta: {
@@ -137,7 +137,7 @@ const allDiscountsColumns = [
   {
     accessorKey: "customerPercent",
     header: "Customer(%)",
-    size: 90, // Reduced size
+    size: 90,
     minSize: 80,
     maxSize: 100,
     meta: {
@@ -153,7 +153,7 @@ const allDiscountsColumns = [
   {
     accessorKey: "itemDollar",
     header: "Item($)",
-    size: 80, // Reduced size
+    size: 80,
     minSize: 70,
     maxSize: 90,
     meta: {
@@ -169,7 +169,7 @@ const allDiscountsColumns = [
   {
     accessorKey: "netDollar",
     header: "Net($)",
-    size: 80, // Reduced size
+    size: 80,
     minSize: 70,
     maxSize: 90,
     meta: {
@@ -185,7 +185,7 @@ const allDiscountsColumns = [
   {
     accessorKey: "price",
     header: "Price",
-    size: 80, // Reduced size
+    size: 80,
     minSize: 70,
     maxSize: 90,
     meta: {
@@ -205,7 +205,7 @@ const summaryColumns = [
   {
     accessorKey: "customer",
     header: "Customer",
-    size: 300, // Larger size since fewer columns
+    size: 300,
     minSize: 250,
     maxSize: 400,
     meta: {
@@ -280,9 +280,9 @@ export function DiscountClient({ location }: DiscountClientProps) {
   const [meta, setMeta] = React.useState<{ startDate?: string; endDate?: string; location?: string } | null>(null);
   const [pagination, setPagination] = React.useState({
     page: 1,
-    limit: 0, // 0 means show all rows (no limit)
+    limit: 0,
     total: 0,
-    totalPages: 1 // Only 1 page when showing all rows
+    totalPages: 1
   });
   const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
 
@@ -353,33 +353,31 @@ export function DiscountClient({ location }: DiscountClientProps) {
           itemDollar: "",
           netDollar: footer.totalDiscount || "",
           price: "",
-          isFooter: true, // Add identifier for footer row
+          isFooter: true,
         };
       }
     }
     return null;
   }, [footer, activeFilter]);
 
-  // Print handler using the enhanced common hook
+  // Updated print handler with groupByCustomer enabled
   const handlePrintClick = React.useCallback(() => {
     const isSummary = activeFilter === 'summary_only';
     const customColumnWidths: Record<string, string> = isSummary ? {
-      'Customer': '40%',
-      'Code': '20%',
-      'Net($)': '20%',
-      'Price': '20%'
+      'Code': '15%',
+      'Net($)': '15%',
+      'Price': '15%'
     } : {
-      'Customer': '18%',
-      'Code': '8%',
+      'Code': '10%',
       'Description': '18%',
-      'Price': '12%',
-      'Net($)': '9%',
+      'PF': '10%',
+      'Qty': '6%',
+      'PF(%)': '6%',
       'Enrol($)': '8%',
-      'Item($)': '8%',
       'Customer(%)': '8%',
-      'PF(%)': '5%',
-      'PF': '8%',
-      'Qty': '5%'
+      'Item($)': '8%',
+      'Net($)': '8%',
+      'Price': '8%'
     };
 
     handlePrint({
@@ -389,10 +387,10 @@ export function DiscountClient({ location }: DiscountClientProps) {
       footer: footerRow || undefined,
       location: formatLocationName(location || ""),
       dateRange: range,
-      forceCompactMode: true, // Force compact mode for this table
+      forceCompactMode: true,
       customColumnWidths,
-      // Qty PF(%) Enrol($) Customer(%) Item($) Net($) Price
-      rightAlignedColumns: ["Qty",	"PF(%)",	"Enrol($)",	"Customer(%)",	"Item($)",	"Net($)",	"Price"],
+      rightAlignedColumns: ["Qty", "PF(%)", "Enrol($)", "Customer(%)", "Item($)", "Net($)", "Price"],
+      groupByCustomer: true, // THIS IS THE KEY CHANGE
     });
   }, [handlePrint, discounts, footerRow, location, range, activeFilter, columns]);
 
@@ -420,9 +418,9 @@ export function DiscountClient({ location }: DiscountClientProps) {
         setMeta(discountsRes.data.meta || null);
         setPagination({
           page: 1,
-          limit: discountsRes.data.body?.length || 0, // Set limit to total number of records
+          limit: discountsRes.data.body?.length || 0,
           total: discountsRes.data.body?.length || 0,
-          totalPages: 1 // Only 1 page when showing all rows
+          totalPages: 1
         });
       } else {
         setError(discountsRes.message || "Failed to fetch discounts");
@@ -439,7 +437,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [location, activeFilter]); // Depends on location and activeFilter
+  }, [location, activeFilter]);
 
   // Initial data fetch - only on mount and when location changes
   React.useEffect(() => {
@@ -450,7 +448,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
     
     lastLocationRef.current = location;
     fetchDiscounts();
-  }, [location]); // Only depend on location, not fetchDiscounts
+  }, [location]);
 
   // Refetch when filter changes
   React.useEffect(() => {
