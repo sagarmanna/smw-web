@@ -402,6 +402,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         onSortingChange={(s) => { setSorting(s); setPage(1); }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
+        hideRecordCount={true}
+        showRecordCountInToolbar={true}
         rowsPerPage={pageSize}
         rowsPerPageOptions={[10, 20, 50, 100]}
         enableExport={true}

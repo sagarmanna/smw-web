@@ -57,6 +57,14 @@ interface TableToolbarProps<TData> {
   
   // Custom header component
   customHeaderComponent?: React.ReactNode;
+  
+  // Record count info
+  showRecordCount?: boolean;
+  recordCountInfo?: {
+    startRecord: number;
+    endRecord: number;
+    total: number;
+  };
 }
 
 export function TableToolbar<TData>({
@@ -83,11 +91,26 @@ export function TableToolbar<TData>({
   onServerSideFilterChange,
   defaultFilterLabel = "All",
   customHeaderComponent,
+  showRecordCount = false,
+  recordCountInfo,
 }: TableToolbarProps<TData>) {
   return (
-    <div className="flex flex-wrap items-center gap-2 print:hidden">
-      {/* Custom Header Component */}
-      {customHeaderComponent}
+    <div className="flex flex-wrap items-center justify-between gap-2 print:hidden w-full">
+      {/* Record Count Display - Left Side */}
+      {showRecordCount && recordCountInfo ? (
+        <div className="text-muted-foreground text-sm">
+          Showing <span className="font-semibold text-foreground">{recordCountInfo.startRecord}</span> to{' '}
+          <span className="font-semibold text-foreground">{recordCountInfo.endRecord}</span> of{' '}
+          <span className="font-semibold text-foreground">{recordCountInfo.total}</span> records
+        </div>
+      ) : (
+        <div></div>
+      )}
+      
+      {/* Right Side Icons */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Custom Header Component */}
+        {customHeaderComponent}
       
       {/* DateRangePicker */}
       {enableDateRangePicker && dateRange && onDateRangeChange && (
@@ -320,6 +343,7 @@ export function TableToolbar<TData>({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+      </div>
     </div>
   );
 }
