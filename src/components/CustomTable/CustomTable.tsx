@@ -406,8 +406,10 @@ export function CustomTable<TData, TValue>({
   // Calculate record count info for toolbar
   const recordCountInfo = React.useMemo(() => {
     if (showRecordCountInToolbar && serverSidePagination) {
-      const startRecord = serverSidePagination.total === 0 ? 0 : (serverSidePagination.page - 1) * serverSidePagination.limit + 1;
-      const endRecord = Math.min(serverSidePagination.page * serverSidePagination.limit, serverSidePagination.total);
+      // Handle "All" option (limit = -1)
+      const isShowingAll = serverSidePagination.limit === -1;
+      const startRecord = serverSidePagination.total === 0 ? 0 : isShowingAll ? 1 : (serverSidePagination.page - 1) * serverSidePagination.limit + 1;
+      const endRecord = isShowingAll ? serverSidePagination.total : Math.min(serverSidePagination.page * serverSidePagination.limit, serverSidePagination.total);
       return {
         startRecord,
         endRecord,
