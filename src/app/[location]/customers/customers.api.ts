@@ -73,7 +73,6 @@ export interface CustomerSummaryResponse {
   data: CustomerSummaryData;
 }
 
-// NEW: Customer Info interfaces
 export interface CustomerInfoData {
   profile: {
     name: string;
@@ -140,6 +139,43 @@ export interface InvoicesResponse {
       total: number;
       totalPages: number;
     };
+  };
+}
+
+// Outstanding Invoices Response with pagination and footer
+export interface OutstandingInvoicesResponse {
+  success: boolean;
+  data: {
+    body: Array<{
+      id: string;
+      date: string;
+      amount: string;
+      payments: string;
+      balanceDue: string;
+    }>;
+    footer: Array<{
+      totalAmount: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+  message: string;
+}
+
+export interface OutstandingInvoicesResult {
+  data: OutstandingInvoiceData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  footer: {
+    totalAmount: number;
   };
 }
 
@@ -235,7 +271,6 @@ export async function getCustomerSummary(
   }
 }
 
-// NEW: Customer Info function
 export async function getCustomerInfo(
   location: string,
   customerId: number
@@ -256,8 +291,6 @@ export async function getCustomerInfo(
 // --------------------
 // Table data functions
 // --------------------
-
-
 
 export async function getCustomerInvoices(
   location: string,
@@ -291,48 +324,67 @@ export async function getCustomerInvoices(
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 export async function getCustomerOutstandingInvoices(
-  _location: string,
-  _customerId: number
-): Promise<OutstandingInvoiceData[]> {
-  const USE_MOCK = true;
-  
-  if (USE_MOCK) {
-    return [
-      { id: "I-33387", date: "Nov 07, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-33767", date: "Nov 14, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-34076", date: "Nov 21, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-34412", date: "Nov 28, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-34789", date: "Dec 05, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-35123", date: "Dec 12, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-35456", date: "Dec 19, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-35789", date: "Dec 26, 2022", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-36123", date: "Jan 02, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-36456", date: "Jan 09, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-36789", date: "Jan 16, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-37123", date: "Jan 23, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-37456", date: "Jan 30, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-37789", date: "Feb 06, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-38123", date: "Feb 13, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-38456", date: "Feb 20, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-      { id: "I-38789", date: "Feb 27, 2023", amount: 31.53, payments: 31.52, balanceDue: 0.00 },
-    ];
+  location: string,
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<OutstandingInvoicesResult> {
+  try {
+    const response = await apiClient.get<OutstandingInvoicesResponse>(
+      `/admin/v2/${location}/customers/${customerId}/outstanding-invoices`,
+      { params: { page, limit } }
+    );
+    
+    if (response.data.success && response.data.data.body) {
+      const data = response.data.data.body.map(invoice => ({
+        id: invoice.id,
+        date: invoice.date,
+        amount: parseFloat(invoice.amount.replace(/[$,]/g, '')),
+        payments: parseFloat(invoice.payments.replace(/[$,]/g, '')),
+        balanceDue: parseFloat(invoice.balanceDue.replace(/[$,]/g, ''))
+      }));
+
+      const totalAmount = response.data.data.footer?.[0]?.totalAmount 
+        ? parseFloat(response.data.data.footer[0].totalAmount.replace(/[$,]/g, ''))
+        : 0;
+
+      return {
+        data,
+        pagination: response.data.data.pagination,
+        footer: {
+          totalAmount
+        }
+      };
+    }
+    
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0
+      },
+      footer: {
+        totalAmount: 0
+      }
+    };
+  } catch (error: unknown) {
+    console.error('Error fetching customer outstanding invoices:', error);
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0
+      },
+      footer: {
+        totalAmount: 0
+      }
+    };
   }
-  
-  return [];
 }
 
 export async function getCustomerEquipmentRentals(
@@ -472,4 +524,3 @@ export async function getCustomerStudents(
     return [];
   }
 }
-
