@@ -356,7 +356,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           groupLessonDue,
           payments
         ] = await Promise.all([
-          getCustomerInvoices(location, Number(id)),
+          getCustomerInvoices(location, Number(id), 1),
           getCustomerOutstandingInvoices(location, Number(id)),
           getCustomerEquipmentRentals(location, Number(id)),
           getCustomerRecurringPayments(location, Number(id)),
