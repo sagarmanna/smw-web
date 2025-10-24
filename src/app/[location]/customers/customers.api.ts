@@ -16,6 +16,7 @@ export interface CustomerRow {
   firstName: string;
   lastName: string;
   email: string;
+  allEmails: string;
   students: string;
   balance: string;
   totalBalance?: string;

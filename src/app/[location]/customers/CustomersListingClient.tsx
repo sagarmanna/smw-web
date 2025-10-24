@@ -60,14 +60,17 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       meta: { printable: true, printableName: "Last Name" },
     },
     {
-      accessorKey: "email",
+      accessorKey: "allEmails",
       header: () => <span>Email</span>,
       cell: ({ row }) => <span className="truncate block max-w-[260px]" title={row.original.email}>{row.original.email}</span>,
       enableSorting: true,
       filter: {
         type: "string"
       },
-      meta: { printable: true, printableName: "Email" },
+      meta: { 
+        printable: true, 
+        printableName: "Email"
+      },
     },
     {
       accessorKey: "students",
@@ -138,6 +141,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
           firstName: response.data.footer.firstName,
           lastName: response.data.footer.lastName,
           email: response.data.footer.email,
+          allEmails: response.data.footer.email, // Use email for footer as it's just a summary
           students: response.data.footer.students,
           balance: response.data.footer?.totalBalance || response.data.footer.balance,
         });
@@ -209,6 +213,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
             firstName: response.data.footer.firstName,
             lastName: response.data.footer.lastName,
             email: response.data.footer.email,
+            allEmails: response.data.footer.email, // Use email for footer as it's just a summary
             students: response.data.footer.students,
             balance: response.data.footer.balance,
           });
@@ -270,6 +275,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
           firstName: response.data.footer.firstName,
           lastName: response.data.footer.lastName,
           email: response.data.footer.email,
+          allEmails: response.data.footer.email, // Use email for footer as it's just a summary
           students: response.data.footer.students,
           balance: response.data.footer.balance,
         });
@@ -291,6 +297,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       firstName: "",
       lastName: "",
       email: "",
+      allEmails: "",
       students: "Total:",
       balance: "$0.00",
     };
