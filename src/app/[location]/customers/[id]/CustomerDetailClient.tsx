@@ -37,6 +37,7 @@ import { RecurringPaymentModal } from "../components/RecurringPaymentModal";
 import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
+import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
 
 import {
   InvoiceData,
@@ -123,7 +124,7 @@ export function CustomerDetailClient({
   const [outstandingInvoicesLoading, setOutstandingInvoicesLoading] =
     React.useState<boolean>(false);
 
-  // Simple pagination state for all tabs
+  // Simple pagination state for all tabs - CONSOLIDATED (removed duplicates)
   const [tabPagination, setTabPagination] = React.useState<
     Record<
       string,
@@ -145,6 +146,8 @@ export function CustomerDetailClient({
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] =
     React.useState<boolean>(false);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] =
+    React.useState<boolean>(false);
+  const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
 
   // Local state for editable customer details
@@ -285,6 +288,39 @@ export function CustomerDetailClient({
 
   const handlePrintInvoice = (invoiceId: string) => {
     // TODO: Implement invoice printing logic
+  };
+
+  // Handle receiving payment
+  const handleReceivePayment = (paymentData: {
+    customer: string;
+    date: string;
+    paymentMethod: string;
+    reference: string;
+    amountReceived: number;
+    notes: string;
+    selectedLessons: string[];
+    lessonPayments: Record<string, number>;
+  }) => {
+    console.log("Payment received:", paymentData);
+    // TODO: Call API to save payment
+    // Example: await saveCustomerPayment(location, Number(id), paymentData);
+
+    // Refresh data after payment
+    // You can reload specific sections or all data
+    setIsReceivePaymentModalOpen(false);
+  };
+
+  // ADD THIS HELPER FUNCTION
+  const calculateAmountNeeded = () => {
+    const parseAmount = (value: string) => {
+      const num = parseFloat(value.replace(/[$,]/g, ""));
+      return isNaN(num) ? 0 : num;
+    };
+
+    const lessonsDue = parseAmount(summaryData.lessonsDue);
+    const outstanding = parseAmount(summaryData.outstandingInvoice);
+
+    return lessonsDue + outstanding;
   };
 
   // Table data states
@@ -648,12 +684,15 @@ export function CustomerDetailClient({
     []
   );
 
-  // Define action menu groups for customer
+  // UPDATED: Define action menu groups with Receive Payment handler
   const customerActionMenuGroups: ActionMenuGroup[] = [
     {
       label: "Actions",
       items: [
-        { label: "Receive Payment", onClick: () => {} },
+        {
+          label: "Receive Payment",
+          onClick: () => setIsReceivePaymentModalOpen(true),
+        },
         { label: "Print Statement", onClick: () => {} },
         { label: "Email Statement", onClick: () => {} },
         { label: "A/R Report Detail", onClick: () => {} },
@@ -906,8 +945,12 @@ export function CustomerDetailClient({
           dropdownItems={[
             {
               label: "Receive Payment",
-              onClick: () => {},
+              onClick: () => setIsReceivePaymentModalOpen(true),
             },
+            // {
+            //   label: "Another Action", // Replace with actual action
+            //   onClick: () => {},
+            // },
           ]}
           dropdownLabel="Payment Actions"
         />
@@ -1046,6 +1089,18 @@ export function CustomerDetailClient({
           customer ? `${customer.firstName} ${customer.lastName}` : undefined
         }
         customerEmail={customer?.email}
+      />
+
+      {/* ADD RECEIVE PAYMENT MODAL */}
+      <ReceivePaymentModal
+        open={isReceivePaymentModalOpen}
+        onOpenChange={setIsReceivePaymentModalOpen}
+        onSave={handleReceivePayment}
+        customerName={
+          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+        }
+        customerId={id}
+        amountNeeded={calculateAmountNeeded()}
       />
     </div>
   );
