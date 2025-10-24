@@ -103,7 +103,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+      const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+      const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
       const sortDir = sorting[0]?.desc ? "desc" : "asc";
       
       // Map active filter to API parameters
@@ -113,7 +114,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       // Map column filters to API parameters
       const firstName = columnFilters.firstName as string | undefined;
       const lastName = columnFilters.lastName as string | undefined;
-      const email = columnFilters.email as string | undefined;
+      const email = columnFilters.allEmails as string | undefined;
       const student = columnFilters.students as string | undefined;
       const balance = columnFilters.balance as 'all' | 'owing' | 'credit' | undefined;
       
@@ -175,7 +176,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       try {
         setIsLoading(true);
         setError(null);
-        const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+        const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+        const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
         const sortDir = sorting[0]?.desc ? "desc" : "asc";
         
         // Map active filter to API parameters
@@ -185,7 +187,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         // Map column filters to API parameters (use the new filterValue for the changed column)
         const firstName = columnKey === 'firstName' ? (filterValue as string | undefined) : (columnFilters.firstName as string | undefined);
         const lastName = columnKey === 'lastName' ? (filterValue as string | undefined) : (columnFilters.lastName as string | undefined);
-        const email = columnKey === 'email' ? (filterValue as string | undefined) : (columnFilters.email as string | undefined);
+        const email = columnKey === 'allEmails' ? (filterValue as string | undefined) : (columnFilters.allEmails as string | undefined);
         const student = columnKey === 'students' ? (filterValue as string | undefined) : (columnFilters.students as string | undefined);
         const balance = columnKey === 'balance' ? (filterValue as 'all' | 'owing' | 'credit' | undefined) : (columnFilters.balance as 'all' | 'owing' | 'credit' | undefined);
         
@@ -237,7 +239,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+      const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+      const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
       const sortDir = sorting[0]?.desc ? "desc" : "asc";
       
       // Map active filter to API parameters
@@ -247,7 +250,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       // Map column filters to API parameters
       const firstName = columnFilters.firstName as string | undefined;
       const lastName = columnFilters.lastName as string | undefined;
-      const email = columnFilters.email as string | undefined;
+      const email = columnFilters.allEmails as string | undefined;
       const student = columnFilters.students as string | undefined;
       const balance = columnFilters.balance as 'all' | 'owing' | 'credit' | undefined;
       
@@ -399,7 +402,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         columnFilterPlaceholders={{
           firstName: "Enter first name",
           lastName: "Enter last name",
-          email: "Enter email address",
+          allEmails: "Enter email address",
           students: "Enter student name",
         }}
 
