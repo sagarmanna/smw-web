@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
+import { formatCurrency } from '@/utils';
 
 interface PrintReportOptions<TData> {
   reportTitle: string;
@@ -113,7 +114,7 @@ export function usePrintReport<TData>() {
             customerRows.forEach((row) => {
               const dataRow = dataColumns.map((col) => {
                 const value = (row as Record<string, unknown>)[col.key!];
-                const formattedValue = col.formatter ? col.formatter(value) : value || '';
+                const formattedValue = col.formatter ? col.formatter(value) : (value || '-');
                 const align = getColumnAlignment(col.header);
                 
                 return `<td style="text-align: ${align};">${formattedValue}</td>`;
@@ -141,7 +142,7 @@ export function usePrintReport<TData>() {
               // Add subtotal row
               const subtotalRow = dataColumns.map((col) => {
                 if (col.header === 'Net($)') {
-                  return `<td style="text-align: right;">${subtotal.toFixed(2)}</td>`;
+                  return `<td style="text-align: right;">${formatCurrency(subtotal)}</td>`;
                 }
                 return `<td></td>`;
               }).join('');
@@ -156,7 +157,7 @@ export function usePrintReport<TData>() {
           data.forEach((row) => {
             const dataRow = printable.map((col) => {
               const value = (row as Record<string, unknown>)[col.key!];
-              const formattedValue = col.formatter ? col.formatter(value) : value || '';
+              const formattedValue = col.formatter ? col.formatter(value) : (value || '-');
               const align = getColumnAlignment(col.header);
               
               return `<td style="text-align: ${align};">${formattedValue}</td>`;
@@ -173,7 +174,7 @@ export function usePrintReport<TData>() {
             
           const footerRow = footerColumns.map((col) => {
             const value = (footer as Record<string, unknown>)[col.key!];
-            const formattedValue = col.formatter ? col.formatter(value) : value || '';
+            const formattedValue = col.formatter ? col.formatter(value) : (value || '');
             const align = getColumnAlignment(col.header);
             return `<td style="text-align: ${align};">${formattedValue}</td>`;
           }).join('');
@@ -236,7 +237,7 @@ export function usePrintReport<TData>() {
         printable.forEach(col => {
           if (col.key) {
             const value = (row as Record<string, unknown>)[col.key];
-            formattedRow[col.key] = col.formatter ? col.formatter(value) : value;
+            formattedRow[col.key] = col.formatter ? col.formatter(value) : (value || '-');
           }
         });
         return formattedRow;

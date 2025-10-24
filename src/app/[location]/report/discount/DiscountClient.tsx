@@ -516,7 +516,7 @@ export function DiscountClient({ location }: DiscountClientProps) {
         variant="default"
         
         // Feature flags
-        enableFilter={true}
+        enableFilter={false}
         enablePrint={true}
         onPrint={handlePrintClick}
         enableSorting={false}
