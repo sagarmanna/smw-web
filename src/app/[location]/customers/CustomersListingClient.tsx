@@ -103,7 +103,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+      const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+      const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
       const sortDir = sorting[0]?.desc ? "desc" : "asc";
       
       // Map active filter to API parameters
@@ -175,7 +176,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       try {
         setIsLoading(true);
         setError(null);
-        const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+        const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+        const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
         const sortDir = sorting[0]?.desc ? "desc" : "asc";
         
         // Map active filter to API parameters
@@ -237,7 +239,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+      const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+      const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
       const sortDir = sorting[0]?.desc ? "desc" : "asc";
       
       // Map active filter to API parameters
