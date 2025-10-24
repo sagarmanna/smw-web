@@ -148,6 +148,8 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] =
     React.useState<boolean>(false);
+  const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
+    React.useState<boolean>(false);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
 

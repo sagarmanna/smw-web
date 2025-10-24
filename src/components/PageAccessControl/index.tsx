@@ -17,6 +17,7 @@ const ALLOWED_PATHS = [
   '/customers',
   '/students',
   '/[location]/report/account-receivable/[id]',
+  '/teachers',
 ] as const;
 
 // Helper function to normalize pathname by replacing dynamic segments
