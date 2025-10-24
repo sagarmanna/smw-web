@@ -1234,7 +1234,7 @@ export function FinancialSummaryClient({ location }: FinancialSummaryClientProps
             json: summaryExport.exportToJson,
           }}
           enableFilter={false}
-          enablePrint={true}
+          enablePrint={false}
           onPrint={() => handlePrint({
             reportTitle: 'Financial Summary Report',
             columns: summaryColumns,
