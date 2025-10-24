@@ -60,14 +60,17 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       meta: { printable: true, printableName: "Last Name" },
     },
     {
-      accessorKey: "email",
+      accessorKey: "allEmails",
       header: () => <span>Email</span>,
       cell: ({ row }) => <span className="truncate block max-w-[260px]" title={row.original.email}>{row.original.email}</span>,
       enableSorting: true,
       filter: {
         type: "string"
       },
-      meta: { printable: true, printableName: "Email" },
+      meta: { 
+        printable: true, 
+        printableName: "Email"
+      },
     },
     {
       accessorKey: "students",
@@ -100,7 +103,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+      const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+      const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
       const sortDir = sorting[0]?.desc ? "desc" : "asc";
       
       // Map active filter to API parameters
@@ -110,7 +114,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       // Map column filters to API parameters
       const firstName = columnFilters.firstName as string | undefined;
       const lastName = columnFilters.lastName as string | undefined;
-      const email = columnFilters.email as string | undefined;
+      const email = columnFilters.allEmails as string | undefined;
       const student = columnFilters.students as string | undefined;
       const balance = columnFilters.balance as 'all' | 'owing' | 'credit' | undefined;
       
@@ -138,6 +142,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
           firstName: response.data.footer.firstName,
           lastName: response.data.footer.lastName,
           email: response.data.footer.email,
+          allEmails: response.data.footer.email, // Use email for footer as it's just a summary
           students: response.data.footer.students,
           balance: response.data.footer?.totalBalance || response.data.footer.balance,
         });
@@ -171,7 +176,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       try {
         setIsLoading(true);
         setError(null);
-        const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+        const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+        const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
         const sortDir = sorting[0]?.desc ? "desc" : "asc";
         
         // Map active filter to API parameters
@@ -181,7 +187,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         // Map column filters to API parameters (use the new filterValue for the changed column)
         const firstName = columnKey === 'firstName' ? (filterValue as string | undefined) : (columnFilters.firstName as string | undefined);
         const lastName = columnKey === 'lastName' ? (filterValue as string | undefined) : (columnFilters.lastName as string | undefined);
-        const email = columnKey === 'email' ? (filterValue as string | undefined) : (columnFilters.email as string | undefined);
+        const email = columnKey === 'allEmails' ? (filterValue as string | undefined) : (columnFilters.allEmails as string | undefined);
         const student = columnKey === 'students' ? (filterValue as string | undefined) : (columnFilters.students as string | undefined);
         const balance = columnKey === 'balance' ? (filterValue as 'all' | 'owing' | 'credit' | undefined) : (columnFilters.balance as 'all' | 'owing' | 'credit' | undefined);
         
@@ -209,6 +215,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
             firstName: response.data.footer.firstName,
             lastName: response.data.footer.lastName,
             email: response.data.footer.email,
+            allEmails: response.data.footer.email, // Use email for footer as it's just a summary
             students: response.data.footer.students,
             balance: response.data.footer.balance,
           });
@@ -232,7 +239,8 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const sortBy = sorting[0]?.id as 'firstName' | 'lastName' | 'email' | undefined;
+      const sortByRaw = sorting[0]?.id as 'firstName' | 'lastName' | 'allEmails' | undefined;
+      const sortBy = sortByRaw === 'allEmails' ? 'email' : sortByRaw;
       const sortDir = sorting[0]?.desc ? "desc" : "asc";
       
       // Map active filter to API parameters
@@ -242,7 +250,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       // Map column filters to API parameters
       const firstName = columnFilters.firstName as string | undefined;
       const lastName = columnFilters.lastName as string | undefined;
-      const email = columnFilters.email as string | undefined;
+      const email = columnFilters.allEmails as string | undefined;
       const student = columnFilters.students as string | undefined;
       const balance = columnFilters.balance as 'all' | 'owing' | 'credit' | undefined;
       
@@ -270,6 +278,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
           firstName: response.data.footer.firstName,
           lastName: response.data.footer.lastName,
           email: response.data.footer.email,
+          allEmails: response.data.footer.email, // Use email for footer as it's just a summary
           students: response.data.footer.students,
           balance: response.data.footer.balance,
         });
@@ -291,6 +300,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       firstName: "",
       lastName: "",
       email: "",
+      allEmails: "",
       students: "Total:",
       balance: "$0.00",
     };
@@ -392,7 +402,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         columnFilterPlaceholders={{
           firstName: "Enter first name",
           lastName: "Enter last name",
-          email: "Enter email address",
+          allEmails: "Enter email address",
           students: "Enter student name",
         }}
 

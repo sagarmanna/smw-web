@@ -1,0 +1,133 @@
+// mockData.ts
+import { LessonItem, InvoiceItem, CreditItem, GroupLessonItem } from './types';
+
+export const createMockLessons = (): LessonItem[] => [
+  {
+    id: '1',
+    selected: true,
+    date: 'Oct 23, 2025 @ 11:00 AM',
+    dueDate: 'Sep 15, 2025',
+    student: '456 234',
+    program: 'Vocal Core',
+    teacher: 'Art Tatum',
+    amount: 36.25,
+    balance: 36.25,
+    payment: '36.25',
+  },
+  {
+    id: '2',
+    selected: true,
+    date: 'Nov 06, 2025 @ 11:00 AM',
+    dueDate: 'Oct 15, 2025',
+    student: '456 234',
+    program: 'Vocal Core',
+    teacher: 'Art Tatum',
+    amount: 36.25,
+    balance: 36.25,
+    payment: '36.25',
+  },
+  {
+    id: '3',
+    selected: true,
+    date: 'Nov 13, 2025 @ 11:00 AM',
+    dueDate: 'Oct 15, 2025',
+    student: '456 234',
+    program: 'Vocal Core',
+    teacher: 'Art Tatum',
+    amount: 36.25,
+    balance: 36.25,
+    payment: '36.25',
+  },
+];
+
+export const createMockGroupLessons = (): GroupLessonItem[] => [
+  {
+    id: '1',
+    selected: true,
+    date: 'Oct 25, 2025 @ 2:00 PM',
+    dueDate: 'Sep 15, 2025',
+    student: '456 234',
+    program: 'Guitar Ensemble',
+    teacher: 'Django Reinhardt',
+    amount: 45.00,
+    balance: 45.00,
+    payment: '45.00',
+  },
+  {
+    id: '2',
+    selected: true,
+    date: 'Nov 01, 2025 @ 2:00 PM',
+    dueDate: 'Oct 15, 2025',
+    student: '456 234',
+    program: 'Guitar Ensemble',
+    teacher: 'Django Reinhardt',
+    amount: 45.00,
+    balance: 45.00,
+    payment: '45.00',
+  },
+  {
+    id: '3',
+    selected: true,
+    date: 'Nov 08, 2025 @ 2:00 PM',
+    dueDate: 'Oct 15, 2025',
+    student: '456 234',
+    program: 'Guitar Ensemble',
+    teacher: 'Django Reinhardt',
+    amount: 45.00,
+    balance: 45.00,
+    payment: '45.00',
+  },
+  {
+    id: '4',
+    selected: true,
+    date: 'Nov 15, 2025 @ 2:00 PM',
+    dueDate: 'Oct 15, 2025',
+    student: '456 234',
+    program: 'Guitar Ensemble',
+    teacher: 'Django Reinhardt',
+    amount: 45.00,
+    balance: 45.00,
+    payment: '45.00',
+  },
+];
+
+export const createMockInvoices = (): InvoiceItem[] => [
+  {
+    id: '1',
+    selected: true,
+    date: 'May 09, 2024',
+    number: 'I-61871',
+    amount: 36.25,
+    balance: 36.25,
+    payment: '36.25',
+  },
+  {
+    id: '2',
+    selected: true,
+    date: 'May 16, 2024',
+    number: 'I-62196',
+    amount: 36.25,
+    balance: 36.25,
+    payment: '36.25',
+  },
+  {
+    id: '3',
+    selected: true,
+    date: 'May 23, 2024',
+    number: 'I-62622',
+    amount: 36.25,
+    balance: 36.25,
+    payment: '36.25',
+  },
+];
+
+export const createMockCredits = (): CreditItem[] => [
+  {
+    id: '1',
+    selected: true,
+    type: 'Invoice Credit',
+    reference: 'I-92454',
+    amount: 1000.0,
+    payment: '1000',
+  },
+];

@@ -37,6 +37,7 @@ import { RecurringPaymentModal } from "../components/RecurringPaymentModal";
 import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
+import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
 
 import { 
   InvoiceData, 
@@ -123,6 +124,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] = React.useState<boolean>(false);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] = React.useState<boolean>(false);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] = React.useState<boolean>(false);
+  const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState<boolean>(false);
 
   // Local state for editable customer details
   const [localFirstName, setLocalFirstName] = React.useState<string>("");
@@ -211,6 +213,39 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
   const handlePrintInvoice = (invoiceId: string) => {
     // TODO: Implement invoice printing logic
+  };
+
+  // Handle receiving payment
+  const handleReceivePayment = (paymentData: {
+    customer: string;
+    date: string;
+    paymentMethod: string;
+    reference: string;
+    amountReceived: number;
+    notes: string;
+    selectedLessons: string[];
+    lessonPayments: Record<string, number>;
+  }) => {
+    console.log("Payment received:", paymentData);
+    // TODO: Call API to save payment
+    // Example: await saveCustomerPayment(location, Number(id), paymentData);
+    
+    // Refresh data after payment
+    // You can reload specific sections or all data
+    setIsReceivePaymentModalOpen(false);
+  };
+
+  // ADD THIS HELPER FUNCTION
+  const calculateAmountNeeded = () => {
+    const parseAmount = (value: string) => {
+      const num = parseFloat(value.replace(/[$,]/g, ''));
+      return isNaN(num) ? 0 : num;
+    };
+    
+    const lessonsDue = parseAmount(summaryData.lessonsDue);
+    const outstanding = parseAmount(summaryData.outstandingInvoice);
+    
+    return lessonsDue + outstanding;
   };
   
   // Table data states
@@ -365,7 +400,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           groupLessonDue,
           payments
         ] = await Promise.all([
-          getCustomerInvoices(location, Number(id)),
+          getCustomerInvoices(location, Number(id), 1),
           getCustomerOutstandingInvoices(location, Number(id)),
           getCustomerEquipmentRentals(location, Number(id)),
           getCustomerRecurringPayments(location, Number(id)),
@@ -488,12 +523,12 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     // TODO: Call API to update customer details
   }, []);
 
-  // Define action menu groups for customer
+  // UPDATED: Define action menu groups with Receive Payment handler
   const customerActionMenuGroups: ActionMenuGroup[] = [
     {
       label: "Actions",
       items: [
-        { label: "Receive Payment", onClick: () => {} },
+        { label: "Receive Payment", onClick: () => setIsReceivePaymentModalOpen(true) }, // UPDATED THIS LINE
         { label: "Print Statement", onClick: () => {} },
         { label: "Email Statement", onClick: () => setIsEmailStatementModalOpen(true) },
         { label: "A/R Report Detail", onClick: () => {} },
@@ -739,7 +774,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           dropdownItems={[
             {
               label: "Receive Payment",
-              onClick: () => {}
+              onClick: () => setIsReceivePaymentModalOpen(true) // UPDATED THIS LINE TOO
             }
           ]}
           dropdownLabel="Payment Actions"
@@ -870,6 +905,15 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         groupLessonDueData={groupLessonDueData}
         invoiceData={invoiceData}
         totalBalance={summaryData.balance}
+        />
+      {/* ADD RECEIVE PAYMENT MODAL */}
+      <ReceivePaymentModal
+        open={isReceivePaymentModalOpen}
+        onOpenChange={setIsReceivePaymentModalOpen}
+        onSave={handleReceivePayment}
+        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
+        customerId={id}
+        amountNeeded={calculateAmountNeeded()}
       />
     </div>
   );

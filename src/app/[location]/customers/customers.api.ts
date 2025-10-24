@@ -16,6 +16,7 @@ export interface CustomerRow {
   firstName: string;
   lastName: string;
   email: string;
+  allEmails: string;
   students: string;
   balance: string;
   totalBalance?: string;
@@ -121,6 +122,25 @@ export interface CustomerInfoResponse {
   success: boolean;
   message: string;
   data: CustomerInfoData;
+}
+
+export interface InvoicesResponse {
+  success: boolean;
+  data: {
+    body: Array<{
+      id: string;
+      date: string;
+      status: string;
+      total: string | number;
+      balance: string | number;
+    }>;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
 }
 
 export async function getCustomers(
@@ -236,29 +256,52 @@ export async function getCustomerInfo(
 // Table data functions
 // --------------------
 
+
+
 export async function getCustomerInvoices(
-  _location: string,
-  _customerId: number
+  location: string,
+  customerId: number,
+  page: number = 1
 ): Promise<InvoiceData[]> {
-  const USE_MOCK = true;
-  
-  if (USE_MOCK) {
-    return [
-      { id: "I-92268", date: "Oct 09, 2025", status: "Owing", total: 32.50, balance: 32.50 },
-      { id: "I-92031", date: "Oct 06, 2025", status: "Owing", total: 31.53, balance: 31.53 },
-      { id: "I-92030", date: "Oct 04, 2025", status: "Owing", total: 27.03, balance: 27.03 },
-      { id: "I-92000", date: "Oct 03, 2025", status: "Owing", total: 28.75, balance: 28.75 },
-      { id: "I-91911", date: "Oct 02, 2025", status: "Owing", total: 65.00, balance: 65.00 },
-      { id: "I-91833", date: "Oct 01, 2025", status: "Owing", total: 45.25, balance: 45.25 },
-      { id: "I-91853", date: "Sep 30, 2025", status: "Owing", total: 38.90, balance: 38.90 },
-      { id: "I-91834", date: "Sep 29, 2025", status: "Owing", total: 52.15, balance: 52.15 },
-      { id: "I-91831", date: "Sep 28, 2025", status: "Owing", total: 41.75, balance: 41.75 },
-      { id: "I-91772", date: "Sep 27, 2025", status: "Owing", total: 33.40, balance: 33.40 },
-    ];
+  try {
+    const response = await apiClient.get<InvoicesResponse>(
+      `/admin/v2/${location}/customers/${customerId}/invoices`,
+      { params: { page } }
+    );
+    
+    if (response.data.success && response.data.data.body) {
+      return response.data.data.body.map(invoice => ({
+        id: invoice.id,
+        date: invoice.date,
+        status: invoice.status,
+        total: typeof invoice.total === 'string' 
+          ? parseFloat(invoice.total.replace(/[$,]/g, ''))
+          : invoice.total,
+        balance: typeof invoice.balance === 'string'
+          ? parseFloat(invoice.balance.replace(/[$,]/g, ''))
+          : invoice.balance
+      }));
+    }
+    
+    return [];
+  } catch (error: unknown) {
+    console.error('Error fetching customer invoices:', error);
+    return [];
   }
-  
-  return [];
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export async function getCustomerOutstandingInvoices(
   _location: string,
