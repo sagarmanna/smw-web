@@ -104,34 +104,42 @@ export const outstandingInvoiceColumns: ColumnDef<OutstandingInvoiceData>[] = [
   {
     accessorKey: "id",
     header: "ID",
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("id")}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("id") as string) : (row.original as OutstandingInvoiceData).id;
+      return <div className="font-medium">{value}</div>;
+    },
   },
   {
     accessorKey: "date",
     header: "Date",
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("date") as string) : (row.original as OutstandingInvoiceData).date;
+      return <div>{value}</div>;
+    },
   },
   {
     accessorKey: "amount",
     header: "Amount",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("amount"))}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("amount") as number) : (row.original as OutstandingInvoiceData).amount;
+      return <div className="text-right">{formatCurrency(value)}</div>;
+    },
   },
   {
     accessorKey: "payments",
     header: "Payments",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("payments"))}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("payments") as number) : (row.original as OutstandingInvoiceData).payments;
+      return <div className="text-right">{formatCurrency(value)}</div>;
+    },
   },
   {
     accessorKey: "balanceDue",
     header: "Balance Due",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("balanceDue"))}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("balanceDue") as number) : (row.original as OutstandingInvoiceData).balanceDue;
+      return <div className="text-right">{formatCurrency(value)}</div>;
+    },
   },
 ];
 
