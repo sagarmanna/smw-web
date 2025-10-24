@@ -28,7 +28,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ title, description, onRefresh, 
 
 interface ReportPageLayoutProps {
   title: string;
-  subtitle: string;
+  subtitle: string | React.ReactNode;
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;

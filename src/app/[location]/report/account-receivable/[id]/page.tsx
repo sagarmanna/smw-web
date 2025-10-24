@@ -1,20 +1,21 @@
-import React from 'react'
+import React from "react";
+import { ReportDetail } from "../../../customers/components/ReportDetail";
 
-interface PageProps {
+interface AccountReceivablePageProps {
   params: Promise<{ id: string; location: string }>;
 }
 
-const AccountReceivablePage = async ({ params }: PageProps) => {
-    const { id, location } = await params;
-    
-    return (
-        <div>
-            <div>
-                <h1>Account Receivable {id}</h1>
-                <p>Location: {location}</p>
-            </div>
-        </div>
-    )
-}
+const AccountReceivablePage = async ({ params }: AccountReceivablePageProps) => {
+  // ✅ Await the params (Next.js 15 requirement)
+  const { id, location } = await params;
+
+  return (
+    <ReportDetail
+      customerId={id}
+      customerName={`Customer ${id}`}
+      location={location}
+    />
+  );
+};
 
 export default AccountReceivablePage;

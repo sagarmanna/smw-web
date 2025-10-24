@@ -72,13 +72,13 @@ export function ReusableModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${sizeClasses[size]} ${className || ""}`}>
+      <DialogContent className={`${sizeClasses[size]} ${className || ""} overflow-hidden flex flex-col`}>
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</DialogTitle>
           {description && <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">{description}</DialogDescription>}
         </DialogHeader>
         
-        <div className="py-4">{children}</div>
+        <div className="py-4 overflow-y-auto flex-1">{children}</div>
         
         {showFooter && actions.length > 0 && (
           <DialogFooter className="flex justify-end gap-2">
