@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { DetailHeader, ActionMenuGroup } from "@/components/DetailHeader";
-import { 
-  getCustomerById, 
+import {
+  getCustomerById,
   CustomerRow,
   getCustomerInvoices,
   getCustomerOutstandingInvoices,
@@ -20,7 +20,7 @@ import {
   getCustomerSummary,
   getCustomerInfo,
   CustomerSummaryData,
-  CustomerInfoData
+  CustomerInfoData,
 } from "../customers.api";
 import { SummaryCard } from "@/components/SummaryCard";
 import { BookOpen, FileText, Star, DollarSign } from "lucide-react";
@@ -38,18 +38,18 @@ import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 
-import { 
-  InvoiceData, 
-  OutstandingInvoiceData, 
-  EquipmentRentalData, 
-  RecurringPaymentData, 
-  PrivateLessonDueData, 
-  GroupLessonDueData, 
+import {
+  InvoiceData,
+  OutstandingInvoiceData,
+  EquipmentRentalData,
+  RecurringPaymentData,
+  PrivateLessonDueData,
+  GroupLessonDueData,
   PaymentData,
-  CUSTOMER_TABLE_CONFIGS
+  CUSTOMER_TABLE_CONFIGS,
 } from "../tableConfigs";
-import { 
-  CUSTOMER_TAB_CONFIGS, 
+import {
+  CUSTOMER_TAB_CONFIGS,
   TAB_ORDER,
   StudentData,
   EnrolmentData,
@@ -57,7 +57,7 @@ import {
   GroupLessonData,
   ProformaInvoiceData,
   CommentData,
-  HistoryData
+  HistoryData,
 } from "../tabConfigs";
 import { mockCustomerTabData } from "../mockData/customersMockData";
 import AddStudentModal from "../components/AddStudentModal/index";
@@ -94,10 +94,14 @@ interface CustomerDetailClientProps {
   id: string;
 }
 
-export function CustomerDetailClient({ location, id }: CustomerDetailClientProps) {
+export function CustomerDetailClient({
+  location,
+  id,
+}: CustomerDetailClientProps) {
   const router = useRouter();
   const [customer, setCustomer] = React.useState<CustomerRow | null>(null);
-  const [customerInfo, setCustomerInfo] = React.useState<CustomerInfoData | null>(null);
+  const [customerInfo, setCustomerInfo] =
+    React.useState<CustomerInfoData | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [studentsLoading, setStudentsLoading] = React.useState<boolean>(false);
   const [studentsError, setStudentsError] = React.useState<string | null>(null);
@@ -105,85 +109,164 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     page: 1,
     limit: 10,
     total: 0,
-    totalPages: 0
+    totalPages: 0,
   });
-  const [studentsRowsPerPage, setStudentsRowsPerPage] = React.useState<number>(10);
+
+  // Outstanding invoices pagination state
+  const [outstandingInvoicesPagination, setOutstandingInvoicesPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [outstandingInvoicesLoading, setOutstandingInvoicesLoading] =
+    React.useState<boolean>(false);
 
   // Simple pagination state for all tabs
-  const [tabPagination, setTabPagination] = React.useState<Record<string, {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  }>>({});
-  const [tabRowsPerPage, setTabRowsPerPage] = React.useState<Record<string, number>>({});
-  const [showAllEquipment, setShowAllEquipment] = React.useState<boolean>(false);
-  const [isAddStudentModalOpen, setIsAddStudentModalOpen] = React.useState<boolean>(false);
-  const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] = React.useState<boolean>(false);
-  const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] = React.useState<boolean>(false);
+  const [tabPagination, setTabPagination] = React.useState<
+    Record<
+      string,
+      {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      }
+    >
+  >({});
+  const [tabRowsPerPage, setTabRowsPerPage] = React.useState<
+    Record<string, number>
+  >({});
+  const [showAllEquipment, setShowAllEquipment] =
+    React.useState<boolean>(false);
+  const [isAddStudentModalOpen, setIsAddStudentModalOpen] =
+    React.useState<boolean>(false);
+  const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] =
+    React.useState<boolean>(false);
+  const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] =
+    React.useState<boolean>(false);
 
   // Local state for editable customer details
   const [localFirstName, setLocalFirstName] = React.useState<string>("");
   const [localLastName, setLocalLastName] = React.useState<string>("");
-  const [referralSource, setReferralSource] = React.useState<string>("Drive By");
+  const [referralSource, setReferralSource] =
+    React.useState<string>("Drive By");
   const [status, setStatus] = React.useState<string>("Active");
   const [picture, setPicture] = React.useState<string | undefined>(undefined);
   const [role, setRole] = React.useState<string>("Customer");
 
   // Summary data state
   const [summaryData, setSummaryData] = React.useState<CustomerSummaryData>({
-    lessonsDue: '$0.00',
-    outstandingInvoice: '$0.00',
-    totalCredits: '$0.00',
-    balance: '$0.00'
+    lessonsDue: "$0.00",
+    outstandingInvoice: "$0.00",
+    totalCredits: "$0.00",
+    balance: "$0.00",
   });
 
   // Handle adding new student
   const handleAddStudent = (studentData: StudentData) => {
-    setStudentData(prev => [...prev, studentData]);
+    setStudentData((prev) => [...prev, studentData]);
     // Update pagination when adding new student
-    setStudentsPagination(prev => ({
+    setStudentsPagination((prev) => ({
       ...prev,
       total: prev.total + 1,
-      totalPages: Math.ceil((prev.total + 1) / prev.limit)
+      totalPages: Math.ceil((prev.total + 1) / prev.limit),
     }));
   };
 
   // Handle students pagination
   const handleStudentsPageChange = (page: number) => {
-    setStudentsPagination(prev => ({ ...prev, page }));
+    setStudentsPagination((prev) => ({ ...prev, page }));
   };
 
   const handleStudentsRowsPerPageChange = (rowsPerPage: number) => {
-    setStudentsRowsPerPage(rowsPerPage);
-    setStudentsPagination(prev => ({
+    setStudentsPagination((prev) => ({
       ...prev,
       limit: rowsPerPage,
       page: 1,
-      totalPages: Math.ceil(prev.total / rowsPerPage)
+      totalPages: Math.ceil(prev.total / rowsPerPage),
     }));
   };
 
-  // Simple pagination handlers for all tabs (following AccountReceivableClient pattern)
-  const handleTabPageChange = React.useCallback((tabKey: string, page: number) => {
-    setTabPagination(prev => ({
-      ...prev,
-      [tabKey]: { ...prev[tabKey], page }
-    }));
-  }, []);
+  // Handle outstanding invoices pagination
+  const handleOutstandingInvoicesPageChange = React.useCallback(
+    async (page: number) => {
+      setOutstandingInvoicesLoading(true);
+      try {
+        const limit =
+          outstandingInvoicesPagination.limit === -1
+            ? 99999
+            : outstandingInvoicesPagination.limit;
+        const result = await getCustomerOutstandingInvoices(
+          location,
+          Number(id),
+          page,
+          limit
+        );
 
-  const handleTabRowsPerPageChange = React.useCallback((tabKey: string, rowsPerPage: number) => {
-    setTabRowsPerPage(prev => ({ ...prev, [tabKey]: rowsPerPage }));
-    setTabPagination(prev => ({
-      ...prev,
-      [tabKey]: {
-        ...prev[tabKey],
-        limit: rowsPerPage,
-        page: 1,
-        totalPages: Math.ceil((prev[tabKey]?.total || 0) / rowsPerPage)
+        setOutstandingInvoiceData(result.data);
+        setOutstandingInvoicesPagination(result.pagination);
+        setOutstandingInvoiceFooterTotal(result.footer.totalAmount);
+      } catch (error) {
+        console.error("Error loading outstanding invoices:", error);
+      } finally {
+        setOutstandingInvoicesLoading(false);
       }
-    }));
-  }, []);
+    },
+    [location, id, outstandingInvoicesPagination.limit]
+  );
+
+  const handleOutstandingInvoicesRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      setOutstandingInvoicesLoading(true);
+      try {
+        const limit = rowsPerPage === -1 ? 99999 : rowsPerPage;
+        const result = await getCustomerOutstandingInvoices(
+          location,
+          Number(id),
+          1,
+          limit
+        );
+
+        setOutstandingInvoiceData(result.data);
+        setOutstandingInvoicesPagination(result.pagination);
+        setOutstandingInvoiceFooterTotal(result.footer.totalAmount);
+      } catch (error) {
+        console.error("Error loading outstanding invoices:", error);
+      } finally {
+        setOutstandingInvoicesLoading(false);
+      }
+    },
+    [location, id]
+  );
+
+  // Simple pagination handlers for all tabs (following AccountReceivableClient pattern)
+  const handleTabPageChange = React.useCallback(
+    (tabKey: string, page: number) => {
+      setTabPagination((prev) => ({
+        ...prev,
+        [tabKey]: { ...prev[tabKey], page },
+      }));
+    },
+    []
+  );
+
+  const handleTabRowsPerPageChange = React.useCallback(
+    (tabKey: string, rowsPerPage: number) => {
+      setTabRowsPerPage((prev) => ({ ...prev, [tabKey]: rowsPerPage }));
+      setTabPagination((prev) => ({
+        ...prev,
+        [tabKey]: {
+          ...prev[tabKey],
+          limit: rowsPerPage,
+          page: 1,
+          totalPages: Math.ceil((prev[tabKey]?.total || 0) / rowsPerPage),
+        },
+      }));
+    },
+    []
+  );
 
   // Handle adding new recurring payment
   const handleAddRecurringPayment = () => {
@@ -203,22 +286,40 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const handlePrintInvoice = (invoiceId: string) => {
     // TODO: Implement invoice printing logic
   };
-  
+
   // Table data states
   const [invoiceData, setInvoiceData] = React.useState<InvoiceData[]>([]);
-  const [outstandingInvoiceData, setOutstandingInvoiceData] = React.useState<OutstandingInvoiceData[]>([]);
-  const [equipmentRentalData, setEquipmentRentalData] = React.useState<EquipmentRentalData[]>([]);
-  const [recurringPaymentData, setRecurringPaymentData] = React.useState<RecurringPaymentData[]>([]);
-  const [privateLessonDueData, setPrivateLessonDueData] = React.useState<PrivateLessonDueData[]>([]);
-  const [groupLessonDueData, setGroupLessonDueData] = React.useState<GroupLessonDueData[]>([]);
+  const [outstandingInvoiceData, setOutstandingInvoiceData] = React.useState<
+    OutstandingInvoiceData[]
+  >([]);
+  const [outstandingInvoiceFooterTotal, setOutstandingInvoiceFooterTotal] =
+    React.useState<number>(0);
+  const [equipmentRentalData, setEquipmentRentalData] = React.useState<
+    EquipmentRentalData[]
+  >([]);
+  const [recurringPaymentData, setRecurringPaymentData] = React.useState<
+    RecurringPaymentData[]
+  >([]);
+  const [privateLessonDueData, setPrivateLessonDueData] = React.useState<
+    PrivateLessonDueData[]
+  >([]);
+  const [groupLessonDueData, setGroupLessonDueData] = React.useState<
+    GroupLessonDueData[]
+  >([]);
   const [paymentData, setPaymentData] = React.useState<PaymentData[]>([]);
 
   // Tab data states
   const [studentData, setStudentData] = React.useState<StudentData[]>([]);
   const [enrolmentData, setEnrolmentData] = React.useState<EnrolmentData[]>([]);
-  const [privateLessonData, setPrivateLessonData] = React.useState<PrivateLessonData[]>([]);
-  const [groupLessonData, setGroupLessonData] = React.useState<GroupLessonData[]>([]);
-  const [proformaInvoiceData, setProformaInvoiceData] = React.useState<ProformaInvoiceData[]>([]);
+  const [privateLessonData, setPrivateLessonData] = React.useState<
+    PrivateLessonData[]
+  >([]);
+  const [groupLessonData, setGroupLessonData] = React.useState<
+    GroupLessonData[]
+  >([]);
+  const [proformaInvoiceData, setProformaInvoiceData] = React.useState<
+    ProformaInvoiceData[]
+  >([]);
   const [commentData, setCommentData] = React.useState<CommentData[]>([]);
   const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
 
@@ -230,7 +331,10 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   const [openingBalance, setOpeningBalance] = React.useState<number>(0);
 
   // Calculate footer for private lesson due
-  const privateLessonDueTotal = privateLessonDueData.reduce((sum, item) => sum + item.amount, 0);
+  const privateLessonDueTotal = privateLessonDueData.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  );
   const privateLessonDueFooterRow: PrivateLessonDueData = {
     lessonDate: "Total:",
     student: "",
@@ -239,8 +343,37 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
     amount: privateLessonDueTotal,
   };
 
+  // Calculate footer for outstanding invoices
+  // Use API total only when showing all records, otherwise calculate from visible data
+  const calculateOutstandingTotal = () => {
+    if (
+      outstandingInvoicesPagination.limit === -1 ||
+      outstandingInvoicesPagination.total <= outstandingInvoicesPagination.limit
+    ) {
+      // Showing all records - use API footer total
+      return outstandingInvoiceFooterTotal;
+    } else {
+      // Paginated view - calculate from visible rows only
+      return outstandingInvoiceData.reduce(
+        (sum, item) => sum + item.balanceDue,
+        0
+      );
+    }
+  };
+
+  const outstandingInvoiceFooterRow: OutstandingInvoiceData = {
+    id: "Total:",
+    date: "",
+    amount: 0,
+    payments: 0,
+    balanceDue: calculateOutstandingTotal(),
+  };
+
   // Calculate footer for payments (only remaining column)
-  const paymentRemainingTotal = paymentData.reduce((sum, item) => sum + item.remaining, 0);
+  const paymentRemainingTotal = paymentData.reduce(
+    (sum, item) => sum + item.remaining,
+    0
+  );
   const paymentFooterRow: PaymentData = {
     date: "",
     notes: "",
@@ -263,61 +396,72 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
   React.useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      
+
       try {
         // Load customer data
         const customerData = await getCustomerById(location, Number(id));
         setCustomer(customerData);
-        
+
         // Set local names from loaded customer data
         if (customerData) {
           setLocalFirstName(customerData.firstName);
           setLocalLastName(customerData.lastName);
         }
-        
+
         const infoResponse = await getCustomerInfo(location, Number(id));
-        
+
         if (infoResponse?.success && infoResponse.data) {
           setCustomerInfo(infoResponse.data);
-          
+
           if (infoResponse.data.profile?.name) {
-            const nameParts = infoResponse.data.profile.name.split(' ');
-            const firstName = nameParts[0] || '';
-            const lastName = nameParts.slice(1).join(' ') || '';
+            const nameParts = infoResponse.data.profile.name.split(" ");
+            const firstName = nameParts[0] || "";
+            const lastName = nameParts.slice(1).join(" ") || "";
             setLocalFirstName(firstName);
             setLocalLastName(lastName);
           }
-          
+
           if (infoResponse.data.profile) {
-            setRole(infoResponse.data.profile.role || 'Customer');
-            setReferralSource(infoResponse.data.profile.referralSource || 'Drive By');
-            setStatus(infoResponse.data.profile.status || 'Active');
+            setRole(infoResponse.data.profile.role || "Customer");
+            setReferralSource(
+              infoResponse.data.profile.referralSource || "Drive By"
+            );
+            setStatus(infoResponse.data.profile.status || "Active");
           }
-          
-          if (infoResponse.data.email && Array.isArray(infoResponse.data.email)) {
-            const formattedEmails = infoResponse.data.email.map(e => ({
+
+          if (
+            infoResponse.data.email &&
+            Array.isArray(infoResponse.data.email)
+          ) {
+            const formattedEmails = infoResponse.data.email.map((e) => ({
               id: String(e.id),
               label: e.label,
               email: e.email,
               note: e.note,
-              isPrimary: e.isPrimary
+              isPrimary: e.isPrimary,
             }));
             setEmails(formattedEmails);
           }
-          
-          if (infoResponse.data.phone && Array.isArray(infoResponse.data.phone)) {
-            const formattedPhones = infoResponse.data.phone.map(p => ({
+
+          if (
+            infoResponse.data.phone &&
+            Array.isArray(infoResponse.data.phone)
+          ) {
+            const formattedPhones = infoResponse.data.phone.map((p) => ({
               id: String(p.id),
               label: p.label,
               number: p.number,
               extension: p.extension?.toString(),
-              note: p.note
+              note: p.note,
             }));
             setPhones(formattedPhones);
           }
-          
-          if (infoResponse.data.addresses && Array.isArray(infoResponse.data.addresses)) {
-            const formattedAddresses = infoResponse.data.addresses.map(a => ({
+
+          if (
+            infoResponse.data.addresses &&
+            Array.isArray(infoResponse.data.addresses)
+          ) {
+            const formattedAddresses = infoResponse.data.addresses.map((a) => ({
               id: String(a.id),
               label: a.label,
               address: a.address,
@@ -325,48 +469,58 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
               province: a.province,
               country: a.country,
               postalCode: a.postalCode,
-              isPrimary: a.isPrimary
+              isPrimary: a.isPrimary,
             }));
             setAddresses(formattedAddresses);
           }
-          
+
           if (infoResponse.data.discount) {
             setDiscount(infoResponse.data.discount.value || 0);
           }
-          
+
           if (infoResponse.data.openingBalance) {
             const amount = infoResponse.data.openingBalance.amount || 0;
-            const type = infoResponse.data.openingBalance.type || 'owing';
-            setOpeningBalance(type === 'owing' ? amount : -amount);
+            const type = infoResponse.data.openingBalance.type || "owing";
+            setOpeningBalance(type === "owing" ? amount : -amount);
           }
         }
-        
+
         const summary = await getCustomerSummary(location, Number(id));
         if (summary?.success && summary.data) {
           setSummaryData(summary.data);
         }
-        
-        // Load all table data in parallel
+
+        // Load outstanding invoices with pagination
+        const outstandingInvoicesResult = await getCustomerOutstandingInvoices(
+          location,
+          Number(id),
+          1,
+          10
+        );
+        setOutstandingInvoiceData(outstandingInvoicesResult.data);
+        setOutstandingInvoicesPagination(outstandingInvoicesResult.pagination);
+        setOutstandingInvoiceFooterTotal(
+          outstandingInvoicesResult.footer.totalAmount
+        );
+
+        // Load other table data in parallel
         const [
           invoices,
-          outstandingInvoices,
           equipmentRentals,
           recurringPayments,
           privateLessonDue,
           groupLessonDue,
-          payments
+          payments,
         ] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
-          getCustomerOutstandingInvoices(location, Number(id)),
           getCustomerEquipmentRentals(location, Number(id)),
           getCustomerRecurringPayments(location, Number(id)),
           getCustomerPrivateLessonDue(location, Number(id)),
           getCustomerGroupLessonDue(location, Number(id)),
-          getCustomerPayments(location, Number(id))
+          getCustomerPayments(location, Number(id)),
         ]);
-        
+
         setInvoiceData(invoices || []);
-        setOutstandingInvoiceData(outstandingInvoices || []);
         setEquipmentRentalData(equipmentRentals || []);
         setRecurringPaymentData(recurringPayments || []);
         setPrivateLessonDueData(privateLessonDue || []);
@@ -380,18 +534,18 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           const students = await getCustomerStudents(location, Number(id));
           setStudentData(students);
           // Update pagination state based on API response
-          setStudentsPagination(prev => ({
+          setStudentsPagination((prev) => ({
             ...prev,
             total: students.length,
-            totalPages: Math.ceil(students.length / prev.limit)
+            totalPages: Math.ceil(students.length / prev.limit),
           }));
         } catch (error) {
-          setStudentsError('Failed to load students data');
+          setStudentsError("Failed to load students data");
           setStudentData([]);
         } finally {
           setStudentsLoading(false);
         }
-        
+
         // Load other tab data (mock data for now)
         setEnrolmentData(mockCustomerTabData.enrolmentData);
         setPrivateLessonData(mockCustomerTabData.privateLessonData);
@@ -400,12 +554,12 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         setCommentData(mockCustomerTabData.commentData);
         setHistoryData(mockCustomerTabData.historyData);
       } catch (error) {
-        console.error('Error loading customer data:', error);
+        console.error("Error loading customer data:", error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     loadData();
   }, [location, id]);
 
@@ -423,12 +577,15 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         history: historyData,
       } as Record<string, unknown[]>;
 
-      const initialPagination: Record<string, {
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-      }> = {};
+      const initialPagination: Record<
+        string,
+        {
+          page: number;
+          limit: number;
+          total: number;
+          totalPages: number;
+        }
+      > = {};
       const initialRowsPerPage: Record<string, number> = {};
 
       Object.entries(tabData).forEach(([key, data]) => {
@@ -438,7 +595,7 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           page: 1,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
+          totalPages: Math.ceil(total / limit),
         };
         initialRowsPerPage[key] = limit;
       });
@@ -446,38 +603,50 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       setTabPagination(initialPagination);
       setTabRowsPerPage(initialRowsPerPage);
     }
-  }, [loading, studentData, enrolmentData, privateLessonData, groupLessonData, proformaInvoiceData, commentData, historyData]);
+  }, [
+    loading,
+    studentData,
+    enrolmentData,
+    privateLessonData,
+    groupLessonData,
+    proformaInvoiceData,
+    commentData,
+    historyData,
+  ]);
 
   // Handle details save
-  const handleDetailsSave = React.useCallback((newData: {
-    firstName: string;
-    lastName: string;
-    role: string;
-    referralSource: string;
-    status: string;
-    picture?: string;
-  }) => {
-    // Update local names immediately
-    setLocalFirstName(newData.firstName);
-    setLocalLastName(newData.lastName);
-    
-    // Update customer state with new data
-    setCustomer(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        firstName: newData.firstName,
-        lastName: newData.lastName,
-      };
-    });
-    
-    setRole(newData.role);
-    setReferralSource(newData.referralSource);
-    setStatus(newData.status);
-    setPicture(newData.picture);
-    
-    // TODO: Call API to update customer details
-  }, []);
+  const handleDetailsSave = React.useCallback(
+    (newData: {
+      firstName: string;
+      lastName: string;
+      role: string;
+      referralSource: string;
+      status: string;
+      picture?: string;
+    }) => {
+      // Update local names immediately
+      setLocalFirstName(newData.firstName);
+      setLocalLastName(newData.lastName);
+
+      // Update customer state with new data
+      setCustomer((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          firstName: newData.firstName,
+          lastName: newData.lastName,
+        };
+      });
+
+      setRole(newData.role);
+      setReferralSource(newData.referralSource);
+      setStatus(newData.status);
+      setPicture(newData.picture);
+
+      // TODO: Call API to update customer details
+    },
+    []
+  );
 
   // Define action menu groups for customer
   const customerActionMenuGroups: ActionMenuGroup[] = [
@@ -491,22 +660,27 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         { label: "Items Purchased by Category", onClick: () => {} },
         { label: "Notify Via Email", onClick: () => {} },
       ],
-      separator: true
+      separator: true,
     },
     {
-      items: [
-        { label: "Delete", onClick: () => {}, variant: "destructive" }
-      ]
-    }
+      items: [{ label: "Delete", onClick: () => {}, variant: "destructive" }],
+    },
   ];
 
   return (
     <div className="bg-white dark:bg-black -mt-2">
       <DetailHeader
         breadcrumbItems={[
-          { label: "Customers", onClick: () => router.push(`/${location}/customers/`) }
+          {
+            label: "Customers",
+            onClick: () => router.push(`/${location}/customers/`),
+          },
         ]}
-        currentPageTitle={localFirstName && localLastName ? `${localFirstName} ${localLastName}` : id}
+        currentPageTitle={
+          localFirstName && localLastName
+            ? `${localFirstName} ${localLastName}`
+            : id
+        }
         loading={loading}
         actionMenuGroups={customerActionMenuGroups}
         actionButtonAriaLabel="Customer actions"
@@ -547,14 +721,14 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
       {/* Details and Info Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
         {/* Details Card */}
-        <DetailsCard 
+        <DetailsCard
           data={{
             firstName: localFirstName,
             lastName: localLastName,
             role: role,
             referralSource: referralSource,
             status: status,
-            picture: picture
+            picture: picture,
           }}
           onSave={handleDetailsSave}
           loading={loading}
@@ -562,14 +736,14 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
         {/* Right Column - Info Cards */}
         <div className="space-y-3 sm:space-y-4">
-          <EmailCard 
+          <EmailCard
             emails={emails}
             onAddClick={() => {}}
             onSave={setEmails}
             loading={loading}
           />
-          
-          <PhoneCard 
+
+          <PhoneCard
             phones={phones}
             onSave={(newPhones) => setPhones(newPhones)}
             loading={loading}
@@ -587,47 +761,64 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
             onAddInvoice={handleAddInvoice}
             onPrintInvoice={handlePrintInvoice}
           />
-          
-          <TableCard 
+
+          <TableCard
             title="Outstanding Invoices"
-            data={outstandingInvoiceData} 
+            data={outstandingInvoiceData}
             columns={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.columns}
-            loading={loading}
+            loading={outstandingInvoicesLoading || loading}
+            footerRow={outstandingInvoiceFooterRow}
             onAdd={() => {}}
             size={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.size}
             variant={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.variant}
-            enableSorting={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableSorting}
-            enableExport={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableExport}
+            enableSorting={
+              CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableSorting
+            }
+            enableExport={
+              CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableExport
+            }
             enablePrint={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enablePrint}
-            enableSearch={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableSearch}
-            enableFilter={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter}
-            enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableRowsPerPage}
+            enableSearch={
+              CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableSearch
+            }
+            enableFilter={
+              CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter
+            }
             iconType="none"
+            // Enable "Show All" checkbox (no rows per page dropdown)
+            enableShowAll={true}
+            showAllLabel="Show All"
+            // Server-side pagination props
+            serverSidePagination={outstandingInvoicesPagination}
+            onServerSidePageChange={handleOutstandingInvoicesPageChange}
+            rowsPerPage={outstandingInvoicesPagination.limit}
+            onRowsPerPageChange={handleOutstandingInvoicesRowsPerPageChange}
+            rowsPerPageOptions={[10]}
           />
         </div>
 
         {/* Right Column - Info Cards */}
         <div className="space-y-3 sm:space-y-4">
-          <AddressCard 
+          <AddressCard
             addresses={addresses}
             onSave={(newAddresses) => setAddresses(newAddresses)}
             loading={loading}
           />
-          
-          <DiscountCard 
+
+          <DiscountCard
             discount={discount}
             onSave={(newDiscount) => setDiscount(newDiscount)}
             loading={loading}
           />
-          
-          <OpeningBalanceCard 
+
+          <OpeningBalanceCard
             amount={Math.abs(openingBalance)}
             onSave={(amount, type) => {
               setOpeningBalance(type === "owing" ? amount : -amount);
             }}
             loading={loading}
           />
-          
+
           <InfoCardWithAction title="Payment Preference" showAddButton={false}>
             <div className="space-y-2">
               <div className="text-sm text-gray-500">Payment Preference</div>
@@ -638,9 +829,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
       {/* Full Width Tables Below Outstanding Invoices */}
       <div className="space-y-3 sm:space-y-4 mt-4">
-        <TableCard 
+        <TableCard
           title="Equipment Rentals"
-          data={equipmentRentalData} 
+          data={equipmentRentalData}
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
           loading={loading}
           onAdd={() => setIsEquipmentRentalsModalOpen(true)}
@@ -651,34 +842,15 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enablePrint={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableFilter}
-          enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableRowsPerPage}
-          iconType="plus"
-          showCheckbox={true}
-          checkboxLabel="Show All"
-          checkboxChecked={showAllEquipment}
-          onCheckboxChange={setShowAllEquipment}
-        />
-        
-        <TableCard 
-          title="Recurring Payments"
-          data={recurringPaymentData} 
-          columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
-          loading={loading}
-          onAdd={() => setIsRecurringPaymentModalOpen(true)}
-          size={CUSTOMER_TABLE_CONFIGS.recurringPayments.size}
-          variant={CUSTOMER_TABLE_CONFIGS.recurringPayments.variant}
-          enableSorting={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSorting}
-          enableExport={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableExport}
-          enablePrint={CUSTOMER_TABLE_CONFIGS.recurringPayments.enablePrint}
-          enableSearch={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSearch}
-          enableFilter={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableFilter}
-          enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableRowsPerPage}
+          enableRowsPerPage={
+            CUSTOMER_TABLE_CONFIGS.recurringPayments.enableRowsPerPage
+          }
           iconType="plus"
         />
-        
-        <TableCard 
+
+        <TableCard
           title="Private Lesson Due"
-          data={privateLessonDueData} 
+          data={privateLessonDueData}
           columns={CUSTOMER_TABLE_CONFIGS.privateLessonDue.columns}
           loading={loading}
           footerRow={privateLessonDueFooterRow}
@@ -690,13 +862,15 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enablePrint={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableFilter}
-          enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableRowsPerPage}
+          enableRowsPerPage={
+            CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableRowsPerPage
+          }
           iconType="none"
         />
-        
-        <TableCard 
+
+        <TableCard
           title="Group Lesson Due"
-          data={groupLessonDueData} 
+          data={groupLessonDueData}
           columns={CUSTOMER_TABLE_CONFIGS.groupLessonDue.columns}
           loading={loading}
           onAdd={() => {}}
@@ -707,13 +881,15 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           enablePrint={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableFilter}
-          enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableRowsPerPage}
+          enableRowsPerPage={
+            CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableRowsPerPage
+          }
           iconType="none"
         />
-        
-        <TableCard 
+
+        <TableCard
           title="Payments"
-          data={paymentData} 
+          data={paymentData}
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
           loading={loading}
           footerRow={paymentFooterRow}
@@ -730,8 +906,8 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
           dropdownItems={[
             {
               label: "Receive Payment",
-              onClick: () => {}
-            }
+              onClick: () => {},
+            },
           ]}
           dropdownLabel="Payment Actions"
         />
@@ -742,9 +918,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         <Tabs defaultValue="students" className="w-full">
           <TabsList className="inline-flex h-12 items-center justify-start rounded-md bg-muted p-1.5 text-muted-foreground w-full overflow-x-auto gap-1">
             {TAB_ORDER.map((tabKey) => (
-              <TabsTrigger 
-                key={tabKey} 
-                value={tabKey} 
+              <TabsTrigger
+                key={tabKey}
+                value={tabKey}
                 className="whitespace-nowrap px-6 py-2 text-sm font-medium min-w-fit"
               >
                 {CUSTOMER_TAB_CONFIGS[tabKey].title}
@@ -754,42 +930,48 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
 
           {TAB_ORDER.map((tabKey) => {
             const config = CUSTOMER_TAB_CONFIGS[tabKey];
-            const fullData = tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
-            
+            const fullData =
+              tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
+
             // Get pagination info for this tab
             const pagination = tabPagination[tabKey];
             const rowsPerPage = tabRowsPerPage[tabKey] || 10;
-            
+
             // Slice data based on current page and rows per page (like AccountReceivableClient)
-            const startIndex = pagination ? (pagination.page - 1) * pagination.limit : 0;
-            const endIndex = pagination ? startIndex + pagination.limit : fullData.length;
+            const startIndex = pagination
+              ? (pagination.page - 1) * pagination.limit
+              : 0;
+            const endIndex = pagination
+              ? startIndex + pagination.limit
+              : fullData.length;
             const data = fullData.slice(startIndex, endIndex);
-            
+
             // Show pagination if total records > 10
             const shouldShowPagination = pagination && pagination.total > 10;
-            
+
             // Use specific loading state for students tab
             const isLoading = tabKey === "students" ? studentsLoading : loading;
             const error = tabKey === "students" ? studentsError : null;
-            
+
             // Define bottom content for comments tab
-            const commentsBottomContent = tabKey === "comments" ? (
-              <div className="mt-4 flex items-center space-x-2">
-                <Input
-                  type="text"
-                  placeholder="Type message"
-                  className="flex-grow"
-                />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : undefined;
-            
+            const commentsBottomContent =
+              tabKey === "comments" ? (
+                <div className="mt-4 flex items-center space-x-2">
+                  <Input
+                    type="text"
+                    placeholder="Type message"
+                    className="flex-grow"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : undefined;
+
             return (
               <TabsContent key={tabKey} value={tabKey} className="mt-4">
                 <TabContent
@@ -811,9 +993,20 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
                   bottomContent={commentsBottomContent}
                   // Simple pagination following AccountReceivableClient pattern
                   enablePagination={shouldShowPagination}
-                  serverSidePagination={shouldShowPagination ? tabPagination[tabKey] : undefined}
-                  onPageChange={shouldShowPagination ? (page: number) => handleTabPageChange(tabKey, page) : undefined}
-                  onRowsPerPageChange={shouldShowPagination ? (rowsPerPage: number) => handleTabRowsPerPageChange(tabKey, rowsPerPage) : undefined}
+                  serverSidePagination={
+                    shouldShowPagination ? tabPagination[tabKey] : undefined
+                  }
+                  onPageChange={
+                    shouldShowPagination
+                      ? (page: number) => handleTabPageChange(tabKey, page)
+                      : undefined
+                  }
+                  onRowsPerPageChange={
+                    shouldShowPagination
+                      ? (rowsPerPage: number) =>
+                          handleTabRowsPerPageChange(tabKey, rowsPerPage)
+                      : undefined
+                  }
                   rowsPerPage={tabRowsPerPage[tabKey] || 10}
                   rowsPerPageOptions={[5, 10, 20, 50, 100]}
                   initialRowsPerPage={10}
@@ -829,7 +1022,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         open={isAddStudentModalOpen}
         onOpenChange={setIsAddStudentModalOpen}
         onSave={handleAddStudent}
-        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
+        customerName={
+          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+        }
       />
 
       {/* Recurring Payment Modal */}
@@ -837,7 +1032,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         open={isRecurringPaymentModalOpen}
         onOpenChange={setIsRecurringPaymentModalOpen}
         onSave={handleAddRecurringPayment}
-        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
+        customerName={
+          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+        }
       />
 
       {/* Equipment Rentals Modal */}
@@ -845,7 +1042,9 @@ export function CustomerDetailClient({ location, id }: CustomerDetailClientProps
         open={isEquipmentRentalsModalOpen}
         onOpenChange={setIsEquipmentRentalsModalOpen}
         onSave={handleAddEquipmentRental}
-        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
+        customerName={
+          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+        }
         customerEmail={customer?.email}
       />
     </div>
