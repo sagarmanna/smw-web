@@ -15,11 +15,13 @@ import {
   getCustomerEquipmentRentals,
   getCustomerRecurringPayments,
   getCustomerPrivateLessonDue,
+  getCustomerPrivateLessons,
   getCustomerGroupLessonDue,
   getCustomerPayments,
   getCustomerStudents,
   getCustomerSummary,
   getCustomerInfo,
+  getCustomerEnrolments,
   CustomerSummaryData,
   CustomerInfoData,
 } from "../customers.api";
@@ -441,6 +443,17 @@ export function CustomerDetailClient({
   const [commentData, setCommentData] = React.useState<CommentData[]>([]);
   const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
 
+  // Private lessons server-side pagination state
+  const [privateLessonsPagination, setPrivateLessonsPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [privateLessonsLoading, setPrivateLessonsLoading] =
+    React.useState<boolean>(false);
+
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
   const [emails, setEmails] = React.useState<Email[]>([]);
@@ -677,9 +690,29 @@ export function CustomerDetailClient({
           setStudentsLoading(false);
         }
 
+        // Load enrolments data from API
+        try {
+          const enrolments = await getCustomerEnrolments(location, Number(id));
+          setEnrolmentData(enrolments);
+        } catch {
+          setEnrolmentData([]);
+        }
+
+        // Load private lessons tab data from API (server-side pagination)
+        try {
+          setPrivateLessonsLoading(true);
+          const { data: privateLessons, pagination: plPagination } =
+            await getCustomerPrivateLessons(location, Number(id), 1, 10);
+          setPrivateLessonData(privateLessons);
+          setPrivateLessonsPagination(plPagination);
+        } catch {
+          setPrivateLessonData([]);
+          setPrivateLessonsPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+        } finally {
+          setPrivateLessonsLoading(false);
+        }
+
         // Load other tab data (mock data for now)
-        setEnrolmentData(mockCustomerTabData.enrolmentData);
-        setPrivateLessonData(mockCustomerTabData.privateLessonData);
         setGroupLessonData(mockCustomerTabData.groupLessonData);
         setProformaInvoiceData(mockCustomerTabData.proformaInvoiceData);
         setCommentData(mockCustomerTabData.commentData);
@@ -1121,17 +1154,29 @@ export function CustomerDetailClient({
 
             const pagination = tabPagination[tabKey];
 
-            const startIndex = pagination
-              ? (pagination.page - 1) * pagination.limit
-              : 0;
-            const endIndex = pagination
-              ? startIndex + pagination.limit
-              : fullData.length;
-            const data = fullData.slice(startIndex, endIndex);
+            const isPrivateLessonsTab = tabKey === "private-lessons";
 
-            const shouldShowPagination = pagination && pagination.total > 10;
+            let data = fullData;
+            if (!isPrivateLessonsTab) {
+              const startIndex = pagination
+                ? (pagination.page - 1) * pagination.limit
+                : 0;
+              const endIndex = pagination
+                ? startIndex + pagination.limit
+                : fullData.length;
+              data = fullData.slice(startIndex, endIndex);
+            }
 
-            const isLoading = tabKey === "students" ? studentsLoading : loading;
+            const shouldShowPagination =
+              (pagination && pagination.total > 10) ||
+              (isPrivateLessonsTab && privateLessonsPagination.total > privateLessonsPagination.limit);
+
+            const isLoading =
+              tabKey === "students"
+                ? studentsLoading
+                : isPrivateLessonsTab
+                ? privateLessonsLoading || loading
+                : loading;
             const error = tabKey === "students" ? studentsError : null;
 
             const commentsBottomContent =
@@ -1175,20 +1220,58 @@ export function CustomerDetailClient({
                   bottomContent={commentsBottomContent}
                   enablePagination={shouldShowPagination}
                   serverSidePagination={
-                    shouldShowPagination ? tabPagination[tabKey] : undefined
+                    isPrivateLessonsTab
+                      ? privateLessonsPagination
+                      : shouldShowPagination
+                      ? tabPagination[tabKey]
+                      : undefined
                   }
                   onPageChange={
-                    shouldShowPagination
+                    isPrivateLessonsTab
+                      ? (page: number) => {
+                          setPrivateLessonsLoading(true);
+                          getCustomerPrivateLessons(
+                            location,
+                            Number(id),
+                            page,
+                            privateLessonsPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setPrivateLessonData(data);
+                              setPrivateLessonsPagination(pagination);
+                            })
+                            .finally(() => setPrivateLessonsLoading(false));
+                        }
+                      : shouldShowPagination
                       ? (page: number) => handleTabPageChange(tabKey, page)
                       : undefined
                   }
                   onRowsPerPageChange={
-                    shouldShowPagination
+                    isPrivateLessonsTab
+                      ? (rowsPerPage: number) => {
+                          setPrivateLessonsLoading(true);
+                          getCustomerPrivateLessons(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setPrivateLessonData(data);
+                              setPrivateLessonsPagination(pagination);
+                            })
+                            .finally(() => setPrivateLessonsLoading(false));
+                        }
+                      : shouldShowPagination
                       ? (rowsPerPage: number) =>
                           handleTabRowsPerPageChange(tabKey, rowsPerPage)
                       : undefined
                   }
-                  rowsPerPage={tabRowsPerPage[tabKey] || 10}
+                  rowsPerPage={
+                    isPrivateLessonsTab
+                      ? privateLessonsPagination.limit
+                      : tabRowsPerPage[tabKey] || 10
+                  }
                   rowsPerPageOptions={[5, 10, 20, 50, 100]}
                   initialRowsPerPage={10}
                 />
