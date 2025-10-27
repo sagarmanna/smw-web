@@ -359,7 +359,6 @@ export function PhoneCard({
                 <SelectContent>
                   <SelectItem value="Home">Home</SelectItem>
                   <SelectItem value="Work">Work</SelectItem>
-                  <SelectItem value="Mobile">Mobile</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
