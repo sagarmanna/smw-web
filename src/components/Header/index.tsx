@@ -255,8 +255,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
             {/* Search or other content can go here */}
           </div>
           
-          {/* Legacy Mode Switch - Only show on modern pages */}
-          {isModernPage && (
+          {/* Legacy Mode Switch - Only show on modern pages and specific locations */}
+          {isModernPage && (pathname.includes('burlington') || pathname.includes('training-location')) && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
