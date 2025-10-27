@@ -62,7 +62,6 @@ import {
 } from "../tabConfigs";
 import { mockCustomerTabData } from "../mockData/customersMockData";
 import AddStudentModal from "../components/AddStudentModal/index";
-import EmailStatementModal, { EmailFormData } from "../components/EmailStatementModal/index";
 
 interface PhoneNumber {
   id: string;
@@ -125,6 +124,17 @@ export function CustomerDetailClient({
   const [outstandingInvoicesLoading, setOutstandingInvoicesLoading] =
     React.useState<boolean>(false);
 
+  // Equipment rentals pagination state
+  const [equipmentRentalsPagination, setEquipmentRentalsPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [equipmentRentalsLoading, setEquipmentRentalsLoading] =
+    React.useState<boolean>(false);
+
   // Simple pagination state for all tabs - CONSOLIDATED (removed duplicates)
   const [tabPagination, setTabPagination] = React.useState<
     Record<
@@ -140,8 +150,6 @@ export function CustomerDetailClient({
   const [tabRowsPerPage, setTabRowsPerPage] = React.useState<
     Record<string, number>
   >({});
-  const [showAllEquipment, setShowAllEquipment] =
-    React.useState<boolean>(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] =
     React.useState<boolean>(false);
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] =
@@ -245,6 +253,56 @@ export function CustomerDetailClient({
     [location, id]
   );
 
+  // Handle equipment rentals pagination
+  const handleEquipmentRentalsPageChange = React.useCallback(
+    async (page: number) => {
+      setEquipmentRentalsLoading(true);
+      try {
+        const limit =
+          equipmentRentalsPagination.limit === -1
+            ? 99999
+            : equipmentRentalsPagination.limit;
+        const result = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          page,
+          limit
+        );
+
+        setEquipmentRentalData(result.data);
+        setEquipmentRentalsPagination(result.pagination);
+      } catch (error) {
+        console.error("Error loading equipment rentals:", error);
+      } finally {
+        setEquipmentRentalsLoading(false);
+      }
+    },
+    [location, id, equipmentRentalsPagination.limit]
+  );
+
+  const handleEquipmentRentalsRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      setEquipmentRentalsLoading(true);
+      try {
+        const limit = rowsPerPage === -1 ? 99999 : rowsPerPage;
+        const result = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          1,
+          limit
+        );
+
+        setEquipmentRentalData(result.data);
+        setEquipmentRentalsPagination(result.pagination);
+      } catch (error) {
+        console.error("Error loading equipment rentals:", error);
+      } finally {
+        setEquipmentRentalsLoading(false);
+      }
+    },
+    [location, id]
+  );
+
   // Simple pagination handlers for all tabs (following AccountReceivableClient pattern)
   const handleTabPageChange = React.useCallback(
     (tabKey: string, page: number) => {
@@ -278,15 +336,17 @@ export function CustomerDetailClient({
   };
 
   // Handle adding new equipment rental
-  const handleAddEquipmentRental = (data: unknown) => {
+  const handleAddEquipmentRental = async (data: unknown) => {
     setIsEquipmentRentalsModalOpen(false);
-  };
-
-  // Handle email statement send
-  const handleSendEmailStatement = (emailData: EmailFormData) => {
-    // TODO: Implement API call to send email statement
-    setIsEmailStatementModalOpen(false);
-    // Show success toast notification
+    // Reload equipment rentals after adding new one
+    const result = await getCustomerEquipmentRentals(
+      location,
+      Number(id),
+      equipmentRentalsPagination.page,
+      equipmentRentalsPagination.limit
+    );
+    setEquipmentRentalData(result.data);
+    setEquipmentRentalsPagination(result.pagination);
   };
 
   // Handle invoice actions
@@ -318,7 +378,7 @@ export function CustomerDetailClient({
     setIsReceivePaymentModalOpen(false);
   };
 
-  // ADD THIS HELPER FUNCTION
+  // Helper function to calculate amount needed
   const calculateAmountNeeded = () => {
     const parseAmount = (value: string) => {
       const num = parseFloat(value.replace(/[$,]/g, ""));
@@ -547,17 +607,28 @@ export function CustomerDetailClient({
           outstandingInvoicesResult.footer.totalAmount
         );
 
+        // Load equipment rentals with pagination
+        setEquipmentRentalsLoading(true);
+        const equipmentRentalsResult = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          1,
+          10
+        );
+        console.log('Equipment Rentals Result:', equipmentRentalsResult);
+        setEquipmentRentalData(equipmentRentalsResult.data);
+        setEquipmentRentalsPagination(equipmentRentalsResult.pagination);
+        setEquipmentRentalsLoading(false);
+
         // Load other table data in parallel
         const [
           invoices,
-          equipmentRentals,
           recurringPayments,
           privateLessonDue,
           groupLessonDue,
           payments,
         ] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
-          getCustomerEquipmentRentals(location, Number(id)),
           getCustomerRecurringPayments(location, Number(id)),
           getCustomerPrivateLessonDue(location, Number(id)),
           getCustomerGroupLessonDue(location, Number(id)),
@@ -565,7 +636,6 @@ export function CustomerDetailClient({
         ]);
 
         setInvoiceData(invoices || []);
-        setEquipmentRentalData(equipmentRentals || []);
         setRecurringPaymentData(recurringPayments || []);
         setPrivateLessonDueData(privateLessonDue || []);
         setGroupLessonDueData(groupLessonDue || []);
@@ -692,7 +762,7 @@ export function CustomerDetailClient({
     []
   );
 
-  // UPDATED: Define action menu groups with Receive Payment handler
+  // Define action menu groups
   const customerActionMenuGroups: ActionMenuGroup[] = [
     {
       label: "Actions",
@@ -702,7 +772,7 @@ export function CustomerDetailClient({
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
         { label: "Print Statement", onClick: () => {} },
-        { label: "Email Statement", onClick: () => setIsEmailStatementModalOpen(true) },
+        { label: "Email Statement", onClick: () => {} },
         { label: "A/R Report Detail", onClick: () => {} },
         { label: "Items Purchased by Category", onClick: () => {} },
         { label: "Notify Via Email", onClick: () => {} },
@@ -880,7 +950,7 @@ export function CustomerDetailClient({
           title="Equipment Rentals"
           data={equipmentRentalData}
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
-          loading={loading}
+          loading={equipmentRentalsLoading || loading}
           onAdd={() => setIsEquipmentRentalsModalOpen(true)}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
@@ -893,6 +963,14 @@ export function CustomerDetailClient({
             CUSTOMER_TABLE_CONFIGS.recurringPayments.enableRowsPerPage
           }
           iconType="plus"
+          enableShowAll={true}
+          showAllLabel="Show All"
+          serverSidePagination={equipmentRentalsPagination}
+          onServerSidePageChange={handleEquipmentRentalsPageChange}
+          rowsPerPage={equipmentRentalsPagination.limit}
+          onRowsPerPageChange={handleEquipmentRentalsRowsPerPageChange}
+          rowsPerPageOptions={[10]}
+         
         />
 
         <TableCard
@@ -1068,7 +1146,7 @@ export function CustomerDetailClient({
         </Tabs>
       </div>
 
-      {/* Add Student Modal */}
+      {/* Modals */}
       <AddStudentModal
         open={isAddStudentModalOpen}
         onOpenChange={setIsAddStudentModalOpen}
@@ -1099,20 +1177,6 @@ export function CustomerDetailClient({
         customerEmail={customer?.email}
       />
 
-      {/* Email Statement Modal */}
-      <EmailStatementModal
-        open={isEmailStatementModalOpen}
-        onOpenChange={setIsEmailStatementModalOpen}
-        onSend={handleSendEmailStatement}
-        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
-        customerEmails={emails.map(e => e.email)}
-        locationName="Arcadia Academy of Music"
-        privateLessonDueData={privateLessonDueData}
-        groupLessonDueData={groupLessonDueData}
-        invoiceData={invoiceData}
-        totalBalance={summaryData.balance}
-        />
-      {/* ADD RECEIVE PAYMENT MODAL */}
       <ReceivePaymentModal
         open={isReceivePaymentModalOpen}
         onOpenChange={setIsReceivePaymentModalOpen}

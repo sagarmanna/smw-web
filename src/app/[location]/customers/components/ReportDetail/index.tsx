@@ -143,8 +143,8 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
         setCustomer(customerData);
 
         // Load outstanding invoices
-        const outstandingData = await getCustomerOutstandingInvoices(location, Number(customerId));
-        const formattedOutstanding = outstandingData.map(invoice => ({
+        const outstandingData = await getCustomerOutstandingInvoices(location, Number(customerId), 1, 99999);
+        const formattedOutstanding = outstandingData.data.map(invoice => ({
           id: invoice.id,
           date: invoice.date,
           owing: invoice.balanceDue

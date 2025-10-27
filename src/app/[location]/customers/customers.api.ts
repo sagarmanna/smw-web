@@ -179,6 +179,40 @@ export interface OutstandingInvoicesResult {
   };
 }
 
+// Equipment Rentals API Response Interface
+export interface EquipmentRentalsResponse {
+  success: boolean;
+  data: {
+    body: Array<{
+      id: number;
+      studentName: string;
+      startDate: string;
+      returnDate: string;
+      rentalTerm: string;
+      depositAmount: string | number;
+      equipmentReturned: string;
+      equipmentReturnedDate: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+  message: string;
+}
+
+export interface EquipmentRentalsResult {
+  data: EquipmentRentalData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export async function getCustomers(
   location: string,
   query: CustomersQuery
@@ -257,6 +291,7 @@ export async function getCustomerSummary(
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
+    console.error('Error fetching customer summary:', error);
     return {
       success: false,
       message: apiError.response?.data?.message || 'Failed to fetch customer summary',
@@ -387,16 +422,70 @@ export async function getCustomerOutstandingInvoices(
 }
 
 export async function getCustomerEquipmentRentals(
-  _location: string,
-  _customerId: number
-): Promise<EquipmentRentalData[]> {
-  const USE_MOCK = true;
-  
-  if (USE_MOCK) {
-    return [];
+  location: string,
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<EquipmentRentalsResult> {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    
+    
+    params.append('showAll', 'true');
+    
+    const url = `/admin/v2/${location}/customers/${customerId}/equipment-rentals`;
+    
+    
+    const response = await apiClient.get<EquipmentRentalsResponse>(
+      url,
+      { params }
+    );
+    
+   
+    
+    if (response.data.success && response.data.data.body) {
+      const data = response.data.data.body.map(rental => ({
+        student: rental.studentName,
+        startDate: rental.startDate,
+        returnDate: rental.returnDate,
+        rentalTerm: rental.rentalTerm,
+        depositAmount: typeof rental.depositAmount === 'string' 
+          ? parseFloat(rental.depositAmount.replace(/[$,]/g, ''))
+          : rental.depositAmount,
+        equipmentReturned: rental.equipmentReturned,
+        equipmentReturnedDate: rental.equipmentReturnedDate
+      }));
+
+      
+
+      return {
+        data,
+        pagination: response.data.data.pagination
+      };
+    }
+    
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0
+      }
+    };
+  } catch (error: unknown) {
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0
+      }
+    };
   }
-  
-  return [];
 }
 
 export async function getCustomerRecurringPayments(
