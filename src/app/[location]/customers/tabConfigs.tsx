@@ -57,6 +57,17 @@ export interface ProformaInvoiceData {
   total: number;
 }
 
+// Detailed Proforma Invoice rows used on the standalone page
+export interface ProformaInvoiceDetailData {
+  student: string;
+  program: string;
+  startDate: string;
+  endDate: string;
+  dueDate: string;
+  proFormaInvoice: string;
+  status: string;
+}
+
 export interface CommentData {
   date: string;
   author: string;
@@ -152,6 +163,26 @@ export const proformaInvoiceColumns: ColumnDef<ProformaInvoiceData>[] = [
       <div className="text-right">{formatCurrency(row.getValue("total") as number)}</div>
     ),
   },
+];
+
+// Columns for the standalone detailed page
+export const proformaInvoiceDetailColumns: ColumnDef<ProformaInvoiceDetailData>[] = [
+  { accessorKey: "student", header: "Student" },
+  { accessorKey: "program", header: "Program" },
+  {
+    accessorKey: "startDate",
+    header: "Start Date",
+    cell: ({ row }) => {return row.getValue("startDate")}
+    
+  },
+  {
+    accessorKey: "endDate",
+    header: "End Date",
+    cell: ({ row }) => {return row.getValue("endDate")}
+  },
+  { accessorKey: "dueDate", header: "Due Date" },
+  { accessorKey: "proFormaInvoice", header: "Pro-Forma Invoice" },
+  { accessorKey: "status", header: "Status" },
 ];
 
 export const commentColumns: ColumnDef<CommentData>[] = [
