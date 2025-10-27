@@ -57,7 +57,7 @@ export const buildMenuUrl = (item: MenuItem, location: string): string => {
   if (!item.url) return '#';
   
   if (item.source === 'legacy') {
-    return `${ENV_FLAGS.legacyBaseUrl}${item.url}`;
+    return `${ENV_FLAGS.legacyBaseUrl}/${location}${item.url}`;
   }
   
   // For modern pages, use Next.js routing
