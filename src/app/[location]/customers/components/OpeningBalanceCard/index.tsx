@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
@@ -7,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Eye } from "lucide-react";
+import { toast } from "sonner";
+import { createCustomerOpeningBalance } from "../OpeningBalanceCard/openingBalanceapi";
 
 interface OpeningBalanceCardProps {
   amount?: number;
@@ -34,6 +38,7 @@ export function OpeningBalanceCard({
   const [balanceType, setBalanceType] = useState<"owing" | "credit" | null>(null);
   const [showError, setShowError] = useState(false);
   const [hasTyped, setHasTyped] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Determine display values based on amount
   const displayAmount = Math.abs(amount);
@@ -56,29 +61,57 @@ export function OpeningBalanceCard({
     }
   };
 
-  const isAmountValid = balanceAmount.trim() !== "" && !isNaN(parseFloat(balanceAmount)) && parseFloat(balanceAmount) >= 0;
+  const isAmountValid = balanceAmount.trim() !== "" && !isNaN(parseFloat(balanceAmount)) && parseFloat(balanceAmount) >= 0.1;
   const isTypeSelected = balanceType !== null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Show error state if validation fails
     if (!isAmountValid || !isTypeSelected) {
       setShowError(true);
       return;
     }
 
-    const numAmount = parseFloat(balanceAmount);
-
-    // Call onSave callback if provided
-    if (onSave) {
-      onSave(numAmount, balanceType);
+    if (!location || !customerId) {
+      toast.error("Missing location or customer ID");
+      return;
     }
 
-    // Reset and close
-    setBalanceAmount("");
-    setBalanceType(null);
-    setShowError(false);
-    setHasTyped(false);
-    setIsModalOpen(false);
+    setIsSaving(true);
+
+    try {
+      const numAmount = parseFloat(balanceAmount);
+      const isCredit = balanceType === "credit";
+
+      const result = await createCustomerOpeningBalance(
+        location,
+        Number(customerId),
+        numAmount,
+        isCredit
+      );
+
+      if (result?.success) {
+        toast.success("Opening balance created successfully");
+        
+        // Call onSave callback to update parent state
+        if (onSave) {
+          onSave(numAmount, balanceType);
+        }
+
+        // Reset and close
+        setBalanceAmount("");
+        setBalanceType(null);
+        setShowError(false);
+        setHasTyped(false);
+        setIsModalOpen(false);
+      } else {
+        toast.error(result?.message || "Failed to create opening balance");
+      }
+    } catch (error) {
+      console.error("Error creating opening balance:", error);
+      toast.error("Failed to create opening balance");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -103,12 +136,14 @@ export function OpeningBalanceCard({
     {
       label: "Cancel",
       onClick: handleCancel,
-      variant: "outline" as const
+      variant: "outline" as const,
+      disabled: isSaving
     },
     {
-      label: "Save",
+      label: isSaving ? "Saving..." : "Save",
       onClick: handleSave,
-      variant: "default" as const
+      variant: "default" as const,
+      disabled: isSaving
     }
   ];
 
@@ -169,7 +204,7 @@ export function OpeningBalanceCard({
                   : "text-gray-700"
               }`}
             >
-              Amount
+              Amount (minimum 0.1)
             </Label>
             <Input
               id="amount"
@@ -188,10 +223,11 @@ export function OpeningBalanceCard({
                 boxShadow: 'none'
               }}
               placeholder="0.00"
+              disabled={isSaving}
             />
             {hasTyped && balanceAmount.trim() !== "" && !isAmountValid && (
               <p className="text-sm text-red-600">
-                Amount must be a number.
+                Amount must be at least 0.1
               </p>
             )}
             {showError && balanceAmount.trim() === "" && (
@@ -215,6 +251,7 @@ export function OpeningBalanceCard({
                     ? "text-red-600"
                     : "text-gray-500"
                 }`}
+                disabled={isSaving}
               >
                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                   balanceType === "owing" 
@@ -240,6 +277,7 @@ export function OpeningBalanceCard({
                     ? "text-red-600"
                     : "text-gray-500"
                 }`}
+                disabled={isSaving}
               >
                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                   balanceType === "credit" 
