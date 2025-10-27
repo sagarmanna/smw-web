@@ -32,6 +32,7 @@ interface TabContentProps<TData = unknown> {
   hasTable?: boolean;
   footerRow?: TData;
   bottomContent?: React.ReactNode;
+  customContent?: React.ReactNode;
   showMoreButton?: boolean;
   onShowMore?: () => void;
   showAllCheckbox?: boolean;
@@ -67,6 +68,7 @@ export function TabContent<TData = unknown>({
   hasTable = true,
   footerRow,
   bottomContent,
+  customContent,
   showMoreButton = false,
   onShowMore,
   showAllCheckbox = false,
@@ -164,8 +166,12 @@ export function TabContent<TData = unknown>({
             />
           </>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            {emptyState}
+          <div>
+            {customContent ? (
+              <div>{customContent}</div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">{emptyState}</div>
+            )}
           </div>
         )}
         {bottomContent}

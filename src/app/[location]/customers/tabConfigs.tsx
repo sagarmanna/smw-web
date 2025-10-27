@@ -69,10 +69,11 @@ export interface ProformaInvoiceDetailData {
 }
 
 export interface CommentData {
-  date: string;
-  author: string;
-  comment: string;
-  type: string;
+  id?: number;
+  content: string;
+  createdUser: string;
+  avatar: string;
+  createdOn: string;
 }
 
 export interface HistoryData {
@@ -186,18 +187,9 @@ export const proformaInvoiceDetailColumns: ColumnDef<ProformaInvoiceDetailData>[
 ];
 
 export const commentColumns: ColumnDef<CommentData>[] = [
-  { accessorKey: "date", header: "Date" },
-  { accessorKey: "author", header: "Author" },
-  { accessorKey: "comment", header: "Comment" },
-  {
-    accessorKey: "type",
-    header: "Type",
-    cell: ({ row }) => (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-        {row.getValue("type")}
-      </span>
-    ),
-  },
+  { accessorKey: "createdOn", header: "Created On" },
+  { accessorKey: "createdUser", header: "Author" },
+  { accessorKey: "content", header: "Comment" },
 ];
 
 export const historyColumns: ColumnDef<HistoryData>[] = [

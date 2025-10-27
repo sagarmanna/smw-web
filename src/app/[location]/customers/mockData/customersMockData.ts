@@ -1,8 +1,5 @@
 import { 
-  GroupLessonData, 
-  ProformaInvoiceData,
   ProformaInvoiceDetailData, 
-  CommentData, 
   HistoryData 
 } from '../tabConfigs';
 
@@ -18,9 +15,7 @@ export interface RecurringPaymentEnrolmentData {
 
 // Mock data for customer detail tabs
 export const mockCustomerTabData = {
-  groupLessonData: [] as GroupLessonData[],
-
-  proformaInvoiceData: [] as ProformaInvoiceData[],
+ 
 
   // Detailed rows for the standalone Proforma Invoice page
   proformaInvoiceDetailData: [
@@ -53,7 +48,7 @@ export const mockCustomerTabData = {
     { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Dec 01, 2027", endDate: "Dec 31, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
   ] as ProformaInvoiceDetailData[],
 
-  commentData: [] as CommentData[],
+ 
 
   historyData: [
     { message: "On Sep 9, 2022, at 12:15 AM, seng Added new payment of $60.27 for 123 123" },

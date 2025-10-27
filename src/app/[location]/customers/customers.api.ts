@@ -8,7 +8,7 @@ import {
   GroupLessonDueData, 
   PaymentData 
 } from './tableConfigs';
-import { StudentData, EnrolmentData, PrivateLessonData, GroupLessonData } from './tabConfigs';
+import { StudentData, EnrolmentData, PrivateLessonData, GroupLessonData, ProformaInvoiceData, CommentData } from './tabConfigs';
 
 export interface CustomerRow {
   id: number;
@@ -802,5 +802,96 @@ export async function getCustomerGroupLessons(
         totalPages: 0,
       },
     };
+  }
+}
+
+// --------------------
+// Pro-forma Invoices (tab) API function
+// --------------------
+
+export interface ProformaInvoicesResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: ProformaInvoiceData[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export interface ProformaInvoicesResult {
+  data: ProformaInvoiceData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export async function getCustomerProformaInvoices(
+  location: string,
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<ProformaInvoicesResult> {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<ProformaInvoicesResponse>(
+      `/admin/v2/${location}/customers/${customerId}/pro-forma-invoices`,
+      { params }
+    );
+    return {
+      data: response.data.data?.body || [],
+      pagination: response.data.data?.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+  } catch (error: unknown) {
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+  }
+}
+
+// --------------------
+// Comments (tab) API function
+// --------------------
+
+export interface CommentsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: CommentData[];
+  };
+}
+
+export async function getCustomerComments(
+  location: string,
+  customerId: number
+): Promise<CommentData[]> {
+  try {
+    const response = await apiClient.get<CommentsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/comments`
+    );
+    return response.data.data?.body || [];
+  } catch (error: unknown) {
+    return [];
   }
 }
