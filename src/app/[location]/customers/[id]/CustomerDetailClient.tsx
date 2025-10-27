@@ -102,12 +102,12 @@ export function CustomerDetailClient({
 }: CustomerDetailClientProps) {
   const router = useRouter();
   const [customer, setCustomer] = React.useState<CustomerRow | null>(null);
-  const [customerInfo, setCustomerInfo] =
+  const [_customerInfo, setCustomerInfo] =
     React.useState<CustomerInfoData | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [studentsLoading, setStudentsLoading] = React.useState<boolean>(false);
   const [studentsError, setStudentsError] = React.useState<string | null>(null);
-  const [studentsPagination, setStudentsPagination] = React.useState({
+  const [_studentsPagination, setStudentsPagination] = React.useState({
     page: 1,
     limit: 10,
     total: 0,
@@ -182,8 +182,8 @@ export function CustomerDetailClient({
   };
 
   // Handle students pagination
-  const handleStudentsPageChange = (page: number) => {
-    setStudentsPagination((prev) => ({ ...prev, page }));
+  const handleStudentsPageChange = (_page: number) => {
+    setStudentsPagination((prev) => ({ ...prev, page: _page }));
   };
 
   const handleStudentsRowsPerPageChange = (rowsPerPage: number) => {
@@ -280,12 +280,12 @@ export function CustomerDetailClient({
   };
 
   // Handle adding new equipment rental
-  const handleAddEquipmentRental = (data: unknown) => {
+  const handleAddEquipmentRental = (_data: unknown) => {
     setIsEquipmentRentalsModalOpen(false);
   };
 
   // Handle email statement send
-  const handleSendEmailStatement = (emailData: EmailFormData) => {
+  const handleSendEmailStatement = (_emailData: EmailFormData) => {
     // TODO: Implement API call to send email statement
     setIsEmailStatementModalOpen(false);
     // Show success toast notification
@@ -296,7 +296,7 @@ export function CustomerDetailClient({
     // TODO: Implement invoice creation logic
   };
 
-  const handlePrintInvoice = (invoiceId: string) => {
+  const handlePrintInvoice = (_invoiceId: string) => {
     // TODO: Implement invoice printing logic
   };
 
@@ -375,6 +375,7 @@ export function CustomerDetailClient({
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [discount, setDiscount] = React.useState<number>(0);
   const [openingBalance, setOpeningBalance] = React.useState<number>(0);
+  const [hasOpeningBalance, setHasOpeningBalance] = React.useState<boolean>(false);
 
   // Calculate footer for private lesson due
   const privateLessonDueTotal = privateLessonDueData.reduce(
@@ -475,6 +476,7 @@ export function CustomerDetailClient({
             setStatus(infoResponse.data.profile.status || "Active");
           }
 
+          // FIXED: Email handling with notes
           if (
             infoResponse.data.email &&
             Array.isArray(infoResponse.data.email)
@@ -483,7 +485,7 @@ export function CustomerDetailClient({
               id: String(e.id),
               label: e.label,
               email: e.email,
-              note: e.note,
+              note: e.note || "", // Ensure note is always included
               isPrimary: e.isPrimary,
             }));
             setEmails(formattedEmails);
@@ -524,10 +526,14 @@ export function CustomerDetailClient({
             setDiscount(infoResponse.data.discount.value || 0);
           }
 
+          // FIXED: Opening balance handling
           if (infoResponse.data.openingBalance) {
             const amount = infoResponse.data.openingBalance.amount || 0;
-            const type = infoResponse.data.openingBalance.type || "owing";
-            setOpeningBalance(type === "owing" ? amount : -amount);
+            // API returns the amount with correct sign:
+            // negative amount = credit (customer has money)
+            // positive amount = owing (customer owes money)
+            setOpeningBalance(amount);
+            setHasOpeningBalance(true);
           }
         }
 
@@ -861,9 +867,17 @@ export function CustomerDetailClient({
           />
 
           <OpeningBalanceCard
-            amount={Math.abs(openingBalance)}
-            onSave={(amount, type) => {
-              setOpeningBalance(type === "owing" ? amount : -amount);
+            amount={openingBalance}
+            hasBalance={hasOpeningBalance}
+            customerId={id}
+            location={location}
+            onSave={(amount, balanceType) => {
+              // When saving from modal: owing = positive, credit = negative
+              const savedAmount = balanceType === "credit" ? -amount : amount;
+              setOpeningBalance(savedAmount);
+              setHasOpeningBalance(true);
+              // TODO: Call API to save: 
+              // { amount: savedAmount, type: balanceType === "credit" ? "negative" : "positive" }
             }}
             loading={loading}
           />
@@ -891,6 +905,25 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableFilter}
+          enableRowsPerPage={
+            CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableRowsPerPage
+          }
+          iconType="plus"
+        />
+
+        <TableCard
+          title="Recurring Payments"
+          data={recurringPaymentData}
+          columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
+          loading={loading}
+          onAdd={() => setIsRecurringPaymentModalOpen(true)}
+          size={CUSTOMER_TABLE_CONFIGS.recurringPayments.size}
+          variant={CUSTOMER_TABLE_CONFIGS.recurringPayments.variant}
+          enableSorting={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSorting}
+          enableExport={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableExport}
+          enablePrint={CUSTOMER_TABLE_CONFIGS.recurringPayments.enablePrint}
+          enableSearch={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSearch}
+          enableFilter={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableFilter}
           enableRowsPerPage={
             CUSTOMER_TABLE_CONFIGS.recurringPayments.enableRowsPerPage
           }
@@ -957,10 +990,6 @@ export function CustomerDetailClient({
               label: "Receive Payment",
               onClick: () => setIsReceivePaymentModalOpen(true),
             },
-            // {
-            //   label: "Another Action", // Replace with actual action
-            //   onClick: () => {},
-            // },
           ]}
           dropdownLabel="Payment Actions"
         />
@@ -988,7 +1017,6 @@ export function CustomerDetailClient({
 
             // Get pagination info for this tab
             const pagination = tabPagination[tabKey];
-            const rowsPerPage = tabRowsPerPage[tabKey] || 10;
 
             // Slice data based on current page and rows per page (like AccountReceivableClient)
             const startIndex = pagination
@@ -1113,8 +1141,9 @@ export function CustomerDetailClient({
         groupLessonDueData={groupLessonDueData}
         invoiceData={invoiceData}
         totalBalance={summaryData.balance}
-        />
-      {/* ADD RECEIVE PAYMENT MODAL */}
+      />
+
+      {/* Receive Payment Modal */}
       <ReceivePaymentModal
         open={isReceivePaymentModalOpen}
         onOpenChange={setIsReceivePaymentModalOpen}
