@@ -997,6 +997,8 @@ export function CustomerDetailClient({
             discount={discount}
             onSave={(newDiscount) => setDiscount(newDiscount)}
             loading={loading}
+            location={location}
+            customerId={Number(id)}
           />
 
           <OpeningBalanceCard
