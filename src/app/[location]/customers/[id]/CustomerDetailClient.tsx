@@ -39,6 +39,10 @@ import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
+import AddStudentModal from "../components/AddStudentModal/index";
+import EmailStatementModal, {
+  EmailFormData,
+} from "../components/EmailStatementModal/index";
 
 import {
   InvoiceData,
@@ -62,7 +66,6 @@ import {
   HistoryData,
 } from "../tabConfigs";
 import { mockCustomerTabData } from "../mockData/customersMockData";
-import AddStudentModal from "../components/AddStudentModal/index";
 
 interface PhoneNumber {
   id: string;
@@ -351,7 +354,8 @@ export function CustomerDetailClient({
     setEquipmentRentalsPagination(result.pagination);
   };
 
-  const handleSendEmailStatement = () => {
+  const handleSendEmailStatement = (emailData: EmailFormData) => {
+    console.log("Sending email statement:", emailData);
     setIsEmailStatementModalOpen(false);
     // Show success toast notification
   };
@@ -435,7 +439,8 @@ export function CustomerDetailClient({
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [discount, setDiscount] = React.useState<number>(0);
   const [openingBalance, setOpeningBalance] = React.useState<number>(0);
-  const [hasOpeningBalance, setHasOpeningBalance] = React.useState<boolean>(false);
+  const [hasOpeningBalance, setHasOpeningBalance] =
+    React.useState<boolean>(false);
 
   // Calculate footer for private lesson due
   const privateLessonDueTotal = privateLessonDueData.reduce(
@@ -589,9 +594,6 @@ export function CustomerDetailClient({
           // FIXED: Opening balance handling
           if (infoResponse.data.openingBalance) {
             const amount = infoResponse.data.openingBalance.amount || 0;
-            // API returns the amount with correct sign:
-            // negative amount = credit (customer has money)
-            // positive amount = owing (customer owes money)
             setOpeningBalance(amount);
             setHasOpeningBalance(true);
           }
@@ -623,7 +625,6 @@ export function CustomerDetailClient({
           1,
           10
         );
-        console.log('Equipment Rentals Result:', equipmentRentalsResult);
         setEquipmentRentalData(equipmentRentalsResult.data);
         setEquipmentRentalsPagination(equipmentRentalsResult.pagination);
         setEquipmentRentalsLoading(false);
@@ -780,7 +781,11 @@ export function CustomerDetailClient({
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
         { label: "Print Statement", onClick: () => {} },
-        { label: "Email Statement", onClick: () => {} },
+        { label: "Print Statement", onClick: () => {} },
+        {
+          label: "Email Statement",
+          onClick: () => setIsEmailStatementModalOpen(true),
+        },
         { label: "A/R Report Detail", onClick: () => {} },
         { label: "Items Purchased by Category", onClick: () => {} },
         { label: "Notify Via Email", onClick: () => {} },
@@ -903,7 +908,7 @@ export function CustomerDetailClient({
             onRowsPerPageChange={handleOutstandingInvoicesRowsPerPageChange}
             rowsPerPageOptions={[10]}
           />
-          
+
           {/* Mobile Email and Phone Cards - Only on Mobile */}
           <div className="lg:hidden space-y-3 sm:space-y-4">
             <EmailCard
@@ -1182,6 +1187,8 @@ export function CustomerDetailClient({
       </div>
 
       {/* Modals */}
+
+      {/* Add Student Modal */}
       <AddStudentModal
         open={isAddStudentModalOpen}
         onOpenChange={setIsAddStudentModalOpen}
@@ -1191,6 +1198,7 @@ export function CustomerDetailClient({
         }
       />
 
+      {/* Recurring Payment Modal */}
       <RecurringPaymentModal
         open={isRecurringPaymentModalOpen}
         onOpenChange={setIsRecurringPaymentModalOpen}
@@ -1200,6 +1208,7 @@ export function CustomerDetailClient({
         }
       />
 
+      {/* Equipment Rentals Modal */}
       <EquipmentRentalsModal
         open={isEquipmentRentalsModalOpen}
         onOpenChange={setIsEquipmentRentalsModalOpen}
@@ -1210,6 +1219,23 @@ export function CustomerDetailClient({
         customerEmail={customer?.email}
       />
 
+      {/* Email Statement Modal */}
+      <EmailStatementModal
+        open={isEmailStatementModalOpen}
+        onOpenChange={setIsEmailStatementModalOpen}
+        onSend={handleSendEmailStatement}
+        customerName={
+          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+        }
+        customerEmails={emails.map((e) => e.email)}
+        locationName="Arcadia Academy of Music"
+        privateLessonDueData={privateLessonDueData}
+        groupLessonDueData={groupLessonDueData}
+        invoiceData={invoiceData}
+        totalBalance={summaryData.balance}
+      />
+
+      {/* Receive Payment Modal */}
       <ReceivePaymentModal
         open={isReceivePaymentModalOpen}
         onOpenChange={setIsReceivePaymentModalOpen}
