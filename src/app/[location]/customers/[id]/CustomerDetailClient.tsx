@@ -16,6 +16,7 @@ import {
   getCustomerRecurringPayments,
   getCustomerPrivateLessonDue,
   getCustomerPrivateLessons,
+  getCustomerGroupLessons,
   getCustomerGroupLessonDue,
   getCustomerPayments,
   getCustomerStudents,
@@ -454,6 +455,17 @@ export function CustomerDetailClient({
   const [privateLessonsLoading, setPrivateLessonsLoading] =
     React.useState<boolean>(false);
 
+  // Group lessons server-side pagination state
+  const [groupLessonsPagination, setGroupLessonsPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [groupLessonsLoading, setGroupLessonsLoading] =
+    React.useState<boolean>(false);
+
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
   const [emails, setEmails] = React.useState<Email[]>([]);
@@ -712,8 +724,21 @@ export function CustomerDetailClient({
           setPrivateLessonsLoading(false);
         }
 
+        // Load group lessons tab data from API (server-side pagination)
+        try {
+          setGroupLessonsLoading(true);
+          const { data: groupLessons, pagination: glPagination } =
+            await getCustomerGroupLessons(location, Number(id), 1, 10);
+          setGroupLessonData(groupLessons);
+          setGroupLessonsPagination(glPagination);
+        } catch {
+          setGroupLessonData([]);
+          setGroupLessonsPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+        } finally {
+          setGroupLessonsLoading(false);
+        }
+
         // Load other tab data (mock data for now)
-        setGroupLessonData(mockCustomerTabData.groupLessonData);
         setProformaInvoiceData(mockCustomerTabData.proformaInvoiceData);
         setCommentData(mockCustomerTabData.commentData);
         setHistoryData(mockCustomerTabData.historyData);
@@ -1155,9 +1180,10 @@ export function CustomerDetailClient({
             const pagination = tabPagination[tabKey];
 
             const isPrivateLessonsTab = tabKey === "private-lessons";
+            const isGroupLessonsTab = tabKey === "group-lessons";
 
             let data = fullData;
-            if (!isPrivateLessonsTab) {
+            if (!isPrivateLessonsTab && !isGroupLessonsTab) {
               const startIndex = pagination
                 ? (pagination.page - 1) * pagination.limit
                 : 0;
@@ -1169,13 +1195,16 @@ export function CustomerDetailClient({
 
             const shouldShowPagination =
               (pagination && pagination.total > 10) ||
-              (isPrivateLessonsTab && privateLessonsPagination.total > privateLessonsPagination.limit);
+              (isPrivateLessonsTab && privateLessonsPagination.total > privateLessonsPagination.limit) ||
+              (isGroupLessonsTab && groupLessonsPagination.total > groupLessonsPagination.limit);
 
             const isLoading =
               tabKey === "students"
                 ? studentsLoading
                 : isPrivateLessonsTab
                 ? privateLessonsLoading || loading
+                : isGroupLessonsTab
+                ? groupLessonsLoading || loading
                 : loading;
             const error = tabKey === "students" ? studentsError : null;
 
@@ -1222,6 +1251,8 @@ export function CustomerDetailClient({
                   serverSidePagination={
                     isPrivateLessonsTab
                       ? privateLessonsPagination
+                      : isGroupLessonsTab
+                      ? groupLessonsPagination
                       : shouldShowPagination
                       ? tabPagination[tabKey]
                       : undefined
@@ -1241,6 +1272,21 @@ export function CustomerDetailClient({
                               setPrivateLessonsPagination(pagination);
                             })
                             .finally(() => setPrivateLessonsLoading(false));
+                        }
+                      : isGroupLessonsTab
+                      ? (page: number) => {
+                          setGroupLessonsLoading(true);
+                          getCustomerGroupLessons(
+                            location,
+                            Number(id),
+                            page,
+                            groupLessonsPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setGroupLessonData(data);
+                              setGroupLessonsPagination(pagination);
+                            })
+                            .finally(() => setGroupLessonsLoading(false));
                         }
                       : shouldShowPagination
                       ? (page: number) => handleTabPageChange(tabKey, page)
@@ -1262,6 +1308,21 @@ export function CustomerDetailClient({
                             })
                             .finally(() => setPrivateLessonsLoading(false));
                         }
+                      : isGroupLessonsTab
+                      ? (rowsPerPage: number) => {
+                          setGroupLessonsLoading(true);
+                          getCustomerGroupLessons(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setGroupLessonData(data);
+                              setGroupLessonsPagination(pagination);
+                            })
+                            .finally(() => setGroupLessonsLoading(false));
+                        }
                       : shouldShowPagination
                       ? (rowsPerPage: number) =>
                           handleTabRowsPerPageChange(tabKey, rowsPerPage)
@@ -1270,6 +1331,8 @@ export function CustomerDetailClient({
                   rowsPerPage={
                     isPrivateLessonsTab
                       ? privateLessonsPagination.limit
+                      : isGroupLessonsTab
+                      ? groupLessonsPagination.limit
                       : tabRowsPerPage[tabKey] || 10
                   }
                   rowsPerPageOptions={[5, 10, 20, 50, 100]}
