@@ -360,15 +360,7 @@ export function CustomerDetailClient({
     // Show success toast notification
   };
 
-  // Navigate to proforma invoice page
-  const handleProformaInvoiceNavigate = () => {
-    router.push(`/${location}/customers/${id}/proforma-invoice`);
-  };
-
-  // Handle invoice actions
-  const handleAddInvoice = () => {
-    // TODO: Implement invoice creation logic
-  };
+  const handleAddInvoice = () => {};
 
   const handlePrintInvoice = () => {};
 
@@ -960,10 +952,12 @@ export function CustomerDetailClient({
             loading={loading}
           />
 
-          <DiscountCard
+        <DiscountCard
             discount={discount}
             onSave={(newDiscount) => setDiscount(newDiscount)}
             loading={loading}
+            location={location}
+            customerId={Number(id)}
           />
 
           <OpeningBalanceCard
@@ -1164,10 +1158,6 @@ export function CustomerDetailClient({
                   onAdd={() => {
                     if (tabKey === "students") {
                       setIsAddStudentModalOpen(true);
-                    } else if (tabKey === "proforma-invoices") {
-                      handleProformaInvoiceNavigate();
-                    } else {
-                      // TODO: Implement add functionality for other tabs
                     }
                   }}
                   emptyState={config.emptyState}

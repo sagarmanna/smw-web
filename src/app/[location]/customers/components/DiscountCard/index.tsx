@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Pencil } from "lucide-react";
+import { updateCustomerDiscount } from "../DiscountCard/discountCard.api";
+import { useToast } from "@/hooks/use-toast";
 
 interface DiscountCardProps {
   discount?: number;
@@ -13,6 +15,8 @@ interface DiscountCardProps {
   onSave?: (discount: number) => void;
   className?: string;
   loading?: boolean;
+  location: string;
+  customerId: number;
 }
 
 export function DiscountCard({ 
@@ -20,12 +24,16 @@ export function DiscountCard({
   onAddClick, 
   onSave,
   className,
-  loading = false
+  loading = false,
+  location,
+  customerId
 }: DiscountCardProps) {
+  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [discountValue, setDiscountValue] = useState("");
   const [showError, setShowError] = useState(false);
   const [hasTyped, setHasTyped] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleAddClick = () => {
     setIsModalOpen(true);
@@ -47,7 +55,7 @@ export function DiscountCard({
     return !isNaN(num) && num >= 0 && num <= 100;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isDiscountValid()) {
       setShowError(true);
       return;
@@ -55,14 +63,46 @@ export function DiscountCard({
 
     const numDiscount = parseFloat(discountValue);
 
-    if (onSave) {
-      onSave(numDiscount);
-    }
+    setIsSaving(true);
+    try {
+      const response = await updateCustomerDiscount(
+        location,
+        customerId,
+        numDiscount
+      );
 
-    setDiscountValue("");
-    setShowError(false);
-    setHasTyped(false);
-    setIsModalOpen(false);
+      if (response?.success) {
+        toast({
+          title: "Success",
+          description: response.message || "Discount updated successfully",
+          variant: "default",
+        });
+
+        if (onSave) {
+          onSave(numDiscount);
+        }
+
+        setDiscountValue("");
+        setShowError(false);
+        setHasTyped(false);
+        setIsModalOpen(false);
+      } else {
+        toast({
+          title: "Error",
+          description: response?.message || "Failed to update discount",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error saving discount:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while saving the discount",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -82,12 +122,14 @@ export function DiscountCard({
     {
       label: "Cancel",
       onClick: handleCancel,
-      variant: "outline" as const
+      variant: "outline" as const,
+      disabled: isSaving
     },
     {
-      label: "Save",
+      label: isSaving ? "Saving..." : "Save",
       onClick: handleSave,
-      variant: "default" as const
+      variant: "default" as const,
+      disabled: isSaving
     }
   ];
 
@@ -170,6 +212,7 @@ export function DiscountCard({
                 inputMode="decimal"
                 value={discountValue}
                 onChange={handleDiscountChange}
+                disabled={isSaving}
                 className={`text-right pr-10 focus:ring-0 focus:outline-none bg-white dark:bg-gray-800 ${
                   hasTyped && discountValue.trim() !== "" && !isDiscountValid() 
                     ? "border-red-600 dark:border-red-500 text-gray-900 dark:text-gray-100" 
