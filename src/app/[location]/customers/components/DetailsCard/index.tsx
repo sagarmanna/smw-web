@@ -14,12 +14,17 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import Image from "next/image";
+import { getReferralSources, ReferralSourceData } from "../DetailsCard/referralSource";
+import { updateCustomerProfile } from "../DetailsCard/detailsCardApi";
+import { toast } from "sonner";
+
 
 interface DetailsData {
   firstName: string;
   lastName: string;
   role: string;
   referralSource: string;
+  referralSourceDescription?: string;
   status: string;
   picture?: string;
 }
@@ -29,35 +34,34 @@ interface DetailsCardProps {
   onSave?: (data: DetailsData) => void;
   className?: string;
   loading?: boolean;
+  location: string;
+  customerId: number;
 }
-
-const REFERRAL_SOURCES = [
-  "Drive By",
-  "Arcadia's Website",
-  "Newspaper Advertisement",
-  "Social Media",
-  "Street Sign",
-  "Test Referral",
-  "Other"
-];
 
 export function DetailsCard({ 
   data, 
   onSave,
   className,
-  loading = false
+  loading = false,
+  location,
+  customerId
 }: DetailsCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [referralSources, setReferralSources] = useState<ReferralSourceData[]>([]);
+  const [loadingReferralSources, setLoadingReferralSources] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [firstName, setFirstName] = useState(data.firstName || "");
   const [lastName, setLastName] = useState(data.lastName || "");
   const [referralSource, setReferralSource] = useState(data.referralSource || "");
+  const [referralSourceDescription, setReferralSourceDescription] = useState(data.referralSourceDescription || "");
   const [picture, setPicture] = useState(data.picture || "");
   
   const [showError, setShowError] = useState(false);
   const [firstNameTouched, setFirstNameTouched] = useState(false);
   const [lastNameTouched, setLastNameTouched] = useState(false);
+  const [referralDescriptionTouched, setReferralDescriptionTouched] = useState(false);
 
   const [displayFields, setDisplayFields] = useState([
     {
@@ -86,10 +90,28 @@ export function DetailsCard({
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
 
+  // Fetch referral sources on component mount
+  useEffect(() => {
+    const fetchReferralSources = async () => {
+      setLoadingReferralSources(true);
+      try {
+        const sources = await getReferralSources();
+        setReferralSources(sources);
+      } catch (error) {
+        console.error("Failed to fetch referral sources:", error);
+      } finally {
+        setLoadingReferralSources(false);
+      }
+    };
+
+    fetchReferralSources();
+  }, []);
+
   useEffect(() => {
     setFirstName(data.firstName || "");
     setLastName(data.lastName || "");
     setReferralSource(data.referralSource || "");
+    setReferralSourceDescription(data.referralSourceDescription || "");
     setPicture(data.picture || "");
     
     setDisplayFields([
@@ -112,57 +134,98 @@ export function DetailsCard({
         value: data.status?.trim() || "Active"
       }
     ]);
-  }, [data.firstName, data.lastName, data.referralSource, data.picture, data.role, data.status]);
+  }, [data.firstName, data.lastName, data.referralSource, data.referralSourceDescription, data.picture, data.role, data.status]);
 
   const handleEditClick = () => {
     setFirstName(data.firstName || "");
     setLastName(data.lastName || "");
     setReferralSource(data.referralSource || "");
+    setReferralSourceDescription(data.referralSourceDescription || "");
     setPicture(data.picture || "");
     setShowError(false);
     setFirstNameTouched(false);
     setLastNameTouched(false);
+    setReferralDescriptionTouched(false);
     setIsModalOpen(true);
   };
 
+  const isOtherSelected = referralSource === "Other";
   const isFirstNameValid = (firstName?.trim() ?? "") !== "";
   const isLastNameValid = (lastName?.trim() ?? "") !== "";
   const isReferralSourceValid = (referralSource?.trim() ?? "") !== "";
-  const isFormValid = isFirstNameValid && isLastNameValid && isReferralSourceValid;
+  const isReferralDescriptionValid = !isOtherSelected || (referralSourceDescription?.trim() ?? "") !== "";
+  const isFormValid = isFirstNameValid && isLastNameValid && isReferralSourceValid && isReferralDescriptionValid;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isFormValid) {
       setShowError(true);
       setFirstNameTouched(true);
       setLastNameTouched(true);
+      if (isOtherSelected) {
+        setReferralDescriptionTouched(true);
+      }
       return;
     }
 
-    if (onSave) {
-      onSave({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        role: data.role,
-        referralSource,
-        status: data.status,
-        picture
-      });
-    }
+    setSaving(true);
 
-    setIsModalOpen(false);
-    setShowError(false);
-    setFirstNameTouched(false);
-    setLastNameTouched(false);
+    try {
+      // Find the referral source ID by name
+      const selectedSource = referralSources.find(s => s.name === referralSource);
+      const referralSourceId = selectedSource?.id;
+
+      // Call the API
+      const response = await updateCustomerProfile(
+        location,
+        customerId,
+        firstName.trim(),
+        lastName.trim(),
+        referralSourceId,
+        isOtherSelected ? referralSourceDescription.trim() : undefined
+      );
+
+      if (response?.success) {
+        // Call parent onSave if provided
+        if (onSave) {
+          onSave({
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            role: data.role,
+            referralSource,
+            referralSourceDescription: isOtherSelected ? referralSourceDescription.trim() : undefined,
+            status: data.status,
+            picture
+          });
+        }
+
+        toast.success(response.message || "Profile updated successfully");
+
+        setIsModalOpen(false);
+        setShowError(false);
+        setFirstNameTouched(false);
+        setLastNameTouched(false);
+        setReferralDescriptionTouched(false);
+      } else {
+        toast.error(response?.message || "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
     setFirstName(data.firstName || "");
     setLastName(data.lastName || "");
     setReferralSource(data.referralSource || "");
+    setReferralSourceDescription(data.referralSourceDescription || "");
     setPicture(data.picture || "");
     setShowError(false);
     setFirstNameTouched(false);
     setLastNameTouched(false);
+    setReferralDescriptionTouched(false);
     setIsModalOpen(false);
   };
 
@@ -174,6 +237,19 @@ export function DetailsCard({
   const handleLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLastName(e.target.value);
     setLastNameTouched(true);
+  };
+
+  const handleReferralSourceChange = (sourceName: string) => {
+    setReferralSource(sourceName);
+    if (sourceName !== "Other") {
+      setReferralSourceDescription("");
+      setReferralDescriptionTouched(false);
+    }
+  };
+
+  const handleReferralDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setReferralSourceDescription(e.target.value);
+    setReferralDescriptionTouched(true);
   };
 
   const handlePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,12 +267,14 @@ export function DetailsCard({
     {
       label: "Cancel",
       onClick: handleCancel,
-      variant: "outline" as const
+      variant: "outline" as const,
+      disabled: saving
     },
     {
-      label: "Save",
+      label: saving ? "Saving..." : "Save",
       onClick: handleSave,
-      variant: "default" as const
+      variant: "default" as const,
+      disabled: saving
     }
   ];
 
@@ -281,6 +359,13 @@ export function DetailsCard({
       variant: "default" as const
     }
   ];
+
+  // Separate "Other" from other sources and put it at the end
+  const sortedReferralSources = referralSources.sort((a, b) => {
+    if (a.name === "Other") return 1;
+    if (b.name === "Other") return -1;
+    return 0;
+  });
 
   return (
     <>
@@ -405,6 +490,7 @@ export function DetailsCard({
                 className={`focus:ring-0 focus:outline-none ${getInputClassName(isFirstNameValid, firstNameTouched)}`}
                 style={{ boxShadow: "none" }}
                 placeholder="Enter first name"
+                disabled={saving}
               />
               {(firstNameTouched || showError) && !isFirstNameValid && (
                 <p className="text-sm text-red-600 dark:text-red-400">First name cannot be blank.</p>
@@ -426,6 +512,7 @@ export function DetailsCard({
                 className={`focus:ring-0 focus:outline-none ${getInputClassName(isLastNameValid, lastNameTouched)}`}
                 style={{ boxShadow: "none" }}
                 placeholder="Enter last name"
+                disabled={saving}
               />
               {(lastNameTouched || showError) && !isLastNameValid && (
                 <p className="text-sm text-red-600 dark:text-red-400">Last name cannot be blank.</p>
@@ -437,40 +524,70 @@ export function DetailsCard({
             <Label className={`text-sm font-medium ${showError && !isReferralSourceValid ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300"}`}>
               How did you find us?
             </Label>
-            <div className="space-y-2">
-              {REFERRAL_SOURCES.map((source) => (
-                <div key={source} className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setReferralSource(source)}
-                    className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                      referralSource === source 
-                        ? "border-[#f3573f]" 
-                        : showError && !isReferralSourceValid
-                        ? "border-red-600 dark:border-red-400"
-                        : "border-gray-400 dark:border-gray-500"
-                    }`}
-                  >
-                    {referralSource === source && (
-                      <div className="w-2 h-2 rounded-full bg-[#f3573f]" />
+            {loadingReferralSources ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, index) => (
+                  <Skeleton key={index} className="h-6 w-full" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {sortedReferralSources.map((source) => (
+                  <div key={source.id}>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => handleReferralSourceChange(source.name)}
+                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          referralSource === source.name
+                            ? "border-[#f3573f]" 
+                            : showError && !isReferralSourceValid
+                            ? "border-red-600 dark:border-red-400"
+                            : "border-gray-400 dark:border-gray-500"
+                        }`}
+                        disabled={saving}
+                      >
+                        {referralSource === source.name && (
+                          <div className="w-2 h-2 rounded-full bg-[#f3573f]" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReferralSourceChange(source.name)}
+                        className={`text-sm font-normal text-left ${
+                          referralSource === source.name
+                            ? "text-[#f3573f]" 
+                            : showError && !isReferralSourceValid 
+                            ? "text-red-600 dark:text-red-400" 
+                            : "text-gray-500 dark:text-gray-400"
+                        }`}
+                        disabled={saving}
+                      >
+                        {source.name}
+                      </button>
+                    </div>
+                    
+                    {/* Show text input when "Other" is selected */}
+                    {source.name === "Other" && referralSource === "Other" && (
+                      <div className="mt-2 ml-6 space-y-2">
+                        <Input
+                          type="text"
+                          value={referralSourceDescription}
+                          onChange={handleReferralDescriptionChange}
+                          className={`focus:ring-0 focus:outline-none ${getInputClassName(isReferralDescriptionValid, referralDescriptionTouched)}`}
+                          style={{ boxShadow: "none" }}
+                          placeholder="Custom description for 'Other' type"
+                          disabled={saving}
+                        />
+                        {(referralDescriptionTouched || showError) && !isReferralDescriptionValid && (
+                          <p className="text-sm text-red-600 dark:text-red-400">Description cannot be blank when Other is selected.</p>
+                        )}
+                      </div>
                     )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setReferralSource(source)}
-                    className={`text-sm font-normal text-left ${
-                      referralSource === source 
-                        ? "text-[#f3573f]" 
-                        : showError && !isReferralSourceValid 
-                        ? "text-red-600 dark:text-red-400" 
-                        : "text-gray-500 dark:text-gray-400"
-                    }`}
-                  >
-                    {source}
-                  </button>
-                </div>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {showError && !isReferralSourceValid && (
               <p className="text-sm text-red-600 dark:text-red-400">Please select how you found us.</p>
             )}
@@ -493,6 +610,7 @@ export function DetailsCard({
                   accept="image/*"
                   onChange={handlePictureUpload}
                   className="hidden"
+                  disabled={saving}
                 />
               </label>
             </div>

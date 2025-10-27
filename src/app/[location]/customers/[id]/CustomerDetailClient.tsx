@@ -973,6 +973,8 @@ export function CustomerDetailClient({
             }}
             onSave={handleDetailsSave}
             loading={loading}
+            location={location}
+            customerId={Number(id)}
           />
 
           {/* Invoices Table */}
