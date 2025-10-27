@@ -6,17 +6,24 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Eye } from "lucide-react";
 
 interface OpeningBalanceCardProps {
   amount?: number;
+  hasBalance?: boolean;
+  customerId?: string;
+  location?: string;
   onAddClick?: () => void;
-  onSave?: (amount: number, type: "owing" | "credit") => void;
+  onSave?: (amount: number, balanceType: "owing" | "credit") => void;
   className?: string;
   loading?: boolean;
 }
 
 export function OpeningBalanceCard({ 
   amount = 0, 
+  hasBalance = false,
+  customerId,
+  location,
   onAddClick, 
   onSave,
   className,
@@ -28,10 +35,24 @@ export function OpeningBalanceCard({
   const [showError, setShowError] = useState(false);
   const [hasTyped, setHasTyped] = useState(false);
 
+  // Determine display values based on amount
+  const displayAmount = Math.abs(amount);
+  // Format with sign
+  const formattedAmount = amount < 0 
+    ? `-${formatCurrency(displayAmount)}` 
+    : `+${formatCurrency(displayAmount)}`;
+
   const handleAddClick = () => {
     setIsModalOpen(true);
     if (onAddClick) {
       onAddClick();
+    }
+  };
+
+  const handleViewClick = () => {
+    if (customerId && location) {
+      const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${customerId}`;
+      window.open(url, '_blank');
     }
   };
 
@@ -95,7 +116,8 @@ export function OpeningBalanceCard({
     <>
       <InfoCard 
         title="Opening Balance" 
-        onAddClick={handleAddClick}
+        onAddClick={!hasBalance ? handleAddClick : undefined}
+        showAddButton={!hasBalance}
         className={className}
         loading={loading}
       >
@@ -104,11 +126,25 @@ export function OpeningBalanceCard({
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-4 w-20" />
           </div>
+        ) : hasBalance ? (
+          <div className="flex items-center justify-between">
+            <KeyValueDisplay 
+              label="Amount" 
+              value={formattedAmount}
+              className="justify-start flex-1"
+            />
+            {/* View button */}
+            <button
+              onClick={handleViewClick}
+              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              aria-label="View opening balance"
+              title="View opening balance"
+            >
+              <Eye className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+            </button>
+          </div>
         ) : (
-          <KeyValueDisplay 
-            label="Amount" 
-            value={formatCurrency(amount)} 
-          />
+          <p className="text-sm text-gray-500">No opening balance set</p>
         )}
       </InfoCard>
 
@@ -143,10 +179,10 @@ export function OpeningBalanceCard({
               onChange={handleAmountChange}
               className={`text-right focus:ring-0 focus:outline-none ${
                 hasTyped && balanceAmount.trim() !== "" && !isAmountValid 
-                  ? "border-red-600 text-gray-500" 
+                  ? "border-red-600 text-gray-500 dark:text-gray-400" 
                   : isAmountValid 
-                  ? "border-green-600 text-gray-900" 
-                  : "border-gray-300 text-gray-500"
+                  ? "border-green-600 text-gray-900 dark:text-gray-100" 
+                  : "border-gray-300 text-gray-500 dark:text-gray-400"
               }`}
               style={{
                 boxShadow: 'none'

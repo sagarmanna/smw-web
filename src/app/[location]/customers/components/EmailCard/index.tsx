@@ -16,6 +16,7 @@ interface Email {
   label: string;
   email: string;
   note?: string;
+  isPrimary?: boolean;
 }
 
 interface EmailCardProps {
@@ -38,7 +39,8 @@ export function EmailCard({
   const [currentEmail, setCurrentEmail] = useState({ 
     label: "Home", 
     email: "", 
-    note: "" 
+    note: "",
+    isPrimary: false
   });
   const [errors, setErrors] = useState({ email: "" });
 
@@ -61,7 +63,7 @@ export function EmailCard({
   const handleAddClick = () => {
     setIsModalOpen(true);
     setEditingEmail(null);
-    setCurrentEmail({ label: "Home", email: "", note: "" });
+    setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
     setErrors({ email: "" });
     if (onAddClick) onAddClick();
   };
@@ -73,7 +75,8 @@ export function EmailCard({
     setCurrentEmail({
       label: email.label,
       email: email.email,
-      note: email.note || ""
+      note: email.note || "",
+      isPrimary: email.isPrimary || false
     });
     setErrors({ email: "" });
   };
@@ -88,7 +91,7 @@ export function EmailCard({
     if (onSave) onSave(updatedEmails);
     setIsModalOpen(false);
     setEditingEmail(null);
-    setCurrentEmail({ label: "Home", email: "", note: "" });
+    setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
     setErrors({ email: "" });
   };
 
@@ -102,7 +105,7 @@ export function EmailCard({
       updatedEmails = emails.map(email => 
         email.id === editingEmail.id 
           ? { ...email, ...currentEmail }
-          : email
+          : currentEmail.isPrimary ? { ...email, isPrimary: false } : email
       );
     } else {
       // Add new email
@@ -110,20 +113,22 @@ export function EmailCard({
         id: Date.now().toString(),
         ...currentEmail
       };
-      updatedEmails = [...emails, newEmail];
+      updatedEmails = currentEmail.isPrimary 
+        ? [...emails.map(e => ({ ...e, isPrimary: false })), newEmail]
+        : [...emails, newEmail];
     }
 
     if (onSave) onSave(updatedEmails);
 
     setIsModalOpen(false);
     setEditingEmail(null);
-    setCurrentEmail({ label: "Home", email: "", note: "" });
+    setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
     setErrors({ email: "" });
   };
 
   const handleCancel = () => {
     setEditingEmail(null);
-    setCurrentEmail({ label: "Home", email: "", note: "" });
+    setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
     setErrors({ email: "" });
     setIsModalOpen(false);
   };
@@ -132,6 +137,18 @@ export function EmailCard({
     { label: "Cancel", onClick: handleCancel, variant: "outline" as const },
     { label: "Save", onClick: handleSave, variant: "default" as const }
   ];
+
+  // Format display value similar to PhoneCard
+  const formatEmailDisplay = (email: Email) => {
+    let display = email.email;
+    if (email.note && email.note.trim() !== "") {
+      display += ` - ${email.note}`;
+    }
+    if (email.isPrimary) {
+      display += " (Primary)";
+    }
+    return display;
+  };
 
   return (
     <>
@@ -161,7 +178,7 @@ export function EmailCard({
               >
                 <KeyValueDisplay
                   label={email.label}
-                  value={email.email}
+                  value={formatEmailDisplay(email)}
                   className="justify-start flex-1"
                 />
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -245,6 +262,23 @@ export function EmailCard({
                 rows={3}
                 className="resize-none"
               />
+            </div>
+
+            {/* Primary Email Checkbox */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isPrimary"
+                checked={currentEmail.isPrimary}
+                onChange={(e) => setCurrentEmail({ ...currentEmail, isPrimary: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <Label
+                htmlFor="isPrimary"
+                className="text-sm font-medium cursor-pointer"
+              >
+                Set as primary email
+              </Label>
             </div>
           </div>
         </div>
