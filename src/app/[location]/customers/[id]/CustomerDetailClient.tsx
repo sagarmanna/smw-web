@@ -23,11 +23,13 @@ import {
   getCustomerSummary,
   getCustomerInfo,
   getCustomerEnrolments,
+  getCustomerProformaInvoices,
+  getCustomerComments,
   CustomerSummaryData,
   CustomerInfoData,
 } from "../customers.api";
 import { SummaryCard } from "@/components/SummaryCard";
-import { BookOpen, FileText, Star, DollarSign } from "lucide-react";
+import { BookOpen, FileText, Star, DollarSign, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
@@ -466,6 +468,17 @@ export function CustomerDetailClient({
   const [groupLessonsLoading, setGroupLessonsLoading] =
     React.useState<boolean>(false);
 
+  // Pro-forma invoices server-side pagination state
+  const [proformaInvoicesPagination, setProformaInvoicesPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [proformaInvoicesLoading, setProformaInvoicesLoading] =
+    React.useState<boolean>(false);
+
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
   const [emails, setEmails] = React.useState<Email[]>([]);
@@ -738,9 +751,26 @@ export function CustomerDetailClient({
           setGroupLessonsLoading(false);
         }
 
-        // Load other tab data (mock data for now)
-        setProformaInvoiceData(mockCustomerTabData.proformaInvoiceData);
-        setCommentData(mockCustomerTabData.commentData);
+        // Load pro-forma invoices tab data from API (server-side pagination)
+        try {
+          setProformaInvoicesLoading(true);
+          const { data: proformas, pagination: pfPagination } =
+            await getCustomerProformaInvoices(location, Number(id), 1, 10);
+          setProformaInvoiceData(proformas);
+          setProformaInvoicesPagination(pfPagination);
+        } catch {
+          setProformaInvoiceData([]);
+          setProformaInvoicesPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+        } finally {
+          setProformaInvoicesLoading(false);
+        }
+        // Load comments tab data from API
+        try {
+          const comments = await getCustomerComments(location, Number(id));
+          setCommentData(comments);
+        } catch {
+          setCommentData([]);
+        }
         setHistoryData(mockCustomerTabData.historyData);
       } catch (error) {
         console.error("Error loading customer data:", error);
@@ -1183,9 +1213,10 @@ export function CustomerDetailClient({
 
             const isPrivateLessonsTab = tabKey === "private-lessons";
             const isGroupLessonsTab = tabKey === "group-lessons";
+            const isProformaInvoicesTab = tabKey === "proforma-invoices";
 
             let data = fullData;
-            if (!isPrivateLessonsTab && !isGroupLessonsTab) {
+            if (!isPrivateLessonsTab && !isGroupLessonsTab && !isProformaInvoicesTab) {
               const startIndex = pagination
                 ? (pagination.page - 1) * pagination.limit
                 : 0;
@@ -1198,7 +1229,8 @@ export function CustomerDetailClient({
             const shouldShowPagination =
               (pagination && pagination.total > 10) ||
               (isPrivateLessonsTab && privateLessonsPagination.total > privateLessonsPagination.limit) ||
-              (isGroupLessonsTab && groupLessonsPagination.total > groupLessonsPagination.limit);
+              (isGroupLessonsTab && groupLessonsPagination.total > groupLessonsPagination.limit) ||
+              (isProformaInvoicesTab && proformaInvoicesPagination.total > proformaInvoicesPagination.limit);
 
             const isLoading =
               tabKey === "students"
@@ -1207,6 +1239,8 @@ export function CustomerDetailClient({
                 ? privateLessonsLoading || loading
                 : isGroupLessonsTab
                 ? groupLessonsLoading || loading
+                : isProformaInvoicesTab
+                ? proformaInvoicesLoading || loading
                 : loading;
             const error = tabKey === "students" ? studentsError : null;
 
@@ -1225,6 +1259,30 @@ export function CustomerDetailClient({
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
+                </div>
+              ) : undefined;
+
+            const commentsCustomContent =
+              tabKey === "comments" ? (
+                <div className="space-y-4">
+                  {Array.isArray(commentData) && commentData.length > 0 ? (
+                    commentData.map((c: CommentData, idx: number) => (
+                      <div key={c.id ?? idx} className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center border">
+                            <User className="h-6 w-6 text-gray-500" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-600">{c.createdUser}</div>
+                            <div className="text-sm text-gray-800 dark:text-gray-200">{c.content}</div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 whitespace-nowrap">{c.createdOn}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">No comments found.</div>
+                  )}
                 </div>
               ) : undefined;
 
@@ -1248,6 +1306,7 @@ export function CustomerDetailClient({
                   }}
                   emptyState={config.emptyState}
                   hasTable={config.hasTable}
+                  customContent={commentsCustomContent}
                   bottomContent={commentsBottomContent}
                   enablePagination={shouldShowPagination}
                   serverSidePagination={
@@ -1255,6 +1314,8 @@ export function CustomerDetailClient({
                       ? privateLessonsPagination
                       : isGroupLessonsTab
                       ? groupLessonsPagination
+                      : isProformaInvoicesTab
+                      ? proformaInvoicesPagination
                       : shouldShowPagination
                       ? tabPagination[tabKey]
                       : undefined
@@ -1289,6 +1350,36 @@ export function CustomerDetailClient({
                               setGroupLessonsPagination(pagination);
                             })
                             .finally(() => setGroupLessonsLoading(false));
+                        }
+                      : isGroupLessonsTab
+                      ? (page: number) => {
+                          setGroupLessonsLoading(true);
+                          getCustomerGroupLessons(
+                            location,
+                            Number(id),
+                            page,
+                            groupLessonsPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setGroupLessonData(data);
+                              setGroupLessonsPagination(pagination);
+                            })
+                            .finally(() => setGroupLessonsLoading(false));
+                        }
+                      : isProformaInvoicesTab
+                      ? (page: number) => {
+                          setProformaInvoicesLoading(true);
+                          getCustomerProformaInvoices(
+                            location,
+                            Number(id),
+                            page,
+                            proformaInvoicesPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setProformaInvoiceData(data);
+                              setProformaInvoicesPagination(pagination);
+                            })
+                            .finally(() => setProformaInvoicesLoading(false));
                         }
                       : shouldShowPagination
                       ? (page: number) => handleTabPageChange(tabKey, page)
@@ -1325,6 +1416,36 @@ export function CustomerDetailClient({
                             })
                             .finally(() => setGroupLessonsLoading(false));
                         }
+                      : isGroupLessonsTab
+                      ? (rowsPerPage: number) => {
+                          setGroupLessonsLoading(true);
+                          getCustomerGroupLessons(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setGroupLessonData(data);
+                              setGroupLessonsPagination(pagination);
+                            })
+                            .finally(() => setGroupLessonsLoading(false));
+                        }
+                      : isProformaInvoicesTab
+                      ? (rowsPerPage: number) => {
+                          setProformaInvoicesLoading(true);
+                          getCustomerProformaInvoices(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setProformaInvoiceData(data);
+                              setProformaInvoicesPagination(pagination);
+                            })
+                            .finally(() => setProformaInvoicesLoading(false));
+                        }
                       : shouldShowPagination
                       ? (rowsPerPage: number) =>
                           handleTabRowsPerPageChange(tabKey, rowsPerPage)
@@ -1335,6 +1456,8 @@ export function CustomerDetailClient({
                       ? privateLessonsPagination.limit
                       : isGroupLessonsTab
                       ? groupLessonsPagination.limit
+                      : isProformaInvoicesTab
+                      ? proformaInvoicesPagination.limit
                       : tabRowsPerPage[tabKey] || 10
                   }
                   rowsPerPageOptions={[5, 10, 20, 50, 100]}
