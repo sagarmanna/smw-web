@@ -458,13 +458,12 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
 
   // Group lessons server-side pagination state
-  const [groupLessonsPagination, setGroupLessonsPagination] =
-    React.useState({
-      page: 1,
-      limit: 10,
-      total: 0,
-      totalPages: 0,
-    });
+  const [groupLessonsPagination, setGroupLessonsPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
   const [groupLessonsLoading, setGroupLessonsLoading] =
     React.useState<boolean>(false);
 
@@ -732,7 +731,11 @@ export function CustomerDetailClient({
           setPrivateLessonsPagination(plPagination);
         } catch {
           setPrivateLessonData([]);
-          setPrivateLessonsPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+          setPrivateLessonsPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
         } finally {
           setPrivateLessonsLoading(false);
         }
@@ -746,7 +749,11 @@ export function CustomerDetailClient({
           setGroupLessonsPagination(glPagination);
         } catch {
           setGroupLessonData([]);
-          setGroupLessonsPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+          setGroupLessonsPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
         } finally {
           setGroupLessonsLoading(false);
         }
@@ -760,7 +767,11 @@ export function CustomerDetailClient({
           setProformaInvoicesPagination(pfPagination);
         } catch {
           setProformaInvoiceData([]);
-          setProformaInvoicesPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+          setProformaInvoicesPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
         } finally {
           setProformaInvoicesLoading(false);
         }
@@ -1018,6 +1029,8 @@ export function CustomerDetailClient({
               phones={phones}
               onSave={(newPhones) => setPhones(newPhones)}
               loading={loading}
+              location={location}
+              customerId={Number(id)}
             />
           </div>
         </div>
@@ -1039,6 +1052,8 @@ export function CustomerDetailClient({
               phones={phones}
               onSave={(newPhones) => setPhones(newPhones)}
               loading={loading}
+              location={location}
+              customerId={Number(id)}
             />
           </div>
 
@@ -1216,7 +1231,11 @@ export function CustomerDetailClient({
             const isProformaInvoicesTab = tabKey === "proforma-invoices";
 
             let data = fullData;
-            if (!isPrivateLessonsTab && !isGroupLessonsTab && !isProformaInvoicesTab) {
+            if (
+              !isPrivateLessonsTab &&
+              !isGroupLessonsTab &&
+              !isProformaInvoicesTab
+            ) {
               const startIndex = pagination
                 ? (pagination.page - 1) * pagination.limit
                 : 0;
@@ -1228,9 +1247,14 @@ export function CustomerDetailClient({
 
             const shouldShowPagination =
               (pagination && pagination.total > 10) ||
-              (isPrivateLessonsTab && privateLessonsPagination.total > privateLessonsPagination.limit) ||
-              (isGroupLessonsTab && groupLessonsPagination.total > groupLessonsPagination.limit) ||
-              (isProformaInvoicesTab && proformaInvoicesPagination.total > proformaInvoicesPagination.limit);
+              (isPrivateLessonsTab &&
+                privateLessonsPagination.total >
+                  privateLessonsPagination.limit) ||
+              (isGroupLessonsTab &&
+                groupLessonsPagination.total > groupLessonsPagination.limit) ||
+              (isProformaInvoicesTab &&
+                proformaInvoicesPagination.total >
+                  proformaInvoicesPagination.limit);
 
             const isLoading =
               tabKey === "students"
@@ -1267,21 +1291,32 @@ export function CustomerDetailClient({
                 <div className="space-y-4">
                   {Array.isArray(commentData) && commentData.length > 0 ? (
                     commentData.map((c: CommentData, idx: number) => (
-                      <div key={c.id ?? idx} className="flex items-start justify-between gap-4">
+                      <div
+                        key={c.id ?? idx}
+                        className="flex items-start justify-between gap-4"
+                      >
                         <div className="flex items-start gap-3">
                           <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center border">
                             <User className="h-6 w-6 text-gray-500" />
                           </div>
                           <div>
-                            <div className="font-semibold text-blue-600">{c.createdUser}</div>
-                            <div className="text-sm text-gray-800 dark:text-gray-200">{c.content}</div>
+                            <div className="font-semibold text-blue-600">
+                              {c.createdUser}
+                            </div>
+                            <div className="text-sm text-gray-800 dark:text-gray-200">
+                              {c.content}
+                            </div>
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500 whitespace-nowrap">{c.createdOn}</div>
+                        <div className="text-xs text-gray-500 whitespace-nowrap">
+                          {c.createdOn}
+                        </div>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-gray-500">No comments found.</div>
+                    <div className="text-center py-8 text-gray-500">
+                      No comments found.
+                    </div>
                   )}
                 </div>
               ) : undefined;
