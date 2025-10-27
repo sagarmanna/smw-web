@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import * as Highcharts from "highcharts";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
@@ -162,6 +162,20 @@ export function PieChart({ data, type }: PropsType) {
       chartKey: key
     };
   }, [data, type, isDark]);
+
+  // Simple fix for pagination visibility
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .highcharts-legend-navigation { 
+        fill: ${isDark ? '#e5e7eb' : '#374151'} !important; 
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, [isDark]);
 
   // Handle empty data case
   if (!data || data.length === 0) {
