@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/api/client';
+import { apiClient } from "@/lib/api/client";
 
 export interface EmailData {
   id: number;
@@ -9,7 +9,7 @@ export interface EmailData {
 }
 
 export interface CreateEmailRequest {
-  type: 'email';
+  type: "email";
   data: {
     email: string;
     note?: string;
@@ -19,7 +19,7 @@ export interface CreateEmailRequest {
 }
 
 export interface UpdateEmailRequest {
-  type: 'email';
+  type: "email";
   data: {
     id: number;
     email: string;
@@ -30,7 +30,7 @@ export interface UpdateEmailRequest {
 }
 
 export interface DeleteEmailRequest {
-  type: 'email';
+  type: "email";
   id: string;
 }
 
@@ -60,27 +60,27 @@ export interface DeleteEmailResponse {
 export async function createCustomerEmail(
   location: string,
   customerId: number,
-  emailData: CreateEmailRequest['data']
+  emailData: CreateEmailRequest["data"]
 ): Promise<EmailResponse | null> {
   try {
     const requestBody: CreateEmailRequest = {
-      type: 'email',
-      data: emailData
+      type: "email",
+      data: emailData,
     };
 
     const response = await apiClient.post<EmailResponse>(
       `/admin/v2/${location}/customers/${customerId}/info`,
       requestBody
     );
-    
+
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error creating customer email:', error);
+
     return {
       success: false,
-      message: apiError.response?.data?.message || 'Failed to create email',
-      data: []
+      message: apiError.response?.data?.message || "Failed to create email",
+      data: [],
     };
   }
 }
@@ -95,27 +95,26 @@ export async function createCustomerEmail(
 export async function updateCustomerEmail(
   location: string,
   customerId: number,
-  emailData: UpdateEmailRequest['data']
+  emailData: UpdateEmailRequest["data"]
 ): Promise<EmailResponse | null> {
   try {
     const requestBody: UpdateEmailRequest = {
-      type: 'email',
-      data: emailData
+      type: "email",
+      data: emailData,
     };
 
     const response = await apiClient.put<EmailResponse>(
       `/admin/v2/${location}/customers/${customerId}/info`,
       requestBody
     );
-    
+
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error updating customer email:', error);
     return {
       success: false,
-      message: apiError.response?.data?.message || 'Failed to update email',
-      data: []
+      message: apiError.response?.data?.message || "Failed to update email",
+      data: [],
     };
   }
 }
@@ -134,29 +133,28 @@ export async function deleteCustomerEmail(
 ): Promise<DeleteEmailResponse | null> {
   try {
     const requestBody: DeleteEmailRequest = {
-      type: 'email',
-      id: emailId
+      type: "email",
+      id: emailId,
     };
 
     const response = await apiClient.delete<DeleteEmailResponse>(
       `/admin/v2/${location}/customers/${customerId}/info`,
       {
-        data: requestBody
+        data: requestBody,
       }
     );
-    
+
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error deleting customer email:', error);
     return {
       success: false,
-      message: apiError.response?.data?.message || 'Failed to delete email',
+      message: apiError.response?.data?.message || "Failed to delete email",
       data: {
         id: emailId,
-        type: 'email',
-        deleted: false
-      }
+        type: "email",
+        deleted: false,
+      },
     };
   }
 }
@@ -178,14 +176,13 @@ export async function getCustomerEmails(
         email: EmailData[];
       };
     }>(`/admin/v2/${location}/customers/${customerId}/info`);
-    
+
     if (response.data.success && response.data.data.email) {
       return response.data.data.email;
     }
-    
+
     return [];
-  } catch (error: unknown) {
-    console.error('Error fetching customer emails:', error);
+  } catch {
     return [];
   }
 }
