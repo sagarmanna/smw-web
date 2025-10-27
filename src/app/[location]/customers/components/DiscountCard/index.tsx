@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Pencil } from "lucide-react";
 import { updateCustomerDiscount } from "../DiscountCard/discountCard.api";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface DiscountCardProps {
   discount?: number;
@@ -28,7 +28,6 @@ export function DiscountCard({
   location,
   customerId
 }: DiscountCardProps) {
-  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [discountValue, setDiscountValue] = useState("");
   const [showError, setShowError] = useState(false);
@@ -72,11 +71,7 @@ export function DiscountCard({
       );
 
       if (response?.success) {
-        toast({
-          title: "Success",
-          description: response.message || "Discount updated successfully",
-          variant: "default",
-        });
+        toast.success(response.message || "Discount updated successfully");
 
         if (onSave) {
           onSave(numDiscount);
@@ -87,19 +82,11 @@ export function DiscountCard({
         setHasTyped(false);
         setIsModalOpen(false);
       } else {
-        toast({
-          title: "Error",
-          description: response?.message || "Failed to update discount",
-          variant: "destructive",
-        });
+        toast.error(response?.message || "Failed to update discount");
       }
     } catch (error) {
       console.error("Error saving discount:", error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred while saving the discount",
-        variant: "destructive",
-      });
+      toast.error("An unexpected error occurred while saving the discount");
     } finally {
       setIsSaving(false);
     }
