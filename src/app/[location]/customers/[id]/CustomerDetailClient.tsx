@@ -39,6 +39,10 @@ import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
+import AddStudentModal from "../components/AddStudentModal/index";
+import EmailStatementModal, {
+  EmailFormData,
+} from "../components/EmailStatementModal/index";
 
 import {
   InvoiceData,
@@ -62,8 +66,6 @@ import {
   HistoryData,
 } from "../tabConfigs";
 import { mockCustomerTabData } from "../mockData/customersMockData";
-import AddStudentModal from "../components/AddStudentModal/index";
-import EmailStatementModal, { EmailFormData } from "../components/EmailStatementModal/index";
 
 interface PhoneNumber {
   id: string;
@@ -126,6 +128,17 @@ export function CustomerDetailClient({
   const [outstandingInvoicesLoading, setOutstandingInvoicesLoading] =
     React.useState<boolean>(false);
 
+  // Equipment rentals pagination state
+  const [equipmentRentalsPagination, setEquipmentRentalsPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [equipmentRentalsLoading, setEquipmentRentalsLoading] =
+    React.useState<boolean>(false);
+
   // Simple pagination state for all tabs - CONSOLIDATED (removed duplicates)
   const [tabPagination, setTabPagination] = React.useState<
     Record<
@@ -141,8 +154,6 @@ export function CustomerDetailClient({
   const [tabRowsPerPage, setTabRowsPerPage] = React.useState<
     Record<string, number>
   >({});
-  const [showAllEquipment, setShowAllEquipment] =
-    React.useState<boolean>(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] =
     React.useState<boolean>(false);
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] =
@@ -173,7 +184,7 @@ export function CustomerDetailClient({
 
   // Handle adding new student
   const handleAddStudent = (studentData: StudentData) => {
-    setStudentData((prev) => [...prev, studentData]);
+    setStudentData((prev: StudentData[]) => [...prev, studentData]);
     setStudentsPagination((prev) => ({
       ...prev,
       total: prev.total + 1,
@@ -247,6 +258,56 @@ export function CustomerDetailClient({
     [location, id]
   );
 
+  // Handle equipment rentals pagination
+  const handleEquipmentRentalsPageChange = React.useCallback(
+    async (page: number) => {
+      setEquipmentRentalsLoading(true);
+      try {
+        const limit =
+          equipmentRentalsPagination.limit === -1
+            ? 99999
+            : equipmentRentalsPagination.limit;
+        const result = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          page,
+          limit
+        );
+
+        setEquipmentRentalData(result.data);
+        setEquipmentRentalsPagination(result.pagination);
+      } catch (error) {
+        console.error("Error loading equipment rentals:", error);
+      } finally {
+        setEquipmentRentalsLoading(false);
+      }
+    },
+    [location, id, equipmentRentalsPagination.limit]
+  );
+
+  const handleEquipmentRentalsRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      setEquipmentRentalsLoading(true);
+      try {
+        const limit = rowsPerPage === -1 ? 99999 : rowsPerPage;
+        const result = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          1,
+          limit
+        );
+
+        setEquipmentRentalData(result.data);
+        setEquipmentRentalsPagination(result.pagination);
+      } catch (error) {
+        console.error("Error loading equipment rentals:", error);
+      } finally {
+        setEquipmentRentalsLoading(false);
+      }
+    },
+    [location, id]
+  );
+
   // Simple pagination handlers for all tabs (following AccountReceivableClient pattern)
   const handleTabPageChange = React.useCallback(
     (tabKey: string, page: number) => {
@@ -279,11 +340,22 @@ export function CustomerDetailClient({
     setIsRecurringPaymentModalOpen(false);
   };
 
-  const handleAddEquipmentRental = () => {
+  // Handle adding new equipment rental
+  const handleAddEquipmentRental = async (data: unknown) => {
     setIsEquipmentRentalsModalOpen(false);
+    // Reload equipment rentals after adding new one
+    const result = await getCustomerEquipmentRentals(
+      location,
+      Number(id),
+      equipmentRentalsPagination.page,
+      equipmentRentalsPagination.limit
+    );
+    setEquipmentRentalData(result.data);
+    setEquipmentRentalsPagination(result.pagination);
   };
 
-  const handleSendEmailStatement = () => {
+  const handleSendEmailStatement = (emailData: EmailFormData) => {
+    console.log("Sending email statement:", emailData);
     setIsEmailStatementModalOpen(false);
     // Show success toast notification
   };
@@ -320,7 +392,7 @@ export function CustomerDetailClient({
     setIsReceivePaymentModalOpen(false);
   };
 
-  // ADD THIS HELPER FUNCTION
+  // Helper function to calculate amount needed
   const calculateAmountNeeded = () => {
     const parseAmount = (value: string) => {
       const num = parseFloat(value.replace(/[$,]/g, ""));
@@ -375,7 +447,8 @@ export function CustomerDetailClient({
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [discount, setDiscount] = React.useState<number>(0);
   const [openingBalance, setOpeningBalance] = React.useState<number>(0);
-  const [hasOpeningBalance, setHasOpeningBalance] = React.useState<boolean>(false);
+  const [hasOpeningBalance, setHasOpeningBalance] =
+    React.useState<boolean>(false);
 
   // Calculate footer for private lesson due
   const privateLessonDueTotal = privateLessonDueData.reduce(
@@ -529,9 +602,6 @@ export function CustomerDetailClient({
           // FIXED: Opening balance handling
           if (infoResponse.data.openingBalance) {
             const amount = infoResponse.data.openingBalance.amount || 0;
-            // API returns the amount with correct sign:
-            // negative amount = credit (customer has money)
-            // positive amount = owing (customer owes money)
             setOpeningBalance(amount);
             setHasOpeningBalance(true);
           }
@@ -555,17 +625,27 @@ export function CustomerDetailClient({
           outstandingInvoicesResult.footer.totalAmount
         );
 
+        // Load equipment rentals with pagination
+        setEquipmentRentalsLoading(true);
+        const equipmentRentalsResult = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          1,
+          10
+        );
+        setEquipmentRentalData(equipmentRentalsResult.data);
+        setEquipmentRentalsPagination(equipmentRentalsResult.pagination);
+        setEquipmentRentalsLoading(false);
+
         // Load other table data in parallel
         const [
           invoices,
-          equipmentRentals,
           recurringPayments,
           privateLessonDue,
           groupLessonDue,
           payments,
         ] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
-          getCustomerEquipmentRentals(location, Number(id)),
           getCustomerRecurringPayments(location, Number(id)),
           getCustomerPrivateLessonDue(location, Number(id)),
           getCustomerGroupLessonDue(location, Number(id)),
@@ -573,7 +653,6 @@ export function CustomerDetailClient({
         ]);
 
         setInvoiceData(invoices || []);
-        setEquipmentRentalData(equipmentRentals || []);
         setRecurringPaymentData(recurringPayments || []);
         setPrivateLessonDueData(privateLessonDue || []);
         setGroupLessonDueData(groupLessonDue || []);
@@ -700,7 +779,7 @@ export function CustomerDetailClient({
     []
   );
 
-  // UPDATED: Define action menu groups with Receive Payment handler
+  // Define action menu groups
   const customerActionMenuGroups: ActionMenuGroup[] = [
     {
       label: "Actions",
@@ -710,7 +789,11 @@ export function CustomerDetailClient({
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
         { label: "Print Statement", onClick: () => {} },
-        { label: "Email Statement", onClick: () => setIsEmailStatementModalOpen(true) },
+        { label: "Print Statement", onClick: () => {} },
+        {
+          label: "Email Statement",
+          onClick: () => setIsEmailStatementModalOpen(true),
+        },
         { label: "A/R Report Detail", onClick: () => {} },
         { label: "Items Purchased by Category", onClick: () => {} },
         { label: "Notify Via Email", onClick: () => {} },
@@ -794,7 +877,6 @@ export function CustomerDetailClient({
           />
 
           {/* Invoices Table */}
-          {/* Invoices Table */}
           <InvoiceTable
             data={invoiceData}
             loading={loading}
@@ -826,17 +908,15 @@ export function CustomerDetailClient({
               CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter
             }
             iconType="none"
-            // Enable "Show All" checkbox (no rows per page dropdown)
             enableShowAll={true}
             showAllLabel="Show All"
-            // Server-side pagination props
             serverSidePagination={outstandingInvoicesPagination}
             onServerSidePageChange={handleOutstandingInvoicesPageChange}
             rowsPerPage={outstandingInvoicesPagination.limit}
             onRowsPerPageChange={handleOutstandingInvoicesRowsPerPageChange}
             rowsPerPageOptions={[10]}
           />
-          
+
           {/* Mobile Email and Phone Cards - Only on Mobile */}
           <div className="lg:hidden space-y-3 sm:space-y-4">
             <EmailCard
@@ -892,12 +972,9 @@ export function CustomerDetailClient({
             customerId={id}
             location={location}
             onSave={(amount, balanceType) => {
-              // When saving from modal: owing = positive, credit = negative
               const savedAmount = balanceType === "credit" ? -amount : amount;
               setOpeningBalance(savedAmount);
               setHasOpeningBalance(true);
-              // TODO: Call API to save: 
-              // { amount: savedAmount, type: balanceType === "credit" ? "negative" : "positive" }
             }}
             loading={loading}
           />
@@ -916,7 +993,7 @@ export function CustomerDetailClient({
           title="Equipment Rentals"
           data={equipmentRentalData}
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
-          loading={loading}
+          loading={equipmentRentalsLoading || loading}
           onAdd={() => setIsEquipmentRentalsModalOpen(true)}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
@@ -929,6 +1006,13 @@ export function CustomerDetailClient({
             CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableRowsPerPage
           }
           iconType="plus"
+          enableShowAll={true}
+          showAllLabel="Show All"
+          serverSidePagination={equipmentRentalsPagination}
+          onServerSidePageChange={handleEquipmentRentalsPageChange}
+          rowsPerPage={equipmentRentalsPagination.limit}
+          onRowsPerPageChange={handleEquipmentRentalsRowsPerPageChange}
+          rowsPerPageOptions={[10]}
         />
 
         <TableCard
@@ -1035,10 +1119,8 @@ export function CustomerDetailClient({
             const fullData =
               tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
 
-            // Get pagination info for this tab
             const pagination = tabPagination[tabKey];
 
-            // Slice data based on current page and rows per page (like AccountReceivableClient)
             const startIndex = pagination
               ? (pagination.page - 1) * pagination.limit
               : 0;
@@ -1047,14 +1129,11 @@ export function CustomerDetailClient({
               : fullData.length;
             const data = fullData.slice(startIndex, endIndex);
 
-            // Show pagination if total records > 10
             const shouldShowPagination = pagination && pagination.total > 10;
 
-            // Use specific loading state for students tab
             const isLoading = tabKey === "students" ? studentsLoading : loading;
             const error = tabKey === "students" ? studentsError : null;
 
-            // Define bottom content for comments tab
             const commentsBottomContent =
               tabKey === "comments" ? (
                 <div className="mt-4 flex items-center space-x-2">
@@ -1094,7 +1173,6 @@ export function CustomerDetailClient({
                   emptyState={config.emptyState}
                   hasTable={config.hasTable}
                   bottomContent={commentsBottomContent}
-                  // Simple pagination following AccountReceivableClient pattern
                   enablePagination={shouldShowPagination}
                   serverSidePagination={
                     shouldShowPagination ? tabPagination[tabKey] : undefined
@@ -1119,6 +1197,8 @@ export function CustomerDetailClient({
           })}
         </Tabs>
       </div>
+
+      {/* Modals */}
 
       {/* Add Student Modal */}
       <AddStudentModal
@@ -1156,8 +1236,10 @@ export function CustomerDetailClient({
         open={isEmailStatementModalOpen}
         onOpenChange={setIsEmailStatementModalOpen}
         onSend={handleSendEmailStatement}
-        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
-        customerEmails={emails.map(e => e.email)}
+        customerName={
+          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+        }
+        customerEmails={emails.map((e) => e.email)}
         locationName="Arcadia Academy of Music"
         privateLessonDueData={privateLessonDueData}
         groupLessonDueData={groupLessonDueData}
