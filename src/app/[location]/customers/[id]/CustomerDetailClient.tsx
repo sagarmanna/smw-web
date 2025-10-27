@@ -20,6 +20,7 @@ import {
   getCustomerStudents,
   getCustomerSummary,
   getCustomerInfo,
+  getCustomerEnrolments,
   CustomerSummaryData,
   CustomerInfoData,
 } from "../customers.api";
@@ -677,8 +678,15 @@ export function CustomerDetailClient({
           setStudentsLoading(false);
         }
 
+        // Load enrolments data from API
+        try {
+          const enrolments = await getCustomerEnrolments(location, Number(id));
+          setEnrolmentData(enrolments);
+        } catch {
+          setEnrolmentData([]);
+        }
+
         // Load other tab data (mock data for now)
-        setEnrolmentData(mockCustomerTabData.enrolmentData);
         setPrivateLessonData(mockCustomerTabData.privateLessonData);
         setGroupLessonData(mockCustomerTabData.groupLessonData);
         setProformaInvoiceData(mockCustomerTabData.proformaInvoiceData);

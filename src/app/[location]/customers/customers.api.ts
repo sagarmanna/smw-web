@@ -8,7 +8,7 @@ import {
   GroupLessonDueData, 
   PaymentData 
 } from './tableConfigs';
-import { StudentData } from './tabConfigs';
+import { StudentData, EnrolmentData } from './tabConfigs';
 
 export interface CustomerRow {
   id: number;
@@ -607,6 +607,48 @@ export async function getCustomerStudents(
       `/admin/v2/${location}/customers/${customerId}/students`
     );
     
+    return response.data.data?.body || [];
+  } catch (error: unknown) {
+    return [];
+  }
+}
+
+// --------------------
+// Enrolments API function
+// --------------------
+
+export interface EnrolmentsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: Array<{
+      studentName: string;
+      programName: string;
+      teacherName: string;
+      day: string;
+      fromTime: string;
+      duration: string;
+      startDate: string;
+      renewalDate: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export async function getCustomerEnrolments(
+  location: string,
+  customerId: number
+): Promise<EnrolmentData[]> {
+  try {
+    const response = await apiClient.get<EnrolmentsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/enrolments`
+    );
+
     return response.data.data?.body || [];
   } catch (error: unknown) {
     return [];
