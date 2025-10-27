@@ -1023,6 +1023,8 @@ export function CustomerDetailClient({
               onAddClick={() => {}}
               onSave={setEmails}
               loading={loading}
+              location={location}
+              customerId={Number(id)}
             />
 
             <PhoneCard
@@ -1044,6 +1046,8 @@ export function CustomerDetailClient({
               onAddClick={() => {}}
               onSave={setEmails}
               loading={loading}
+              location={location}
+              customerId={Number(id)}
             />
           </div>
 
