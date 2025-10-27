@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { DetailHeader, ActionMenuGroup } from "@/components/DetailHeader";
+import { ActionMenuGroup } from "@/components/DetailHeader";
+import { DetailHeaderWithProfile } from "../components/DetailHeaderWithProfile";
 import {
   getCustomerById,
   CustomerRow,
@@ -173,7 +174,6 @@ export function CustomerDetailClient({
   // Handle adding new student
   const handleAddStudent = (studentData: StudentData) => {
     setStudentData((prev) => [...prev, studentData]);
-    // Update pagination when adding new student
     setStudentsPagination((prev) => ({
       ...prev,
       total: prev.total + 1,
@@ -279,26 +279,18 @@ export function CustomerDetailClient({
     setIsRecurringPaymentModalOpen(false);
   };
 
-  // Handle adding new equipment rental
-  const handleAddEquipmentRental = (_data: unknown) => {
+  const handleAddEquipmentRental = () => {
     setIsEquipmentRentalsModalOpen(false);
   };
 
-  // Handle email statement send
-  const handleSendEmailStatement = (_emailData: EmailFormData) => {
-    // TODO: Implement API call to send email statement
+  const handleSendEmailStatement = () => {
     setIsEmailStatementModalOpen(false);
     // Show success toast notification
   };
 
-  // Handle invoice actions
-  const handleAddInvoice = () => {
-    // TODO: Implement invoice creation logic
-  };
+  const handleAddInvoice = () => {};
 
-  const handlePrintInvoice = (_invoiceId: string) => {
-    // TODO: Implement invoice printing logic
-  };
+  const handlePrintInvoice = () => {};
 
   // Handle receiving payment
   const handleReceivePayment = (paymentData: {
@@ -343,7 +335,7 @@ export function CustomerDetailClient({
   const [equipmentRentalData, setEquipmentRentalData] = React.useState<
     EquipmentRentalData[]
   >([]);
-  const [recurringPaymentData, setRecurringPaymentData] = React.useState<
+  const [_recurringPaymentData, setRecurringPaymentData] = React.useState<
     RecurringPaymentData[]
   >([]);
   const [privateLessonDueData, setPrivateLessonDueData] = React.useState<
@@ -485,7 +477,7 @@ export function CustomerDetailClient({
               id: String(e.id),
               label: e.label,
               email: e.email,
-              note: e.note || "", // Ensure note is always included
+              note: e.note || "",
               isPrimary: e.isPrimary,
             }));
             setEmails(formattedEmails);
@@ -591,7 +583,7 @@ export function CustomerDetailClient({
             total: students.length,
             totalPages: Math.ceil(students.length / prev.limit),
           }));
-        } catch (error) {
+        } catch {
           setStudentsError("Failed to load students data");
           setStudentData([]);
         } finally {
@@ -724,7 +716,7 @@ export function CustomerDetailClient({
 
   return (
     <div className="bg-white dark:bg-black -mt-2">
-      <DetailHeader
+      <DetailHeaderWithProfile
         breadcrumbItems={[
           {
             label: "Customers",
@@ -739,6 +731,8 @@ export function CustomerDetailClient({
         loading={loading}
         actionMenuGroups={customerActionMenuGroups}
         actionButtonAriaLabel="Customer actions"
+        showProfileIcon={true}
+        profileIconSize="md"
       />
 
       {/* Payment History Cards */}
@@ -773,43 +767,26 @@ export function CustomerDetailClient({
         />
       </div>
 
-      {/* Details and Info Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
-        {/* Details Card */}
-        <DetailsCard
-          data={{
-            firstName: localFirstName,
-            lastName: localLastName,
-            role: role,
-            referralSource: referralSource,
-            status: status,
-            picture: picture,
-          }}
-          onSave={handleDetailsSave}
-          loading={loading}
-        />
-
-        {/* Right Column - Info Cards */}
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4 lg:items-start">
+        {/* Left Column */}
         <div className="space-y-3 sm:space-y-4">
-          <EmailCard
-            emails={emails}
-            onAddClick={() => {}}
-            onSave={setEmails}
+          {/* Details Card */}
+          <DetailsCard
+            data={{
+              firstName: localFirstName,
+              lastName: localLastName,
+              role: role,
+              referralSource: referralSource,
+              status: status,
+              picture: picture,
+            }}
+            onSave={handleDetailsSave}
             loading={loading}
           />
 
-          <PhoneCard
-            phones={phones}
-            onSave={(newPhones) => setPhones(newPhones)}
-            loading={loading}
-          />
-        </div>
-      </div>
-
-      {/* Tables and Additional Info Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
-        {/* Left Column - Main Tables */}
-        <div className="space-y-3 sm:space-y-4">
+          {/* Invoices Table */}
+          {/* Invoices Table */}
           <InvoiceTable
             data={invoiceData}
             loading={loading}
@@ -817,6 +794,7 @@ export function CustomerDetailClient({
             onPrintInvoice={handlePrintInvoice}
           />
 
+          {/* Outstanding Invoices */}
           <TableCard
             title="Outstanding Invoices"
             data={outstandingInvoiceData}
@@ -850,10 +828,44 @@ export function CustomerDetailClient({
             onRowsPerPageChange={handleOutstandingInvoicesRowsPerPageChange}
             rowsPerPageOptions={[10]}
           />
+          
+          {/* Mobile Email and Phone Cards - Only on Mobile */}
+          <div className="lg:hidden space-y-3 sm:space-y-4">
+            <EmailCard
+              emails={emails}
+              onAddClick={() => {}}
+              onSave={setEmails}
+              loading={loading}
+            />
+
+            <PhoneCard
+              phones={phones}
+              onSave={(newPhones) => setPhones(newPhones)}
+              loading={loading}
+            />
+          </div>
         </div>
 
         {/* Right Column - Info Cards */}
         <div className="space-y-3 sm:space-y-4">
+          {/* Desktop Email and Phone Cards */}
+          <div className="hidden lg:block">
+            <EmailCard
+              emails={emails}
+              onAddClick={() => {}}
+              onSave={setEmails}
+              loading={loading}
+            />
+          </div>
+
+          <div className="hidden lg:block">
+            <PhoneCard
+              phones={phones}
+              onSave={(newPhones) => setPhones(newPhones)}
+              loading={loading}
+            />
+          </div>
+
           <AddressCard
             addresses={addresses}
             onSave={(newAddresses) => setAddresses(newAddresses)}
@@ -913,7 +925,7 @@ export function CustomerDetailClient({
 
         <TableCard
           title="Recurring Payments"
-          data={recurringPaymentData}
+          data={_recurringPaymentData}
           columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
           loading={loading}
           onAdd={() => setIsRecurringPaymentModalOpen(true)}

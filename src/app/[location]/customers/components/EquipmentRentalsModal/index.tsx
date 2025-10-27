@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +66,7 @@ const InstrumentFormRow = React.memo(({
   onInputBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
 }) => {
   return (
-    <tr className="border-b">
+    <tr className="border-b dark:border-gray-700">
       <td className="p-2">
         <Select
           value={newInstrument.instrument}
@@ -128,7 +128,7 @@ const InstrumentFormRow = React.memo(({
           value={newInstrument.total}
           readOnly
           placeholder="0.00"
-          className="w-full bg-gray-50"
+          className="w-full bg-gray-50 dark:bg-gray-800"
         />
       </td>
     </tr>
@@ -296,7 +296,7 @@ export function EquipmentRentalsModal({
           <DialogTitle className="text-xl font-semibold">Equipment Rentals</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6  space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 space-y-4">
               {/* Customer and Rental Information Section */}
               <div className="space-y-4 p-6 ml-5">
                 
@@ -441,16 +441,16 @@ export function EquipmentRentalsModal({
                   </Select>
                   <Label className="w-24 ml-6">Return Date</Label>
                   <Input
-                    value={formData.returnDate ? format(formData.returnDate, "MMM dd,yyyy") : ""}
+                    value={formData.returnDate ? format(formData.returnDate, "MMM dd, yyyy") : ""}
                     readOnly
                     disabled={formData.onGoing}
-                    className="bg-gray-50 w-48"
-                    placeholder="Return Date"
+                    className="bg-gray-50 dark:bg-gray-800 w-48"
+                    placeholder={formData.onGoing ? "On Going" : "Select duration"}
                   />
                 </div>
 
                 {/* Row 8: Security Deposit */}
-                <div className="flex items-start p-5  gap-4">
+                <div className="flex items-start p-5 gap-4">
                   <Label className="text-lg font-medium w-48">Security Deposit</Label>
                   <RadioGroup
                     value={formData.securityDeposit}
@@ -461,7 +461,7 @@ export function EquipmentRentalsModal({
                       <RadioGroupItem value="yes" id="yes" />
                       <Label htmlFor="yes">Yes</Label>
                     </div>
-                    <div className="flex items-center  space-x-2">
+                    <div className="flex items-center space-x-2">
                       <RadioGroupItem value="no" id="no" />
                       <Label htmlFor="no">No</Label>
                     </div>
@@ -475,9 +475,9 @@ export function EquipmentRentalsModal({
                  <h3 className="text-lg font-medium">Instrument Details</h3>
                  
                  {/* Custom Table with Form Row */}
-                 <div className="border rounded-lg overflow-hidden">
+                 <div className="border rounded-lg overflow-hidden dark:border-gray-700">
                    <table className="w-full border-collapse">
-                     <thead className="bg-gray-50 border-b">
+                     <thead className="bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
                        <tr>
                          <th className="p-3 text-left font-medium">Instrument</th>
                          <th className="p-3 text-left font-medium">Retail Value</th>
@@ -497,7 +497,7 @@ export function EquipmentRentalsModal({
                        />
                        {/* Data Rows */}
                        {instruments.map((instrument) => (
-                         <tr key={instrument.id} className="border-b">
+                         <tr key={instrument.id} className="border-b dark:border-gray-700">
                            <td className="p-3 font-medium">{instrument.instrument}</td>
                            <td className="p-3 text-right">{instrument.retailValue}</td>
                            <td className="p-3">{instrument.assetTag}</td>
@@ -510,7 +510,7 @@ export function EquipmentRentalsModal({
                                  variant="ghost"
                                  size="sm"
                                  onClick={() => handleDeleteInstrument(instrument.id)}
-                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
                                >
                                  <Trash2 className="h-4 w-4" />
                                </Button>
@@ -541,7 +541,7 @@ export function EquipmentRentalsModal({
                 <Label>Tax :</Label>
                 <span className="font-medium">${tax.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-lg font-semibold border-t pt-2">
+              <div className="flex justify-between text-lg font-semibold border-t dark:border-gray-700 pt-2">
                 <Label>Total :</Label>
                 <span>${total.toFixed(2)}</span>
               </div>
@@ -549,7 +549,7 @@ export function EquipmentRentalsModal({
           </div>
         </div>
 
-        <DialogFooter className="flex justify-end gap-2 p-6 pt-4 border-t bg-background">
+        <DialogFooter className="flex justify-end gap-2 p-6 pt-4 border-t dark:border-gray-700 bg-background">
           <Button variant="outline" onClick={handleCancel}>
             Close
           </Button>
