@@ -150,6 +150,8 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
+  const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
+    React.useState<boolean>(false);
 
   // Local state for editable customer details
   const [localFirstName, setLocalFirstName] = React.useState<string>("");
@@ -287,6 +289,11 @@ export function CustomerDetailClient({
     // TODO: Implement API call to send email statement
     setIsEmailStatementModalOpen(false);
     // Show success toast notification
+  };
+
+  // Navigate to proforma invoice page
+  const handleProformaInvoiceNavigate = () => {
+    router.push(`/${location}/customers/${id}/proforma-invoice`);
   };
 
   // Handle invoice actions
@@ -1035,6 +1042,8 @@ export function CustomerDetailClient({
                   onAdd={() => {
                     if (tabKey === "students") {
                       setIsAddStudentModalOpen(true);
+                    } else if (tabKey === "proforma-invoices") {
+                      handleProformaInvoiceNavigate();
                     } else {
                       // TODO: Implement add functionality for other tabs
                     }

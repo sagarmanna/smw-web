@@ -423,7 +423,7 @@ export function CustomTable<TData, TValue>({
     <TooltipProvider>
       <div className={`w-full ${className || ""}`}>
         <div className={`flex flex-col gap-2 ${title ? 'md:flex-row md:items-center md:justify-between' : 'md:flex-row md:items-center md:justify-end'}`}>
-          {title && <h2 className="text-base font-semibold md:text-lg">{title}</h2>}
+          {title && <h2 className="text-base font-semibold md:text-lg whitespace-nowrap">{title}</h2>}
           
           <TableToolbar
             enableSearch={enableSearch}
