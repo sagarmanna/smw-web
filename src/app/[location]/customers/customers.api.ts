@@ -8,7 +8,7 @@ import {
   GroupLessonDueData, 
   PaymentData 
 } from './tableConfigs';
-import { StudentData, EnrolmentData } from './tabConfigs';
+import { StudentData, EnrolmentData, PrivateLessonData } from './tabConfigs';
 
 export interface CustomerRow {
   id: number;
@@ -652,5 +652,80 @@ export async function getCustomerEnrolments(
     return response.data.data?.body || [];
   } catch (error: unknown) {
     return [];
+  }
+}
+
+// --------------------
+// Private Lessons (tab) API function
+// --------------------
+
+export interface PrivateLessonsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: Array<{
+      dueDate: string;
+      studentName: string;
+      programName: string;
+      date: string;
+      duration: string;
+      status: string;
+      price: number;
+      owing: number;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export interface PrivateLessonsResult {
+  data: PrivateLessonData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export async function getCustomerPrivateLessons(
+  location: string,
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<PrivateLessonsResult> {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<PrivateLessonsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/private-lessons`,
+      { params }
+    );
+
+    return {
+      data: response.data.data?.body || [],
+      pagination: response.data.data?.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+  } catch (error: unknown) {
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
+    };
   }
 }

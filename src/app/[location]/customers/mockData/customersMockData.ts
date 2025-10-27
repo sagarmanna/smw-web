@@ -1,5 +1,4 @@
 import { 
-  PrivateLessonData, 
   GroupLessonData, 
   ProformaInvoiceData,
   ProformaInvoiceDetailData, 
@@ -19,23 +18,6 @@ export interface RecurringPaymentEnrolmentData {
 
 // Mock data for customer detail tabs
 export const mockCustomerTabData = {
-  privateLessonData: [
-    { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 13, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-    { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 20, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-    { dueDate: "Jul 15, 2025", studentName: "321123 123", programName: "Ukulele", date: "Oct 27, 2025 @ 08:00 AM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 13, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 13, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 16, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:00 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Core", date: "Oct 17, 2025 @ 09:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 10:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Guitar Core", date: "Oct 17, 2025 @ 11:15 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xTrombone", date: "Oct 18, 2025 @ 10:45 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xGuitar Contemporary", date: "Oct 20, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 27.03, owing: 27.03 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "xPiano Hybrid", date: "Oct 20, 2025 @ 12:00 PM", duration: "00:30", status: "Scheduled", price: 31.53, owing: 31.53 },
-    { dueDate: "Sep 15, 2025", studentName: "321123 123", programName: "Drums Core", date: "Oct 23, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50 },
-  ] as PrivateLessonData[],
-
   groupLessonData: [] as GroupLessonData[],
 
   proformaInvoiceData: [] as ProformaInvoiceData[],
