@@ -184,7 +184,7 @@ export function TableCard<TData = unknown>({
           enablePrint={enablePrint}
           enableSearch={enableSearch}
           enableFilter={enableFilter}
-          enableRowsPerPage={false}
+          enableRowsPerPage={enableRowsPerPage}
           className={className}
           isLoading={loading}
           // Pass through server-side pagination props (hide when showing all)
