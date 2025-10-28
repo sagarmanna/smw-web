@@ -24,7 +24,7 @@ import {
   getGeoData,
   AddressData,
   GeoData,
-} from "./address-card-api";
+} from "./address-card.api";
 
 interface Address {
   id: string;

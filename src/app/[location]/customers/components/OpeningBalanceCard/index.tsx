@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Eye } from "lucide-react";
 import { toast } from "sonner";
-import { createCustomerOpeningBalance } from "./opening-balance-api";
+import { createCustomerOpeningBalance } from "./opening-balance.api";
 
 interface OpeningBalanceCardProps {
   amount?: number;

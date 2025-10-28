@@ -16,7 +16,7 @@ import {
   updateCustomerEmail,
   deleteCustomerEmail,
   EmailData,
-} from "./email-card-api";
+} from "./email-card.api";
 
 interface Email {
   id: string;

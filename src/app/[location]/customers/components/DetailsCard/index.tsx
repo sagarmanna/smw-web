@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import Image from "next/image";
 import { getReferralSources, ReferralSourceData } from "../DetailsCard/referralSource";
-import { updateCustomerProfile } from "./detail-card-api";
+import { updateCustomerProfile } from "./detail-card.api";
 import { toast } from "sonner";
 
 
