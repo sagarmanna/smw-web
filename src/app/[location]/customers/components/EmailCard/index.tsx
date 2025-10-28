@@ -10,6 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+  createCustomerEmail,
+  updateCustomerEmail,
+  deleteCustomerEmail,
+  EmailData,
+} from "./email-card-api";
 
 interface Email {
   id: string;
@@ -25,6 +32,8 @@ interface EmailCardProps {
   onSave?: (emails: Email[]) => void;
   className?: string;
   loading?: boolean;
+  location: string;
+  customerId: number;
 }
 
 export function EmailCard({ 
@@ -32,7 +41,9 @@ export function EmailCard({
   onAddClick, 
   onSave,
   className,
-  loading = false
+  loading = false,
+  location,
+  customerId
 }: EmailCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmail, setEditingEmail] = useState<Email | null>(null);
@@ -43,6 +54,7 @@ export function EmailCard({
     isPrimary: false
   });
   const [errors, setErrors] = useState({ email: "" });
+  const [isSaving, setIsSaving] = useState(false);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,49 +93,96 @@ export function EmailCard({
     setErrors({ email: "" });
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    handleRemoveEmail(id);
+    
+    try {
+      const result = await deleteCustomerEmail(location, customerId, id);
+      
+      if (result?.success) {
+        toast.success("Email deleted successfully");
+        
+        // Update local state
+        const updatedEmails = emails.filter(email => email.id !== id);
+        if (onSave) onSave(updatedEmails);
+      } else {
+        toast.error(result?.message || "Failed to delete email");
+      }
+    } catch (error) {
+      console.error("Error deleting email:", error);
+      toast.error("Failed to delete email");
+    }
   };
 
-  const handleRemoveEmail = (id: string) => {
-    const updatedEmails = emails.filter(email => email.id !== id);
-    if (onSave) onSave(updatedEmails);
-    setIsModalOpen(false);
-    setEditingEmail(null);
-    setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
-    setErrors({ email: "" });
-  };
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
 
-    let updatedEmails: Email[];
+    setIsSaving(true);
 
-    if (editingEmail) {
-      // Update existing email
-      updatedEmails = emails.map(email => 
-        email.id === editingEmail.id 
-          ? { ...email, ...currentEmail }
-          : currentEmail.isPrimary ? { ...email, isPrimary: false } : email
-      );
-    } else {
-      // Add new email
-      const newEmail: Email = {
-        id: Date.now().toString(),
-        ...currentEmail
-      };
-      updatedEmails = currentEmail.isPrimary 
-        ? [...emails.map(e => ({ ...e, isPrimary: false })), newEmail]
-        : [...emails, newEmail];
+    try {
+      if (editingEmail) {
+        // Update existing email
+        const result = await updateCustomerEmail(location, customerId, {
+          id: Number(editingEmail.id),
+          email: currentEmail.email,
+          note: currentEmail.note || "",
+          label: currentEmail.label,
+          isPrimary: currentEmail.isPrimary
+        });
+
+        if (result?.success && result.data) {
+          toast.success("Email updated successfully");
+          
+          // Update local state with API response
+          const updatedEmails = result.data.map((e: EmailData) => ({
+            id: String(e.id),
+            label: e.label,
+            email: e.email,
+            note: e.note || "",
+            isPrimary: e.isPrimary
+          }));
+          
+          if (onSave) onSave(updatedEmails);
+        } else {
+          toast.error(result?.message || "Failed to update email");
+        }
+      } else {
+        // Create new email
+        const result = await createCustomerEmail(location, customerId, {
+          email: currentEmail.email,
+          note: currentEmail.note || "",
+          label: currentEmail.label,
+          isPrimary: currentEmail.isPrimary
+        });
+
+        if (result?.success && result.data) {
+          toast.success("Email added successfully");
+          
+          // Update local state with API response
+          const updatedEmails = result.data.map((e: EmailData) => ({
+            id: String(e.id),
+            label: e.label,
+            email: e.email,
+            note: e.note || "",
+            isPrimary: e.isPrimary
+          }));
+          
+          if (onSave) onSave(updatedEmails);
+        } else {
+          toast.error(result?.message || "Failed to add email");
+        }
+      }
+
+      setIsModalOpen(false);
+      setEditingEmail(null);
+      setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
+      setErrors({ email: "" });
+    } catch (error) {
+      console.error("Error saving email:", error);
+      toast.error("Failed to save email");
+    } finally {
+      setIsSaving(false);
     }
-
-    if (onSave) onSave(updatedEmails);
-
-    setIsModalOpen(false);
-    setEditingEmail(null);
-    setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
-    setErrors({ email: "" });
   };
 
   const handleCancel = () => {
@@ -135,7 +194,7 @@ export function EmailCard({
 
   const modalActions = [
     { label: "Cancel", onClick: handleCancel, variant: "outline" as const },
-    { label: "Save", onClick: handleSave, variant: "default" as const }
+    { label: isSaving ? "Saving..." : "Save", onClick: handleSave, variant: "default" as const, disabled: isSaving }
   ];
 
   // Format display value similar to PhoneCard
@@ -232,13 +291,18 @@ export function EmailCard({
                 }}
                 placeholder="Enter email address"
                 className={errors.email ? "border-red-500" : ""}
+                disabled={isSaving}
               />
               {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email-label">Label</Label>
-              <Select value={currentEmail.label} onValueChange={value => setCurrentEmail({ ...currentEmail, label: value })}>
+              <Select 
+                value={currentEmail.label} 
+                onValueChange={value => setCurrentEmail({ ...currentEmail, label: value })}
+                disabled={isSaving}
+              >
                 <SelectTrigger id="email-label">
                   <SelectValue />
                 </SelectTrigger>
@@ -261,6 +325,7 @@ export function EmailCard({
                 placeholder="Enter note"
                 rows={3}
                 className="resize-none"
+                disabled={isSaving}
               />
             </div>
 
@@ -272,6 +337,7 @@ export function EmailCard({
                 checked={currentEmail.isPrimary}
                 onChange={(e) => setCurrentEmail({ ...currentEmail, isPrimary: e.target.checked })}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                disabled={isSaving}
               />
               <Label
                 htmlFor="isPrimary"
