@@ -26,10 +26,10 @@ interface EmailStatementModalProps {
   }>;
   groupLessonDueData?: Array<{
     lessonDate: string;
-    student: string;
-    program: string;
-    teacher: string;
-    amount: number;
+    studentName: string;
+    programName: string;
+    teacherName: string;
+    amount: number | string;
   }>;
   invoiceData?: Array<{
     id: string;
@@ -177,11 +177,11 @@ export default function EmailStatementModal({
     <tbody>
       ${groupLessonDueData.map(lesson => `<tr style="border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.lessonDate}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.student}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.program}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacher}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.studentName}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.programName}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacherName}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
       </tr>`).join('')}
     </tbody>
   </table>

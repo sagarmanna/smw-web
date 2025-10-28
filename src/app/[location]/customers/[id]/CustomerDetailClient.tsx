@@ -431,6 +431,13 @@ export function CustomerDetailClient({
   const [groupLessonDueData, setGroupLessonDueData] = React.useState<
     GroupLessonDueData[]
   >([]);
+  const [groupLessonDuePagination, setGroupLessonDuePagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [groupLessonDueFooterTotal, setGroupLessonDueFooterTotal] = React.useState<string>("$0.00");
   const [paymentData, setPaymentData] = React.useState<PaymentData[]>([]);
   const [paymentsPagination, setPaymentsPagination] = React.useState({
     page: 1,
@@ -757,20 +764,34 @@ export function CustomerDetailClient({
           invoices,
           recurringPayments,
           privateLessonDue,
-          groupLessonDue,
           _paymentsIgnore,
         ] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
           getCustomerRecurringPayments(location, Number(id)),
           getCustomerPrivateLessonDue(location, Number(id)),
-          getCustomerGroupLessonDue(location, Number(id)),
           Promise.resolve([]),
         ]);
 
         setInvoiceData(invoices || []);
         setRecurringPaymentData(recurringPayments || []);
         setPrivateLessonDueData(privateLessonDue || []);
-        setGroupLessonDueData(groupLessonDue || []);
+
+        // Load group lesson dues with footer and pagination (no transform)
+        try {
+          const groupLessonDueResult = await getCustomerGroupLessonDue(
+            location,
+            Number(id),
+            1,
+            10
+          );
+          setGroupLessonDueData(groupLessonDueResult.data || []);
+          setGroupLessonDuePagination(groupLessonDueResult.pagination);
+          if (groupLessonDueResult.footer?.totalAmount) {
+            setGroupLessonDueFooterTotal(groupLessonDueResult.footer.totalAmount);
+          } else {
+            setGroupLessonDueFooterTotal("$0.00");
+          }
+        } catch {}
         // Load payments with footer (no transform)
         try {
           setPaymentsLoading(true);
@@ -1294,6 +1315,13 @@ export function CustomerDetailClient({
           data={groupLessonDueData}
           columns={CUSTOMER_TABLE_CONFIGS.groupLessonDue.columns}
           loading={loading}
+          footerRow={{
+            lessonDate: "",
+            studentName: "",
+            programName: "",
+            teacherName: "",
+            amount: groupLessonDueFooterTotal,
+          }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.groupLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.groupLessonDue.variant}
@@ -1302,10 +1330,44 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableFilter}
-          enableRowsPerPage={
-            CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableRowsPerPage
-          }
+          enableRowsPerPage={true}
           iconType="none"
+          enableShowAll={false}
+          
+          showAllLabel="Show All"
+          serverSidePagination={groupLessonDuePagination}
+          onServerSidePageChange={async (page: number) => {
+            try {
+              const result = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                page,
+                groupLessonDuePagination.limit === -1 ? 99999 : groupLessonDuePagination.limit
+              );
+              setGroupLessonDueData(result.data || []);
+              setGroupLessonDuePagination(result.pagination);
+              if (result.footer?.totalAmount) {
+                setGroupLessonDueFooterTotal(result.footer.totalAmount);
+              }
+            } catch {}
+          }}
+          rowsPerPage={groupLessonDuePagination.limit}
+          onRowsPerPageChange={async (limit: number) => {
+            try {
+              const result = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                1,
+                limit
+              );
+              setGroupLessonDueData(result.data || []);
+              setGroupLessonDuePagination(result.pagination);
+              if (result.footer?.totalAmount) {
+                setGroupLessonDueFooterTotal(result.footer.totalAmount);
+              }
+            } catch {}
+          }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
         />
 
         <TableCard

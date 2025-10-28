@@ -545,17 +545,61 @@ export async function getCustomerPrivateLessonDue(
   return [];
 }
 
+export interface GroupLessonDuesResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    body: GroupLessonDueData[];
+    footer?: Array<{ totalAmount: string }>;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export interface GroupLessonDuesResult {
+  data: GroupLessonDueData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  footer?: { totalAmount: string };
+}
+
 export async function getCustomerGroupLessonDue(
-  _location: string,
-  _customerId: number
-): Promise<GroupLessonDueData[]> {
-  const USE_MOCK = true;
-  
-  if (USE_MOCK) {
-    return [];
+  location: string,
+  customerId: number,
+  page?: number,
+  limit?: number
+): Promise<GroupLessonDuesResult> {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<GroupLessonDuesResponse>(
+      `/admin/v2/${location}/customers/${customerId}/group-lesson-dues`,
+      { params }
+    );
+    const pagination = response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
+    const footerArr = response.data.data?.footer || [];
+    return {
+      data: response.data.data?.body || [],
+      pagination,
+      footer: footerArr[0] ? { totalAmount: footerArr[0].totalAmount } : undefined,
+    };
+  } catch (error: unknown) {
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+      footer: { totalAmount: "$0.00" },
+    };
   }
-  
-  return [];
 }
 
 export interface PaymentsResponse {
