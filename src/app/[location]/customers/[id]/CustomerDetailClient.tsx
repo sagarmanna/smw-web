@@ -25,6 +25,7 @@ import {
   getCustomerEnrolments,
   getCustomerProformaInvoices,
   getCustomerComments,
+  getCustomerHistory,
   CustomerSummaryData,
   CustomerInfoData,
 } from "../customers.api";
@@ -115,7 +116,7 @@ export function CustomerDetailClient({
   const [loading, setLoading] = React.useState<boolean>(true);
   const [studentsLoading, setStudentsLoading] = React.useState<boolean>(false);
   const [studentsError, setStudentsError] = React.useState<string | null>(null);
-  const [_studentsPagination, setStudentsPagination] = React.useState({
+  const [studentsPagination, setStudentsPagination] = React.useState({
     page: 1,
     limit: 10,
     total: 0,
@@ -446,6 +447,24 @@ export function CustomerDetailClient({
   const [commentData, setCommentData] = React.useState<CommentData[]>([]);
   const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
 
+  // Enrolments server-side pagination state
+  const [enrolmentsPagination, setEnrolmentsPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [enrolmentsLoading, setEnrolmentsLoading] = React.useState<boolean>(false);
+
+  // History server-side pagination state
+  const [historyPagination, setHistoryPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [historyLoading, setHistoryLoading] = React.useState<boolean>(false);
+
   // Private lessons server-side pagination state
   const [privateLessonsPagination, setPrivateLessonsPagination] =
     React.useState({
@@ -695,31 +714,42 @@ export function CustomerDetailClient({
         setGroupLessonDueData(groupLessonDue || []);
         setPaymentData(payments || []);
 
-        // Load students data from API
+        // Load students data from API (server-side pagination)
         setStudentsLoading(true);
         setStudentsError(null);
         try {
-          const students = await getCustomerStudents(location, Number(id));
+          const { data: students, pagination: sPag } = await getCustomerStudents(
+            location,
+            Number(id),
+            1,
+            10
+          );
           setStudentData(students);
-          // Update pagination state based on API response
-          setStudentsPagination((prev) => ({
-            ...prev,
-            total: students.length,
-            totalPages: Math.ceil(students.length / prev.limit),
-          }));
+          setStudentsPagination(sPag);
         } catch {
           setStudentsError("Failed to load students data");
           setStudentData([]);
+          setStudentsPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
         } finally {
           setStudentsLoading(false);
         }
 
-        // Load enrolments data from API
+        // Load enrolments data from API (server-side pagination)
         try {
-          const enrolments = await getCustomerEnrolments(location, Number(id));
+          setEnrolmentsLoading(true);
+          const { data: enrolments, pagination: ePag } = await getCustomerEnrolments(
+            location,
+            Number(id),
+            1,
+            10
+          );
           setEnrolmentData(enrolments);
+          setEnrolmentsPagination(ePag);
         } catch {
           setEnrolmentData([]);
+          setEnrolmentsPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+        } finally {
+          setEnrolmentsLoading(false);
         }
 
         // Load private lessons tab data from API (server-side pagination)
@@ -782,7 +812,23 @@ export function CustomerDetailClient({
         } catch {
           setCommentData([]);
         }
-        setHistoryData(mockCustomerTabData.historyData);
+        // Load history tab data from API (server-side pagination)
+        try {
+          setHistoryLoading(true);
+          const { data: history, pagination: hPag } = await getCustomerHistory(
+            location,
+            Number(id),
+            1,
+            10
+          );
+          setHistoryData(history);
+          setHistoryPagination(hPag);
+        } catch {
+          setHistoryData([]);
+          setHistoryPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+        } finally {
+          setHistoryLoading(false);
+        }
       } catch (error) {
         console.error("Error loading customer data:", error);
       } finally {
@@ -1235,6 +1281,9 @@ export function CustomerDetailClient({
             const isPrivateLessonsTab = tabKey === "private-lessons";
             const isGroupLessonsTab = tabKey === "group-lessons";
             const isProformaInvoicesTab = tabKey === "proforma-invoices";
+            const isStudentsTab = tabKey === "students";
+            const isEnrolmentsTab = tabKey === "enrolments";
+            const isHistoryTab = tabKey === "history";
 
             let data = fullData;
             if (
@@ -1271,6 +1320,10 @@ export function CustomerDetailClient({
                 ? groupLessonsLoading || loading
                 : isProformaInvoicesTab
                 ? proformaInvoicesLoading || loading
+                : isEnrolmentsTab
+                ? enrolmentsLoading || loading
+                : isHistoryTab
+                ? historyLoading || loading
                 : loading;
             const error = tabKey === "students" ? studentsError : null;
 
@@ -1357,6 +1410,12 @@ export function CustomerDetailClient({
                       ? groupLessonsPagination
                       : isProformaInvoicesTab
                       ? proformaInvoicesPagination
+                      : isStudentsTab
+                      ? studentsPagination
+                      : isEnrolmentsTab
+                      ? enrolmentsPagination
+                      : isHistoryTab
+                      ? historyPagination
                       : shouldShowPagination
                       ? tabPagination[tabKey]
                       : undefined
@@ -1392,20 +1451,50 @@ export function CustomerDetailClient({
                             })
                             .finally(() => setGroupLessonsLoading(false));
                         }
-                      : isGroupLessonsTab
+                      : isStudentsTab
                       ? (page: number) => {
-                          setGroupLessonsLoading(true);
-                          getCustomerGroupLessons(
+                          setStudentsLoading(true);
+                          getCustomerStudents(
                             location,
                             Number(id),
                             page,
-                            groupLessonsPagination.limit
+                            studentsPagination.limit
                           )
                             .then(({ data, pagination }) => {
-                              setGroupLessonData(data);
-                              setGroupLessonsPagination(pagination);
+                              setStudentData(data);
+                              setStudentsPagination(pagination);
                             })
-                            .finally(() => setGroupLessonsLoading(false));
+                            .finally(() => setStudentsLoading(false));
+                        }
+                      : isEnrolmentsTab
+                      ? (page: number) => {
+                          setEnrolmentsLoading(true);
+                          getCustomerEnrolments(
+                            location,
+                            Number(id),
+                            page,
+                            enrolmentsPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setEnrolmentData(data);
+                              setEnrolmentsPagination(pagination);
+                            })
+                            .finally(() => setEnrolmentsLoading(false));
+                        }
+                      : isHistoryTab
+                      ? (page: number) => {
+                          setHistoryLoading(true);
+                          getCustomerHistory(
+                            location,
+                            Number(id),
+                            page,
+                            historyPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setHistoryData(data);
+                              setHistoryPagination(pagination);
+                            })
+                            .finally(() => setHistoryLoading(false));
                         }
                       : isProformaInvoicesTab
                       ? (page: number) => {
@@ -1457,20 +1546,50 @@ export function CustomerDetailClient({
                             })
                             .finally(() => setGroupLessonsLoading(false));
                         }
-                      : isGroupLessonsTab
+                      : isStudentsTab
                       ? (rowsPerPage: number) => {
-                          setGroupLessonsLoading(true);
-                          getCustomerGroupLessons(
+                          setStudentsLoading(true);
+                          getCustomerStudents(
                             location,
                             Number(id),
                             1,
                             rowsPerPage
                           )
                             .then(({ data, pagination }) => {
-                              setGroupLessonData(data);
-                              setGroupLessonsPagination(pagination);
+                              setStudentData(data);
+                              setStudentsPagination(pagination);
                             })
-                            .finally(() => setGroupLessonsLoading(false));
+                            .finally(() => setStudentsLoading(false));
+                        }
+                      : isEnrolmentsTab
+                      ? (rowsPerPage: number) => {
+                          setEnrolmentsLoading(true);
+                          getCustomerEnrolments(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setEnrolmentData(data);
+                              setEnrolmentsPagination(pagination);
+                            })
+                            .finally(() => setEnrolmentsLoading(false));
+                        }
+                      : isHistoryTab
+                      ? (rowsPerPage: number) => {
+                          setHistoryLoading(true);
+                          getCustomerHistory(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setHistoryData(data);
+                              setHistoryPagination(pagination);
+                            })
+                            .finally(() => setHistoryLoading(false));
                         }
                       : isProformaInvoicesTab
                       ? (rowsPerPage: number) => {
@@ -1499,6 +1618,12 @@ export function CustomerDetailClient({
                       ? groupLessonsPagination.limit
                       : isProformaInvoicesTab
                       ? proformaInvoicesPagination.limit
+                      : isStudentsTab
+                      ? studentsPagination.limit
+                      : isEnrolmentsTab
+                      ? enrolmentsPagination.limit
+                      : isHistoryTab
+                      ? historyPagination.limit
                       : tabRowsPerPage[tabKey] || 10
                   }
                   rowsPerPageOptions={[5, 10, 20, 50, 100]}
