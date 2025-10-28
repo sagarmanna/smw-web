@@ -493,17 +493,56 @@ export async function getCustomerEquipmentRentals(
   }
 }
 
+export interface RecurringPaymentsResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    body: RecurringPaymentData[];
+    footer?: Array<Record<string, string>>; // optional footer if provided
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export interface RecurringPaymentsResult {
+  data: RecurringPaymentData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export async function getCustomerRecurringPayments(
-  _location: string,
-  _customerId: number
-): Promise<RecurringPaymentData[]> {
-  const USE_MOCK = true;
-  
-  if (USE_MOCK) {
-    return [];
+  location: string,
+  customerId: number,
+  page?: number,
+  limit?: number
+): Promise<RecurringPaymentsResult> {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<RecurringPaymentsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/recurring-payments`,
+      { params }
+    );
+    return {
+      data: response.data.data?.body || [],
+      pagination: response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+  } catch (error: unknown) {
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
   }
-  
-  return [];
 }
 
 export interface PrivateLessonDuesResponse {
