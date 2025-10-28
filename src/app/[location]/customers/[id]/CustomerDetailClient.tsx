@@ -93,9 +93,11 @@ interface Address {
   label: string;
   address: string;
   city: string;
-  province: string;
-  country: string;
+  cityId: number;
+  provinceId: number;
+  countryId: number;
   postalCode: string;
+  note?: string;
   isPrimary?: boolean;
 }
 
@@ -624,9 +626,11 @@ export function CustomerDetailClient({
               label: a.label,
               address: a.address,
               city: a.city,
-              province: a.province,
-              country: a.country,
+              cityId: a.cityId,
+              provinceId: a.provinceId,
+              countryId: a.countryId,
               postalCode: a.postalCode,
+              note: a.note,
               isPrimary: a.isPrimary,
             }));
             setAddresses(formattedAddresses);
@@ -1067,6 +1071,8 @@ export function CustomerDetailClient({
             addresses={addresses}
             onSave={(newAddresses) => setAddresses(newAddresses)}
             loading={loading}
+            location={location}
+            customerId={Number(id)}
           />
 
           <DiscountCard

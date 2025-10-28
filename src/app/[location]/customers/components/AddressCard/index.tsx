@@ -1,23 +1,42 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+  createCustomerAddress,
+  updateCustomerAddress,
+  deleteCustomerAddress,
+  getGeoData,
+  AddressData,
+  GeoData,
+} from "./address-card-api";
 
 interface Address {
   id: string;
-  label: string;
   address: string;
-  city: string;
-  province: string;
-  country: string;
   postalCode: string;
+  city: string;
+  cityId: number;
+  provinceId: number;
+  countryId: number;
+  note?: string;
+  label: string;
+  isPrimary?: boolean;
 }
 
 interface AddressCardProps {
@@ -26,221 +45,277 @@ interface AddressCardProps {
   onSave?: (addresses: Address[]) => void;
   className?: string;
   loading?: boolean;
+  location: string;
+  customerId: number;
 }
 
-export function AddressCard({ 
+export function AddressCard({
   addresses = [],
-  onAddClick, 
+  onAddClick,
   onSave,
   className,
-  loading = false
+  loading = false,
+  location,
+  customerId,
 }: AddressCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
-  const [currentAddress, setCurrentAddress] = useState<Partial<Address>>({
-    label: "Home",
+  const [currentAddress, setCurrentAddress] = useState({
     address: "",
+    postalCode: "",
     city: "",
-    province: "Ontario",
-    country: "Canada",
-    postalCode: ""
+    cityId: 0,
+    provinceId: 1,
+    countryId: 1,
+    note: "",
+    label: "Home",
+    isPrimary: false,
   });
   const [errors, setErrors] = useState({
-    address: false,
-    city: false,
-    postalCode: false
+    address: "",
+    postalCode: "",
+    city: "",
   });
-  const [showErrors, setShowErrors] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [geoData, setGeoData] = useState<GeoData>({
+    city: [],
+    province: [],
+    country: [],
+  });
+  const [loadingGeoData, setLoadingGeoData] = useState(false);
+
+  // Fetch geodata when modal opens
+  useEffect(() => {
+    if (isModalOpen && geoData.city.length === 0) {
+      fetchGeoData();
+    }
+  }, [isModalOpen]);
+
+  const fetchGeoData = async () => {
+    setLoadingGeoData(true);
+    try {
+      const data = await getGeoData('all');
+      if (data) {
+        setGeoData(data);
+      } else {
+        toast.error("Failed to load location data");
+      }
+    } catch (error) {
+      console.error("Error fetching geodata:", error);
+      toast.error("Failed to load location data");
+    } finally {
+      setLoadingGeoData(false);
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {
+      address: "",
+      postalCode: "",
+      city: "",
+    };
+
+    if (!currentAddress.address.trim()) {
+      newErrors.address = "Address cannot be blank.";
+    }
+
+    if (!currentAddress.postalCode.trim()) {
+      newErrors.postalCode = "Postal code cannot be blank.";
+    }
+
+    if (!currentAddress.cityId || currentAddress.cityId === 0) {
+      newErrors.city = "Please select a city.";
+    }
+
+    setErrors(newErrors);
+    return !newErrors.address && !newErrors.postalCode && !newErrors.city;
+  };
 
   const handleAddClick = () => {
     setIsModalOpen(true);
     setEditingAddress(null);
     setCurrentAddress({
-      label: "Home",
       address: "",
+      postalCode: "",
       city: "",
-      province: "Ontario",
-      country: "Canada",
-      postalCode: ""
+      cityId: 0,
+      provinceId: 1,
+      countryId: 1,
+      note: "",
+      label: "Home",
+      isPrimary: false,
     });
-    setErrors({
-      address: false,
-      city: false,
-      postalCode: false
-    });
-    setShowErrors(false);
-    if (onAddClick) {
-      onAddClick();
-    }
+    setErrors({ address: "", postalCode: "", city: "" });
+    if (onAddClick) onAddClick();
   };
 
-  const handleEditClick = (e: React.MouseEvent, addr: Address) => {
+  const handleEditClick = (e: React.MouseEvent, address: Address) => {
     e.stopPropagation();
     setIsModalOpen(true);
-    setEditingAddress(addr);
+    setEditingAddress(address);
     setCurrentAddress({
-      label: addr.label,
-      address: addr.address,
-      city: addr.city,
-      province: addr.province,
-      country: addr.country,
-      postalCode: addr.postalCode
+      address: address.address,
+      postalCode: address.postalCode,
+      city: address.city,
+      cityId: address.cityId,
+      provinceId: address.provinceId,
+      countryId: address.countryId,
+      note: address.note || "",
+      label: address.label,
+      isPrimary: address.isPrimary || false,
     });
-    setErrors({
-      address: false,
-      city: false,
-      postalCode: false
-    });
-    setShowErrors(false);
+    setErrors({ address: "", postalCode: "", city: "" });
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    handleRemoveAddress(id);
-  };
+    setIsSaving(true);
 
-  const validateForm = () => {
-    const newErrors = {
-      address: !currentAddress.address?.trim(),
-      city: !currentAddress.city?.trim(),
-      postalCode: !currentAddress.postalCode?.trim() || !/^\d+$/.test(currentAddress.postalCode.trim())
-    };
-    setErrors(newErrors);
-    return !newErrors.address && !newErrors.city && !newErrors.postalCode;
-  };
+    try {
+      const response = await deleteCustomerAddress(location, customerId, id);
 
-  const handleRemoveAddress = (id: string) => {
-    const updatedAddresses = addresses.filter(addr => addr.id !== id);
-    if (onSave) {
-      onSave(updatedAddresses);
+      if (response?.success) {
+        const updatedAddresses = addresses.filter((addr) => addr.id !== id);
+        if (onSave) onSave(updatedAddresses);
+        toast.success("Address deleted successfully");
+      } else {
+        toast.error(response?.message || "Failed to delete address");
+      }
+    } catch (error) {
+      console.error("Error deleting address:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
     }
-    setIsModalOpen(false);
-    setEditingAddress(null);
-    setCurrentAddress({
-      label: "Home",
-      address: "",
-      city: "",
-      province: "Ontario",
-      country: "Canada",
-      postalCode: ""
-    });
-    setErrors({
-      address: false,
-      city: false,
-      postalCode: false
-    });
-    setShowErrors(false);
   };
 
-  const handleSave = () => {
-    setShowErrors(true);
-    
-    if (!validateForm()) {
-      return;
-    }
+  const handleSave = async () => {
+    if (!validateForm()) return;
 
-    let updatedAddresses: Address[];
+    setIsSaving(true);
 
-    if (editingAddress) {
-      // Update existing address
-      updatedAddresses = addresses.map(addr =>
-        addr.id === editingAddress.id
-          ? {
-              ...addr,
-              label: currentAddress.label || "Home",
-              address: currentAddress.address || "",
-              city: currentAddress.city || "",
-              province: currentAddress.province || "Ontario",
-              country: currentAddress.country || "Canada",
-              postalCode: currentAddress.postalCode || ""
-            }
-          : addr
-      );
-    } else {
-      // Add new address
-      const newAddress: Address = {
-        id: Date.now().toString(),
-        label: currentAddress.label || "Home",
-        address: currentAddress.address || "",
-        city: currentAddress.city || "",
-        province: currentAddress.province || "Ontario",
-        country: currentAddress.country || "Canada",
-        postalCode: currentAddress.postalCode || ""
+    try {
+      const addressData = {
+        address: currentAddress.address,
+        postalCode: currentAddress.postalCode,
+        city: geoData.city.find((c) => c.id === currentAddress.cityId)?.name || currentAddress.city,
+        cityId: currentAddress.cityId,
+        provinceId: currentAddress.provinceId,
+        countryId: currentAddress.countryId,
+        note: currentAddress.note,
+        label: currentAddress.label,
+        isPrimary: currentAddress.isPrimary,
       };
-      updatedAddresses = [...addresses, newAddress];
-    }
 
-    if (onSave) {
-      onSave(updatedAddresses);
+      let response;
+
+      if (editingAddress) {
+        response = await updateCustomerAddress(location, customerId, {
+          id: parseInt(editingAddress.id),
+          ...addressData,
+        });
+      } else {
+        response = await createCustomerAddress(location, customerId, addressData);
+      }
+
+      if (response?.success && response.data) {
+        const formattedAddresses: Address[] = response.data.map(
+          (addr: AddressData) => ({
+            id: addr.id.toString(),
+            address: addr.address,
+            postalCode: addr.postalCode,
+            city: addr.city,
+            cityId: addr.cityId,
+            provinceId: addr.provinceId,
+            countryId: addr.countryId,
+            note: addr.note,
+            label: addr.label,
+            isPrimary: addr.isPrimary,
+          })
+        );
+
+        if (onSave) onSave(formattedAddresses);
+
+        toast.success(
+          editingAddress
+            ? "Address updated successfully"
+            : "Address created successfully"
+        );
+
+        handleCancel();
+      } else {
+        toast.error(response?.message || "Failed to save address");
+      }
+    } catch (error) {
+      console.error("Error saving address:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
     }
-    
-    setCurrentAddress({
-      label: "Home",
-      address: "",
-      city: "",
-      province: "Ontario",
-      country: "Canada",
-      postalCode: ""
-    });
-    setErrors({
-      address: false,
-      city: false,
-      postalCode: false
-    });
-    setShowErrors(false);
-    setEditingAddress(null);
-    setIsModalOpen(false);
   };
 
   const handleCancel = () => {
-    setCurrentAddress({
-      label: "Home",
-      address: "",
-      city: "",
-      province: "Ontario",
-      country: "Canada",
-      postalCode: ""
-    });
-    setErrors({
-      address: false,
-      city: false,
-      postalCode: false
-    });
-    setShowErrors(false);
     setEditingAddress(null);
+    setCurrentAddress({
+      address: "",
+      postalCode: "",
+      city: "",
+      cityId: 0,
+      provinceId: 1,
+      countryId: 1,
+      note: "",
+      label: "Home",
+      isPrimary: false,
+    });
+    setErrors({ address: "", postalCode: "", city: "" });
     setIsModalOpen(false);
+  };
+
+  const handleCityChange = (value: string) => {
+    const cityId = parseInt(value);
+    const selectedCity = geoData.city.find((c) => c.id === cityId);
+    setCurrentAddress({
+      ...currentAddress,
+      cityId,
+      city: selectedCity?.name || "",
+    });
+    if (errors.city) setErrors({ ...errors, city: "" });
   };
 
   const modalActions = [
     {
       label: "Cancel",
       onClick: handleCancel,
-      variant: "outline" as const
+      variant: "outline" as const,
+      disabled: isSaving,
     },
     {
-      label: "Save",
+      label: isSaving ? "Saving..." : "Save",
       onClick: handleSave,
-      variant: "default" as const
-    }
+      variant: "default" as const,
+      disabled: isSaving,
+    },
   ];
 
   return (
     <>
-      <InfoCard 
-        title="Addresses" 
+      <InfoCard
+        title="Address"
         onAddClick={handleAddClick}
         className={className}
         loading={loading}
       >
         <div className="space-y-2">
           {loading ? (
-            // Skeleton loading state
             <>
               {[...Array(2)].map((_, index) => (
-                <div key={index} className="flex items-center justify-between p-2 rounded -mx-2">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-2 rounded -mx-2"
+                >
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-4 w-full max-w-md" />
+                    <Skeleton className="h-4 w-full" />
                   </div>
                   <div className="flex items-center gap-2">
                     <Skeleton className="h-8 w-8 rounded" />
@@ -250,36 +325,51 @@ export function AddressCard({
               ))}
             </>
           ) : addresses.length > 0 ? (
-            addresses.map((addr) => (
-              <div
-                key={addr.id}
-                className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 group"
-              >
-                <KeyValueDisplay
-                  label={addr.label}
-                  value={`${addr.address}, ${addr.city}, ${addr.province}, ${addr.country}`}
-                  className="justify-start flex-1"
-                />
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => handleEditClick(e, addr)}
-                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                    aria-label="Edit address"
-                  >
-                    <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteClick(e, addr.id)}
-                    className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                    aria-label="Delete address"
-                  >
-                    <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  </button>
+            addresses.map((address) => {
+              // Get province and country names from geoData
+              const province = geoData.province.find(p => p.id === address.provinceId)?.name || 'Ontario';
+              const country = geoData.country.find(c => c.id === address.countryId)?.name || 'Canada';
+              
+              // Build the full address value with line breaks
+              const addressValue = `${address.address}\n${address.city}, ${province}\n${country} - ${address.postalCode}${
+                address.note ? `\n${address.note}` : ""
+              }`;
+              
+              return (
+                <div
+                  key={address.id}
+                  className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 group"
+                >
+                  <KeyValueDisplay
+                    label={address.label}
+                    value={addressValue}
+                    className="justify-start flex-1"
+                  />
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => handleEditClick(e, address)}
+                      className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                      aria-label="Edit address"
+                      disabled={isSaving}
+                    >
+                      <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteClick(e, address.id)}
+                      className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                      aria-label="Delete address"
+                      disabled={isSaving}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
-            <span className="text-gray-500 dark:text-gray-400 text-sm">No addresses added</span>
+            <span className="text-gray-500 dark:text-gray-400 text-sm">
+              No addresses added
+            </span>
           )}
         </div>
       </InfoCard>
@@ -288,22 +378,27 @@ export function AddressCard({
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         title="Address"
-        size="xl"
+        size="lg"
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-1">
           {editingAddress && (
-            <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">Editing address</div>
+            <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">
+              Editing address
+            </div>
           )}
 
-          {/* Address Form */}
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Label */}
             <div className="space-y-2">
               <Label htmlFor="address-label">Label</Label>
-              <Select 
-                value={currentAddress.label} 
-                onValueChange={(value) => setCurrentAddress({ ...currentAddress, label: value })}
+              <Select
+                value={currentAddress.label}
+                onValueChange={(value) =>
+                  setCurrentAddress({ ...currentAddress, label: value })
+                }
+                disabled={isSaving}
               >
                 <SelectTrigger id="address-label">
                   <SelectValue />
@@ -311,145 +406,142 @@ export function AddressCard({
                 <SelectContent>
                   <SelectItem value="Home">Home</SelectItem>
                   <SelectItem value="Work">Work</SelectItem>
-                  <SelectItem value="Billing">Billing</SelectItem>
-                  <SelectItem value="Shipping">Shipping</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Address */}
             <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address-street">
+                Address <span className="text-red-500">*</span>
+              </Label>
               <Input
-                id="address"
-                value={currentAddress.address || ""}
-                onChange={(e) => {
+                id="address-street"
+                type="text"
+                value={currentAddress.address}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   setCurrentAddress({ ...currentAddress, address: e.target.value });
-                  if (showErrors) {
-                    setErrors({ ...errors, address: !e.target.value.trim() });
-                  }
+                  if (errors.address) setErrors({ ...errors, address: "" });
                 }}
-                placeholder="Street address"
-                className={showErrors && errors.address ? "border-red-600" : ""}
+                placeholder="Enter street address"
+                className={errors.address ? "border-red-500" : ""}
+                disabled={isSaving}
               />
-              {showErrors && errors.address && (
-                <p className="text-sm text-red-600">Address cannot be blank.</p>
+              {errors.address && (
+                <p className="text-sm text-red-500">{errors.address}</p>
               )}
             </div>
 
+            {/* City */}
             <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Select 
-                value={currentAddress.city || ""} 
-                onValueChange={(value) => {
-                  setCurrentAddress({ ...currentAddress, city: value });
-                  if (showErrors) {
-                    setErrors({ ...errors, city: !value.trim() });
-                  }
-                }}
+              <Label htmlFor="address-city">
+                City <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={currentAddress.cityId ? currentAddress.cityId.toString() : ""}
+                onValueChange={handleCityChange}
+                disabled={isSaving || loadingGeoData}
               >
-                <SelectTrigger id="city" className={showErrors && errors.city ? "border-red-600" : ""}>
-                  <SelectValue placeholder="Select city" />
+                <SelectTrigger id="address-city" className={errors.city ? "border-red-500" : ""}>
+                  <SelectValue placeholder={loadingGeoData ? "Loading cities..." : "Select city"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {geoData.city.length > 0 ? (
+                    geoData.city.map((city) => (
+                      <SelectItem key={city.id} value={city.id.toString()}>
+                        {city.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="0" disabled>
+                      No cities available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.city && (
+                <p className="text-sm text-red-500">{errors.city}</p>
+              )}
+            </div>
+
+            {/* Country */}
+            <div className="space-y-2">
+              <Label htmlFor="address-country">Country</Label>
+              <Select
+                value={currentAddress.countryId ? currentAddress.countryId.toString() : "1"}
+                onValueChange={(value) =>
+                  setCurrentAddress({ ...currentAddress, countryId: parseInt(value) })
+                }
+                disabled={isSaving || loadingGeoData}
+              >
+                <SelectTrigger id="address-country">
+                  <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select country"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Ajax">Ajax</SelectItem>
-                  <SelectItem value="Toronto">Toronto</SelectItem>
-                  <SelectItem value="Mississauga">Mississauga</SelectItem>
-                  <SelectItem value="Brampton">Brampton</SelectItem>
-                  <SelectItem value="Hamilton">Hamilton</SelectItem>
-                  <SelectItem value="Ottawa">Ottawa</SelectItem>
-                  <SelectItem value="Markham">Markham</SelectItem>
-                  <SelectItem value="Vaughan">Vaughan</SelectItem>
-                  <SelectItem value="Kitchener">Kitchener</SelectItem>
-                  <SelectItem value="Windsor">Windsor</SelectItem>
-                  <SelectItem value="London">London</SelectItem>
-                  <SelectItem value="Oakville">Oakville</SelectItem>
-                  <SelectItem value="Burlington">Burlington</SelectItem>
-                  <SelectItem value="Oshawa">Oshawa</SelectItem>
-                  <SelectItem value="Barrie">Barrie</SelectItem>
-                  <SelectItem value="Guelph">Guelph</SelectItem>
-                  <SelectItem value="Cambridge">Cambridge</SelectItem>
-                  <SelectItem value="Whitby">Whitby</SelectItem>
-                  <SelectItem value="Waterloo">Waterloo</SelectItem>
-                  <SelectItem value="Pickering">Pickering</SelectItem>
+                  {geoData.country.length > 0 ? (
+                    geoData.country.map((country) => (
+                      <SelectItem key={country.id} value={country.id.toString()}>
+                        {country.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="1">
+                      Canada
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
-              {showErrors && errors.city && (
-                <p className="text-sm text-red-600">City cannot be blank.</p>
-              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="country">Country</Label>
-                <Select 
-                  value={currentAddress.country} 
-                  onValueChange={(value) => setCurrentAddress({ ...currentAddress, country: value })}
-                >
-                  <SelectTrigger id="country">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Canada">Canada</SelectItem>
-                    <SelectItem value="USA">USA</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="province">Province</Label>
-                <Select 
-                  value={currentAddress.province} 
-                  onValueChange={(value) => setCurrentAddress({ ...currentAddress, province: value })}
-                >
-                  <SelectTrigger id="province">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ontario">Ontario</SelectItem>
-                    <SelectItem value="Quebec">Quebec</SelectItem>
-                    <SelectItem value="British Columbia">British Columbia</SelectItem>
-                    <SelectItem value="Alberta">Alberta</SelectItem>
-                    <SelectItem value="Manitoba">Manitoba</SelectItem>
-                    <SelectItem value="Saskatchewan">Saskatchewan</SelectItem>
-                    <SelectItem value="Nova Scotia">Nova Scotia</SelectItem>
-                    <SelectItem value="New Brunswick">New Brunswick</SelectItem>
-                    <SelectItem value="Newfoundland and Labrador">Newfoundland and Labrador</SelectItem>
-                    <SelectItem value="Prince Edward Island">Prince Edward Island</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
+            {/* Province */}
             <div className="space-y-2">
-              <Label htmlFor="postal-code">Postal Code</Label>
+              <Label htmlFor="address-province">Province</Label>
+              <Select
+                value={currentAddress.provinceId ? currentAddress.provinceId.toString() : "1"}
+                onValueChange={(value) =>
+                  setCurrentAddress({ ...currentAddress, provinceId: parseInt(value) })
+                }
+                disabled={isSaving || loadingGeoData}
+              >
+                <SelectTrigger id="address-province">
+                  <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select province"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {geoData.province.length > 0 ? (
+                    geoData.province.map((province) => (
+                      <SelectItem key={province.id} value={province.id.toString()}>
+                        {province.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="1">
+                      Ontario
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Postal Code */}
+            <div className="space-y-2">
+              <Label htmlFor="address-postal">
+                Postal Code <span className="text-red-500">*</span>
+              </Label>
               <Input
-                id="postal-code"
+                id="address-postal"
                 type="text"
-                inputMode="numeric"
-                value={currentAddress.postalCode || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Only allow numbers
-                  if (value === "" || /^\d+$/.test(value)) {
-                    setCurrentAddress({ ...currentAddress, postalCode: value });
-                    if (showErrors) {
-                      setErrors({ ...errors, postalCode: !value.trim() || !/^\d+$/.test(value.trim()) });
-                    }
-                  } else {
-                    if (showErrors) {
-                      setErrors({ ...errors, postalCode: true });
-                    }
-                  }
+                value={currentAddress.postalCode}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setCurrentAddress({ ...currentAddress, postalCode: e.target.value });
+                  if (errors.postalCode) setErrors({ ...errors, postalCode: "" });
                 }}
-                placeholder="Postal code"
-                className={showErrors && errors.postalCode ? "border-red-600" : ""}
+                placeholder="Enter postal code"
+                className={errors.postalCode ? "border-red-500" : ""}
+                disabled={isSaving}
               />
-              {showErrors && errors.postalCode && (
-                <p className="text-sm text-red-600">
-                  {!currentAddress.postalCode?.trim() 
-                    ? "Postal code cannot be blank." 
-                    : "Postal code must contain only numbers."}
-                </p>
+              {errors.postalCode && (
+                <p className="text-sm text-red-500">{errors.postalCode}</p>
               )}
             </div>
           </div>
