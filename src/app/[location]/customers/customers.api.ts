@@ -558,24 +558,61 @@ export async function getCustomerGroupLessonDue(
   return [];
 }
 
+export interface PaymentsResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    body: PaymentData[];
+    footer?: Array<{ totalRemaining: string }>;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export interface PaymentsResult {
+  data: PaymentData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  footer?: { totalRemaining: string };
+}
+
 export async function getCustomerPayments(
-  _location: string,
-  _customerId: number
-): Promise<PaymentData[]> {
-  const USE_MOCK = true;
-  
-  if (USE_MOCK) {
-    return [
-      { date: "Mar 08, 2024", notes: "", amount: 3367.96, used: 3367.96, remaining: 0.00 },
-      { date: "Mar 08, 2024", notes: "", amount: 122.50, used: 122.50, remaining: 0.00 },
-      { date: "Nov 13, 2023", notes: "", amount: 18.45, used: 18.45, remaining: 0.00 },
-      { date: "Oct 15, 2023", notes: "", amount: 13890.21, used: 13890.21, remaining: 0.00 },
-      { date: "Sep 09, 2022", notes: "", amount: 60.27, used: 60.27, remaining: 0.00 },
-      { date: "Sep 09, 2022", notes: "", amount: 4621.04, used: 4621.04, remaining: 0.00 },
-    ];
+  location: string,
+  customerId: number,
+  page?: number,
+  limit?: number
+): Promise<PaymentsResult> {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<PaymentsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/payments`,
+      { params }
+    );
+    const pagination = response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
+    const footerArr = response.data.data?.footer || [];
+    return {
+      data: response.data.data?.body || [],
+      pagination,
+      footer: footerArr[0] ? { totalRemaining: footerArr[0].totalRemaining } : undefined,
+    };
+  } catch (error: unknown) {
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+      footer: { totalRemaining: "$0.00" },
+    };
   }
-  
-  return [];
 }
 
 // --------------------

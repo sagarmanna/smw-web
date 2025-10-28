@@ -57,9 +57,9 @@ export interface GroupLessonDueData {
 export interface PaymentData {
   date: string;
   notes: string;
-  amount: number;
-  used: number;
-  remaining: number;
+  amount: number | string;
+  used: number | string;
+  remaining: number | string;
 }
 
 // Column definitions
@@ -281,14 +281,16 @@ export const paymentColumns: ColumnDef<PaymentData>[] = [
     header: "Amount",
     cell: ({ row }) => {
       // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("amount") as number) : (row.original as PaymentData).amount;
+      const raw = row.getValue ? (row.getValue("amount") as unknown) : (row.original as unknown as { amount: unknown }).amount;
+      const value = typeof raw === "number" ? raw : NaN;
       // Don't show amount in footer row
       if (value === 0 && (row.original as PaymentData).date === "") {
         return <div className="text-right"></div>;
       }
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      return <div className="text-right">{formatCurrency(Number.isFinite(value) ? value : 0)}</div>;
     },
   },
   {
@@ -296,14 +298,16 @@ export const paymentColumns: ColumnDef<PaymentData>[] = [
     header: "Used",
     cell: ({ row }) => {
       // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("used") as number) : (row.original as PaymentData).used;
+      const raw = row.getValue ? (row.getValue("used") as unknown) : (row.original as unknown as { used: unknown }).used;
+      const value = typeof raw === "number" ? raw : NaN;
       // Don't show used in footer row
       if (value === 0 && (row.original as PaymentData).date === "") {
         return <div className="text-right"></div>;
       }
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      return <div className="text-right">{formatCurrency(Number.isFinite(value) ? value : 0)}</div>;
     },
   },
   {
@@ -311,10 +315,12 @@ export const paymentColumns: ColumnDef<PaymentData>[] = [
     header: "Remaining",
     cell: ({ row }) => {
       // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("remaining") as number) : (row.original as PaymentData).remaining;
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      const raw = row.getValue ? (row.getValue("remaining") as unknown) : (row.original as unknown as { remaining: unknown }).remaining;
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      const value = typeof raw === "number" ? raw : 0;
+      return <div className="text-right">{formatCurrency(value)}</div>;
     },
   },
 ];

@@ -432,6 +432,14 @@ export function CustomerDetailClient({
     GroupLessonDueData[]
   >([]);
   const [paymentData, setPaymentData] = React.useState<PaymentData[]>([]);
+  const [paymentsPagination, setPaymentsPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [paymentsFooterRemaining, setPaymentsFooterRemaining] = React.useState<string>("$0.00");
+  const [paymentsLoading, setPaymentsLoading] = React.useState<boolean>(false);
 
   // Tab data states
   const [studentData, setStudentData] = React.useState<StudentData[]>([]);
@@ -548,16 +556,12 @@ export function CustomerDetailClient({
   };
 
   // Calculate footer for payments (only remaining column)
-  const paymentRemainingTotal = paymentData.reduce(
-    (sum, item) => sum + item.remaining,
-    0
-  );
   const paymentFooterRow: PaymentData = {
     date: "",
     notes: "",
     amount: 0,
     used: 0,
-    remaining: paymentRemainingTotal,
+    remaining: paymentsFooterRemaining,
   };
 
   // Tab data mapping for easy access
@@ -570,6 +574,57 @@ export function CustomerDetailClient({
     commentData,
     historyData,
   };
+
+  // Handle payments pagination
+  const handlePaymentsPageChange = React.useCallback(
+    async (page: number) => {
+      setPaymentsLoading(true);
+      try {
+        const result = await getCustomerPayments(
+          location,
+          Number(id),
+          page,
+          paymentsPagination.limit === -1 ? 99999 : paymentsPagination.limit
+        );
+
+        setPaymentData(result.data || []);
+        setPaymentsPagination(result.pagination);
+        if (result.footer?.totalRemaining) {
+          setPaymentsFooterRemaining(result.footer.totalRemaining);
+        }
+      } catch (error) {
+        console.error("Error loading payments:", error);
+      } finally {
+        setPaymentsLoading(false);
+      }
+    },
+    [location, id, paymentsPagination.limit]
+  );
+
+  const handlePaymentsRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      setPaymentsLoading(true);
+      try {
+        const result = await getCustomerPayments(
+          location,
+          Number(id),
+          1,
+          rowsPerPage === -1 ? 99999 : rowsPerPage
+        );
+
+        setPaymentData(result.data || []);
+        setPaymentsPagination(result.pagination);
+        if (result.footer?.totalRemaining) {
+          setPaymentsFooterRemaining(result.footer.totalRemaining);
+        }
+      } catch (error) {
+        console.error("Error loading payments:", error);
+      } finally {
+        setPaymentsLoading(false);
+      }
+    },
+    [location, id]
+  );
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -703,20 +758,33 @@ export function CustomerDetailClient({
           recurringPayments,
           privateLessonDue,
           groupLessonDue,
-          payments,
+          _paymentsIgnore,
         ] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
           getCustomerRecurringPayments(location, Number(id)),
           getCustomerPrivateLessonDue(location, Number(id)),
           getCustomerGroupLessonDue(location, Number(id)),
-          getCustomerPayments(location, Number(id)),
+          Promise.resolve([]),
         ]);
 
         setInvoiceData(invoices || []);
         setRecurringPaymentData(recurringPayments || []);
         setPrivateLessonDueData(privateLessonDue || []);
         setGroupLessonDueData(groupLessonDue || []);
-        setPaymentData(payments || []);
+        // Load payments with footer (no transform)
+        try {
+          setPaymentsLoading(true);
+          const paymentsResult = await getCustomerPayments(location, Number(id), 1, 10);
+          setPaymentData(paymentsResult.data || []);
+          setPaymentsPagination(paymentsResult.pagination);
+          if (paymentsResult.footer?.totalRemaining) {
+            setPaymentsFooterRemaining(paymentsResult.footer.totalRemaining);
+          } else {
+            setPaymentsFooterRemaining("$0.00");
+          }
+        } finally {
+          setPaymentsLoading(false);
+        }
 
         // Load students data from API (server-side pagination)
         setStudentsLoading(true);
@@ -1244,7 +1312,7 @@ export function CustomerDetailClient({
           title="Payments"
           data={paymentData}
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
-          loading={loading}
+          loading={paymentsLoading || loading}
           footerRow={paymentFooterRow}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.payments.size}
@@ -1254,7 +1322,7 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.payments.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.payments.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.payments.enableFilter}
-          enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.payments.enableRowsPerPage}
+          enableRowsPerPage={true}
           iconType="chevron"
           dropdownItems={[
             {
@@ -1263,6 +1331,11 @@ export function CustomerDetailClient({
             },
           ]}
           dropdownLabel="Payment Actions"
+          serverSidePagination={paymentsPagination}
+          onServerSidePageChange={handlePaymentsPageChange}
+          rowsPerPage={paymentsPagination.limit}
+          onRowsPerPageChange={handlePaymentsRowsPerPageChange}
+          rowsPerPageOptions={[10]}
         />
       </div>
 
@@ -1301,12 +1374,12 @@ export function CustomerDetailClient({
               !isGroupLessonsTab &&
               !isProformaInvoicesTab
             ) {
-              const startIndex = pagination
-                ? (pagination.page - 1) * pagination.limit
-                : 0;
-              const endIndex = pagination
-                ? startIndex + pagination.limit
-                : fullData.length;
+            const startIndex = pagination
+              ? (pagination.page - 1) * pagination.limit
+              : 0;
+            const endIndex = pagination
+              ? startIndex + pagination.limit
+              : fullData.length;
               data = fullData.slice(startIndex, endIndex);
             }
 
