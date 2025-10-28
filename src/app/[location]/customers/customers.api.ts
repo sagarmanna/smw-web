@@ -8,7 +8,7 @@ import {
   GroupLessonDueData, 
   PaymentData 
 } from './tableConfigs';
-import { StudentData, EnrolmentData, PrivateLessonData, GroupLessonData, ProformaInvoiceData, CommentData } from './tabConfigs';
+import { StudentData, EnrolmentData, PrivateLessonData, GroupLessonData, ProformaInvoiceData, CommentData, HistoryData } from './tabConfigs';
 
 export interface CustomerRow {
   id: number;
@@ -598,18 +598,38 @@ export interface StudentsResponse {
   };
 }
 
+export interface StudentsResult {
+  data: StudentData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export async function getCustomerStudents(
   location: string,
-  customerId: number
-): Promise<StudentData[]> {
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<StudentsResult> {
   try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+
     const response = await apiClient.get<StudentsResponse>(
-      `/admin/v2/${location}/customers/${customerId}/students`
+      `/admin/v2/${location}/customers/${customerId}/students`,
+      { params }
     );
     
-    return response.data.data?.body || [];
+    return {
+      data: response.data.data?.body || [],
+      pagination: response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
   } catch (error: unknown) {
-    return [];
+    return { data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } };
   }
 }
 
@@ -621,16 +641,7 @@ export interface EnrolmentsResponse {
   success: boolean;
   message: string;
   data: {
-    body: Array<{
-      studentName: string;
-      programName: string;
-      teacherName: string;
-      day: string;
-      fromTime: string;
-      duration: string;
-      startDate: string;
-      renewalDate: string;
-    }>;
+    body: EnrolmentData[];
     pagination: {
       page: number;
       limit: number;
@@ -640,18 +651,38 @@ export interface EnrolmentsResponse {
   };
 }
 
+export interface EnrolmentsResult {
+  data: EnrolmentData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export async function getCustomerEnrolments(
   location: string,
-  customerId: number
-): Promise<EnrolmentData[]> {
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<EnrolmentsResult> {
   try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+
     const response = await apiClient.get<EnrolmentsResponse>(
-      `/admin/v2/${location}/customers/${customerId}/enrolments`
+      `/admin/v2/${location}/customers/${customerId}/enrolments`,
+      { params }
     );
 
-    return response.data.data?.body || [];
+    return {
+      data: response.data.data?.body || [],
+      pagination: response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
   } catch (error: unknown) {
-    return [];
+    return { data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } };
   }
 }
 
@@ -663,16 +694,7 @@ export interface PrivateLessonsResponse {
   success: boolean;
   message: string;
   data: {
-    body: Array<{
-      dueDate: string;
-      studentName: string;
-      programName: string;
-      date: string;
-      duration: string;
-      status: string;
-      price: number;
-      owing: number;
-    }>;
+    body: PrivateLessonData[];
     pagination: {
       page: number;
       limit: number;
@@ -738,16 +760,7 @@ export interface GroupLessonsResponse {
   success: boolean;
   message: string;
   data: {
-    body: Array<{
-      dueDate: string;
-      studentName: string;
-      programName: string;
-      date: string;
-      duration: string;
-      status: string;
-      price: number;
-      owing: number;
-    }>;
+    body: GroupLessonData[];
     pagination: {
       page: number;
       limit: number;
@@ -893,5 +906,57 @@ export async function getCustomerComments(
     return response.data.data?.body || [];
   } catch (error: unknown) {
     return [];
+  }
+}
+
+// --------------------
+// History (tab) API function
+// --------------------
+
+export interface HistoryResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: HistoryData[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+export interface HistoryResult {
+  data: HistoryData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export async function getCustomerHistory(
+  location: string,
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<HistoryResult> {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<HistoryResponse>(
+      `/admin/v2/${location}/customers/${customerId}/history`,
+      { params }
+    );
+    return {
+      data: response.data.data?.body || [],
+      pagination: response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+  } catch (error: unknown) {
+    return { data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } };
   }
 }
