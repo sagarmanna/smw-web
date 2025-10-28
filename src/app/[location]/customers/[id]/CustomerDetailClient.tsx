@@ -71,7 +71,6 @@ import {
   CommentData,
   HistoryData,
 } from "../tabConfigs";
-import { mockCustomerTabData } from "../mockData/customersMockData";
 
 interface PhoneNumber {
   id: string;
@@ -94,9 +93,11 @@ interface Address {
   label: string;
   address: string;
   city: string;
-  province: string;
-  country: string;
+  cityId: number;
+  provinceId: number;
+  countryId: number;
   postalCode: string;
+  note?: string;
   isPrimary?: boolean;
 }
 
@@ -454,7 +455,8 @@ export function CustomerDetailClient({
     total: 0,
     totalPages: 0,
   });
-  const [enrolmentsLoading, setEnrolmentsLoading] = React.useState<boolean>(false);
+  const [enrolmentsLoading, setEnrolmentsLoading] =
+    React.useState<boolean>(false);
 
   // History server-side pagination state
   const [historyPagination, setHistoryPagination] = React.useState({
@@ -643,9 +645,11 @@ export function CustomerDetailClient({
               label: a.label,
               address: a.address,
               city: a.city,
-              province: a.province,
-              country: a.country,
+              cityId: a.cityId,
+              provinceId: a.provinceId,
+              countryId: a.countryId,
               postalCode: a.postalCode,
+              note: a.note,
               isPrimary: a.isPrimary,
             }));
             setAddresses(formattedAddresses);
@@ -718,18 +722,18 @@ export function CustomerDetailClient({
         setStudentsLoading(true);
         setStudentsError(null);
         try {
-          const { data: students, pagination: sPag } = await getCustomerStudents(
-            location,
-            Number(id),
-            1,
-            10
-          );
+          const { data: students, pagination: sPag } =
+            await getCustomerStudents(location, Number(id), 1, 10);
           setStudentData(students);
           setStudentsPagination(sPag);
         } catch {
           setStudentsError("Failed to load students data");
           setStudentData([]);
-          setStudentsPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+          setStudentsPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
         } finally {
           setStudentsLoading(false);
         }
@@ -737,17 +741,17 @@ export function CustomerDetailClient({
         // Load enrolments data from API (server-side pagination)
         try {
           setEnrolmentsLoading(true);
-          const { data: enrolments, pagination: ePag } = await getCustomerEnrolments(
-            location,
-            Number(id),
-            1,
-            10
-          );
+          const { data: enrolments, pagination: ePag } =
+            await getCustomerEnrolments(location, Number(id), 1, 10);
           setEnrolmentData(enrolments);
           setEnrolmentsPagination(ePag);
         } catch {
           setEnrolmentData([]);
-          setEnrolmentsPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+          setEnrolmentsPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
         } finally {
           setEnrolmentsLoading(false);
         }
@@ -825,7 +829,11 @@ export function CustomerDetailClient({
           setHistoryPagination(hPag);
         } catch {
           setHistoryData([]);
-          setHistoryPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+          setHistoryPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
         } finally {
           setHistoryLoading(false);
         }
@@ -1113,6 +1121,8 @@ export function CustomerDetailClient({
             addresses={addresses}
             onSave={(newAddresses) => setAddresses(newAddresses)}
             loading={loading}
+            location={location}
+            customerId={Number(id)}
           />
 
           <DiscountCard

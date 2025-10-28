@@ -97,15 +97,19 @@ export interface CustomerInfoData {
     isPrimary: boolean;
   }>;
   addresses: Array<{
-    id: number;
-    address: string;
-    city: string;
-    province: string;
-    country: string;
-    postalCode: string;
-    label: string;
-    isPrimary: boolean;
-  }>;
+  id: number;
+  address: string;
+  city: string;
+  cityId: number;
+  provinceId: number;
+  countryId: number;
+  province: string;
+  country: string;
+  postalCode: string;
+  note?: string;
+  label: string;
+  isPrimary: boolean;
+}>;
   discount: {
     id: number;
     value: number;
