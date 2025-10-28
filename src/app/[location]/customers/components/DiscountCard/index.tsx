@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Pencil } from "lucide-react";
-import { updateCustomerDiscount } from "../DiscountCard/discountCard.api";
+import { updateCustomerDiscount } from "./discount-card-api";
 import { toast } from "sonner";
 
 interface DiscountCardProps {

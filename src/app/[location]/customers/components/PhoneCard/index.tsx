@@ -21,7 +21,7 @@ import {
   updateCustomerPhone,
   deleteCustomerPhone,
   PhoneData,
-} from "../PhoneCard/phoneCardApi";
+} from "../PhoneCard/phone-card-api";
 import { toast } from "sonner"; 
 
 interface PhoneNumber {
