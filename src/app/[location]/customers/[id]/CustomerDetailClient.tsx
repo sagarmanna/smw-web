@@ -46,7 +46,7 @@ import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
 import AddStudentModal from "../components/AddStudentModal/index";
-import { NotifyViaEmailReasonsModal } from "../components/NotifyViaEmailReasonsModal";
+import { NotifyViaEmailReasonsModal } from "../components/NotifyViaEmailModal";
 import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
