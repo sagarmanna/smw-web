@@ -50,8 +50,7 @@ export function EmailCard({
   const [currentEmail, setCurrentEmail] = useState({ 
     label: "Home", 
     email: "", 
-    note: "",
-    isPrimary: false
+    note: ""
   });
   const [errors, setErrors] = useState({ email: "" });
   const [isSaving, setIsSaving] = useState(false);
@@ -61,13 +60,29 @@ export function EmailCard({
     return emailRegex.test(email);
   };
 
+  const isEmailDuplicate = (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    return emails.some(e => {
+      // Skip the current editing email when checking for duplicates
+      if (editingEmail && e.id === editingEmail.id) {
+        return false;
+      }
+      return e.email.toLowerCase() === normalizedEmail;
+    });
+  };
+
   const validateForm = () => {
     const newErrors = { email: "" };
-    if (currentEmail.email.trim() === "") {
+    const trimmedEmail = currentEmail.email.trim();
+    
+    if (trimmedEmail === "") {
       newErrors.email = "Email cannot be blank.";
-    } else if (!validateEmail(currentEmail.email)) {
+    } else if (!validateEmail(trimmedEmail)) {
       newErrors.email = "Please enter a valid email address.";
+    } else if (isEmailDuplicate(trimmedEmail)) {
+      newErrors.email = "Email already exists!";
     }
+    
     setErrors(newErrors);
     return newErrors.email === "";
   };
@@ -75,7 +90,7 @@ export function EmailCard({
   const handleAddClick = () => {
     setIsModalOpen(true);
     setEditingEmail(null);
-    setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
+    setCurrentEmail({ label: "Home", email: "", note: "" });
     setErrors({ email: "" });
     if (onAddClick) onAddClick();
   };
@@ -87,8 +102,7 @@ export function EmailCard({
     setCurrentEmail({
       label: email.label,
       email: email.email,
-      note: email.note || "",
-      isPrimary: email.isPrimary || false
+      note: email.note || ""
     });
     setErrors({ email: "" });
   };
@@ -127,7 +141,7 @@ export function EmailCard({
           email: currentEmail.email,
           note: currentEmail.note || "",
           label: currentEmail.label,
-          isPrimary: currentEmail.isPrimary
+          isPrimary: false
         });
 
         if (result?.success && result.data) {
@@ -152,7 +166,7 @@ export function EmailCard({
           email: currentEmail.email,
           note: currentEmail.note || "",
           label: currentEmail.label,
-          isPrimary: currentEmail.isPrimary
+          isPrimary: false
         });
 
         if (result?.success && result.data) {
@@ -175,7 +189,7 @@ export function EmailCard({
 
       setIsModalOpen(false);
       setEditingEmail(null);
-      setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
+      setCurrentEmail({ label: "Home", email: "", note: "" });
       setErrors({ email: "" });
     } catch (error) {
       console.error("Error saving email:", error);
@@ -187,7 +201,7 @@ export function EmailCard({
 
   const handleCancel = () => {
     setEditingEmail(null);
-    setCurrentEmail({ label: "Home", email: "", note: "", isPrimary: false });
+    setCurrentEmail({ label: "Home", email: "", note: "" });
     setErrors({ email: "" });
     setIsModalOpen(false);
   };
@@ -202,9 +216,6 @@ export function EmailCard({
     let display = email.email;
     if (email.note && email.note.trim() !== "") {
       display += ` - ${email.note}`;
-    }
-    if (email.isPrimary) {
-      display += " (Primary)";
     }
     return display;
   };
@@ -272,49 +283,43 @@ export function EmailCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4 px-1">
+        <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-4 pb-4">
           {editingEmail && (
-            <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">Editing email</div>
+            <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">
+              Editing email
+            </div>
           )}
 
-          {/* Email Form */}
           <div className="space-y-4">
+            {/* Email */}
             <div className="space-y-2">
-              <Label htmlFor="email-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email
+              <Label htmlFor="email-address">
+                Email <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="email-address"
-                type="email"
+                type="text"
                 value={currentEmail.email}
                 onChange={(e) => {
                   setCurrentEmail({ ...currentEmail, email: e.target.value });
                   if (errors.email) setErrors({ email: "" });
                 }}
                 placeholder="Enter email address"
-                className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.email 
-                    ? "border-red-500 focus:ring-red-500" 
-                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
-                }`}
+                className={errors.email ? "border-red-500" : ""}
                 disabled={isSaving}
               />
               {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
             </div>
 
+            {/* Label */}
             <div className="space-y-2">
-              <Label htmlFor="email-label" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Label
-              </Label>
+              <Label htmlFor="email-label">Label</Label>
               <Select 
                 value={currentEmail.label} 
                 onValueChange={value => setCurrentEmail({ ...currentEmail, label: value })}
                 disabled={isSaving}
               >
-                <SelectTrigger 
-                  id="email-label" 
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
-                >
+                <SelectTrigger id="email-label">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -325,10 +330,9 @@ export function EmailCard({
               </Select>
             </div>
 
+            {/* Note */}
             <div className="space-y-2">
-              <Label htmlFor="email-note" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Note
-              </Label>
+              <Label htmlFor="email-note">Note</Label>
               <Textarea
                 id="email-note"
                 value={currentEmail.note}
@@ -337,27 +341,8 @@ export function EmailCard({
                 }
                 placeholder="Enter note"
                 rows={3}
-                className="w-full resize-none border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSaving}
               />
-            </div>
-
-            {/* Primary Email Checkbox */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isPrimary"
-                checked={currentEmail.isPrimary}
-                onChange={(e) => setCurrentEmail({ ...currentEmail, isPrimary: e.target.checked })}
-                className="h-4 w-4 flex-shrink-0 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400"
-                disabled={isSaving}
-              />
-              <Label
-                htmlFor="isPrimary"
-                className="text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300"
-              >
-                Set as primary email
-              </Label>
             </div>
           </div>
         </div>
