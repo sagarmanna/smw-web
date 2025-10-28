@@ -23,6 +23,12 @@ interface EmailStatementModalProps {
     program: string;
     teacher: string;
     amount: number;
+  } | {
+    lessonDate: string;
+    studentName: string;
+    programName: string;
+    teacherName: string;
+    amount: number | string;
   }>;
   groupLessonDueData?: Array<{
     lessonDate: string;
@@ -151,14 +157,17 @@ export default function EmailStatementModal({
       </tr>
     </thead>
     <tbody>
-      ${privateLessonDueData.map(lesson => `<tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.lessonDate}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.student}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.program}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacher}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
-      </tr>`).join('')}
+      ${privateLessonDueData.map((lesson) => {
+        type Legacy = { lessonDate: string; student: string; program: string; teacher: string; amount: number };
+        type Api = { lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string };
+        const isApi = (l: Legacy | Api): l is Api => 'studentName' in (l as Record<string, unknown>);
+        const student = isApi(lesson as Legacy | Api) ? (lesson as Api).studentName : (lesson as Legacy).student;
+        const program = isApi(lesson as Legacy | Api) ? (lesson as Api).programName : (lesson as Legacy).program;
+        const teacher = isApi(lesson as Legacy | Api) ? (lesson as Api).teacherName : (lesson as Legacy).teacher;
+        const amountVal = (lesson as Legacy | Api).amount as number | string;
+        const amountStr = typeof amountVal === 'string' ? amountVal : formatCurrency(amountVal);
+        return `<tr style=\"border-bottom: 1px solid #e5e7eb;\">\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${lesson.lessonDate}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${student}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${program}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${teacher}</td>\n        <td style=\"padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;\">${amountStr}</td>\n        <td style=\"padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;\">${amountStr}</td>\n      </tr>`;
+      }).join('')}
     </tbody>
   </table>
 

@@ -523,18 +523,14 @@ export function CustomerDetailClient({
   const [hasOpeningBalance, setHasOpeningBalance] =
     React.useState<boolean>(false);
 
-  // Calculate footer for private lesson due
-  const privateLessonDueTotal = privateLessonDueData.reduce(
-    (sum, item) => sum + item.amount,
-    0
-  );
-  const privateLessonDueFooterRow: PrivateLessonDueData = {
-    lessonDate: "Total:",
-    student: "",
-    program: "",
-    teacher: "",
-    amount: privateLessonDueTotal,
-  };
+  // Private lesson due server-side pagination and footer
+  const [privateLessonDuePagination, setPrivateLessonDuePagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [privateLessonDueFooterTotal, setPrivateLessonDueFooterTotal] = React.useState<string>("$0.00");
 
   // Calculate footer for outstanding invoices
   // Use API total only when showing all records, otherwise calculate from visible data
@@ -763,18 +759,32 @@ export function CustomerDetailClient({
         const [
           invoices,
           recurringPayments,
-          privateLessonDue,
           _paymentsIgnore,
         ] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
           getCustomerRecurringPayments(location, Number(id)),
-          getCustomerPrivateLessonDue(location, Number(id)),
           Promise.resolve([]),
         ]);
 
         setInvoiceData(invoices || []);
         setRecurringPaymentData(recurringPayments || []);
-        setPrivateLessonDueData(privateLessonDue || []);
+
+        // Load private lesson dues with footer and pagination (no transform)
+        try {
+          const privateLessonDueResult = await getCustomerPrivateLessonDue(
+            location,
+            Number(id),
+            1,
+            10
+          );
+          setPrivateLessonDueData(privateLessonDueResult.data || []);
+          setPrivateLessonDuePagination(privateLessonDueResult.pagination);
+          if (privateLessonDueResult.footer?.totalAmount) {
+            setPrivateLessonDueFooterTotal(privateLessonDueResult.footer.totalAmount);
+          } else {
+            setPrivateLessonDueFooterTotal("$0.00");
+          }
+        } catch {}
 
         // Load group lesson dues with footer and pagination (no transform)
         try {
@@ -1295,7 +1305,13 @@ export function CustomerDetailClient({
           data={privateLessonDueData}
           columns={CUSTOMER_TABLE_CONFIGS.privateLessonDue.columns}
           loading={loading}
-          footerRow={privateLessonDueFooterRow}
+          footerRow={{
+            lessonDate: "",
+            studentName: "",
+            programName: "",
+            teacherName: "",
+            amount: privateLessonDueFooterTotal,
+          }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.privateLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.privateLessonDue.variant}
@@ -1304,10 +1320,43 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableFilter}
-          enableRowsPerPage={
-            CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableRowsPerPage
-          }
+          enableRowsPerPage={true}
           iconType="none"
+          enableShowAll={false}
+          showAllLabel="Show All"
+          serverSidePagination={privateLessonDuePagination}
+          onServerSidePageChange={async (page: number) => {
+            try {
+              const result = await getCustomerPrivateLessonDue(
+                location,
+                Number(id),
+                page,
+                privateLessonDuePagination.limit === -1 ? 99999 : privateLessonDuePagination.limit
+              );
+              setPrivateLessonDueData(result.data || []);
+              setPrivateLessonDuePagination(result.pagination);
+              if (result.footer?.totalAmount) {
+                setPrivateLessonDueFooterTotal(result.footer.totalAmount);
+              }
+            } catch {}
+          }}
+          rowsPerPage={privateLessonDuePagination.limit}
+          onRowsPerPageChange={async (limit: number) => {
+            try {
+              const result = await getCustomerPrivateLessonDue(
+                location,
+                Number(id),
+                1,
+                limit
+              );
+              setPrivateLessonDueData(result.data || []);
+              setPrivateLessonDuePagination(result.pagination);
+              if (result.footer?.totalAmount) {
+                setPrivateLessonDueFooterTotal(result.footer.totalAmount);
+              }
+            } catch {}
+          }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
         />
 
         <TableCard
