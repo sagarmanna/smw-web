@@ -1,6 +1,5 @@
 import { 
-  ProformaInvoiceDetailData, 
-  HistoryData 
+  ProformaInvoiceDetailData 
 } from '../tabConfigs';
 
 // Interface for recurring payment enrolments
@@ -15,8 +14,6 @@ export interface RecurringPaymentEnrolmentData {
 
 // Mock data for customer detail tabs
 export const mockCustomerTabData = {
- 
-
   // Detailed rows for the standalone Proforma Invoice page
   proformaInvoiceDetailData: [
     { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Oct 01, 2025", endDate: "Oct 31, 2025", dueDate: "-", proFormaInvoice: "-", status: "-" },
@@ -49,15 +46,6 @@ export const mockCustomerTabData = {
   ] as ProformaInvoiceDetailData[],
 
  
-
-  historyData: [
-    { message: "On Sep 9, 2022, at 12:15 AM, seng Added new payment of $60.27 for 123 123" },
-    { message: "On Sep 9, 2022, at 12:53 AM, seng Added new payment of $4621.04 for 123 123" },
-    { message: "On Oct 15, 2023, at 07:00 PM, Prateek Panwar Added new payment of $13890.21 for 123 123" },
-    { message: "On Nov 13, 2023, at 02:51 PM, Giancarlo Macaluso Added new payment of $18.45 for 123 123" },
-    { message: "On Mar 8, 2024, at 10:43 AM, Prateek Panwar Added new payment of $3367.96 for 123 123" },
-    { message: "On Mar 8, 2024, at 10:45 AM, Prateek Panwar Added new payment of $122.50 for 123 123" },
-  ] as HistoryData[],
 
   recurringPaymentEnrolments: [
     {
