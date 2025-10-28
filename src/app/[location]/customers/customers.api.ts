@@ -78,6 +78,7 @@ export interface CustomerInfoData {
     name: string;
     role: string;
     referralSource: string;
+    referralSourceDescription?: string;
     status: string;
   };
   email: Array<{
