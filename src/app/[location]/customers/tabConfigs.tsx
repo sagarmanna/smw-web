@@ -77,6 +77,8 @@ export interface CommentData {
 }
 
 export interface HistoryData {
+  id?: number;
+  createdOn?: string;
   message: string;
 }
 
@@ -193,14 +195,20 @@ export const commentColumns: ColumnDef<CommentData>[] = [
 ];
 
 export const historyColumns: ColumnDef<HistoryData>[] = [
-  { 
-    accessorKey: "message", 
+  {
+    accessorKey: "message",
     header: "Message",
-    cell: ({ row }) => (
-      <div className="text-sm">
-        {row.getValue("message") as string}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const item = row.original as HistoryData;
+      const created = item.createdOn ? `On ${item.createdOn}, ` : "";
+      // The API already returns a grammatically complete fragment in `message`
+      return (
+        <div className="text-sm">
+          {created}
+          {item.message}
+        </div>
+      );
+    },
   },
 ];
 
