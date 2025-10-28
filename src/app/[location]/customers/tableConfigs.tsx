@@ -30,12 +30,12 @@ export interface EquipmentRentalData {
 }
 
 export interface RecurringPaymentData {
-  toBeEnteredOn: string;
+  nextEntryDate: string;
   nextPaymentDate: string;
   frequency: string;
   expiryDate: string;
-  method: string;
-  amount: number;
+  methodName: string;
+  amount: number | string;
 }
 
 export interface PrivateLessonDueData {
@@ -179,7 +179,7 @@ export const equipmentRentalColumns: ColumnDef<EquipmentRentalData>[] = [
 
 export const recurringPaymentColumns: ColumnDef<RecurringPaymentData>[] = [
   {
-    accessorKey: "toBeEnteredOn",
+    accessorKey: "nextEntryDate",
     header: "To Be Entered On",
   },
   {
@@ -195,15 +195,20 @@ export const recurringPaymentColumns: ColumnDef<RecurringPaymentData>[] = [
     header: "Expiry Date",
   },
   {
-    accessorKey: "method",
+    accessorKey: "methodName",
     header: "Method",
   },
   {
     accessorKey: "amount",
     header: "Amount",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("amount"))}</div>
-    ),
+    cell: ({ row }) => {
+      const raw = row.getValue("amount") as unknown;
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      const value = typeof raw === "number" ? raw : 0;
+      return <div className="text-right">{formatCurrency(value)}</div>;
+    },
   },
 ];
 

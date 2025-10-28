@@ -424,6 +424,12 @@ export function CustomerDetailClient({
   const [_recurringPaymentData, setRecurringPaymentData] = React.useState<
     RecurringPaymentData[]
   >([]);
+  const [recurringPaymentsPagination, setRecurringPaymentsPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
   const [privateLessonDueData, setPrivateLessonDueData] = React.useState<
     PrivateLessonDueData[]
   >([]);
@@ -754,16 +760,24 @@ export function CustomerDetailClient({
         // Load other table data in parallel
         const [
           invoices,
-          recurringPayments,
           _paymentsIgnore,
         ] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
-          getCustomerRecurringPayments(location, Number(id)),
           Promise.resolve([]),
         ]);
 
         setInvoiceData(invoices || []);
-        setRecurringPaymentData(recurringPayments || []);
+        // Load recurring payments (no transform) with server-side pagination
+        try {
+          const { data: recurring, pagination: rPag } = await getCustomerRecurringPayments(
+            location,
+            Number(id),
+            1,
+            10
+          );
+          setRecurringPaymentData(recurring || []);
+          setRecurringPaymentsPagination(rPag);
+        } catch {}
 
         // Load private lesson dues with footer and pagination (no transform)
         try {
@@ -1284,10 +1298,35 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.recurringPayments.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableFilter}
-          enableRowsPerPage={
-            CUSTOMER_TABLE_CONFIGS.recurringPayments.enableRowsPerPage
-          }
+          enableRowsPerPage={true}
           iconType="plus"
+          serverSidePagination={recurringPaymentsPagination}
+          onServerSidePageChange={async (page: number) => {
+            try {
+              const { data, pagination } = await getCustomerRecurringPayments(
+                location,
+                Number(id),
+                page,
+                recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+              );
+              setRecurringPaymentData(data || []);
+              setRecurringPaymentsPagination(pagination);
+            } catch {}
+          }}
+          rowsPerPage={recurringPaymentsPagination.limit}
+          onRowsPerPageChange={async (limit: number) => {
+            try {
+              const { data, pagination } = await getCustomerRecurringPayments(
+                location,
+                Number(id),
+                1,
+                limit
+              );
+              setRecurringPaymentData(data || []);
+              setRecurringPaymentsPagination(pagination);
+            } catch {}
+          }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
         />
 
         <TableCard
