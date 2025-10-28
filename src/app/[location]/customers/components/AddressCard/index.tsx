@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   createCustomerAddress,
@@ -382,7 +381,7 @@ export function AddressCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-1">
+        <div className="space-y-4 px-1 pb-4">
           {editingAddress && (
             <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">
               Editing address

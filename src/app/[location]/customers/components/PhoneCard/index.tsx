@@ -317,7 +317,7 @@ export function PhoneCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 px-1">
           {editingPhone && (
             <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">
               Editing phone number
@@ -326,7 +326,7 @@ export function PhoneCard({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone-number">
+              <Label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Number <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -336,7 +336,11 @@ export function PhoneCard({
                 onChange={handlePhoneNumberChange}
                 placeholder="(___) ___-____"
                 maxLength={14}
-                className={errors.number ? "border-red-500" : ""}
+                className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.number 
+                    ? "border-red-500 focus:ring-red-500" 
+                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                }`}
                 disabled={isSaving}
               />
               {errors.number && (
@@ -345,7 +349,9 @@ export function PhoneCard({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone-label">Label</Label>
+              <Label htmlFor="phone-label" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Label
+              </Label>
               <Select
                 value={currentPhone.label}
                 onValueChange={(value) =>
@@ -353,7 +359,10 @@ export function PhoneCard({
                 }
                 disabled={isSaving}
               >
-                <SelectTrigger id="phone-label">
+                <SelectTrigger 
+                  id="phone-label" 
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -365,7 +374,9 @@ export function PhoneCard({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone-extension">Extension</Label>
+              <Label htmlFor="phone-extension" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Extension
+              </Label>
               <Input
                 id="phone-extension"
                 type="text"
@@ -374,12 +385,15 @@ export function PhoneCard({
                   setCurrentPhone({ ...currentPhone, extension: e.target.value })
                 }
                 placeholder="Enter extension"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSaving}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone-note">Note</Label>
+              <Label htmlFor="phone-note" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Note
+              </Label>
               <Textarea
                 id="phone-note"
                 value={currentPhone.note}
@@ -388,9 +402,27 @@ export function PhoneCard({
                 }
                 placeholder="Enter note"
                 rows={3}
-                className="resize-none"
+                className="w-full resize-none border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSaving}
               />
+            </div>
+
+            {/* Primary Phone Checkbox */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isPrimary"
+                checked={currentPhone.isPrimary}
+                onChange={(e) => setCurrentPhone({ ...currentPhone, isPrimary: e.target.checked })}
+                className="h-4 w-4 flex-shrink-0 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400"
+                disabled={isSaving}
+              />
+              <Label
+                htmlFor="isPrimary"
+                className="text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300"
+              >
+                Set as primary phone
+              </Label>
             </div>
           </div>
         </div>

@@ -272,7 +272,7 @@ export function EmailCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 px-1">
           {editingEmail && (
             <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">Editing email</div>
           )}
@@ -280,7 +280,9 @@ export function EmailCard({
           {/* Email Form */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email-address">Email</Label>
+              <Label htmlFor="email-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Email
+              </Label>
               <Input
                 id="email-address"
                 type="email"
@@ -290,20 +292,29 @@ export function EmailCard({
                   if (errors.email) setErrors({ email: "" });
                 }}
                 placeholder="Enter email address"
-                className={errors.email ? "border-red-500" : ""}
+                className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.email 
+                    ? "border-red-500 focus:ring-red-500" 
+                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                }`}
                 disabled={isSaving}
               />
               {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email-label">Label</Label>
+              <Label htmlFor="email-label" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Label
+              </Label>
               <Select 
                 value={currentEmail.label} 
                 onValueChange={value => setCurrentEmail({ ...currentEmail, label: value })}
                 disabled={isSaving}
               >
-                <SelectTrigger id="email-label">
+                <SelectTrigger 
+                  id="email-label" 
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -315,7 +326,9 @@ export function EmailCard({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email-note">Note</Label>
+              <Label htmlFor="email-note" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Note
+              </Label>
               <Textarea
                 id="email-note"
                 value={currentEmail.note}
@@ -324,7 +337,7 @@ export function EmailCard({
                 }
                 placeholder="Enter note"
                 rows={3}
-                className="resize-none"
+                className="w-full resize-none border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSaving}
               />
             </div>
@@ -336,12 +349,12 @@ export function EmailCard({
                 id="isPrimary"
                 checked={currentEmail.isPrimary}
                 onChange={(e) => setCurrentEmail({ ...currentEmail, isPrimary: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 flex-shrink-0 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400"
                 disabled={isSaving}
               />
               <Label
                 htmlFor="isPrimary"
-                className="text-sm font-medium cursor-pointer"
+                className="text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300"
               >
                 Set as primary email
               </Label>
