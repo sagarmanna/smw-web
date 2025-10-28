@@ -40,10 +40,10 @@ export interface RecurringPaymentData {
 
 export interface PrivateLessonDueData {
   lessonDate: string;
-  student: string;
-  program: string;
-  teacher: string;
-  amount: number;
+  studentName: string;
+  programName: string;
+  teacherName: string;
+  amount: number | string;
 }
 
 export interface GroupLessonDueData {
@@ -213,26 +213,27 @@ export const privateLessonDueColumns: ColumnDef<PrivateLessonDueData>[] = [
     header: "Lesson Date",
   },
   {
-    accessorKey: "student",
+    accessorKey: "studentName",
     header: "Student",
   },
   {
-    accessorKey: "program",
+    accessorKey: "programName",
     header: "Program",
   },
   {
-    accessorKey: "teacher",
+    accessorKey: "teacherName",
     header: "Teacher",
   },
   {
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => {
-      // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("amount") as number) : (row.original as PrivateLessonDueData).amount;
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      const raw = row.getValue ? (row.getValue("amount") as unknown) : (row.original as unknown as { amount: unknown }).amount;
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      const value = typeof raw === "number" ? raw : 0;
+      return <div className="text-right">{formatCurrency(value)}</div>;
     },
   },
 ];
