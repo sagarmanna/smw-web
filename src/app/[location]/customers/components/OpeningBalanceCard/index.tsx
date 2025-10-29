@@ -16,9 +16,10 @@ interface OpeningBalanceCardProps {
   amount?: number;
   hasBalance?: boolean;
   customerId?: string;
+  openingBalanceId?: string | number; // This should be the opening balance invoice ID
   location?: string;
   onAddClick?: () => void;
-  onSave?: (amount: number, balanceType: "owing" | "credit") => void;
+  onSave?: (amount: number, balanceType: "owing" | "credit", invoiceId: number) => void;
   className?: string;
   loading?: boolean;
 }
@@ -27,6 +28,7 @@ export function OpeningBalanceCard({
   amount = 0, 
   hasBalance = false,
   customerId,
+  openingBalanceId, // Invoice ID from openingBalance.id
   location,
   onAddClick, 
   onSave,
@@ -55,8 +57,9 @@ export function OpeningBalanceCard({
   };
 
   const handleViewClick = () => {
-    if (customerId && location) {
-      const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${customerId}`;
+    // Use openingBalanceId (which is openingBalance.id from the API response)
+    if (openingBalanceId && location) {
+      const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${openingBalanceId}`;
       window.open(url, '_blank');
     }
   };
@@ -92,9 +95,9 @@ export function OpeningBalanceCard({
       if (result?.success) {
         toast.success("Opening balance created successfully");
         
-        // Call onSave callback to update parent state
-        if (onSave) {
-          onSave(numAmount, balanceType);
+        // Call onSave callback with the new invoice ID from the response
+        if (onSave && result.data?.invoiceId) {
+          onSave(numAmount, balanceType, result.data.invoiceId);
         }
 
         // Reset and close
@@ -168,15 +171,17 @@ export function OpeningBalanceCard({
               value={formattedAmount}
               className="justify-start flex-1"
             />
-            {/* View button */}
-            <button
-              onClick={handleViewClick}
-              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-              aria-label="View opening balance"
-              title="View opening balance"
-            >
-              <Eye className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-            </button>
+            {/* View button - only show if openingBalanceId exists */}
+            {openingBalanceId && (
+              <button
+                onClick={handleViewClick}
+                className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                aria-label="View opening balance"
+                title="View opening balance"
+              >
+                <Eye className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+              </button>
+            )}
           </div>
         ) : (
           <p className="text-sm text-gray-500">No opening balance set</p>

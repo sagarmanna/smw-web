@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Pencil } from "lucide-react";
-import { updateCustomerDiscount } from "./discount-card.api";
+import { updateCustomerDiscount, createCustomerDiscount } from "./discount-card.api";
 import { toast } from "sonner";
 
 interface DiscountCardProps {
@@ -33,10 +33,12 @@ export function DiscountCard({
   const [showError, setShowError] = useState(false);
   const [hasTyped, setHasTyped] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const handleAddClick = () => {
+    setIsEditMode(false);
     setIsModalOpen(true);
-    setDiscountValue(discount > 0 ? discount.toString() : "");
+    setDiscountValue("");
     if (onAddClick) {
       onAddClick();
     }
@@ -44,6 +46,7 @@ export function DiscountCard({
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setIsEditMode(true);
     setIsModalOpen(true);
     setDiscountValue(discount > 0 ? discount.toString() : "");
   };
@@ -64,14 +67,26 @@ export function DiscountCard({
 
     setIsSaving(true);
     try {
-      const response = await updateCustomerDiscount(
-        location,
-        customerId,
-        numDiscount
-      );
+      let response;
+      
+      if (isEditMode) {
+        // Use PUT for editing existing discount
+        response = await updateCustomerDiscount(
+          location,
+          customerId,
+          numDiscount
+        );
+      } else {
+        // Use POST for creating new discount
+        response = await createCustomerDiscount(
+          location,
+          customerId,
+          numDiscount
+        );
+      }
 
       if (response?.success) {
-        toast.success(response.message || "Discount updated successfully");
+        toast.success(response.message || `Discount ${isEditMode ? 'updated' : 'created'} successfully`);
 
         if (onSave) {
           onSave(numDiscount);
@@ -82,7 +97,7 @@ export function DiscountCard({
         setHasTyped(false);
         setIsModalOpen(false);
       } else {
-        toast.error(response?.message || "Failed to update discount");
+        toast.error(response?.message || `Failed to ${isEditMode ? 'update' : 'create'} discount`);
       }
     } catch (error) {
       console.error("Error saving discount:", error);
@@ -125,6 +140,7 @@ export function DiscountCard({
       <InfoCard 
         title="Discount (%)" 
         onAddClick={handleAddClick}
+        showAddButton={!discount || discount === 0}
         className={className}
         loading={loading}
       >

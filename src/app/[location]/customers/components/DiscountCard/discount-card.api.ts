@@ -5,6 +5,13 @@ export interface DiscountData {
   value: number;
 }
 
+export interface CreateDiscountRequest {
+  type: 'discount';
+  data: {
+    value: number;
+  };
+}
+
 export interface UpdateDiscountRequest {
   type: 'discount';
   data: {
@@ -12,7 +19,7 @@ export interface UpdateDiscountRequest {
   };
 }
 
-export interface UpdateDiscountResponse {
+export interface DiscountResponse {
   success: boolean;
   message: string;
   data: DiscountData;
@@ -24,7 +31,47 @@ export interface DeleteDiscountResponse {
 }
 
 /**
- * Update or create a discount for a customer
+ * Create a new discount for a customer (POST)
+ * @param location - The location identifier
+ * @param customerId - The customer ID
+ * @param discountValue - The discount percentage (0-100)
+ * @returns Promise with the created discount data
+ */
+export async function createCustomerDiscount(
+  location: string,
+  customerId: number,
+  discountValue: number
+): Promise<DiscountResponse | null> {
+  try {
+    const requestBody: CreateDiscountRequest = {
+      type: 'discount',
+      data: {
+        value: discountValue
+      }
+    };
+
+    const response = await apiClient.post<DiscountResponse>(
+      `/admin/v2/${location}/customers/${customerId}/info`,
+      requestBody
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error('Error creating customer discount:', error);
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to create discount',
+      data: {
+        id: 0,
+        value: 0
+      }
+    };
+  }
+}
+
+/**
+ * Update an existing discount for a customer (PUT)
  * @param location - The location identifier
  * @param customerId - The customer ID
  * @param discountValue - The discount percentage (0-100)
@@ -34,7 +81,7 @@ export async function updateCustomerDiscount(
   location: string,
   customerId: number,
   discountValue: number
-): Promise<UpdateDiscountResponse | null> {
+): Promise<DiscountResponse | null> {
   try {
     const requestBody: UpdateDiscountRequest = {
       type: 'discount',
@@ -43,7 +90,7 @@ export async function updateCustomerDiscount(
       }
     };
 
-    const response = await apiClient.put<UpdateDiscountResponse>(
+    const response = await apiClient.put<DiscountResponse>(
       `/admin/v2/${location}/customers/${customerId}/info`,
       requestBody
     );

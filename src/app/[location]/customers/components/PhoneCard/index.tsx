@@ -58,8 +58,7 @@ export function PhoneCard({
     label: "Home",
     number: "",
     extension: "",
-    note: "",
-    isPrimary: false,
+    note: ""
   });
   const [errors, setErrors] = useState({ number: "" });
   const [isSaving, setIsSaving] = useState(false);
@@ -86,10 +85,9 @@ export function PhoneCard({
 
   const validateForm = () => {
     const newErrors = { number: "" };
-    const digitsOnly = currentPhone.number.replace(/\D/g, "");
-    if (digitsOnly.trim() === "") newErrors.number = "Number cannot be blank.";
-    else if (digitsOnly.length !== 10)
-      newErrors.number = "Please enter a valid 10-digit phone number.";
+    if (currentPhone.number.trim() === "") {
+      newErrors.number = "Number cannot be blank.";
+    }
     setErrors(newErrors);
     return newErrors.number === "";
   };
@@ -101,8 +99,7 @@ export function PhoneCard({
       label: "Home",
       number: "",
       extension: "",
-      note: "",
-      isPrimary: false,
+      note: ""
     });
     setErrors({ number: "" });
     if (onAddClick) onAddClick();
@@ -116,8 +113,7 @@ export function PhoneCard({
       label: phone.label,
       number: phone.number,
       extension: phone.extension || "",
-      note: phone.note || "",
-      isPrimary: phone.isPrimary || false,
+      note: phone.note || ""
     });
     setErrors({ number: "" });
   };
@@ -158,7 +154,7 @@ export function PhoneCard({
           : undefined,
         note: currentPhone.note,
         label: currentPhone.label,
-        isPrimary: currentPhone.isPrimary,
+        isPrimary: false
       };
 
       let response;
@@ -198,8 +194,7 @@ export function PhoneCard({
           label: "Home",
           number: "",
           extension: "",
-          note: "",
-          isPrimary: false,
+          note: ""
         });
         setErrors({ number: "" });
       } else {
@@ -219,8 +214,7 @@ export function PhoneCard({
       label: "Home",
       number: "",
       extension: "",
-      note: "",
-      isPrimary: false,
+      note: ""
     });
     setErrors({ number: "" });
     setIsModalOpen(false);
@@ -317,7 +311,7 @@ export function PhoneCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4 px-1">
+        <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-4 pb-4">
           {editingPhone && (
             <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">
               Editing phone number
@@ -325,8 +319,9 @@ export function PhoneCard({
           )}
 
           <div className="space-y-4">
+            {/* Number */}
             <div className="space-y-2">
-              <Label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <Label htmlFor="phone-number">
                 Number <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -336,11 +331,7 @@ export function PhoneCard({
                 onChange={handlePhoneNumberChange}
                 placeholder="(___) ___-____"
                 maxLength={14}
-                className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.number 
-                    ? "border-red-500 focus:ring-red-500" 
-                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
-                }`}
+                className={errors.number ? "border-red-500" : ""}
                 disabled={isSaving}
               />
               {errors.number && (
@@ -348,10 +339,9 @@ export function PhoneCard({
               )}
             </div>
 
+            {/* Label */}
             <div className="space-y-2">
-              <Label htmlFor="phone-label" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Label
-              </Label>
+              <Label htmlFor="phone-label">Label</Label>
               <Select
                 value={currentPhone.label}
                 onValueChange={(value) =>
@@ -359,10 +349,7 @@ export function PhoneCard({
                 }
                 disabled={isSaving}
               >
-                <SelectTrigger 
-                  id="phone-label" 
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
-                >
+                <SelectTrigger id="phone-label">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -373,10 +360,9 @@ export function PhoneCard({
               </Select>
             </div>
 
+            {/* Extension */}
             <div className="space-y-2">
-              <Label htmlFor="phone-extension" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Extension
-              </Label>
+              <Label htmlFor="phone-extension">Extension</Label>
               <Input
                 id="phone-extension"
                 type="text"
@@ -385,15 +371,13 @@ export function PhoneCard({
                   setCurrentPhone({ ...currentPhone, extension: e.target.value })
                 }
                 placeholder="Enter extension"
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSaving}
               />
             </div>
 
+            {/* Note */}
             <div className="space-y-2">
-              <Label htmlFor="phone-note" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Note
-              </Label>
+              <Label htmlFor="phone-note">Note</Label>
               <Textarea
                 id="phone-note"
                 value={currentPhone.note}
@@ -402,27 +386,8 @@ export function PhoneCard({
                 }
                 placeholder="Enter note"
                 rows={3}
-                className="w-full resize-none border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSaving}
               />
-            </div>
-
-            {/* Primary Phone Checkbox */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isPrimary"
-                checked={currentPhone.isPrimary}
-                onChange={(e) => setCurrentPhone({ ...currentPhone, isPrimary: e.target.checked })}
-                className="h-4 w-4 flex-shrink-0 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400"
-                disabled={isSaving}
-              />
-              <Label
-                htmlFor="isPrimary"
-                className="text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300"
-              >
-                Set as primary phone
-              </Label>
             </div>
           </div>
         </div>

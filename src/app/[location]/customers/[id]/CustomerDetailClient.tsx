@@ -526,6 +526,7 @@ export function CustomerDetailClient({
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [discount, setDiscount] = React.useState<number>(0);
   const [openingBalance, setOpeningBalance] = React.useState<number>(0);
+  const [openingBalanceId, setOpeningBalanceId] = React.useState<number | null>(null);
   const [hasOpeningBalance, setHasOpeningBalance] =
     React.useState<boolean>(false);
 
@@ -726,7 +727,9 @@ export function CustomerDetailClient({
           // FIXED: Opening balance handling
           if (infoResponse.data.openingBalance) {
             const amount = infoResponse.data.openingBalance.amount || 0;
+            const id = infoResponse.data.openingBalance.id;
             setOpeningBalance(amount);
+            setOpeningBalanceId(id);
             setHasOpeningBalance(true);
           }
         }
@@ -1249,17 +1252,19 @@ export function CustomerDetailClient({
           />
 
           <OpeningBalanceCard
-            amount={openingBalance}
-            hasBalance={hasOpeningBalance}
-            customerId={id}
-            location={location}
-            onSave={(amount, balanceType) => {
-              const savedAmount = balanceType === "credit" ? -amount : amount;
-              setOpeningBalance(savedAmount);
-              setHasOpeningBalance(true);
-            }}
-            loading={loading}
-          />
+  amount={openingBalance}
+  hasBalance={hasOpeningBalance}
+  customerId={id}
+  openingBalanceId={openingBalanceId ?? undefined}
+  location={location}
+  onSave={(amount, balanceType, invoiceId) => { // UPDATE: Add invoiceId parameter
+    const savedAmount = balanceType === "credit" ? -amount : amount;
+    setOpeningBalance(savedAmount);
+    setOpeningBalanceId(invoiceId); // ADD THIS LINE
+    setHasOpeningBalance(true);
+  }}
+  loading={loading}
+/>
 
           <InfoCardWithAction title="Payment Preference" showAddButton={false}>
             <div className="space-y-2">
