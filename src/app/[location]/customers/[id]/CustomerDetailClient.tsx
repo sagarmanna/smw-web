@@ -1150,6 +1150,8 @@ export function CustomerDetailClient({
             loading={loading}
             onAddInvoice={handleAddInvoice}
             onPrintInvoice={handlePrintInvoice}
+            location={location}
+            customerId={id}
           />
 
           {/* Outstanding Invoices */}
