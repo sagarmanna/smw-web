@@ -201,13 +201,26 @@ export const historyColumns: ColumnDef<HistoryData>[] = [
     cell: ({ row }) => {
       const item = row.original as HistoryData;
       const created = item.createdOn ? `On ${item.createdOn}, ` : "";
-      // The API already returns a grammatically complete fragment in `message`
-      return (
-        <div className="text-sm">
-          {created}
-          {item.message}
-        </div>
-      );
+      // The API may include HTML links inside `message`; render safely and ensure links open in a new tab
+      const combined = `${created}${item.message}`;
+      let styled = combined.replace(/<a\b([^>]*)>/g, (_match, attrs: string) => {
+        let newAttrs = attrs || "";
+        if (!/target=/.test(newAttrs)) {
+          newAttrs += ' target="_blank" rel="noopener noreferrer"';
+        }
+        const linkClasses = 'text-blue-600 hover:text-blue-800 font-medium';
+        if (/class=/.test(newAttrs)) {
+          newAttrs = newAttrs.replace(/class=\"([^\"]*)\"/, (_m, cls: string) => `class=\"${cls} ${linkClasses}\"`);
+        } else {
+          newAttrs += ` class=\"${linkClasses}\"`;
+        }
+        return `<a${newAttrs}>`;
+      });
+      // Style placeholders like {{username}} when backend sends plain text
+      styled = styled.replace(/\{\{([^}]+)\}\}/g, (_m, name: string) => {
+        return `<span class=\"text-blue-600 hover:text-blue-800 font-medium\">${name}</span>`;
+      });
+      return <div className="text-sm" dangerouslySetInnerHTML={{ __html: styled }} />;
     },
   },
 ];
