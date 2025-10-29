@@ -95,7 +95,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     {
       accessorKey: "firstName",
       header: () => <span>First Name</span>,
-      cell: ({ row }) => <span className="truncate block max-w-[220px]" title={row.original.firstName}>{row.original.firstName}</span>,
+      cell: ({ row }) => <span className="" title={row.original.firstName}>{row.original.firstName}</span>,
       enableSorting: true,
       filter: {
         type: "string"
@@ -105,7 +105,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     {
       accessorKey: "lastName",
       header: () => <span>Last Name</span>,
-      cell: ({ row }) => <span className="truncate block max-w-[220px]" title={row.original.lastName}>{row.original.lastName}</span>,
+      cell: ({ row }) => <span className="" title={row.original.lastName}>{row.original.lastName}</span>,
       enableSorting: true,
       filter: {
         type: "string"
@@ -128,7 +128,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     {
       accessorKey: "students",
       header: () => <span>Students</span>,
-      cell: ({ row }) => <span className="truncate block max-w-[260px]" title={row.original.students}>{row.original.students}</span>,
+      cell: ({ row }) => <span className="" title={row.original.students}>{row.original.students}</span>,
       enableSorting: false,
       filter: {
         type: "string"
