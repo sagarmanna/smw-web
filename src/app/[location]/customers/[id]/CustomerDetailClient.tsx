@@ -1863,6 +1863,38 @@ export function CustomerDetailClient({
                   }
                   rowsPerPageOptions={[5, 10, 20, 50, 100]}
                   initialRowsPerPage={10}
+                  onRowClick={(row: unknown) => {
+                    const getScalarField = (
+                      obj: unknown,
+                      keys: string[]
+                    ): string | number | undefined => {
+                      if (!obj || typeof obj !== "object") return undefined;
+                      const rec = obj as Record<string, unknown>;
+                      for (const key of keys) {
+                        const value = rec[key];
+                        if (typeof value === "string" || typeof value === "number") {
+                          return value;
+                        }
+                      }
+                      return undefined;
+                    };
+                    const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+                    if (isStudentsTab) {
+                      const studentId = getScalarField(row, ["id", "studentId"]);
+                      if (studentId) {
+                        window.open(`${legacyBase}/${location}/student/view?id=${studentId}`, "_blank", "noopener");
+                      }
+                    } else if (isEnrolmentsTab) {
+                      const enrolmentId = getScalarField(row, ["id", "enrolmentId", "enrollmentId"]);
+                      if (enrolmentId) {
+                        window.open(`${legacyBase}/${location}/enrolment/view?id=${enrolmentId}`, "_blank", "noopener");
+                      }
+                      } else if (isPrivateLessonsTab || isGroupLessonsTab) {
+                        const lessonId = getScalarField(row, ["lessonId"]);
+                        const idParam = lessonId || 4792347; // temporary fallback until API provides lessonId
+                        window.open(`${legacyBase}/${location}/lesson/view?id=${idParam}`, "_blank", "noopener");
+                      }
+                  }}
                 />
               </TabsContent>
             );
