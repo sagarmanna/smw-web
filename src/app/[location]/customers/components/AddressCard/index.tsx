@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   createCustomerAddress,
@@ -84,24 +83,22 @@ export function AddressCard({
   });
   const [loadingGeoData, setLoadingGeoData] = useState(false);
 
-  // Fetch geodata when modal opens
+  // Fetch geodata once when component mounts
   useEffect(() => {
-    if (isModalOpen && geoData.city.length === 0) {
-      fetchGeoData();
-    }
-  }, [isModalOpen]);
+    fetchGeoData();
+  }, []);
 
   const fetchGeoData = async () => {
     setLoadingGeoData(true);
     try {
       const data = await getGeoData('all');
+      
       if (data) {
         setGeoData(data);
       } else {
         toast.error("Failed to load location data");
       }
     } catch (error) {
-      console.error("Error fetching geodata:", error);
       toast.error("Failed to load location data");
     } finally {
       setLoadingGeoData(false);
@@ -132,7 +129,6 @@ export function AddressCard({
   };
 
   const handleAddClick = () => {
-    setIsModalOpen(true);
     setEditingAddress(null);
     setCurrentAddress({
       address: "",
@@ -146,12 +142,12 @@ export function AddressCard({
       isPrimary: false,
     });
     setErrors({ address: "", postalCode: "", city: "" });
+    setIsModalOpen(true);
     if (onAddClick) onAddClick();
   };
 
   const handleEditClick = (e: React.MouseEvent, address: Address) => {
     e.stopPropagation();
-    setIsModalOpen(true);
     setEditingAddress(address);
     setCurrentAddress({
       address: address.address,
@@ -165,6 +161,7 @@ export function AddressCard({
       isPrimary: address.isPrimary || false,
     });
     setErrors({ address: "", postalCode: "", city: "" });
+    setIsModalOpen(true);
   };
 
   const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
@@ -182,7 +179,6 @@ export function AddressCard({
         toast.error(response?.message || "Failed to delete address");
       }
     } catch (error) {
-      console.error("Error deleting address:", error);
       toast.error("An unexpected error occurred");
     } finally {
       setIsSaving(false);
@@ -247,7 +243,6 @@ export function AddressCard({
         toast.error(response?.message || "Failed to save address");
       }
     } catch (error) {
-      console.error("Error saving address:", error);
       toast.error("An unexpected error occurred");
     } finally {
       setIsSaving(false);
@@ -274,11 +269,13 @@ export function AddressCard({
   const handleCityChange = (value: string) => {
     const cityId = parseInt(value);
     const selectedCity = geoData.city.find((c) => c.id === cityId);
+    
     setCurrentAddress({
       ...currentAddress,
       cityId,
       city: selectedCity?.name || "",
     });
+    
     if (errors.city) setErrors({ ...errors, city: "" });
   };
 
@@ -296,6 +293,21 @@ export function AddressCard({
       disabled: isSaving,
     },
   ];
+
+  // Get the display value for the city Select
+  const getCityDisplayValue = () => {
+    if (!currentAddress.cityId || currentAddress.cityId === 0) {
+      return "";
+    }
+    
+    const city = geoData.city.find((c) => c.id === currentAddress.cityId);
+    
+    if (city) {
+      return currentAddress.cityId.toString();
+    }
+    
+    return "";
+  };
 
   return (
     <>
@@ -439,12 +451,21 @@ export function AddressCard({
                 City <span className="text-red-500">*</span>
               </Label>
               <Select
-                value={currentAddress.cityId ? currentAddress.cityId.toString() : ""}
+                value={getCityDisplayValue()}
                 onValueChange={handleCityChange}
                 disabled={isSaving || loadingGeoData}
               >
-                <SelectTrigger id="address-city" className={errors.city ? "border-red-500" : ""}>
-                  <SelectValue placeholder={loadingGeoData ? "Loading cities..." : "Select city"} />
+                <SelectTrigger 
+                  id="address-city" 
+                  className={errors.city ? "border-red-500" : ""}
+                >
+                  <SelectValue 
+                    placeholder={
+                      loadingGeoData 
+                        ? "Loading cities..." 
+                        : currentAddress.city || "Select city"
+                    } 
+                  />
                 </SelectTrigger>
                 <SelectContent className="max-h-[200px]">
                   {geoData.city.length > 0 ? (
@@ -455,13 +476,18 @@ export function AddressCard({
                     ))
                   ) : (
                     <SelectItem value="0" disabled>
-                      No cities available
+                      {loadingGeoData ? "Loading..." : "No cities available"}
                     </SelectItem>
                   )}
                 </SelectContent>
               </Select>
               {errors.city && (
                 <p className="text-sm text-red-500">{errors.city}</p>
+              )}
+              {currentAddress.city && currentAddress.cityId > 0 && !geoData.city.find(c => c.id === currentAddress.cityId) && (
+                <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
+                  ⚠️ Current city &quot;{currentAddress.city}&quot; is not available in the locations list. Please select a valid city from the dropdown.
+                </p>
               )}
             </div>
 
