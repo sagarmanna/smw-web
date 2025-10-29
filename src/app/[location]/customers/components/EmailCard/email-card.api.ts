@@ -50,6 +50,40 @@ export interface DeleteEmailResponse {
   message: string;
 }
 
+export interface ValidateEmailResponse {
+  success: boolean;
+  data: {
+    exists: boolean;
+  };
+  message?: string;
+}
+
+/**
+ * Validate if an email already exists for a customer in the location
+ * @param location - The location identifier
+ * @param email - The email to validate
+ * @returns Promise with validation result
+ */
+export async function validateCustomerEmail(
+  location: string,
+  email: string
+): Promise<ValidateEmailResponse | null> {
+  try {
+    const response = await apiClient.get<ValidateEmailResponse>(
+      `/admin/v2/${location}/user/validate-email?email=${encodeURIComponent(email)}`
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: { exists: false },
+      message: apiError.response?.data?.message || "Failed to validate email",
+    };
+  }
+}
+
 /**
  * Create a new email for a customer
  * @param location - The location identifier

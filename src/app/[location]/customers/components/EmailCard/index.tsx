@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   createCustomerEmail,
   updateCustomerEmail,
   deleteCustomerEmail,
+  validateCustomerEmail,
   EmailData,
 } from "./email-card.api";
 
@@ -54,8 +55,21 @@ export function EmailCard({
   });
   const [errors, setErrors] = useState({ email: "" });
   const [isSaving, setIsSaving] = useState(false);
+  const [isValidatingEmail, setIsValidatingEmail] = useState(false);
 
-  const validateEmail = (email: string) => {
+  // Debounce timer ref for email validation
+  const emailValidationTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (emailValidationTimerRef.current) {
+        clearTimeout(emailValidationTimerRef.current);
+      }
+    };
+  }, []);
+
+  const validateEmailFormat = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
@@ -71,13 +85,43 @@ export function EmailCard({
     });
   };
 
+  const validateEmailWithAPI = async (email: string) => {
+    try {
+      setIsValidatingEmail(true);
+      const result = await validateCustomerEmail(location, email);
+      
+      if (result?.success) {
+        const { exists } = result.data;
+        if (exists) {
+          setErrors(prev => ({ 
+            ...prev, 
+            email: "This email is already registered for a customer in this location." 
+          }));
+        } else {
+          // Clear email error if it was a duplicate error
+          setErrors(prev => {
+            const newErrors = { ...prev };
+            if (newErrors.email?.includes("already registered")) {
+              newErrors.email = "";
+            }
+            return newErrors;
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error validating email:", error);
+    } finally {
+      setIsValidatingEmail(false);
+    }
+  };
+
   const validateForm = () => {
     const newErrors = { email: "" };
     const trimmedEmail = currentEmail.email.trim();
     
     if (trimmedEmail === "") {
       newErrors.email = "Email cannot be blank.";
-    } else if (!validateEmail(trimmedEmail)) {
+    } else if (!validateEmailFormat(trimmedEmail)) {
       newErrors.email = "Please enter a valid email address.";
     } else if (isEmailDuplicate(trimmedEmail)) {
       newErrors.email = "This email is already registered for a customer in this location.";
@@ -129,6 +173,11 @@ export function EmailCard({
   };
 
   const handleSave = async () => {
+    // Don't submit if email validation is in progress
+    if (isValidatingEmail) {
+      return;
+    }
+
     if (!validateForm()) return;
 
     setIsSaving(true);
@@ -204,11 +253,45 @@ export function EmailCard({
     setCurrentEmail({ label: "Home", email: "", note: "" });
     setErrors({ email: "" });
     setIsModalOpen(false);
+    // Clear any pending validation
+    if (emailValidationTimerRef.current) {
+      clearTimeout(emailValidationTimerRef.current);
+    }
+    setIsValidatingEmail(false);
+  };
+
+  const handleEmailChange = (value: string) => {
+    setCurrentEmail({ ...currentEmail, email: value });
+    if (errors.email) setErrors({ email: "" });
+
+    const trimmedEmail = value.trim();
+    
+    // Clear existing timer
+    if (emailValidationTimerRef.current) {
+      clearTimeout(emailValidationTimerRef.current);
+    }
+    
+    // Check format first
+    if (trimmedEmail === "") {
+      // Clear validation state if email is empty
+      setIsValidatingEmail(false);
+    } else if (!validateEmailFormat(trimmedEmail)) {
+      // Don't validate with API if format is invalid
+      setIsValidatingEmail(false);
+    } else if (isEmailDuplicate(trimmedEmail)) {
+      // Don't validate with API if it's a local duplicate
+      setIsValidatingEmail(false);
+    } else {
+      // Debounce API validation
+      emailValidationTimerRef.current = setTimeout(() => {
+        validateEmailWithAPI(trimmedEmail);
+      }, 500); // Wait 500ms after user stops typing
+    }
   };
 
   const modalActions = [
     { label: "Cancel", onClick: handleCancel, variant: "outline" as const },
-    { label: isSaving ? "Saving..." : "Save", onClick: handleSave, variant: "default" as const, disabled: isSaving }
+    { label: isSaving ? "Saving..." : "Save", onClick: handleSave, variant: "default" as const, disabled: isSaving || isValidatingEmail }
   ];
 
   // Format display value similar to PhoneCard
@@ -296,18 +379,22 @@ export function EmailCard({
               <Label htmlFor="email-address">
                 Email <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="email-address"
-                type="text"
-                value={currentEmail.email}
-                onChange={(e) => {
-                  setCurrentEmail({ ...currentEmail, email: e.target.value });
-                  if (errors.email) setErrors({ email: "" });
-                }}
-                placeholder="Enter email address"
-                className={errors.email ? "border-red-500" : ""}
-                disabled={isSaving}
-              />
+              <div className="relative">
+                <Input
+                  id="email-address"
+                  type="text"
+                  value={currentEmail.email}
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  placeholder="Enter email address"
+                  className={errors.email ? "border-red-500" : ""}
+                  disabled={isSaving}
+                />
+                {isValidatingEmail && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                  </div>
+                )}
+              </div>
               {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
             </div>
 
