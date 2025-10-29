@@ -10,7 +10,8 @@ import {
   InvoiceItem, 
   CreditItem, 
   ColumnFilter, 
-  PaymentCalculations 
+  PaymentCalculations,
+  PaginationState
 } from '../types';
 import { MESSAGES, TABLE_CONFIG } from '../constants';
 
@@ -32,6 +33,18 @@ interface PaymentTablesSectionProps {
   creditColumns: ColumnDef<CreditItem, unknown>[];
   
   calculations: PaymentCalculations;
+  
+  // Pagination for lessons
+  lessonsPagination?: PaginationState;
+  lessonsLoading?: boolean;
+  onLessonsPageChange?: (page: number) => void;
+  onLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
+  
+  // Pagination for invoices
+  invoicesPagination?: PaginationState;
+  invoicesLoading?: boolean;
+  onInvoicesPageChange?: (page: number) => void;
+  onInvoicesRowsPerPageChange?: (rowsPerPage: number) => void;
 }
 
 /**
@@ -52,6 +65,14 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
   credits,
   creditColumns,
   calculations,
+  lessonsPagination,
+  lessonsLoading,
+  onLessonsPageChange,
+  onLessonsRowsPerPageChange,
+  invoicesPagination,
+  invoicesLoading,
+  onInvoicesPageChange,
+  onInvoicesRowsPerPageChange,
 }) => (
   <>
     <div>
@@ -68,6 +89,12 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
         columnFilters={lessonColumnFilters}
         size={TABLE_CONFIG.size}
         variant={TABLE_CONFIG.variant}
+        isLoading={lessonsLoading}
+        serverSidePagination={lessonsPagination}
+        onServerSidePageChange={onLessonsPageChange}
+        rowsPerPage={lessonsPagination?.limit}
+        onRowsPerPageChange={onLessonsRowsPerPageChange}
+        rowsPerPageOptions={[10, 20, 50, 100]}
       />
     </div>
 
@@ -104,6 +131,12 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
         enablePrint={TABLE_CONFIG.enablePrint}
         size={TABLE_CONFIG.size}
         variant={TABLE_CONFIG.variant}
+        isLoading={invoicesLoading}
+        serverSidePagination={invoicesPagination}
+        onServerSidePageChange={onInvoicesPageChange}
+        rowsPerPage={invoicesPagination?.limit}
+        onRowsPerPageChange={onInvoicesRowsPerPageChange}
+        rowsPerPageOptions={[10, 20, 50, 100]}
       />
     </div>
 

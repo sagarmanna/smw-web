@@ -1,4 +1,4 @@
-// types.ts
+/// types.ts
 import * as React from 'react';
 
 export interface LessonItem {
@@ -32,9 +32,11 @@ export interface InvoiceItem {
   selected: boolean;
   date: string;
   number: string;
-  amount: number;
-  balance: number;
-  payment: string;
+  status: string;
+  amount: number; // Total amount of invoice
+  payments: number; // Amount already paid
+  balance: number; // Outstanding balance (from API directly)
+  payment: string; // New payment amount being entered
 }
 
 export interface CreditItem {
@@ -86,12 +88,20 @@ export interface PaymentCalculations {
   amountToCredit: number;
 }
 
+export interface PaginationState {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface ReceivePaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (data: ReceivePaymentData) => void;
   customerName?: string;
   customerId?: string;
+  location?: string;
   amountNeeded?: number;
 }
 
@@ -118,6 +128,18 @@ export interface PaymentTablesSectionProps {
   
   // Calculations
   calculations: PaymentCalculations;
+  
+  // Pagination for lessons
+  lessonsPagination?: PaginationState;
+  lessonsLoading?: boolean;
+  onLessonsPageChange?: (page: number) => void;
+  onLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
+  
+  // Pagination for invoices
+  invoicesPagination?: PaginationState;
+  invoicesLoading?: boolean;
+  onInvoicesPageChange?: (page: number) => void;
+  onInvoicesRowsPerPageChange?: (rowsPerPage: number) => void;
 }
 
 export interface FilterConfig {

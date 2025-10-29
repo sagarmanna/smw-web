@@ -1975,16 +1975,17 @@ export function CustomerDetailClient({
       />
 
       {/* Receive Payment Modal */}
-      <ReceivePaymentModal
-        open={isReceivePaymentModalOpen}
-        onOpenChange={setIsReceivePaymentModalOpen}
-        onSave={handleReceivePayment}
-        customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
-        }
-        customerId={id}
-        amountNeeded={calculateAmountNeeded()}
-      />
+<ReceivePaymentModal
+  open={isReceivePaymentModalOpen}
+  onOpenChange={setIsReceivePaymentModalOpen}
+  onSave={handleReceivePayment}
+  location={location} // Add this - your location from context or props
+  customerName={
+    customer ? `${customer.firstName} ${customer.lastName}` : undefined
+  }
+  customerId={id}
+  amountNeeded={calculateAmountNeeded()}
+/>
 
       {/* Notify Via Email Modal */}
       <NotifyViaEmailReasonsModal
