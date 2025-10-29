@@ -46,6 +46,7 @@ import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
 import AddStudentModal from "../components/AddStudentModal/index";
+import { NotifyViaEmailReasonsModal } from "../components/NotifyViaEmailModal";
 import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
@@ -171,6 +172,7 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
+  const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
 
   // Local state for editable customer details
   const [localFirstName, setLocalFirstName] = React.useState<string>("");
@@ -425,25 +427,28 @@ export function CustomerDetailClient({
   const [_recurringPaymentData, setRecurringPaymentData] = React.useState<
     RecurringPaymentData[]
   >([]);
-  const [recurringPaymentsPagination, setRecurringPaymentsPagination] = React.useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [recurringPaymentsPagination, setRecurringPaymentsPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
   const [privateLessonDueData, setPrivateLessonDueData] = React.useState<
     PrivateLessonDueData[]
   >([]);
   const [groupLessonDueData, setGroupLessonDueData] = React.useState<
     GroupLessonDueData[]
   >([]);
-  const [groupLessonDuePagination, setGroupLessonDuePagination] = React.useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
-  const [groupLessonDueFooterTotal, setGroupLessonDueFooterTotal] = React.useState<string>("$0.00");
+  const [groupLessonDuePagination, setGroupLessonDuePagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [groupLessonDueFooterTotal, setGroupLessonDueFooterTotal] =
+    React.useState<string>("$0.00");
   const [paymentData, setPaymentData] = React.useState<PaymentData[]>([]);
   const [paymentsPagination, setPaymentsPagination] = React.useState({
     page: 1,
@@ -451,7 +456,8 @@ export function CustomerDetailClient({
     total: 0,
     totalPages: 0,
   });
-  const [paymentsFooterRemaining, setPaymentsFooterRemaining] = React.useState<string>("$0.00");
+  const [paymentsFooterRemaining, setPaymentsFooterRemaining] =
+    React.useState<string>("$0.00");
   const [paymentsLoading, setPaymentsLoading] = React.useState<boolean>(false);
 
   // Tab data states
@@ -531,13 +537,15 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
 
   // Private lesson due server-side pagination and footer
-  const [privateLessonDuePagination, setPrivateLessonDuePagination] = React.useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
-  const [privateLessonDueFooterTotal, setPrivateLessonDueFooterTotal] = React.useState<string>("$0.00");
+  const [privateLessonDuePagination, setPrivateLessonDuePagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [privateLessonDueFooterTotal, setPrivateLessonDueFooterTotal] =
+    React.useState<string>("$0.00");
 
   // Calculate footer for outstanding invoices
   // Use API total only when showing all records, otherwise calculate from visible data
@@ -765,10 +773,7 @@ export function CustomerDetailClient({
         setEquipmentRentalsLoading(false);
 
         // Load other table data in parallel
-        const [
-          invoices,
-          _paymentsIgnore,
-        ] = await Promise.all([
+        const [invoices, _paymentsIgnore] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
           Promise.resolve([]),
         ]);
@@ -776,12 +781,8 @@ export function CustomerDetailClient({
         setInvoiceData(invoices || []);
         // Load recurring payments (no transform) with server-side pagination
         try {
-          const { data: recurring, pagination: rPag } = await getCustomerRecurringPayments(
-            location,
-            Number(id),
-            1,
-            10
-          );
+          const { data: recurring, pagination: rPag } =
+            await getCustomerRecurringPayments(location, Number(id), 1, 10);
           setRecurringPaymentData(recurring || []);
           setRecurringPaymentsPagination(rPag);
         } catch {}
@@ -797,7 +798,9 @@ export function CustomerDetailClient({
           setPrivateLessonDueData(privateLessonDueResult.data || []);
           setPrivateLessonDuePagination(privateLessonDueResult.pagination);
           if (privateLessonDueResult.footer?.totalAmount) {
-            setPrivateLessonDueFooterTotal(privateLessonDueResult.footer.totalAmount);
+            setPrivateLessonDueFooterTotal(
+              privateLessonDueResult.footer.totalAmount
+            );
           } else {
             setPrivateLessonDueFooterTotal("$0.00");
           }
@@ -814,7 +817,9 @@ export function CustomerDetailClient({
           setGroupLessonDueData(groupLessonDueResult.data || []);
           setGroupLessonDuePagination(groupLessonDueResult.pagination);
           if (groupLessonDueResult.footer?.totalAmount) {
-            setGroupLessonDueFooterTotal(groupLessonDueResult.footer.totalAmount);
+            setGroupLessonDueFooterTotal(
+              groupLessonDueResult.footer.totalAmount
+            );
           } else {
             setGroupLessonDueFooterTotal("$0.00");
           }
@@ -822,7 +827,12 @@ export function CustomerDetailClient({
         // Load payments with footer (no transform)
         try {
           setPaymentsLoading(true);
-          const paymentsResult = await getCustomerPayments(location, Number(id), 1, 10);
+          const paymentsResult = await getCustomerPayments(
+            location,
+            Number(id),
+            1,
+            10
+          );
           setPaymentData(paymentsResult.data || []);
           setPaymentsPagination(paymentsResult.pagination);
           if (paymentsResult.footer?.totalRemaining) {
@@ -1065,7 +1075,10 @@ export function CustomerDetailClient({
         },
         { label: "A/R Report Detail", onClick: () => {} },
         { label: "Items Purchased by Category", onClick: () => {} },
-        { label: "Notify Via Email", onClick: () => {} },
+        {
+          label: "Notify Via Email",
+          onClick: () => setIsNotifyModalOpen(true),
+        },
       ],
       separator: true,
     },
@@ -1324,7 +1337,9 @@ export function CustomerDetailClient({
                 location,
                 Number(id),
                 page,
-                recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+                recurringPaymentsPagination.limit === -1
+                  ? 99999
+                  : recurringPaymentsPagination.limit
               );
               setRecurringPaymentData(data || []);
               setRecurringPaymentsPagination(pagination);
@@ -1377,7 +1392,9 @@ export function CustomerDetailClient({
                 location,
                 Number(id),
                 page,
-                privateLessonDuePagination.limit === -1 ? 99999 : privateLessonDuePagination.limit
+                privateLessonDuePagination.limit === -1
+                  ? 99999
+                  : privateLessonDuePagination.limit
               );
               setPrivateLessonDueData(result.data || []);
               setPrivateLessonDuePagination(result.pagination);
@@ -1428,7 +1445,6 @@ export function CustomerDetailClient({
           enableRowsPerPage={true}
           iconType="none"
           enableShowAll={false}
-          
           showAllLabel="Show All"
           serverSidePagination={groupLessonDuePagination}
           onServerSidePageChange={async (page: number) => {
@@ -1437,7 +1453,9 @@ export function CustomerDetailClient({
                 location,
                 Number(id),
                 page,
-                groupLessonDuePagination.limit === -1 ? 99999 : groupLessonDuePagination.limit
+                groupLessonDuePagination.limit === -1
+                  ? 99999
+                  : groupLessonDuePagination.limit
               );
               setGroupLessonDueData(result.data || []);
               setGroupLessonDuePagination(result.pagination);
@@ -1531,12 +1549,12 @@ export function CustomerDetailClient({
               !isGroupLessonsTab &&
               !isProformaInvoicesTab
             ) {
-            const startIndex = pagination
-              ? (pagination.page - 1) * pagination.limit
-              : 0;
-            const endIndex = pagination
-              ? startIndex + pagination.limit
-              : fullData.length;
+              const startIndex = pagination
+                ? (pagination.page - 1) * pagination.limit
+                : 0;
+              const endIndex = pagination
+                ? startIndex + pagination.limit
+                : fullData.length;
               data = fullData.slice(startIndex, endIndex);
             }
 
@@ -1966,6 +1984,14 @@ export function CustomerDetailClient({
         }
         customerId={id}
         amountNeeded={calculateAmountNeeded()}
+      />
+
+      {/* Notify Via Email Modal */}
+      <NotifyViaEmailReasonsModal
+        open={isNotifyModalOpen}
+        onOpenChange={setIsNotifyModalOpen}
+        location={location}
+        customerId={Number(id)}
       />
     </div>
   );
