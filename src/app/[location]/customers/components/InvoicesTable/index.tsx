@@ -9,14 +9,25 @@ interface InvoiceTableProps {
   loading?: boolean;
   onAddInvoice?: () => void;
   onPrintInvoice?: (invoiceId: string) => void;
+  location: string;
+  customerId: string | number;
 }
 
 export function InvoiceTable({ 
   data, 
   loading = false,
-  onAddInvoice}: InvoiceTableProps) {
+  onAddInvoice,
+  location,
+  customerId
+}: InvoiceTableProps) {
   
   const handlePrint = () => {
+    const formatCurrencyPrint = (value: unknown) => {
+      if (typeof value === "string") return value;
+      const num = Number(value ?? 0);
+      if (!Number.isFinite(num)) return "";
+      return num.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+    };
     // Open new window for printing
     const printWindow = window.open('', '', 'width=800,height=600');
     
@@ -81,11 +92,11 @@ export function InvoiceTable({
             <tbody>
               ${data.map(invoice => `
                 <tr>
-                  <td>${invoice.id || ''}</td>
-                  <td>${invoice.date || ''}</td>
-                  <td>${invoice.status || ''}</td>
-                  <td>${invoice.total || ''}</td>
-                  <td>${invoice.balance || ''}</td>
+                  <td>${invoice.id ?? ''}</td>
+                  <td>${invoice.date ?? ''}</td>
+                  <td>${invoice.status ?? ''}</td>
+                  <td>${formatCurrencyPrint(invoice.total)}</td>
+                  <td>${formatCurrencyPrint(invoice.balance)}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -105,33 +116,50 @@ export function InvoiceTable({
     printWindow.document.close();
   };
   
-  return (
-    <TableCard 
-      title="Invoices"
-      data={data} 
-      columns={CUSTOMER_TABLE_CONFIGS.invoices.columns}
-      loading={loading}
-      onAdd={onAddInvoice}
-      size={CUSTOMER_TABLE_CONFIGS.invoices.size}
-      variant={CUSTOMER_TABLE_CONFIGS.invoices.variant}
-      enableSorting={CUSTOMER_TABLE_CONFIGS.invoices.enableSorting}
-      enableExport={CUSTOMER_TABLE_CONFIGS.invoices.enableExport}
-      enablePrint={CUSTOMER_TABLE_CONFIGS.invoices.enablePrint}
-      enableSearch={CUSTOMER_TABLE_CONFIGS.invoices.enableSearch}
-      enableFilter={CUSTOMER_TABLE_CONFIGS.invoices.enableFilter}
-      enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.invoices.enableRowsPerPage}
-      iconType="chevron"
-      dropdownItems={[
-        {
-          label: "Add Invoice",
-          onClick: onAddInvoice || (() => {})
-        },
-        {
-          label: "Print",
-          onClick: handlePrint
-        }
-      ]}
-      dropdownLabel="Invoice Actions"
-    />
-  );
+	return (
+		<TableCard 
+				title="Invoices"
+				data={data} 
+				columns={CUSTOMER_TABLE_CONFIGS.invoices.columns}
+				loading={loading}
+				onAdd={onAddInvoice}
+				size={CUSTOMER_TABLE_CONFIGS.invoices.size}
+				variant={CUSTOMER_TABLE_CONFIGS.invoices.variant}
+				enableSorting={CUSTOMER_TABLE_CONFIGS.invoices.enableSorting}
+				enableExport={CUSTOMER_TABLE_CONFIGS.invoices.enableExport}
+				enablePrint={CUSTOMER_TABLE_CONFIGS.invoices.enablePrint}
+				enableSearch={CUSTOMER_TABLE_CONFIGS.invoices.enableSearch}
+				enableFilter={CUSTOMER_TABLE_CONFIGS.invoices.enableFilter}
+				enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.invoices.enableRowsPerPage}
+				iconType="chevron"
+				onRowClick={() => {
+					const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${customerId}`;
+					window.open(url, "_blank", "noopener");
+				}}
+				dropdownItems={[
+					{
+						label: "Add Invoice",
+						onClick: () => {
+							const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${customerId}`;
+							window.open(url, "_blank", "noopener");
+						}
+					},
+					{
+						label: "Print",
+						onClick: handlePrint
+					}
+				]}
+				dropdownLabel="Invoice Actions"
+				bottomContent={
+					<a
+						href={`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice`}
+            target="_blank"
+            rel="noopener noreferrer"
+						className="text-blue-600 hover:text-blue-800 font-medium"
+					>
+						Show More
+					</a>
+				}
+		/>
+	);
 }

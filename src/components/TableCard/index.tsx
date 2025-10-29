@@ -31,7 +31,10 @@ interface TableCardProps<TData = unknown> {
   columns: ColumnDef<TData>[];
   loading?: boolean;
   onAdd?: () => void;
+  bottomContent?: React.ReactNode;
   footerRow?: TData;
+  onRowClick?: (row: TData) => void;
+  rowClassName?: string | ((row: TData) => string);
   size?: "compact" | "normal" | "comfortable";
   variant?: "default" | "striped";
   enableSorting?: boolean;
@@ -66,6 +69,9 @@ export function TableCard<TData = unknown>({
   columns,
   loading, 
   onAdd, 
+  bottomContent,
+  onRowClick,
+  rowClassName,
   footerRow,
   size = "compact",
   variant = "striped",
@@ -187,6 +193,8 @@ export function TableCard<TData = unknown>({
           enableRowsPerPage={enableRowsPerPage}
           className={className}
           isLoading={loading}
+          rowClassName={rowClassName}
+          onRowClick={onRowClick}
           // Pass through server-side pagination props (hide when showing all)
           serverSidePagination={!showAll ? serverSidePagination : undefined}
           onServerSidePageChange={!showAll ? onServerSidePageChange : undefined}
@@ -194,6 +202,11 @@ export function TableCard<TData = unknown>({
           onRowsPerPageChange={onRowsPerPageChange}
           rowsPerPageOptions={rowsPerPageOptions}
         />
+        {bottomContent && (
+          <div className="flex justify-end mt-2">
+            {bottomContent}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
