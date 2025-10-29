@@ -116,7 +116,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
       accessorKey: "allEmails",
       header: () => <span>Email</span>,
       cell: ({ row }) => <span className="truncate block max-w-[260px]" title={row.original.email}>{row.original.email}</span>,
-      enableSorting: true,
+      enableSorting: false,
       filter: {
         type: "string"
       },
