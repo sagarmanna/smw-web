@@ -80,7 +80,7 @@ export function EmailCard({
     } else if (!validateEmail(trimmedEmail)) {
       newErrors.email = "Please enter a valid email address.";
     } else if (isEmailDuplicate(trimmedEmail)) {
-      newErrors.email = "Email already exists!";
+      newErrors.email = "This email is already registered for a customer in this location.";
     }
     
     setErrors(newErrors);

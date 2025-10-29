@@ -56,7 +56,7 @@ export function OpeningBalanceCard({
 
   const handleViewClick = () => {
     if (customerId && location) {
-      const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${customerId}`;
+      const url = `https://dev2.studiomanagerweb.com/admin/${location}/invoice/view?id=${customerId}`;
       window.open(url, '_blank');
     }
   };
