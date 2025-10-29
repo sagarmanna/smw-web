@@ -3,8 +3,12 @@
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
-import { formatCurrency } from "@/utils/formatCurrency";
 import { getCustomers, CustomerRow } from "./customers.api";
+
+// Type for export data with dynamic email columns
+interface ExportCustomerRow extends Omit<CustomerRow, 'allEmails'> {
+  [key: string]: unknown;
+}
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
 import { useRouter } from "next/navigation";
@@ -37,6 +41,55 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
   // Modal state
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = React.useState(false);
   // Using client-side search via CustomTable; no separate server search state for now
+
+  // Helper function to get all unique email columns needed for export/print
+  const getEmailColumns = React.useCallback((data: CustomerRow[]): ColumnDef<ExportCustomerRow>[] => {
+    const maxEmailCount = Math.max(...data.map(row => 
+      row.allEmails ? row.allEmails.split(',').length : 0
+    ));
+    
+    // Create email columns for export/print (up to the maximum number of emails found)
+    return Array.from({ length: maxEmailCount }, (_, index) => ({
+      accessorKey: `email${index + 1}`,
+      header: () => <span>Email {index + 1}</span>,
+      cell: ({ row }: { row: { original: ExportCustomerRow } }) => {
+        const emailValue = row.original[`email${index + 1}`] as string;
+        return <span className="truncate block max-w-[260px]" title={emailValue || ''}>{emailValue || ''}</span>;
+      },
+      enableSorting: false,
+      filter: {
+        type: "string"
+      },
+      meta: { 
+        printable: true, 
+        printableName: `Email ${index + 1}`,
+        exportFormatter: (v: unknown) => String(v ?? '')
+      },
+    }));
+  }, []);
+
+  // Helper function to transform data for export/print with separate email columns
+  const transformDataForExport = React.useCallback((data: CustomerRow[]): ExportCustomerRow[] => {
+    return data.map(row => {
+      const emails = row.allEmails ? row.allEmails.split(',').map(email => email.trim()) : [];
+      const transformedRow: ExportCustomerRow = {
+        id: row.id,
+        isActive: row.isActive,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        email: row.email,
+        students: row.students,
+        balance: row.balance,
+      };
+      
+      // Add separate email columns
+      emails.forEach((email, index) => {
+        transformedRow[`email${index + 1}`] = email;
+      });
+      
+      return transformedRow;
+    });
+  }, []);
 
   const columns = React.useMemo<ColumnDef<CustomerRow>[]>(() => [
     {
@@ -306,11 +359,70 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     };
   }, [footerData]);
 
-  const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<CustomerRow>({
+  // Create export-specific columns with separate email columns
+  const exportColumns = React.useMemo((): ColumnDef<ExportCustomerRow>[] => {
+    const baseColumns: ColumnDef<ExportCustomerRow>[] = [
+      {
+        accessorKey: "firstName",
+        header: "First Name",
+        meta: { printable: true, printableName: "First Name" },
+      },
+      {
+        accessorKey: "lastName", 
+        header: "Last Name",
+        meta: { printable: true, printableName: "Last Name" },
+      },
+      {
+        accessorKey: "students",
+        header: "Students", 
+        meta: { printable: true, printableName: "Students" },
+      },
+      {
+        accessorKey: "balance",
+        header: "Balance",
+        meta: { printable: true, printableName: "Balance", exportFormatter: (v: unknown) => String(v ?? '') },
+      },
+    ];
+    
+    // Add dynamic email columns
+    const emailColumns = getEmailColumns(rows);
+    
+    return [...baseColumns, ...emailColumns];
+  }, [rows, getEmailColumns]);
+
+  // Transform data for export with separate email columns
+  const exportData = React.useMemo(() => {
+    return transformDataForExport(rows);
+  }, [rows, transformDataForExport]);
+
+  // Transform footer data for export
+  const exportFooter = React.useMemo((): ExportCustomerRow | undefined => {
+    if (!footerData) return undefined;
+    
+    const emails = footerData.allEmails ? footerData.allEmails.split(',').map(email => email.trim()) : [];
+    const transformedFooter: ExportCustomerRow = {
+      id: 0,
+      isActive: false,
+      firstName: footerData.firstName,
+      lastName: footerData.lastName,
+      email: footerData.email,
+      students: footerData.students,
+      balance: footerData.balance,
+    };
+    
+    // Add separate email columns for footer
+    emails.forEach((email, index) => {
+      transformedFooter[`email${index + 1}`] = email;
+    });
+    
+    return transformedFooter;
+  }, [footerData]);
+
+  const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<ExportCustomerRow>({
     reportTitle: "Customers List",
-    columns,
-    data: rows,
-    footer: footerRow,
+    columns: exportColumns,
+    data: exportData,
+    footer: exportFooter,
     rightAlignedColumns: ['Balance'], // Only Balance column should be right-aligned
     columnWidths: {
       'Balance': 30, // Increase Balance column width in PDF
@@ -318,7 +430,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
     location: location, // Pass location for PDF header
   });
 
-  const { handlePrint } = usePrintReport<CustomerRow>();
+  const { handlePrint } = usePrintReport<ExportCustomerRow>();
 
     // Show full-page loading animation while fetching data
     if (isLoading) {
@@ -389,9 +501,9 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         enablePrint={true}
         onPrint={() => handlePrint({
           reportTitle: 'Customers Report',
-          columns,
-          data: rows,
-          footer: footerRow || undefined,
+          columns: exportColumns,
+          data: exportData,
+          footer: exportFooter || undefined,
           location,
           rightAlignedColumns: ['Balance'], // Only Balance column should be right-aligned
         })}
