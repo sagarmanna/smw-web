@@ -17,6 +17,7 @@ import Image from "next/image";
 import { getReferralSources, ReferralSourceData } from "../DetailsCard/referralSource";
 import { updateCustomerProfile } from "./detail-card.api";
 import { toast } from "sonner";
+import { setUserPassword } from "@/lib/api/legacyApiAdapter";
 
 
 interface DetailsData {
@@ -304,7 +305,7 @@ export function DetailsCard({
     // TODO: Implement merge functionality
   };
 
-  const handlePasswordSave = () => {
+  const handlePasswordSave = async () => {
     const isPasswordValid = (password?.trim() ?? "") !== "";
     const isConfirmPasswordValid = (confirmPassword?.trim() ?? "") !== "";
     const doPasswordsMatch = password === confirmPassword;
@@ -316,12 +317,22 @@ export function DetailsCard({
       return;
     }
 
-    setIsPasswordModalOpen(false);
-    setPassword("");
-    setConfirmPassword("");
-    setShowPasswordError(false);
-    setPasswordTouched(false);
-    setConfirmPasswordTouched(false);
+    try {
+      const res = await setUserPassword(location, customerId, password.trim(), confirmPassword.trim());
+      if (res?.status) {
+        toast.success("Password updated successfully");
+        setIsPasswordModalOpen(false);
+        setPassword("");
+        setConfirmPassword("");
+        setShowPasswordError(false);
+        setPasswordTouched(false);
+        setConfirmPasswordTouched(false);
+      } else {
+        toast.error("Failed to update password");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Network error");
+    }
   };
 
   const handlePasswordCancel = () => {
