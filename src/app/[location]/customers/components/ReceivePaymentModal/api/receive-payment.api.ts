@@ -80,6 +80,52 @@ export interface ReceivePaymentInvoicesResponse {
   };
 }
 
+// NEW: Payment Credit Interface
+export interface PaymentCredit {
+  id: number;
+  type: string;
+  reference: string;
+  amount: string;
+  payment: string;
+}
+
+export interface PaymentCreditsResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    body: PaymentCredit[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
+// NEW: Invoice Credit Interface
+export interface InvoiceCredit {
+  id: number;
+  type: string;
+  reference: string;
+  amount: string;
+  payment: string;
+}
+
+export interface InvoiceCreditsResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    body: InvoiceCredit[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
 export interface PaymentMethod {
   id: number;
   name: string;
@@ -262,6 +308,112 @@ export async function getReceivePaymentInvoices(
     };
   } catch (error: unknown) {
     console.error('Error fetching receive payment invoices:', error);
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+  }
+}
+
+/**
+ * NEW: Fetch payment credits with pagination
+ * Endpoint: GET /admin/v2/{location}/customers/{customerId}/payment-credits
+ */
+export async function getPaymentCredits(
+  location: string,
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<{
+  data: PaymentCredit[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}> {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<PaymentCreditsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/payment-credits`,
+      { params }
+    );
+
+    if (response.data.success && response.data.data.body) {
+      return {
+        data: response.data.data.body,
+        pagination: response.data.data.pagination || {
+          page: 1,
+          limit: 10,
+          total: response.data.data.body.length,
+          totalPages: 1,
+        },
+      };
+    }
+
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+  } catch (error: unknown) {
+    console.error('Error fetching payment credits:', error);
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+  }
+}
+
+/**
+ * NEW: Fetch invoice credits with pagination
+ * Endpoint: GET /admin/v2/{location}/customers/{customerId}/invoice-credits
+ */
+export async function getInvoiceCredits(
+  location: string,
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<{
+  data: InvoiceCredit[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}> {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<InvoiceCreditsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/invoice-credits`,
+      { params }
+    );
+
+    if (response.data.success && response.data.data.body) {
+      return {
+        data: response.data.data.body,
+        pagination: response.data.data.pagination || {
+          page: 1,
+          limit: 10,
+          total: response.data.data.body.length,
+          totalPages: 1,
+        },
+      };
+    }
+
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+  } catch (error: unknown) {
+    console.error('Error fetching invoice credits:', error);
     return {
       data: [],
       pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },

@@ -51,6 +51,12 @@ interface PaymentTablesSectionProps {
   invoicesLoading?: boolean;
   onInvoicesPageChange?: (page: number) => void;
   onInvoicesRowsPerPageChange?: (rowsPerPage: number) => void;
+  
+  // Pagination for credits
+  creditsPagination?: PaginationState;
+  creditsLoading?: boolean;
+  onCreditsPageChange?: (page: number) => void;
+  onCreditsRowsPerPageChange?: (rowsPerPage: number) => void;
 }
 
 /**
@@ -83,6 +89,10 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
   invoicesLoading,
   onInvoicesPageChange,
   onInvoicesRowsPerPageChange,
+  creditsPagination,
+  creditsLoading,
+  onCreditsPageChange,
+  onCreditsRowsPerPageChange,
 }) => (
   <>
     <div>
@@ -167,6 +177,12 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
         enablePrint={TABLE_CONFIG.enablePrint}
         size={TABLE_CONFIG.size}
         variant={TABLE_CONFIG.variant}
+        isLoading={creditsLoading}
+        serverSidePagination={creditsPagination}
+        onServerSidePageChange={onCreditsPageChange}
+        rowsPerPage={creditsPagination?.limit}
+        onRowsPerPageChange={onCreditsRowsPerPageChange}
+        rowsPerPageOptions={[10, 20, 50, 100]}
       />
       <PaymentSummary calculations={calculations} />
     </div>

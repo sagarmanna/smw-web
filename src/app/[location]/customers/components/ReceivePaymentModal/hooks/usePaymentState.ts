@@ -1,7 +1,6 @@
 // hooks/usePaymentState.ts
 import { useState, useEffect } from 'react';
 import { LessonItem, InvoiceItem, CreditItem, GroupLessonItem, ColumnFilter } from '../types';
-import { createMockCredits } from '../mockData';
 import { DEFAULT_PAYMENT_METHOD, DEFAULT_AMOUNT_RECEIVED } from '../constants';
 import { usePaymentData } from './usePaymentData';
 
@@ -18,7 +17,8 @@ export const usePaymentState = (
   const { 
     lessons: apiLessons,
     groupLessons: apiGroupLessons,
-    invoices: apiInvoices, 
+    invoices: apiInvoices,
+    credits: apiCredits,
     paymentMethods: apiPaymentMethods,
     customerName: apiCustomerName,
     customerId: apiCustomerId,
@@ -27,12 +27,15 @@ export const usePaymentState = (
     lessonsPagination,
     groupLessonsPagination,
     invoicesPagination,
+    creditsPagination,
     lessonsLoading,
     groupLessonsLoading,
     invoicesLoading,
+    creditsLoading,
     loadLessonsPage,
     loadGroupLessonsPage,
     loadInvoicesPage,
+    loadCreditsPage,
   } = usePaymentData(location, customerId);
 
   // Form state
@@ -48,12 +51,11 @@ export const usePaymentState = (
   const [lessonColumnFilters, setLessonColumnFilters] = useState<ColumnFilter>({});
   const [groupLessonColumnFilters, setGroupLessonColumnFilters] = useState<ColumnFilter>({});
   
-  // Data state - using API data for lessons, group lessons, and invoices
-  // and mock data for credits (no API provided)
+  // Data state - using API data for all tables
   const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [groupLessons, setGroupLessons] = useState<GroupLessonItem[]>([]);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
-  const [credits, setCredits] = useState<CreditItem[]>(createMockCredits());
+  const [credits, setCredits] = useState<CreditItem[]>([]);
   
   // Available payment methods from API
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
@@ -88,6 +90,13 @@ export const usePaymentState = (
       setInvoices(apiInvoices);
     }
   }, [apiInvoices]);
+
+  // NEW: Update credits when API data is loaded
+  useEffect(() => {
+    if (apiCredits.length > 0) {
+      setCredits(apiCredits);
+    }
+  }, [apiCredits]);
 
   // Update payment methods when API data is loaded and set "Cash" as default
   useEffect(() => {
@@ -149,11 +158,14 @@ export const usePaymentState = (
     lessonsPagination,
     groupLessonsPagination,
     invoicesPagination,
+    creditsPagination,
     lessonsLoading,
     groupLessonsLoading,
     invoicesLoading,
+    creditsLoading,
     loadLessonsPage,
     loadGroupLessonsPage,
     loadInvoicesPage,
+    loadCreditsPage,
   };
 };

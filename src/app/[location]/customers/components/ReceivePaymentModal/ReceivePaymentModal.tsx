@@ -115,6 +115,21 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     [state]
   );
 
+  // Pagination handlers for credits
+  const handleCreditsPageChange = React.useCallback(
+    async (page: number) => {
+      await state.loadCreditsPage(page, state.creditsPagination.limit);
+    },
+    [state]
+  );
+
+  const handleCreditsRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      await state.loadCreditsPage(1, rowsPerPage);
+    },
+    [state]
+  );
+
   /**
    * Handle save action - transforms state into payment data
    */
@@ -231,6 +246,11 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             invoicesLoading={state.invoicesLoading}
             onInvoicesPageChange={handleInvoicesPageChange}
             onInvoicesRowsPerPageChange={handleInvoicesRowsPerPageChange}
+            // Pagination props for credits
+            creditsPagination={state.creditsPagination}
+            creditsLoading={state.creditsLoading}
+            onCreditsPageChange={handleCreditsPageChange}
+            onCreditsRowsPerPageChange={handleCreditsRowsPerPageChange}
           />
         </div>
 
