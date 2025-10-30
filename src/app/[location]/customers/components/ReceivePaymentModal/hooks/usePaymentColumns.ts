@@ -6,7 +6,7 @@ import {
   createGroupLessonColumns,
   createInvoiceColumns,
   createCreditColumns,
-} from '../columns/ColumnDefinitions';
+} from '../columns/columnDefinition';
 
 /**
  * Custom hook for managing table column definitions with dynamic filter options
