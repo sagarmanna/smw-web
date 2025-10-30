@@ -7,7 +7,7 @@ import {
   getPaymentMethods, 
   getCustomerView,
   PaymentMethod 
-} from '../api/receivePayment.Api';
+} from '../api/receive-payment.api';
 
 interface PaginationState {
   page: number;
