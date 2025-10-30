@@ -532,7 +532,9 @@ export function CustomerDetailClient({
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [discount, setDiscount] = React.useState<number>(0);
   const [openingBalance, setOpeningBalance] = React.useState<number>(0);
-  const [openingBalanceId, setOpeningBalanceId] = React.useState<number | null>(null);
+  const [openingBalanceId, setOpeningBalanceId] = React.useState<number | null>(
+    null
+  );
   const [hasOpeningBalance, setHasOpeningBalance] =
     React.useState<boolean>(false);
 
@@ -1265,19 +1267,20 @@ export function CustomerDetailClient({
           />
 
           <OpeningBalanceCard
-  amount={openingBalance}
-  hasBalance={hasOpeningBalance}
-  customerId={id}
-  openingBalanceId={openingBalanceId ?? undefined}
-  location={location}
-  onSave={(amount, balanceType, invoiceId) => { // UPDATE: Add invoiceId parameter
-    const savedAmount = balanceType === "credit" ? -amount : amount;
-    setOpeningBalance(savedAmount);
-    setOpeningBalanceId(invoiceId); // ADD THIS LINE
-    setHasOpeningBalance(true);
-  }}
-  loading={loading}
-/>
+            amount={openingBalance}
+            hasBalance={hasOpeningBalance}
+            customerId={id}
+            openingBalanceId={openingBalanceId ?? undefined}
+            location={location}
+            onSave={(amount, balanceType, invoiceId) => {
+              // UPDATE: Add invoiceId parameter
+              const savedAmount = balanceType === "credit" ? -amount : amount;
+              setOpeningBalance(savedAmount);
+              setOpeningBalanceId(invoiceId); // ADD THIS LINE
+              setHasOpeningBalance(true);
+            }}
+            loading={loading}
+          />
 
           <InfoCardWithAction title="Payment Preference" showAddButton={false}>
             <div className="space-y-2">
@@ -1895,7 +1898,10 @@ export function CustomerDetailClient({
                       const rec = obj as Record<string, unknown>;
                       for (const key of keys) {
                         const value = rec[key];
-                        if (typeof value === "string" || typeof value === "number") {
+                        if (
+                          typeof value === "string" ||
+                          typeof value === "number"
+                        ) {
                           return value;
                         }
                       }
@@ -1903,20 +1909,39 @@ export function CustomerDetailClient({
                     };
                     const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
                     if (isStudentsTab) {
-                      const studentId = getScalarField(row, ["id", "studentId"]);
+                      const studentId = getScalarField(row, [
+                        "id",
+                        "studentId",
+                      ]);
                       if (studentId) {
-                        window.open(`${legacyBase}/${location}/student/view?id=${studentId}`, "_blank", "noopener");
+                        window.open(
+                          `${legacyBase}/${location}/student/view?id=${studentId}`,
+                          "_blank",
+                          "noopener"
+                        );
                       }
                     } else if (isEnrolmentsTab) {
-                      const enrolmentId = getScalarField(row, ["id", "enrolmentId", "enrollmentId"]);
+                      const enrolmentId = getScalarField(row, [
+                        "id",
+                        "enrolmentId",
+                        "enrollmentId",
+                      ]);
                       if (enrolmentId) {
-                        window.open(`${legacyBase}/${location}/enrolment/view?id=${enrolmentId}`, "_blank", "noopener");
+                        window.open(
+                          `${legacyBase}/${location}/enrolment/view?id=${enrolmentId}`,
+                          "_blank",
+                          "noopener"
+                        );
                       }
-                      } else if (isPrivateLessonsTab || isGroupLessonsTab) {
-                        const lessonId = getScalarField(row, ["lessonId"]);
-                        const idParam = lessonId || 4792347; // temporary fallback until API provides lessonId
-                        window.open(`${legacyBase}/${location}/lesson/view?id=${idParam}`, "_blank", "noopener");
-                      }
+                    } else if (isPrivateLessonsTab || isGroupLessonsTab) {
+                      const lessonId = getScalarField(row, ["lessonId"]);
+                      const idParam = lessonId || 4792347; // temporary fallback until API provides lessonId
+                      window.open(
+                        `${legacyBase}/${location}/lesson/view?id=${idParam}`,
+                        "_blank",
+                        "noopener"
+                      );
+                    }
                   }}
                 />
               </TabsContent>
@@ -1975,17 +2000,17 @@ export function CustomerDetailClient({
       />
 
       {/* Receive Payment Modal */}
-<ReceivePaymentModal
-  open={isReceivePaymentModalOpen}
-  onOpenChange={setIsReceivePaymentModalOpen}
-  onSave={handleReceivePayment}
-  location={location} // Add this - your location from context or props
-  customerName={
-    customer ? `${customer.firstName} ${customer.lastName}` : undefined
-  }
-  customerId={id}
-  amountNeeded={calculateAmountNeeded()}
-/>
+      <ReceivePaymentModal
+        open={isReceivePaymentModalOpen}
+        onOpenChange={setIsReceivePaymentModalOpen}
+        onSave={handleReceivePayment}
+        location={location}
+        customerName={
+          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+        }
+        customerId={id}
+        amountNeeded={calculateAmountNeeded()}
+      />
 
       {/* Notify Via Email Modal */}
       <NotifyViaEmailReasonsModal
