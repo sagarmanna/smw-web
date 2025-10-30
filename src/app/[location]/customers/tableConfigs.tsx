@@ -9,6 +9,9 @@ export interface InvoiceData {
   status: string;
   total: number;
   balance: number;
+  // Optional fields when backend provides them
+  studentName?: string;
+  programName?: string;
 }
 
 export interface OutstandingInvoiceData {

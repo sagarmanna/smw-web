@@ -216,9 +216,10 @@ export const historyColumns: ColumnDef<HistoryData>[] = [
         }
         return `<a${newAttrs}>`;
       });
-      // Style placeholders like {{username}} when backend sends plain text
+      // Make placeholders like {{customerName}} clickable
       styled = styled.replace(/\{\{([^}]+)\}\}/g, (_m, name: string) => {
-        return `<span class=\"text-blue-600 hover:text-blue-800 font-medium\">${name}</span>`;
+        const safeName = name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `<a href="#" data-customer-name="${safeName}" class=\"text-blue-600 hover:text-blue-800 font-medium underline\">${safeName}</a>`;
       });
       return <div className="text-sm" dangerouslySetInnerHTML={{ __html: styled }} />;
     },

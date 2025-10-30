@@ -7,18 +7,22 @@ import { InvoiceData, CUSTOMER_TABLE_CONFIGS } from "../../tableConfigs";
 interface InvoiceTableProps {
   data: InvoiceData[];
   loading?: boolean;
+  id: string | number;
   onAddInvoice?: () => void;
   onPrintInvoice?: (invoiceId: string) => void;
   location: string;
   customerId: string | number;
+  customerName?: string; // temporary display for Student Name column
 }
 
 export function InvoiceTable({ 
   data, 
   loading = false,
   onAddInvoice,
+  id,
   location,
-  customerId
+  customerId,
+  customerName
 }: InvoiceTableProps) {
   
   const handlePrint = () => {
@@ -28,85 +32,85 @@ export function InvoiceTable({
       if (!Number.isFinite(num)) return "";
       return num.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
     };
-    // Open new window for printing
-    const printWindow = window.open('', '', 'width=800,height=600');
-    
+
+    const getProp = (row: unknown, key: string): string => {
+      if (!row || typeof row !== "object") return "";
+      const v = (row as Record<string, unknown>)[key];
+      return typeof v === "string" || typeof v === "number" ? String(v) : "";
+    };
+
+    const parseDate = (value: unknown): Date => {
+      const s = typeof value === "string" ? value : String(value ?? "");
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? new Date(0) : d;
+    };
+
+    const formatDMY = (d: Date): string => {
+      const dd = d.getDate();
+      const mm = d.getMonth() + 1;
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    };
+
+    const sorted = [...data].sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime());
+    const rangeStart = sorted.length ? parseDate(sorted[0].date) : undefined;
+    const rangeEnd = sorted.length ? parseDate(sorted[sorted.length - 1].date) : undefined;
+
+    // Open print in a new tab (not a popup window)
+    const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('Please allow popups for this site to print');
       return;
     }
+    try { printWindow.opener = null; } catch {}
 
     const printContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Print Invoices</title>
+          <title>Invoices</title>
           <style>
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-            }
-            h1 {
-              font-size: 24px;
-              margin-bottom: 20px;
-              color: #000;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 20px;
-            }
-            th, td {
-              border: 1px solid #000;
-              padding: 8px 12px;
-              text-align: left;
-            }
-            th {
-              background-color: #f0f0f0;
-              font-weight: bold;
-            }
-            @media print {
-              body {
-                padding: 10px;
-              }
-            }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; padding: 20px; color: #111827; }
+            h1 { font-size: 22px; margin-bottom: 8px; }
+            .range { font-size: 14px; margin-bottom: 16px; font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th, td { border: 1px solid #000; padding: 8px 12px; text-align: left; }
+            th { background-color: #f0f0f0; font-weight: bold; }
+            .right { text-align: right; }
+            @media print { body { padding: 10px; } }
           </style>
         </head>
         <body>
           <h1>Invoices</h1>
+          <div class="range">${rangeStart && rangeEnd ? `${formatDMY(rangeStart)} - ${formatDMY(rangeEnd)}` : ''}</div>
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th>Invoice Number</th>
+                <th>Student Name</th>
                 <th>Date</th>
                 <th>Status</th>
-                <th>Total</th>
-                <th>Balance</th>
+                <th class="right">Total</th>
               </tr>
             </thead>
             <tbody>
-              ${data.map(invoice => `
-                <tr>
-                  <td>${invoice.id ?? ''}</td>
-                  <td>${invoice.date ?? ''}</td>
-                  <td>${invoice.status ?? ''}</td>
-                  <td>${formatCurrencyPrint(invoice.total)}</td>
-                  <td>${formatCurrencyPrint(invoice.balance)}</td>
-                </tr>
-              `).join('')}
+              ${sorted.map((invoice) => {
+                const studentCell = customerName ? `${customerName}` : '';
+                return `
+                  <tr>
+                    <td>${invoice.id ?? ''}</td>
+                    <td>${studentCell}</td>
+                    <td>${invoice.date ?? ''}</td>
+                    <td>${invoice.status ?? ''}</td>
+                    <td class="right">${formatCurrencyPrint((invoice as unknown as { total: unknown }).total)}</td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
           <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.print();
-              }, 500);
-            }
+            window.onload = function() { setTimeout(function(){ window.print(); }, 400); };
           </script>
         </body>
       </html>
@@ -116,6 +120,8 @@ export function InvoiceTable({
     printWindow.document.close();
   };
   
+	const showMore = Array.isArray(data) && data.length >= 10;
+
 	return (
 		<TableCard 
 				title="Invoices"
@@ -140,7 +146,7 @@ export function InvoiceTable({
 					{
 						label: "Add Invoice",
 						onClick: () => {
-							const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${customerId}`;
+							const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${id}`;
 							window.open(url, "_blank", "noopener");
 						}
 					},
@@ -151,14 +157,16 @@ export function InvoiceTable({
 				]}
 				dropdownLabel="Invoice Actions"
 				bottomContent={
-					<a
-						href={`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice`}
-            target="_blank"
-            rel="noopener noreferrer"
-						className="text-blue-600 hover:text-blue-800 font-medium"
-					>
-						Show More
-					</a>
+					showMore ? (
+						<a
+							href={`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/index?InvoiceSearch%5BcustomerId%5D=${customerId}&InvoiceSearch%5Btype%5D=2&InvoiceSearch%5BinvoiceDateRange%5D=`}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-blue-600 hover:text-blue-800 font-medium"
+						>
+							Show More
+						</a>
+					) : undefined
 				}
 		/>
 	);

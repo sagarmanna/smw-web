@@ -1192,10 +1192,12 @@ export function CustomerDetailClient({
           <InvoiceTable
             data={invoiceData}
             loading={loading}
+            id={id}
             onAddInvoice={handleAddInvoice}
             onPrintInvoice={handlePrintInvoice}
             location={location}
             customerId={id}
+            customerName={`${localFirstName || ''}${localLastName ? ` ${localLastName}` : ''}`}
           />
 
           {/* Outstanding Invoices */}
