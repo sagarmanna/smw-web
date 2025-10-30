@@ -2030,6 +2030,7 @@ export function CustomerDetailClient({
         open={isReceivePaymentModalOpen}
         onOpenChange={setIsReceivePaymentModalOpen}
         onSave={handleReceivePayment}
+        location={location}
         customerName={
           customer ? `${customer.firstName} ${customer.lastName}` : undefined
         }

@@ -1,15 +1,41 @@
 // hooks/useFilterHandlers.ts
-import { useCallback } from 'react';
-import { ColumnFilter } from '../types';
+import { useCallback, useMemo } from 'react';
+import { ColumnFilter, LessonItem, GroupLessonItem } from '../types';
 
 /**
- * Custom hook for handling table column filters
+ * Custom hook for handling table column filters with dynamic options
  * Following Single Responsibility Principle - handles only filter management
  */
 export const useFilterHandlers = (
   setLessonColumnFilters: React.Dispatch<React.SetStateAction<ColumnFilter>>,
-  setGroupLessonColumnFilters: React.Dispatch<React.SetStateAction<ColumnFilter>>
+  setGroupLessonColumnFilters: React.Dispatch<React.SetStateAction<ColumnFilter>>,
+  lessons: LessonItem[],
+  groupLessons: GroupLessonItem[]
 ) => {
+  // Generate unique student options from lessons
+  const lessonStudentOptions = useMemo(() => {
+    const uniqueStudents = new Set(lessons.map(lesson => lesson.student));
+    return Array.from(uniqueStudents)
+      .filter(student => student) // Remove empty values
+      .sort()
+      .map(student => ({
+        value: student,
+        label: student
+      }));
+  }, [lessons]);
+
+  // Generate unique student options from group lessons
+  const groupLessonStudentOptions = useMemo(() => {
+    const uniqueStudents = new Set(groupLessons.map(lesson => lesson.student));
+    return Array.from(uniqueStudents)
+      .filter(student => student)
+      .sort()
+      .map(student => ({
+        value: student,
+        label: student
+      }));
+  }, [groupLessons]);
+
   const handleLessonFilterChange = useCallback(
     (columnKey: string, filterValue: unknown) => {
       setLessonColumnFilters(prev => ({
@@ -33,5 +59,7 @@ export const useFilterHandlers = (
   return {
     handleLessonFilterChange,
     handleGroupLessonFilterChange,
+    lessonStudentOptions,
+    groupLessonStudentOptions,
   };
 };

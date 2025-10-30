@@ -3,34 +3,36 @@ import * as React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { LessonItem, InvoiceItem, CreditItem, TableRow, GroupLessonItem } from '../types';
-import { STUDENT_FILTER_OPTIONS } from '../constants';
-// import { DateUtils } from '../utils';
 
 /**
- * Column definitions for Lessons table
- * Following Open/Closed Principle - can be extended without modification
+ * Column definitions for Lessons table with dynamic student filter
  */
 export const createLessonColumns = (
   lessons: LessonItem[],
   toggleAllLessons: (checked: boolean) => void,
   toggleLesson: (id: string) => void,
-  handleLessonPaymentChange: (id: string, value: string) => void
+  handleLessonPaymentChange: (id: string, value: string) => void,
+  studentFilterOptions: Array<{ value: string; label: string }>
 ) => [
   {
     id: 'selected',
     header: () => (
-      <Checkbox
-        checked={lessons.every(l => l.selected)}
-        onCheckedChange={checked => toggleAllLessons(!!checked)}
-      />
+      <div className="flex items-center justify-center py-2">
+        <Checkbox
+          checked={lessons.every(l => l.selected)}
+          onCheckedChange={checked => toggleAllLessons(!!checked)}
+        />
+      </div>
     ),
     cell: ({ row }: { row: TableRow<LessonItem> }) => (
-      <Checkbox
-        checked={row.original.selected}
-        onCheckedChange={() => toggleLesson(row.original.id)}
-      />
+      <div className="flex items-center justify-center py-3">
+        <Checkbox
+          checked={row.original.selected}
+          onCheckedChange={() => toggleLesson(row.original.id)}
+        />
+      </div>
     ),
-    size: 40,
+    size: 50,
   },
   { 
     accessorKey: 'date', 
@@ -40,88 +42,90 @@ export const createLessonColumns = (
   {
     accessorKey: 'dueDate',
     header: 'Due Date',
-    size: 240,
-    // filter: {
-    //   type: 'date-range' as const,
-    //   disabled: (date: Date) => DateUtils.isBeforeToday(date),
-    // },
+    size: 180,
   },
   {
     accessorKey: 'student',
     header: 'Student',
-    size: 140,
+    size: 150,
     filter: {
       type: 'dropdown' as const,
-      options: STUDENT_FILTER_OPTIONS,
+      options: studentFilterOptions,
     },
   },
   { 
     accessorKey: 'program', 
     header: 'Program', 
-    size: 140 
+    size: 150 
   },
   { 
     accessorKey: 'teacher', 
     header: 'Teacher', 
-    size: 140 
+    size: 150 
   },
   {
     accessorKey: 'amount',
     header: 'Amount',
-    size: 100,
-    cell: ({ row }: { row: TableRow<LessonItem> }) =>
-      `$${row.original.amount.toFixed(2)}`,
+    size: 110,
+    cell: ({ row }: { row: TableRow<LessonItem> }) => (
+      <div className="text-right">${row.original.amount.toFixed(2)}</div>
+    ),
   },
   {
     accessorKey: 'balance',
     header: 'Balance',
-    size: 100,
+    size: 110,
     cell: ({ row }: { row: TableRow<LessonItem> }) => (
-      <span className="text-blue-600">${row.original.balance.toFixed(2)}</span>
+      <div className="text-right">${row.original.balance.toFixed(2)}</div>
     ),
   },
   {
     accessorKey: 'payment',
     header: 'Payment',
-    size: 100,
+    size: 110,
     cell: ({ row }: { row: TableRow<LessonItem> }) => (
-      <Input
-        type="text"
-        value={row.original.payment}
-        onChange={e => handleLessonPaymentChange(row.original.id, e.target.value)}
-        className="h-8 w-20 text-sm text-right"
-      />
+      <div className="flex justify-end">
+        <Input
+          type="text"
+          value={row.original.payment}
+          onChange={e => handleLessonPaymentChange(row.original.id, e.target.value)}
+          className="h-8 w-24 text-sm text-right"
+          placeholder="0.00"
+        />
+      </div>
     ),
   },
 ];
 
 /**
- * Column definitions for Group Lessons table
- */
-/**
- * Column definitions for Group Lessons table
+ * Column definitions for Group Lessons table with dynamic student filter
  */
 export const createGroupLessonColumns = (
   groupLessons: GroupLessonItem[],
   toggleAllGroupLessons: (checked: boolean) => void,
   toggleGroupLesson: (id: string) => void,
-  handleGroupLessonPaymentChange: (id: string, value: string) => void
+  handleGroupLessonPaymentChange: (id: string, value: string) => void,
+  studentFilterOptions: Array<{ value: string; label: string }>
 ) => [
   {
     id: 'selected',
     header: () => (
-      <Checkbox
-        checked={groupLessons.every(gl => gl.selected)}
-        onCheckedChange={checked => toggleAllGroupLessons(!!checked)}
-      />
+      <div className="flex items-center justify-center">
+        <Checkbox
+          checked={groupLessons.every(gl => gl.selected)}
+          onCheckedChange={checked => toggleAllGroupLessons(!!checked)}
+        />
+      </div>
     ),
     cell: ({ row }: { row: TableRow<GroupLessonItem> }) => (
-      <Checkbox
-        checked={row.original.selected}
-        onCheckedChange={() => toggleGroupLesson(row.original.id)}
-      />
+      <div className="flex items-center justify-center">
+        <Checkbox
+          checked={row.original.selected}
+          onCheckedChange={() => toggleGroupLesson(row.original.id)}
+        />
+      </div>
     ),
-    size: 40,
+    size: 50,
   },
   { 
     accessorKey: 'date', 
@@ -131,58 +135,64 @@ export const createGroupLessonColumns = (
   {
     accessorKey: 'dueDate',
     header: 'Due Date',
-    size: 240,
+    size: 180,
   },
   {
     accessorKey: 'student',
     header: 'Student',
-    size: 140,
+    size: 150,
     filter: {
       type: 'dropdown' as const,
-      options: STUDENT_FILTER_OPTIONS,
+      options: studentFilterOptions,
     },
   },
   { 
     accessorKey: 'program', 
     header: 'Program', 
-    size: 140 
+    size: 150 
   },
   { 
     accessorKey: 'teacher', 
     header: 'Teacher', 
-    size: 140 
+    size: 150 
   },
   {
     accessorKey: 'amount',
     header: 'Amount',
-    size: 100,
-    cell: ({ row }: { row: TableRow<GroupLessonItem> }) =>
-      `$${row.original.amount.toFixed(2)}`,
+    size: 110,
+    cell: ({ row }: { row: TableRow<GroupLessonItem> }) => (
+      <div className="text-right">${row.original.amount.toFixed(2)}</div>
+    ),
   },
   {
     accessorKey: 'balance',
     header: 'Balance',
-    size: 100,
+    size: 110,
     cell: ({ row }: { row: TableRow<GroupLessonItem> }) => (
-      <span className="text-blue-600">${row.original.balance.toFixed(2)}</span>
+      <div className="text-right">${row.original.balance.toFixed(2)}</div>
     ),
   },
   {
     accessorKey: 'payment',
     header: 'Payment',
-    size: 100,
+    size: 110,
     cell: ({ row }: { row: TableRow<GroupLessonItem> }) => (
-      <Input
-        type="text"
-        value={row.original.payment}
-        onChange={e => handleGroupLessonPaymentChange(row.original.id, e.target.value)}
-        className="h-8 w-20 text-sm text-right"
-      />
+      <div className="flex justify-end">
+        <Input
+          type="text"
+          value={row.original.payment}
+          onChange={e => handleGroupLessonPaymentChange(row.original.id, e.target.value)}
+          className="h-8 w-24 text-sm text-right"
+          placeholder="0.00"
+        />
+      </div>
     ),
   },
 ];
+
 /**
- * Column definitions for Invoices table
+ * Column definitions for Invoices table - NO STATUS COLUMN
+ * Payment column pre-filled with balance amount from API (editable)
  */
 export const createInvoiceColumns = (
   invoices: InvoiceItem[],
@@ -193,55 +203,75 @@ export const createInvoiceColumns = (
   {
     id: 'selected',
     header: () => (
-      <Checkbox
-        checked={invoices.every(i => i.selected)}
-        onCheckedChange={checked => toggleAllInvoices(!!checked)}
-      />
+      <div className="flex items-center justify-center">
+        <Checkbox
+          checked={invoices.every(i => i.selected)}
+          onCheckedChange={checked => toggleAllInvoices(!!checked)}
+        />
+      </div>
     ),
     cell: ({ row }: { row: TableRow<InvoiceItem> }) => (
-      <Checkbox
-        checked={row.original.selected}
-        onCheckedChange={() => toggleInvoice(row.original.id)}
-      />
+      <div className="flex items-center justify-center">
+        <Checkbox
+          checked={row.original.selected}
+          onCheckedChange={() => toggleInvoice(row.original.id)}
+        />
+      </div>
     ),
-    size: 40,
+    size: 50,
   },
   { 
     accessorKey: 'date', 
     header: 'Date', 
-    size: 180 
+    size: 130 
   },
   { 
     accessorKey: 'number', 
     header: 'Number', 
-    size: 150 
+    size: 130 
   },
   {
     accessorKey: 'amount',
-    header: 'Amount',
-    size: 100,
-    cell: ({ row }: { row: TableRow<InvoiceItem> }) =>
-      `$${row.original.amount.toFixed(2)}`,
+    header: 'Total',
+    size: 110,
+    cell: ({ row }: { row: TableRow<InvoiceItem> }) => (
+      <div className="text-right">${row.original.amount.toFixed(2)}</div>
+    ),
+  },
+  {
+    accessorKey: 'payments',
+    header: 'Paid',
+    size: 110,
+    cell: ({ row }: { row: TableRow<InvoiceItem> }) => (
+      <div className="text-right">
+        <span className="text-gray-600">${row.original.payments.toFixed(2)}</span>
+      </div>
+    ),
   },
   {
     accessorKey: 'balance',
     header: 'Balance',
-    size: 100,
+    size: 110,
     cell: ({ row }: { row: TableRow<InvoiceItem> }) => (
-      <span className="text-blue-600">${row.original.balance.toFixed(2)}</span>
+      <div className="text-right">
+        <span className="font-medium">${row.original.balance.toFixed(2)}</span>
+      </div>
     ),
   },
   {
     accessorKey: 'payment',
     header: 'Payment',
-    size: 100,
+    size: 110,
     cell: ({ row }: { row: TableRow<InvoiceItem> }) => (
-      <Input
-        type="text"
-        value={row.original.payment}
-        onChange={e => handleInvoicePaymentChange(row.original.id, e.target.value)}
-        className="h-8 w-20 text-sm text-right"
-      />
+      <div className="flex justify-end">
+        <Input
+          type="text"
+          value={row.original.payment}
+          onChange={e => handleInvoicePaymentChange(row.original.id, e.target.value)}
+          className="h-8 w-24 text-sm text-right"
+          placeholder="0.00"
+        />
+      </div>
     ),
   },
 ];
@@ -258,18 +288,22 @@ export const createCreditColumns = (
   {
     id: 'selected',
     header: () => (
-      <Checkbox
-        checked={credits.every(c => c.selected)}
-        onCheckedChange={checked => toggleAllCredits(!!checked)}
-      />
+      <div className="flex items-center justify-center">
+        <Checkbox
+          checked={credits.every(c => c.selected)}
+          onCheckedChange={checked => toggleAllCredits(!!checked)}
+        />
+      </div>
     ),
     cell: ({ row }: { row: TableRow<CreditItem> }) => (
-      <Checkbox
-        checked={row.original.selected}
-        onCheckedChange={() => toggleCredit(row.original.id)}
-      />
+      <div className="flex items-center justify-center">
+        <Checkbox
+          checked={row.original.selected}
+          onCheckedChange={() => toggleCredit(row.original.id)}
+        />
+      </div>
     ),
-    size: 40,
+    size: 50,
   },
   { 
     accessorKey: 'type', 
@@ -284,21 +318,25 @@ export const createCreditColumns = (
   {
     accessorKey: 'amount',
     header: 'Amount',
-    size: 100,
-    cell: ({ row }: { row: TableRow<CreditItem> }) =>
-      `$${row.original.amount.toFixed(2)}`,
+    size: 110,
+    cell: ({ row }: { row: TableRow<CreditItem> }) => (
+      <div className="text-right">${row.original.amount.toFixed(2)}</div>
+    ),
   },
   {
     accessorKey: 'payment',
     header: 'Payment',
-    size: 100,
+    size: 110,
     cell: ({ row }: { row: TableRow<CreditItem> }) => (
-      <Input
-        type="text"
-        value={row.original.payment}
-        onChange={e => handleCreditPaymentChange(row.original.id, e.target.value)}
-        className="h-8 w-20 text-sm text-right"
-      />
+      <div className="flex justify-end">
+        <Input
+          type="text"
+          value={row.original.payment}
+          onChange={e => handleCreditPaymentChange(row.original.id, e.target.value)}
+          className="h-8 w-24 text-sm text-right"
+          placeholder="0.00"
+        />
+      </div>
     ),
   },
 ];

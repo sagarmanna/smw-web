@@ -3,7 +3,7 @@ import * as React from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { ReceivePaymentModalProps, ReceivePaymentData } from './types';
-import { DEFAULT_CUSTOMER, DEFAULT_AMOUNT_NEEDED } from './constants';
+import { DEFAULT_AMOUNT_NEEDED } from './constants';
 import { DataMapper } from './utils';
 import { usePaymentState } from './hooks/usePaymentState';
 import { useItemHandlers } from './hooks/useItemHandlers';
@@ -16,23 +16,23 @@ import { PaymentFormSection } from './components/PaymentFormSection';
 import { PaymentTablesSection } from './components/PaymentTablesSection';
 
 /**
- * Main Receive Payment Modal Component
- * Following SOLID Principles:
- * - Single Responsibility: Only handles modal composition and coordination
- * - Open/Closed: Extended through props, closed for modification
- * - Liskov Substitution: Implements ReceivePaymentModalProps interface
- * - Interface Segregation: Uses focused, specific hooks
- * - Dependency Inversion: Depends on abstractions (hooks, components)
+ * Main Receive Payment Modal Component with API Integration and Pagination
  */
 export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   open,
   onOpenChange,
   onSave,
-  customerId = DEFAULT_CUSTOMER,
+  customerId,
+  customerName,
+  location,
   amountNeeded = DEFAULT_AMOUNT_NEEDED,
 }) => {
-  // State management
-  const state = usePaymentState(customerId);
+  // State management with API integration and pagination
+  const state = usePaymentState(
+    location || 'burlington',
+    customerId ? parseInt(customerId) : 0,
+    customerName
+  );
   
   // Item manipulation handlers
   const itemHandlers = useItemHandlers(
@@ -42,19 +42,23 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.setCredits
   );
   
-  // Filter handlers
+  // Filter handlers with dynamic student options
   const filterHandlers = useFilterHandlers(
     state.setLessonColumnFilters,
-    state.setGroupLessonColumnFilters
+    state.setGroupLessonColumnFilters,
+    state.lessons,
+    state.groupLessons
   );
   
-  // Column definitions
+  // Column definitions with dynamic filter options
   const columns = usePaymentColumns(
     state.lessons,
     state.groupLessons,
     state.invoices,
     state.credits,
-    itemHandlers
+    itemHandlers,
+    filterHandlers.lessonStudentOptions,
+    filterHandlers.groupLessonStudentOptions
   );
   
   // Calculations
@@ -64,6 +68,36 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.invoices,
     state.credits,
     state.amountReceived
+  );
+
+  // Pagination handlers for lessons
+  const handleLessonsPageChange = React.useCallback(
+    async (page: number) => {
+      await state.loadLessonsPage(page, state.lessonsPagination.limit);
+    },
+    [state]
+  );
+
+  const handleLessonsRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      await state.loadLessonsPage(1, rowsPerPage);
+    },
+    [state]
+  );
+
+  // Pagination handlers for invoices
+  const handleInvoicesPageChange = React.useCallback(
+    async (page: number) => {
+      await state.loadInvoicesPage(page, state.invoicesPagination.limit);
+    },
+    [state]
+  );
+
+  const handleInvoicesRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      await state.loadInvoicesPage(1, rowsPerPage);
+    },
+    [state]
   );
 
   /**
@@ -97,6 +131,38 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     onOpenChange(false);
   }, [onOpenChange]);
 
+  // Show loading state
+  if (state.isLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-[1400px] h-[90vh] flex flex-col p-0">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading payment data...</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Show error state
+  if (state.error) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-[1400px] h-[90vh] flex flex-col p-0">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-red-600">
+              <p className="text-lg font-semibold mb-2">Error Loading Data</p>
+              <p>{state.error}</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[1400px] h-[90vh] flex flex-col p-0">
@@ -105,6 +171,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
         <div className="overflow-y-auto flex-1 px-6">
           <PaymentFormSection
             customer={state.customer}
+            customerId={state.customerId}
             onCustomerChange={state.setCustomer}
             paymentDate={state.paymentDate}
             onPaymentDateChange={state.setPaymentDate}
@@ -116,6 +183,8 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             onAmountReceivedChange={state.setAmountReceived}
             notes={state.notes}
             onNotesChange={state.setNotes}
+            availablePaymentMethods={state.availablePaymentMethods}
+            isLoadingPaymentMethods={state.isLoading}
           />
 
           <PaymentTablesSection
@@ -132,6 +201,16 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             credits={state.credits}
             creditColumns={columns.creditColumns}
             calculations={calculations}
+            // Pagination props for lessons
+            lessonsPagination={state.lessonsPagination}
+            lessonsLoading={state.lessonsLoading}
+            onLessonsPageChange={handleLessonsPageChange}
+            onLessonsRowsPerPageChange={handleLessonsRowsPerPageChange}
+            // Pagination props for invoices
+            invoicesPagination={state.invoicesPagination}
+            invoicesLoading={state.invoicesLoading}
+            onInvoicesPageChange={handleInvoicesPageChange}
+            onInvoicesRowsPerPageChange={handleInvoicesRowsPerPageChange}
           />
         </div>
 
