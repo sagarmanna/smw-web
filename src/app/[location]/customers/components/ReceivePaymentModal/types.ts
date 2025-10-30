@@ -1,4 +1,4 @@
-/// types.ts
+// types.ts
 import * as React from 'react';
 
 export interface LessonItem {
@@ -33,10 +33,10 @@ export interface InvoiceItem {
   date: string;
   number: string;
   status: string;
-  amount: number; // Total amount of invoice
-  payments: number; // Amount already paid
-  balance: number; // Outstanding balance (from API directly)
-  payment: string; // New payment amount being entered
+  amount: number;
+  payments: number;
+  balance: number;
+  payment: string;
 }
 
 export interface CreditItem {
@@ -134,6 +134,12 @@ export interface PaymentTablesSectionProps {
   lessonsLoading?: boolean;
   onLessonsPageChange?: (page: number) => void;
   onLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
+  
+  // Pagination for group lessons
+  groupLessonsPagination?: PaginationState;
+  groupLessonsLoading?: boolean;
+  onGroupLessonsPageChange?: (page: number) => void;
+  onGroupLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
   
   // Pagination for invoices
   invoicesPagination?: PaginationState;
