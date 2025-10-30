@@ -1,0 +1,618 @@
+"use client";
+
+import * as React from "react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { CustomTable } from "@/components/CustomTable";
+import { ColumnDef } from "@tanstack/react-table";
+import { formatCurrency } from "@/utils/formatCurrency";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "../ReceivePaymentModal/components/DatePicker";
+
+export interface PaymentReceiptData {
+  date: string;
+  notes: string;
+  amount: number | string;
+  used: number | string;
+  remaining: number | string;
+}
+
+interface PaymentReceiptModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  payment?: PaymentReceiptData | null;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  privateLessonDue?: Array<{
+    lessonDate: string;
+    studentName: string;
+    programName: string;
+    teacherName: string;
+    amount: number | string;
+  }>;
+  onEdit?: (data: { date: string; method: string; reference: string; amountReceived: number; allocations?: Array<{ lessonDate: string; amount: number }> }) => void;
+  onDelete?: () => void;
+  onPrint?: () => void;
+  onEmail?: () => void;
+}
+
+export function PaymentReceiptModal({
+  open,
+  onOpenChange,
+  payment,
+  customerName,
+  customerEmail,
+  customerPhone,
+  privateLessonDue = [],
+  onEdit,
+  onDelete,
+  onPrint,
+  onEmail,
+}: PaymentReceiptModalProps) {
+  const [isEditing, setIsEditing] = React.useState<boolean>(false);
+  const [editDate, setEditDate] = React.useState<Date>(new Date());
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<boolean>(false);
+  const [editForm, setEditForm] = React.useState<{ date: string; method: string; reference: string; amountReceived: string }>(() => ({
+    date: payment?.date || "",
+    method: payment?.notes || "Cash",
+    reference: "",
+    amountReceived: (() => {
+      const raw = payment?.amount as unknown;
+      const num = typeof raw === "number" ? raw : typeof raw === "string" ? parseFloat(raw.replace(/[^0-9.-]+/g, "")) : 0;
+      return Number.isFinite(num) ? String(num) : "0.00";
+    })(),
+  }));
+
+  React.useEffect(() => {
+    // Reset form when opening or payment changes
+    setEditForm({
+      date: payment?.date || "",
+      method: payment?.notes || "Cash",
+      reference: "",
+      amountReceived: (() => {
+        const raw = payment?.amount as unknown;
+        const num = typeof raw === "number" ? raw : typeof raw === "string" ? parseFloat(raw.replace(/[^0-9.-]+/g, "")) : 0;
+        return Number.isFinite(num) ? String(num) : "0.00";
+      })(),
+    });
+    setEditDate(new Date());
+  }, [payment, open]);
+
+  // Money parser utility - must be defined before hooks that depend on it
+  const parseMoneyToNumber = React.useCallback((value: unknown) => {
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const n = parseFloat(value.replace(/[^0-9.-]+/g, ""));
+      return Number.isFinite(n) ? n : 0;
+    }
+    return 0;
+  }, []);
+
+  // Used/remaining derived from selected payment – declared early for downstream hooks
+  const usedAmount = React.useMemo(() => parseMoneyToNumber(payment?.used), [payment?.used, parseMoneyToNumber]);
+  const remainingAmount = React.useMemo(() => parseMoneyToNumber(payment?.remaining), [payment?.remaining, parseMoneyToNumber]);
+
+  // Build rows for edit mode with allocation matching amount received
+  type EditLessonRow = AllocationRow & { allocation: number };
+  const lessonEditRows: EditLessonRow[] = React.useMemo(() => {
+    if (!isEditing) return [];
+    const lessons = [...privateLessonDue];
+    lessons.sort((a, b) => new Date(a.lessonDate).getTime() - new Date(b.lessonDate).getTime());
+    // Keep allocations static in edit mode; do not tie to Amount Received input
+    let remaining = usedAmount;
+    const rows: EditLessonRow[] = [];
+    for (const l of lessons) {
+      const amt = parseMoneyToNumber(l.amount);
+      const alloc = Math.min(amt, Math.max(remaining, 0));
+      rows.push({
+        originalDate: l.lessonDate,
+        date: l.lessonDate,
+        student: l.studentName,
+        program: l.programName,
+        teacher: l.teacherName,
+        amount: formatCurrency(amt),
+        payment: formatCurrency(alloc),
+        balance: formatCurrency(alloc),
+        allocation: alloc,
+      });
+      remaining -= alloc;
+    }
+    return rows;
+  }, [isEditing, privateLessonDue, usedAmount]);
+
+  const amountToApply = React.useMemo(() => lessonEditRows.reduce((sum, r) => sum + r.allocation, 0), [lessonEditRows]);
+  const amountToCredit = React.useMemo(() => Math.max(0, parseMoneyToNumber(editForm.amountReceived) - amountToApply), [editForm.amountReceived, amountToApply]);
+  const amountNumber = React.useMemo(() => {
+    if (!payment) return 0;
+    const amt = typeof payment.amount === "number" ? payment.amount : parseFloat((payment.amount || "0").toString().replace(/[^0-9.-]+/g, ""));
+    return Number.isFinite(amt) ? amt : 0;
+  }, [payment]);
+
+  const headerAmount = React.useMemo(() => {
+    return formatCurrency(amountNumber);
+  }, [amountNumber]);
+
+  const paymentMethod = payment?.notes || "";
+
+  // When a payment is fully used (remaining = $0.00) show a usage table
+  type AllocationRow = {
+    originalDate: string;
+    date: string;
+    student: string;
+    program: string;
+    teacher: string;
+    amount: string;
+    payment: string;
+    balance: string;
+  };
+
+  const showAllocations = usedAmount > 0;
+
+  const allocationColumns: ColumnDef<AllocationRow>[] = [
+    {
+      accessorKey: "originalDate",
+      header: "Original Date",
+      cell: ({ row }) => {
+        const v = row.getValue("originalDate") as string;
+        const display = v && v.includes("@") ? v : `${v} @ 06:00 PM`;
+        return <div>{display}</div>;
+      },
+    },
+    {
+      accessorKey: "date",
+      header: "Date",
+      cell: ({ row }) => {
+        const v = row.getValue("date") as string;
+        const display = v && v.includes("@") ? v : `${v} @ 06:00 PM`;
+        return <div>{display}</div>;
+      },
+    },
+    { accessorKey: "student", header: "Student" },
+    { accessorKey: "program", header: "Program" },
+    { accessorKey: "teacher", header: "Teacher" },
+    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+    { accessorKey: "payment", header: "Payment", cell: ({ row }) => <div className="text-right">{row.getValue("payment") as string}</div> },
+    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+  ];
+
+  const allocationRows: AllocationRow[] = React.useMemo(() => {
+    if (!showAllocations) return [];
+    let remaining = usedAmount;
+    const rows: AllocationRow[] = [];
+    // Sort by lesson date ascending if possible
+    const lessons = [...privateLessonDue];
+    // naive parse to sort when dates are consistent
+    lessons.sort((a, b) => new Date(a.lessonDate).getTime() - new Date(b.lessonDate).getTime());
+    for (const lesson of lessons) {
+      if (remaining <= 0) break;
+      const lessonAmount = parseMoneyToNumber(lesson.amount);
+      const pay = Math.min(lessonAmount, remaining);
+      rows.push({
+        originalDate: lesson.lessonDate,
+        date: lesson.lessonDate,
+        student: lesson.studentName,
+        program: lesson.programName,
+        teacher: lesson.teacherName,
+        amount: formatCurrency(lessonAmount),
+        payment: formatCurrency(pay),
+        balance: formatCurrency(Math.max(lessonAmount - pay, 0)),
+      });
+      remaining -= pay;
+    }
+    // Fallback summary row if nothing derived
+    if (rows.length === 0) {
+      const usedFmt = formatCurrency(usedAmount || 0);
+      rows.push({
+        originalDate: payment?.date || "",
+        date: payment?.date || "",
+        student: "",
+        program: "",
+        teacher: "",
+        amount: usedFmt,
+        payment: usedFmt,
+        balance: "$0.00",
+      });
+    }
+    return rows;
+  }, [showAllocations, payment?.date, usedAmount, privateLessonDue]);
+
+  type ReceiptRow = {
+    reference: string;
+    date: string;
+    method: string;
+    amount: string;
+  };
+
+  const rows: ReceiptRow[] = [
+    {
+      reference: "—",
+      date: payment?.date || "",
+      method: paymentMethod || "",
+      amount: headerAmount,
+    },
+  ];
+
+  const columns: ColumnDef<ReceiptRow>[] = [
+    { accessorKey: "reference", header: "Reference" },
+    { accessorKey: "date", header: "Date" },
+    { accessorKey: "method", header: "Payment Method" },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      cell: ({ row }) => (
+        <div className="text-right">{row.getValue("amount") as string}</div>
+      ),
+    },
+  ];
+
+  const handlePrintReceipt = React.useCallback(() => {
+    try {
+      const title = "Payment Receipt";
+      const amountPaid = headerAmount;
+      const receiptDate = payment?.date || "";
+      const method = paymentMethod || "";
+      const origin = window.location.origin || "";
+      const logoUrl = `${origin}/SMW.png`;
+      const fallbackLogoUrl = `${origin}/SMW-dark.png`;
+      const normalize = (v?: string) => (typeof v === 'string' ? v : '').trim();
+      const sanitizeName = (name?: string) => {
+        const n = normalize(name).replace(/undefined/gi, '').replace(/\s+/g, ' ').trim();
+        return n || '';
+      };
+      const safeCustomerName = sanitizeName(customerName);
+
+      // Company details - update if you have dynamic config later
+      const fromBlock = `
+        <div style=\"font-size:12px;\">
+          <div style=\"font-weight:600;\">Arcadia Academy of Music ( Training Location )</div>
+          <div>205 Marycroft Ave., Unit 6</div>
+          <div>Toronto, Ontario</div>
+          <div>L4L 5X8</div>
+          <div>(905) 254-3424</div>
+          <div>traininglocation@example.com</div>
+          <div>www.arcadiamusicacademy.com</div>
+        </div>`;
+
+      const toBlock = `
+        <div style=\"font-size:12px;\">
+          <div style=\"font-weight:600;\">${safeCustomerName}</div>
+          ${customerPhone ? `<div>${customerPhone}</div>` : ""}
+          ${customerEmail ? `<div>${customerEmail}</div>` : ""}
+        </div>`;
+
+      const lessonsHtml = showAllocations
+        ? `
+        <h3 style="margin:16px 0 8px;font-size:14px;">Lessons</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Original Date</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Student</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Program</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Teacher</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Payment</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allocationRows
+              .map(
+                (r) => `
+                <tr>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.originalDate}</td>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.date}</td>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.student}</td>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.program}</td>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.teacher}</td>
+                  <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.amount}</td>
+                  <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.payment}</td>
+                  <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.balance}</td>
+                </tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>`
+        : "";
+
+      const paymentsUsedHtml = `
+        <h3 style="margin:16px 0 8px;font-size:14px;">Payments Used</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Reference</th>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Date</th>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Payment Method</th>
+              <th style=\"text-align:right;border:1px solid #ddd;padding:6px;\">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (r) => `
+                <tr>
+                  <td style=\"border:1px solid #ddd;padding:6px;\">${r.reference}</td>
+                  <td style=\"border:1px solid #ddd;padding:6px;\">${r.date}</td>
+                  <td style=\"border:1px solid #ddd;padding:6px;\">${r.method}</td>
+                  <td style=\"border:1px solid #ddd;padding:6px;text-align:right;\">${r.amount}</td>
+                </tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>`;
+
+      const headerHtml = `
+        <div style=\"display:flex;align-items:center;justify-content:flex-start;gap:16px;margin-bottom:16px;\">
+          <img src=\"${logoUrl}\" onerror=\"this.onerror=null;this.src='${fallbackLogoUrl}';\" alt=\"Logo\" style=\"height:56px;object-fit:contain\" />
+        </div>
+        <div style=\"display:flex;justify-content:space-between;margin-top:8px;margin-bottom:8px;gap:24px;\">
+          <div>
+            <div style=\"font-size:12px;margin-bottom:6px;\">From</div>
+            ${fromBlock}
+          </div>
+          <div style=\"text-align:left;\">
+            <div style=\"font-size:12px;margin-bottom:6px;\">To</div>
+            ${toBlock}
+          </div>
+        </div>`;
+
+      const body = `
+        <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;">
+          <div style="display:flex;justify-content:space-between;align-items-center;margin-bottom:12px;">
+            <h1 style="font-size:18px;margin:0;">Payment Receipt</h1>
+            <div style="font-weight:600;">Amount Paid ${amountPaid}</div>
+          </div>
+          ${headerHtml}
+          <p style="font-size:12px;line-height:1.6;margin:12px 0 16px;">
+            This is to acknowledge the receipt of payment${safeCustomerName ? ` from ${safeCustomerName}` : ""}${receiptDate ? ` on ${receiptDate}` : ""} in the amount of ${amountPaid}${method ? ` via ${method}` : ""}. We have distributed it to the items below.
+          </p>
+          ${lessonsHtml}
+          ${paymentsUsedHtml}
+          <div style="margin-top:16px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">FQRS47785GT1234</span></div>
+        </div>`;
+
+      const html = `
+        <html>
+        <head>
+          <title>${title}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            @media print {
+              @page { margin: 16mm; }
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>${body}</body>
+        </html>`;
+
+      const win = window.open("", "_blank");
+      if (!win) return;
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      // give time to render
+      setTimeout(() => win.print(), 150);
+    } catch (e) {
+      console.error("Failed to render print view", e);
+    }
+  }, [headerAmount, payment?.date, paymentMethod, customerName, showAllocations, allocationRows, rows]);
+
+  return (
+    <>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl w-[98vw] p-0">
+        <DialogHeader className="px-6 pt-6 pb-2">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-semibold">{isEditing ? "Edit Payment" : "Payment Receipt"}</DialogTitle>
+            <div className="text-sm font-semibold">Amount Paid {headerAmount}</div>
+          </div>
+        </DialogHeader>
+
+        <div className="px-6 pb-4 space-y-6 overflow-y-auto max-h-[70vh]">
+          {isEditing && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <Label>Date</Label>
+                <DatePicker date={editDate} onDateChange={setEditDate} />
+              </div>
+              <div className="space-y-1">
+                <Label>Payment Method</Label>
+                <Select value={editForm.method} onValueChange={(v) => setEditForm((s) => ({ ...s, method: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="Cheque">Cheque</SelectItem>
+                    <SelectItem value="Debit">Debit</SelectItem>
+                    <SelectItem value="Visa">Visa</SelectItem>
+                    <SelectItem value="Mastercard">Mastercard</SelectItem>
+                    <SelectItem value="Amex">Amex</SelectItem>
+                    <SelectItem value="Gift Card">Gift Card</SelectItem>
+                    <SelectItem value="E-Transfer">E-Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Reference</Label>
+                <Input
+                  placeholder="Reference"
+                  value={editForm.reference}
+                  onChange={(e) => setEditForm((s) => ({ ...s, reference: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Amount Received</Label>
+                <Input
+                  type="number"
+                  className="text-right"
+                  value={editForm.amountReceived}
+                  onChange={(e) => setEditForm((s) => ({ ...s, amountReceived: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
+          {!isEditing && (
+            <p className="text-sm text-muted-foreground">
+              {`This is to acknowledge the receipt of payment${customerName ? ` from ${customerName}` : ""}${payment?.date ? ` on ${payment.date}` : ""} in the amount of ${headerAmount}${paymentMethod ? ` via ${paymentMethod}` : ""}.`}
+              {" We have distributed it to the items below."}
+            </p>
+          )}
+
+          {!isEditing && showAllocations ? (
+            <div className="space-y-3">
+              <div className="text-sm font-semibold">Lessons</div>
+              
+                  <CustomTable
+                    data={allocationRows}
+                    columns={allocationColumns}
+                    size="compact"
+                    enableSorting={false}
+                    enableExport={false}
+                    enablePrint={false}
+                    enableSearch={false}
+                    enableFilter={false}
+                    enableRowsPerPage={false}
+                  />
+               
+            </div>
+          ) : !isEditing ? (
+            <div className="text-center py-8">
+              <h3 className="text-2xl font-semibold mb-2">You didn&apos;t select any lessons or invoices</h3>
+              <p className="text-muted-foreground">
+                so we&apos;ll save this payment as credit to your customer account
+              </p>
+            </div>
+          ) : null}
+
+          {isEditing && (
+            <>
+              <div className="space-y-3">
+                <div className="text-sm font-semibold">Lessons</div>
+                <CustomTable
+                  data={lessonEditRows}
+                  columns={[
+                    allocationColumns[0],
+                    allocationColumns[1],
+                    { accessorKey: "student", header: "Student" },
+                    { accessorKey: "program", header: "Program" },
+                    { accessorKey: "teacher", header: "Teacher" },
+                    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+                    { accessorKey: "payment", header: "Payment", cell: ({ row }) => <div className="text-right">{row.getValue("payment") as string}</div> },
+                    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+                    {
+                      id: "paymentInput",
+                      header: "Payment",
+                      cell: ({ row }) => (
+                        <Input type="number" value={(row.original as EditLessonRow).allocation.toFixed(2)} className="h-8 text-right" disabled />
+                      ),
+                    },
+                  ]}
+                  size="compact"
+                  enableSorting={false}
+                  enableExport={false}
+                  enablePrint={false}
+                  enableSearch={false}
+                  enableFilter={false}
+                  enableRowsPerPage={false}
+                />
+              </div>
+              <div className="flex flex-col items-end gap-2 pt-2">
+                <div className="text-muted-foreground">Amount To Apply {formatCurrency(amountToApply)}</div>
+                <div className="text-muted-foreground">Amount To Credit {formatCurrency(amountToCredit)}</div>
+              </div>
+            </>
+          )}
+
+          {!isEditing && (
+            <div className="space-y-3">
+              <div className="text-sm font-semibold">Payments Used</div>
+              <CustomTable
+                data={rows}
+                columns={columns}
+                size="compact"
+                enableSorting={false}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+              />
+            </div>
+          )}
+
+          {/* Tax number placeholder row */}
+          {!isEditing && (
+            <div className="text-sm font-medium pt-2">HST# <span className="text-muted-foreground">FQRS47785GT1234</span></div>
+          )}
+        </div>
+
+        <DialogFooter className="px-6 py-4 border-t w-full flex flex-row items-center justify-between sm:justify-between">
+          <div>
+            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete</Button>
+          </div>
+          <div className="flex gap-2">
+            {isEditing ? (
+              <>
+                <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
+                <Button
+                  onClick={() => {
+                    const allocations = lessonEditRows.map(r => ({ lessonDate: r.date, amount: r.allocation }));
+                    onEdit?.({
+                      date: editForm.date || payment?.date || "",
+                      method: editForm.method,
+                      reference: editForm.reference,
+                      amountReceived: parseMoneyToNumber(editForm.amountReceived),
+                      allocations,
+                    });
+                    setIsEditing(false);
+                  }}
+                >
+                  Save
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
+                <Button variant="default" onClick={() => setIsEditing(true)}>Edit</Button>
+                <Button variant="default" onClick={handlePrintReceipt}>Print</Button>
+                <Button variant="default" onClick={onEmail}>EMail</Button>
+              </>
+            )}
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Delete confirmation modal */}
+    <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">Are you sure you want to delete this?</DialogTitle>
+        </DialogHeader>
+        <DialogFooter className="flex items-center justify-end gap-2">
+          <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              onDelete?.();
+              setShowDeleteConfirm(false);
+              onOpenChange(false);
+            }}
+          >
+            OK
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
+  );
+}
+
+
