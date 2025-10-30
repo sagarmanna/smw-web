@@ -40,11 +40,23 @@ interface PaymentTablesSectionProps {
   onLessonsPageChange?: (page: number) => void;
   onLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
   
+  // Pagination for group lessons
+  groupLessonsPagination?: PaginationState;
+  groupLessonsLoading?: boolean;
+  onGroupLessonsPageChange?: (page: number) => void;
+  onGroupLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
+  
   // Pagination for invoices
   invoicesPagination?: PaginationState;
   invoicesLoading?: boolean;
   onInvoicesPageChange?: (page: number) => void;
   onInvoicesRowsPerPageChange?: (rowsPerPage: number) => void;
+  
+  // Pagination for credits
+  creditsPagination?: PaginationState;
+  creditsLoading?: boolean;
+  onCreditsPageChange?: (page: number) => void;
+  onCreditsRowsPerPageChange?: (rowsPerPage: number) => void;
 }
 
 /**
@@ -69,10 +81,18 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
   lessonsLoading,
   onLessonsPageChange,
   onLessonsRowsPerPageChange,
+  groupLessonsPagination,
+  groupLessonsLoading,
+  onGroupLessonsPageChange,
+  onGroupLessonsRowsPerPageChange,
   invoicesPagination,
   invoicesLoading,
   onInvoicesPageChange,
   onInvoicesRowsPerPageChange,
+  creditsPagination,
+  creditsLoading,
+  onCreditsPageChange,
+  onCreditsRowsPerPageChange,
 }) => (
   <>
     <div>
@@ -112,6 +132,12 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
         columnFilters={groupLessonColumnFilters}
         size={TABLE_CONFIG.size}
         variant={TABLE_CONFIG.variant}
+        isLoading={groupLessonsLoading}
+        serverSidePagination={groupLessonsPagination}
+        onServerSidePageChange={onGroupLessonsPageChange}
+        rowsPerPage={groupLessonsPagination?.limit}
+        onRowsPerPageChange={onGroupLessonsRowsPerPageChange}
+        rowsPerPageOptions={[10, 20, 50, 100]}
         customEmptyState={
           <div className="px-4 py-8 text-center text-sm text-gray-600">
             {MESSAGES.NO_LESSONS}
@@ -151,6 +177,12 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
         enablePrint={TABLE_CONFIG.enablePrint}
         size={TABLE_CONFIG.size}
         variant={TABLE_CONFIG.variant}
+        isLoading={creditsLoading}
+        serverSidePagination={creditsPagination}
+        onServerSidePageChange={onCreditsPageChange}
+        rowsPerPage={creditsPagination?.limit}
+        onRowsPerPageChange={onCreditsRowsPerPageChange}
+        rowsPerPageOptions={[10, 20, 50, 100]}
       />
       <PaymentSummary calculations={calculations} />
     </div>
