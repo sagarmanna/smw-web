@@ -85,6 +85,21 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     [state]
   );
 
+  // Pagination handlers for group lessons
+  const handleGroupLessonsPageChange = React.useCallback(
+    async (page: number) => {
+      await state.loadGroupLessonsPage(page, state.groupLessonsPagination.limit);
+    },
+    [state]
+  );
+
+  const handleGroupLessonsRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      await state.loadGroupLessonsPage(1, rowsPerPage);
+    },
+    [state]
+  );
+
   // Pagination handlers for invoices
   const handleInvoicesPageChange = React.useCallback(
     async (page: number) => {
@@ -206,6 +221,11 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             lessonsLoading={state.lessonsLoading}
             onLessonsPageChange={handleLessonsPageChange}
             onLessonsRowsPerPageChange={handleLessonsRowsPerPageChange}
+            // Pagination props for group lessons
+            groupLessonsPagination={state.groupLessonsPagination}
+            groupLessonsLoading={state.groupLessonsLoading}
+            onGroupLessonsPageChange={handleGroupLessonsPageChange}
+            onGroupLessonsRowsPerPageChange={handleGroupLessonsRowsPerPageChange}
             // Pagination props for invoices
             invoicesPagination={state.invoicesPagination}
             invoicesLoading={state.invoicesLoading}

@@ -43,6 +43,19 @@ export interface ReceivePaymentLessonsResponse {
   };
 }
 
+export interface ReceivePaymentGroupLessonsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: ReceivePaymentGroupLesson[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
 
 export interface ReceivePaymentInvoice {
   id: string;
@@ -149,6 +162,60 @@ export async function getReceivePaymentLessons(
     };
   }
 }
+
+/**
+ * Fetch group lessons for receive payment modal with pagination
+ * Endpoint: GET /admin/v2/{location}/customers/{customerId}/receive-payment-group-lesson
+ */
+export async function getReceivePaymentGroupLessons(
+  location: string,
+  customerId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<{
+  data: ReceivePaymentGroupLesson[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}> {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    const response = await apiClient.get<ReceivePaymentGroupLessonsResponse>(
+      `/admin/v2/${location}/customers/${customerId}/receive-payment-group-lesson`,
+      { params }
+    );
+
+    if (response.data.success && response.data.data.body) {
+      return {
+        data: response.data.data.body,
+        pagination: response.data.data.pagination || {
+          page: 1,
+          limit: 10,
+          total: response.data.data.body.length,
+          totalPages: 1,
+        },
+      };
+    }
+
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+  } catch (error: unknown) {
+    console.error('Error fetching receive payment group lessons:', error);
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+  }
+}
+
 /**
  * Fetch invoices for receive payment modal with pagination
  * Endpoint: GET /admin/v2/{location}/customers/{customerId}/receive-payment-invoice

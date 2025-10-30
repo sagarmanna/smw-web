@@ -40,6 +40,12 @@ interface PaymentTablesSectionProps {
   onLessonsPageChange?: (page: number) => void;
   onLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
   
+  // Pagination for group lessons
+  groupLessonsPagination?: PaginationState;
+  groupLessonsLoading?: boolean;
+  onGroupLessonsPageChange?: (page: number) => void;
+  onGroupLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
+  
   // Pagination for invoices
   invoicesPagination?: PaginationState;
   invoicesLoading?: boolean;
@@ -69,6 +75,10 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
   lessonsLoading,
   onLessonsPageChange,
   onLessonsRowsPerPageChange,
+  groupLessonsPagination,
+  groupLessonsLoading,
+  onGroupLessonsPageChange,
+  onGroupLessonsRowsPerPageChange,
   invoicesPagination,
   invoicesLoading,
   onInvoicesPageChange,
@@ -112,6 +122,12 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
         columnFilters={groupLessonColumnFilters}
         size={TABLE_CONFIG.size}
         variant={TABLE_CONFIG.variant}
+        isLoading={groupLessonsLoading}
+        serverSidePagination={groupLessonsPagination}
+        onServerSidePageChange={onGroupLessonsPageChange}
+        rowsPerPage={groupLessonsPagination?.limit}
+        onRowsPerPageChange={onGroupLessonsRowsPerPageChange}
+        rowsPerPageOptions={[10, 20, 50, 100]}
         customEmptyState={
           <div className="px-4 py-8 text-center text-sm text-gray-600">
             {MESSAGES.NO_LESSONS}
