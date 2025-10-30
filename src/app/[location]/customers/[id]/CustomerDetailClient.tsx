@@ -45,6 +45,7 @@ import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
+import { PaymentReceiptModal } from "../components/PaymentReceiptModal";
 import AddStudentModal from "../components/AddStudentModal/index";
 import { NotifyViaEmailReasonsModal } from "../components/NotifyViaEmailModal";
 import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
@@ -171,6 +172,10 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
+  const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
+    React.useState<boolean>(false);
+  const [selectedPayment, setSelectedPayment] = React.useState<PaymentData | null>(null);
+  const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<number | null>(null);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
   const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
@@ -1520,6 +1525,14 @@ export function CustomerDetailClient({
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
           loading={paymentsLoading || loading}
           footerRow={paymentFooterRow}
+          onRowClick={(row) => {
+            // Open receipt modal for clicked payment row
+            const payment = row as PaymentData;
+            setSelectedPayment(payment);
+            const idx = paymentData.findIndex((p) => p === payment);
+            setSelectedPaymentIndex(idx >= 0 ? idx : null);
+            setIsPaymentReceiptModalOpen(true);
+          }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.payments.size}
           variant={CUSTOMER_TABLE_CONFIGS.payments.variant}
@@ -2038,6 +2051,49 @@ export function CustomerDetailClient({
         }
         customerId={id}
         amountNeeded={calculateAmountNeeded()}
+      />
+
+      {/* Payment Receipt Modal */}
+      <PaymentReceiptModal
+        open={isPaymentReceiptModalOpen}
+        onOpenChange={setIsPaymentReceiptModalOpen}
+        payment={selectedPayment || undefined}
+        customerName={(customer && `${customer.firstName || ''} ${customer.lastName || ''}`.trim()) || _customerInfo?.profile?.name || emails[0]?.email || 'Customer'}
+        customerEmail={emails[0]?.email}
+        customerPhone={phones[0]?.number}
+        privateLessonDue={privateLessonDueData as unknown as Array<{ lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string; }>}
+        onEdit={(data) => {
+          if (selectedPaymentIndex === null) return;
+          const parseNum = (v: unknown) => typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v.replace(/[^0-9.-]+/g, '')) : 0;
+          setPaymentData((prev) => prev.map((p, i) => {
+            if (i !== selectedPaymentIndex) return p;
+            const usedNum = parseNum(p.used);
+            const newAmount = data.amountReceived;
+            const newRemaining = Math.max(0, newAmount - usedNum);
+            return {
+              ...p,
+              date: data.date || p.date,
+              notes: data.method || p.notes,
+              amount: newAmount,
+              remaining: newRemaining,
+            };
+          }));
+          setSelectedPayment((prev) => {
+            if (!prev) return prev;
+            const usedNum = typeof prev.used === 'number' ? prev.used : parseFloat(String(prev.used).replace(/[^0-9.-]+/g, '')) || 0;
+            const newRemaining = Math.max(0, data.amountReceived - usedNum);
+            return { ...prev, date: data.date || prev.date, notes: data.method || prev.notes, amount: data.amountReceived, remaining: newRemaining };
+          });
+        }}
+        onDelete={() => {
+          if (selectedPaymentIndex === null) return;
+          setPaymentData((prev) => prev.filter((_, i) => i !== selectedPaymentIndex));
+          setPaymentsPagination((prev) => ({ ...prev, total: Math.max((prev.total || 0) - 1, 0) }));
+          setSelectedPayment(null);
+          setSelectedPaymentIndex(null);
+        }}
+        onPrint={() => {}}
+        onEmail={() => {}}
       />
 
       {/* Notify Via Email Modal */}
