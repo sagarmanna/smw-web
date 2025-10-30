@@ -108,3 +108,40 @@ export async function modifyClassroom(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+/**
+ * Set a user's password using the legacy API
+ */
+export async function setUserPassword(
+  location: string,
+  userId: string | number,
+  password: string,
+  confirmPassword: string
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  formData.append('UserForm[password]', password);
+  formData.append('UserForm[confirmPassword]', confirmPassword);
+
+  const url = `/admin/${location}/user/set-password?id=${userId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
