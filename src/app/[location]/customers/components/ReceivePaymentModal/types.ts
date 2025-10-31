@@ -81,11 +81,14 @@ export interface ReceivePaymentData {
 export interface PaymentCalculations {
   availableCredits: number;
   selectedCredits: number;
+  amountToApply: number;
+  amountToCredit: number;
+  paymentReceived: number;
+  amountNeeded: number;
+  suggestedAmountReceived: number;
   lessonPayments: number;
   groupLessonPayments: number;
   invoicePayments: number;
-  amountToApply: number;
-  amountToCredit: number;
 }
 
 export interface PaginationState {
@@ -128,24 +131,6 @@ export interface PaymentTablesSectionProps {
   
   // Calculations
   calculations: PaymentCalculations;
-  
-  // Pagination for lessons
-  lessonsPagination?: PaginationState;
-  lessonsLoading?: boolean;
-  onLessonsPageChange?: (page: number) => void;
-  onLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
-  
-  // Pagination for group lessons
-  groupLessonsPagination?: PaginationState;
-  groupLessonsLoading?: boolean;
-  onGroupLessonsPageChange?: (page: number) => void;
-  onGroupLessonsRowsPerPageChange?: (rowsPerPage: number) => void;
-  
-  // Pagination for invoices
-  invoicesPagination?: PaginationState;
-  invoicesLoading?: boolean;
-  onInvoicesPageChange?: (page: number) => void;
-  onInvoicesRowsPerPageChange?: (rowsPerPage: number) => void;
 }
 
 export interface FilterConfig {
