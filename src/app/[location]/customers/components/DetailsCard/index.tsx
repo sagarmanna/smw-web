@@ -18,6 +18,7 @@ import { getReferralSources, ReferralSourceData } from "../DetailsCard/referralS
 import { updateCustomerProfile } from "./detail-card.api";
 import { toast } from "sonner";
 import { setUserPassword } from "@/lib/api/legacyApiAdapter";
+import { CustomerMergeModal } from "../CustomerMergeModal";
 
 
 interface DetailsData {
@@ -49,6 +50,7 @@ export function DetailsCard({
 }: DetailsCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [referralSources, setReferralSources] = useState<ReferralSourceData[]>([]);
   const [loadingReferralSources, setLoadingReferralSources] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -302,7 +304,7 @@ export function DetailsCard({
   };
 
   const handleMergeClick = () => {
-    // TODO: Implement merge functionality
+    setIsMergeModalOpen(true);
   };
 
   const handlePasswordSave = async () => {
@@ -377,6 +379,14 @@ export function DetailsCard({
     if (b.name === "Other") return -1;
     return 0;
   });
+
+  const handleMergeSuccess = () => {
+    // Refresh the page or update the data after successful merge
+    if (onSave) {
+      // Trigger a refresh of the customer data
+      window.location.reload();
+    }
+  };
 
   return (
     <>
@@ -684,6 +694,15 @@ export function DetailsCard({
           </div>
         </div>
       </ReusableModal>
+
+      <CustomerMergeModal
+        isOpen={isMergeModalOpen}
+        onClose={() => setIsMergeModalOpen(false)}
+        location={location}
+        currentCustomerId={customerId}
+        currentCustomerName={`${data.firstName} ${data.lastName}`}
+        onMergeSuccess={handleMergeSuccess}
+      />
     </>
   );
 }
