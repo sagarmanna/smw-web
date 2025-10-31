@@ -12,6 +12,7 @@ export interface InvoiceData {
   // Optional fields when backend provides them
   studentName?: string;
   programName?: string;
+  url?: string;
 }
 
 export interface OutstandingInvoiceData {
@@ -20,6 +21,7 @@ export interface OutstandingInvoiceData {
   amount: number;
   payments: number;
   balanceDue: number;
+  url?: string;
 }
 
 export interface EquipmentRentalData {
@@ -47,6 +49,7 @@ export interface PrivateLessonDueData {
   programName: string;
   teacherName: string;
   amount: number | string;
+  url: string;
 }
 
 export interface GroupLessonDueData {
@@ -55,6 +58,7 @@ export interface GroupLessonDueData {
   programName: string;
   teacherName: string;
   amount: number | string;
+  url?: string;
 }
 
 export interface PaymentData {
