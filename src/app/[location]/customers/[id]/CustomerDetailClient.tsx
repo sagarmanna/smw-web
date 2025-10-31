@@ -2019,7 +2019,7 @@ export function CustomerDetailClient({
         onOpenChange={setIsAddStudentModalOpen}
         onSave={handleAddStudent}
         customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+          (customer && `${customer.firstName || ''} ${customer.lastName || ''}`.trim()) || _customerInfo?.profile?.name || ''
         }
       />
 
