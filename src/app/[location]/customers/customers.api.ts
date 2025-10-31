@@ -716,6 +716,27 @@ export async function getCustomerPayments(
   }
 }
 
+// Fetch a single payment detail by paymentId by scanning the customer's payments list
+export async function getCustomerPaymentById(
+  location: string,
+  customerId: number,
+  paymentId: string | number
+): Promise<PaymentData | null> {
+  try {
+    // Fetch all payments (or a large page) and locate by id-like field
+    const { data } = await getCustomerPayments(location, customerId, 1, 99999);
+    const targetId = String(paymentId);
+    const found = data.find((p: PaymentData) => {
+      const anyP = p as unknown as Record<string, unknown>;
+      const pid = anyP["paymentId"] ?? anyP["id"] ?? anyP["payment_id"];
+      return pid !== undefined && String(pid) === targetId;
+    });
+    return found || null;
+  } catch {
+    return null;
+  }
+}
+
 // --------------------
 // Students API function
 // --------------------

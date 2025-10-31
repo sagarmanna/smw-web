@@ -14,9 +14,12 @@ interface EmailStatementModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSend: (emailData: EmailFormData) => void;
+  onDelete?: () => void;
   customerName?: string;
   customerEmails?: string[];
   locationName?: string;
+  initialSubject?: string;
+  initialContent?: string;
   privateLessonDueData?: Array<{
     lessonDate: string;
     student: string;
@@ -58,9 +61,12 @@ export default function EmailStatementModal({
   open, 
   onOpenChange, 
   onSend, 
+  onDelete,
   customerName: _customerName,
   customerEmails = [],
   locationName = "Arcadia Academy of Music",
+  initialSubject,
+  initialContent,
   privateLessonDueData = [],
   groupLessonDueData = [],
   invoiceData = [],
@@ -116,10 +122,10 @@ export default function EmailStatementModal({
     if (open && !contentInitialized.current) {
       // Pre-fill with customer emails if available
       setRecipients(customerEmails.filter(email => email && email.trim() !== ""));
-      setSubject(`Customer Statement from ${locationName}`);
+      setSubject(initialSubject || `Customer Statement from ${locationName}`);
       
       // Generate complete email content with text AND tables together
-      const completeContent = generateCompleteEmailHTML();
+      const completeContent = initialContent || generateCompleteEmailHTML();
       setContent(completeContent);
       contentInitialized.current = true;
     } else if (!open) {
@@ -127,7 +133,7 @@ export default function EmailStatementModal({
       contentInitialized.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, customerEmails, locationName]);
+  }, [open, customerEmails, locationName, initialSubject, initialContent]);
 
   // Generate complete email HTML with introductory text AND tables
   const generateCompleteEmailHTML = () => {
@@ -301,6 +307,10 @@ export default function EmailStatementModal({
     }
   };
 
+  const handleDelete = () => {
+    onDelete?.();
+  };
+
   const handleCancel = () => {
     // Reset form
     setRecipients([]);
@@ -310,6 +320,14 @@ export default function EmailStatementModal({
     setErrors({});
     onOpenChange(false);
   };
+
+  const leftActions = [
+    {
+      label: "Delete",
+      onClick: handleDelete,
+      variant: "destructive" as const,
+    },
+  ];
 
   const modalActions = [
     {
@@ -333,6 +351,7 @@ export default function EmailStatementModal({
         size="full"
         className="max-w-4xl max-h-[90vh]"
         actions={modalActions}
+        leftActions={leftActions}
       >
         <div className="space-y-4">
         {/* To Field with Email Tags */}

@@ -28,6 +28,7 @@ import {
   getCustomerHistory,
   CustomerSummaryData,
   CustomerInfoData,
+  getCustomerPaymentById,
 } from "../customers.api";
 import { SummaryCard } from "@/components/SummaryCard";
 import { BookOpen, FileText, Star, DollarSign, User } from "lucide-react";
@@ -1525,8 +1526,26 @@ export function CustomerDetailClient({
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
           loading={paymentsLoading || loading}
           footerRow={paymentFooterRow}
-          onRowClick={(row) => {
-            // Open receipt modal for clicked payment row
+          onRowClick={async (row) => {
+            const rec = row as unknown as Record<string, unknown>;
+            const pid = rec["paymentId"] ?? rec["id"] ?? rec["payment_id"];
+            if (pid !== undefined && pid !== null) {
+              try {
+                const detail = await getCustomerPaymentById(location, Number(id), String(pid));
+                if (detail) {
+                  setSelectedPayment(detail);
+                  const idx = paymentData.findIndex((p) => {
+                    const anyP = p as unknown as Record<string, unknown>;
+                    const pId = anyP["paymentId"] ?? anyP["id"] ?? anyP["payment_id"];
+                    return pId !== undefined && String(pId) === String(pid);
+                  });
+                  setSelectedPaymentIndex(idx >= 0 ? idx : null);
+                  setIsPaymentReceiptModalOpen(true);
+                  return;
+                }
+              } catch {}
+            }
+            // Fallback to existing behavior when no paymentId found or fetch failed
             const payment = row as PaymentData;
             setSelectedPayment(payment);
             const idx = paymentData.findIndex((p) => p === payment);
@@ -2060,8 +2079,13 @@ export function CustomerDetailClient({
         payment={selectedPayment || undefined}
         customerName={(customer && `${customer.firstName || ''} ${customer.lastName || ''}`.trim()) || _customerInfo?.profile?.name || emails[0]?.email || 'Customer'}
         customerEmail={emails[0]?.email}
+        customerEmails={emails.map((e) => e.email)}
         customerPhone={phones[0]?.number}
         privateLessonDue={privateLessonDueData as unknown as Array<{ lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string; }>}
+        groupLessonDueData={groupLessonDueData}
+        invoiceData={invoiceData}
+        totalBalance={summaryData.balance}
+        locationName="Arcadia Academy of Music"
         onEdit={(data) => {
           if (selectedPaymentIndex === null) return;
           const parseNum = (v: unknown) => typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v.replace(/[^0-9.-]+/g, '')) : 0;
