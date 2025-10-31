@@ -28,6 +28,7 @@ import {
   getCustomerHistory,
   CustomerSummaryData,
   CustomerInfoData,
+  getCustomerPaymentById,
 } from "../customers.api";
 import { SummaryCard } from "@/components/SummaryCard";
 import { BookOpen, FileText, Star, DollarSign, User } from "lucide-react";
@@ -174,11 +175,8 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
     React.useState<boolean>(false);
-  const [selectedPayment, setSelectedPayment] =
-    React.useState<PaymentData | null>(null);
-  const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<
-    number | null
-  >(null);
+  const [selectedPayment, setSelectedPayment] = React.useState<PaymentData | null>(null);
+  const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<number | null>(null);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
   const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
@@ -1205,9 +1203,7 @@ export function CustomerDetailClient({
             onPrintInvoice={handlePrintInvoice}
             location={location}
             customerId={id}
-            customerName={`${localFirstName || ""}${
-              localLastName ? ` ${localLastName}` : ""
-            }`}
+            customerName={`${localFirstName || ''}${localLastName ? ` ${localLastName}` : ''}`}
           />
 
           {/* Outstanding Invoices */}
@@ -1217,13 +1213,6 @@ export function CustomerDetailClient({
             columns={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.columns}
             loading={outstandingInvoicesLoading || loading}
             footerRow={outstandingInvoiceFooterRow}
-            onRowClick={(row) => {
-              const invoiceUrl = (row as OutstandingInvoiceData).url;
-              if (invoiceUrl) {
-                const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${invoiceUrl}`;
-                window.open(url, "_blank", "noopener");
-              }
-            }}
             onAdd={() => {}}
             size={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.size}
             variant={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.variant}
@@ -1241,7 +1230,7 @@ export function CustomerDetailClient({
               CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter
             }
             iconType="none"
-            enableShowAll={outstandingInvoicesPagination.total > 10}
+            enableShowAll={true}
             showAllLabel="Show All"
             serverSidePagination={outstandingInvoicesPagination}
             onServerSidePageChange={handleOutstandingInvoicesPageChange}
@@ -1422,13 +1411,6 @@ export function CustomerDetailClient({
             amount: privateLessonDueFooterTotal,
             url: "",
           }}
-          onRowClick={(row) => {
-            const lessonUrl = (row as PrivateLessonDueData).url;
-            if (lessonUrl) {
-              const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${lessonUrl}`;
-              window.open(url, "_blank", "noopener");
-            }
-          }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.privateLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.privateLessonDue.variant}
@@ -1489,14 +1471,6 @@ export function CustomerDetailClient({
             programName: "",
             teacherName: "",
             amount: groupLessonDueFooterTotal,
-            url: "",
-          }}
-          onRowClick={(row) => {
-            const lessonUrl = (row as GroupLessonDueData).url;
-            if (lessonUrl) {
-              const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${lessonUrl}`;
-              window.open(url, "_blank", "noopener");
-            }
           }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.groupLessonDue.size}
@@ -1553,8 +1527,26 @@ export function CustomerDetailClient({
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
           loading={paymentsLoading || loading}
           footerRow={paymentFooterRow}
-          onRowClick={(row) => {
-            // Open receipt modal for clicked payment row
+          onRowClick={async (row) => {
+            const rec = row as unknown as Record<string, unknown>;
+            const pid = rec["paymentId"] ?? rec["id"] ?? rec["payment_id"];
+            if (pid !== undefined && pid !== null) {
+              try {
+                const detail = await getCustomerPaymentById(location, Number(id), String(pid));
+                if (detail) {
+                  setSelectedPayment(detail);
+                  const idx = paymentData.findIndex((p) => {
+                    const anyP = p as unknown as Record<string, unknown>;
+                    const pId = anyP["paymentId"] ?? anyP["id"] ?? anyP["payment_id"];
+                    return pId !== undefined && String(pId) === String(pid);
+                  });
+                  setSelectedPaymentIndex(idx >= 0 ? idx : null);
+                  setIsPaymentReceiptModalOpen(true);
+                  return;
+                }
+              } catch {}
+            }
+            // Fallback to existing behavior when no paymentId found or fetch failed
             const payment = row as PaymentData;
             setSelectedPayment(payment);
             const idx = paymentData.findIndex((p) => p === payment);
@@ -2086,72 +2078,42 @@ export function CustomerDetailClient({
         open={isPaymentReceiptModalOpen}
         onOpenChange={setIsPaymentReceiptModalOpen}
         payment={selectedPayment || undefined}
-        customerName={
-          (customer &&
-            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
-          _customerInfo?.profile?.name ||
-          emails[0]?.email ||
-          "Customer"
-        }
+        customerName={(customer && `${customer.firstName || ''} ${customer.lastName || ''}`.trim()) || _customerInfo?.profile?.name || emails[0]?.email || 'Customer'}
         customerEmail={emails[0]?.email}
+        customerEmails={emails.map((e) => e.email)}
         customerPhone={phones[0]?.number}
-        privateLessonDue={
-          privateLessonDueData as unknown as Array<{
-            lessonDate: string;
-            studentName: string;
-            programName: string;
-            teacherName: string;
-            amount: number | string;
-          }>
-        }
+        privateLessonDue={privateLessonDueData as unknown as Array<{ lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string; }>}
+        groupLessonDueData={groupLessonDueData}
+        invoiceData={invoiceData}
+        totalBalance={summaryData.balance}
+        locationName="Arcadia Academy of Music"
         onEdit={(data) => {
           if (selectedPaymentIndex === null) return;
-          const parseNum = (v: unknown) =>
-            typeof v === "number"
-              ? v
-              : typeof v === "string"
-              ? parseFloat(v.replace(/[^0-9.-]+/g, ""))
-              : 0;
-          setPaymentData((prev) =>
-            prev.map((p, i) => {
-              if (i !== selectedPaymentIndex) return p;
-              const usedNum = parseNum(p.used);
-              const newAmount = data.amountReceived;
-              const newRemaining = Math.max(0, newAmount - usedNum);
-              return {
-                ...p,
-                date: data.date || p.date,
-                notes: data.method || p.notes,
-                amount: newAmount,
-                remaining: newRemaining,
-              };
-            })
-          );
-          setSelectedPayment((prev) => {
-            if (!prev) return prev;
-            const usedNum =
-              typeof prev.used === "number"
-                ? prev.used
-                : parseFloat(String(prev.used).replace(/[^0-9.-]+/g, "")) || 0;
-            const newRemaining = Math.max(0, data.amountReceived - usedNum);
+          const parseNum = (v: unknown) => typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v.replace(/[^0-9.-]+/g, '')) : 0;
+          setPaymentData((prev) => prev.map((p, i) => {
+            if (i !== selectedPaymentIndex) return p;
+            const usedNum = parseNum(p.used);
+            const newAmount = data.amountReceived;
+            const newRemaining = Math.max(0, newAmount - usedNum);
             return {
-              ...prev,
-              date: data.date || prev.date,
-              notes: data.method || prev.notes,
-              amount: data.amountReceived,
+              ...p,
+              date: data.date || p.date,
+              notes: data.method || p.notes,
+              amount: newAmount,
               remaining: newRemaining,
             };
+          }));
+          setSelectedPayment((prev) => {
+            if (!prev) return prev;
+            const usedNum = typeof prev.used === 'number' ? prev.used : parseFloat(String(prev.used).replace(/[^0-9.-]+/g, '')) || 0;
+            const newRemaining = Math.max(0, data.amountReceived - usedNum);
+            return { ...prev, date: data.date || prev.date, notes: data.method || prev.notes, amount: data.amountReceived, remaining: newRemaining };
           });
         }}
         onDelete={() => {
           if (selectedPaymentIndex === null) return;
-          setPaymentData((prev) =>
-            prev.filter((_, i) => i !== selectedPaymentIndex)
-          );
-          setPaymentsPagination((prev) => ({
-            ...prev,
-            total: Math.max((prev.total || 0) - 1, 0),
-          }));
+          setPaymentData((prev) => prev.filter((_, i) => i !== selectedPaymentIndex));
+          setPaymentsPagination((prev) => ({ ...prev, total: Math.max((prev.total || 0) - 1, 0) }));
           setSelectedPayment(null);
           setSelectedPaymentIndex(null);
         }}

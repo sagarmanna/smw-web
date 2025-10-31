@@ -137,7 +137,6 @@ export interface InvoicesResponse {
       status: string;
       total: string | number;
       balance: string | number;
-      url: string;
     }>;
     pagination?: {
       page: number;
@@ -158,7 +157,6 @@ export interface OutstandingInvoicesResponse {
       amount: string;
       payments: string;
       balanceDue: string;
-      url: string;
     }>;
     footer: Array<{
       totalAmount: string;
@@ -354,8 +352,7 @@ export async function getCustomerInvoices(
           : invoice.total,
         balance: typeof invoice.balance === 'string'
           ? parseFloat(invoice.balance.replace(/[$,]/g, ''))
-          : invoice.balance,
-          url: invoice.url 
+          : invoice.balance
       }));
     }
     
@@ -384,8 +381,7 @@ export async function getCustomerOutstandingInvoices(
         date: invoice.date,
         amount: parseFloat(invoice.amount.replace(/[$,]/g, '')),
         payments: parseFloat(invoice.payments.replace(/[$,]/g, '')),
-        balanceDue: parseFloat(invoice.balanceDue.replace(/[$,]/g, '')),
-        url: invoice.url
+        balanceDue: parseFloat(invoice.balanceDue.replace(/[$,]/g, ''))
       }));
 
       const totalAmount = response.data.data.footer?.[0]?.totalAmount 
@@ -592,14 +588,8 @@ export async function getCustomerPrivateLessonDue(
     );
     const pagination = response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
     const footerArr = response.data.data?.footer || [];
-    
-    const data = (response.data.data?.body || []).map(lesson => ({
-      ...lesson,
-      url: lesson.url
-    }));
-    
     return {
-      data,
+      data: response.data.data?.body || [],
       pagination,
       footer: footerArr[0] ? { totalAmount: footerArr[0].totalAmount } : undefined,
     };
@@ -655,19 +645,8 @@ export async function getCustomerGroupLessonDue(
     );
     const pagination = response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
     const footerArr = response.data.data?.footer || [];
-    
-    // Map the response to include url
-    const data = response.data.data?.body.map(lesson => ({
-      lessonDate: lesson.lessonDate,
-      studentName: lesson.studentName,
-      programName: lesson.programName,
-      teacherName: lesson.teacherName,
-      amount: lesson.amount,
-      url: lesson.url 
-    })) || [];
-    
     return {
-      data,
+      data: response.data.data?.body || [],
       pagination,
       footer: footerArr[0] ? { totalAmount: footerArr[0].totalAmount } : undefined,
     };
@@ -734,6 +713,27 @@ export async function getCustomerPayments(
       pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
       footer: { totalRemaining: "$0.00" },
     };
+  }
+}
+
+// Fetch a single payment detail by paymentId by scanning the customer's payments list
+export async function getCustomerPaymentById(
+  location: string,
+  customerId: number,
+  paymentId: string | number
+): Promise<PaymentData | null> {
+  try {
+    // Fetch all payments (or a large page) and locate by id-like field
+    const { data } = await getCustomerPayments(location, customerId, 1, 99999);
+    const targetId = String(paymentId);
+    const found = data.find((p: PaymentData) => {
+      const anyP = p as unknown as Record<string, unknown>;
+      const pid = anyP["paymentId"] ?? anyP["id"] ?? anyP["payment_id"];
+      return pid !== undefined && String(pid) === targetId;
+    });
+    return found || null;
+  } catch {
+    return null;
   }
 }
 

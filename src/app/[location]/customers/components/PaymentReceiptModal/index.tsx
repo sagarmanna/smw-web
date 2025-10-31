@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "../ReceivePaymentModal/components/DatePicker";
+import EmailStatementModal from "../EmailStatementModal";
+import type { InvoiceData, GroupLessonDueData } from "../../tableConfigs";
 
 export interface PaymentReceiptData {
   date: string;
@@ -26,6 +28,7 @@ interface PaymentReceiptModalProps {
   payment?: PaymentReceiptData | null;
   customerName?: string;
   customerEmail?: string;
+  customerEmails?: string[];
   customerPhone?: string;
   privateLessonDue?: Array<{
     lessonDate: string;
@@ -34,7 +37,11 @@ interface PaymentReceiptModalProps {
     teacherName: string;
     amount: number | string;
   }>;
-  onEdit?: (data: { date: string; method: string; reference: string; amountReceived: number; allocations?: Array<{ lessonDate: string; amount: number }> }) => void;
+  groupLessonDueData?: GroupLessonDueData[];
+  invoiceData?: InvoiceData[];
+  totalBalance?: string;
+  locationName?: string;
+  onEdit?: (data: { date: string; method: string; reference: string; amountReceived: number; allocations?: Array<{ lessonDate: string; amount: number }>; groupLessonAllocations?: Array<{ date: string; student: string; amount: number }>; invoiceAllocations?: Array<{ id: string; amount: number }> }) => void;
   onDelete?: () => void;
   onPrint?: () => void;
   onEmail?: () => void;
@@ -46,13 +53,19 @@ export function PaymentReceiptModal({
   payment,
   customerName,
   customerEmail,
+  customerEmails,
   customerPhone,
   privateLessonDue = [],
+  groupLessonDueData,
+  invoiceData,
+  totalBalance,
+  locationName,
   onEdit,
   onDelete,
   onPrint,
   onEmail,
 }: PaymentReceiptModalProps) {
+  const [isEmailStatementOpen, setIsEmailStatementOpen] = React.useState<boolean>(false);
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [editDate, setEditDate] = React.useState<Date>(new Date());
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<boolean>(false);
@@ -124,8 +137,7 @@ export function PaymentReceiptModal({
     return rows;
   }, [isEditing, privateLessonDue, usedAmount]);
 
-  const amountToApply = React.useMemo(() => lessonEditRows.reduce((sum, r) => sum + r.allocation, 0), [lessonEditRows]);
-  const amountToCredit = React.useMemo(() => Math.max(0, parseMoneyToNumber(editForm.amountReceived) - amountToApply), [editForm.amountReceived, amountToApply]);
+  // amountToApply defined later after editable rows declarations
   const amountNumber = React.useMemo(() => {
     if (!payment) return 0;
     const amt = typeof payment.amount === "number" ? payment.amount : parseFloat((payment.amount || "0").toString().replace(/[^0-9.-]+/g, ""));
@@ -137,6 +149,8 @@ export function PaymentReceiptModal({
   }, [amountNumber]);
 
   const paymentMethod = payment?.notes || "";
+
+  // Build email content for payment receipt (computed after data rows are defined later)
 
   // When a payment is fully used (remaining = $0.00) show a usage table
   type AllocationRow = {
@@ -249,6 +263,235 @@ export function PaymentReceiptModal({
     },
   ];
 
+  // Group Lessons table within receipt (read-only)
+  type GroupLessonRow = {
+    date: string;
+    student: string;
+    program: string;
+    invoiced: string;
+    amount: string;
+    balance: string;
+  };
+
+  const groupLessonRows: GroupLessonRow[] = React.useMemo(() => {
+    const data = (groupLessonDueData || []) as GroupLessonDueData[];
+    return data.map((g) => ({
+      date: g.lessonDate,
+      student: g.studentName,
+      program: g.programName,
+      invoiced: "No",
+      amount: typeof g.amount === 'string' ? g.amount : formatCurrency(g.amount || 0),
+      balance: "$0.00",
+    }));
+  }, [groupLessonDueData]);
+
+  const groupLessonColumns: ColumnDef<GroupLessonRow>[] = [
+    { accessorKey: "date", header: "Date" },
+    { accessorKey: "student", header: "Student" },
+    { accessorKey: "program", header: "Program" },
+    { accessorKey: "invoiced", header: "Invoiced ?" },
+    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+  ];
+
+  // Invoices table within receipt (read-only)
+  type InvoiceRow = {
+    date: string;
+    number: string;
+    amount: string;
+    payment: string;
+    balance: string;
+  };
+
+  const invoiceRows: InvoiceRow[] = React.useMemo(() => {
+    const data = (invoiceData || []) as InvoiceData[];
+    return data.map((inv) => ({
+      date: inv.date,
+      number: inv.id,
+      amount: formatCurrency(typeof inv.total === 'number' ? inv.total : 0),
+      payment: formatCurrency(typeof inv.total === 'number' ? inv.total : 0),
+      balance: formatCurrency(typeof inv.balance === 'number' ? inv.balance : 0),
+    }));
+  }, [invoiceData]);
+
+  const invoiceColumns: ColumnDef<InvoiceRow>[] = [
+    { accessorKey: "date", header: "Date" },
+    { accessorKey: "number", header: "Number" },
+    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+    { accessorKey: "payment", header: "Payment", cell: ({ row }) => <div className="text-right">{row.getValue("payment") as string}</div> },
+    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+  ];
+
+  // Editable rows (group lessons + invoices) in edit mode
+  type GroupLessonEditRow = GroupLessonRow & { allocation: number };
+  type InvoiceEditRow = InvoiceRow & { allocation: number };
+
+  const [groupLessonEditRows, setGroupLessonEditRows] = React.useState<GroupLessonEditRow[]>([]);
+  const [invoiceEditRows, setInvoiceEditRows] = React.useState<InvoiceEditRow[]>([]);
+
+  React.useEffect(() => {
+    if (isEditing) {
+      const gl = (groupLessonRows || []).map((r) => ({ ...r, allocation: (() => { const n = parseMoneyToNumber(r.amount); return Number.isFinite(n) ? n : 0; })() }));
+      setGroupLessonEditRows(gl);
+      const inv = (invoiceRows || []).map((r) => ({ ...r, allocation: (() => { const n = parseMoneyToNumber(r.amount); return Number.isFinite(n) ? n : 0; })() }));
+      setInvoiceEditRows(inv);
+    } else {
+      setGroupLessonEditRows([]);
+      setInvoiceEditRows([]);
+    }
+  }, [isEditing, groupLessonRows, invoiceRows, parseMoneyToNumber]);
+
+  const amountToApply = React.useMemo(() => {
+    const lessonsSum = lessonEditRows.reduce((sum, r) => sum + r.allocation, 0);
+    const groupSum = groupLessonEditRows.reduce((sum, r) => sum + (Number.isFinite(r.allocation) ? r.allocation : 0), 0);
+    const invSum = invoiceEditRows.reduce((sum, r) => sum + (Number.isFinite(r.allocation) ? r.allocation : 0), 0);
+    return lessonsSum + groupSum + invSum;
+  }, [lessonEditRows, groupLessonEditRows, invoiceEditRows]);
+  const amountToCredit = React.useMemo(() => Math.max(0, parseMoneyToNumber(editForm.amountReceived) - amountToApply), [editForm.amountReceived, amountToApply]);
+
+  // Build email content for payment receipt (only selected payment details)
+  const emailSubject = React.useMemo(() => `Payment Receipt - ${headerAmount}`, [headerAmount]);
+  const emailContent = React.useMemo(() => {
+    const normalize = (v?: string) => (typeof v === 'string' ? v : '').trim();
+    const sanitizeName = (name?: string) => {
+      const n = normalize(name).replace(/undefined/gi, '').replace(/\s+/g, ' ').trim();
+      return n || '';
+    };
+    const safeCustomerName = sanitizeName(customerName);
+    const receiptDate = payment?.date || "";
+    const method = paymentMethod || "";
+
+    const lessonsHtml = showAllocations
+      ? `
+        <h3 style="margin:16px 0 8px;font-size:14px;">Lessons</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Original Date</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Student</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Program</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Teacher</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Payment</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allocationRows
+              .map(
+                (r) => `
+                <tr>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.originalDate}</td>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.date}</td>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.student}</td>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.program}</td>
+                  <td style="border:1px solid #ddd;padding:6px;">${r.teacher}</td>
+                  <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.amount}</td>
+                  <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.payment}</td>
+                  <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.balance}</td>
+                </tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>`
+      : "";
+
+    const groupLessonsHtml = groupLessonRows.length > 0
+      ? `
+        <h3 style="margin:16px 0 8px;font-size:14px;">Group Lessons</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Student</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Program</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Invoiced ?</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${groupLessonRows.map(r => `
+              <tr>
+                <td style="border:1px solid #ddd;padding:6px;">${r.date}</td>
+                <td style="border:1px solid #ddd;padding:6px;">${r.student}</td>
+                <td style="border:1px solid #ddd;padding:6px;">${r.program}</td>
+                <td style="border:1px solid #ddd;padding:6px;">${r.invoiced}</td>
+                <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.amount}</td>
+                <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.balance}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>`
+      : "";
+
+    const invoicesHtml = invoiceRows.length > 0
+      ? `
+        <h3 style="margin:16px 0 8px;font-size:14px;">Invoices</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
+              <th style="text-align:left;border:1px solid #ddd;padding:6px;">Number</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Payment</th>
+              <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoiceRows.map(r => `
+              <tr>
+                <td style="border:1px solid #ddd;padding:6px;">${r.date}</td>
+                <td style="border:1px solid #ddd;padding:6px;">${r.number}</td>
+                <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.amount}</td>
+                <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.payment}</td>
+                <td style="border:1px solid #ddd;padding:6px;text-align:right;">${r.balance}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>`
+      : "";
+
+    const paymentsUsedHtml = `
+        <h3 style="margin:16px 0 8px;font-size:14px;">Payments Used</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Reference</th>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Date</th>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Payment Method</th>
+              <th style=\"text-align:right;border:1px solid #ddd;padding:6px;\">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (r) => `
+                <tr>
+                  <td style=\"border:1px solid #ddd;padding:6px;\">${r.reference}</td>
+                  <td style=\"border:1px solid #ddd;padding:6px;\">${r.date}</td>
+                  <td style=\"border:1px solid #ddd;padding:6px;\">${r.method}</td>
+                  <td style=\"border:1px solid #ddd;padding:6px;text-align:right;\">${r.amount}</td>
+                </tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>`;
+
+    return `
+      <p>Please find the Payment below</p>
+      <p>This is to acknowledge the receipt of payment${safeCustomerName ? ` from ${safeCustomerName}` : ""}${receiptDate ? ` on ${receiptDate}` : ""} in the amount of ${headerAmount}${method ? ` via ${method}` : ""}. We have distributed it to the items below.</p>
+      ${lessonsHtml}
+      ${groupLessonsHtml}
+      ${invoicesHtml}
+      ${paymentsUsedHtml}
+      <div style="margin-top:16px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">FQRS47785GT1234</span></div>
+      <p style="margin-top:16px;">Thank you,</p>
+      <p>Arcadia Academy of Music Team</p>
+    `;
+  }, [customerName, payment?.date, paymentMethod, headerAmount, showAllocations, allocationRows, rows, groupLessonRows, invoiceRows]);
+
   const handlePrintReceipt = React.useCallback(() => {
     try {
       const title = "Payment Receipt";
@@ -320,6 +563,62 @@ export function PaymentReceiptModal({
         </table>`
         : "";
 
+      const groupLessonsHtml = groupLessonRows.length > 0
+        ? `
+        <h3 style=\"margin:16px 0 8px;font-size:14px;\">Group Lessons</h3>
+        <table style=\"width:100%;border-collapse:collapse;font-size:12px;\">
+          <thead>
+            <tr>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Date</th>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Student</th>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Program</th>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Invoiced ?</th>
+              <th style=\"text-align:right;border:1px solid #ddd;padding:6px;\">Amount</th>
+              <th style=\"text-align:right;border:1px solid #ddd;padding:6px;\">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${groupLessonRows.map(r => `
+              <tr>
+                <td style=\"border:1px solid #ddd;padding:6px;\">${r.date}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;\">${r.student}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;\">${r.program}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;\">${r.invoiced}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;text-align:right;\">${r.amount}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;text-align:right;\">${r.balance}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>`
+        : "";
+
+      const invoicesHtml = invoiceRows.length > 0
+        ? `
+        <h3 style=\"margin:16px 0 8px;font-size:14px;\">Invoices</h3>
+        <table style=\"width:100%;border-collapse:collapse;font-size:12px;\">
+          <thead>
+            <tr>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Date</th>
+              <th style=\"text-align:left;border:1px solid #ddd;padding:6px;\">Number</th>
+              <th style=\"text-align:right;border:1px solid #ddd;padding:6px;\">Amount</th>
+              <th style=\"text-align:right;border:1px solid #ddd;padding:6px;\">Payment</th>
+              <th style=\"text-align:right;border:1px solid #ddd;padding:6px;\">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoiceRows.map(r => `
+              <tr>
+                <td style=\"border:1px solid #ddd;padding:6px;\">${r.date}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;\">${r.number}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;text-align:right;\">${r.amount}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;text-align:right;\">${r.payment}</td>
+                <td style=\"border:1px solid #ddd;padding:6px;text-align:right;\">${r.balance}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>`
+        : "";
+
       const paymentsUsedHtml = `
         <h3 style="margin:16px 0 8px;font-size:14px;">Payments Used</h3>
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -372,6 +671,8 @@ export function PaymentReceiptModal({
             This is to acknowledge the receipt of payment${safeCustomerName ? ` from ${safeCustomerName}` : ""}${receiptDate ? ` on ${receiptDate}` : ""} in the amount of ${amountPaid}${method ? ` via ${method}` : ""}. We have distributed it to the items below.
           </p>
           ${lessonsHtml}
+          ${groupLessonsHtml}
+          ${invoicesHtml}
           ${paymentsUsedHtml}
           <div style="margin-top:16px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">FQRS47785GT1234</span></div>
         </div>`;
@@ -402,7 +703,7 @@ export function PaymentReceiptModal({
     } catch (e) {
       console.error("Failed to render print view", e);
     }
-  }, [headerAmount, payment?.date, paymentMethod, customerName, showAllocations, allocationRows, rows]);
+  }, [headerAmount, payment?.date, paymentMethod, customerName, showAllocations, allocationRows, rows, groupLessonRows, invoiceRows, customerPhone, customerEmail]);
 
   return (
     <>
@@ -510,8 +811,96 @@ export function PaymentReceiptModal({
                     {
                       id: "paymentInput",
                       header: "Payment",
+                      cell: ({ row, table }) => {
+                        const idx = row.index;
+                        const current = (row.original as EditLessonRow).allocation;
+                        return (
+                          <Input
+                            type="number"
+                            value={Number(current).toString()}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value || "0");
+                              // Update via a shallow rebuild of memo data is not possible; keep disabled for lessons for now
+                            }}
+                            className="h-8 text-right"
+                            disabled
+                          />
+                        );
+                      },
+                    },
+                  ]}
+                  size="compact"
+                  enableSorting={false}
+                  enableExport={false}
+                  enablePrint={false}
+                  enableSearch={false}
+                  enableFilter={false}
+                  enableRowsPerPage={false}
+                />
+              </div>
+
+              {/* Group Lessons - editable payments */}
+              <div className="space-y-3">
+                <div className="text-sm font-semibold">Group Lessons</div>
+                <CustomTable
+                  data={groupLessonEditRows}
+                  columns={[
+                    { accessorKey: "date", header: "Date" },
+                    { accessorKey: "student", header: "Student" },
+                    { accessorKey: "program", header: "Program" },
+                    { accessorKey: "invoiced", header: "Invoiced ?" },
+                    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+                    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+                    {
+                      id: "glPayment",
+                      header: "Payment",
                       cell: ({ row }) => (
-                        <Input type="number" value={(row.original as EditLessonRow).allocation.toFixed(2)} className="h-8 text-right" disabled />
+                        <Input
+                          type="number"
+                          value={(row.original as GroupLessonEditRow).allocation.toString()}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value || "0");
+                            setGroupLessonEditRows((prev) => prev.map((r, i) => (i === row.index ? { ...r, allocation: Number.isFinite(v) ? v : 0 } : r)));
+                          }}
+                          className="h-8 text-right"
+                        />
+                      ),
+                    },
+                  ]}
+                  size="compact"
+                  enableSorting={false}
+                  enableExport={false}
+                  enablePrint={false}
+                  enableSearch={false}
+                  enableFilter={false}
+                  enableRowsPerPage={false}
+                />
+              </div>
+
+              {/* Invoices - editable payments */}
+              <div className="space-y-3">
+                <div className="text-sm font-semibold">Invoices</div>
+                <CustomTable
+                  data={invoiceEditRows}
+                  columns={[
+                    { accessorKey: "date", header: "Date" },
+                    { accessorKey: "number", header: "Number" },
+                    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+                    { accessorKey: "payment", header: "Payment", cell: ({ row }) => <div className="text-right">{row.getValue("payment") as string}</div> },
+                    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+                    {
+                      id: "invPayment",
+                      header: "Payment",
+                      cell: ({ row }) => (
+                        <Input
+                          type="number"
+                          value={(row.original as InvoiceEditRow).allocation.toString()}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value || "0");
+                            setInvoiceEditRows((prev) => prev.map((r, i) => (i === row.index ? { ...r, allocation: Number.isFinite(v) ? v : 0 } : r)));
+                          }}
+                          className="h-8 text-right"
+                        />
                       ),
                     },
                   ]}
@@ -531,6 +920,43 @@ export function PaymentReceiptModal({
             </>
           )}
 
+          {/* Group Lessons (read-only) */}
+          {!isEditing && groupLessonRows.length > 0 && (
+            <div className="space-y-3">
+              <div className="text-sm font-semibold">Group Lessons</div>
+              <CustomTable
+                data={groupLessonRows}
+                columns={groupLessonColumns}
+                size="compact"
+                enableSorting={false}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+              />
+            </div>
+          )}
+
+          {/* Invoices (read-only) */}
+          {!isEditing && invoiceRows.length > 0 && (
+            <div className="space-y-3">
+              <div className="text-sm font-semibold">Invoices</div>
+              <CustomTable
+                data={invoiceRows}
+                columns={invoiceColumns}
+                size="compact"
+                enableSorting={false}
+                enableExport={false}
+                enablePrint={false}
+                enableSearch={false}
+                enableFilter={false}
+                enableRowsPerPage={false}
+              />
+            </div>
+          )}
+
+          {/* Payments Used must always be last */}
           {!isEditing && (
             <div className="space-y-3">
               <div className="text-sm font-semibold">Payments Used</div>
@@ -565,12 +991,16 @@ export function PaymentReceiptModal({
                 <Button
                   onClick={() => {
                     const allocations = lessonEditRows.map(r => ({ lessonDate: r.date, amount: r.allocation }));
+                    const glAllocations = groupLessonEditRows.map(r => ({ date: r.date, student: r.student, amount: r.allocation }));
+                    const invAllocations = invoiceEditRows.map(r => ({ id: r.number, amount: r.allocation }));
                     onEdit?.({
                       date: editForm.date || payment?.date || "",
                       method: editForm.method,
                       reference: editForm.reference,
                       amountReceived: parseMoneyToNumber(editForm.amountReceived),
                       allocations,
+                      groupLessonAllocations: glAllocations,
+                      invoiceAllocations: invAllocations,
                     });
                     setIsEditing(false);
                   }}
@@ -583,7 +1013,15 @@ export function PaymentReceiptModal({
                 <Button variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
                 <Button variant="default" onClick={() => setIsEditing(true)}>Edit</Button>
                 <Button variant="default" onClick={handlePrintReceipt}>Print</Button>
-                <Button variant="default" onClick={onEmail}>EMail</Button>
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    onEmail?.();
+                    setIsEmailStatementOpen(true);
+                  }}
+                >
+                  EMail
+                </Button>
               </>
             )}
           </div>
@@ -611,6 +1049,26 @@ export function PaymentReceiptModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Email Statement Modal */}
+    <EmailStatementModal
+      open={isEmailStatementOpen}
+      onOpenChange={setIsEmailStatementOpen}
+      onSend={() => setIsEmailStatementOpen(false)}
+      onDelete={() => {
+        setIsEmailStatementOpen(false);
+        setShowDeleteConfirm(true);
+      }}
+      initialSubject={emailSubject}
+      initialContent={emailContent}
+      customerName={customerName}
+      customerEmails={customerEmails && customerEmails.length > 0 ? customerEmails : (customerEmail ? [customerEmail] : [])}
+      locationName={locationName || "Arcadia Academy of Music"}
+      privateLessonDueData={privateLessonDue as unknown as Array<{ lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string; }>}
+      groupLessonDueData={groupLessonDueData || []}
+      invoiceData={invoiceData || []}
+      totalBalance={totalBalance || "$0.00"}
+    />
     </>
   );
 }
