@@ -32,7 +32,26 @@ export class PaymentCalculator {
       .reduce((sum, i) => sum + (parseFloat(i.payment) || 0), 0);
     
     const amountToApply = lessonPayments + groupLessonPayments + invoicePayments;
-    const amountToCredit = (parseFloat(amountReceived) || 0) - amountToApply;
+    const paymentReceived = parseFloat(amountReceived) || 0;
+    const amountToCredit = paymentReceived - amountToApply;
+    
+    // Calculate total balance needed from selected items
+    const selectedLessonBalance = lessons
+      .filter(l => l.selected)
+      .reduce((sum, l) => sum + l.balance, 0);
+    
+    const selectedGroupLessonBalance = groupLessons
+      .filter(gl => gl.selected)
+      .reduce((sum, gl) => sum + gl.balance, 0);
+    
+    const selectedInvoiceBalance = invoices
+      .filter(i => i.selected)
+      .reduce((sum, i) => sum + i.balance, 0);
+    
+    const amountNeeded = selectedLessonBalance + selectedGroupLessonBalance + selectedInvoiceBalance;
+    
+    // Suggested amount is what's needed minus available credits being applied
+    const suggestedAmountReceived = Math.max(0, amountNeeded - selectedCredits);
 
     return {
       availableCredits,
@@ -42,6 +61,9 @@ export class PaymentCalculator {
       invoicePayments,
       amountToApply,
       amountToCredit,
+      paymentReceived,
+      amountNeeded,
+      suggestedAmountReceived,
     };
   }
 

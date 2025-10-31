@@ -1,19 +1,19 @@
 // hooks/usePaymentState.ts
 import { useState, useEffect } from 'react';
 import { LessonItem, InvoiceItem, CreditItem, GroupLessonItem, ColumnFilter } from '../types';
-import { DEFAULT_PAYMENT_METHOD, DEFAULT_AMOUNT_RECEIVED } from '../constants';
 import { usePaymentData } from './usePaymentData';
 
 /**
- * Custom hook for managing payment modal state with API integration and pagination
+ * Custom hook for managing payment modal state with API integration
  * Following Single Responsibility Principle - handles only state management
+ * No pagination - loads all data at once
  */
 export const usePaymentState = (
   location: string,
   customerId: number,
   initialCustomerName?: string
 ) => {
-  // Fetch data from APIs with pagination support
+  // Fetch all data from APIs at once
   const { 
     lessons: apiLessons,
     groupLessons: apiGroupLessons,
@@ -22,29 +22,18 @@ export const usePaymentState = (
     paymentMethods: apiPaymentMethods,
     customerName: apiCustomerName,
     customerId: apiCustomerId,
+    totalOutstanding,
     isLoading,
     error,
-    lessonsPagination,
-    groupLessonsPagination,
-    invoicesPagination,
-    creditsPagination,
-    lessonsLoading,
-    groupLessonsLoading,
-    invoicesLoading,
-    creditsLoading,
-    loadLessonsPage,
-    loadGroupLessonsPage,
-    loadInvoicesPage,
-    loadCreditsPage,
   } = usePaymentData(location, customerId);
 
   // Form state
   const [customer, setCustomer] = useState(initialCustomerName || '');
   const [customerIdState, setCustomerIdState] = useState<number>(customerId);
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
-  const [paymentMethod, setPaymentMethod] = useState(DEFAULT_PAYMENT_METHOD);
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [reference, setReference] = useState('');
-  const [amountReceived, setAmountReceived] = useState(DEFAULT_AMOUNT_RECEIVED);
+  const [amountReceived, setAmountReceived] = useState('0.00');
   const [notes, setNotes] = useState('');
   
   // Filter state
@@ -91,7 +80,7 @@ export const usePaymentState = (
     }
   }, [apiInvoices]);
 
-  // NEW: Update credits when API data is loaded
+  // Update credits when API data is loaded
   useEffect(() => {
     if (apiCredits.length > 0) {
       setCredits(apiCredits);
@@ -116,6 +105,13 @@ export const usePaymentState = (
       }
     }
   }, [apiPaymentMethods]);
+
+  // Set default amount received to total outstanding when data is loaded
+  useEffect(() => {
+    if (totalOutstanding > 0 && amountReceived === '0.00') {
+      setAmountReceived(totalOutstanding.toFixed(2));
+    }
+  }, [totalOutstanding, amountReceived]);
 
   return {
     // Form state
@@ -151,21 +147,8 @@ export const usePaymentState = (
     
     // API data
     availablePaymentMethods,
+    totalOutstanding,
     isLoading,
     error,
-    
-    // Pagination state and handlers
-    lessonsPagination,
-    groupLessonsPagination,
-    invoicesPagination,
-    creditsPagination,
-    lessonsLoading,
-    groupLessonsLoading,
-    invoicesLoading,
-    creditsLoading,
-    loadLessonsPage,
-    loadGroupLessonsPage,
-    loadInvoicesPage,
-    loadCreditsPage,
   };
 };

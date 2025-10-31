@@ -10,6 +10,7 @@ import {
 
 /**
  * Custom hook for managing table column definitions with dynamic filter options
+ * No pagination - all data loaded at once
  */
 export const usePaymentColumns = (
   lessons: LessonItem[],
