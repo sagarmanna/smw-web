@@ -1409,6 +1409,7 @@ export function CustomerDetailClient({
             programName: "",
             teacherName: "",
             amount: privateLessonDueFooterTotal,
+            url: "",
           }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.privateLessonDue.size}

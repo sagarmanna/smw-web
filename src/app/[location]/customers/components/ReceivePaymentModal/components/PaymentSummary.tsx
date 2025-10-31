@@ -9,7 +9,6 @@ interface PaymentSummaryProps {
 interface SummaryRowProps {
   label: string;
   value: number;
-  highlight?: boolean;
 }
 
 /**
@@ -17,12 +16,11 @@ interface SummaryRowProps {
  */
 const SummaryRow: React.FC<SummaryRowProps> = ({ 
   label, 
-  value, 
-  highlight = false 
+  value
 }) => (
-  <div className="flex justify-end items-center gap-8">
-    <span className="font-medium">{label} :</span>
-    <span className={`font-bold ${highlight ? 'text-green-600' : ''}`}>
+  <div className="flex justify-end items-center gap-2">
+    <span className="text-black w-48 text-right">{label}:</span>
+    <span className="text-black font-semibold w-28 text-right">
       ${value.toFixed(2)}
     </span>
   </div>
@@ -34,18 +32,21 @@ const SummaryRow: React.FC<SummaryRowProps> = ({
  */
 export const PaymentSummary: React.FC<PaymentSummaryProps> = ({ calculations }) => (
   <div className="mt-4 space-y-2 text-sm">
-    <SummaryRow 
-      label="Available Credits" 
-      value={calculations.availableCredits} 
-    />
-    <SummaryRow 
-      label="Selected Credits" 
-      value={calculations.selectedCredits} 
-    />
+    {calculations.availableCredits > 0 && (
+      <SummaryRow 
+        label="Available Credits" 
+        value={calculations.availableCredits} 
+      />
+    )}
+    {calculations.selectedCredits > 0 && (
+      <SummaryRow 
+        label="Selected Credits" 
+        value={calculations.selectedCredits} 
+      />
+    )}
     <SummaryRow 
       label="Amount To Apply" 
       value={calculations.amountToApply}
-      highlight 
     />
     <SummaryRow 
       label="Amount To Credit" 

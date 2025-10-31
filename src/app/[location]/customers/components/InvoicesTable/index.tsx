@@ -15,22 +15,25 @@ interface InvoiceTableProps {
   customerName?: string; // temporary display for Student Name column
 }
 
-export function InvoiceTable({ 
-  data, 
+export function InvoiceTable({
+  data,
   loading = false,
   onAddInvoice,
   id,
   location,
   customerId,
-  customerName
+  customerName,
 }: InvoiceTableProps) {
-  
   const handlePrint = () => {
     const formatCurrencyPrint = (value: unknown) => {
       if (typeof value === "string") return value;
       const num = Number(value ?? 0);
       if (!Number.isFinite(num)) return "";
-      return num.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+      return num.toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+      });
     };
 
     const getProp = (row: unknown, key: string): string => {
@@ -52,17 +55,23 @@ export function InvoiceTable({
       return `${dd}-${mm}-${yyyy}`;
     };
 
-    const sorted = [...data].sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime());
+    const sorted = [...data].sort(
+      (a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime()
+    );
     const rangeStart = sorted.length ? parseDate(sorted[0].date) : undefined;
-    const rangeEnd = sorted.length ? parseDate(sorted[sorted.length - 1].date) : undefined;
+    const rangeEnd = sorted.length
+      ? parseDate(sorted[sorted.length - 1].date)
+      : undefined;
 
     // Open print in a new tab (not a popup window)
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert('Please allow popups for this site to print');
+      alert("Please allow popups for this site to print");
       return;
     }
-    try { printWindow.opener = null; } catch {}
+    try {
+      printWindow.opener = null;
+    } catch {}
 
     const printContent = `
       <!DOCTYPE html>
@@ -83,7 +92,11 @@ export function InvoiceTable({
         </head>
         <body>
           <h1>Invoices</h1>
-          <div class="range">${rangeStart && rangeEnd ? `${formatDMY(rangeStart)} - ${formatDMY(rangeEnd)}` : ''}</div>
+          <div class="range">${
+            rangeStart && rangeEnd
+              ? `${formatDMY(rangeStart)} - ${formatDMY(rangeEnd)}`
+              : ""
+          }</div>
           <table>
             <thead>
               <tr>
@@ -95,18 +108,22 @@ export function InvoiceTable({
               </tr>
             </thead>
             <tbody>
-              ${sorted.map((invoice) => {
-                const studentCell = customerName ? `${customerName}` : '';
-                return `
+              ${sorted
+                .map((invoice) => {
+                  const studentCell = customerName ? `${customerName}` : "";
+                  return `
                   <tr>
-                    <td>${invoice.id ?? ''}</td>
+                    <td>${invoice.id ?? ""}</td>
                     <td>${studentCell}</td>
-                    <td>${invoice.date ?? ''}</td>
-                    <td>${invoice.status ?? ''}</td>
-                    <td class="right">${formatCurrencyPrint((invoice as unknown as { total: unknown }).total)}</td>
+                    <td>${invoice.date ?? ""}</td>
+                    <td>${invoice.status ?? ""}</td>
+                    <td class="right">${formatCurrencyPrint(
+                      (invoice as unknown as { total: unknown }).total
+                    )}</td>
                   </tr>
                 `;
-              }).join('')}
+                })
+                .join("")}
             </tbody>
           </table>
           <script>
@@ -119,55 +136,58 @@ export function InvoiceTable({
     printWindow.document.write(printContent);
     printWindow.document.close();
   };
-  
-	const showMore = Array.isArray(data) && data.length >= 10;
 
-	return (
-		<TableCard 
-				title="Invoices"
-				data={data} 
-				columns={CUSTOMER_TABLE_CONFIGS.invoices.columns}
-				loading={loading}
-				onAdd={onAddInvoice}
-				size={CUSTOMER_TABLE_CONFIGS.invoices.size}
-				variant={CUSTOMER_TABLE_CONFIGS.invoices.variant}
-				enableSorting={CUSTOMER_TABLE_CONFIGS.invoices.enableSorting}
-				enableExport={CUSTOMER_TABLE_CONFIGS.invoices.enableExport}
-				enablePrint={CUSTOMER_TABLE_CONFIGS.invoices.enablePrint}
-				enableSearch={CUSTOMER_TABLE_CONFIGS.invoices.enableSearch}
-				enableFilter={CUSTOMER_TABLE_CONFIGS.invoices.enableFilter}
-				enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.invoices.enableRowsPerPage}
-				iconType="chevron"
-				onRowClick={() => {
-					const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${customerId}`;
-					window.open(url, "_blank", "noopener");
-				}}
-				dropdownItems={[
-					{
-						label: "Add Invoice",
-						onClick: () => {
-							const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${id}`;
-							window.open(url, "_blank", "noopener");
-						}
-					},
-					{
-						label: "Print",
-						onClick: handlePrint
-					}
-				]}
-				dropdownLabel="Invoice Actions"
-				bottomContent={
-					showMore ? (
-						<a
-							href={`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/index?InvoiceSearch%5BcustomerId%5D=${customerId}&InvoiceSearch%5Btype%5D=2&InvoiceSearch%5BinvoiceDateRange%5D=`}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="text-blue-600 hover:text-blue-800 font-medium"
-						>
-							Show More
-						</a>
-					) : undefined
-				}
-		/>
-	);
+  const showMore = Array.isArray(data) && data.length >= 10;
+
+  return (
+    <TableCard
+      title="Invoices"
+      data={data}
+      columns={CUSTOMER_TABLE_CONFIGS.invoices.columns}
+      loading={loading}
+      onAdd={onAddInvoice}
+      size={CUSTOMER_TABLE_CONFIGS.invoices.size}
+      variant={CUSTOMER_TABLE_CONFIGS.invoices.variant}
+      enableSorting={CUSTOMER_TABLE_CONFIGS.invoices.enableSorting}
+      enableExport={CUSTOMER_TABLE_CONFIGS.invoices.enableExport}
+      enablePrint={CUSTOMER_TABLE_CONFIGS.invoices.enablePrint}
+      enableSearch={CUSTOMER_TABLE_CONFIGS.invoices.enableSearch}
+      enableFilter={CUSTOMER_TABLE_CONFIGS.invoices.enableFilter}
+      enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.invoices.enableRowsPerPage}
+      iconType="chevron"
+      onRowClick={(row) => {
+        const invoiceUrl = (row as InvoiceData & { url?: string }).url;
+        if (invoiceUrl) {
+          const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${invoiceUrl}`;
+          window.open(url, "_blank", "noopener");
+        }
+      }}
+      dropdownItems={[
+        {
+          label: "Add Invoice",
+          onClick: () => {
+            const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${id}`;
+            window.open(url, "_blank", "noopener");
+          },
+        },
+        {
+          label: "Print",
+          onClick: handlePrint,
+        },
+      ]}
+      dropdownLabel="Invoice Actions"
+      bottomContent={
+        showMore ? (
+          <a
+            href={`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/index?InvoiceSearch%5BcustomerId%5D=${customerId}&InvoiceSearch%5Btype%5D=2&InvoiceSearch%5BinvoiceDateRange%5D=`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Show More
+          </a>
+        ) : undefined
+      }
+    />
+  );
 }

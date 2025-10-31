@@ -1,26 +1,19 @@
 // constants.ts
-export const PAYMENT_METHODS = [
-  { value: 'Cash', label: 'Cash' },
-  { value: 'Credit Card', label: 'Credit Card' },
-  { value: 'Debit Card', label: 'Debit Card' },
-  { value: 'Check', label: 'Check' },
-  { value: 'Bank Transfer', label: 'Bank Transfer' },
-] as const;
 
-export const CUSTOMERS = [
-  { value: '123 234', label: '123 234' },
-  { value: '456 234', label: '456 234' },
-] as const;
+// No default payment methods - all loaded dynamically from API
+export const PAYMENT_METHODS = [] as const;
 
-export const STUDENT_FILTER_OPTIONS = [
-  { value: 'all', label: 'All Students' },
-  { value: '456234', label: '456 234' },
-] as const;
+// No default customers - all loaded dynamically from API
+export const CUSTOMERS = [] as const;
 
-export const DEFAULT_PAYMENT_METHOD = 'Cash';
-export const DEFAULT_CUSTOMER = '123 234';
-export const DEFAULT_AMOUNT_NEEDED = 2718.75;
-export const DEFAULT_AMOUNT_RECEIVED = '1718.75';
+// No default student filter options - all loaded dynamically from data
+export const STUDENT_FILTER_OPTIONS = [] as const;
+
+// No default values - all dynamic
+export const DEFAULT_PAYMENT_METHOD = '';
+export const DEFAULT_CUSTOMER = '';
+export const DEFAULT_AMOUNT_NEEDED = 0;
+export const DEFAULT_AMOUNT_RECEIVED = '0.00';
 
 export const CALENDAR_CONFIG = {
   fromYear: 2005,
@@ -31,6 +24,11 @@ export const CALENDAR_CONFIG = {
 export const MESSAGES = {
   SAVE_SUCCESS: 'Payment saved successfully!',
   NO_LESSONS: 'No Lessons Available!',
+  NO_GROUP_LESSONS: 'No Group Lessons Available!',
+  NO_INVOICES: 'No Invoices Available!',
+  NO_CREDITS: 'No Credits Available!',
+  LOADING: 'Loading payment data...',
+  ERROR_LOADING: 'Error Loading Data',
 } as const;
 
 export const TABLE_CONFIG = {
