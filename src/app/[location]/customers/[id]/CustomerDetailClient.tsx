@@ -175,8 +175,11 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
     React.useState<boolean>(false);
-  const [selectedPayment, setSelectedPayment] = React.useState<PaymentData | null>(null);
-  const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<number | null>(null);
+    const [selectedPayment, setSelectedPayment] =
+    React.useState<PaymentData | null>(null);
+  const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<
+    number | null
+  >(null);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
   const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
@@ -1213,6 +1216,13 @@ export function CustomerDetailClient({
             columns={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.columns}
             loading={outstandingInvoicesLoading || loading}
             footerRow={outstandingInvoiceFooterRow}
+            onRowClick={(row) => {
+              const invoiceUrl = (row as OutstandingInvoiceData).url;
+              if (invoiceUrl) {
+                const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${invoiceUrl}`;
+                window.open(url, "_blank", "noopener");
+              }
+            }}
             onAdd={() => {}}
             size={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.size}
             variant={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.variant}
@@ -1230,7 +1240,7 @@ export function CustomerDetailClient({
               CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter
             }
             iconType="none"
-            enableShowAll={true}
+            enableShowAll={outstandingInvoicesPagination.total > 10}
             showAllLabel="Show All"
             serverSidePagination={outstandingInvoicesPagination}
             onServerSidePageChange={handleOutstandingInvoicesPageChange}
@@ -1411,6 +1421,13 @@ export function CustomerDetailClient({
             amount: privateLessonDueFooterTotal,
             url: "",
           }}
+          onRowClick={(row) => {
+            const lessonUrl = (row as PrivateLessonDueData).url;
+            if (lessonUrl) {
+              const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${lessonUrl}`;
+              window.open(url, "_blank", "noopener");
+            }
+          }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.privateLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.privateLessonDue.variant}
@@ -1471,6 +1488,13 @@ export function CustomerDetailClient({
             programName: "",
             teacherName: "",
             amount: groupLessonDueFooterTotal,
+          }}
+          onRowClick={(row) => {
+            const lessonUrl = (row as GroupLessonDueData).url;
+            if (lessonUrl) {
+              const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${lessonUrl}`;
+              window.open(url, "_blank", "noopener");
+            }
           }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.groupLessonDue.size}
