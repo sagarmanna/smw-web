@@ -55,13 +55,26 @@ export function InvoiceTable({
       return `${dd}-${mm}-${yyyy}`;
     };
 
-    const sorted = [...data].sort(
+    // Filter for current month only
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const currentMonthData = data.filter((invoice) => {
+      const invoiceDate = parseDate(invoice.date);
+      return (
+        invoiceDate.getMonth() === currentMonth &&
+        invoiceDate.getFullYear() === currentYear
+      );
+    });
+
+    const sorted = [...currentMonthData].sort(
       (a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime()
     );
-    const rangeStart = sorted.length ? parseDate(sorted[0].date) : undefined;
-    const rangeEnd = sorted.length
-      ? parseDate(sorted[sorted.length - 1].date)
-      : undefined;
+    
+    // Set range to first and last day of current month
+    const rangeStart = new Date(currentYear, currentMonth, 1);
+    const rangeEnd = new Date(currentYear, currentMonth + 1, 0);
 
     // Open print in a new tab (not a popup window)
     const printWindow = window.open("", "_blank");

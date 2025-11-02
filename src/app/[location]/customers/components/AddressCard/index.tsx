@@ -120,8 +120,25 @@ export function AddressCard({
       newErrors.postalCode = "Postal code cannot be blank.";
     }
 
+    // Check if cityId is valid OR if we're editing and city name exists
+    const cityExists = geoData.city.some(c => c.id === currentAddress.cityId);
+    const hasValidCityName = currentAddress.city && currentAddress.city.trim() !== "";
+    
     if (!currentAddress.cityId || currentAddress.cityId === 0) {
-      newErrors.city = "Please select a city.";
+      // If editing and has a valid city name, try to find and set the cityId
+      if (editingAddress && hasValidCityName) {
+        const foundCity = geoData.city.find(c => c.name.toLowerCase() === currentAddress.city.toLowerCase());
+        if (foundCity) {
+          // Auto-fix the cityId if we found a match
+          setCurrentAddress(prev => ({ ...prev, cityId: foundCity.id }));
+        } else {
+          newErrors.city = "Please select a city.";
+        }
+      } else {
+        newErrors.city = "Please select a city.";
+      }
+    } else if (!cityExists) {
+      newErrors.city = "Please select a valid city.";
     }
 
     setErrors(newErrors);
@@ -149,11 +166,21 @@ export function AddressCard({
   const handleEditClick = (e: React.MouseEvent, address: Address) => {
     e.stopPropagation();
     setEditingAddress(address);
+    
+    // Ensure cityId is properly set - if city name exists but no cityId, find it from geoData
+    let cityId = address.cityId;
+    if ((!cityId || cityId === 0) && address.city && geoData.city.length > 0) {
+      const foundCity = geoData.city.find(c => c.name.toLowerCase() === address.city.toLowerCase());
+      if (foundCity) {
+        cityId = foundCity.id;
+      }
+    }
+    
     setCurrentAddress({
       address: address.address,
       postalCode: address.postalCode,
       city: address.city,
-      cityId: address.cityId,
+      cityId: cityId,
       provinceId: address.provinceId,
       countryId: address.countryId,
       note: address.note || "",
@@ -300,13 +327,7 @@ export function AddressCard({
       return "";
     }
     
-    const city = geoData.city.find((c) => c.id === currentAddress.cityId);
-    
-    if (city) {
-      return currentAddress.cityId.toString();
-    }
-    
-    return "";
+    return currentAddress.cityId.toString();
   };
 
   return (
@@ -350,14 +371,15 @@ export function AddressCard({
               return (
                 <div
                   key={address.id}
-                  className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 group"
+                  className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer"
+                  onClick={(e) => handleEditClick(e, address)}
                 >
                   <KeyValueDisplay
                     label={address.label}
                     value={addressValue}
                     className="justify-start flex-1"
                   />
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => handleEditClick(e, address)}
                       className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
@@ -394,17 +416,17 @@ export function AddressCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-4 pb-4">
+        <div className="space-y-4 max-h-[70vh] sm:max-h-[75vh] md:max-h-[80vh] overflow-y-auto px-3 sm:px-4 md:px-6 pb-4">
           {editingAddress && (
             <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">
               Editing address
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {/* Label */}
-            <div className="space-y-2">
-              <Label htmlFor="address-label">Label</Label>
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="address-label" className="text-sm sm:text-base">Label</Label>
               <Select
                 value={currentAddress.label}
                 onValueChange={(value) =>
@@ -412,7 +434,7 @@ export function AddressCard({
                 }
                 disabled={isSaving}
               >
-                <SelectTrigger id="address-label">
+                <SelectTrigger id="address-label" className="h-9 sm:h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -424,8 +446,8 @@ export function AddressCard({
             </div>
 
             {/* Address */}
-            <div className="space-y-2">
-              <Label htmlFor="address-street">
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="address-street" className="text-sm sm:text-base">
                 Address <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -437,17 +459,17 @@ export function AddressCard({
                   if (errors.address) setErrors({ ...errors, address: "" });
                 }}
                 placeholder="Enter street address"
-                className={errors.address ? "border-red-500" : ""}
+                className={`h-9 sm:h-10 text-sm sm:text-base ${errors.address ? "border-red-500" : ""}`}
                 disabled={isSaving}
               />
               {errors.address && (
-                <p className="text-sm text-red-500">{errors.address}</p>
+                <p className="text-xs sm:text-sm text-red-500">{errors.address}</p>
               )}
             </div>
 
             {/* City */}
-            <div className="space-y-2">
-              <Label htmlFor="address-city">
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="address-city" className="text-sm sm:text-base">
                 City <span className="text-red-500">*</span>
               </Label>
               <Select
@@ -457,7 +479,7 @@ export function AddressCard({
               >
                 <SelectTrigger 
                   id="address-city" 
-                  className={errors.city ? "border-red-500" : ""}
+                  className={`h-9 sm:h-10 ${errors.city ? "border-red-500" : ""}`}
                 >
                   <SelectValue 
                     placeholder={
@@ -482,76 +504,79 @@ export function AddressCard({
                 </SelectContent>
               </Select>
               {errors.city && (
-                <p className="text-sm text-red-500">{errors.city}</p>
+                <p className="text-xs sm:text-sm text-red-500">{errors.city}</p>
               )}
               {currentAddress.city && currentAddress.cityId > 0 && !geoData.city.find(c => c.id === currentAddress.cityId) && (
-                <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
+                <p className="text-xs sm:text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
                   ⚠️ Current city &quot;{currentAddress.city}&quot; is not available in the locations list. Please select a valid city from the dropdown.
                 </p>
               )}
             </div>
 
-            {/* Country */}
-            <div className="space-y-2">
-              <Label htmlFor="address-country">Country</Label>
-              <Select
-                value={currentAddress.countryId ? currentAddress.countryId.toString() : "1"}
-                onValueChange={(value) =>
-                  setCurrentAddress({ ...currentAddress, countryId: parseInt(value) })
-                }
-                disabled={isSaving || loadingGeoData}
-              >
-                <SelectTrigger id="address-country">
-                  <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select country"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {geoData.country.length > 0 ? (
-                    geoData.country.map((country) => (
-                      <SelectItem key={country.id} value={country.id.toString()}>
-                        {country.name}
+            {/* Country and Province in a grid on larger screens */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {/* Country */}
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="address-country" className="text-sm sm:text-base">Country</Label>
+                <Select
+                  value={currentAddress.countryId ? currentAddress.countryId.toString() : "1"}
+                  onValueChange={(value) =>
+                    setCurrentAddress({ ...currentAddress, countryId: parseInt(value) })
+                  }
+                  disabled={isSaving || loadingGeoData}
+                >
+                  <SelectTrigger id="address-country" className="h-9 sm:h-10">
+                    <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select country"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {geoData.country.length > 0 ? (
+                      geoData.country.map((country) => (
+                        <SelectItem key={country.id} value={country.id.toString()}>
+                          {country.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="1">
+                        Canada
                       </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="1">
-                      Canada
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Province */}
-            <div className="space-y-2">
-              <Label htmlFor="address-province">Province</Label>
-              <Select
-                value={currentAddress.provinceId ? currentAddress.provinceId.toString() : "1"}
-                onValueChange={(value) =>
-                  setCurrentAddress({ ...currentAddress, provinceId: parseInt(value) })
-                }
-                disabled={isSaving || loadingGeoData}
-              >
-                <SelectTrigger id="address-province">
-                  <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select province"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {geoData.province.length > 0 ? (
-                    geoData.province.map((province) => (
-                      <SelectItem key={province.id} value={province.id.toString()}>
-                        {province.name}
+              {/* Province */}
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="address-province" className="text-sm sm:text-base">Province</Label>
+                <Select
+                  value={currentAddress.provinceId ? currentAddress.provinceId.toString() : "1"}
+                  onValueChange={(value) =>
+                    setCurrentAddress({ ...currentAddress, provinceId: parseInt(value) })
+                  }
+                  disabled={isSaving || loadingGeoData}
+                >
+                  <SelectTrigger id="address-province" className="h-9 sm:h-10">
+                    <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select province"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {geoData.province.length > 0 ? (
+                      geoData.province.map((province) => (
+                        <SelectItem key={province.id} value={province.id.toString()}>
+                          {province.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="1">
+                        Ontario
                       </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="1">
-                      Ontario
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Postal Code */}
-            <div className="space-y-2">
-              <Label htmlFor="address-postal">
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="address-postal" className="text-sm sm:text-base">
                 Postal Code <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -563,11 +588,11 @@ export function AddressCard({
                   if (errors.postalCode) setErrors({ ...errors, postalCode: "" });
                 }}
                 placeholder="Enter postal code"
-                className={errors.postalCode ? "border-red-500" : ""}
+                className={`h-9 sm:h-10 text-sm sm:text-base ${errors.postalCode ? "border-red-500" : ""}`}
                 disabled={isSaving}
               />
               {errors.postalCode && (
-                <p className="text-sm text-red-500">{errors.postalCode}</p>
+                <p className="text-xs sm:text-sm text-red-500">{errors.postalCode}</p>
               )}
             </div>
           </div>

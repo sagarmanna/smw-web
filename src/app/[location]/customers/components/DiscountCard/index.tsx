@@ -153,13 +153,16 @@ export function DiscountCard({
               </div>
             </div>
           ) : discount > 0 ? (
-            <div className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 group">
+            <div 
+              className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer"
+              onClick={handleEditClick}
+            >
               <KeyValueDisplay
                 label="Discount"
                 value={`${discount}%`}
                 className="justify-start flex-1"
               />
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={handleEditClick}
                   className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
