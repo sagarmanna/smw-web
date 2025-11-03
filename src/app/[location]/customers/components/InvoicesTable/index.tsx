@@ -12,17 +12,15 @@ interface InvoiceTableProps {
   onPrintInvoice?: (invoiceId: string) => void;
   location: string;
   customerId: string | number;
-  customerName?: string; // temporary display for Student Name column
+  customerName?: string;
 }
 
 export function InvoiceTable({
   data,
   loading = false,
   onAddInvoice,
-  id,
   location,
   customerId,
-  customerName,
 }: InvoiceTableProps) {
   const handlePrint = () => {
     const formatCurrencyPrint = (value: unknown) => {
@@ -36,10 +34,13 @@ export function InvoiceTable({
       });
     };
 
-    const getProp = (row: unknown, key: string): string => {
-      if (!row || typeof row !== "object") return "";
-      const v = (row as Record<string, unknown>)[key];
-      return typeof v === "string" || typeof v === "number" ? String(v) : "";
+    // Helper to safely get studentName with fallback
+    const getStudentName = (invoice: InvoiceData): string => {
+      if (invoice.studentName && typeof invoice.studentName === "string" && invoice.studentName.trim()) {
+        return invoice.studentName;
+      }
+      // Return empty string if not available
+      return "";
     };
 
     const parseDate = (value: unknown): Date => {
@@ -123,16 +124,14 @@ export function InvoiceTable({
             <tbody>
               ${sorted
                 .map((invoice) => {
-                  const studentCell = customerName ? `${customerName}` : "";
+                  const studentName = getStudentName(invoice);
                   return `
                   <tr>
                     <td>${invoice.id ?? ""}</td>
-                    <td>${studentCell}</td>
+                    <td>${studentName}</td>
                     <td>${invoice.date ?? ""}</td>
                     <td>${invoice.status ?? ""}</td>
-                    <td class="right">${formatCurrencyPrint(
-                      (invoice as unknown as { total: unknown }).total
-                    )}</td>
+                    <td class="right">${formatCurrencyPrint(invoice.total)}</td>
                   </tr>
                 `;
                 })
@@ -179,8 +178,11 @@ export function InvoiceTable({
         {
           label: "Add Invoice",
           onClick: () => {
-            const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${id}`;
-            window.open(url, "_blank", "noopener");
+            const firstInvoiceUrl = data[0]?.url;
+            if (firstInvoiceUrl) {
+              const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${firstInvoiceUrl}`;
+              window.open(url, "_blank", "noopener");
+            }
           },
         },
         {

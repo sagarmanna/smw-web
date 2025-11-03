@@ -2086,6 +2086,7 @@ export function CustomerDetailClient({
                       return undefined;
                     };
                     const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+
                     if (isStudentsTab) {
                       const studentId = getScalarField(row, [
                         "id",
@@ -2112,13 +2113,35 @@ export function CustomerDetailClient({
                         );
                       }
                     } else if (isPrivateLessonsTab || isGroupLessonsTab) {
-                      const lessonId = getScalarField(row, ["lessonId"]);
-                      const idParam = lessonId || 4792347; // temporary fallback until API provides lessonId
-                      window.open(
-                        `${legacyBase}/${location}/lesson/view?id=${idParam}`,
-                        "_blank",
-                        "noopener"
-                      );
+                      // Get url field from row
+                      const url = getScalarField(row, ["url"]);
+
+                      if (url && typeof url === "string") {
+                        // Use the url directly from API
+                        window.open(
+                          `${legacyBase}/${location}/${url}`,
+                          "_blank",
+                          "noopener"
+                        );
+                      } else {
+                        // Fallback: construct URL from id if url field is missing
+                        const lessonId = getScalarField(row, [
+                          "id",
+                          "lessonId",
+                        ]);
+                        if (lessonId) {
+                          window.open(
+                            `${legacyBase}/${location}/lesson/view?id=${lessonId}`,
+                            "_blank",
+                            "noopener"
+                          );
+                        } else {
+                          console.error(
+                            "No url or id found for lesson row:",
+                            row
+                          );
+                        }
+                      }
                     }
                   }}
                 />

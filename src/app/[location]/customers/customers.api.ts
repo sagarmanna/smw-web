@@ -1,14 +1,22 @@
-import { apiClient } from '@/lib/api/client';
-import { 
-  InvoiceData, 
-  OutstandingInvoiceData, 
-  EquipmentRentalData, 
-  RecurringPaymentData, 
-  PrivateLessonDueData, 
-  GroupLessonDueData, 
-  PaymentData 
-} from './tableConfigs';
-import { StudentData, EnrolmentData, PrivateLessonData, GroupLessonData, ProformaInvoiceData, CommentData, HistoryData } from './tabConfigs';
+import { apiClient } from "@/lib/api/client";
+import {
+  InvoiceData,
+  OutstandingInvoiceData,
+  EquipmentRentalData,
+  RecurringPaymentData,
+  PrivateLessonDueData,
+  GroupLessonDueData,
+  PaymentData,
+} from "./tableConfigs";
+import {
+  StudentData,
+  EnrolmentData,
+  PrivateLessonData,
+  GroupLessonData,
+  ProformaInvoiceData,
+  CommentData,
+  HistoryData,
+} from "./tabConfigs";
 
 export interface CustomerRow {
   id: number;
@@ -55,9 +63,9 @@ export interface CustomersQuery {
   lastName?: string;
   email?: string;
   student?: string;
-  balance?: 'all' | 'credit' | 'owing';
-  sort?: 'firstName' | 'lastName' | 'email';
-  order?: 'asc' | 'desc';
+  balance?: "all" | "credit" | "owing";
+  sort?: "firstName" | "lastName" | "email";
+  order?: "asc" | "desc";
 }
 
 export interface CustomerSummaryData {
@@ -97,19 +105,19 @@ export interface CustomerInfoData {
     isPrimary: boolean;
   }>;
   addresses: Array<{
-  id: number;
-  address: string;
-  city: string;
-  cityId: number;
-  provinceId: number;
-  countryId: number;
-  province: string;
-  country: string;
-  postalCode: string;
-  note?: string;
-  label: string;
-  isPrimary: boolean;
-}>;
+    id: number;
+    address: string;
+    city: string;
+    cityId: number;
+    provinceId: number;
+    countryId: number;
+    province: string;
+    country: string;
+    postalCode: string;
+    note?: string;
+    label: string;
+    isPrimary: boolean;
+  }>;
   discount: {
     id: number;
     value: number;
@@ -138,6 +146,7 @@ export interface InvoicesResponse {
       total: string | number;
       balance: string | number;
       url: string;
+      studentName?: string;
     }>;
     pagination?: {
       page: number;
@@ -226,48 +235,54 @@ export async function getCustomers(
 ): Promise<CustomersListResponse | null> {
   try {
     const params = new URLSearchParams();
-    
-    if (query.page) params.append('page', query.page.toString());
-    if (query.limit) params.append('limit', query.limit == -1 ? '99999' : query.limit.toString());
-    if (query.showActive !== undefined) params.append('showActive', query.showActive.toString());
-    if (query.showInActive !== undefined) params.append('showInActive', query.showInActive.toString());
-    if (query.firstName) params.append('firstName', query.firstName);
-    if (query.lastName) params.append('lastName', query.lastName);
-    if (query.email) params.append('email', query.email);
-    if (query.student) params.append('student', query.student);
-    if (query.balance) params.append('balance', query.balance);
-    if (query.sort) params.append('sort', query.sort);
-    if (query.order) params.append('order', query.order);
+
+    if (query.page) params.append("page", query.page.toString());
+    if (query.limit)
+      params.append(
+        "limit",
+        query.limit == -1 ? "99999" : query.limit.toString()
+      );
+    if (query.showActive !== undefined)
+      params.append("showActive", query.showActive.toString());
+    if (query.showInActive !== undefined)
+      params.append("showInActive", query.showInActive.toString());
+    if (query.firstName) params.append("firstName", query.firstName);
+    if (query.lastName) params.append("lastName", query.lastName);
+    if (query.email) params.append("email", query.email);
+    if (query.student) params.append("student", query.student);
+    if (query.balance) params.append("balance", query.balance);
+    if (query.sort) params.append("sort", query.sort);
+    if (query.order) params.append("order", query.order);
 
     const response = await apiClient.get<CustomersListResponse>(
       `/admin/v2/${location}/customers`,
       { params }
     );
-    
+
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
-      message: apiError.response?.data?.message || 'Failed to fetch customers',
+      message: apiError.response?.data?.message || "Failed to fetch customers",
       data: {
         body: [],
         footer: {
-          id: '',
-          isActive: '',
-          firstName: '',
-          lastName: '',
-          email: '',
-          students: '',
-          balance: '$0.00'
+          id: "",
+          isActive: "",
+          firstName: "",
+          lastName: "",
+          email: "",
+          students: "",
+          balance: "$0.00",
         },
         pagination: {
           page: 1,
           limit: 20,
           total: 0,
-          totalPages: 1
-        }
-      }
+          totalPages: 1,
+        },
+      },
     };
   }
 }
@@ -277,9 +292,11 @@ export async function getCustomerById(
   id: number
 ): Promise<CustomerRow | null> {
   try {
-    const response = await apiClient.get<{ success: boolean; data: CustomerRow; message: string }>(
-      `/admin/v2/${location}/customers/${id}`
-    );
+    const response = await apiClient.get<{
+      success: boolean;
+      data: CustomerRow;
+      message: string;
+    }>(`/admin/v2/${location}/customers/${id}`);
     return response.data.success ? response.data.data : null;
   } catch (error: unknown) {
     return null;
@@ -294,20 +311,21 @@ export async function getCustomerSummary(
     const response = await apiClient.get<CustomerSummaryResponse>(
       `/admin/v2/${location}/customers/${customerId}/summary`
     );
-    
+
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error fetching customer summary:', error);
+    console.error("Error fetching customer summary:", error);
     return {
       success: false,
-      message: apiError.response?.data?.message || 'Failed to fetch customer summary',
+      message:
+        apiError.response?.data?.message || "Failed to fetch customer summary",
       data: {
-        lessonsDue: '$0.00',
-        outstandingInvoice: '$0.00',
-        totalCredits: '$0.00',
-        balance: '$0.00'
-      }
+        lessonsDue: "$0.00",
+        outstandingInvoice: "$0.00",
+        totalCredits: "$0.00",
+        balance: "$0.00",
+      },
     };
   }
 }
@@ -320,11 +338,11 @@ export async function getCustomerInfo(
     const response = await apiClient.get<CustomerInfoResponse>(
       `/admin/v2/${location}/customers/${customerId}/info`
     );
-    
+
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error fetching customer info:', error);
+    console.error("Error fetching customer info:", error);
     return null;
   }
 }
@@ -343,25 +361,28 @@ export async function getCustomerInvoices(
       `/admin/v2/${location}/customers/${customerId}/invoices`,
       { params: { page } }
     );
-    
+
     if (response.data.success && response.data.data.body) {
-      return response.data.data.body.map(invoice => ({
+      return response.data.data.body.map((invoice) => ({
         id: invoice.id,
         date: invoice.date,
         status: invoice.status,
-        total: typeof invoice.total === 'string' 
-          ? parseFloat(invoice.total.replace(/[$,]/g, ''))
-          : invoice.total,
-        balance: typeof invoice.balance === 'string'
-          ? parseFloat(invoice.balance.replace(/[$,]/g, ''))
-          : invoice.balance,
-        url: invoice.url
+        total:
+          typeof invoice.total === "string"
+            ? parseFloat(invoice.total.replace(/[$,]/g, ""))
+            : invoice.total,
+        balance:
+          typeof invoice.balance === "string"
+            ? parseFloat(invoice.balance.replace(/[$,]/g, ""))
+            : invoice.balance,
+        url: invoice.url,
+        studentName: invoice.studentName || "",
       }));
     }
-    
+
     return [];
   } catch (error: unknown) {
-    console.error('Error fetching customer invoices:', error);
+    console.error("Error fetching customer invoices:", error);
     return [];
   }
 }
@@ -377,55 +398,57 @@ export async function getCustomerOutstandingInvoices(
       `/admin/v2/${location}/customers/${customerId}/outstanding-invoices`,
       { params: { page, limit } }
     );
-    
+
     if (response.data.success && response.data.data.body) {
-      const data = response.data.data.body.map(invoice => ({
+      const data = response.data.data.body.map((invoice) => ({
         id: invoice.id,
         date: invoice.date,
-        amount: parseFloat(invoice.amount.replace(/[$,]/g, '')),
-        payments: parseFloat(invoice.payments.replace(/[$,]/g, '')),
-        balanceDue: parseFloat(invoice.balanceDue.replace(/[$,]/g, '')),
-        url: invoice.url
+        amount: parseFloat(invoice.amount.replace(/[$,]/g, "")),
+        payments: parseFloat(invoice.payments.replace(/[$,]/g, "")),
+        balanceDue: parseFloat(invoice.balanceDue.replace(/[$,]/g, "")),
+        url: invoice.url,
       }));
 
-      const totalAmount = response.data.data.footer?.[0]?.totalAmount 
-        ? parseFloat(response.data.data.footer[0].totalAmount.replace(/[$,]/g, ''))
+      const totalAmount = response.data.data.footer?.[0]?.totalAmount
+        ? parseFloat(
+            response.data.data.footer[0].totalAmount.replace(/[$,]/g, "")
+          )
         : 0;
 
       return {
         data,
         pagination: response.data.data.pagination,
         footer: {
-          totalAmount
-        }
+          totalAmount,
+        },
       };
     }
-    
+
     return {
       data: [],
       pagination: {
         page: 1,
         limit: 10,
         total: 0,
-        totalPages: 0
+        totalPages: 0,
       },
       footer: {
-        totalAmount: 0
-      }
+        totalAmount: 0,
+      },
     };
   } catch (error: unknown) {
-    console.error('Error fetching customer outstanding invoices:', error);
+    console.error("Error fetching customer outstanding invoices:", error);
     return {
       data: [],
       pagination: {
         page: 1,
         limit: 10,
         total: 0,
-        totalPages: 0
+        totalPages: 0,
       },
       footer: {
-        totalAmount: 0
-      }
+        totalAmount: 0,
+      },
     };
   }
 }
@@ -438,51 +461,46 @@ export async function getCustomerEquipmentRentals(
 ): Promise<EquipmentRentalsResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
-    
-    
-    params.append('showAll', 'true');
-    
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
+
+    params.append("showAll", "true");
+
     const url = `/admin/v2/${location}/customers/${customerId}/equipment-rentals`;
-    
-    
-    const response = await apiClient.get<EquipmentRentalsResponse>(
-      url,
-      { params }
-    );
-    
-   
-    
+
+    const response = await apiClient.get<EquipmentRentalsResponse>(url, {
+      params,
+    });
+
     if (response.data.success && response.data.data.body) {
-      const data = response.data.data.body.map(rental => ({
+      const data = response.data.data.body.map((rental) => ({
         student: rental.studentName,
         startDate: rental.startDate,
         returnDate: rental.returnDate,
         rentalTerm: rental.rentalTerm,
-        depositAmount: typeof rental.depositAmount === 'string' 
-          ? parseFloat(rental.depositAmount.replace(/[$,]/g, ''))
-          : rental.depositAmount,
+        depositAmount:
+          typeof rental.depositAmount === "string"
+            ? parseFloat(rental.depositAmount.replace(/[$,]/g, ""))
+            : rental.depositAmount,
         equipmentReturned: rental.equipmentReturned,
-        equipmentReturnedDate: rental.equipmentReturnedDate
+        equipmentReturnedDate: rental.equipmentReturnedDate,
       }));
-
-      
 
       return {
         data,
-        pagination: response.data.data.pagination
+        pagination: response.data.data.pagination,
       };
     }
-    
+
     return {
       data: [],
       pagination: {
         page: 1,
         limit: 10,
         total: 0,
-        totalPages: 0
-      }
+        totalPages: 0,
+      },
     };
   } catch (error: unknown) {
     return {
@@ -491,8 +509,8 @@ export async function getCustomerEquipmentRentals(
         page: 1,
         limit: 10,
         total: 0,
-        totalPages: 0
-      }
+        totalPages: 0,
+      },
     };
   }
 }
@@ -530,8 +548,9 @@ export async function getCustomerRecurringPayments(
 ): Promise<RecurringPaymentsResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<RecurringPaymentsResponse>(
       `/admin/v2/${location}/customers/${customerId}/recurring-payments`,
@@ -539,7 +558,12 @@ export async function getCustomerRecurringPayments(
     );
     return {
       data: response.data.data?.body || [],
-      pagination: response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+      pagination: response.data.data?.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
     };
   } catch (error: unknown) {
     return {
@@ -583,25 +607,33 @@ export async function getCustomerPrivateLessonDue(
 ): Promise<PrivateLessonDuesResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<PrivateLessonDuesResponse>(
       `/admin/v2/${location}/customers/${customerId}/private-lesson-due`,
       { params }
     );
-    const pagination = response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
+    const pagination = response.data.data?.pagination || {
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    };
     const footerArr = response.data.data?.footer || [];
-    
-    const data = (response.data.data?.body || []).map(lesson => ({
+
+    const data = (response.data.data?.body || []).map((lesson) => ({
       ...lesson,
-      url: lesson.url
+      url: lesson.url,
     }));
-    
+
     return {
       data,
       pagination,
-      footer: footerArr[0] ? { totalAmount: footerArr[0].totalAmount } : undefined,
+      footer: footerArr[0]
+        ? { totalAmount: footerArr[0].totalAmount }
+        : undefined,
     };
   } catch (error: unknown) {
     return {
@@ -646,30 +678,39 @@ export async function getCustomerGroupLessonDue(
 ): Promise<GroupLessonDuesResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<GroupLessonDuesResponse>(
       `/admin/v2/${location}/customers/${customerId}/group-lesson-dues`,
       { params }
     );
-    const pagination = response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
+    const pagination = response.data.data?.pagination || {
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    };
     const footerArr = response.data.data?.footer || [];
-    
+
     // Map the response to include url
-    const data = response.data.data?.body.map(lesson => ({
-      lessonDate: lesson.lessonDate,
-      studentName: lesson.studentName,
-      programName: lesson.programName,
-      teacherName: lesson.teacherName,
-      amount: lesson.amount,
-      url: lesson.url
-    })) || [];
-    
+    const data =
+      response.data.data?.body.map((lesson) => ({
+        lessonDate: lesson.lessonDate,
+        studentName: lesson.studentName,
+        programName: lesson.programName,
+        teacherName: lesson.teacherName,
+        amount: lesson.amount,
+        url: lesson.url,
+      })) || [];
+
     return {
       data,
       pagination,
-      footer: footerArr[0] ? { totalAmount: footerArr[0].totalAmount } : undefined,
+      footer: footerArr[0]
+        ? { totalAmount: footerArr[0].totalAmount }
+        : undefined,
     };
   } catch (error: unknown) {
     return {
@@ -714,19 +755,27 @@ export async function getCustomerPayments(
 ): Promise<PaymentsResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<PaymentsResponse>(
       `/admin/v2/${location}/customers/${customerId}/payments`,
       { params }
     );
-    const pagination = response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
+    const pagination = response.data.data?.pagination || {
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    };
     const footerArr = response.data.data?.footer || [];
     return {
       data: response.data.data?.body || [],
       pagination,
-      footer: footerArr[0] ? { totalRemaining: footerArr[0].totalRemaining } : undefined,
+      footer: footerArr[0]
+        ? { totalRemaining: footerArr[0].totalRemaining }
+        : undefined,
     };
   } catch (error: unknown) {
     return {
@@ -801,20 +850,29 @@ export async function getCustomerStudents(
 ): Promise<StudentsResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<StudentsResponse>(
       `/admin/v2/${location}/customers/${customerId}/students`,
       { params }
     );
-    
+
     return {
       data: response.data.data?.body || [],
-      pagination: response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+      pagination: response.data.data?.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
     };
   } catch (error: unknown) {
-    return { data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } };
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
   }
 }
 
@@ -854,8 +912,9 @@ export async function getCustomerEnrolments(
 ): Promise<EnrolmentsResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<EnrolmentsResponse>(
       `/admin/v2/${location}/customers/${customerId}/enrolments`,
@@ -864,10 +923,18 @@ export async function getCustomerEnrolments(
 
     return {
       data: response.data.data?.body || [],
-      pagination: response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+      pagination: response.data.data?.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
     };
   } catch (error: unknown) {
-    return { data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } };
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
   }
 }
 
@@ -907,16 +974,22 @@ export async function getCustomerPrivateLessons(
 ): Promise<PrivateLessonsResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<PrivateLessonsResponse>(
       `/admin/v2/${location}/customers/${customerId}/private-lessons`,
       { params }
     );
 
+    const data = (response.data.data?.body || []).map((lesson) => ({
+      ...lesson,
+      url: lesson.url,
+    }));
+
     return {
-      data: response.data.data?.body || [],
+      data,
       pagination: response.data.data?.pagination || {
         page: 1,
         limit: 10,
@@ -973,16 +1046,22 @@ export async function getCustomerGroupLessons(
 ): Promise<GroupLessonsResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<GroupLessonsResponse>(
       `/admin/v2/${location}/customers/${customerId}/group-lessons`,
       { params }
     );
 
+    const data = (response.data.data?.body || []).map((lesson) => ({
+      ...lesson,
+      url: lesson.url,
+    }));
+
     return {
-      data: response.data.data?.body || [],
+      data,
       pagination: response.data.data?.pagination || {
         page: 1,
         limit: 10,
@@ -1039,8 +1118,9 @@ export async function getCustomerProformaInvoices(
 ): Promise<ProformaInvoicesResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<ProformaInvoicesResponse>(
       `/admin/v2/${location}/customers/${customerId}/pro-forma-invoices`,
@@ -1130,8 +1210,9 @@ export async function getCustomerHistory(
 ): Promise<HistoryResult> {
   try {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (limit) params.append('limit', limit === -1 ? '99999' : limit.toString());
+    if (page) params.append("page", page.toString());
+    if (limit)
+      params.append("limit", limit === -1 ? "99999" : limit.toString());
 
     const response = await apiClient.get<HistoryResponse>(
       `/admin/v2/${location}/customers/${customerId}/history`,
@@ -1139,9 +1220,17 @@ export async function getCustomerHistory(
     );
     return {
       data: response.data.data?.body || [],
-      pagination: response.data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+      pagination: response.data.data?.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
     };
   } catch (error: unknown) {
-    return { data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } };
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
   }
 }
