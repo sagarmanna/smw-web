@@ -456,6 +456,7 @@ export async function getCustomerEquipmentRentals(
     
     if (response.data.success && response.data.data.body) {
       const data = response.data.data.body.map(rental => ({
+        id: rental.id,
         student: rental.studentName,
         startDate: rental.startDate,
         returnDate: rental.returnDate,

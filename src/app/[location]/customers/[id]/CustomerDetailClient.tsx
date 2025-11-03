@@ -174,6 +174,7 @@ export function CustomerDetailClient({
     React.useState<number | undefined>(undefined);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] =
     React.useState<boolean>(false);
+  const [selectedRentalId, setSelectedRentalId] = React.useState<number | null>(null);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
   const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
@@ -1451,6 +1452,13 @@ export function CustomerDetailClient({
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
           loading={equipmentRentalsLoading || loading}
           onAdd={() => setIsEquipmentRentalsModalOpen(true)}
+          onRowClick={(row) => {
+            const r = row as unknown as EquipmentRentalData;
+            if (r && typeof r.id === "number") {
+              setSelectedRentalId(r.id);
+              setIsEquipmentRentalsModalOpen(true);
+            }
+          }}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSorting}
@@ -2215,10 +2223,27 @@ export function CustomerDetailClient({
       {/* Equipment Rentals Modal */}
       <EquipmentRentalsModal
         open={isEquipmentRentalsModalOpen}
-        onOpenChange={setIsEquipmentRentalsModalOpen}
+        onOpenChange={(open) => {
+          setIsEquipmentRentalsModalOpen(open);
+          if (!open) setSelectedRentalId(null);
+        }}
         onSave={handleAddEquipmentRental}
         customerId={Number(id)}
         location={location}
+        rentalId={selectedRentalId ?? undefined}
+        onEquipmentReturned={(rid) => {
+          setEquipmentRentalData((prev) => prev.filter((r) => (r as EquipmentRentalData).id !== rid));
+          setEquipmentRentalsPagination((prev) => ({
+            ...prev,
+            total: Math.max((prev.total || 0) - 1, 0),
+          }));
+          setIsEquipmentRentalsModalOpen(false);
+          setSelectedRentalId(null);
+        }}
+        onReprintAgreement={(rid) => {
+          // Placeholder: integrate actual print endpoint if available
+          console.info("Reprint Agreement for rental", rid);
+        }}
       />
 
       {/* Email Statement Modal */}
