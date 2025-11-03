@@ -53,7 +53,7 @@ import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
 import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
-import { createStudent } from "@/lib/api/legacyApiAdapter";
+import { createStudent, createNote } from "@/lib/api/legacyApiAdapter";
 
 import {
   InvoiceData,
@@ -412,6 +412,39 @@ export function CustomerDetailClient({
     // Show success toast notification
   };
 
+  // Handle creating a new comment/note
+  const handleAddComment = async () => {
+    if (!commentInput.trim()) {
+      return; // Don't submit empty comments
+    }
+
+    try {
+      setCommentLoading(true);
+      const response = await createNote(
+        location,
+        Number(id),
+        2, // instanceType = 2 for customer notes
+        commentInput.trim()
+      );
+
+      if (response.status) {
+        // Success: reload comments from API to get the newly created comment
+        const comments = await getCustomerComments(location, Number(id));
+        setCommentData(comments);
+        setCommentInput(""); // Clear input
+      } else {
+        // API returned an error
+        const errorMessage = response.errors?.join(', ') || 'Failed to create comment';
+        console.error('Error creating comment:', errorMessage);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create comment';
+      console.error('Error creating comment:', error);
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
   // Navigate to proforma invoice page
   const handleProformaInvoiceNavigate = () => {
     router.push(`/${location}/customers/${id}/proforma-invoice`);
@@ -516,6 +549,8 @@ export function CustomerDetailClient({
     ProformaInvoiceData[]
   >([]);
   const [commentData, setCommentData] = React.useState<CommentData[]>([]);
+  const [commentInput, setCommentInput] = React.useState<string>("");
+  const [commentLoading, setCommentLoading] = React.useState<boolean>(false);
   const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
 
   // Enrolments server-side pagination state
@@ -1711,11 +1746,21 @@ export function CustomerDetailClient({
                     type="text"
                     placeholder="Type message"
                     className="flex-grow"
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && commentInput.trim() && !commentLoading) {
+                        handleAddComment();
+                      }
+                    }}
+                    disabled={commentLoading}
                   />
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
+                    className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white disabled:opacity-50"
+                    onClick={handleAddComment}
+                    disabled={!commentInput.trim() || commentLoading}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>

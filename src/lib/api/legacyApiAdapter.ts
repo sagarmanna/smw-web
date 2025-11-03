@@ -204,3 +204,39 @@ export async function createStudent(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+/**
+ * Create a note/comment using the legacy API
+ */
+export async function createNote(
+  location: string,
+  instanceId: string | number,
+  instanceType: number,
+  content: string
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  formData.append('Note[content]', content);
+
+  const url = `/admin/${location}/note/create?instanceId=${instanceId}&instanceType=${instanceType}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
