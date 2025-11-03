@@ -615,12 +615,15 @@ export interface RecurringPaymentInfoData {
 
 export async function getCustomerRecurringPaymentInfo(
   location: string,
-  customerId: number
+  customerId: number,
+  recurringPaymentId?: number
 ): Promise<RecurringPaymentInfoData | null> {
   try {
-    const response = await apiClient.get<RecurringPaymentInfoResponse>(
-      `/admin/v2/${location}/customers/${customerId}/recurring-payments/info`
-    );
+    const url = recurringPaymentId
+      ? `/admin/v2/${location}/customers/${customerId}/recurring-payments/info?id=${recurringPaymentId}`
+      : `/admin/v2/${location}/customers/${customerId}/recurring-payments/info`;
+    
+    const response = await apiClient.get<RecurringPaymentInfoResponse>(url);
     return response.data.data?.body || null;
   } catch (error: unknown) {
     console.error('Error fetching recurring payment info:', error);

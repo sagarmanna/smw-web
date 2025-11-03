@@ -15,7 +15,13 @@ import { CalendarIcon } from "lucide-react";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getCustomerRecurringPaymentInfo, RecurringPaymentInfoData } from "../../customers.api";
-import { createRecurringPayment, RecurringPaymentCreateData } from "@/lib/api/legacyApiAdapter";
+import { 
+  createRecurringPayment, 
+  updateRecurringPayment,
+  deleteRecurringPayment,
+  RecurringPaymentCreateData 
+} from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 // Data interfaces
 interface EnrolmentData {
@@ -43,9 +49,11 @@ interface RecurringPaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave?: (data: RecurringPaymentFormData & { selectedEnrolments: string[] }) => void;
+  onDelete?: () => void;
   customerName?: string;
   location?: string;
   customerId?: number;
+  recurringPaymentId?: number; // For edit mode
 }
 
 
@@ -55,10 +63,13 @@ export function RecurringPaymentModal({
   open,
   onOpenChange,
   onSave,
+  onDelete,
   customerName = "",
   location,
   customerId,
+  recurringPaymentId,
 }: RecurringPaymentModalProps) {
+  const isEditMode = !!recurringPaymentId;
   const [formData, setFormData] = useState<RecurringPaymentFormData>({
     customer: customerName,
     onThe: "1",
@@ -75,6 +86,7 @@ export function RecurringPaymentModal({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<Array<{ id: number; name: string }>>([]);
   const [paymentFrequencies, setPaymentFrequencies] = useState<Array<{ id: number; name: string }>>([]);
 
@@ -85,7 +97,11 @@ export function RecurringPaymentModal({
       
       setLoading(true);
       try {
-        const data = await getCustomerRecurringPaymentInfo(location, customerId);
+        const data = await getCustomerRecurringPaymentInfo(
+          location, 
+          customerId, 
+          recurringPaymentId
+        );
         if (data) {
           // Map payment data to form
           const payment = data.payment;
@@ -110,14 +126,14 @@ export function RecurringPaymentModal({
             enabled: payment.isEnabled,
           });
 
-          // Map enrolments
+          // Map enrolments - in edit mode, all returned enrolments are already associated
           const mappedEnrolments: EnrolmentData[] = data.enrolments.map((enrolment, index) => ({
             id: `enrolment-${index}`,
             program: enrolment.programName,
             paymentFrequency: enrolment.paymentFrequency || "",
             student: enrolment.studentName,
             teacher: enrolment.teacherName,
-            selected: false,
+            selected: isEditMode, // In edit mode, enrolments from API are already selected
           }));
           setEnrolments(mappedEnrolments);
 
@@ -133,7 +149,7 @@ export function RecurringPaymentModal({
     };
 
     fetchRecurringPaymentInfo();
-  }, [open, location, customerId, customerName]);
+  }, [open, location, customerId, customerName, recurringPaymentId, isEditMode]);
 
   // Table columns for enrolments - created inside component to access state
   const enrolmentColumns: ColumnDef<EnrolmentData>[] = [
@@ -248,7 +264,9 @@ export function RecurringPaymentModal({
         isRecurringPaymentEnabled: formData.enabled,
       };
 
-      const response = await createRecurringPayment(location, customerId, paymentData);
+      const response = isEditMode && recurringPaymentId
+        ? await updateRecurringPayment(location, customerId, recurringPaymentId, paymentData)
+        : await createRecurringPayment(location, customerId, paymentData);
 
       if (response.status) {
         // Success - call the onSave callback if provided
@@ -261,15 +279,84 @@ export function RecurringPaymentModal({
           selectedEnrolments: selectedEnrolmentIds,
         });
         
+        toast.success(isEditMode ? 'Recurring payment updated successfully' : 'Recurring payment created successfully');
         onOpenChange(false);
       } else {
         // Handle error from API
-        console.error('Failed to create recurring payment:', response.message || 'Unknown error');
-        alert(response.message || 'Failed to create recurring payment');
+        console.error(`Failed to ${isEditMode ? 'update' : 'create'} recurring payment:`, response.message || 'Unknown error');
+        toast.error(response.message || `Failed to ${isEditMode ? 'update' : 'create'} recurring payment`);
       }
     } catch (error) {
-      console.error('Error creating recurring payment:', error);
-      alert(error instanceof Error ? error.message : 'Failed to create recurring payment');
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} recurring payment:`, error);
+      toast.error(error instanceof Error ? error.message : `Failed to ${isEditMode ? 'update' : 'create'} recurring payment`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!location || !customerId || !recurringPaymentId) {
+      console.error('Location, customerId, or recurringPaymentId is missing');
+      return;
+    }
+
+    // Find payment method and frequency IDs from their names
+    const paymentMethod = paymentMethods.find(m => m.name === formData.via);
+    const paymentFrequency = paymentFrequencies.find(f => f.name === formData.every);
+
+    if (!paymentMethod || !paymentFrequency) {
+      console.error('Payment method or frequency not found');
+      toast.error('Payment method or frequency not found');
+      setShowDeleteConfirm(false);
+      return;
+    }
+
+    // Format startDate (asOf) to match API format: "Nov 03, 2025"
+    const formattedStartDate = formData.asOf 
+      ? format(formData.asOf, "MMM dd, yyyy")
+      : "";
+
+    if (!formattedStartDate) {
+      console.error('Start date is required');
+      toast.error('Start date is required');
+      setShowDeleteConfirm(false);
+      return;
+    }
+
+    setSaving(true);
+    setShowDeleteConfirm(false);
+    try {
+      const paymentData: RecurringPaymentCreateData = {
+        customerId: customerId,
+        startDate: formattedStartDate,
+        paymentDay: parseInt(formData.onThe, 10),
+        paymentFrequencyId: paymentFrequency.id,
+        paymentMethodId: paymentMethod.id,
+        expiryMonth: formData.untilMonth || undefined,
+        expiryYear: formData.untilYear || undefined,
+        amount: parseFloat(formData.amount) || 0,
+        isRecurringPaymentEnabled: formData.enabled,
+      };
+
+      const response = await deleteRecurringPayment(location, customerId, recurringPaymentId, paymentData);
+
+      if (response.status) {
+        // Success - call the onDelete callback if provided
+        toast.success('Recurring payment deleted successfully');
+        onDelete?.();
+        onOpenChange(false);
+      } else {
+        // Handle error from API
+        console.error('Failed to delete recurring payment:', response.message || 'Unknown error');
+        toast.error(response.message || 'Failed to delete recurring payment');
+      }
+    } catch (error) {
+      console.error('Error deleting recurring payment:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete recurring payment');
     } finally {
       setSaving(false);
     }
@@ -305,18 +392,53 @@ export function RecurringPaymentModal({
             <>
           {/* Form Fields */}
           <div className="space-y-4">
-            {/* Row 1: Customer, On The, Every */}
-            <div className="grid grid-cols-3 gap-4">
-              {/* Customer */}
+            {/* Row 1: Customer (only in create mode), As Of, On The, Every */}
+            {!isEditMode && (
+              <div className="grid grid-cols-3 gap-4">
+                {/* Customer - only show in create mode */}
+                <div className="space-y-2">
+                  <Label htmlFor="customer" className="font-semibold">Customer</Label>
+                  <Input
+                    id="customer"
+                    value={formData.customer}
+                    readOnly
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Row 2: As Of, On The, Every (same row in edit mode) */}
+            <div className={`grid ${isEditMode ? 'grid-cols-3' : 'grid-cols-3'} gap-4`}>
+              {/* As Of */}
               <div className="space-y-2">
-                <Label htmlFor="customer" className="font-semibold">Customer</Label>
-                <Input
-                  id="customer"
-                  value={formData.customer}
-                  readOnly
-                  disabled
-                  className="bg-muted"
-                />
+                <Label htmlFor="asOf" className="font-semibold">As Of</Label>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.asOf && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.asOf ? format(formData.asOf, "MMM dd, yyyy") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.asOf}
+                      onSelect={(date) => {
+                        handleInputChange("asOf", date || new Date());
+                        setIsCalendarOpen(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* On The */}
@@ -358,38 +480,6 @@ export function RecurringPaymentModal({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
-
-            {/* Row 2: As Of (full width) */}
-            <div className="space-y-2">
-              <Label htmlFor="asOf" className="font-semibold">As Of</Label>
-              <div className="w-1/3">
-                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.asOf && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.asOf ? format(formData.asOf, "MMM dd, yyyy") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.asOf}
-                      onSelect={(date) => {
-                        handleInputChange("asOf", date || new Date());
-                        setIsCalendarOpen(false);
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
               </div>
             </div>
 
@@ -506,15 +596,49 @@ export function RecurringPaymentModal({
           )}
         </div>
 
-        <DialogFooter className="flex justify-end gap-2 p-4 pt-3 border-t bg-background">
-          <Button variant="outline" onClick={handleCancel} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
+        <DialogFooter className="flex justify-between gap-2 p-4 pt-3 border-t bg-background">
+          <div className="flex gap-2">
+            {isEditMode && (
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteClick} 
+                disabled={saving || loading}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {saving ? "Deleting..." : "Delete"}
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleCancel} disabled={saving}>
+              Close
+            </Button>
+            <Button onClick={handleSave} disabled={saving || loading}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Delete confirmation modal */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Are you sure you want to delete this recurring payment?</DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="flex items-center justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={saving}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {saving ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

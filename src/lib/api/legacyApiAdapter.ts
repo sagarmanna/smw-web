@@ -286,6 +286,110 @@ export interface RecurringPaymentCreateData {
 }
 
 /**
+ * Update a recurring payment using the legacy API
+ */
+export async function updateRecurringPayment(
+  location: string,
+  customerId: string | number,
+  recurringPaymentId: string | number,
+  paymentData: RecurringPaymentCreateData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  // Note: customerId is not needed in form data for update, only in the URL path
+  formData.append('CustomerRecurringPayment[startDate]', paymentData.startDate);
+  formData.append('CustomerRecurringPayment[paymentDay]', paymentData.paymentDay.toString());
+  formData.append('CustomerRecurringPayment[paymentFrequencyId]', paymentData.paymentFrequencyId.toString());
+  formData.append('CustomerRecurringPayment[paymentMethodId]', paymentData.paymentMethodId.toString());
+  
+  // Expiry month and year - append even if empty
+  formData.append('CustomerRecurringPayment[expiryMonth]', paymentData.expiryMonth || '');
+  formData.append('CustomerRecurringPayment[expiryYear]', paymentData.expiryYear || '');
+  
+  formData.append('CustomerRecurringPayment[amount]', paymentData.amount.toString());
+  
+  // isRecurringPaymentEnabled needs to be sent twice:
+  // First as '0', then as the actual value ('1' if enabled, '0' if not)
+  // This is a quirk of the legacy API
+  formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', '0');
+  formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', paymentData.isRecurringPaymentEnabled ? '1' : '0');
+
+  const url = `/admin/${location}/customer-recurring-payment/update?id=${recurringPaymentId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Delete a recurring payment using the legacy API
+ * Note: The legacy API requires sending form data even for delete
+ */
+export async function deleteRecurringPayment(
+  location: string,
+  customerId: string | number,
+  recurringPaymentId: string | number,
+  paymentData: RecurringPaymentCreateData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  formData.append('CustomerRecurringPayment[startDate]', paymentData.startDate);
+  formData.append('CustomerRecurringPayment[paymentDay]', paymentData.paymentDay.toString());
+  formData.append('CustomerRecurringPayment[paymentFrequencyId]', paymentData.paymentFrequencyId.toString());
+  formData.append('CustomerRecurringPayment[paymentMethodId]', paymentData.paymentMethodId.toString());
+  
+  // Expiry month and year - append even if empty
+  formData.append('CustomerRecurringPayment[expiryMonth]', paymentData.expiryMonth || '');
+  formData.append('CustomerRecurringPayment[expiryYear]', paymentData.expiryYear || '');
+  
+  formData.append('CustomerRecurringPayment[amount]', paymentData.amount.toString());
+  
+  // isRecurringPaymentEnabled needs to be sent twice:
+  // First as '0', then as the actual value ('1' if enabled, '0' if not)
+  // This is a quirk of the legacy API
+  formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', '0');
+  formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', paymentData.isRecurringPaymentEnabled ? '1' : '0');
+
+  const url = `/admin/${location}/customer-recurring-payment/delete?id=${recurringPaymentId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
  * Create a recurring payment using the legacy API
  */
 export async function createRecurringPayment(
