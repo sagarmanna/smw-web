@@ -327,14 +327,15 @@ export function EmailCard({
             emails.map(email => (
               <div
                 key={email.id}
-                className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 group"
+                className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer"
+                onClick={(e) => handleEditClick(e, email)}
               >
                 <KeyValueDisplay
                   label={email.label}
                   value={formatEmailDisplay(email)}
                   className="justify-start flex-1"
                 />
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => handleEditClick(e, email)}
                     className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
