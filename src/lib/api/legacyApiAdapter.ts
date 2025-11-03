@@ -19,6 +19,14 @@ export interface ClassroomModifyData {
   classroomId: string | number;
 }
 
+export interface StudentCreateData {
+  firstName: string;
+  lastName: string;
+  customerId: string | number;
+  birthDate: string; // Format: MMM d, yyyy (e.g., "Nov 01, 2018")
+  gender: "not-specified" | "male" | "female";
+}
+
 /**
  * Update a lesson using the legacy API
  */
@@ -123,6 +131,57 @@ export async function setUserPassword(
   formData.append('UserForm[confirmPassword]', confirmPassword);
 
   const url = `/admin/${location}/user/set-password?id=${userId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Create a student using the legacy API
+ */
+export async function createStudent(
+  location: string,
+  userId: string | number,
+  studentData: StudentCreateData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  formData.append('Student[first_name]', studentData.firstName);
+  formData.append('Student[last_name]', studentData.lastName);
+  formData.append('Student[customer_id]', studentData.customerId.toString());
+  
+  if (studentData.birthDate && studentData.birthDate.trim()) {
+    formData.append('Student[birth_date]', studentData.birthDate);
+  }
+  
+  // Map gender: "male" -> 1, "female" -> 2, "not-specified" -> empty
+  if (studentData.gender === 'male') {
+    formData.append('Student[gender]', '1');
+  } else if (studentData.gender === 'female') {
+    formData.append('Student[gender]', '2');
+  }
+  // For "not-specified", don't append anything (or append empty string)
+  
+  formData.append('User[id]', userId.toString());
+
+  const url = `/admin/${location}/student/create?userId=${userId}`;
 
   try {
     const response = await fetch(url, {

@@ -53,6 +53,7 @@ import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
 import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
+import { createStudent } from "@/lib/api/legacyApiAdapter";
 
 import {
   InvoiceData,
@@ -204,13 +205,43 @@ export function CustomerDetailClient({
   });
 
   // Handle adding new student
-  const handleAddStudent = (studentData: StudentData) => {
-    setStudentData((prev: StudentData[]) => [...prev, studentData]);
-    setStudentsPagination((prev) => ({
-      ...prev,
-      total: prev.total + 1,
-      totalPages: Math.ceil((prev.total + 1) / prev.limit),
-    }));
+  const handleAddStudent = async (studentData: StudentData) => {
+    try {
+      setStudentsLoading(true);
+      setStudentsError(null);
+
+      // Call legacy API to create student
+      const response = await createStudent(
+        location,
+        Number(id),
+        {
+          firstName: studentData.firstName || '',
+          lastName: studentData.lastName || '',
+          customerId: Number(id),
+          birthDate: studentData.birthDate || '',
+          gender: (studentData.gender as "not-specified" | "male" | "female") || "not-specified",
+        }
+      );
+
+      if (response.status) {
+        // Success: reload students from API to get the newly created student with proper data
+        const { data: students, pagination: sPag } =
+          await getCustomerStudents(location, Number(id), studentsPagination.page, studentsPagination.limit);
+        setStudentData(students);
+        setStudentsPagination(sPag);
+      } else {
+        // API returned an error
+        const errorMessage = response.errors?.join(', ') || 'Failed to create student';
+        setStudentsError(errorMessage);
+        console.error('Error creating student:', errorMessage);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create student';
+      setStudentsError(errorMessage);
+      console.error('Error creating student:', error);
+    } finally {
+      setStudentsLoading(false);
+    }
   };
 
   // Handle students pagination
