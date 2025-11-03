@@ -35,6 +35,7 @@ export interface EquipmentRentalData {
 }
 
 export interface RecurringPaymentData {
+  id?: number;
   nextEntryDate: string;
   nextPaymentDate: string;
   frequency: string;

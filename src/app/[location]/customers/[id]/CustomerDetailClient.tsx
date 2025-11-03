@@ -170,6 +170,8 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] =
     React.useState<boolean>(false);
+  const [selectedRecurringPaymentId, setSelectedRecurringPaymentId] =
+    React.useState<number | undefined>(undefined);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] =
     React.useState<boolean>(false);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
@@ -392,8 +394,41 @@ export function CustomerDetailClient({
   );
 
   // Handle adding new recurring payment
-  const handleAddRecurringPayment = () => {
+  const handleAddRecurringPayment = async () => {
     setIsRecurringPaymentModalOpen(false);
+    setSelectedRecurringPaymentId(undefined);
+    // Refresh recurring payments list
+    try {
+      const { data, pagination } = await getCustomerRecurringPayments(
+        location,
+        Number(id),
+        recurringPaymentsPagination.page,
+        recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+      );
+      setRecurringPaymentData(data || []);
+      setRecurringPaymentsPagination(pagination);
+    } catch (error) {
+      console.error('Error refreshing recurring payments:', error);
+    }
+  };
+
+  // Handle deleting recurring payment
+  const handleDeleteRecurringPayment = async () => {
+    setIsRecurringPaymentModalOpen(false);
+    setSelectedRecurringPaymentId(undefined);
+    // Refresh recurring payments list
+    try {
+      const { data, pagination } = await getCustomerRecurringPayments(
+        location,
+        Number(id),
+        recurringPaymentsPagination.page,
+        recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+      );
+      setRecurringPaymentData(data || []);
+      setRecurringPaymentsPagination(pagination);
+    } catch (error) {
+      console.error('Error refreshing recurring payments:', error);
+    }
   };
 
   // Handle adding new equipment rental
@@ -1441,7 +1476,19 @@ export function CustomerDetailClient({
           data={_recurringPaymentData}
           columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
           loading={loading}
-          onAdd={() => setIsRecurringPaymentModalOpen(true)}
+          onAdd={() => {
+            setSelectedRecurringPaymentId(undefined);
+            setIsRecurringPaymentModalOpen(true);
+          }}
+          onRowClick={(row) => {
+            // Extract ID from row - check common ID field names
+            const rec = row as unknown as Record<string, unknown>;
+            const paymentId = rec["id"] ?? rec["paymentId"] ?? rec["payment_id"] ?? rec["recurringPaymentId"];
+            if (paymentId !== undefined && paymentId !== null) {
+              setSelectedRecurringPaymentId(Number(paymentId));
+              setIsRecurringPaymentModalOpen(true);
+            }
+          }}
           size={CUSTOMER_TABLE_CONFIGS.recurringPayments.size}
           variant={CUSTOMER_TABLE_CONFIGS.recurringPayments.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSorting}
@@ -2146,11 +2193,23 @@ export function CustomerDetailClient({
       {/* Recurring Payment Modal */}
       <RecurringPaymentModal
         open={isRecurringPaymentModalOpen}
-        onOpenChange={setIsRecurringPaymentModalOpen}
+        onOpenChange={(open) => {
+          setIsRecurringPaymentModalOpen(open);
+          if (!open) {
+            setSelectedRecurringPaymentId(undefined);
+          }
+        }}
         onSave={handleAddRecurringPayment}
+        onDelete={handleDeleteRecurringPayment}
         customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+          (customer &&
+            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
+          _customerInfo?.profile?.name ||
+          ""
         }
+        location={location}
+        customerId={Number(id)}
+        recurringPaymentId={selectedRecurringPaymentId}
       />
 
       {/* Equipment Rentals Modal */}
