@@ -487,9 +487,14 @@ export function CustomerDetailClient({
     }
   };
 
-  // Navigate to proforma invoice page
+  // Navigate to legacy Proforma Invoice create page (new tab)
   const handleProformaInvoiceNavigate = () => {
-    router.push(`/${location}/customers/${id}/proforma-invoice`);
+    const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/create?Invoice%5Bcustomer_id%5D=${id}`;
+    if (typeof window !== "undefined") {
+      window.open(legacyUrl, "_blank", "noopener,noreferrer");
+    } else {
+      router.push(legacyUrl);
+    }
   };
 
   // Handle invoice actions
