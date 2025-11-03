@@ -116,7 +116,7 @@ export function RecurringPaymentModal({
 
           setFormData({
             customer: customerName || "",
-            onThe: payment.entryDay.toString(),
+            onThe: payment.paymentDay.toString(),
             every: data.paymentFrequencies.find(f => f.id === payment.paymentFrequencyId)?.name || "",
             asOf: parsedDate,
             via: data.paymentMethods.find(m => m.id === payment.paymentMethodId)?.name || "",
@@ -126,14 +126,14 @@ export function RecurringPaymentModal({
             enabled: payment.isEnabled,
           });
 
-          // Map enrolments - in edit mode, all returned enrolments are already associated
+          // Map enrolments - in edit mode, only the first enrolment is selected by default
           const mappedEnrolments: EnrolmentData[] = data.enrolments.map((enrolment, index) => ({
             id: `enrolment-${index}`,
             program: enrolment.programName,
             paymentFrequency: enrolment.paymentFrequency || "",
             student: enrolment.studentName,
             teacher: enrolment.teacherName,
-            selected: isEditMode, // In edit mode, enrolments from API are already selected
+            selected: isEditMode && index === 0, // In edit mode, only select the first enrolment
           }));
           setEnrolments(mappedEnrolments);
 
