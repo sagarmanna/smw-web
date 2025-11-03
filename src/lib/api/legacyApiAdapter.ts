@@ -6,6 +6,7 @@
 export interface LegacyApiResponse {
   status: boolean;
   url?: string;
+  message?: string;
   errors?: string[];
 }
 
@@ -223,6 +224,37 @@ export async function createNote(
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Merge a customer into another customer using the legacy API
+ */
+export async function mergeCustomer(
+  location: string,
+  currentCustomerId: string | number,
+  duplicateCustomerId: string | number
+): Promise<LegacyApiResponse> {
+  const url = `/admin/${location}/customer/merge?id=${currentCustomerId}&customerId=${duplicateCustomerId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
       credentials: 'include',
       headers: {
         'X-Requested-With': 'XMLHttpRequest',

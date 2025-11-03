@@ -9,6 +9,7 @@ import {
   CustomerMergeData,
   MergePreviewData,
 } from "./customer-merge.api";
+import { mergeCustomer } from "@/lib/api/legacyApiAdapter";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 
@@ -33,6 +34,7 @@ export function CustomerMergeModal({
     useState<CustomerMergeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<MergePreviewData | null>(null);
 
@@ -159,21 +161,43 @@ export function CustomerMergeModal({
   );
 
   const handleConfirmMerge = async () => {
-    if (!selectedCustomer) return;
+    if (!selectedCustomer || merging) return;
 
-    // Note: Merge API endpoint is not available yet
-    // When available, implement the actual merge logic here
-    toast.info("Merge functionality will be implemented once API is available");
+    try {
+      setMerging(true);
+      const response = await mergeCustomer(
+        location,
+        currentCustomerId,
+        selectedCustomer.id
+      );
 
-    // Placeholder for future implementation:
-    // const response = await mergeCustomer(location, currentCustomerId, selectedCustomer.id);
-    // if (response?.success) {
-    //   toast.success("Customer merged successfully");
-    //   onClose();
-    //   if (onMergeSuccess) {
-    //     onMergeSuccess();
-    //   }
-    // }
+      if (response.status) {
+        // Success case
+        toast.success(
+          response.message || "Customer merged successfully"
+        );
+        onClose();
+        if (onMergeSuccess) {
+          onMergeSuccess();
+        }
+      } else {
+        // Error case - API returned an error
+        const errorMessage =
+          response.errors?.join(", ") ||
+          "Failed to merge customer. Please try again.";
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      // Network or other error
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to merge customer. Please try again.";
+      toast.error(errorMessage);
+      console.error("Error merging customer:", error);
+    } finally {
+      setMerging(false);
+    }
   };
 
   const handleCancel = () => {
@@ -193,10 +217,10 @@ export function CustomerMergeModal({
           disabled: loadingPreview,
         },
         {
-          label: "Confirm",
+          label: merging ? "Merging..." : "Confirm",
           onClick: handleConfirmMerge,
           variant: "default" as const,
-          disabled: loadingPreview,
+          disabled: loadingPreview || merging,
         },
       ]
     : [
