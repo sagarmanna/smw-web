@@ -311,7 +311,7 @@ export function CustomerMergeModal({
     <ReusableModal
       open={isOpen}
       onOpenChange={onClose}
-      size="xl"
+      size="4xl"
       actions={modalActions}
       showFooter={true}
       title="Customer Merge"
@@ -505,16 +505,17 @@ export function CustomerMergeModal({
                   serverSidePagination={undefined}
                   hideRecordCount={true}
                   onRowClick={(row) => handleCustomerSelect(row)}
-                  rowClassName={(row: CustomerMergeData) => {
-                    const index = filteredCustomers.indexOf(row);
-                    return `cursor-pointer ${
-                      index === 0
-                        ? "bg-red-50 dark:bg-red-900/20"
-                        : index === 1 || index === 2
-                        ? "bg-blue-50 dark:bg-blue-900/20"
-                        : ""
-                    }`;
-                  }}
+                  rowClassName={(row) => `cursor-pointer ${!row.isActive ? 'opacity-60 hover:opacity-80' : ''}`}
+                  // rowClassName={(row: CustomerMergeData) => {
+                  //   const index = filteredCustomers.indexOf(row);
+                  //   return `cursor-pointer ${
+                  //     index === 0
+                  //       ? "bg-red-50 dark:bg-red-900/20"
+                  //       : index === 1 || index === 2
+                  //       ? "bg-blue-50 dark:bg-blue-900/20"
+                  //       : ""
+                  //   }`;
+                  // }}
                 />
               </div>
             )}
