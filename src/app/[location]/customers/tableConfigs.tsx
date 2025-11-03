@@ -9,6 +9,10 @@ export interface InvoiceData {
   status: string;
   total: number;
   balance: number;
+  // Optional fields when backend provides them
+  studentName?: string;
+  programName?: string;
+  url?: string;
 }
 
 export interface OutstandingInvoiceData {
@@ -17,9 +21,11 @@ export interface OutstandingInvoiceData {
   amount: number;
   payments: number;
   balanceDue: number;
+  url?: string;
 }
 
 export interface EquipmentRentalData {
+  id?: number;
   student: string;
   startDate: string;
   returnDate: string;
@@ -30,36 +36,39 @@ export interface EquipmentRentalData {
 }
 
 export interface RecurringPaymentData {
-  toBeEnteredOn: string;
+  id?: number;
+  nextEntryDate: string;
   nextPaymentDate: string;
   frequency: string;
   expiryDate: string;
-  method: string;
-  amount: number;
+  methodName: string;
+  amount: number | string;
 }
 
 export interface PrivateLessonDueData {
   lessonDate: string;
-  student: string;
-  program: string;
-  teacher: string;
-  amount: number;
+  studentName: string;
+  programName: string;
+  teacherName: string;
+  amount: number | string;
+  url: string;
 }
 
 export interface GroupLessonDueData {
   lessonDate: string;
-  student: string;
-  program: string;
-  teacher: string;
-  amount: number;
+  studentName: string;
+  programName: string;
+  teacherName: string;
+  amount: number | string;
+  url?: string;
 }
 
 export interface PaymentData {
   date: string;
   notes: string;
-  amount: number;
-  used: number;
-  remaining: number;
+  amount: number | string;
+  used: number | string;
+  remaining: number | string;
 }
 
 // Column definitions
@@ -104,34 +113,42 @@ export const outstandingInvoiceColumns: ColumnDef<OutstandingInvoiceData>[] = [
   {
     accessorKey: "id",
     header: "ID",
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("id")}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("id") as string) : (row.original as OutstandingInvoiceData).id;
+      return <div className="font-medium">{value}</div>;
+    },
   },
   {
     accessorKey: "date",
     header: "Date",
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("date") as string) : (row.original as OutstandingInvoiceData).date;
+      return <div>{value}</div>;
+    },
   },
   {
     accessorKey: "amount",
     header: "Amount",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("amount"))}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("amount") as number) : (row.original as OutstandingInvoiceData).amount;
+      return <div className="text-right">{formatCurrency(value)}</div>;
+    },
   },
   {
     accessorKey: "payments",
     header: "Payments",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("payments"))}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("payments") as number) : (row.original as OutstandingInvoiceData).payments;
+      return <div className="text-right">{formatCurrency(value)}</div>;
+    },
   },
   {
     accessorKey: "balanceDue",
     header: "Balance Due",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("balanceDue"))}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue ? (row.getValue("balanceDue") as number) : (row.original as OutstandingInvoiceData).balanceDue;
+      return <div className="text-right">{formatCurrency(value)}</div>;
+    },
   },
 ];
 
@@ -171,7 +188,7 @@ export const equipmentRentalColumns: ColumnDef<EquipmentRentalData>[] = [
 
 export const recurringPaymentColumns: ColumnDef<RecurringPaymentData>[] = [
   {
-    accessorKey: "toBeEnteredOn",
+    accessorKey: "nextEntryDate",
     header: "To Be Entered On",
   },
   {
@@ -187,15 +204,20 @@ export const recurringPaymentColumns: ColumnDef<RecurringPaymentData>[] = [
     header: "Expiry Date",
   },
   {
-    accessorKey: "method",
+    accessorKey: "methodName",
     header: "Method",
   },
   {
     accessorKey: "amount",
     header: "Amount",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("amount"))}</div>
-    ),
+    cell: ({ row }) => {
+      const raw = row.getValue("amount") as unknown;
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      const value = typeof raw === "number" ? raw : 0;
+      return <div className="text-right">{formatCurrency(value)}</div>;
+    },
   },
 ];
 
@@ -205,26 +227,27 @@ export const privateLessonDueColumns: ColumnDef<PrivateLessonDueData>[] = [
     header: "Lesson Date",
   },
   {
-    accessorKey: "student",
+    accessorKey: "studentName",
     header: "Student",
   },
   {
-    accessorKey: "program",
+    accessorKey: "programName",
     header: "Program",
   },
   {
-    accessorKey: "teacher",
+    accessorKey: "teacherName",
     header: "Teacher",
   },
   {
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => {
-      // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("amount") as number) : (row.original as PrivateLessonDueData).amount;
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      const raw = row.getValue ? (row.getValue("amount") as unknown) : (row.original as unknown as { amount: unknown }).amount;
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      const value = typeof raw === "number" ? raw : 0;
+      return <div className="text-right">{formatCurrency(value)}</div>;
     },
   },
 ];
@@ -235,26 +258,27 @@ export const groupLessonDueColumns: ColumnDef<GroupLessonDueData>[] = [
     header: "Lesson Date",
   },
   {
-    accessorKey: "student",
+    accessorKey: "studentName",
     header: "Student",
   },
   {
-    accessorKey: "program",
+    accessorKey: "programName",
     header: "Program",
   },
   {
-    accessorKey: "teacher",
+    accessorKey: "teacherName",
     header: "Teacher",
   },
   {
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => {
-      // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("amount") as number) : (row.original as GroupLessonDueData).amount;
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      const raw = row.getValue ? (row.getValue("amount") as unknown) : (row.original as unknown as { amount: unknown }).amount;
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      const value = typeof raw === "number" ? raw : 0;
+      return <div className="text-right">{formatCurrency(value)}</div>;
     },
   },
 ];
@@ -273,14 +297,16 @@ export const paymentColumns: ColumnDef<PaymentData>[] = [
     header: "Amount",
     cell: ({ row }) => {
       // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("amount") as number) : (row.original as PaymentData).amount;
+      const raw = row.getValue ? (row.getValue("amount") as unknown) : (row.original as unknown as { amount: unknown }).amount;
+      const value = typeof raw === "number" ? raw : NaN;
       // Don't show amount in footer row
       if (value === 0 && (row.original as PaymentData).date === "") {
         return <div className="text-right"></div>;
       }
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      return <div className="text-right">{formatCurrency(Number.isFinite(value) ? value : 0)}</div>;
     },
   },
   {
@@ -288,14 +314,16 @@ export const paymentColumns: ColumnDef<PaymentData>[] = [
     header: "Used",
     cell: ({ row }) => {
       // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("used") as number) : (row.original as PaymentData).used;
+      const raw = row.getValue ? (row.getValue("used") as unknown) : (row.original as unknown as { used: unknown }).used;
+      const value = typeof raw === "number" ? raw : NaN;
       // Don't show used in footer row
       if (value === 0 && (row.original as PaymentData).date === "") {
         return <div className="text-right"></div>;
       }
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      return <div className="text-right">{formatCurrency(Number.isFinite(value) ? value : 0)}</div>;
     },
   },
   {
@@ -303,10 +331,12 @@ export const paymentColumns: ColumnDef<PaymentData>[] = [
     header: "Remaining",
     cell: ({ row }) => {
       // Handle both regular rows and footer rows
-      const value = row.getValue ? (row.getValue("remaining") as number) : (row.original as PaymentData).remaining;
-      return (
-        <div className="text-right">{formatCurrency(value)}</div>
-      );
+      const raw = row.getValue ? (row.getValue("remaining") as unknown) : (row.original as unknown as { remaining: unknown }).remaining;
+      if (typeof raw === "string") {
+        return <div className="text-right">{raw}</div>;
+      }
+      const value = typeof raw === "number" ? raw : 0;
+      return <div className="text-right">{formatCurrency(value)}</div>;
     },
   },
 ];

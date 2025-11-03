@@ -399,7 +399,15 @@ export function AccountReceivableClient({ location }: AccountReceivableClientPro
           data: accountReceivable,
           footer: footerRow || undefined,
           location,
-          rightAlignedColumns: ["Total",	"Pre-Paid Lessons",	"Unused Credits",	"Balance"],
+          rightAlignedColumns: ["0-30",
+            "31-60",
+            "61-90",
+            "90+",
+            "Total",
+            "Pre-Paid Lessons",
+            "Unused Credits",
+            "Balance",
+          ],
         })}
         enableSorting={false}
         enableRowsPerPage={true}

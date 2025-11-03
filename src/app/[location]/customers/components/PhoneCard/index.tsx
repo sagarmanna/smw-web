@@ -6,10 +6,23 @@ import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  createCustomerPhone,
+  updateCustomerPhone,
+  deleteCustomerPhone,
+  PhoneData,
+} from "./phone-card.api";
+import { toast } from "sonner"; 
 
 interface PhoneNumber {
   id: string;
@@ -17,6 +30,7 @@ interface PhoneNumber {
   number: string;
   extension?: string;
   note?: string;
+  isPrimary?: boolean;
 }
 
 interface PhoneCardProps {
@@ -25,33 +39,41 @@ interface PhoneCardProps {
   onSave?: (phones: PhoneNumber[]) => void;
   className?: string;
   loading?: boolean;
+  location: string;
+  customerId: number;
 }
 
-export function PhoneCard({ 
+export function PhoneCard({
   phones = [],
-  onAddClick, 
+  onAddClick,
   onSave,
   className,
-  loading = false
+  loading = false,
+  location,
+  customerId,
 }: PhoneCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPhone, setEditingPhone] = useState<PhoneNumber | null>(null);
-  const [currentPhone, setCurrentPhone] = useState({ 
-    label: "Home", 
-    number: "", 
-    extension: "", 
-    note: "" 
+  const [currentPhone, setCurrentPhone] = useState({
+    label: "Home",
+    number: "",
+    extension: "",
+    note: ""
   });
   const [errors, setErrors] = useState({ number: "" });
+  const [isSaving, setIsSaving] = useState(false);
 
   const formatPhoneNumber = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
+    const cleaned = value.replace(/\D/g, "");
     if (cleaned.length <= 3) {
       return cleaned;
     } else if (cleaned.length <= 6) {
       return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
     } else {
-      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(
+        6,
+        10
+      )}`;
     }
   };
 
@@ -63,9 +85,9 @@ export function PhoneCard({
 
   const validateForm = () => {
     const newErrors = { number: "" };
-    const digitsOnly = currentPhone.number.replace(/\D/g, '');
-    if (digitsOnly.trim() === "") newErrors.number = "Number cannot be blank.";
-    else if (digitsOnly.length !== 10) newErrors.number = "Please enter a valid 10-digit phone number.";
+    if (currentPhone.number.trim() === "") {
+      newErrors.number = "Number cannot be blank.";
+    }
     setErrors(newErrors);
     return newErrors.number === "";
   };
@@ -73,7 +95,12 @@ export function PhoneCard({
   const handleAddClick = () => {
     setIsModalOpen(true);
     setEditingPhone(null);
-    setCurrentPhone({ label: "Home", number: "", extension: "", note: "" });
+    setCurrentPhone({
+      label: "Home",
+      number: "",
+      extension: "",
+      note: ""
+    });
     setErrors({ number: "" });
     if (onAddClick) onAddClick();
   };
@@ -91,70 +118,139 @@ export function PhoneCard({
     setErrors({ number: "" });
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    handleRemovePhone(id);
+    setIsSaving(true);
+
+    try {
+      const response = await deleteCustomerPhone(location, customerId, id);
+
+      if (response?.success) {
+        const updatedPhones = phones.filter((phone) => phone.id !== id);
+        if (onSave) onSave(updatedPhones);
+
+        toast.success("Phone number deleted successfully");
+      } else {
+        toast.error(response?.message || "Failed to delete phone number");
+      }
+    } catch (error) {
+      console.error("Error deleting phone:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleRemovePhone = (id: string) => {
-    const updatedPhones = phones.filter(phone => phone.id !== id);
-    if (onSave) onSave(updatedPhones);
-    setIsModalOpen(false);
-    setEditingPhone(null);
-    setCurrentPhone({ label: "Home", number: "", extension: "", note: "" });
-    setErrors({ number: "" });
-  };
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
 
-    let updatedPhones: PhoneNumber[];
+    setIsSaving(true);
 
-    if (editingPhone) {
-      // Update existing phone
-      updatedPhones = phones.map(phone => 
-        phone.id === editingPhone.id 
-          ? { ...phone, ...currentPhone }
-          : phone
-      );
-    } else {
-      // Add new phone
-      const newPhone: PhoneNumber = {
-        id: Date.now().toString(),
-        ...currentPhone
+    try {
+      const phoneData = {
+        number: currentPhone.number,
+        extension: currentPhone.extension
+          ? parseInt(currentPhone.extension)
+          : undefined,
+        note: currentPhone.note,
+        label: currentPhone.label,
+        isPrimary: false
       };
-      updatedPhones = [...phones, newPhone];
+
+      let response;
+
+      if (editingPhone) {
+        response = await updateCustomerPhone(location, customerId, {
+          id: parseInt(editingPhone.id),
+          ...phoneData,
+        });
+      } else {
+        response = await createCustomerPhone(location, customerId, phoneData);
+      }
+
+      if (response?.success && response.data) {
+        const formattedPhones: PhoneNumber[] = response.data.map(
+          (phone: PhoneData) => ({
+            id: phone.id.toString(),
+            label: phone.label,
+            number: phone.number,
+            extension: phone.extension?.toString(),
+            note: phone.note,
+            isPrimary: phone.isPrimary,
+          })
+        );
+
+        if (onSave) onSave(formattedPhones);
+
+        toast.success(
+          editingPhone
+            ? "Phone number updated successfully"
+            : "Phone number created successfully"
+        );
+
+        setIsModalOpen(false);
+        setEditingPhone(null);
+        setCurrentPhone({
+          label: "Home",
+          number: "",
+          extension: "",
+          note: ""
+        });
+        setErrors({ number: "" });
+      } else {
+        toast.error(response?.message || "Failed to save phone number");
+      }
+    } catch (error) {
+      console.error("Error saving phone:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsSaving(false);
     }
-
-    if (onSave) onSave(updatedPhones);
-
-    setIsModalOpen(false);
-    setEditingPhone(null);
-    setCurrentPhone({ label: "Home", number: "", extension: "", note: "" });
-    setErrors({ number: "" });
   };
 
   const handleCancel = () => {
     setEditingPhone(null);
-    setCurrentPhone({ label: "Home", number: "", extension: "", note: "" });
+    setCurrentPhone({
+      label: "Home",
+      number: "",
+      extension: "",
+      note: ""
+    });
     setErrors({ number: "" });
     setIsModalOpen(false);
   };
 
   const modalActions = [
-    { label: "Cancel", onClick: handleCancel, variant: "outline" as const },
-    { label: "Save", onClick: handleSave, variant: "default" as const }
+    {
+      label: "Cancel",
+      onClick: handleCancel,
+      variant: "outline" as const,
+      disabled: isSaving,
+    },
+    {
+      label: isSaving ? "Saving..." : "Save",
+      onClick: handleSave,
+      variant: "default" as const,
+      disabled: isSaving,
+    },
   ];
 
   return (
     <>
-      <InfoCard title="Phone" onAddClick={handleAddClick} className={className} loading={loading}>
+      <InfoCard
+        title="Phone"
+        onAddClick={handleAddClick}
+        className={className}
+        loading={loading}
+      >
         <div className="space-y-2">
           {loading ? (
-            // Skeleton loading state
             <>
               {[...Array(2)].map((_, index) => (
-                <div key={index} className="flex items-center justify-between p-2 rounded -mx-2">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-2 rounded -mx-2"
+                >
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-3 w-16" />
                     <Skeleton className="h-4 w-40" />
@@ -167,21 +263,25 @@ export function PhoneCard({
               ))}
             </>
           ) : phones.length > 0 ? (
-            phones.map(phone => (
+            phones.map((phone) => (
               <div
                 key={phone.id}
-                className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 group"
+                className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer"
+                onClick={(e) => handleEditClick(e, phone)}
               >
                 <KeyValueDisplay
                   label={phone.label}
-                  value={`${phone.number}${phone.extension ? ` Ext: ${phone.extension}` : ''}${phone.note ? ` - ${phone.note}` : ''}`}
+                  value={`${phone.number}${
+                    phone.extension ? ` Ext: ${phone.extension}` : ""
+                  }${phone.note ? ` - ${phone.note}` : ""}`}
                   className="justify-start flex-1"
                 />
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => handleEditClick(e, phone)}
                     className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
                     aria-label="Edit phone"
+                    disabled={isSaving}
                   >
                     <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                   </button>
@@ -189,6 +289,7 @@ export function PhoneCard({
                     onClick={(e) => handleDeleteClick(e, phone.id)}
                     className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
                     aria-label="Delete phone"
+                    disabled={isSaving}
                   >
                     <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                   </button>
@@ -196,7 +297,9 @@ export function PhoneCard({
               </div>
             ))
           ) : (
-            <span className="text-gray-500 dark:text-gray-400 text-sm">No phone numbers added</span>
+            <span className="text-gray-500 dark:text-gray-400 text-sm">
+              No phone numbers added
+            </span>
           )}
         </div>
       </InfoCard>
@@ -209,15 +312,19 @@ export function PhoneCard({
         actions={modalActions}
         showFooter={true}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-4 pb-4">
           {editingPhone && (
-            <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">Editing phone number</div>
+            <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">
+              Editing phone number
+            </div>
           )}
 
-          {/* Phone Form */}
           <div className="space-y-4">
+            {/* Number */}
             <div className="space-y-2">
-              <Label htmlFor="phone-number">Number <span className="text-red-500">*</span></Label>
+              <Label htmlFor="phone-number">
+                Number <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="phone-number"
                 type="tel"
@@ -226,25 +333,35 @@ export function PhoneCard({
                 placeholder="(___) ___-____"
                 maxLength={14}
                 className={errors.number ? "border-red-500" : ""}
+                disabled={isSaving}
               />
-              {errors.number && <p className="text-sm text-red-500">{errors.number}</p>}
+              {errors.number && (
+                <p className="text-sm text-red-500">{errors.number}</p>
+              )}
             </div>
 
+            {/* Label */}
             <div className="space-y-2">
               <Label htmlFor="phone-label">Label</Label>
-              <Select value={currentPhone.label} onValueChange={value => setCurrentPhone({ ...currentPhone, label: value })}>
+              <Select
+                value={currentPhone.label}
+                onValueChange={(value) =>
+                  setCurrentPhone({ ...currentPhone, label: value })
+                }
+                disabled={isSaving}
+              >
                 <SelectTrigger id="phone-label">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Home">Home</SelectItem>
                   <SelectItem value="Work">Work</SelectItem>
-                  <SelectItem value="Mobile">Mobile</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Extension */}
             <div className="space-y-2">
               <Label htmlFor="phone-extension">Extension</Label>
               <Input
@@ -255,9 +372,11 @@ export function PhoneCard({
                   setCurrentPhone({ ...currentPhone, extension: e.target.value })
                 }
                 placeholder="Enter extension"
+                disabled={isSaving}
               />
             </div>
 
+            {/* Note */}
             <div className="space-y-2">
               <Label htmlFor="phone-note">Note</Label>
               <Textarea
@@ -268,7 +387,7 @@ export function PhoneCard({
                 }
                 placeholder="Enter note"
                 rows={3}
-                className="resize-none"
+                disabled={isSaving}
               />
             </div>
           </div>

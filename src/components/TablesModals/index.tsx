@@ -27,8 +27,9 @@ interface ReusableModalProps {
   description?: string;
   children: React.ReactNode;
   actions?: ModalAction[];
+  leftActions?: ModalAction[];
   showFooter?: boolean;
-  size?: "sm" | "md" | "lg" | "xl" | "full";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
   className?: string;
 }
 
@@ -39,6 +40,7 @@ export function ReusableModal({
   description,
   children,
   actions = [],
+  leftActions = [],
   showFooter = true,
   size = "md",
   className,
@@ -48,6 +50,9 @@ export function ReusableModal({
     md: "max-w-md",
     lg: "max-w-lg",
     xl: "max-w-xl",
+    "2xl": "max-w-2xl",
+    "3xl": "max-w-3xl",
+    "4xl": "max-w-4xl",
     full: "max-w-full",
   };
 
@@ -80,20 +85,36 @@ export function ReusableModal({
         
         <div className="py-4 overflow-y-auto flex-1">{children}</div>
         
-        {showFooter && actions.length > 0 && (
-          <DialogFooter className="flex justify-end gap-2">
-            {actions.map((action, index) => (
-              <button
-                key={index}
-                onClick={action.onClick}
-                disabled={action.disabled}
-                className={`${getButtonClasses(action.variant)} ${
-                  action.disabled ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                {action.label}
-              </button>
-            ))}
+        {showFooter && (actions.length > 0 || leftActions.length > 0) && (
+          <DialogFooter className="px-6 py-4 border-t w-full flex flex-row items-center justify-between sm:justify-between">
+            <div>
+              {leftActions.map((action, index) => (
+                <button
+                  key={`left-${index}`}
+                  onClick={action.onClick}
+                  disabled={action.disabled}
+                  className={`${getButtonClasses(action.variant)} ${
+                    action.disabled ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              {actions.map((action, index) => (
+                <button
+                  key={`right-${index}`}
+                  onClick={action.onClick}
+                  disabled={action.disabled}
+                  className={`${getButtonClasses(action.variant)} ${
+                    action.disabled ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
           </DialogFooter>
         )}
       </DialogContent>

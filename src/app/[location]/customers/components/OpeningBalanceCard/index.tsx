@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
@@ -6,17 +8,28 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Eye } from "lucide-react";
+import { toast } from "sonner";
+import { createCustomerOpeningBalance } from "./opening-balance.api";
 
 interface OpeningBalanceCardProps {
   amount?: number;
+  hasBalance?: boolean;
+  customerId?: string;
+  openingBalanceId?: string | number; // This should be the opening balance invoice ID
+  location?: string;
   onAddClick?: () => void;
-  onSave?: (amount: number, type: "owing" | "credit") => void;
+  onSave?: (amount: number, balanceType: "owing" | "credit", invoiceId: number) => void;
   className?: string;
   loading?: boolean;
 }
 
 export function OpeningBalanceCard({ 
   amount = 0, 
+  hasBalance = false,
+  customerId,
+  openingBalanceId, // Invoice ID from openingBalance.id
+  location,
   onAddClick, 
   onSave,
   className,
@@ -27,6 +40,14 @@ export function OpeningBalanceCard({
   const [balanceType, setBalanceType] = useState<"owing" | "credit" | null>(null);
   const [showError, setShowError] = useState(false);
   const [hasTyped, setHasTyped] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Determine display values based on amount
+  const displayAmount = Math.abs(amount);
+  // Format with sign
+  const formattedAmount = amount < 0 
+    ? `-${formatCurrency(displayAmount)}` 
+    : `+${formatCurrency(displayAmount)}`;
 
   const handleAddClick = () => {
     setIsModalOpen(true);
@@ -35,29 +56,65 @@ export function OpeningBalanceCard({
     }
   };
 
-  const isAmountValid = balanceAmount.trim() !== "" && !isNaN(parseFloat(balanceAmount)) && parseFloat(balanceAmount) >= 0;
+  const handleViewClick = () => {
+    // Use openingBalanceId (which is openingBalance.id from the API response)
+    if (openingBalanceId && location) {
+      const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${openingBalanceId}`;
+      window.open(url, '_blank');
+    }
+  };
+
+  const isAmountValid = balanceAmount.trim() !== "" && !isNaN(parseFloat(balanceAmount)) && parseFloat(balanceAmount) >= 0.1;
   const isTypeSelected = balanceType !== null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Show error state if validation fails
     if (!isAmountValid || !isTypeSelected) {
       setShowError(true);
       return;
     }
 
-    const numAmount = parseFloat(balanceAmount);
-
-    // Call onSave callback if provided
-    if (onSave) {
-      onSave(numAmount, balanceType);
+    if (!location || !customerId) {
+      toast.error("Missing location or customer ID");
+      return;
     }
 
-    // Reset and close
-    setBalanceAmount("");
-    setBalanceType(null);
-    setShowError(false);
-    setHasTyped(false);
-    setIsModalOpen(false);
+    setIsSaving(true);
+
+    try {
+      const numAmount = parseFloat(balanceAmount);
+      const isCredit = balanceType === "credit";
+
+      const result = await createCustomerOpeningBalance(
+        location,
+        Number(customerId),
+        numAmount,
+        isCredit
+      );
+
+      if (result?.success) {
+        toast.success("Opening balance created successfully");
+        
+        // Call onSave callback with the new invoice ID from the response
+        if (onSave && result.data?.invoiceId) {
+          onSave(numAmount, balanceType, result.data.invoiceId);
+        }
+
+        // Reset and close
+        setBalanceAmount("");
+        setBalanceType(null);
+        setShowError(false);
+        setHasTyped(false);
+        setIsModalOpen(false);
+      } else {
+        toast.error(result?.message || "Failed to create opening balance");
+      }
+    } catch (error) {
+      console.error("Error creating opening balance:", error);
+      toast.error("Failed to create opening balance");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -82,12 +139,14 @@ export function OpeningBalanceCard({
     {
       label: "Cancel",
       onClick: handleCancel,
-      variant: "outline" as const
+      variant: "outline" as const,
+      disabled: isSaving
     },
     {
-      label: "Save",
+      label: isSaving ? "Saving..." : "Save",
       onClick: handleSave,
-      variant: "default" as const
+      variant: "default" as const,
+      disabled: isSaving
     }
   ];
 
@@ -95,7 +154,8 @@ export function OpeningBalanceCard({
     <>
       <InfoCard 
         title="Opening Balance" 
-        onAddClick={handleAddClick}
+        onAddClick={!hasBalance ? handleAddClick : undefined}
+        showAddButton={!hasBalance}
         className={className}
         loading={loading}
       >
@@ -104,11 +164,27 @@ export function OpeningBalanceCard({
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-4 w-20" />
           </div>
+        ) : hasBalance ? (
+          <div className="flex items-center justify-between">
+            <KeyValueDisplay 
+              label="Amount" 
+              value={formattedAmount}
+              className="justify-start flex-1"
+            />
+            {/* View button - only show if openingBalanceId exists */}
+            {openingBalanceId && (
+              <button
+                onClick={handleViewClick}
+                className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                aria-label="View opening balance"
+                title="View opening balance"
+              >
+                <Eye className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+              </button>
+            )}
+          </div>
         ) : (
-          <KeyValueDisplay 
-            label="Amount" 
-            value={formatCurrency(amount)} 
-          />
+          <p className="text-sm text-gray-500">No opening balance set</p>
         )}
       </InfoCard>
 
@@ -133,7 +209,7 @@ export function OpeningBalanceCard({
                   : "text-gray-700"
               }`}
             >
-              Amount
+              Amount (minimum 0.1)
             </Label>
             <Input
               id="amount"
@@ -143,19 +219,20 @@ export function OpeningBalanceCard({
               onChange={handleAmountChange}
               className={`text-right focus:ring-0 focus:outline-none ${
                 hasTyped && balanceAmount.trim() !== "" && !isAmountValid 
-                  ? "border-red-600 text-gray-500" 
+                  ? "border-red-600 text-gray-500 dark:text-gray-400" 
                   : isAmountValid 
-                  ? "border-green-600 text-gray-900" 
-                  : "border-gray-300 text-gray-500"
+                  ? "border-green-600 text-gray-900 dark:text-gray-100" 
+                  : "border-gray-300 text-gray-500 dark:text-gray-400"
               }`}
               style={{
                 boxShadow: 'none'
               }}
               placeholder="0.00"
+              disabled={isSaving}
             />
             {hasTyped && balanceAmount.trim() !== "" && !isAmountValid && (
               <p className="text-sm text-red-600">
-                Amount must be a number.
+                Amount must be at least 0.1
               </p>
             )}
             {showError && balanceAmount.trim() === "" && (
@@ -179,6 +256,7 @@ export function OpeningBalanceCard({
                     ? "text-red-600"
                     : "text-gray-500"
                 }`}
+                disabled={isSaving}
               >
                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                   balanceType === "owing" 
@@ -204,6 +282,7 @@ export function OpeningBalanceCard({
                     ? "text-red-600"
                     : "text-gray-500"
                 }`}
+                disabled={isSaving}
               >
                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                   balanceType === "credit" 
