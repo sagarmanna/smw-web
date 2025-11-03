@@ -78,6 +78,8 @@ interface EquipmentRentalsModalProps {
   customerId: number;
   location: string;
   rentalId?: number;
+  onReprintAgreement?: (rentalId: number) => void;
+  onEquipmentReturned?: (rentalId: number) => void;
 }
 
 const InstrumentFormRow = React.memo(
@@ -199,6 +201,8 @@ export function EquipmentRentalsModal({
   customerId,
   location,
   rentalId,
+  onReprintAgreement,
+  onEquipmentReturned,
 }: EquipmentRentalsModalProps) {
   const [loading, setLoading] = useState(false);
   const [availableInstruments, setAvailableInstruments] = useState<
@@ -239,6 +243,8 @@ export function EquipmentRentalsModal({
     numberOfMonths: "1",
     total: "0.00",
   });
+
+  const isEditMode = Boolean(rentalId);
 
   const fetchEquipmentRentalsData = useCallback(async () => {
     setLoading(true);
@@ -400,6 +406,18 @@ export function EquipmentRentalsModal({
     onOpenChange(false);
   };
 
+  const handleReprintAgreement = () => {
+    if (!rentalId) return;
+    if (onReprintAgreement) return onReprintAgreement(rentalId);
+    toast.success("Reprint Agreement triggered");
+  };
+
+  const handleEquipmentReturned = () => {
+    if (!rentalId) return;
+    if (onEquipmentReturned) return onEquipmentReturned(rentalId);
+    toast.success("Equipment Returned processed");
+  };
+
   const handleCancel = () => {
     onOpenChange(false);
   };
@@ -521,6 +539,8 @@ export function EquipmentRentalsModal({
                 value={formData.customer}
                 onChange={(e) => handleInputChange("customer", e.target.value)}
                 className="w-48"
+                readOnly={isEditMode}
+                disabled={isEditMode}
               />
             </div>
 
@@ -530,12 +550,16 @@ export function EquipmentRentalsModal({
                 value={formData.address}
                 onChange={(e) => handleInputChange("address", e.target.value)}
                 className="w-48"
+                readOnly={isEditMode}
+                disabled={isEditMode}
               />
               <Label className="w-16">City</Label>
               <Input
                 value={formData.city}
                 onChange={(e) => handleInputChange("city", e.target.value)}
                 className="w-48"
+                readOnly={isEditMode}
+                disabled={isEditMode}
               />
               <Label className="w-8">P.C</Label>
               <Input
@@ -544,6 +568,8 @@ export function EquipmentRentalsModal({
                   handleInputChange("postalCode", e.target.value)
                 }
                 className="w-48"
+                readOnly={isEditMode}
+                disabled={isEditMode}
               />
             </div>
 
@@ -553,12 +579,16 @@ export function EquipmentRentalsModal({
                 value={formData.homePhone}
                 onChange={(e) => handleInputChange("homePhone", e.target.value)}
                 className="w-48"
+                readOnly={isEditMode}
+                disabled={isEditMode}
               />
               <Label className="w-24">Work Phone</Label>
               <Input
                 value={formData.workPhone}
                 onChange={(e) => handleInputChange("workPhone", e.target.value)}
                 className="w-48"
+                readOnly={isEditMode}
+                disabled={isEditMode}
               />
               <Label className="w-24">Other Phone</Label>
               <Input
@@ -567,6 +597,8 @@ export function EquipmentRentalsModal({
                   handleInputChange("otherPhone", e.target.value)
                 }
                 className="w-48"
+                readOnly={isEditMode}
+                disabled={isEditMode}
               />
             </div>
 
@@ -576,6 +608,8 @@ export function EquipmentRentalsModal({
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 className="w-48"
+                readOnly={isEditMode}
+                disabled={isEditMode}
               />
             </div>
 
@@ -584,6 +618,7 @@ export function EquipmentRentalsModal({
               <Select
                 value={formData.studentId}
                 onValueChange={(value) => handleInputChange("studentId", value)}
+                disabled={isEditMode}
               >
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Select Student" />
@@ -600,7 +635,7 @@ export function EquipmentRentalsModal({
 
             <div className="flex items-center gap-4">
               <Label className="w-32">Rental Start Date</Label>
-              <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
+              <Popover open={isStartDateOpen && !isEditMode} onOpenChange={setIsStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -608,6 +643,7 @@ export function EquipmentRentalsModal({
                       "w-48 justify-start text-left font-normal",
                       !formData.rentalStartDate && "text-muted-foreground"
                     )}
+                    disabled={isEditMode}
                   >
                     <CalIcon className="mr-2 h-4 w-4" />
                     {formData.rentalStartDate
@@ -634,6 +670,7 @@ export function EquipmentRentalsModal({
                   onCheckedChange={(checked) =>
                     handleInputChange("onGoing", checked as boolean)
                   }
+                  disabled={isEditMode}
                 />
                 <Label htmlFor="onGoing">On Going</Label>
               </div>
@@ -644,7 +681,7 @@ export function EquipmentRentalsModal({
               <Select
                 value={formData.duration}
                 onValueChange={(value) => handleInputChange("duration", value)}
-                disabled={formData.onGoing}
+                disabled={formData.onGoing || isEditMode}
               >
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Select duration" />
@@ -668,7 +705,7 @@ export function EquipmentRentalsModal({
                     : ""
                 }
                 readOnly
-                disabled={formData.onGoing}
+                disabled={formData.onGoing || isEditMode}
                 className="bg-gray-50 dark:bg-gray-800 w-48"
                 placeholder={formData.onGoing ? "On Going" : "Select duration"}
               />
@@ -683,7 +720,7 @@ export function EquipmentRentalsModal({
                 onValueChange={(value) =>
                   handleInputChange("securityDeposit", value as "yes" | "no")
                 }
-                className="flex flex-col space-y-2"
+                className={`flex flex-col space-y-2 ${isEditMode ? "opacity-60 pointer-events-none" : ""}`}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="yes" id="yes" />
@@ -703,6 +740,7 @@ export function EquipmentRentalsModal({
                     onValueChange={(value) =>
                       handleInputChange("tenderType", value)
                     }
+                    disabled={isEditMode}
                   >
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Select Tender Type" />
@@ -722,6 +760,8 @@ export function EquipmentRentalsModal({
                     }
                     placeholder="0.00"
                     className="w-48"
+                    readOnly={isEditMode}
+                    disabled={isEditMode}
                   />
                 </div>
               )}
@@ -746,13 +786,15 @@ export function EquipmentRentalsModal({
                   </tr>
                 </thead>
                 <tbody>
-                  <InstrumentFormRow
-                    newInstrument={newInstrument}
-                    onNewInstrumentChange={handleNewInstrumentChange}
-                    onInputFocus={handleInputFocus}
-                    onInputBlur={handleInputBlur}
-                    availableInstruments={availableInstruments}
-                  />
+                  {!isEditMode && (
+                    <InstrumentFormRow
+                      newInstrument={newInstrument}
+                      onNewInstrumentChange={handleNewInstrumentChange}
+                      onInputFocus={handleInputFocus}
+                      onInputBlur={handleInputBlur}
+                      availableInstruments={availableInstruments}
+                    />
+                  )}
                   {instruments.map((instrument) => (
                     <tr
                       key={instrument.id}
@@ -776,6 +818,7 @@ export function EquipmentRentalsModal({
                           <span className="font-medium">
                             {instrument.total}
                           </span>
+                          {!isEditMode && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -786,6 +829,7 @@ export function EquipmentRentalsModal({
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -795,7 +839,7 @@ export function EquipmentRentalsModal({
             </div>
 
             <div className="mt-4">
-              <Button onClick={handleAddInstrument} className="w-fit">
+              <Button onClick={handleAddInstrument} className="w-fit" disabled={isEditMode}>
                 Add Instrument
               </Button>
             </div>
@@ -819,11 +863,20 @@ export function EquipmentRentalsModal({
           </div>
         </div>
 
-        <DialogFooter className="flex justify-end gap-2 p-6 pt-4 border-t dark:border-gray-700 bg-background">
-          <Button variant="outline" onClick={handleCancel}>
-            Close
-          </Button>
-          <Button onClick={handleSave}>Create</Button>
+        <DialogFooter className={`w-full flex gap-2 p-6 pt-4 border-t dark:border-gray-700 bg-background ${isEditMode ? "justify-between sm:justify-between" : "justify-end"}`}>
+          {isEditMode && (
+            <Button onClick={handleReprintAgreement}>Reprint Agreement</Button>
+          )}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleCancel}>
+              Close
+            </Button>
+            {isEditMode ? (
+              <Button onClick={handleEquipmentReturned}>Equipment Returned</Button>
+            ) : (
+              <Button onClick={handleSave}>Create</Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -25,6 +25,7 @@ export interface OutstandingInvoiceData {
 }
 
 export interface EquipmentRentalData {
+  id?: number;
   student: string;
   startDate: string;
   returnDate: string;
