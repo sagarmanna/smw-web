@@ -439,3 +439,173 @@ export async function createRecurringPayment(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+export interface EquipmentRentalInstrumentData {
+  instrumentId: number;
+  retailValue: string;
+  assetTag: string;
+  monthlyRate: string;
+  numberOfMonths: string;
+  total: string;
+}
+
+export interface EquipmentRentalCreateData {
+  userId: string | number;
+  customerName: string;
+  studentId: string | number;
+  startDate: string; // Format: "MMM dd, yyyy" (e.g., "Nov 03, 2025")
+  isOnGoing: boolean;
+  duration: number; // Number of months
+  returnDate: string; // ISO date string
+  securityDeposit: "yes" | "no";
+  tenderType: string; // Number as string (e.g., "1")
+  depositAmount: string;
+  instruments: EquipmentRentalInstrumentData[];
+  subTotal: number;
+  hst: number;
+  instrumentsTotal: number;
+}
+
+/**
+ * Create an equipment rental using the legacy API
+ */
+export async function createEquipmentRental(
+  location: string,
+  customerId: string | number,
+  rentalData: EquipmentRentalCreateData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  
+  formData.append('EquipmentRentals[userId]', rentalData.userId.toString());
+  formData.append('EquipmentRentals[customerId]', rentalData.customerName);
+  formData.append('EquipmentRentals[studentId]', rentalData.studentId.toString());
+  formData.append('EquipmentRentals[startDate]', rentalData.startDate);
+  formData.append('EquipmentRentals[isOnGoing]', rentalData.isOnGoing ? '1' : '0');
+  formData.append('EquipmentRentals[duration]', rentalData.duration.toString());
+  formData.append('EquipmentRentals[returnDate]', rentalData.returnDate);
+  
+  // Security deposit needs to be sent twice (legacy API quirk)
+  const securityDepositValue = rentalData.securityDeposit === "yes" ? "1" : "0";
+  formData.append('EquipmentRentals[securityDeposit]', securityDepositValue);
+  formData.append('EquipmentRentals[securityDeposit]', securityDepositValue);
+  
+  formData.append('EquipmentRentals[tenderType]', rentalData.tenderType || '');
+  formData.append('EquipmentRentals[depositAmount]', rentalData.depositAmount || '');
+  
+  // Add instrument data with 1-based indexing
+  rentalData.instruments.forEach((instrument, index) => {
+    const idx = (index + 1).toString();
+    formData.append(`EquipmentRentals[instruments][${idx}][value]`, instrument.instrumentId.toString());
+    formData.append(`EquipmentRentals[values][${idx}][value]`, instrument.retailValue || '');
+    formData.append(`EquipmentRentals[assets][${idx}][value]`, instrument.assetTag || '');
+    formData.append(`EquipmentRentals[prices][${idx}][value]`, instrument.monthlyRate || '0');
+    formData.append(`EquipmentRentals[durations][${idx}][value]`, instrument.numberOfMonths || '0');
+    formData.append(`EquipmentRentals[totals][${idx}][value]`, instrument.total || '0.00');
+    
+    // Calculate tax for this instrument (13% HST)
+    const instrumentTotal = parseFloat(instrument.total || '0');
+    const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+    formData.append(`EquipmentRentals[taxs][${idx}][value]`, instrumentTax);
+  });
+
+  const url = `/admin/${location}/equipment-rentals/create?id=${customerId}&isOnGoing=${rentalData.isOnGoing ? '1' : '0'}&securityDeposit=${securityDepositValue}&subTotal=${rentalData.subTotal.toFixed(2)}&hst=${rentalData.hst.toFixed(2)}&instutmentsTotal=${rentalData.instrumentsTotal.toFixed(2)}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+export interface EquipmentReturnedData {
+  userId: string | number;
+  customerName: string;
+  studentName: string; // Note: API expects student name, not ID
+  returnDate: string; // Format: "YYYY-MM-DD"
+  securityDeposit: string; // Empty string
+  tenderType: string; // Empty string
+  depositAmount: string; // "0.00"
+  instruments: Array<{
+    value?: string; // Empty string for retail value
+    asset?: string; // Empty string for asset tag
+    price: string; // Monthly rate
+    duration: string; // Number of months
+    total: string; // Total amount
+    tax: string; // Tax amount
+  }>;
+}
+
+/**
+ * Mark equipment as returned using the legacy API
+ */
+export async function equipmentReturned(
+  location: string,
+  rentalId: string | number,
+  returnDateFormatted: string, // Format: "MMM dd, yyyy" for URL
+  rentalData: EquipmentReturnedData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  
+  formData.append('EquipmentRentals[userId]', rentalData.userId.toString());
+  formData.append('EquipmentRentals[customerId]', rentalData.customerName);
+  formData.append('EquipmentRentals[studentId]', rentalData.studentName);
+  formData.append('EquipmentRentals[returnDate]', rentalData.returnDate);
+  
+  // Security deposit needs to be sent twice (legacy API quirk) - empty values
+  formData.append('EquipmentRentals[securityDeposit]', rentalData.securityDeposit);
+  formData.append('EquipmentRentals[securityDeposit]', rentalData.securityDeposit);
+  
+  formData.append('EquipmentRentals[tenderType]', rentalData.tenderType || '');
+  formData.append('EquipmentRentals[depositAmount]', rentalData.depositAmount || '0.00');
+  
+  // Add instrument data with 1-based indexing
+  rentalData.instruments.forEach((instrument, index) => {
+    const idx = (index + 1).toString();
+    formData.append(`EquipmentRentals[values][${idx}][value]`, instrument.value || '');
+    formData.append(`EquipmentRentals[assets][${idx}][value]`, instrument.asset || '');
+    formData.append(`EquipmentRentals[prices][${idx}][value]`, instrument.price || '0');
+    formData.append(`EquipmentRentals[durations][${idx}][value]`, instrument.duration || '0');
+    formData.append(`EquipmentRentals[totals][${idx}][value]`, instrument.total || '0.00');
+    formData.append(`EquipmentRentals[taxs][${idx}][value]`, instrument.tax || '0.00');
+  });
+
+  // URL encode the return date for the query parameter
+  const encodedReturnDate = encodeURIComponent(returnDateFormatted);
+  const url = `/admin/${location}/equipment-rentals/equipment-returned?id=${rentalId}&returnDate=${encodedReturnDate}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
