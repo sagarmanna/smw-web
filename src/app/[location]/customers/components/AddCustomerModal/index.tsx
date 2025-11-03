@@ -8,6 +8,7 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
+import { isDev } from "@/utils/env";
 
 interface AddCustomerModalProps {
   isOpen: boolean;
@@ -159,7 +160,11 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
         // Redirect to the customer detail page
         const customerId = response.data.data?.id;
         if (customerId) {
+          if(isDev() || location === "training-location"){
+            router.push(`customers/${customerId}`);
+          } else {
           window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${customerId}`;
+          }
           // TODO: Uncomment this when the new web is ready
           // router.push(`customers/${customerId}`);
         }

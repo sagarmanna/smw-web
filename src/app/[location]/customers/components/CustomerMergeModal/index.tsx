@@ -505,6 +505,7 @@ export function CustomerMergeModal({
                   serverSidePagination={undefined}
                   hideRecordCount={true}
                   onRowClick={(row) => handleCustomerSelect(row)}
+                  rowClassName={(row) => `cursor-pointer ${!row.isActive ? 'opacity-60 hover:opacity-80' : ''}`}
                   // rowClassName={(row: CustomerMergeData) => {
                   //   const index = filteredCustomers.indexOf(row);
                   //   return `cursor-pointer ${
