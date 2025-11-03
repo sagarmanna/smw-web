@@ -466,7 +466,7 @@ export function DetailsCard({
       >
         <div className="space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto">
           <div className="flex justify-center mb-4">
-            <div className="relative w-20 h-20">
+            {/* <div className="relative w-20 h-20">
               {picture ? (
                 <>
                   <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
@@ -492,7 +492,7 @@ export function DetailsCard({
                   <User className="w-10 h-10 text-gray-400 dark:text-gray-500" />
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -614,7 +614,7 @@ export function DetailsCard({
             )}
           </div>
 
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="picture-upload" className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Picture
             </Label>
@@ -635,7 +635,7 @@ export function DetailsCard({
                 />
               </label>
             </div>
-          </div>
+          </div> */}
         </div>
       </ReusableModal>
 

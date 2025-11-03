@@ -170,8 +170,11 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] =
     React.useState<boolean>(false);
+  const [selectedRecurringPaymentId, setSelectedRecurringPaymentId] =
+    React.useState<number | undefined>(undefined);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] =
     React.useState<boolean>(false);
+  const [selectedRentalId, setSelectedRentalId] = React.useState<number | null>(null);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
   const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
@@ -392,8 +395,41 @@ export function CustomerDetailClient({
   );
 
   // Handle adding new recurring payment
-  const handleAddRecurringPayment = () => {
+  const handleAddRecurringPayment = async () => {
     setIsRecurringPaymentModalOpen(false);
+    setSelectedRecurringPaymentId(undefined);
+    // Refresh recurring payments list
+    try {
+      const { data, pagination } = await getCustomerRecurringPayments(
+        location,
+        Number(id),
+        recurringPaymentsPagination.page,
+        recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+      );
+      setRecurringPaymentData(data || []);
+      setRecurringPaymentsPagination(pagination);
+    } catch (error) {
+      console.error('Error refreshing recurring payments:', error);
+    }
+  };
+
+  // Handle deleting recurring payment
+  const handleDeleteRecurringPayment = async () => {
+    setIsRecurringPaymentModalOpen(false);
+    setSelectedRecurringPaymentId(undefined);
+    // Refresh recurring payments list
+    try {
+      const { data, pagination } = await getCustomerRecurringPayments(
+        location,
+        Number(id),
+        recurringPaymentsPagination.page,
+        recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+      );
+      setRecurringPaymentData(data || []);
+      setRecurringPaymentsPagination(pagination);
+    } catch (error) {
+      console.error('Error refreshing recurring payments:', error);
+    }
   };
 
   // Handle adding new equipment rental
@@ -451,9 +487,14 @@ export function CustomerDetailClient({
     }
   };
 
-  // Navigate to proforma invoice page
+  // Navigate to legacy Proforma Invoice create page (new tab)
   const handleProformaInvoiceNavigate = () => {
-    router.push(`/${location}/customers/${id}/proforma-invoice`);
+    const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/create?Invoice%5Bcustomer_id%5D=${id}`;
+    if (typeof window !== "undefined") {
+      window.open(legacyUrl, "_blank", "noopener,noreferrer");
+    } else {
+      router.push(legacyUrl);
+    }
   };
 
   // Handle invoice actions
@@ -1416,6 +1457,13 @@ export function CustomerDetailClient({
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
           loading={equipmentRentalsLoading || loading}
           onAdd={() => setIsEquipmentRentalsModalOpen(true)}
+          onRowClick={(row) => {
+            const r = row as unknown as EquipmentRentalData;
+            if (r && typeof r.id === "number") {
+              setSelectedRentalId(r.id);
+              setIsEquipmentRentalsModalOpen(true);
+            }
+          }}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSorting}
@@ -1441,7 +1489,19 @@ export function CustomerDetailClient({
           data={_recurringPaymentData}
           columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
           loading={loading}
-          onAdd={() => setIsRecurringPaymentModalOpen(true)}
+          onAdd={() => {
+            setSelectedRecurringPaymentId(undefined);
+            setIsRecurringPaymentModalOpen(true);
+          }}
+          onRowClick={(row) => {
+            // Extract ID from row - check common ID field names
+            const rec = row as unknown as Record<string, unknown>;
+            const paymentId = rec["id"] ?? rec["paymentId"] ?? rec["payment_id"] ?? rec["recurringPaymentId"];
+            if (paymentId !== undefined && paymentId !== null) {
+              setSelectedRecurringPaymentId(Number(paymentId));
+              setIsRecurringPaymentModalOpen(true);
+            }
+          }}
           size={CUSTOMER_TABLE_CONFIGS.recurringPayments.size}
           variant={CUSTOMER_TABLE_CONFIGS.recurringPayments.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSorting}
@@ -2169,20 +2229,49 @@ export function CustomerDetailClient({
       {/* Recurring Payment Modal */}
       <RecurringPaymentModal
         open={isRecurringPaymentModalOpen}
-        onOpenChange={setIsRecurringPaymentModalOpen}
+        onOpenChange={(open) => {
+          setIsRecurringPaymentModalOpen(open);
+          if (!open) {
+            setSelectedRecurringPaymentId(undefined);
+          }
+        }}
         onSave={handleAddRecurringPayment}
+        onDelete={handleDeleteRecurringPayment}
         customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+          (customer &&
+            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
+          _customerInfo?.profile?.name ||
+          ""
         }
+        location={location}
+        customerId={Number(id)}
+        recurringPaymentId={selectedRecurringPaymentId}
       />
 
       {/* Equipment Rentals Modal */}
       <EquipmentRentalsModal
         open={isEquipmentRentalsModalOpen}
-        onOpenChange={setIsEquipmentRentalsModalOpen}
+        onOpenChange={(open) => {
+          setIsEquipmentRentalsModalOpen(open);
+          if (!open) setSelectedRentalId(null);
+        }}
         onSave={handleAddEquipmentRental}
         customerId={Number(id)}
         location={location}
+        rentalId={selectedRentalId ?? undefined}
+        onEquipmentReturned={(rid) => {
+          setEquipmentRentalData((prev) => prev.filter((r) => (r as EquipmentRentalData).id !== rid));
+          setEquipmentRentalsPagination((prev) => ({
+            ...prev,
+            total: Math.max((prev.total || 0) - 1, 0),
+          }));
+          setIsEquipmentRentalsModalOpen(false);
+          setSelectedRentalId(null);
+        }}
+        onReprintAgreement={(rid) => {
+          // Placeholder: integrate actual print endpoint if available
+          console.info("Reprint Agreement for rental", rid);
+        }}
       />
 
       {/* Email Statement Modal */}

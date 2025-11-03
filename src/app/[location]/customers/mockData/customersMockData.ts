@@ -15,35 +15,7 @@ export interface RecurringPaymentEnrolmentData {
 // Mock data for customer detail tabs
 export const mockCustomerTabData = {
   // Detailed rows for the standalone Proforma Invoice page
-  proformaInvoiceDetailData: [
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Oct 01, 2025", endDate: "Oct 31, 2025", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Nov 01, 2025", endDate: "Nov 30, 2025", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Dec 01, 2025", endDate: "Dec 31, 2025", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Jan 01, 2026", endDate: "Jan 31, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Feb 01, 2026", endDate: "Feb 28, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Mar 01, 2026", endDate: "Mar 31, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Apr 01, 2026", endDate: "Apr 30, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "May 01, 2026", endDate: "May 31, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Jun 01, 2026", endDate: "Jun 30, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Jul 01, 2026", endDate: "Jul 31, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Aug 01, 2026", endDate: "Aug 31, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Sep 01, 2026", endDate: "Sep 30, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Oct 01, 2026", endDate: "Oct 31, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Nov 01, 2026", endDate: "Nov 30, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Dec 01, 2026", endDate: "Dec 31, 2026", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Jan 01, 2027", endDate: "Jan 31, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Feb 01, 2027", endDate: "Feb 28, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Mar 01, 2027", endDate: "Mar 31, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Apr 01, 2027", endDate: "Apr 30, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "May 01, 2027", endDate: "May 31, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Jun 01, 2027", endDate: "Jun 30, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Jul 01, 2027", endDate: "Jul 31, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Aug 01, 2027", endDate: "Aug 31, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Sep 01, 2027", endDate: "Sep 30, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Oct 01, 2027", endDate: "Oct 31, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Nov 01, 2027", endDate: "Nov 30, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-    { student: "(AJ)stu4 (AJ)test2", program: "xPiano Contemporary", startDate: "Dec 01, 2027", endDate: "Dec 31, 2027", dueDate: "-", proFormaInvoice: "-", status: "-" },
-  ] as ProformaInvoiceDetailData[],
+  proformaInvoiceDetailData: [] as ProformaInvoiceDetailData[],
 
  
 

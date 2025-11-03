@@ -25,6 +25,7 @@ export interface OutstandingInvoiceData {
 }
 
 export interface EquipmentRentalData {
+  id?: number;
   student: string;
   startDate: string;
   returnDate: string;
@@ -35,6 +36,7 @@ export interface EquipmentRentalData {
 }
 
 export interface RecurringPaymentData {
+  id?: number;
   nextEntryDate: string;
   nextPaymentDate: string;
   frequency: string;

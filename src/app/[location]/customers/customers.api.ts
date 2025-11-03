@@ -474,7 +474,8 @@ export async function getCustomerEquipmentRentals(
     });
 
     if (response.data.success && response.data.data.body) {
-      const data = response.data.data.body.map((rental) => ({
+      const data = response.data.data.body.map(rental => ({
+        id: rental.id,
         student: rental.studentName,
         startDate: rental.startDate,
         returnDate: rental.returnDate,
@@ -570,6 +571,88 @@ export async function getCustomerRecurringPayments(
       data: [],
       pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
     };
+  }
+}
+
+export interface RecurringPaymentInfoResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: {
+      payment: {
+        customerId: number;
+        amount: number;
+        entryDay: number;
+        paymentDay: number;
+        paymentMethodId: number;
+        paymentFrequencyId: number;
+        startDate: string;
+        expiryMonth: number | null;
+        expiryYear: number | null;
+        isEnabled: boolean;
+      };
+      enrolments: Array<{
+        programName: string;
+        paymentFrequency: string;
+        studentName: string;
+        teacherName: string;
+      }>;
+      paymentMethods: Array<{
+        id: number;
+        name: string;
+      }>;
+      paymentFrequencies: Array<{
+        id: number;
+        name: string;
+      }>;
+    };
+  };
+}
+
+export interface RecurringPaymentInfoData {
+  payment: {
+    customerId: number;
+    amount: number;
+    entryDay: number;
+    paymentDay: number;
+    paymentMethodId: number;
+    paymentFrequencyId: number;
+    startDate: string;
+    expiryMonth: number | null;
+    expiryYear: number | null;
+    isEnabled: boolean;
+  };
+  enrolments: Array<{
+    programName: string;
+    paymentFrequency: string;
+    studentName: string;
+    teacherName: string;
+  }>;
+  paymentMethods: Array<{
+    id: number;
+    name: string;
+  }>;
+  paymentFrequencies: Array<{
+    id: number;
+    name: string;
+  }>;
+}
+
+export async function getCustomerRecurringPaymentInfo(
+  location: string,
+  customerId: number,
+  recurringPaymentId?: number
+): Promise<RecurringPaymentInfoData | null> {
+  try {
+    const url = recurringPaymentId
+      ? `/admin/v2/${location}/customers/${customerId}/recurring-payments/info?id=${recurringPaymentId}`
+      : `/admin/v2/${location}/customers/${customerId}/recurring-payments/info`;
+    
+    const response = await apiClient.get<RecurringPaymentInfoResponse>(url);
+    return response.data.data?.body || null;
+  } catch (error: unknown) {
+    console.error('Error fetching recurring payment info:', error);
+    return null;
   }
 }
 
