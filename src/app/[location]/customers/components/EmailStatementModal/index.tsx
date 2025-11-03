@@ -125,29 +125,90 @@ export default function EmailStatementModal({
 
   // Generate complete email HTML with introductory text AND tables
   const generateCompleteEmailHTML = () => {
-    const introText = `<p>For your convenience, please see your next billing statement below. As a reminder, payments are due the first week of the month.</p>`;
+    const introText = `<p>For your convenience, please see your next billing statement below. As a reminder, payments are due the first week of the month.</p><p>We would also like to take this opportunity to remind you that we have a number of convenient and more economical ways of making payments. These methods of payments with corresponding discounts are outlined in our Payment Method: Commitment Plan which can be found at our front desk.</p>`;
     
     const tablesHTML = generateTablesHTML();
     
-    const closingText = `<p>We would also like to take this opportunity to remind you that we have a number of convenient and more economical ways of making payments. These methods of payments with corresponding discounts are outlined in our Payment Method: Commitment Plan which can be found at our front desk.</p>`;
-    
-    return introText + tablesHTML + closingText;
+    return introText + tablesHTML;
   };
 
+  const editorTemplates = React.useMemo(() => ([
+    {
+      label: 'Image and Title',
+      description: 'One main image with a title and text that surround the image.',
+      content: `
+        <div style="font-size:14px; color:#111827; line-height:1.6;">
+          <h2 style="margin:0 0 12px 0; font-weight:700; font-size:20px;">Your Big Announcement</h2>
+          <img src="https://via.placeholder.com/800x260" alt="Banner" style="width:100%; height:auto; border:1px solid #d1d5db; border-radius:4px;" />
+          <p style="margin:12px 0 0 0;">Write a short introduction paragraph here to describe your announcement. Keep it concise and helpful.</p>
+        </div>
+      `,
+    },
+    {
+      label: 'Strange Template',
+      description: 'Two columns layout, each with a title and some text.',
+      content: `
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse; font-size:14px;">
+          <tr>
+            <td style="width:50%; vertical-align:top; padding:8px;">
+              <h3 style="margin:0 0 8px 0; font-size:16px; font-weight:600;">Left Column</h3>
+              <p style="margin:0;">This is some example text in the left column. You can replace it.</p>
+            </td>
+            <td style="width:50%; vertical-align:top; padding:8px;">
+              <h3 style="margin:0 0 8px 0; font-size:16px; font-weight:600;">Right Column</h3>
+              <p style="margin:0;">This is some example text in the right column. Add your own content here.</p>
+            </td>
+          </tr>
+        </table>
+      `,
+    },
+    {
+      label: 'Text and Table',
+      description: 'Heading with paragraph and a simple data table.',
+      content: `
+        <div style="font-size:14px; color:#111827; line-height:1.6;">
+          <h3 style="margin:0 0 8px 0; font-weight:700; font-size:18px;">Summary</h3>
+          <p style="margin:0 0 12px 0;">Below is a simple table you can edit directly in the email editor.</p>
+          <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #d1d5db;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="text-align:left; border:1px solid #d1d5db;">Item</th>
+                <th style="text-align:left; border:1px solid #d1d5db;">Qty</th>
+                <th style="text-align:right; border:1px solid #d1d5db;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border:1px solid #d1d5db;">Example A</td>
+                <td style="border:1px solid #d1d5db;">1</td>
+                <td style="border:1px solid #d1d5db; text-align:right;">$10.00</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;">Example B</td>
+                <td style="border:1px solid #d1d5db;">2</td>
+                <td style="border:1px solid #d1d5db; text-align:right;">$25.00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `,
+    },
+  ]), [privateLessonDueData, groupLessonDueData, invoiceData, totalBalance, locationName]);
+
   // Generate table HTML for email content (using real customer data)
-  const generateTablesHTML = () => {
+  function generateTablesHTML() {
     return `
 <div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px;">Private Lessons Due</h3>
-  <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
+  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
       <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Student</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Program</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Teacher</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Amount</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Balance</th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
       </tr>
     </thead>
     <tbody>
@@ -156,22 +217,22 @@ export default function EmailStatementModal({
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.student}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.program}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacher}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(lesson.amount)}</div></td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(lesson.amount)}</div></td>
       </tr>`).join('')}
     </tbody>
   </table>
 
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Group Lessons Due</h3>
-  <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
+  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
       <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Student</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Program</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Teacher</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Amount</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Balance</th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
       </tr>
     </thead>
     <tbody>
@@ -180,37 +241,37 @@ export default function EmailStatementModal({
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.student}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.program}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacher}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(lesson.amount)}</div></td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(lesson.amount)}</div></td>
       </tr>`).join('')}
     </tbody>
   </table>
 
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Invoices</h3>
-  <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
+  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
       <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Number</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Amount</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Balance</th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
       </tr>
     </thead>
     <tbody>
       ${invoiceData.map(invoice => `<tr style="border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${invoice.date}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${invoice.id}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(invoice.total)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(invoice.balance)}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(invoice.total)}</div></td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(invoice.balance)}</div></td>
       </tr>`).join('')}
     </tbody>
   </table>
 
   <div style="margin-top: 24px; padding-top: 16px; border-top: 2px solid #d1d5db;">
-    <table style="width: 100%; font-size: 14px;">
+    <table class="email-statement-total" style="width: 100%; font-size: 14px;">
       <tr>
         <td style="font-weight: bold; color: #111827; text-align: left;">Total</td>
-        <td style="font-weight: bold; color: #111827; text-align: right;">${totalBalance}</td>
+        <td style="font-weight: bold; color: #111827;"><div style="text-align: right;">${totalBalance}</div></td>
       </tr>
     </table>
   </div>
@@ -221,7 +282,7 @@ export default function EmailStatementModal({
     <p style="margin: 0;">${locationName}</p>
   </div>
 </div>`;
-  };
+  }
 
   // Handle email input
   const handleEmailInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -401,6 +462,8 @@ export default function EmailStatementModal({
               }}
               onFullscreenChange={setIsContentExpanded}
               isFullscreen={isContentExpanded}
+              templates={editorTemplates}
+              localStorageKey={`email-statement-${locationName}`}
             />
           </div>
           
@@ -470,6 +533,8 @@ export default function EmailStatementModal({
               }}
               isFullscreen={true}
               className="fullscreen"
+              templates={editorTemplates}
+              localStorageKey={`email-statement-${locationName}`}
             />
           </div>
         </div>
