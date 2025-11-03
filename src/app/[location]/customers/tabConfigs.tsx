@@ -36,6 +36,7 @@ export interface PrivateLessonData {
   status: string;
   price: number;
   owing: number;
+  url?: string;
 }
 
 export interface GroupLessonData {
@@ -47,6 +48,7 @@ export interface GroupLessonData {
   status: string;
   price: number;
   owing: number;
+  url?: string;
 }
 
 export interface ProformaInvoiceData {
@@ -85,13 +87,11 @@ export interface HistoryData {
 // Column definitions
 export const studentColumns: ColumnDef<StudentData>[] = [
   { accessorKey: "fullName", header: "Name" },
-  { 
-    accessorKey: "birthDate", 
+  {
+    accessorKey: "birthDate",
     header: "Birth Date",
     cell: ({ row }) => (
-      <span className=" font-medium">
-        {row.getValue("birthDate")}
-      </span>
+      <span className=" font-medium">{row.getValue("birthDate")}</span>
     ),
   },
   { accessorKey: "customerName", header: "Customer Name" },
@@ -119,14 +119,18 @@ export const privateLessonColumns: ColumnDef<PrivateLessonData>[] = [
     accessorKey: "price",
     header: "Price",
     cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("price") as number)}</div>
+      <div className="text-right">
+        {formatCurrency(row.getValue("price") as number)}
+      </div>
     ),
   },
   {
     accessorKey: "owing",
     header: "Owing",
     cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("owing") as number)}</div>
+      <div className="text-right">
+        {formatCurrency(row.getValue("owing") as number)}
+      </div>
     ),
   },
 ];
@@ -142,14 +146,18 @@ export const groupLessonColumns: ColumnDef<GroupLessonData>[] = [
     accessorKey: "price",
     header: "Price",
     cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("price") as number)}</div>
+      <div className="text-right">
+        {formatCurrency(row.getValue("price") as number)}
+      </div>
     ),
   },
   {
     accessorKey: "owing",
     header: "Owing",
     cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("owing") as number)}</div>
+      <div className="text-right">
+        {formatCurrency(row.getValue("owing") as number)}
+      </div>
     ),
   },
 ];
@@ -163,30 +171,36 @@ export const proformaInvoiceColumns: ColumnDef<ProformaInvoiceData>[] = [
     accessorKey: "total",
     header: "Total",
     cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("total") as number)}</div>
+      <div className="text-right">
+        {formatCurrency(row.getValue("total") as number)}
+      </div>
     ),
   },
 ];
 
 // Columns for the standalone detailed page
-export const proformaInvoiceDetailColumns: ColumnDef<ProformaInvoiceDetailData>[] = [
-  { accessorKey: "student", header: "Student" },
-  { accessorKey: "program", header: "Program" },
-  {
-    accessorKey: "startDate",
-    header: "Start Date",
-    cell: ({ row }) => {return row.getValue("startDate")}
-    
-  },
-  {
-    accessorKey: "endDate",
-    header: "End Date",
-    cell: ({ row }) => {return row.getValue("endDate")}
-  },
-  { accessorKey: "dueDate", header: "Due Date" },
-  { accessorKey: "proFormaInvoice", header: "Pro-Forma Invoice" },
-  { accessorKey: "status", header: "Status" },
-];
+export const proformaInvoiceDetailColumns: ColumnDef<ProformaInvoiceDetailData>[] =
+  [
+    { accessorKey: "student", header: "Student" },
+    { accessorKey: "program", header: "Program" },
+    {
+      accessorKey: "startDate",
+      header: "Start Date",
+      cell: ({ row }) => {
+        return row.getValue("startDate");
+      },
+    },
+    {
+      accessorKey: "endDate",
+      header: "End Date",
+      cell: ({ row }) => {
+        return row.getValue("endDate");
+      },
+    },
+    { accessorKey: "dueDate", header: "Due Date" },
+    { accessorKey: "proFormaInvoice", header: "Pro-Forma Invoice" },
+    { accessorKey: "status", header: "Status" },
+  ];
 
 export const commentColumns: ColumnDef<CommentData>[] = [
   { accessorKey: "createdOn", header: "Created On" },
@@ -203,25 +217,33 @@ export const historyColumns: ColumnDef<HistoryData>[] = [
       const created = item.createdOn ? `On ${item.createdOn}, ` : "";
       // The API may include HTML links inside `message`; render safely and ensure links open in a new tab
       const combined = `${created}${item.message}`;
-      let styled = combined.replace(/<a\b([^>]*)>/g, (_match, attrs: string) => {
-        let newAttrs = attrs || "";
-        if (!/target=/.test(newAttrs)) {
-          newAttrs += ' target="_blank" rel="noopener noreferrer"';
+      let styled = combined.replace(
+        /<a\b([^>]*)>/g,
+        (_match, attrs: string) => {
+          let newAttrs = attrs || "";
+          if (!/target=/.test(newAttrs)) {
+            newAttrs += ' target="_blank" rel="noopener noreferrer"';
+          }
+          const linkClasses = "text-blue-600 hover:text-blue-800 font-medium";
+          if (/class=/.test(newAttrs)) {
+            newAttrs = newAttrs.replace(
+              /class=\"([^\"]*)\"/,
+              (_m, cls: string) => `class=\"${cls} ${linkClasses}\"`
+            );
+          } else {
+            newAttrs += ` class=\"${linkClasses}\"`;
+          }
+          return `<a${newAttrs}>`;
         }
-        const linkClasses = 'text-blue-600 hover:text-blue-800 font-medium';
-        if (/class=/.test(newAttrs)) {
-          newAttrs = newAttrs.replace(/class=\"([^\"]*)\"/, (_m, cls: string) => `class=\"${cls} ${linkClasses}\"`);
-        } else {
-          newAttrs += ` class=\"${linkClasses}\"`;
-        }
-        return `<a${newAttrs}>`;
-      });
+      );
       // Make placeholders like {{customerName}} clickable
       styled = styled.replace(/\{\{([^}]+)\}\}/g, (_m, name: string) => {
-        const safeName = name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         return `<a href="#" data-customer-name="${safeName}" class=\"text-blue-600 hover:text-blue-800 font-medium underline\">${safeName}</a>`;
       });
-      return <div className="text-sm" dangerouslySetInnerHTML={{ __html: styled }} />;
+      return (
+        <div className="text-sm" dangerouslySetInnerHTML={{ __html: styled }} />
+      );
     },
   },
 ];
