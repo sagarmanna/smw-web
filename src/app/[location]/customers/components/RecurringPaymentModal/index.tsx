@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,20 @@ import { CustomTable } from "@/components/CustomTable";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
-import { mockCustomerTabData, RecurringPaymentEnrolmentData } from "../../mockData/customersMockData";
+import { getCustomerRecurringPaymentInfo, RecurringPaymentInfoData } from "../../customers.api";
+import { createRecurringPayment, RecurringPaymentCreateData } from "@/lib/api/legacyApiAdapter";
 
 // Data interfaces
-type EnrolmentData = RecurringPaymentEnrolmentData;
+interface EnrolmentData {
+  id: string;
+  program: string;
+  paymentFrequency: string;
+  student: string;
+  teacher: string;
+  selected: boolean;
+}
 
 interface RecurringPaymentFormData {
   customer: string;
@@ -36,6 +44,8 @@ interface RecurringPaymentModalProps {
   onOpenChange: (open: boolean) => void;
   onSave?: (data: RecurringPaymentFormData & { selectedEnrolments: string[] }) => void;
   customerName?: string;
+  location?: string;
+  customerId?: number;
 }
 
 
@@ -45,22 +55,85 @@ export function RecurringPaymentModal({
   open,
   onOpenChange,
   onSave,
-  customerName = "123 123",
+  customerName = "",
+  location,
+  customerId,
 }: RecurringPaymentModalProps) {
   const [formData, setFormData] = useState<RecurringPaymentFormData>({
     customer: customerName,
     onThe: "1",
     every: "Monthly",
-    asOf: new Date(2025, 9, 15), // Oct 15, 2025
-    via: "Visa",
+    asOf: undefined,
+    via: "",
     untilMonth: "",
     untilYear: "",
-    amount: "115",
+    amount: "",
     enabled: true,
   });
 
-  const [enrolments, setEnrolments] = useState<EnrolmentData[]>(mockCustomerTabData.recurringPaymentEnrolments);
+  const [enrolments, setEnrolments] = useState<EnrolmentData[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: number; name: string }>>([]);
+  const [paymentFrequencies, setPaymentFrequencies] = useState<Array<{ id: number; name: string }>>([]);
+
+  // Fetch data when modal opens
+  useEffect(() => {
+    const fetchRecurringPaymentInfo = async () => {
+      if (!open || !location || !customerId) return;
+      
+      setLoading(true);
+      try {
+        const data = await getCustomerRecurringPaymentInfo(location, customerId);
+        if (data) {
+          // Map payment data to form
+          const payment = data.payment;
+          
+          // Parse startDate (format: "Nov 03, 2025")
+          let parsedDate: Date | undefined;
+          try {
+            parsedDate = parse(payment.startDate, "MMM dd, yyyy", new Date());
+          } catch {
+            parsedDate = undefined;
+          }
+
+          setFormData({
+            customer: customerName || "",
+            onThe: payment.entryDay.toString(),
+            every: data.paymentFrequencies.find(f => f.id === payment.paymentFrequencyId)?.name || "",
+            asOf: parsedDate,
+            via: data.paymentMethods.find(m => m.id === payment.paymentMethodId)?.name || "",
+            untilMonth: payment.expiryMonth ? payment.expiryMonth.toString().padStart(2, '0') : "",
+            untilYear: payment.expiryYear ? payment.expiryYear.toString() : "",
+            amount: payment.amount.toString(),
+            enabled: payment.isEnabled,
+          });
+
+          // Map enrolments
+          const mappedEnrolments: EnrolmentData[] = data.enrolments.map((enrolment, index) => ({
+            id: `enrolment-${index}`,
+            program: enrolment.programName,
+            paymentFrequency: enrolment.paymentFrequency || "",
+            student: enrolment.studentName,
+            teacher: enrolment.teacherName,
+            selected: false,
+          }));
+          setEnrolments(mappedEnrolments);
+
+          // Set payment methods and frequencies
+          setPaymentMethods(data.paymentMethods);
+          setPaymentFrequencies(data.paymentFrequencies);
+        }
+      } catch (error) {
+        console.error("Error fetching recurring payment info:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecurringPaymentInfo();
+  }, [open, location, customerId, customerName]);
 
   // Table columns for enrolments - created inside component to access state
   const enrolmentColumns: ColumnDef<EnrolmentData>[] = [
@@ -136,16 +209,70 @@ export function RecurringPaymentModal({
     );
   };
 
-  const handleSave = () => {
-    const selectedEnrolmentIds = enrolments
-      .filter(enrolment => enrolment.selected)
-      .map(enrolment => enrolment.id);
-    
-    onSave?.({
-      ...formData,
-      selectedEnrolments: selectedEnrolmentIds,
-    });
-    onOpenChange(false);
+  const handleSave = async () => {
+    if (!location || !customerId) {
+      console.error('Location or customerId is missing');
+      return;
+    }
+
+    // Find payment method and frequency IDs from their names
+    const paymentMethod = paymentMethods.find(m => m.name === formData.via);
+    const paymentFrequency = paymentFrequencies.find(f => f.name === formData.every);
+
+    if (!paymentMethod || !paymentFrequency) {
+      console.error('Payment method or frequency not found');
+      return;
+    }
+
+    // Format startDate (asOf) to match API format: "Nov 03, 2025"
+    const formattedStartDate = formData.asOf 
+      ? format(formData.asOf, "MMM dd, yyyy")
+      : "";
+
+    if (!formattedStartDate) {
+      console.error('Start date is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const paymentData: RecurringPaymentCreateData = {
+        customerId: customerId,
+        startDate: formattedStartDate,
+        paymentDay: parseInt(formData.onThe, 10),
+        paymentFrequencyId: paymentFrequency.id,
+        paymentMethodId: paymentMethod.id,
+        expiryMonth: formData.untilMonth || undefined,
+        expiryYear: formData.untilYear || undefined,
+        amount: parseFloat(formData.amount) || 0,
+        isRecurringPaymentEnabled: formData.enabled,
+      };
+
+      const response = await createRecurringPayment(location, customerId, paymentData);
+
+      if (response.status) {
+        // Success - call the onSave callback if provided
+        const selectedEnrolmentIds = enrolments
+          .filter(enrolment => enrolment.selected)
+          .map(enrolment => enrolment.id);
+        
+        onSave?.({
+          ...formData,
+          selectedEnrolments: selectedEnrolmentIds,
+        });
+        
+        onOpenChange(false);
+      } else {
+        // Handle error from API
+        console.error('Failed to create recurring payment:', response.message || 'Unknown error');
+        alert(response.message || 'Failed to create recurring payment');
+      }
+    } catch (error) {
+      console.error('Error creating recurring payment:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create recurring payment');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -170,6 +297,12 @@ export function RecurringPaymentModal({
             </p>
           </div>
 
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            </div>
+          ) : (
+            <>
           {/* Form Fields */}
           <div className="space-y-4">
             {/* Row 1: Customer, On The, Every */}
@@ -177,17 +310,13 @@ export function RecurringPaymentModal({
               {/* Customer */}
               <div className="space-y-2">
                 <Label htmlFor="customer" className="font-semibold">Customer</Label>
-                <Select
+                <Input
+                  id="customer"
                   value={formData.customer}
-                  onValueChange={(value) => handleInputChange("customer", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="123 123">123 123</SelectItem>
-                  </SelectContent>
-                </Select>
+                  readOnly
+                  disabled
+                  className="bg-muted"
+                />
               </div>
 
               {/* On The */}
@@ -216,24 +345,18 @@ export function RecurringPaymentModal({
                 <Select
                   value={formData.every}
                   onValueChange={(value) => handleInputChange("every", value)}
+                  disabled={loading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select frequency" />
+                    <SelectValue placeholder={loading ? "Loading..." : "Select frequency"} />
                   </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Monthly">Monthly</SelectItem>
-                  <SelectItem value="Bi-Monthly">Bi-Monthly</SelectItem>
-                  <SelectItem value="Quarterly">Quarterly</SelectItem>
-                  <SelectItem value="Every 4 Months">Every 4 Months</SelectItem>
-                  <SelectItem value="Every 5 Months">Every 5 Months</SelectItem>
-                  <SelectItem value="Semi-Annually">Semi-Annually</SelectItem>
-                  <SelectItem value="Every 7 Months">Every 7 Months</SelectItem>
-                  <SelectItem value="Every 8 Months">Every 8 Months</SelectItem>
-                  <SelectItem value="Every 9 Months">Every 9 Months</SelectItem>
-                  <SelectItem value="Every 10 Months">Every 10 Months</SelectItem>
-                  <SelectItem value="Every 11 Months">Every 11 Months</SelectItem>
-                  <SelectItem value="Annually">Annually</SelectItem>
-                </SelectContent>
+                  <SelectContent>
+                    {paymentFrequencies.map((frequency) => (
+                      <SelectItem key={frequency.id} value={frequency.name}>
+                        {frequency.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -278,20 +401,17 @@ export function RecurringPaymentModal({
                 <Select
                   value={formData.via}
                   onValueChange={(value) => handleInputChange("via", value)}
+                  disabled={loading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
+                    <SelectValue placeholder={loading ? "Loading..." : "Select payment method"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Cash">Cash</SelectItem>
-                    <SelectItem value="Cheque">Cheque</SelectItem>
-                    <SelectItem value="Debit">Debit</SelectItem>
-                    <SelectItem value="Visa">Visa</SelectItem>
-                    <SelectItem value="Mastercard">Mastercard</SelectItem>
-                    <SelectItem value="Amex">Amex</SelectItem>
-                    <SelectItem value="Gift Card">Gift Card</SelectItem>
-                    <SelectItem value="E-Transfer">E-Transfer</SelectItem>
-                    <SelectItem value="Guitar Core">Guitar Core</SelectItem>
+                    {paymentMethods.map((method) => (
+                      <SelectItem key={method.id} value={method.name}>
+                        {method.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -364,26 +484,34 @@ export function RecurringPaymentModal({
           {/* Enrolments Table */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">To Be Applied Towards The Following Enrolments</h3>
-            <CustomTable
-              data={enrolments}
-              columns={enrolmentColumns}
-              size="compact"
-              enableSorting={false}
-              enableSearch={false}
-              enableExport={false}
-              enableFilter={false}
-              enablePrint={false}
-              enableRowsPerPage={false}
-            />
+            {enrolments.length > 0 ? (
+              <CustomTable
+                data={enrolments}
+                columns={enrolmentColumns}
+                size="compact"
+                enableSorting={false}
+                enableSearch={false}
+                enableExport={false}
+                enableFilter={false}
+                enablePrint={false}
+                enableRowsPerPage={false}
+              />
+            ) : (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                No enrolment Available!
+              </div>
+            )}
           </div>
+          </>
+          )}
         </div>
 
         <DialogFooter className="flex justify-end gap-2 p-4 pt-3 border-t bg-background">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            Save
+          <Button onClick={handleSave} disabled={saving || loading}>
+            {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

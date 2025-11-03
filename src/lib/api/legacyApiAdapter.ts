@@ -272,3 +272,66 @@ export async function mergeCustomer(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+export interface RecurringPaymentCreateData {
+  customerId: number;
+  startDate: string; // Format: MMM dd, yyyy (e.g., "Nov 03, 2025")
+  paymentDay: number;
+  paymentFrequencyId: number;
+  paymentMethodId: number;
+  expiryMonth?: string; // Optional, can be empty
+  expiryYear?: string; // Optional, can be empty
+  amount: number;
+  isRecurringPaymentEnabled: boolean;
+}
+
+/**
+ * Create a recurring payment using the legacy API
+ */
+export async function createRecurringPayment(
+  location: string,
+  customerId: string | number,
+  paymentData: RecurringPaymentCreateData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  formData.append('CustomerRecurringPayment[customerId]', paymentData.customerId.toString());
+  formData.append('CustomerRecurringPayment[startDate]', paymentData.startDate);
+  formData.append('CustomerRecurringPayment[paymentDay]', paymentData.paymentDay.toString());
+  formData.append('CustomerRecurringPayment[paymentFrequencyId]', paymentData.paymentFrequencyId.toString());
+  formData.append('CustomerRecurringPayment[paymentMethodId]', paymentData.paymentMethodId.toString());
+  
+  // Expiry month and year - append even if empty
+  formData.append('CustomerRecurringPayment[expiryMonth]', paymentData.expiryMonth || '');
+  formData.append('CustomerRecurringPayment[expiryYear]', paymentData.expiryYear || '');
+  
+  formData.append('CustomerRecurringPayment[amount]', paymentData.amount.toString());
+  
+  // isRecurringPaymentEnabled needs to be sent twice:
+  // First as '0', then as the actual value ('1' if enabled, '0' if not)
+  // This is a quirk of the legacy API
+  formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', '0');
+  formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', paymentData.isRecurringPaymentEnabled ? '1' : '0');
+
+  const url = `/admin/${location}/customer-recurring-payment/create?id=${customerId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}

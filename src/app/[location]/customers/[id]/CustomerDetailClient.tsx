@@ -2149,8 +2149,13 @@ export function CustomerDetailClient({
         onOpenChange={setIsRecurringPaymentModalOpen}
         onSave={handleAddRecurringPayment}
         customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+          (customer &&
+            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
+          _customerInfo?.profile?.name ||
+          ""
         }
+        location={location}
+        customerId={Number(id)}
       />
 
       {/* Equipment Rentals Modal */}

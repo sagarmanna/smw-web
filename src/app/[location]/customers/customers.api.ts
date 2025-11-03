@@ -549,6 +549,85 @@ export async function getCustomerRecurringPayments(
   }
 }
 
+export interface RecurringPaymentInfoResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: {
+      payment: {
+        customerId: number;
+        amount: number;
+        entryDay: number;
+        paymentDay: number;
+        paymentMethodId: number;
+        paymentFrequencyId: number;
+        startDate: string;
+        expiryMonth: number | null;
+        expiryYear: number | null;
+        isEnabled: boolean;
+      };
+      enrolments: Array<{
+        programName: string;
+        paymentFrequency: string;
+        studentName: string;
+        teacherName: string;
+      }>;
+      paymentMethods: Array<{
+        id: number;
+        name: string;
+      }>;
+      paymentFrequencies: Array<{
+        id: number;
+        name: string;
+      }>;
+    };
+  };
+}
+
+export interface RecurringPaymentInfoData {
+  payment: {
+    customerId: number;
+    amount: number;
+    entryDay: number;
+    paymentDay: number;
+    paymentMethodId: number;
+    paymentFrequencyId: number;
+    startDate: string;
+    expiryMonth: number | null;
+    expiryYear: number | null;
+    isEnabled: boolean;
+  };
+  enrolments: Array<{
+    programName: string;
+    paymentFrequency: string;
+    studentName: string;
+    teacherName: string;
+  }>;
+  paymentMethods: Array<{
+    id: number;
+    name: string;
+  }>;
+  paymentFrequencies: Array<{
+    id: number;
+    name: string;
+  }>;
+}
+
+export async function getCustomerRecurringPaymentInfo(
+  location: string,
+  customerId: number
+): Promise<RecurringPaymentInfoData | null> {
+  try {
+    const response = await apiClient.get<RecurringPaymentInfoResponse>(
+      `/admin/v2/${location}/customers/${customerId}/recurring-payments/info`
+    );
+    return response.data.data?.body || null;
+  } catch (error: unknown) {
+    console.error('Error fetching recurring payment info:', error);
+    return null;
+  }
+}
+
 export interface PrivateLessonDuesResponse {
   success: boolean;
   message?: string;
