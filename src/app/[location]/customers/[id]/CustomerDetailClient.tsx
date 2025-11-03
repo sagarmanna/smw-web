@@ -176,7 +176,7 @@ export function CustomerDetailClient({
     React.useState<boolean>(false);
   const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
     React.useState<boolean>(false);
-    const [selectedPayment, setSelectedPayment] =
+  const [selectedPayment, setSelectedPayment] =
     React.useState<PaymentData | null>(null);
   const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<
     number | null
@@ -211,34 +211,38 @@ export function CustomerDetailClient({
       setStudentsError(null);
 
       // Call legacy API to create student
-      const response = await createStudent(
-        location,
-        Number(id),
-        {
-          firstName: studentData.firstName || '',
-          lastName: studentData.lastName || '',
-          customerId: Number(id),
-          birthDate: studentData.birthDate || '',
-          gender: (studentData.gender as "not-specified" | "male" | "female") || "not-specified",
-        }
-      );
+      const response = await createStudent(location, Number(id), {
+        firstName: studentData.firstName || "",
+        lastName: studentData.lastName || "",
+        customerId: Number(id),
+        birthDate: studentData.birthDate || "",
+        gender:
+          (studentData.gender as "not-specified" | "male" | "female") ||
+          "not-specified",
+      });
 
       if (response.status) {
         // Success: reload students from API to get the newly created student with proper data
-        const { data: students, pagination: sPag } =
-          await getCustomerStudents(location, Number(id), studentsPagination.page, studentsPagination.limit);
+        const { data: students, pagination: sPag } = await getCustomerStudents(
+          location,
+          Number(id),
+          studentsPagination.page,
+          studentsPagination.limit
+        );
         setStudentData(students);
         setStudentsPagination(sPag);
       } else {
         // API returned an error
-        const errorMessage = response.errors?.join(', ') || 'Failed to create student';
+        const errorMessage =
+          response.errors?.join(", ") || "Failed to create student";
         setStudentsError(errorMessage);
-        console.error('Error creating student:', errorMessage);
+        console.error("Error creating student:", errorMessage);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create student';
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create student";
       setStudentsError(errorMessage);
-      console.error('Error creating student:', error);
+      console.error("Error creating student:", error);
     } finally {
       setStudentsLoading(false);
     }
@@ -434,12 +438,14 @@ export function CustomerDetailClient({
         setCommentInput(""); // Clear input
       } else {
         // API returned an error
-        const errorMessage = response.errors?.join(', ') || 'Failed to create comment';
-        console.error('Error creating comment:', errorMessage);
+        const errorMessage =
+          response.errors?.join(", ") || "Failed to create comment";
+        console.error("Error creating comment:", errorMessage);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create comment';
-      console.error('Error creating comment:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create comment";
+      console.error("Error creating comment:", error);
     } finally {
       setCommentLoading(false);
     }
@@ -1272,7 +1278,9 @@ export function CustomerDetailClient({
             onPrintInvoice={handlePrintInvoice}
             location={location}
             customerId={id}
-            customerName={`${localFirstName || ''}${localLastName ? ` ${localLastName}` : ''}`}
+            customerName={`${localFirstName || ""}${
+              localLastName ? ` ${localLastName}` : ""
+            }`}
           />
 
           {/* Outstanding Invoices */}
@@ -1622,12 +1630,17 @@ export function CustomerDetailClient({
             const pid = rec["paymentId"] ?? rec["id"] ?? rec["payment_id"];
             if (pid !== undefined && pid !== null) {
               try {
-                const detail = await getCustomerPaymentById(location, Number(id), String(pid));
+                const detail = await getCustomerPaymentById(
+                  location,
+                  Number(id),
+                  String(pid)
+                );
                 if (detail) {
                   setSelectedPayment(detail);
                   const idx = paymentData.findIndex((p) => {
                     const anyP = p as unknown as Record<string, unknown>;
-                    const pId = anyP["paymentId"] ?? anyP["id"] ?? anyP["payment_id"];
+                    const pId =
+                      anyP["paymentId"] ?? anyP["id"] ?? anyP["payment_id"];
                     return pId !== undefined && String(pId) === String(pid);
                   });
                   setSelectedPaymentIndex(idx >= 0 ? idx : null);
@@ -1749,7 +1762,11 @@ export function CustomerDetailClient({
                     value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && commentInput.trim() && !commentLoading) {
+                      if (
+                        e.key === "Enter" &&
+                        commentInput.trim() &&
+                        !commentLoading
+                      ) {
                         handleAddComment();
                       }
                     }}
@@ -2119,7 +2136,10 @@ export function CustomerDetailClient({
         onOpenChange={setIsAddStudentModalOpen}
         onSave={handleAddStudent}
         customerName={
-          (customer && `${customer.firstName || ''} ${customer.lastName || ''}`.trim()) || _customerInfo?.profile?.name || ''
+          (customer &&
+            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
+          _customerInfo?.profile?.name ||
+          ""
         }
       />
 
@@ -2138,10 +2158,8 @@ export function CustomerDetailClient({
         open={isEquipmentRentalsModalOpen}
         onOpenChange={setIsEquipmentRentalsModalOpen}
         onSave={handleAddEquipmentRental}
-        customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
-        }
-        customerEmail={customer?.email}
+        customerId={Number(id)}
+        location={location}
       />
 
       {/* Email Statement Modal */}
@@ -2178,42 +2196,77 @@ export function CustomerDetailClient({
         open={isPaymentReceiptModalOpen}
         onOpenChange={setIsPaymentReceiptModalOpen}
         payment={selectedPayment || undefined}
-        customerName={(customer && `${customer.firstName || ''} ${customer.lastName || ''}`.trim()) || _customerInfo?.profile?.name || emails[0]?.email || 'Customer'}
+        customerName={
+          (customer &&
+            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
+          _customerInfo?.profile?.name ||
+          emails[0]?.email ||
+          "Customer"
+        }
         customerEmail={emails[0]?.email}
         customerEmails={emails.map((e) => e.email)}
         customerPhone={phones[0]?.number}
-        privateLessonDue={privateLessonDueData as unknown as Array<{ lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string; }>}
+        privateLessonDue={
+          privateLessonDueData as unknown as Array<{
+            lessonDate: string;
+            studentName: string;
+            programName: string;
+            teacherName: string;
+            amount: number | string;
+          }>
+        }
         groupLessonDueData={groupLessonDueData}
         invoiceData={invoiceData}
         totalBalance={summaryData.balance}
         locationName="Arcadia Academy of Music"
         onEdit={(data) => {
           if (selectedPaymentIndex === null) return;
-          const parseNum = (v: unknown) => typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v.replace(/[^0-9.-]+/g, '')) : 0;
-          setPaymentData((prev) => prev.map((p, i) => {
-            if (i !== selectedPaymentIndex) return p;
-            const usedNum = parseNum(p.used);
-            const newAmount = data.amountReceived;
-            const newRemaining = Math.max(0, newAmount - usedNum);
-            return {
-              ...p,
-              date: data.date || p.date,
-              notes: data.method || p.notes,
-              amount: newAmount,
-              remaining: newRemaining,
-            };
-          }));
+          const parseNum = (v: unknown) =>
+            typeof v === "number"
+              ? v
+              : typeof v === "string"
+              ? parseFloat(v.replace(/[^0-9.-]+/g, ""))
+              : 0;
+          setPaymentData((prev) =>
+            prev.map((p, i) => {
+              if (i !== selectedPaymentIndex) return p;
+              const usedNum = parseNum(p.used);
+              const newAmount = data.amountReceived;
+              const newRemaining = Math.max(0, newAmount - usedNum);
+              return {
+                ...p,
+                date: data.date || p.date,
+                notes: data.method || p.notes,
+                amount: newAmount,
+                remaining: newRemaining,
+              };
+            })
+          );
           setSelectedPayment((prev) => {
             if (!prev) return prev;
-            const usedNum = typeof prev.used === 'number' ? prev.used : parseFloat(String(prev.used).replace(/[^0-9.-]+/g, '')) || 0;
+            const usedNum =
+              typeof prev.used === "number"
+                ? prev.used
+                : parseFloat(String(prev.used).replace(/[^0-9.-]+/g, "")) || 0;
             const newRemaining = Math.max(0, data.amountReceived - usedNum);
-            return { ...prev, date: data.date || prev.date, notes: data.method || prev.notes, amount: data.amountReceived, remaining: newRemaining };
+            return {
+              ...prev,
+              date: data.date || prev.date,
+              notes: data.method || prev.notes,
+              amount: data.amountReceived,
+              remaining: newRemaining,
+            };
           });
         }}
         onDelete={() => {
           if (selectedPaymentIndex === null) return;
-          setPaymentData((prev) => prev.filter((_, i) => i !== selectedPaymentIndex));
-          setPaymentsPagination((prev) => ({ ...prev, total: Math.max((prev.total || 0) - 1, 0) }));
+          setPaymentData((prev) =>
+            prev.filter((_, i) => i !== selectedPaymentIndex)
+          );
+          setPaymentsPagination((prev) => ({
+            ...prev,
+            total: Math.max((prev.total || 0) - 1, 0),
+          }));
           setSelectedPayment(null);
           setSelectedPaymentIndex(null);
         }}
