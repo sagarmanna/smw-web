@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ReusableModal } from "@/components/TablesModals";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowUpDown } from "lucide-react";
 import {
   getCustomersForMerge,
   getMergePreview,
@@ -11,7 +10,7 @@ import {
 } from "./customer-merge.api";
 import { mergeCustomer } from "@/lib/api/legacyApiAdapter";
 import { CustomTable } from "@/components/CustomTable";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
 
 interface CustomerMergeModalProps {
   isOpen: boolean;
@@ -40,6 +39,12 @@ export function CustomerMergeModal({
 
   // Column filter state for individual column filters
   const [columnFilters, setColumnFilters] = useState<Record<string, unknown>>({});
+  
+  // Store the last lastName query used for API call
+  const [lastNameApiQuery, setLastNameApiQuery] = useState<string>("");
+
+  // Add sorting state
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   // Fetch customers when modal opens
   useEffect(() => {
@@ -51,6 +56,8 @@ export function CustomerMergeModal({
       setShowPreview(false);
       setPreviewData(null);
       setColumnFilters({});
+      setLastNameApiQuery("");
+      setSorting([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -65,6 +72,7 @@ export function CustomerMergeModal({
       );
       if (response?.success && response.data?.body) {
         setCustomers(response.data.body);
+        setLastNameApiQuery(lastNameQuery || "");
       } else {
         toast.error("Failed to load customers");
       }
@@ -99,10 +107,11 @@ export function CustomerMergeModal({
     }
   };
 
-  // Filter customers based on all search terms
+  // Filter and sort customers based on all search terms and sorting
   const filteredCustomers = useMemo(() => {
-    return customers.filter((customer) => {
+    let filtered = customers.filter((customer) => {
       const firstNameFilter = columnFilters.firstName as string;
+      const lastNameFilter = columnFilters.lastName as string;
       const emailFilter = columnFilters.email as string;
       const phoneFilter = columnFilters.phoneNumber as string;
 
@@ -111,16 +120,39 @@ export function CustomerMergeModal({
         customer.firstName
           ?.toLowerCase()
           .includes(firstNameFilter.toLowerCase());
+      
+      // Client-side lastName filter (in addition to API filter)
+      const matchesLastName =
+        !lastNameFilter?.trim() ||
+        customer.lastName
+          ?.toLowerCase()
+          .includes(lastNameFilter.toLowerCase());
+      
       const matchesEmail =
         !emailFilter?.trim() ||
         customer.email?.toLowerCase().includes(emailFilter.toLowerCase());
+      
       const matchesPhone =
         !phoneFilter?.trim() ||
         customer.phoneNumber?.toLowerCase().includes(phoneFilter.toLowerCase());
 
-      return matchesFirstName && matchesEmail && matchesPhone;
+      return matchesFirstName && matchesLastName && matchesEmail && matchesPhone;
     });
-  }, [customers, columnFilters]);
+
+    // Apply sorting
+    if (sorting.length > 0) {
+      const sort = sorting[0];
+      filtered = [...filtered].sort((a, b) => {
+        const aValue = a[sort.id as keyof CustomerMergeData] || "";
+        const bValue = b[sort.id as keyof CustomerMergeData] || "";
+        
+        const comparison = String(aValue).localeCompare(String(bValue));
+        return sort.desc ? -comparison : comparison;
+      });
+    }
+
+    return filtered;
+  }, [customers, columnFilters, sorting]);
 
   const handleCustomerSelect = (customer: CustomerMergeData) => {
     setSelectedCustomer(customer);
@@ -151,13 +183,18 @@ export function CustomerMergeModal({
     (columnKey: string) => {
       // Trigger API call when Enter is pressed in lastName input
       if (columnKey === "lastName") {
-        const value = columnFilters.lastName as string;
-        if (value?.trim().length >= 2 || value?.trim().length === 0) {
-          fetchCustomers(value?.trim() || undefined);
+        const value = (columnFilters.lastName as string) || "";
+        const trimmedValue = value.trim();
+        
+        // Only call API if value changed and meets length requirement
+        if (trimmedValue !== lastNameApiQuery && 
+            (trimmedValue.length >= 2 || trimmedValue.length === 0)) {
+          fetchCustomers(trimmedValue || undefined);
         }
       }
     },
-    [columnFilters]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [columnFilters, lastNameApiQuery]
   );
 
   const handleConfirmMerge = async () => {
@@ -245,6 +282,7 @@ export function CustomerMergeModal({
         cell: ({ row }) => (
           <span className="text-sm">{row.original.firstName}</span>
         ),
+        enableSorting: false,
         filter: {
           type: "string",
         },
@@ -253,15 +291,15 @@ export function CustomerMergeModal({
         accessorKey: "lastName",
         header: () => (
           <div className="space-y-2 min-w-[120px]">
-            <span className="text-gray-600 dark:text-gray-400 font-semibold flex items-center gap-1">
+            <span className="text-gray-600 dark:text-gray-400 font-semibold block">
               Last Name
-              <ArrowUpDown className="h-4 w-4 text-blue-500" />
             </span>
           </div>
         ),
         cell: ({ row }) => (
           <span className="text-sm">{row.original.lastName}</span>
         ),
+        enableSorting: true,
         filter: {
           type: "string",
         },
@@ -283,6 +321,7 @@ export function CustomerMergeModal({
             {row.original.email}
           </span>
         ),
+        enableSorting: false,
         filter: {
           type: "string",
         },
@@ -299,6 +338,7 @@ export function CustomerMergeModal({
         cell: ({ row }) => (
           <span className="text-sm">{row.original.phoneNumber || "-"}</span>
         ),
+        enableSorting: false,
         filter: {
           type: "string",
         },
@@ -502,20 +542,12 @@ export function CustomerMergeModal({
                   }}
                   enableExport={false}
                   manualSorting={false}
+                  sorting={sorting}
+                  onSortingChange={setSorting}
                   serverSidePagination={undefined}
                   hideRecordCount={true}
                   onRowClick={(row) => handleCustomerSelect(row)}
                   rowClassName={(row) => `cursor-pointer ${!row.isActive ? 'opacity-60 hover:opacity-80' : ''}`}
-                  // rowClassName={(row: CustomerMergeData) => {
-                  //   const index = filteredCustomers.indexOf(row);
-                  //   return `cursor-pointer ${
-                  //     index === 0
-                  //       ? "bg-red-50 dark:bg-red-900/20"
-                  //       : index === 1 || index === 2
-                  //       ? "bg-blue-50 dark:bg-blue-900/20"
-                  //       : ""
-                  //   }`;
-                  // }}
                 />
               </div>
             )}
