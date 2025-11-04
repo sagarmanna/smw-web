@@ -3,6 +3,7 @@
 import * as React from "react";
 import { TableCard } from "@/components/TableCard";
 import { InvoiceData, CUSTOMER_TABLE_CONFIGS } from "../../tableConfigs";
+import { createBlankInvoice } from "@/lib/api/legacyApiAdapter";
 
 interface InvoiceTableProps {
   data: InvoiceData[];
@@ -177,11 +178,19 @@ export function InvoiceTable({
       dropdownItems={[
         {
           label: "Add Invoice",
-          onClick: () => {
-            const firstInvoiceUrl = data[0]?.url;
-            if (firstInvoiceUrl) {
-              const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${firstInvoiceUrl}`;
-              window.open(url, "_blank", "noopener");
+          onClick: async () => {
+            try {
+              const response = await createBlankInvoice(location, customerId);
+              if (response.status && response.url) {
+                // Open the invoice view page in a new tab
+                window.open(response.url, "_blank", "noopener");
+              } else {
+                console.error("Failed to create invoice:", response.message || "Unknown error");
+                alert("Failed to create invoice. Please try again.");
+              }
+            } catch (error) {
+              console.error("Error creating invoice:", error);
+              alert("An error occurred while creating the invoice. Please try again.");
             }
           },
         },

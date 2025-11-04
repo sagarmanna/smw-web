@@ -37,6 +37,7 @@ import {
   type InstrumentRental,
   type Student,
 } from "./Equipment-Rentals.api";
+import { createEquipmentRental, equipmentReturned } from "@/lib/api/legacyApiAdapter";
 
 interface InstrumentData {
   id: string;
@@ -205,6 +206,8 @@ export function EquipmentRentalsModal({
   onEquipmentReturned,
 }: EquipmentRentalsModalProps) {
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [returning, setReturning] = useState(false);
   const [availableInstruments, setAvailableInstruments] = useState<
     InstrumentRental[]
   >([]);
@@ -415,12 +418,112 @@ export function EquipmentRentalsModal({
     setInstruments((prev) => prev.filter((instrument) => instrument.id !== id));
   };
 
-  const handleSave = () => {
-    onSave?.({
-      ...formData,
-      instruments,
-    });
-    onOpenChange(false);
+  const handleSave = async () => {
+    // Validate form
+    if (!formData.studentId) {
+      toast.error("Please select a student");
+      return;
+    }
+
+    if (instruments.length === 0) {
+      toast.error("Please add at least one instrument");
+      return;
+    }
+
+    if (!formData.rentalStartDate) {
+      toast.error("Please select a rental start date");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Extract duration number from "1-month", "2-months", etc.
+      const durationMatch = formData.duration.match(/^(\d+)/);
+      const duration = durationMatch ? parseInt(durationMatch[1]) : 1;
+
+      // Map tenderType string to number
+      // Based on the select options: cash -> 1, credit-card -> 2, preauthorized -> 3
+      const tenderTypeMap: Record<string, string> = {
+        "cash": "1",
+        "credit-card": "2",
+        "preauthorized": "3",
+      };
+      const tenderTypeNumber = tenderTypeMap[formData.tenderType] || formData.tenderType || "";
+
+      // Format start date as "MMM dd, yyyy"
+      const startDateFormatted = format(formData.rentalStartDate, "MMM dd, yyyy");
+
+      // Format return date as ISO string
+      let returnDateISO = "";
+      if (formData.returnDate) {
+        returnDateISO = formData.returnDate.toISOString();
+      } else if (!formData.onGoing && formData.rentalStartDate) {
+        // Calculate return date from start date and duration
+        const calculatedReturnDate = new Date(formData.rentalStartDate);
+        calculatedReturnDate.setMonth(calculatedReturnDate.getMonth() + duration);
+        returnDateISO = calculatedReturnDate.toISOString();
+      }
+
+      // Map instruments to API format
+      const mappedInstruments = instruments.map((instrument) => ({
+        instrumentId: instrument.instrumentId,
+        retailValue: instrument.retailValue || "",
+        assetTag: instrument.assetTag || "",
+        monthlyRate: instrument.monthlyRate || "0",
+        numberOfMonths: instrument.numberOfMonths || "0",
+        total: instrument.total || "0.00",
+      }));
+
+      const subTotal = instruments.reduce(
+        (sum, instrument) => sum + parseFloat(instrument.total || "0"),
+        0
+      );
+      const hst = subTotal * 0.13;
+      const instrumentsTotal = subTotal + hst;
+
+      const response = await createEquipmentRental(
+        location,
+        customerId,
+        {
+          userId: customerId,
+          customerName: formData.customer,
+          studentId: parseInt(formData.studentId),
+          startDate: startDateFormatted,
+          isOnGoing: formData.onGoing,
+          duration: duration,
+          returnDate: returnDateISO,
+          securityDeposit: formData.securityDeposit,
+          tenderType: tenderTypeNumber,
+          depositAmount: formData.depositAmount || "",
+          instruments: mappedInstruments,
+          subTotal: subTotal,
+          hst: hst,
+          instrumentsTotal: instrumentsTotal,
+        }
+      );
+
+      if (response.status) {
+        toast.success("Equipment rental created successfully");
+        onOpenChange(false);
+        // Call onSave callback if provided (for parent component to refresh data)
+        if (onSave) {
+          onSave({
+            ...formData,
+            instruments,
+          });
+        }
+      } else {
+        const errorMessage = response.errors?.join(", ") || "Failed to create equipment rental";
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to create equipment rental";
+      toast.error(errorMessage);
+      console.error("Error creating equipment rental:", error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleReprintAgreement = () => {
@@ -429,10 +532,96 @@ export function EquipmentRentalsModal({
     toast.success("Reprint Agreement triggered");
   };
 
-  const handleEquipmentReturned = () => {
+  const handleEquipmentReturned = async () => {
     if (!rentalId) return;
-    if (onEquipmentReturned) return onEquipmentReturned(rentalId);
-    toast.success("Equipment Returned processed");
+
+    try {
+      setReturning(true);
+
+      // Get student name from availableStudents
+      const selectedStudent = availableStudents.find(
+        (s) => s.id.toString() === formData.studentId
+      );
+      const studentName = selectedStudent?.fullName || "";
+
+      if (!studentName) {
+        toast.error("Student information not found");
+        return;
+      }
+
+      // Use today's date as return date (or could allow user to select)
+      const returnDate = new Date();
+      const returnDateFormatted = format(returnDate, "MMM dd, yyyy"); // For URL: "Oct 30, 2025"
+      const returnDateISO = format(returnDate, "yyyy-MM-dd"); // For form data: "2025-10-30"
+
+      // Map instruments from state to API format
+      // Note: In edit mode, we might not have instruments in state
+      // If instruments array is empty, we'll send empty instrument data
+      const mappedInstruments = instruments.length > 0
+        ? instruments.map((instrument) => {
+            const instrumentTotal = parseFloat(instrument.total || "0");
+            const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+            return {
+              value: "", // Empty string for retail value
+              asset: "", // Empty string for asset tag
+              price: instrument.monthlyRate || "0",
+              duration: instrument.numberOfMonths || "0",
+              total: instrument.total || "0.00",
+              tax: instrumentTax,
+            };
+          })
+        : [
+            // Default empty instrument if no instruments in state
+            // This might happen in edit mode where instruments are not loaded into state
+            {
+              value: "",
+              asset: "",
+              price: "0",
+              duration: "0",
+              total: "0.00",
+              tax: "0.00",
+            },
+          ];
+
+      const response = await equipmentReturned(
+        location,
+        rentalId,
+        returnDateFormatted,
+        {
+          userId: customerId,
+          customerName: formData.customer,
+          studentName: studentName,
+          returnDate: returnDateISO,
+          securityDeposit: "",
+          tenderType: "",
+          depositAmount: "0.00",
+          instruments: mappedInstruments,
+        }
+      );
+
+      if (response.status) {
+        toast.success("Equipment marked as returned successfully");
+        // Close modal and call callback if provided
+        onOpenChange(false);
+        if (onEquipmentReturned) {
+          onEquipmentReturned(rentalId);
+        }
+      } else {
+        const errorMessage =
+          response.errors?.join(", ") ||
+          "Failed to mark equipment as returned";
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to mark equipment as returned";
+      toast.error(errorMessage);
+      console.error("Error marking equipment as returned:", error);
+    } finally {
+      setReturning(false);
+    }
   };
 
   const handleCancel = () => {
@@ -889,9 +1078,13 @@ export function EquipmentRentalsModal({
               Close
             </Button>
             {isEditMode ? (
-              <Button onClick={handleEquipmentReturned}>Equipment Returned</Button>
+              <Button onClick={handleEquipmentReturned} disabled={returning}>
+                {returning ? "Processing..." : "Equipment Returned"}
+              </Button>
             ) : (
-              <Button onClick={handleSave}>Create</Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Creating..." : "Create"}
+              </Button>
             )}
           </div>
         </DialogFooter>

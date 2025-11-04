@@ -219,6 +219,28 @@
   color: #f9fafb;
 }
 
+/* Right-align last two numeric columns for statement tables */
+.tiptap-editor-content table.email-statement th:nth-last-child(-n+2),
+.tiptap-editor-content table.email-statement td:nth-last-child(-n+2),
+.ProseMirror table.email-statement th:nth-last-child(-n+2),
+.ProseMirror table.email-statement td:nth-last-child(-n+2) {
+  text-align: right !important;
+}
+
+/* Ensure total row aligns right in value cell */
+.tiptap-editor-content table.email-statement-total td:last-child,
+.ProseMirror table.email-statement-total td:last-child {
+  text-align: right !important;
+}
+
+/* Fallback: if classes are stripped, still right-align last two columns */
+.tiptap-editor-content table th:nth-last-child(-n+2),
+.tiptap-editor-content table td:nth-last-child(-n+2),
+.ProseMirror table th:nth-last-child(-n+2),
+.ProseMirror table td:nth-last-child(-n+2) {
+  text-align: right !important;
+}
+
 .tiptap-editor-content table tbody tr:hover,
 .ProseMirror table tbody tr:hover {
   background-color: #f9fafb;
