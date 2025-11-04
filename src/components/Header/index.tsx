@@ -104,8 +104,28 @@ export default function Header({ onMenuClick }: HeaderProps) {
       // Use the scalable route mapper to get legacy URL
       const legacyPath = getLegacyUrlForRoute(pathname, routeParams);
       
-      // Fallback to original pathname if no mapping found
-      const finalPath = legacyPath || pathname.replace('/v2', '');
+      // Fallback: if no mapping found, extract the path after location
+      // Pathname format: /admin/v2/{location}/...rest
+      // We want: /...rest (just the path part after location)
+      let finalPath = legacyPath;
+      if (!finalPath) {
+        // Remove /admin/v2/ prefix if present, ensure leading slash
+        let pathWithoutPrefix = pathname.replace(/^\/admin\/v2\//, '/');
+        // If pathname doesn't match above pattern, try removing just /v2/
+        if (pathWithoutPrefix === pathname) {
+          pathWithoutPrefix = pathname.replace(/^\/v2\//, '/');
+        }
+        // If path starts with /{location}/, remove that segment
+        if (location && pathWithoutPrefix.startsWith(`/${location}/`)) {
+          finalPath = pathWithoutPrefix.replace(`/${location}/`, '/');
+        } else if (location && pathWithoutPrefix === `/${location}`) {
+          // Handle case where location is at the end (no trailing path)
+          finalPath = '/';
+        } else {
+          // Fallback: just remove /v2
+          finalPath = pathname.replace('/v2', '');
+        }
+      }
       
       // Build full legacy URL
       // Legacy URL structure: {baseUrl}/admin/{location}{path} or {baseUrl}/{location}{path} if baseUrl already has /admin
