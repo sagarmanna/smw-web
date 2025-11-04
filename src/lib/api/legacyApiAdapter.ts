@@ -609,3 +609,75 @@ export async function equipmentReturned(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+/**
+ * Create a blank invoice using the legacy API
+ * This is a GET request that creates an invoice and redirects to the invoice view page
+ */
+export async function createBlankInvoice(
+  location: string,
+  customerId: string | number
+): Promise<LegacyApiResponse> {
+  // Invoice::TYPE_INVOICE = 2
+  const invoiceType = 2;
+  
+  // Build query parameters in the format expected by the legacy API
+  const params = new URLSearchParams({
+    'Invoice[customer_id]': customerId.toString(),
+    'Invoice[type]': invoiceType.toString(),
+  });
+
+  const url = `/admin/${location}/invoice/blank-invoice?${params.toString()}`;
+
+  try {
+    // Make a GET request with redirect handling
+    // The legacy API will create the invoice and return a redirect (302) to the invoice view page
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      redirect: 'manual', // Handle redirect manually to get the Location header
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+
+    // If we get a redirect (302 or 301), extract the Location header
+    if (response.status === 302 || response.status === 301) {
+      const redirectUrl = response.headers.get('Location');
+      if (redirectUrl) {
+        // Construct full URL if it's a relative path
+        // Yii2 redirects return relative paths like /admin/training-location/invoice/view?id=123
+        const fullUrl = redirectUrl.startsWith('http') 
+          ? redirectUrl 
+          : `${window.location.origin}${redirectUrl.startsWith('/') ? '' : '/'}${redirectUrl}`;
+        
+        return {
+          status: true,
+          url: fullUrl,
+        };
+      }
+      
+      // If no Location header, try to construct from response.url
+      if (response.url) {
+        return {
+          status: true,
+          url: response.url,
+        };
+      }
+    }
+
+    // If no redirect but response is OK, use the response URL
+    if (response.ok && response.url) {
+      return {
+        status: true,
+        url: response.url,
+      };
+    }
+
+    // If we get here, something went wrong
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`HTTP ${response.status}: ${response.statusText}. ${errorText}`);
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
