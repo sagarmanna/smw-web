@@ -30,6 +30,7 @@ interface EnrolmentData {
   paymentFrequency: string;
   student: string;
   teacher: string;
+  dueAmount: number;
   selected: boolean;
 }
 
@@ -122,19 +123,25 @@ export function RecurringPaymentModal({
             via: data.paymentMethods.find(m => m.id === payment.paymentMethodId)?.name || "",
             untilMonth: payment.expiryMonth ? payment.expiryMonth.toString().padStart(2, '0') : "",
             untilYear: payment.expiryYear ? payment.expiryYear.toString() : "",
-            amount: payment.amount.toString(),
+            amount: Number(payment.amount).toFixed(2),
             enabled: payment.isEnabled,
           });
 
           // Map enrolments - in edit mode, only the first enrolment is selected by default
-          const mappedEnrolments: EnrolmentData[] = data.enrolments.map((enrolment, index) => ({
-            id: `enrolment-${index}`,
-            program: enrolment.programName,
-            paymentFrequency: enrolment.paymentFrequency || "",
-            student: enrolment.studentName,
-            teacher: enrolment.teacherName,
-            selected: isEditMode && index === 0, // In edit mode, only select the first enrolment
-          }));
+          const mappedEnrolments: EnrolmentData[] = data.enrolments.map((enrolment, index) => {
+            const extra = enrolment as unknown as Partial<{ dueAmount: number | string; owing: number | string; balanceDue: number | string }>;
+            const rawDue = extra.dueAmount ?? extra.owing ?? extra.balanceDue ?? 0;
+            const dueAmount = typeof rawDue === "string" ? parseFloat(rawDue.replace(/[$,]/g, "")) : Number(rawDue) || 0;
+            return {
+              id: `enrolment-${index}`,
+              program: enrolment.programName,
+              paymentFrequency: enrolment.paymentFrequency || "",
+              student: enrolment.studentName,
+              teacher: enrolment.teacherName,
+              dueAmount,
+              selected: isEditMode && index === 0, // In edit mode, only select the first enrolment
+            };
+          });
           setEnrolments(mappedEnrolments);
 
           // Set payment methods and frequencies
@@ -163,11 +170,13 @@ export function RecurringPaymentModal({
           <Checkbox
             checked={allSelected}
             onCheckedChange={(value) => {
+              const isChecked = Boolean(value);
               const newSelected = enrolments.map(enrolment => ({
                 ...enrolment,
-                selected: value as boolean,
+                selected: isChecked,
               }));
               setEnrolments(newSelected);
+              recalcAmountFromSelected(newSelected);
             }}
             aria-label="Select all"
             className={someSelected && !allSelected ? "data-[state=indeterminate]:bg-primary" : ""}
@@ -216,13 +225,25 @@ export function RecurringPaymentModal({
   };
 
   const handleEnrolmentSelect = (enrolmentId: string, selected: boolean) => {
-    setEnrolments(prev =>
-      prev.map(enrolment =>
+    setEnrolments(prev => {
+      const updated = prev.map(enrolment =>
         enrolment.id === enrolmentId
           ? { ...enrolment, selected }
           : enrolment
-      )
-    );
+      );
+      recalcAmountFromSelected(updated);
+      return updated;
+    });
+  };
+
+  const recalcAmountFromSelected = (list: EnrolmentData[]) => {
+    const total = list
+      .filter(e => e.selected)
+      .reduce((sum, e) => sum + (Number.isFinite(e.dueAmount) ? e.dueAmount : 0), 0);
+    setFormData(prev => ({
+      ...prev,
+      amount: total.toFixed(2),
+    }));
   };
 
   const handleSave = async () => {
