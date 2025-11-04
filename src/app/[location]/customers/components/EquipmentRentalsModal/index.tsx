@@ -195,6 +195,30 @@ const InstrumentFormRow = React.memo(
 
 InstrumentFormRow.displayName = "InstrumentFormRow";
 
+// Helper function to calculate return date based on the new logic
+const calculateReturnDate = (startDate: Date, months: number): Date => {
+  const dayOfMonth = startDate.getDate();
+  const returnDate = new Date(startDate.getTime());
+  
+  // If start date is between 1-7, count the current month as the first month
+  // Otherwise, start counting from the next month
+  if (dayOfMonth >= 1 && dayOfMonth <= 7) {
+    // Start date is 1-7: add (months - 1) to get the return month
+    // Then set to last day of that month
+    returnDate.setMonth(returnDate.getMonth() + months - 1);
+    // Set to last day of the month
+    returnDate.setMonth(returnDate.getMonth() + 1, 0);
+  } else {
+    // Start date is 8-31: add months normally
+    // Then set to last day of that month
+    returnDate.setMonth(returnDate.getMonth() + months);
+    // Set to last day of the month
+    returnDate.setMonth(returnDate.getMonth() + 1, 0);
+  }
+  
+  return returnDate;
+};
+
 export function EquipmentRentalsModal({
   open,
   onOpenChange,
@@ -319,9 +343,7 @@ export function EquipmentRentalsModal({
             if (durationMatch) {
               const months = parseInt(durationMatch[1]);
               if (!isNaN(months) && months > 0) {
-                const returnDate = new Date(newData.rentalStartDate.getTime());
-                returnDate.setMonth(returnDate.getMonth() + months);
-                newData.returnDate = returnDate;
+                newData.returnDate = calculateReturnDate(newData.rentalStartDate, months);
               }
             }
           }
@@ -338,12 +360,7 @@ export function EquipmentRentalsModal({
           if (durationMatch) {
             const months = parseInt(durationMatch[1]);
             if (!isNaN(months) && months > 0) {
-              const returnDate = new Date(newData.rentalStartDate.getTime());
-              // Add the months
-              returnDate.setMonth(returnDate.getMonth() + months);
-              // Set to last day of that month
-              returnDate.setDate(0);
-              newData.returnDate = returnDate;
+              newData.returnDate = calculateReturnDate(newData.rentalStartDate, months);
             } else {
               newData.returnDate = undefined;
             }
@@ -414,6 +431,12 @@ export function EquipmentRentalsModal({
     }
   };
 
+  const handleAddCurrentInstrument = () => {
+    if (newInstrument.instrumentId > 0) {
+      handleAddInstrument();
+    }
+  };
+
   const handleDeleteInstrument = (id: string) => {
     setInstruments((prev) => prev.filter((instrument) => instrument.id !== id));
   };
@@ -459,9 +482,8 @@ export function EquipmentRentalsModal({
       if (formData.returnDate) {
         returnDateISO = formData.returnDate.toISOString();
       } else if (!formData.onGoing && formData.rentalStartDate) {
-        // Calculate return date from start date and duration
-        const calculatedReturnDate = new Date(formData.rentalStartDate);
-        calculatedReturnDate.setMonth(calculatedReturnDate.getMonth() + duration);
+        // Calculate return date from start date and duration using the new logic
+        const calculatedReturnDate = calculateReturnDate(formData.rentalStartDate, duration);
         returnDateISO = calculatedReturnDate.toISOString();
       }
 
