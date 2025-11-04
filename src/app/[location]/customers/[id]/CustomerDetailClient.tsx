@@ -1201,7 +1201,7 @@ export function CustomerDetailClient({
           onClick: () => setIsEmailStatementModalOpen(true),
         },
         { label: "A/R Report Detail", onClick: () => {} },
-        { label: "Items Purchased by Category", onClick: () => {} },
+        { label: "Items Purchased by Category", onClick: () => router.push(`/${location}/customers/${id}/items-purchased-by-category`) },
         {
           label: "Notify Via Email",
           onClick: () => setIsNotifyModalOpen(true),
