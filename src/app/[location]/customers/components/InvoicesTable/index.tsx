@@ -4,6 +4,7 @@ import * as React from "react";
 import { TableCard } from "@/components/TableCard";
 import { InvoiceData, CUSTOMER_TABLE_CONFIGS } from "../../tableConfigs";
 import { createBlankInvoice } from "@/lib/api/legacyApiAdapter";
+import { getCustomerInvoices } from "../../customers.api";
 
 interface InvoiceTableProps {
   data: InvoiceData[];
@@ -180,17 +181,17 @@ export function InvoiceTable({
           label: "Add Invoice",
           onClick: async () => {
             try {
-              const response = await createBlankInvoice(location, customerId);
-              if (response.status && response.url) {
-                // Open the invoice view page in a new tab
-                window.open(response.url, "_blank", "noopener");
-              } else {
-                console.error("Failed to create invoice:", response.message || "Unknown error");
-                alert("Failed to create invoice. Please try again.");
-              }
+              await createBlankInvoice(location, customerId);
             } catch (error) {
               console.error("Error creating invoice:", error);
-              alert("An error occurred while creating the invoice. Please try again.");
+            }
+            finally {
+              const invoices = await getCustomerInvoices(location, Number(customerId), 1);
+              const firstInvoice = invoices[0];
+              if (firstInvoice && firstInvoice.url) {
+                const invoiceUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${firstInvoice.url}`;
+                window.location.href = invoiceUrl;
+              }
             }
           },
         },
