@@ -1431,12 +1431,22 @@ export function CustomerDetailClient({
             customerId={id}
             openingBalanceId={openingBalanceId ?? undefined}
             location={location}
-            onSave={(amount, balanceType, invoiceId) => {
+            onSave={async (amount, balanceType, invoiceId) => {
               // UPDATE: Add invoiceId parameter
               const savedAmount = balanceType === "credit" ? -amount : amount;
               setOpeningBalance(savedAmount);
-              setOpeningBalanceId(invoiceId); // ADD THIS LINE
+              setOpeningBalanceId(invoiceId);
               setHasOpeningBalance(true);
+              
+              // Refresh summary data to update credits & outstanding invoice
+              try {
+                const summary = await getCustomerSummary(location, Number(id));
+                if (summary?.success && summary.data) {
+                  setSummaryData(summary.data);
+                }
+              } catch (error) {
+                console.error("Error refreshing summary data:", error);
+              }
             }}
             loading={loading}
           />
