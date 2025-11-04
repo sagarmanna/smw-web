@@ -225,7 +225,7 @@ export function EquipmentRentalsModal({
     studentId: "",
     rentalStartDate: new Date(),
     onGoing: false,
-    duration: "1-month",
+    duration: "",
     returnDate: undefined,
     securityDeposit: "no",
     tenderType: "",
@@ -313,26 +313,43 @@ export function EquipmentRentalsModal({
           newData.duration = "";
           newData.returnDate = undefined;
         } else {
-          if (newData.rentalStartDate && prev.duration) {
-            const months = parseInt(prev.duration.split("-")[0]);
-            const returnDate = new Date(newData.rentalStartDate);
-            returnDate.setMonth(returnDate.getMonth() + months);
-            newData.returnDate = returnDate;
-          } else {
-            newData.returnDate = undefined;
+          // When unchecking onGoing, calculate return date if we have start date and duration
+          if (newData.rentalStartDate && newData.duration) {
+            const durationMatch = newData.duration.match(/^(\d+)-month/);
+            if (durationMatch) {
+              const months = parseInt(durationMatch[1]);
+              if (!isNaN(months) && months > 0) {
+                const returnDate = new Date(newData.rentalStartDate.getTime());
+                returnDate.setMonth(returnDate.getMonth() + months);
+                newData.returnDate = returnDate;
+              }
+            }
           }
         }
       }
 
+      // Calculate return date when rental start date or duration changes
       if (
         (field === "rentalStartDate" || field === "duration") &&
         !newData.onGoing
       ) {
         if (newData.rentalStartDate && newData.duration) {
-          const months = parseInt(newData.duration.split("-")[0]);
-          const returnDate = new Date(newData.rentalStartDate);
-          returnDate.setMonth(returnDate.getMonth() + months);
-          newData.returnDate = returnDate;
+          const durationMatch = newData.duration.match(/^(\d+)-month/);
+          if (durationMatch) {
+            const months = parseInt(durationMatch[1]);
+            if (!isNaN(months) && months > 0) {
+              const returnDate = new Date(newData.rentalStartDate.getTime());
+              // Add the months
+              returnDate.setMonth(returnDate.getMonth() + months);
+              // Set to last day of that month
+              returnDate.setDate(0);
+              newData.returnDate = returnDate;
+            } else {
+              newData.returnDate = undefined;
+            }
+          } else {
+            newData.returnDate = undefined;
+          }
         } else {
           newData.returnDate = undefined;
         }
