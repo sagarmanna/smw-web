@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Calendar, ChevronDown } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, subWeeks } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,28 +22,45 @@ interface DateRangePickerProps {
 
 const quickOptions = [
   {
-    label: "Last 7 days",
+    label: "Today",
     getValue: () => ({
-      from: startOfDay(subDays(new Date(), 6)),
+      from: startOfDay(new Date()),
       to: endOfDay(new Date()),
     }),
   },
   {
-    label: "Last 30 days",
+    label: "Yesterday",
     getValue: () => ({
-      from: startOfDay(subDays(new Date(), 29)),
-      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 1)),
+      to: endOfDay(subDays(new Date(), 1)),
     }),
   },
   {
-    label: "This month",
+    label: "This Week",
+    getValue: () => ({
+      from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+      to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+    }),
+  },
+  {
+    label: "Last Week",
+    getValue: () => {
+      const lastWeekDate = subWeeks(new Date(), 1);
+      return {
+        from: startOfWeek(lastWeekDate, { weekStartsOn: 1 }),
+        to: endOfWeek(lastWeekDate, { weekStartsOn: 1 }),
+      };
+    },
+  },
+  {
+    label: "This Month",
     getValue: () => ({
       from: startOfMonth(new Date()),
       to: endOfMonth(new Date()),
     }),
   },
   {
-    label: "Last month",
+    label: "Last Month",
     getValue: () => {
       const lastMonth = subMonths(new Date(), 1);
       return {
