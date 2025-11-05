@@ -203,10 +203,10 @@ export function OpeningBalanceCard({
               htmlFor="amount" 
               className={`text-sm font-medium ${
                 hasTyped && balanceAmount.trim() !== "" && !isAmountValid 
-                  ? "text-red-600" 
+                  ? "text-red-500 dark:text-red-400" 
                   : isAmountValid 
-                  ? "text-green-600" 
-                  : "text-gray-700"
+                  ? "text-green-600 dark:text-green-400" 
+                  : "text-gray-700 dark:text-gray-300"
               }`}
             >
               Amount (minimum 0.1)
@@ -219,10 +219,10 @@ export function OpeningBalanceCard({
               onChange={handleAmountChange}
               className={`text-right focus:ring-0 focus:outline-none ${
                 hasTyped && balanceAmount.trim() !== "" && !isAmountValid 
-                  ? "border-red-600 text-gray-500 dark:text-gray-400" 
+                  ? "border-red-500 dark:border-red-400 text-gray-500 dark:text-gray-400" 
                   : isAmountValid 
-                  ? "border-green-600 text-gray-900 dark:text-gray-100" 
-                  : "border-gray-300 text-gray-500 dark:text-gray-400"
+                  ? "border-green-600 dark:border-green-400 text-gray-900 dark:text-gray-100" 
+                  : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
               }`}
               style={{
                 boxShadow: 'none'
@@ -231,12 +231,12 @@ export function OpeningBalanceCard({
               disabled={isSaving}
             />
             {hasTyped && balanceAmount.trim() !== "" && !isAmountValid && (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-red-500 dark:text-red-400">
                 Amount must be at least 0.1
               </p>
             )}
             {showError && balanceAmount.trim() === "" && (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-red-500 dark:text-red-400">
                 Amount cannot be blank.
               </p>
             )}
@@ -244,7 +244,7 @@ export function OpeningBalanceCard({
 
           {/* Balance Type Selection */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">Balance Type</Label>
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Balance Type</Label>
             <div className="flex items-center space-x-3">
               <button
                 type="button"
@@ -253,8 +253,8 @@ export function OpeningBalanceCard({
                   balanceType === "owing"
                     ? "text-[#f3573f]" 
                     : showError && !isTypeSelected
-                    ? "text-red-600"
-                    : "text-gray-500"
+                    ? "text-red-500 dark:text-red-400"
+                    : "text-gray-500 dark:text-gray-400"
                 }`}
                 disabled={isSaving}
               >
@@ -262,8 +262,8 @@ export function OpeningBalanceCard({
                   balanceType === "owing" 
                     ? "border-[#f3573f]" 
                     : showError && !isTypeSelected
-                    ? "border-red-600"
-                    : "border-gray-400"
+                    ? "border-red-500 dark:border-red-400"
+                    : "border-gray-400 dark:border-gray-500"
                 }`}>
                   {balanceType === "owing" && (
                     <div className="w-2 h-2 rounded-full bg-[#f3573f]"></div>
@@ -279,8 +279,8 @@ export function OpeningBalanceCard({
                   balanceType === "credit"
                     ? "text-[#f3573f]" 
                     : showError && !isTypeSelected
-                    ? "text-red-600"
-                    : "text-gray-500"
+                    ? "text-red-500 dark:text-red-400"
+                    : "text-gray-500 dark:text-gray-400"
                 }`}
                 disabled={isSaving}
               >
@@ -288,8 +288,8 @@ export function OpeningBalanceCard({
                   balanceType === "credit" 
                     ? "border-[#f3573f]" 
                     : showError && !isTypeSelected
-                    ? "border-red-600"
-                    : "border-gray-400"
+                    ? "border-red-500 dark:border-red-400"
+                    : "border-gray-400 dark:border-gray-500"
                 }`}>
                   {balanceType === "credit" && (
                     <div className="w-2 h-2 rounded-full bg-[#f3573f]"></div>
@@ -299,7 +299,7 @@ export function OpeningBalanceCard({
               </button>
             </div>
             {showError && !isTypeSelected && (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-red-500 dark:text-red-400">
                 Please select a balance type.
               </p>
             )}
