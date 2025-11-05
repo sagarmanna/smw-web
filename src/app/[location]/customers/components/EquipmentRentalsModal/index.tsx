@@ -36,6 +36,8 @@ import {
   getEquipmentRentalsInfoForUpdate,
   type InstrumentRental,
   type Student,
+  type RentedInstrument,
+  type RentalDetails,
 } from "./Equipment-Rentals.api";
 import { createEquipmentRental, equipmentReturned } from "@/lib/api/legacyApiAdapter";
 
@@ -289,14 +291,52 @@ export function EquipmentRentalsModal({
         : await getEquipmentRentalsInfo(location, customerId);
 
       if (response && response.success) {
-        const { instrumentRentals, students, customerInfo } =
+        const { instrumentRentals, students, customerInfo, rentedInstruments, rentalDetails } =
           response.data.body;
 
         setAvailableInstruments(instrumentRentals);
         setAvailableStudents(students);
 
-        setFormData((prev) => ({
-          ...prev,
+        // Populate form data - prioritize rentalDetails when in edit mode
+        let rentalStartDate: Date;
+        let returnDate: Date | undefined;
+        let duration: string = "";
+        let onGoing: boolean = false;
+        let studentId: string = "";
+
+        if (rentalId && rentalDetails) {
+          // Edit mode - use actual rental data
+          // Parse dates correctly - handle YYYY-MM-DD format
+          rentalStartDate = rentalDetails.startDate 
+            ? new Date(rentalDetails.startDate + 'T00:00:00') // Add time to avoid timezone issues
+            : new Date();
+          returnDate = rentalDetails.returnDate 
+            ? new Date(rentalDetails.returnDate + 'T00:00:00') // Add time to avoid timezone issues
+            : undefined;
+          // Format duration to match Select component format: "1-month" or "2-months"
+          duration = rentalDetails.duration 
+            ? `${rentalDetails.duration}-month${rentalDetails.duration > 1 ? "s" : ""}` 
+            : "";
+          // Handle both number (0/1) and boolean values from API
+          onGoing = rentalDetails.isOnGoing !== undefined && rentalDetails.isOnGoing !== null
+            ? Boolean(rentalDetails.isOnGoing)
+            : false;
+          studentId = rentalDetails.studentId?.toString() || "";
+
+          // Only calculate return date if it's not provided, not ongoing, and we have start date and duration
+          if (!returnDate && !onGoing && rentalDetails.startDate && rentalDetails.duration) {
+            returnDate = calculateReturnDate(new Date(rentalDetails.startDate + 'T00:00:00'), rentalDetails.duration);
+          }
+        } else {
+          // Create mode - use defaults
+          rentalStartDate = new Date();
+          returnDate = undefined;
+          duration = "";
+          onGoing = false;
+          studentId = students.length > 0 ? students[0].id.toString() : "";
+        }
+
+        const newFormData: EquipmentRentalFormData = {
           customer: customerInfo.customerName || "",
           address: customerInfo.address || "",
           city: customerInfo.city || "",
@@ -305,8 +345,56 @@ export function EquipmentRentalsModal({
           workPhone: customerInfo.workPhone || "",
           otherPhone: customerInfo.otherPhone || "",
           email: customerInfo.email || "",
-          studentId: students.length > 0 ? students[0].id.toString() : "",
-        }));
+          studentId: studentId || (students.length > 0 ? students[0].id.toString() : ""),
+          rentalStartDate: rentalStartDate,
+          onGoing: onGoing,
+          duration: duration,
+          returnDate: returnDate,
+          securityDeposit: rentalDetails?.securityDeposit !== undefined && rentalDetails?.securityDeposit !== null
+            ? (Boolean(rentalDetails.securityDeposit) ? "yes" : "no")
+            : "no",
+          tenderType: rentalDetails?.tenderType?.toString() || "",
+          depositAmount: rentalDetails?.depositAmount || "",
+        };
+
+        setFormData(newFormData);
+
+        // Populate instruments table if in edit mode and rented instruments are available
+        if (rentalId && rentedInstruments && rentedInstruments.length > 0) {
+          console.log('Populating instruments table with rented instruments:', rentedInstruments);
+          const mappedInstruments: InstrumentData[] = rentedInstruments.map((inst, index) => ({
+            id: `rented-${inst.instrumentId}-${index}`,
+            instrumentId: inst.instrumentId,
+            instrumentCode: inst.instrumentCode,
+            instrument: inst.instrument,
+            retailValue: inst.retailValue || "",
+            assetTag: inst.assetTag || "",
+            monthlyRate: inst.monthlyRate || "0",
+            numberOfMonths: inst.numberOfMonths || "1",
+            total: inst.total || "0.00",
+          }));
+          setInstruments(mappedInstruments);
+        } else if (rentalId) {
+          // Edit mode but no rented instruments found - log warning
+          console.warn('Edit mode but no rented instruments found. rentalId:', rentalId, 'rentedInstruments:', rentedInstruments);
+          // Keep empty instruments array for edit mode to show empty state
+          setInstruments([]);
+        } else {
+          // Create mode - use default empty row
+          setInstruments([
+            {
+              id: "initial",
+              instrumentId: 0,
+              instrumentCode: "",
+              instrument: "",
+              retailValue: "",
+              assetTag: "",
+              monthlyRate: "0",
+              numberOfMonths: "1",
+              total: "0.00",
+            }
+          ]);
+        }
       } else {
         toast.error(
           response?.message || "Failed to load equipment rental data"
@@ -1015,33 +1103,40 @@ export function EquipmentRentalsModal({
                       showDelete={instruments.length > 1}
                     />
                   ))}
-                  {isEditMode && instruments.map((instrument) => (
+                  {isEditMode && instruments.length > 0 && instruments.map((instrument) => (
                     <tr
                       key={instrument.id}
                       className="border-b dark:border-gray-700"
                     >
                       <td className="p-3 font-medium">
-                        {instrument.instrument}
+                        {instrument.instrument || 'N/A'}
                       </td>
                       <td className="p-3 text-right">
-                        {instrument.retailValue}
+                        {instrument.retailValue || '0.00'}
                       </td>
-                      <td className="p-3">{instrument.assetTag}</td>
+                      <td className="p-3">{instrument.assetTag || ''}</td>
                       <td className="p-3 text-right">
-                        {instrument.monthlyRate}
+                        {instrument.monthlyRate || '0.00'}
                       </td>
                       <td className="p-3 text-right">
-                        {instrument.numberOfMonths}
+                        {instrument.numberOfMonths || '1'}
                       </td>
                       <td className="p-3">
                         <div className="flex items-center justify-end gap-2">
                           <span className="font-medium">
-                            {instrument.total}
+                            {instrument.total || '0.00'}
                           </span>
                         </div>
                       </td>
                     </tr>
                   ))}
+                  {isEditMode && instruments.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-3 text-center text-muted-foreground">
+                        No instruments found for this rental
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
