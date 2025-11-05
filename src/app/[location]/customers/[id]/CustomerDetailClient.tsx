@@ -1198,7 +1198,7 @@ export function CustomerDetailClient({
           label: "Receive Payment",
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
-        { label: "Print Statement", onClick: () => {} },
+        
         { label: "Print Statement", onClick: () => {} },
         {
           label: "Email Statement",
