@@ -105,7 +105,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         size: 180,
         cell: ({ row }) => format(row.original.date, "MMM dd, yyyy"),
         meta: { printable: true, printableName: "Date" },
-        filter: { type: "date-range", initialValue: { from: startOfMonth(new Date()), to: endOfMonth(new Date()) } },
+        filter: { type: "date-range", initialValue: { from: startOfMonth(new Date()), to: endOfMonth(new Date()) }, quickPreset: "payments" },
       },
       {
         accessorKey: "customer",

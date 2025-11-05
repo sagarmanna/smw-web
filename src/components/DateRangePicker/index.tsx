@@ -18,9 +18,44 @@ interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (range: DateRange) => void;
   className?: string;
+  preset?: "default" | "payments";
 }
 
-const quickOptions = [
+const defaultQuickOptions = [
+  {
+    label: "Last 7 days",
+    getValue: () => ({
+      from: startOfDay(subDays(new Date(), 6)),
+      to: endOfDay(new Date()),
+    }),
+  },
+  {
+    label: "Last 30 days",
+    getValue: () => ({
+      from: startOfDay(subDays(new Date(), 29)),
+      to: endOfDay(new Date()),
+    }),
+  },
+  {
+    label: "This month",
+    getValue: () => ({
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    }),
+  },
+  {
+    label: "Last month",
+    getValue: () => {
+      const lastMonth = subMonths(new Date(), 1);
+      return {
+        from: startOfMonth(lastMonth),
+        to: endOfMonth(lastMonth),
+      };
+    },
+  },
+];
+
+const paymentsQuickOptions = [
   {
     label: "Today",
     getValue: () => ({
@@ -71,7 +106,8 @@ const quickOptions = [
   },
 ];
 
-export function DateRangePicker({ value, onChange, className }: DateRangePickerProps) {
+export function DateRangePicker({ value, onChange, className, preset = "default" }: DateRangePickerProps) {
+  const quickOptions = preset === "payments" ? paymentsQuickOptions : defaultQuickOptions;
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(value);
   const [tempRange, setTempRange] = useState<DateRange | undefined>(value);

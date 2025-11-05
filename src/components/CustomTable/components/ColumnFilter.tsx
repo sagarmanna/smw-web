@@ -179,6 +179,7 @@ export function ColumnFilterComponent({
       case "date-range":
         return (
           <DateRangePicker
+            preset={filter.quickPreset}
             value={(() => {
               const from = isDateRange(currentValue) ? currentValue.from : undefined;
               const to = isDateRange(currentValue) ? currentValue.to : undefined;
