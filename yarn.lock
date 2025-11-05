@@ -1066,6 +1066,16 @@
   resolved "https://registry.yarnpkg.com/@tiptap/extension-strike/-/extension-strike-3.7.2.tgz#fd82bc48e47413bb80caa53b6fb9d90c4edeff3c"
   integrity sha512-I1G+4vZbCBTpAMmyVwaO8cLBJgXEf1DyEzc0B+HhTJiBa9qA9OKgRQEGFgisxu1kggjbzB6+d0+taHfjsZC1SQ==
 
+"@tiptap/extension-subscript@^3.10.1":
+  version "3.10.1"
+  resolved "https://registry.yarnpkg.com/@tiptap/extension-subscript/-/extension-subscript-3.10.1.tgz#84e094717aef5772280570b85510615cd1166af1"
+  integrity sha512-okDnD2aoPfNIWL1lHXS3skemHIa3C6wYsPsp8aZC8W2anlY3YiY7nL6qYqK92eZnPAyeMaysAJNI0otBccl/7A==
+
+"@tiptap/extension-superscript@^3.10.1":
+  version "3.10.1"
+  resolved "https://registry.yarnpkg.com/@tiptap/extension-superscript/-/extension-superscript-3.10.1.tgz#7940fe595b2c246aa332df30fd2756221289a176"
+  integrity sha512-lmYxzjTOLUvRyW2MjQJUh2D6BFdv8vOVLe1k7UDSW1s+9dfuyJro6SAvOT9cVCB9JKLb28keoukEeXj4vRAXDg==
+
 "@tiptap/extension-table-cell@^3.7.2":
   version "3.7.2"
   resolved "https://registry.yarnpkg.com/@tiptap/extension-table-cell/-/extension-table-cell-3.7.2.tgz#8c184aa9bda7be4fd0433ad9c6831ddeced37ff7"

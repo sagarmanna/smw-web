@@ -9,6 +9,8 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { Image } from '@tiptap/extension-image';
 import { Underline } from '@tiptap/extension-underline';
+import { Subscript as SubscriptMark } from '@tiptap/extension-subscript';
+import { Superscript as SuperscriptMark } from '@tiptap/extension-superscript';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import { Link } from '@tiptap/extension-link';
@@ -23,7 +25,8 @@ import {
   Scissors, Copy as CopyIcon, ClipboardPaste, ClipboardType, FileText,
   X as CloseIcon, Search, BoxSelect, SpellCheck,
   LayoutPanelLeft, CheckSquare, CircleDot, Type as TypeIcon, AlignJustify, ChevronDown as ChevronDownSmall,
-  MousePointerClick, Image as ImageIcon, EyeOff
+  MousePointerClick, Image as ImageIcon, EyeOff, Subscript as SubscriptIcon, Superscript as SuperscriptIcon, Eraser,
+  ChevronLeft, ChevronRight, Languages, MoveLeft, MoveRight, Square, Link2 as Link2Icon, Link2Off as Link2OffIcon, Flag as FlagIcon
 } from 'lucide-react';
 
 interface TipTapEmailEditorProps {
@@ -64,6 +67,50 @@ export default function TipTapEmailEditor({
   const [cyclic, setCyclic] = React.useState(true);
   const [findTab, setFindTab] = React.useState<'find'|'replace'>('find');
   const [findWarning, setFindWarning] = React.useState<string | null>(null);
+  const [isLinkOpen, setIsLinkOpen] = React.useState(false);
+  const [linkTab, setLinkTab] = React.useState<'info'|'target'|'advanced'>('info');
+  const [linkType, setLinkType] = React.useState<'url'|'anchor'|'email'>('url');
+  const [protocol, setProtocol] = React.useState<'http'|'https'|'ftp'|'news'|'other'>('http');
+  const [linkUrl, setLinkUrl] = React.useState('');
+  const [linkText, setLinkText] = React.useState('');
+  const [linkTitle, setLinkTitle] = React.useState('');
+  const [linkNewWindow, setLinkNewWindow] = React.useState(true);
+  const [targetOpt, setTargetOpt] = React.useState<'notset'|'frame'|'popup'|'_blank'|'_top'|'_self'|'_parent'>('notset');
+  const [anchorList, setAnchorList] = React.useState<string[]>([]);
+  const [anchorTarget, setAnchorTarget] = React.useState('');
+  const [emailAddr, setEmailAddr] = React.useState('');
+  // Advanced fields
+  const [advId, setAdvId] = React.useState('');
+  const [advName, setAdvName] = React.useState('');
+  const [advLangDir, setAdvLangDir] = React.useState<'notset'|'ltr'|'rtl'>('notset');
+  const [advLangCode, setAdvLangCode] = React.useState('');
+  const [advAccessKey, setAdvAccessKey] = React.useState('');
+  const [advTabIndex, setAdvTabIndex] = React.useState('');
+  const [advTitle, setAdvTitle] = React.useState('');
+  const [advClasses, setAdvClasses] = React.useState('');
+  const [advRel, setAdvRel] = React.useState('');
+  const [advStyle, setAdvStyle] = React.useState('');
+  const [advContentType, setAdvContentType] = React.useState('');
+  const [advCharset, setAdvCharset] = React.useState('');
+  const [isAnchorOpen, setIsAnchorOpen] = React.useState(false);
+  const [anchorId, setAnchorId] = React.useState('');
+  // Rich insertions
+  const [isImageInsertOpen, setIsImageInsertOpen] = React.useState(false);
+  const [insImgUrl, setInsImgUrl] = React.useState('');
+  const [insImgAlt, setInsImgAlt] = React.useState('');
+  const [insImgWidth, setInsImgWidth] = React.useState('');
+  const [insImgHeight, setInsImgHeight] = React.useState('');
+  const [isFlashOpen, setIsFlashOpen] = React.useState(false);
+  const [flashUrl, setFlashUrl] = React.useState('');
+  const [flashWidth, setFlashWidth] = React.useState('');
+  const [flashHeight, setFlashHeight] = React.useState('');
+  const [isIframeOpen, setIsIframeOpen] = React.useState(false);
+  const [iframeUrl, setIframeUrl] = React.useState('');
+  const [iframeWidth, setIframeWidth] = React.useState('');
+  const [iframeHeight, setIframeHeight] = React.useState('');
+  const [iframeAllow, setIframeAllow] = React.useState(true);
+  const [smileyOpen, setSmileyOpen] = React.useState(false);
+  const [specialOpen, setSpecialOpen] = React.useState(false);
   // Form properties modal state (keep hooks grouped to ensure stable order)
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [formSelectionHtml, setFormSelectionHtml] = React.useState<string>('');
@@ -141,6 +188,16 @@ export default function TipTapEmailEditor({
   const [spellcheckEnabled, setSpellcheckEnabled] = React.useState(true);
   const [spellMenuOpen, setSpellMenuOpen] = React.useState(false);
   const [language, setLanguage] = React.useState<'en' | 'en-US' | 'en-GB' | 'en-CA'>('en-US');
+  const [isDivModalOpen, setIsDivModalOpen] = React.useState(false);
+  const [divTab, setDivTab] = React.useState<'general'|'advanced'>('general');
+  const [divStylePreset, setDivStylePreset] = React.useState<'notset'|'special'>('notset');
+  const [divClasses, setDivClasses] = React.useState('');
+  const [divId, setDivId] = React.useState('');
+  const [divLangCode, setDivLangCode] = React.useState('');
+  const [divInlineStyle, setDivInlineStyle] = React.useState('');
+  const [divTitle, setDivTitle] = React.useState('');
+  const [divDir, setDivDir] = React.useState<'notset'|'ltr'|'rtl'>('notset');
+  const [languageMenuOpen, setLanguageMenuOpen] = React.useState(false);
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration mismatch
     extensions: [
@@ -162,6 +219,8 @@ export default function TipTapEmailEditor({
       Underline,
       TextStyle,
       Color,
+      SubscriptMark,
+      SuperscriptMark,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
@@ -295,6 +354,11 @@ export default function TipTapEmailEditor({
     return { html: container.innerHTML, text: selection.toString() };
   };
 
+  const replaceSelectionHtml = (html: string) => {
+    // Insert HTML over the current selection
+    editor.chain().focus().insertContent(html).run();
+  };
+
   const writeToClipboard = async (_html: string, text: string) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -311,6 +375,180 @@ export default function TipTapEmailEditor({
     }
   };
 
+  const getAnchorsFromHtml = (html: string): string[] => {
+    const ids = new Set<string>();
+    try {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      const elements = div.querySelectorAll('[id]');
+      elements.forEach((el) => {
+        const id = (el as HTMLElement).id;
+        if (id) ids.add(id);
+      });
+    } catch {}
+    return Array.from(ids);
+  };
+
+  const openLinkModal = () => {
+    const sel = getSelectionAsHtmlAndText();
+    setLinkTab('info');
+    setLinkType('url');
+    setProtocol('http');
+    setLinkText(sel?.text || '');
+    setLinkUrl('');
+    setLinkTitle('');
+    setLinkNewWindow(true);
+    setTargetOpt('notset');
+    setAnchorTarget('');
+    setEmailAddr('');
+    setAdvId('');
+    setAdvName('');
+    setAdvLangDir('notset');
+    setAdvLangCode('');
+    setAdvAccessKey('');
+    setAdvTabIndex('');
+    setAdvTitle('');
+    setAdvClasses('');
+    setAdvRel('');
+    setAdvStyle('');
+    setAdvContentType('');
+    setAdvCharset('');
+    // collect anchors from current doc
+    setAnchorList(getAnchorsFromHtml(editor.getHTML()));
+    setIsLinkOpen(true);
+  };
+
+  const buildHref = (): string => {
+    if (linkType === 'url') {
+      const url = linkUrl.trim();
+      if (!url) return '';
+      if (protocol === 'other') return url;
+      const prefix = protocol + '://';
+      return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('ftp://') || url.startsWith('news://') ? url : `${prefix}${url}`;
+    }
+    if (linkType === 'anchor') {
+      if (!anchorTarget.trim()) return '';
+      return `#${anchorTarget.trim()}`;
+    }
+    // email
+    const email = emailAddr.trim();
+    if (!email) return '';
+    return `mailto:${email}`;
+  };
+
+  const submitLinkModal = () => {
+    const href = buildHref();
+    if (!href) { setIsLinkOpen(false); return; }
+    const attrs: Record<string, string> = { href };
+    // Target mapping
+    if (targetOpt === '_blank') {
+      attrs.target = '_blank';
+      attrs.rel = 'noopener noreferrer';
+    } else if (targetOpt !== 'notset' && targetOpt !== 'popup' && targetOpt !== 'frame') {
+      attrs.target = targetOpt;
+    }
+    // Title removed from Link Info tab; use Advanced 'Advisory Title' if needed
+    // Advanced attributes
+    if (advId.trim()) attrs.id = advId.trim();
+    if (advName.trim()) attrs.name = advName.trim();
+    if (advLangDir !== 'notset') attrs.dir = advLangDir;
+    if (advLangCode.trim()) attrs.lang = advLangCode.trim();
+    if (advAccessKey.trim()) attrs.accesskey = advAccessKey.trim();
+    if (advTabIndex.trim()) attrs.tabindex = advTabIndex.trim();
+    if (advClasses.trim()) attrs.class = advClasses.trim();
+    if (advRel.trim()) attrs.rel = attrs.rel ? `${attrs.rel} ${advRel.trim()}` : advRel.trim();
+    if (advStyle.trim()) attrs.style = advStyle.trim();
+    if (advContentType.trim()) attrs.type = advContentType.trim();
+    if (advCharset.trim()) attrs.charset = advCharset.trim();
+
+    // Build attribute string
+    const attrStr = Object.entries(attrs)
+      .map(([k, v]) => `${k}="${escapeHtml(v)}"`)
+      .join(' ');
+
+    const sel = getSelectionAsHtmlAndText();
+    const display = sel && sel.html && sel.html.trim() !== ''
+      ? sel.html
+      : escapeHtml(href);
+    editor.chain().focus().insertContent(`<a ${attrStr}>${display}</a>`).run();
+    setIsLinkOpen(false);
+  };
+
+  const openAnchorModal = () => {
+    setAnchorId('');
+    setIsAnchorOpen(true);
+  };
+
+  const submitAnchorModal = () => {
+    const id = anchorId.trim();
+    if (!id) { setIsAnchorOpen(false); return; }
+    const sel = getSelectionAsHtmlAndText();
+    const inner = sel?.html && sel.html.trim() !== '' ? sel.html : '';
+    if (inner) {
+      insertHtml(`<span id="${escapeHtml(id)}">${inner}</span>`);
+    } else {
+      insertHtml(`<a id="${escapeHtml(id)}"></a>`);
+    }
+    setIsAnchorOpen(false);
+  };
+
+  const insertHorizontalRule = () => {
+    editor.chain().focus().setHorizontalRule().run();
+  };
+
+  const openImageInsert = () => {
+    setInsImgUrl('');
+    setInsImgAlt('');
+    setInsImgWidth('');
+    setInsImgHeight('');
+    setIsImageInsertOpen(true);
+  };
+  const submitImageInsert = () => {
+    if (!insImgUrl.trim()) { setIsImageInsertOpen(false); return; }
+    const attrs: string[] = [`src=\"${escapeHtml(insImgUrl.trim())}\"`];
+    if (insImgAlt.trim()) attrs.push(`alt=\"${escapeHtml(insImgAlt.trim())}\"`);
+    const w = parseInt(insImgWidth, 10); if (!Number.isNaN(w) && w > 0) attrs.push(`width=\"${w}\"`);
+    const h = parseInt(insImgHeight, 10); if (!Number.isNaN(h) && h > 0) attrs.push(`height=\"${h}\"`);
+    insertHtml(`<img ${attrs.join(' ')} />`);
+    setIsImageInsertOpen(false);
+  };
+
+  const openFlashModal = () => {
+    setFlashUrl('');
+    setFlashWidth('');
+    setFlashHeight('');
+    setIsFlashOpen(true);
+  };
+  const submitFlashModal = () => {
+    if (!flashUrl.trim()) { setIsFlashOpen(false); return; }
+    const w = parseInt(flashWidth, 10); const h = parseInt(flashHeight, 10);
+    const size = `${!Number.isNaN(w)&&w>0?` width=\"${w}\"`:''}${!Number.isNaN(h)&&h>0?` height=\"${h}\"`:''}`;
+    const html = `<object data=\"${escapeHtml(flashUrl.trim())}\" type=\"application/x-shockwave-flash\"${size}></object>`;
+    insertHtml(html);
+    setIsFlashOpen(false);
+  };
+
+  const openIframeModal = () => {
+    setIframeUrl(''); setIframeWidth(''); setIframeHeight(''); setIframeAllow(true); setIsIframeOpen(true);
+  };
+  const submitIframeModal = () => {
+    if (!iframeUrl.trim()) { setIsIframeOpen(false); return; }
+    const attrs: string[] = [`src=\"${escapeHtml(iframeUrl.trim())}\"`, `frameborder=\"0\"`];
+    const w = parseInt(iframeWidth, 10); if (!Number.isNaN(w) && w>0) attrs.push(`width=\"${w}\"`);
+    const h = parseInt(iframeHeight, 10); if (!Number.isNaN(h) && h>0) attrs.push(`height=\"${h}\"`);
+    if (iframeAllow) attrs.push(`allowfullscreen`);
+    insertHtml(`<iframe ${attrs.join(' ')}></iframe>`);
+    setIsIframeOpen(false);
+  };
+
+  const insertPageBreak = () => {
+    insertHtml('<div style="page-break-after: always;"></div>');
+  };
+
+  const insertChar = (s: string) => {
+    editor.chain().focus().insertContent(s).run();
+  };
+
   const handleCopy = async () => {
     const data = getSelectionAsHtmlAndText();
     if (!data) return;
@@ -322,6 +560,76 @@ export default function TipTapEmailEditor({
     if (!data) return;
     const ok = await writeToClipboard(data.html, data.text);
     if (ok) editor.chain().focus().deleteSelection().run();
+  };
+
+  const increaseIndent = () => {
+    if (editor.isActive('listItem')) {
+      editor.chain().focus().sinkListItem('listItem').run();
+      return;
+    }
+    if (!editor.isActive('blockquote')) {
+      editor.chain().focus().toggleBlockquote().run();
+    }
+  };
+
+  const decreaseIndent = () => {
+    if (editor.isActive('listItem')) {
+      editor.chain().focus().liftListItem('listItem').run();
+      return;
+    }
+    if (editor.isActive('blockquote')) {
+      editor.chain().focus().toggleBlockquote().run();
+    }
+  };
+
+  const wrapSelectionWithDir = (dir: 'ltr'|'rtl') => {
+    const sel = getSelectionAsHtmlAndText();
+    const inner = sel?.html && sel.html.trim() !== '' ? sel.html : '&ZeroWidthSpace;';
+    replaceSelectionHtml(`<span dir="${dir}" style="unicode-bidi: embed;">${inner}</span>`);
+  };
+
+  const setSelectionLanguage = (lang: 'ar'|'fr'|'es'|null) => {
+    const sel = getSelectionAsHtmlAndText();
+    const inner = sel?.html && sel.html.trim() !== '' ? sel.html : '&ZeroWidthSpace;';
+    if (lang) {
+      replaceSelectionHtml(`<span lang="${lang}">${inner}</span>`);
+    } else {
+      // Remove language by re-wrapping without lang (keeps content intact)
+      replaceSelectionHtml(`<span>${inner}</span>`);
+    }
+    setLanguageMenuOpen(false);
+  };
+
+  const openDivContainerModal = () => {
+    setDivTab('general');
+    setDivStylePreset('notset');
+    setDivClasses('');
+    setDivId('');
+    setDivLangCode('');
+    setDivInlineStyle('');
+    setDivTitle('');
+    setDivDir('notset');
+    setIsDivModalOpen(true);
+  };
+
+  const submitDivContainerModal = () => {
+    const attrs: string[] = [];
+    if (divId.trim()) attrs.push(`id="${escapeHtml(divId.trim())}"`);
+    const classes: string[] = [];
+    if (divClasses.trim()) classes.push(divClasses.trim());
+    if (divStylePreset === 'special') classes.push('special-container');
+    if (classes.length) attrs.push(`class="${escapeHtml(classes.join(' '))}"`);
+    const styles: string[] = [];
+    if (divStylePreset === 'special') styles.push('border:1px dashed #9ca3af;padding:8px;border-radius:4px');
+    if (divInlineStyle.trim()) styles.push(divInlineStyle.trim());
+    if (styles.length) attrs.push(`style="${escapeHtml(styles.join(';'))}"`);
+    if (divTitle.trim()) attrs.push(`title="${escapeHtml(divTitle.trim())}"`);
+    if (divLangCode.trim()) attrs.push(`lang="${escapeHtml(divLangCode.trim())}"`);
+    if (divDir !== 'notset') attrs.push(`dir="${divDir}"`);
+    const sel = getSelectionAsHtmlAndText();
+    const inner = sel?.html && sel.html.trim() !== '' ? sel.html : '<p>Container content…</p>';
+    insertHtml(`<div ${attrs.join(' ')}>${inner}</div>`);
+    setIsDivModalOpen(false);
   };
 
   const readClipboardHtmlOrText = async (): Promise<{ html?: string; text?: string } | null> => {
@@ -949,6 +1257,29 @@ export default function TipTapEmailEditor({
           <Strikethrough className="h-4 w-4" />
         </ToolbarButton>
 
+        <ToolbarButton
+          onClick={() => editor.chain().focus().unsetSuperscript().toggleSubscript().run()}
+          isActive={editor.isActive('subscript')}
+          title="Subscript"
+        >
+          <SubscriptIcon className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().unsetSubscript().toggleSuperscript().run()}
+          isActive={editor.isActive('superscript')}
+          title="Superscript"
+        >
+          <SuperscriptIcon className="h-4 w-4" />
+        </ToolbarButton>
+
+        <ToolbarDivider />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
+          title="Remove Formatting"
+        >
+          <Eraser className="h-4 w-4" />
+        </ToolbarButton>
+
         <ToolbarDivider />
 
         {/* Headings */}
@@ -1018,6 +1349,100 @@ export default function TipTapEmailEditor({
         </ToolbarButton>
 
         <ToolbarDivider />
+
+        {/* Links */}
+        <ToolbarButton onClick={openLinkModal} title="Insert/Edit Link">
+          <Link2Icon className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().unsetLink().run()} title="Unlink">
+          <Link2OffIcon className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton onClick={openAnchorModal} title="Anchor">
+          <FlagIcon className="h-4 w-4" />
+        </ToolbarButton>
+
+        <ToolbarDivider />
+
+        {/* Indent Controls */}
+        <ToolbarButton onClick={decreaseIndent} title="Decrease indent">
+          <ChevronLeft className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton onClick={increaseIndent} title="Increase indent">
+          <ChevronRight className="h-4 w-4" />
+        </ToolbarButton>
+
+        <ToolbarDivider />
+
+        {/* Text Direction */}
+        <ToolbarButton onClick={() => wrapSelectionWithDir('ltr')} title="Text direction: left to right">
+          <MoveRight className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => wrapSelectionWithDir('rtl')} title="Text direction: right to left">
+          <MoveLeft className="h-4 w-4" />
+        </ToolbarButton>
+
+        {/* Language Menu */}
+        <div className="relative">
+          <ToolbarButton onClick={() => setLanguageMenuOpen((v)=>!v)} title="Set language">
+            <div className="flex items-center gap-1">
+              <Languages className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
+            </div>
+          </ToolbarButton>
+          {languageMenuOpen && (
+            <div className="absolute z-20 mt-1 min-w-[180px] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 shadow-lg">
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setSelectionLanguage('ar')}>Arabic</button>
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setSelectionLanguage('fr')}>French</button>
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setSelectionLanguage('es')}>Spanish</button>
+              <div className="border-t border-gray-200 dark:border-gray-700" />
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setSelectionLanguage(null)}>Remove language</button>
+            </div>
+          )}
+        </div>
+
+        <ToolbarDivider />
+
+        {/* Create Div Container */}
+        <ToolbarButton onClick={openDivContainerModal} title="Create Div Container">
+          <div className="flex flex-col items-center leading-none">
+            <span className="text-[10px] font-semibold -mb-0.5">DIV</span>
+            <Code2 className="h-3.5 w-3.5" />
+          </div>
+        </ToolbarButton>
+
+        <ToolbarDivider />
+
+        {/* Media & Inserts */}
+        <ToolbarButton onClick={openImageInsert} title="Insert Image">
+          <ImageIcon className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton onClick={openFlashModal} title="Insert Flash (deprecated)">
+          <span className="text-xs font-semibold">SWF</span>
+        </ToolbarButton>
+        <ToolbarButton onClick={insertHorizontalRule} title="Insert Horizontal Line">
+          <div className="h-0.5 w-4 bg-gray-700 dark:bg-gray-300" />
+        </ToolbarButton>
+        {/* Smiley */}
+        <ToolbarButton onClick={() => setSmileyOpen(true)} title="Insert Smiley">
+          <span className="text-base">😊</span>
+        </ToolbarButton>
+
+        {/* Special Character */}
+        <div className="relative">
+          <ToolbarButton onClick={() => setSpecialOpen(true)} title="Insert Special Character">
+            <span className="text-sm font-semibold">Ω</span>
+          </ToolbarButton>
+        </div>
+
+        {/* Page Break */}
+        <ToolbarButton onClick={insertPageBreak} title="Insert Page Break for Printing">
+          <div className="flex items-center"><div className="w-2 h-0.5 bg-gray-700 dark:bg-gray-300" /><div className="ml-1 border-l-2 h-4 border-gray-700 dark:border-gray-300" /></div>
+        </ToolbarButton>
+
+        {/* iFrame */}
+        <ToolbarButton onClick={openIframeModal} title="Insert iFrame">
+          <Square className="h-4 w-4" />
+        </ToolbarButton>
 
         {/* Table Controls */}
         <ToolbarButton
@@ -1132,7 +1557,7 @@ export default function TipTapEmailEditor({
       {isTemplatesOpen && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setIsTemplatesOpen(false)} />
-          <div className="relative w-full max-w-2xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+          <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Content Templates</h3>
               <button
@@ -1645,6 +2070,75 @@ export default function TipTapEmailEditor({
       )}
 
 
+      {/* Create Div Container Modal */}
+      {isDivModalOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsDivModalOpen(false)} />
+          <div className="relative w-full max-w-2xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 pt-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Create Div Container</h3>
+                <button aria-label="Close" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsDivModalOpen(false)}>
+                  <CloseIcon className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-3 flex gap-2 border-b border-gray-200 dark:border-gray-700">
+                <button className={`px-3 py-1.5 text-sm ${divTab==='general'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setDivTab('general')}>General</button>
+                <button className={`px-3 py-1.5 text-sm ${divTab==='advanced'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setDivTab('advanced')}>Advanced</button>
+              </div>
+            </div>
+            <div className="p-4">
+              {divTab === 'general' ? (
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Style</label>
+                    <select value={divStylePreset} onChange={(e)=>setDivStylePreset(e.target.value as 'notset'|'special')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                      <option value="notset">&lt;not set&gt;</option>
+                      <option value="special">Special Container</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Stylesheet Classes</label>
+                    <input value={divClasses} onChange={(e)=>setDivClasses(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Id</label>
+                    <input value={divId} onChange={(e)=>setDivId(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Language Code</label>
+                    <input value={divLangCode} onChange={(e)=>setDivLangCode(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Style</label>
+                    <input value={divInlineStyle} onChange={(e)=>setDivInlineStyle(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Advisory Title</label>
+                    <input value={divTitle} onChange={(e)=>setDivTitle(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Language Direction</label>
+                    <select value={divDir} onChange={(e)=>setDivDir(e.target.value as 'notset'|'ltr'|'rtl')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                      <option value="notset">&lt;not set&gt;</option>
+                      <option value="ltr">Left to Right (LTR)</option>
+                      <option value="rtl">Right to Left (RTL)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsDivModalOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 text-sm rounded bg-green-600 text-white" onClick={submitDivContainerModal}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Find & Replace Modal (with tabs & options) */}
       {isFindOpen && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center">
@@ -1656,7 +2150,7 @@ export default function TipTapEmailEditor({
                 <CloseIcon className="h-4 w-4" />
               </button>
             </div>
-            <div className="px-4 pt-3">
+            <div className="px-4 pt-3 flex-1 overflow-y-auto">
               {/* Tabs */}
               <div className="flex gap-2 mb-3 border-b border-gray-200 dark:border-gray-700">
                 <button className={`px-3 py-1.5 text-sm ${findTab==='find'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setFindTab('find')}>Find</button>
@@ -1763,6 +2257,357 @@ export default function TipTapEmailEditor({
               >
                 OK
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Insert Image Modal */}
+      {isImageInsertOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsImageInsertOpen(false)} />
+          <div className="relative w-full max-w-md rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert Image</h3>
+              <button aria-label="Close image" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsImageInsertOpen(false)}>
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
+                <input value={insImgUrl} onChange={(e)=>setInsImgUrl(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Alternative Text</label>
+                <input value={insImgAlt} onChange={(e)=>setInsImgAlt(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
+                  <input value={insImgWidth} onChange={(e)=>setInsImgWidth(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
+                  <input value={insImgHeight} onChange={(e)=>setInsImgHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                </div>
+              </div>
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsImageInsertOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 text-sm rounded bg-blue-600 text-white" onClick={submitImageInsert}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Flash Modal */}
+      {isFlashOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsFlashOpen(false)} />
+          <div className="relative w-full max-w-md rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert Flash</h3>
+              <button aria-label="Close flash" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsFlashOpen(false)}>
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
+                <input value={flashUrl} onChange={(e)=>setFlashUrl(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
+                  <input value={flashWidth} onChange={(e)=>setFlashWidth(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
+                  <input value={flashHeight} onChange={(e)=>setFlashHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                </div>
+              </div>
+              <p className="text-xs text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 p-2 rounded">Note: Flash is deprecated in modern browsers. This inserts legacy &lt;object&gt; markup.</p>
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsFlashOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 text-sm rounded bg-blue-600 text-white" onClick={submitFlashModal}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Special Characters Modal */}
+      {specialOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setSpecialOpen(false)} />
+          <div className="relative w-full max-w-xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert Special Character</h3>
+              <button aria-label="Close special" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setSpecialOpen(false)}>
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-10 gap-2">
+                {['©','®','™','§','±','÷','×','µ','£','€','¥','¢','–','—','•','…','←','→','↑','↓','∞','≈','≠','≤','≥','Ω','π','η','θ','δ','α','β','γ','Δ','∑','∫','√','∂','°','‰','℉','℃'].map((ch)=> (
+                  <button key={ch} className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={()=>{ insertChar(ch); setSpecialOpen(false); }}>{ch}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Smiley Modal */}
+      {smileyOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setSmileyOpen(false)} />
+          <div className="relative w-full max-w-xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert Smiley</h3>
+              <button aria-label="Close smiley" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setSmileyOpen(false)}>
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-10 gap-2">
+                {['😀','😁','😂','🤣','😊','😇','😉','😍','😘','😎','🤔','😢','😭','😡','👍','👎','👏','🙏','🎉','💡','✅','❌','⭐','❤️','🔥','⚠️','😴','🤒','🤩','🤯','🥳','😐','😕','😮','🙃','😇','🤗','😏','🤤','😴','🤕','🤧','🤮','🤠','🤡','👀','👋','👌','✌️','🤞','👊','🙏','💪','💯','✨','🎁','🍰','☕','🍕','🏆','🚀','📌','📎','🔒','🔑'].map((e)=> (
+                  <button key={e} className="px-2 py-1 text-lg rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={()=>{ insertChar(e); setSmileyOpen(false); }}>{e}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* iFrame Modal */}
+      {isIframeOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsIframeOpen(false)} />
+          <div className="relative w-full max-w-md rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert iFrame</h3>
+              <button aria-label="Close iframe" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsIframeOpen(false)}>
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
+                <input value={iframeUrl} onChange={(e)=>setIframeUrl(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
+                  <input value={iframeWidth} onChange={(e)=>setIframeWidth(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
+                  <input value={iframeHeight} onChange={(e)=>setIframeHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                </div>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input type="checkbox" checked={iframeAllow} onChange={(e)=>setIframeAllow(e.target.checked)} /> Allow Fullscreen
+              </label>
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsIframeOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 text-sm rounded bg-blue-600 text-white" onClick={submitIframeModal}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link Modal with tabs (Link Info, Target, Advanced) */}
+      {isLinkOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsLinkOpen(false)} />
+          <div className="relative w-full max-w-2xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Link</h3>
+              <button aria-label="Close link" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsLinkOpen(false)}>
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-4 pt-3">
+              {/* Tabs */}
+              <div className="flex gap-2 mb-3 border-b border-gray-200 dark:border-gray-700">
+                <button className={`px-3 py-1.5 text-sm ${linkTab==='info'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setLinkTab('info')}>Link Info</button>
+                <button className={`px-3 py-1.5 text-sm ${linkTab==='target'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setLinkTab('target')}>Target</button>
+                <button className={`px-3 py-1.5 text-sm ${linkTab==='advanced'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setLinkTab('advanced')}>Advanced</button>
+              </div>
+
+              {/* Body */}
+              {linkTab === 'info' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 items-end">
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Link Type</label>
+                      <select value={linkType} onChange={(e)=>setLinkType(e.target.value as 'url'|'anchor'|'email')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                        <option value="url">URL</option>
+                        <option value="anchor">Link to anchor in the text</option>
+                        <option value="email">E-mail</option>
+                      </select>
+                    </div>
+                    {/* Text field removed per requirements */}
+                  </div>
+
+                  {linkType === 'url' && (
+                    <div className="grid grid-cols-12 gap-4 items-end">
+                      <div className="col-span-3">
+                        <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Protocol</label>
+                        <select value={protocol} onChange={(e)=>setProtocol(e.target.value as 'http'|'https'|'ftp'|'news'|'other')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                          <option value="http">http://</option>
+                          <option value="https">https://</option>
+                          <option value="ftp">ftp://</option>
+                          <option value="news">news://</option>
+                          <option value="other">&lt;other&gt;</option>
+                        </select>
+                      </div>
+                      <div className="col-span-9">
+                        <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
+                        <input value={linkUrl} onChange={(e)=>setLinkUrl(e.target.value)} placeholder="example.com/path" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                      </div>
+                    </div>
+                  )}
+
+                  {linkType === 'anchor' && (
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Select Anchor</label>
+                      <select value={anchorTarget} onChange={(e)=>setAnchorTarget(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                        <option value=""></option>
+                        {anchorList.map((id)=> (
+                          <option key={id} value={id}>#{id}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {linkType === 'email' && (
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
+                      <input value={emailAddr} onChange={(e)=>setEmailAddr(e.target.value)} placeholder="user@example.com" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                  )}
+
+                  {/* Title field removed per requirements */}
+                </div>
+              )}
+
+              {linkTab === 'target' && (
+                <div>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Target</label>
+                  <select value={targetOpt} onChange={(e)=>setTargetOpt(e.target.value as 'notset'|'frame'|'popup'|'_blank'|'_top'|'_self'|'_parent')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                    <option value="notset">&lt;not set&gt;</option>
+                    <option value="frame">&lt;frame&gt;</option>
+                    <option value="popup">&lt;popup window&gt;</option>
+                    <option value="_blank">New Window (_blank)</option>
+                    <option value="_top">Topmost Window (_top)</option>
+                    <option value="_self">Same Window (_self)</option>
+                    <option value="_parent">Parent Window (_parent)</option>
+                  </select>
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">Tip: For emails, _blank is recommended.</div>
+                </div>
+              )}
+
+              {linkTab === 'advanced' && (
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Row 1: Id | Language Direction | Access Key */}
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Id</label>
+                    <input value={advId} onChange={(e)=>setAdvId(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Language Direction</label>
+                    <select value={advLangDir} onChange={(e)=>setAdvLangDir(e.target.value as 'notset'|'ltr'|'rtl')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                      <option value="notset">&lt;not set&gt;</option>
+                      <option value="ltr">Left to Right (LTR)</option>
+                      <option value="rtl">Right to Left (RTL)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Access Key</label>
+                    <input value={advAccessKey} onChange={(e)=>setAdvAccessKey(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+
+                  {/* Row 2: Name | Language Code | Tab Index */}
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <input value={advName} onChange={(e)=>setAdvName(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Language Code</label>
+                    <input value={advLangCode} onChange={(e)=>setAdvLangCode(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Tab Index</label>
+                    <input value={advTabIndex} onChange={(e)=>setAdvTabIndex(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+
+                  {/* Row 3: Advisory Title | Advisory Content Type | (empty) */}
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Advisory Title</label>
+                    <input value={advTitle} onChange={(e)=>setAdvTitle(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Advisory Content Type</label>
+                    <input value={advContentType} onChange={(e)=>setAdvContentType(e.target.value)} placeholder="text/html" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div />
+
+                  {/* Row 4: Stylesheet Classes | Linked Resource Charset | (empty) */}
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Stylesheet Classes</label>
+                    <input value={advClasses} onChange={(e)=>setAdvClasses(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Linked Resource Charset</label>
+                    <input value={advCharset} onChange={(e)=>setAdvCharset(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div />
+
+                  {/* Row 5: Relationship | Style | (empty) */}
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Relationship</label>
+                    <input value={advRel} onChange={(e)=>setAdvRel(e.target.value)} placeholder="nofollow, noopener" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Style</label>
+                    <input value={advStyle} onChange={(e)=>setAdvStyle(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div />
+                </div>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsLinkOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 text-sm rounded bg-blue-600 text-white" onClick={submitLinkModal}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Anchor Modal */}
+      {isAnchorOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsAnchorOpen(false)} />
+          <div className="relative w-full max-w-md rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Anchor Properties</h3>
+              <button aria-label="Close anchor" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsAnchorOpen(false)}>
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Anchor Name</label>
+                <input value={anchorId} onChange={(e)=>setAnchorId(e.target.value)} placeholder="section-1" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              </div>
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsAnchorOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 text-sm rounded bg-blue-600 text-white" onClick={submitAnchorModal}>OK</button>
             </div>
           </div>
         </div>
