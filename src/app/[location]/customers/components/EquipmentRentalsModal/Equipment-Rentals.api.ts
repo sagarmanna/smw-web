@@ -45,6 +45,7 @@ export interface RentalDetails {
   tenderType?: number;
   depositAmount?: string;
   studentId?: number;
+  createdOn?: string;
 }
 
 export interface EquipmentRentalsData {

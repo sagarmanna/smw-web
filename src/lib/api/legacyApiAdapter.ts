@@ -550,6 +550,24 @@ export interface EquipmentReturnedData {
   }>;
 }
 
+export interface EquipmentRentalDeleteData {
+  userId: string | number;
+  customerName: string;
+  studentName: string; // Note: API expects student name, not ID
+  returnDate: string; // Format: "YYYY-MM-DD"
+  securityDeposit: string; // Empty string
+  tenderType: string; // Empty string
+  depositAmount: string; // "0.00"
+  instruments: Array<{
+    value?: string; // Empty string for retail value
+    asset?: string; // Empty string for asset tag
+    price: string; // Monthly rate
+    duration: string; // Number of months
+    total: string; // Total amount
+    tax: string; // Tax amount (13% HST)
+  }>;
+}
+
 /**
  * Mark equipment as returned using the legacy API
  */
@@ -587,6 +605,63 @@ export async function equipmentReturned(
   // URL encode the return date for the query parameter
   const encodedReturnDate = encodeURIComponent(returnDateFormatted);
   const url = `/admin/${location}/equipment-rentals/equipment-returned?id=${rentalId}&returnDate=${encodedReturnDate}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Delete an equipment rental using the legacy API
+ */
+export async function deleteEquipmentRental(
+  location: string,
+  rentalId: string | number,
+  rentalData: EquipmentRentalDeleteData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  
+  formData.append('EquipmentRentals[userId]', rentalData.userId.toString());
+  formData.append('EquipmentRentals[customerId]', rentalData.customerName);
+  formData.append('EquipmentRentals[studentId]', rentalData.studentName);
+  formData.append('EquipmentRentals[returnDate]', rentalData.returnDate);
+  
+  // Security deposit needs to be sent twice (legacy API quirk) - empty values
+  formData.append('EquipmentRentals[securityDeposit]', rentalData.securityDeposit || '');
+  formData.append('EquipmentRentals[securityDeposit]', rentalData.securityDeposit || '');
+  
+  formData.append('EquipmentRentals[tenderType]', rentalData.tenderType || '');
+  formData.append('EquipmentRentals[depositAmount]', rentalData.depositAmount || '0.00');
+  
+  // Add instrument data with 1-based indexing
+  rentalData.instruments.forEach((instrument, index) => {
+    const idx = (index + 1).toString();
+    formData.append(`EquipmentRentals[values][${idx}][value]`, instrument.value || '');
+    formData.append(`EquipmentRentals[assets][${idx}][value]`, instrument.asset || '');
+    formData.append(`EquipmentRentals[prices][${idx}][value]`, instrument.price || '0');
+    formData.append(`EquipmentRentals[durations][${idx}][value]`, instrument.duration || '0');
+    formData.append(`EquipmentRentals[totals][${idx}][value]`, instrument.total || '0.00');
+    formData.append(`EquipmentRentals[taxs][${idx}][value]`, instrument.tax || '0.00');
+  });
+
+  const url = `/admin/${location}/equipment-rentals/delete?id=${rentalId}`;
 
   try {
     const response = await fetch(url, {
