@@ -24,10 +24,35 @@ export interface CustomerInfo {
   email: string;
 }
 
+export interface RentedInstrument {
+  instrumentId: number;
+  instrumentCode: string;
+  instrument: string;
+  retailValue: string;
+  assetTag: string;
+  monthlyRate: string;
+  numberOfMonths: string;
+  total: string;
+}
+
+export interface RentalDetails {
+  startDate?: string;
+  returnDate?: string;
+  endDate?: string;
+  duration?: number;
+  isOnGoing?: boolean | number; // API may return 0/1 as numbers
+  securityDeposit?: boolean | number; // API may return 0/1 as numbers
+  tenderType?: number;
+  depositAmount?: string;
+  studentId?: number;
+}
+
 export interface EquipmentRentalsData {
   instrumentRentals: InstrumentRental[];
   students: Student[];
   customerInfo: CustomerInfo;
+  rentedInstruments?: RentedInstrument[];
+  rentalDetails?: RentalDetails;
 }
 
 export interface GetEquipmentRentalsResponse {
