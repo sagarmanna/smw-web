@@ -869,10 +869,10 @@ export function CustomerDetailClient({
           }
         }
 
-        const summary = await getCustomerSummary(location, Number(id));
-        if (summary?.success && summary.data) {
-          setSummaryData(summary.data);
-        }
+        // const summary = await getCustomerSummary(location, Number(id));
+        // if (summary?.success && summary.data) {
+        //   setSummaryData(summary.data);
+        // }
 
         // Load outstanding invoices with pagination
         const outstandingInvoicesResult = await getCustomerOutstandingInvoices(
@@ -1094,6 +1094,10 @@ export function CustomerDetailClient({
         console.error("Error loading customer data:", error);
       } finally {
         setLoading(false);
+        const summary = await getCustomerSummary(location, Number(id));
+        if (summary?.success && summary.data) {
+          setSummaryData(summary.data);
+        }
       }
     };
 
