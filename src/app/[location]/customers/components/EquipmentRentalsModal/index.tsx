@@ -85,38 +85,43 @@ interface EquipmentRentalsModalProps {
 
 const InstrumentFormRow = React.memo(
   ({
-    newInstrument,
-    onNewInstrumentChange,
+    instrument,
+    onInstrumentChange,
     onInputFocus,
     onInputBlur,
     availableInstruments,
+    onDelete,
+    showDelete,
   }: {
-    newInstrument: InstrumentData;
-    onNewInstrumentChange: (field: keyof InstrumentData, value: string) => void;
+    instrument: InstrumentData;
+    onInstrumentChange: (id: string, field: keyof InstrumentData, value: string) => void;
     onInputFocus: (e: React.FocusEvent<HTMLInputElement>) => void;
     onInputBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
     availableInstruments: InstrumentRental[];
+    onDelete?: () => void;
+    showDelete: boolean;
   }) => {
     return (
       <tr className="border-b dark:border-gray-700">
         <td className="p-2">
           <Select
             value={
-              newInstrument.instrumentId > 0
-                ? newInstrument.instrumentId.toString()
+              instrument.instrumentId > 0
+                ? instrument.instrumentId.toString()
                 : ""
             }
             onValueChange={(value) => {
-              const instrument = availableInstruments.find(
+              const selectedInstrument = availableInstruments.find(
                 (i) => i.id.toString() === value
               );
-              if (instrument) {
-                onNewInstrumentChange("instrumentId", value);
-                onNewInstrumentChange("instrumentCode", instrument.code);
-                onNewInstrumentChange("instrument", instrument.description);
-                onNewInstrumentChange(
+              if (selectedInstrument) {
+                onInstrumentChange(instrument.id, "instrumentId", value);
+                onInstrumentChange(instrument.id, "instrumentCode", selectedInstrument.code);
+                onInstrumentChange(instrument.id, "instrument", selectedInstrument.description);
+                onInstrumentChange(
+                  instrument.id,
                   "monthlyRate",
-                  instrument.price.toString()
+                  selectedInstrument.price.toString()
                 );
               }
             }}
@@ -125,12 +130,12 @@ const InstrumentFormRow = React.memo(
               <SelectValue placeholder="--Select an option" />
             </SelectTrigger>
             <SelectContent>
-              {availableInstruments.map((instrument) => (
+              {availableInstruments.map((item) => (
                 <SelectItem
-                  key={instrument.id}
-                  value={instrument.id.toString()}
+                  key={item.id}
+                  value={item.id.toString()}
                 >
-                  {instrument.description}
+                  {item.description}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -138,9 +143,9 @@ const InstrumentFormRow = React.memo(
         </td>
         <td className="p-2">
           <Input
-            value={newInstrument.retailValue}
+            value={instrument.retailValue}
             onChange={(e) =>
-              onNewInstrumentChange("retailValue", e.target.value)
+              onInstrumentChange(instrument.id, "retailValue", e.target.value)
             }
             onFocus={onInputFocus}
             onBlur={onInputBlur}
@@ -150,8 +155,8 @@ const InstrumentFormRow = React.memo(
         </td>
         <td className="p-2">
           <Input
-            value={newInstrument.assetTag}
-            onChange={(e) => onNewInstrumentChange("assetTag", e.target.value)}
+            value={instrument.assetTag}
+            onChange={(e) => onInstrumentChange(instrument.id, "assetTag", e.target.value)}
             onFocus={onInputFocus}
             onBlur={onInputBlur}
             className="w-full"
@@ -159,9 +164,9 @@ const InstrumentFormRow = React.memo(
         </td>
         <td className="p-2">
           <Input
-            value={newInstrument.monthlyRate}
+            value={instrument.monthlyRate}
             onChange={(e) =>
-              onNewInstrumentChange("monthlyRate", e.target.value)
+              onInstrumentChange(instrument.id, "monthlyRate", e.target.value)
             }
             onFocus={onInputFocus}
             onBlur={onInputBlur}
@@ -171,9 +176,9 @@ const InstrumentFormRow = React.memo(
         </td>
         <td className="p-2">
           <Input
-            value={newInstrument.numberOfMonths}
+            value={instrument.numberOfMonths}
             onChange={(e) =>
-              onNewInstrumentChange("numberOfMonths", e.target.value)
+              onInstrumentChange(instrument.id, "numberOfMonths", e.target.value)
             }
             onFocus={onInputFocus}
             onBlur={onInputBlur}
@@ -181,12 +186,24 @@ const InstrumentFormRow = React.memo(
           />
         </td>
         <td className="p-2">
-          <Input
-            value={newInstrument.total}
-            readOnly
-            placeholder="0.00"
-            className="w-full bg-gray-50 dark:bg-gray-800"
-          />
+          <div className="flex items-center justify-end gap-2">
+            <Input
+              value={instrument.total}
+              readOnly
+              placeholder="0.00"
+              className="w-full bg-gray-50 dark:bg-gray-800"
+            />
+            {showDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDelete}
+                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </td>
       </tr>
     );
@@ -195,24 +212,15 @@ const InstrumentFormRow = React.memo(
 
 InstrumentFormRow.displayName = "InstrumentFormRow";
 
-// Helper function to calculate return date based on the new logic
 const calculateReturnDate = (startDate: Date, months: number): Date => {
   const dayOfMonth = startDate.getDate();
   const returnDate = new Date(startDate.getTime());
   
-  // If start date is between 1-7, count the current month as the first month
-  // Otherwise, start counting from the next month
   if (dayOfMonth >= 1 && dayOfMonth <= 7) {
-    // Start date is 1-7: add (months - 1) to get the return month
-    // Then set to last day of that month
     returnDate.setMonth(returnDate.getMonth() + months - 1);
-    // Set to last day of the month
     returnDate.setMonth(returnDate.getMonth() + 1, 0);
   } else {
-    // Start date is 8-31: add months normally
-    // Then set to last day of that month
     returnDate.setMonth(returnDate.getMonth() + months);
-    // Set to last day of the month
     returnDate.setMonth(returnDate.getMonth() + 1, 0);
   }
   
@@ -256,20 +264,20 @@ export function EquipmentRentalsModal({
     depositAmount: "",
   });
 
-  const [instruments, setInstruments] = useState<InstrumentData[]>([]);
+  const [instruments, setInstruments] = useState<InstrumentData[]>([
+    {
+      id: "initial",
+      instrumentId: 0,
+      instrumentCode: "",
+      instrument: "",
+      retailValue: "",
+      assetTag: "",
+      monthlyRate: "0",
+      numberOfMonths: "1",
+      total: "0.00",
+    }
+  ]);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
-
-  const [newInstrument, setNewInstrument] = useState<InstrumentData>({
-    id: "new",
-    instrumentId: 0,
-    instrumentCode: "",
-    instrument: "",
-    retailValue: "",
-    assetTag: "",
-    monthlyRate: "0",
-    numberOfMonths: "1",
-    total: "0.00",
-  });
 
   const isEditMode = Boolean(rentalId);
 
@@ -284,13 +292,9 @@ export function EquipmentRentalsModal({
         const { instrumentRentals, students, customerInfo } =
           response.data.body;
 
-        // Set available instruments from API response
         setAvailableInstruments(instrumentRentals);
-
-        // Set available students from API response
         setAvailableStudents(students);
 
-        // Populate form with customer info from API
         setFormData((prev) => ({
           ...prev,
           customer: customerInfo.customerName || "",
@@ -337,7 +341,6 @@ export function EquipmentRentalsModal({
           newData.duration = "";
           newData.returnDate = undefined;
         } else {
-          // When unchecking onGoing, calculate return date if we have start date and duration
           if (newData.rentalStartDate && newData.duration) {
             const durationMatch = newData.duration.match(/^(\d+)-month/);
             if (durationMatch) {
@@ -350,7 +353,6 @@ export function EquipmentRentalsModal({
         }
       }
 
-      // Calculate return date when rental start date or duration changes
       if (
         (field === "rentalStartDate" || field === "duration") &&
         !newData.onGoing
@@ -376,23 +378,28 @@ export function EquipmentRentalsModal({
     });
   };
 
-  const handleNewInstrumentChange = (
+  const handleInstrumentChange = (
+    id: string,
     field: keyof InstrumentData,
     value: string
   ) => {
-    setNewInstrument((prev) => {
-      const updated = {
-        ...prev,
-        [field]: value,
-      };
+    setInstruments((prev) => {
+      return prev.map((inst) => {
+        if (inst.id !== id) return inst;
 
-      if (field === "monthlyRate" || field === "numberOfMonths") {
-        const monthlyRate = parseFloat(updated.monthlyRate || "0");
-        const numberOfMonths = parseFloat(updated.numberOfMonths || "0");
-        updated.total = (monthlyRate * numberOfMonths).toFixed(2);
-      }
+        const updated = {
+          ...inst,
+          [field]: value,
+        };
 
-      return updated;
+        if (field === "monthlyRate" || field === "numberOfMonths") {
+          const monthlyRate = parseFloat(updated.monthlyRate || "0");
+          const numberOfMonths = parseFloat(updated.numberOfMonths || "0");
+          updated.total = (monthlyRate * numberOfMonths).toFixed(2);
+        }
+
+        return updated;
+      });
     });
   };
 
@@ -404,51 +411,52 @@ export function EquipmentRentalsModal({
     e.stopPropagation();
   };
 
-  const handleAddInstrument = () => {
-    if (newInstrument.instrumentId > 0) {
-      const instrument: InstrumentData = {
-        ...newInstrument,
-        id: Date.now().toString(),
-        total: (
-          parseFloat(newInstrument.monthlyRate) *
-          parseFloat(newInstrument.numberOfMonths || "0")
-        ).toFixed(2),
-      };
-      setInstruments((prev) => [...prev, instrument]);
-      setNewInstrument({
-        id: "new",
-        instrumentId: 0,
-        instrumentCode: "",
-        instrument: "",
-        retailValue: "",
-        assetTag: "",
-        monthlyRate: "0",
-        numberOfMonths: "1",
-        total: "0.00",
-      });
-    } else {
-      toast.error("Please select an instrument");
-    }
-  };
-
-  const handleAddCurrentInstrument = () => {
-    if (newInstrument.instrumentId > 0) {
-      handleAddInstrument();
-    }
+  const handleAddAnotherInstrument = () => {
+    const newInstrument: InstrumentData = {
+      id: Date.now().toString(),
+      instrumentId: 0,
+      instrumentCode: "",
+      instrument: "",
+      retailValue: "",
+      assetTag: "",
+      monthlyRate: "0",
+      numberOfMonths: "1",
+      total: "0.00",
+    };
+    setInstruments((prev) => [...prev, newInstrument]);
   };
 
   const handleDeleteInstrument = (id: string) => {
-    setInstruments((prev) => prev.filter((instrument) => instrument.id !== id));
+    setInstruments((prev) => {
+      const filtered = prev.filter((instrument) => instrument.id !== id);
+      // Always keep at least one row
+      if (filtered.length === 0) {
+        return [{
+          id: Date.now().toString(),
+          instrumentId: 0,
+          instrumentCode: "",
+          instrument: "",
+          retailValue: "",
+          assetTag: "",
+          monthlyRate: "0",
+          numberOfMonths: "1",
+          total: "0.00",
+        }];
+      }
+      return filtered;
+    });
   };
 
   const handleSave = async () => {
-    // Validate form
     if (!formData.studentId) {
       toast.error("Please select a student");
       return;
     }
 
-    if (instruments.length === 0) {
+    // Filter out instruments that haven't been filled in (instrumentId = 0)
+    const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+
+    if (filledInstruments.length === 0) {
       toast.error("Please add at least one instrument");
       return;
     }
@@ -461,12 +469,9 @@ export function EquipmentRentalsModal({
     try {
       setSaving(true);
 
-      // Extract duration number from "1-month", "2-months", etc.
       const durationMatch = formData.duration.match(/^(\d+)/);
       const duration = durationMatch ? parseInt(durationMatch[1]) : 1;
 
-      // Map tenderType string to number
-      // Based on the select options: cash -> 1, credit-card -> 2, preauthorized -> 3
       const tenderTypeMap: Record<string, string> = {
         "cash": "1",
         "credit-card": "2",
@@ -474,21 +479,17 @@ export function EquipmentRentalsModal({
       };
       const tenderTypeNumber = tenderTypeMap[formData.tenderType] || formData.tenderType || "";
 
-      // Format start date as "MMM dd, yyyy"
       const startDateFormatted = format(formData.rentalStartDate, "MMM dd, yyyy");
 
-      // Format return date as ISO string
       let returnDateISO = "";
       if (formData.returnDate) {
         returnDateISO = formData.returnDate.toISOString();
       } else if (!formData.onGoing && formData.rentalStartDate) {
-        // Calculate return date from start date and duration using the new logic
         const calculatedReturnDate = calculateReturnDate(formData.rentalStartDate, duration);
         returnDateISO = calculatedReturnDate.toISOString();
       }
 
-      // Map instruments to API format
-      const mappedInstruments = instruments.map((instrument) => ({
+      const mappedInstruments = filledInstruments.map((instrument) => ({
         instrumentId: instrument.instrumentId,
         retailValue: instrument.retailValue || "",
         assetTag: instrument.assetTag || "",
@@ -497,7 +498,7 @@ export function EquipmentRentalsModal({
         total: instrument.total || "0.00",
       }));
 
-      const subTotal = instruments.reduce(
+      const subTotal = filledInstruments.reduce(
         (sum, instrument) => sum + parseFloat(instrument.total || "0"),
         0
       );
@@ -528,11 +529,10 @@ export function EquipmentRentalsModal({
       if (response.status) {
         toast.success("Equipment rental created successfully");
         onOpenChange(false);
-        // Call onSave callback if provided (for parent component to refresh data)
         if (onSave) {
           onSave({
             ...formData,
-            instruments,
+            instruments: filledInstruments,
           });
         }
       } else {
@@ -560,7 +560,6 @@ export function EquipmentRentalsModal({
     try {
       setReturning(true);
 
-      // Get student name from availableStudents
       const selectedStudent = availableStudents.find(
         (s) => s.id.toString() === formData.studentId
       );
@@ -571,21 +570,19 @@ export function EquipmentRentalsModal({
         return;
       }
 
-      // Use today's date as return date (or could allow user to select)
       const returnDate = new Date();
-      const returnDateFormatted = format(returnDate, "MMM dd, yyyy"); // For URL: "Oct 30, 2025"
-      const returnDateISO = format(returnDate, "yyyy-MM-dd"); // For form data: "2025-10-30"
+      const returnDateFormatted = format(returnDate, "MMM dd, yyyy");
+      const returnDateISO = format(returnDate, "yyyy-MM-dd");
 
-      // Map instruments from state to API format
-      // Note: In edit mode, we might not have instruments in state
-      // If instruments array is empty, we'll send empty instrument data
-      const mappedInstruments = instruments.length > 0
-        ? instruments.map((instrument) => {
+      const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+
+      const mappedInstruments = filledInstruments.length > 0
+        ? filledInstruments.map((instrument) => {
             const instrumentTotal = parseFloat(instrument.total || "0");
             const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
             return {
-              value: "", // Empty string for retail value
-              asset: "", // Empty string for asset tag
+              value: "",
+              asset: "",
               price: instrument.monthlyRate || "0",
               duration: instrument.numberOfMonths || "0",
               total: instrument.total || "0.00",
@@ -593,8 +590,6 @@ export function EquipmentRentalsModal({
             };
           })
         : [
-            // Default empty instrument if no instruments in state
-            // This might happen in edit mode where instruments are not loaded into state
             {
               value: "",
               asset: "",
@@ -623,7 +618,6 @@ export function EquipmentRentalsModal({
 
       if (response.status) {
         toast.success("Equipment marked as returned successfully");
-        // Close modal and call callback if provided
         onOpenChange(false);
         if (onEquipmentReturned) {
           onEquipmentReturned(rentalId);
@@ -650,7 +644,9 @@ export function EquipmentRentalsModal({
     onOpenChange(false);
   };
 
-  const subTotal = instruments.reduce(
+  // Calculate totals only from instruments that have been filled in
+  const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+  const subTotal = filledInstruments.reduce(
     (sum, instrument) => sum + parseFloat(instrument.total || "0"),
     0
   );
@@ -669,13 +665,11 @@ export function EquipmentRentalsModal({
 
           <div className="flex-1 overflow-y-auto px-6 space-y-4">
             <div className="space-y-4 p-6 ml-5">
-              {/* Customer Name Skeleton */}
               <div className="flex items-center gap-4">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-48" />
               </div>
 
-              {/* Address Row Skeleton */}
               <div className="flex items-center gap-4">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-48" />
@@ -701,20 +695,17 @@ export function EquipmentRentalsModal({
                 <Skeleton className="h-10 w-48" />
               </div>
 
-              {/* Student Skeleton */}
               <div className="flex items-center gap-4">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-48" />
               </div>
 
-              {/* Rental Start Date Skeleton */}
               <div className="flex items-center gap-4">
                 <Skeleton className="h-5 w-32" />
                 <Skeleton className="h-10 w-48" />
                 <Skeleton className="h-5 w-20 ml-6" />
               </div>
 
-              {/* Duration Skeleton */}
               <div className="flex items-center p-5 gap-4">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-48" />
@@ -722,7 +713,6 @@ export function EquipmentRentalsModal({
                 <Skeleton className="h-10 w-48" />
               </div>
 
-              {/* Security Deposit Skeleton */}
               <div className="flex items-start p-5 gap-4">
                 <Skeleton className="h-6 w-48" />
                 <div className="flex flex-col space-y-2">
@@ -732,7 +722,6 @@ export function EquipmentRentalsModal({
               </div>
             </div>
 
-            {/* Instrument Details Skeleton */}
             <div className="space-y-4">
               <Skeleton className="h-6 w-40" />
               <div className="border rounded-lg overflow-hidden dark:border-gray-700">
@@ -1014,16 +1003,19 @@ export function EquipmentRentalsModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {!isEditMode && (
+                  {!isEditMode && instruments.map((instrument) => (
                     <InstrumentFormRow
-                      newInstrument={newInstrument}
-                      onNewInstrumentChange={handleNewInstrumentChange}
+                      key={instrument.id}
+                      instrument={instrument}
+                      onInstrumentChange={handleInstrumentChange}
                       onInputFocus={handleInputFocus}
                       onInputBlur={handleInputBlur}
                       availableInstruments={availableInstruments}
+                      onDelete={() => handleDeleteInstrument(instrument.id)}
+                      showDelete={instruments.length > 1}
                     />
-                  )}
-                  {instruments.map((instrument) => (
+                  ))}
+                  {isEditMode && instruments.map((instrument) => (
                     <tr
                       key={instrument.id}
                       className="border-b dark:border-gray-700"
@@ -1046,18 +1038,6 @@ export function EquipmentRentalsModal({
                           <span className="font-medium">
                             {instrument.total}
                           </span>
-                          {!isEditMode && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              handleDeleteInstrument(instrument.id)
-                            }
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -1066,11 +1046,13 @@ export function EquipmentRentalsModal({
               </table>
             </div>
 
-            <div className="mt-4">
-              <Button onClick={handleAddInstrument} className="w-fit" disabled={isEditMode}>
-                Add Instrument
-              </Button>
-            </div>
+            {!isEditMode && (
+              <div className="mt-4">
+                <Button onClick={handleAddAnotherInstrument} className="w-fit">
+                  Add Instrument
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end">
