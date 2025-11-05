@@ -39,7 +39,7 @@ import {
   type RentedInstrument,
   type RentalDetails,
 } from "./Equipment-Rentals.api";
-import { createEquipmentRental, equipmentReturned } from "@/lib/api/legacyApiAdapter";
+import { createEquipmentRental, equipmentReturned, deleteEquipmentRental } from "@/lib/api/legacyApiAdapter";
 
 interface InstrumentData {
   id: string;
@@ -83,6 +83,7 @@ interface EquipmentRentalsModalProps {
   rentalId?: number;
   onReprintAgreement?: (rentalId: number) => void;
   onEquipmentReturned?: (rentalId: number) => void;
+  onDelete?: () => void;
 }
 
 const InstrumentFormRow = React.memo(
@@ -238,14 +239,18 @@ export function EquipmentRentalsModal({
   rentalId,
   onReprintAgreement,
   onEquipmentReturned,
+  onDelete,
 }: EquipmentRentalsModalProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [returning, setReturning] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [availableInstruments, setAvailableInstruments] = useState<
     InstrumentRental[]
   >([]);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
+  const [rentalCreatedOn, setRentalCreatedOn] = useState<Date | null>(null);
 
   const [formData, setFormData] = useState<EquipmentRentalFormData>({
     customer: "",
@@ -293,13 +298,6 @@ export function EquipmentRentalsModal({
       if (response && response.success) {
         const { instrumentRentals, students, customerInfo, rentedInstruments, rentalDetails } =
           response.data.body;
-
-        console.log('API Response:', {
-          instrumentRentals: instrumentRentals?.length || 0,
-          rentedInstruments: rentedInstruments?.length || 0,
-          rentalDetails: rentalDetails,
-          rentalId: rentalId,
-        });
 
         setAvailableInstruments(instrumentRentals);
         setAvailableStudents(students);
@@ -368,9 +366,15 @@ export function EquipmentRentalsModal({
 
         setFormData(newFormData);
 
+        // Set created date for delete button visibility logic
+        if (rentalId && rentalDetails?.createdOn) {
+          setRentalCreatedOn(new Date(rentalDetails.createdOn + 'T00:00:00'));
+        } else {
+          setRentalCreatedOn(null);
+        }
+
         // Populate instruments table if in edit mode and rented instruments are available
         if (rentalId && rentedInstruments && rentedInstruments.length > 0) {
-          console.log('Populating instruments table with rented instruments:', rentedInstruments);
           const mappedInstruments: InstrumentData[] = rentedInstruments.map((inst, index) => ({
             id: `rented-${inst.instrumentId}-${index}`,
             instrumentId: inst.instrumentId,
@@ -385,7 +389,6 @@ export function EquipmentRentalsModal({
           setInstruments(mappedInstruments);
         } else if (rentalId) {
           // Edit mode but no rented instruments found - log warning
-          console.warn('Edit mode but no rented instruments found. rentalId:', rentalId, 'rentedInstruments:', rentedInstruments);
           // Keep empty instruments array for edit mode to show empty state
           setInstruments([]);
         } else {
@@ -423,7 +426,7 @@ export function EquipmentRentalsModal({
     }
   }, [open, fetchEquipmentRentalsData]);
 
-  // Recalculate instrument totals when dates change (if both dates are present)
+  // Recalculate instrument totals when dates or duration change (if both dates are present)
   useEffect(() => {
     if (
       !formData.onGoing &&
@@ -436,36 +439,88 @@ export function EquipmentRentalsModal({
         (inst) => inst.instrumentId > 0 && parseFloat(inst.monthlyRate || "0") > 0
       );
       if (hasInstrumentsWithRates) {
-        recalculateInstrumentTotalsFromDates(formData.rentalStartDate, formData.returnDate);
+        recalculateInstrumentTotalsFromDates(
+          formData.rentalStartDate, 
+          formData.returnDate, 
+          formData.duration
+        );
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.rentalStartDate, formData.returnDate, formData.onGoing]);
+  }, [formData.rentalStartDate, formData.returnDate, formData.duration, formData.onGoing]);
 
-  // Calculate total based on date difference (matching legacy behavior)
-  // Legacy calculation: (days between start and return) * (monthlyRate / 30)
-  // Example: Nov 10 to Dec 31 = 51 days, $20/month = $0.666667/day, Total = 51 * 0.666667 = 34.00
-  const calculateTotalFromDates = (startDate: Date, returnDate: Date, monthlyRate: number): string => {
+  // Calculate total based on date difference with minimum charge for selected duration
+  // Logic: 
+  // - Minimum charge = monthlyRate * duration (e.g., 1 month = $20)
+  // - If actual days > (duration * 30): charge minimum + extra days
+  // - If actual days <= (duration * 30): charge minimum (don't reduce)
+  const calculateTotalFromDates = (
+    startDate: Date, 
+    returnDate: Date, 
+    monthlyRate: number,
+    duration?: string
+  ): string => {
     if (!startDate || !returnDate || monthlyRate <= 0) {
       return "0.00";
     }
 
-    // Calculate difference in days (return date is inclusive, so we count the difference)
-    // Nov 10 to Dec 31 = 51 days (not including +1, as the return date day is the last rental day)
+    // Calculate actual difference in days (return date is inclusive)
     const diffTime = returnDate.getTime() - startDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Count days from start to return (inclusive of return day)
+    const actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Count days from start to return (inclusive of return day)
     
-    // Calculate per day rate (assuming 30 days per month, matching legacy)
+    // If no duration selected, use simple day-based calculation
+    if (!duration) {
+      const daysPerMonth = 30;
+      const perDayRate = monthlyRate / daysPerMonth;
+      const total = actualDays * perDayRate;
+      return total.toFixed(2);
+    }
+
+    // Extract duration in months (e.g., "1-month" -> 1, "2-months" -> 2)
+    const durationMatch = duration.match(/^(\d+)-month/);
+    if (!durationMatch) {
+      // Fallback to day-based calculation if duration format is invalid
+      const daysPerMonth = 30;
+      const perDayRate = monthlyRate / daysPerMonth;
+      const total = actualDays * perDayRate;
+      return total.toFixed(2);
+    }
+
+    const durationMonths = parseInt(durationMatch[1]);
+    if (isNaN(durationMonths) || durationMonths <= 0) {
+      const daysPerMonth = 30;
+      const perDayRate = monthlyRate / daysPerMonth;
+      const total = actualDays * perDayRate;
+      return total.toFixed(2);
+    }
+
+    // Calculate minimum charge for selected duration
+    const minimumCharge = monthlyRate * durationMonths;
+    
+    // Calculate expected days for the duration (30 days per month)
     const daysPerMonth = 30;
+    const expectedDays = durationMonths * daysPerMonth;
+    
+    // Calculate per day rate for extra days
     const perDayRate = monthlyRate / daysPerMonth;
     
-    // Calculate total: days * per day rate
-    const total = diffDays * perDayRate;
-    return total.toFixed(2);
+    // If actual days exceed expected days, charge minimum + extra days
+    if (actualDays > expectedDays) {
+      const extraDays = actualDays - expectedDays;
+      const total = minimumCharge + (extraDays * perDayRate);
+      return total.toFixed(2);
+    }
+    
+    // If actual days <= expected days, charge minimum (don't reduce)
+    return minimumCharge.toFixed(2);
   };
 
-  // Recalculate all instrument totals based on date difference
-  const recalculateInstrumentTotalsFromDates = (startDate: Date | undefined, returnDate: Date | undefined) => {
+  // Recalculate all instrument totals based on date difference with duration consideration
+  const recalculateInstrumentTotalsFromDates = (
+    startDate: Date | undefined, 
+    returnDate: Date | undefined,
+    duration?: string
+  ) => {
     if (!startDate || !returnDate) {
       return;
     }
@@ -481,7 +536,7 @@ export function EquipmentRentalsModal({
           return inst;
         }
 
-        const total = calculateTotalFromDates(startDate, returnDate, monthlyRate);
+        const total = calculateTotalFromDates(startDate, returnDate, monthlyRate, duration);
         return {
           ...inst,
           total: total,
@@ -544,15 +599,35 @@ export function EquipmentRentalsModal({
         if (durationMatch) {
           const months = durationMatch[1];
           setInstruments((prev) =>
-            prev.map((inst) => ({
-              ...inst,
-              numberOfMonths: months,
-              // Recalculate total when duration changes
-              total:
-                inst.monthlyRate && parseFloat(inst.monthlyRate) > 0
-                  ? (parseFloat(inst.monthlyRate) * parseInt(months)).toFixed(2)
-                  : "0.00",
-            }))
+            prev.map((inst) => {
+              const updated = {
+                ...inst,
+                numberOfMonths: months,
+              };
+              
+              // If we have both dates, recalculate using date-based logic with minimum charge
+              if (newData.rentalStartDate && newData.returnDate && inst.monthlyRate) {
+                const monthlyRate = parseFloat(inst.monthlyRate || "0");
+                if (monthlyRate > 0) {
+                  updated.total = calculateTotalFromDates(
+                    newData.rentalStartDate,
+                    newData.returnDate,
+                    monthlyRate,
+                    String(value)
+                  );
+                } else {
+                  updated.total = "0.00";
+                }
+              } else {
+                // Fallback to monthly calculation if dates not available
+                updated.total =
+                  inst.monthlyRate && parseFloat(inst.monthlyRate) > 0
+                    ? (parseFloat(inst.monthlyRate) * parseInt(months)).toFixed(2)
+                    : "0.00";
+              }
+              
+              return updated;
+            })
           );
         }
       }
@@ -566,7 +641,11 @@ export function EquipmentRentalsModal({
       ) {
         // Use setTimeout to ensure state is updated before recalculating
         setTimeout(() => {
-          recalculateInstrumentTotalsFromDates(newData.rentalStartDate, newData.returnDate);
+          recalculateInstrumentTotalsFromDates(
+            newData.rentalStartDate, 
+            newData.returnDate, 
+            newData.duration
+          );
         }, 0);
       }
 
@@ -591,7 +670,7 @@ export function EquipmentRentalsModal({
         if (field === "monthlyRate" || field === "numberOfMonths") {
           const monthlyRate = parseFloat(updated.monthlyRate || "0");
           
-          // If we have both start and return dates, calculate based on date difference
+          // If we have both start and return dates, calculate based on date difference with duration
           if (
             !formData.onGoing &&
             formData.rentalStartDate &&
@@ -601,7 +680,8 @@ export function EquipmentRentalsModal({
             updated.total = calculateTotalFromDates(
               formData.rentalStartDate,
               formData.returnDate,
-              monthlyRate
+              monthlyRate,
+              formData.duration
             );
           } else {
             // Fallback to monthly calculation
@@ -880,6 +960,97 @@ export function EquipmentRentalsModal({
       console.error("Error marking equipment as returned:", error);
     } finally {
       setReturning(false);
+    }
+  };
+
+  const handleDeleteClick = () => {
+    if (!rentalId) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!rentalId) return;
+
+    try {
+      setDeleting(true);
+      setShowDeleteConfirm(false);
+
+      const selectedStudent = availableStudents.find(
+        (s) => s.id.toString() === formData.studentId
+      );
+      const studentName = selectedStudent?.fullName || "";
+
+      if (!studentName) {
+        toast.error("Student information not found");
+        return;
+      }
+
+      const returnDateISO = formData.returnDate 
+        ? format(formData.returnDate, "yyyy-MM-dd")
+        : "";
+
+      const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+
+      const mappedInstruments = filledInstruments.length > 0
+        ? filledInstruments.map((instrument) => {
+            const instrumentTotal = parseFloat(instrument.total || "0");
+            const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+            return {
+              value: "",
+              asset: "",
+              price: instrument.monthlyRate || "0",
+              duration: instrument.numberOfMonths || "0",
+              total: instrument.total || "0.00",
+              tax: instrumentTax,
+            };
+          })
+        : [
+            {
+              value: "",
+              asset: "",
+              price: "0",
+              duration: "0",
+              total: "0.00",
+              tax: "0.00",
+            },
+          ];
+
+      const response = await deleteEquipmentRental(
+        location,
+        rentalId,
+        {
+          userId: customerId,
+          customerName: formData.customer,
+          studentName: studentName,
+          returnDate: returnDateISO,
+          securityDeposit: "",
+          tenderType: "",
+          depositAmount: formData.depositAmount || "0.00",
+          instruments: mappedInstruments,
+        }
+      );
+
+      if (response.status) {
+        toast.success("Equipment rental deleted successfully");
+        onOpenChange(false);
+        if (onDelete) {
+          onDelete();
+        }
+      } else {
+        const errorMessage =
+          response.errors?.join(", ") ||
+          "Failed to delete equipment rental";
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to delete equipment rental";
+      toast.error(errorMessage);
+      console.error("Error deleting equipment rental:", error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1325,16 +1496,55 @@ export function EquipmentRentalsModal({
 
         <DialogFooter className={`w-full flex gap-2 p-6 pt-4 border-t dark:border-gray-700 bg-background ${isEditMode ? "justify-between sm:justify-between" : "justify-end"}`}>
           {isEditMode && (
-            <Button onClick={handleReprintAgreement}>Reprint Agreement</Button>
+            <div className="flex items-center gap-2">
+              {/* Show delete button only if rental was created today or earlier (matching legacy logic) */}
+              {rentalCreatedOn && (
+                (() => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const createdDate = new Date(rentalCreatedOn);
+                  createdDate.setHours(0, 0, 0, 0);
+                  const showDelete = today <= createdDate; // Show if today <= created date
+                  return showDelete ? (
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleDeleteClick} 
+                      disabled={deleting}
+                    >
+                      {deleting ? "Deleting..." : "Delete"}
+                    </Button>
+                  ) : null;
+                })()
+              )}
+              <Button onClick={handleReprintAgreement}>Reprint Agreement</Button>
+            </div>
           )}
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleCancel}>
               Close
             </Button>
             {isEditMode ? (
-              <Button onClick={handleEquipmentReturned} disabled={returning}>
-                {returning ? "Processing..." : "Equipment Returned"}
-              </Button>
+              (() => {
+                // Enable Equipment Returned button only if return date exists and today >= return date (matching legacy logic)
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const returnDate = formData.returnDate 
+                  ? new Date(formData.returnDate)
+                  : null;
+                if (returnDate) {
+                  returnDate.setHours(0, 0, 0, 0);
+                }
+                const isEnabled = returnDate && today >= returnDate;
+                
+                return (
+                  <Button 
+                    onClick={handleEquipmentReturned} 
+                    disabled={returning || !isEnabled}
+                  >
+                    {returning ? "Processing..." : "Equipment Returned"}
+                  </Button>
+                );
+              })()
             ) : (
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? "Creating..." : "Create"}
@@ -1343,6 +1553,36 @@ export function EquipmentRentalsModal({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Equipment Rental</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete this equipment rental? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
