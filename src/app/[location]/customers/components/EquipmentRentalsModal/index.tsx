@@ -275,7 +275,7 @@ export function EquipmentRentalsModal({
       retailValue: "",
       assetTag: "",
       monthlyRate: "0",
-      numberOfMonths: "1",
+      numberOfMonths: "", // Empty in create mode (matching legacy behavior)
       total: "0.00",
     }
   ]);
@@ -293,6 +293,13 @@ export function EquipmentRentalsModal({
       if (response && response.success) {
         const { instrumentRentals, students, customerInfo, rentedInstruments, rentalDetails } =
           response.data.body;
+
+        console.log('API Response:', {
+          instrumentRentals: instrumentRentals?.length || 0,
+          rentedInstruments: rentedInstruments?.length || 0,
+          rentalDetails: rentalDetails,
+          rentalId: rentalId,
+        });
 
         setAvailableInstruments(instrumentRentals);
         setAvailableStudents(students);
@@ -328,12 +335,13 @@ export function EquipmentRentalsModal({
             returnDate = calculateReturnDate(new Date(rentalDetails.startDate + 'T00:00:00'), rentalDetails.duration);
           }
         } else {
-          // Create mode - use defaults
-          rentalStartDate = new Date();
+          // Create mode - match legacy behavior: student and date should require user selection
+          // Start date can have a default (today) but user must select it
+          rentalStartDate = new Date(); // Default to today, but user can change it
           returnDate = undefined;
           duration = "";
           onGoing = false;
-          studentId = students.length > 0 ? students[0].id.toString() : "";
+          studentId = ""; // Empty - user must select (matching legacy Select2 placeholder behavior)
         }
 
         const newFormData: EquipmentRentalFormData = {
@@ -345,7 +353,8 @@ export function EquipmentRentalsModal({
           workPhone: customerInfo.workPhone || "",
           otherPhone: customerInfo.otherPhone || "",
           email: customerInfo.email || "",
-          studentId: studentId || (students.length > 0 ? students[0].id.toString() : ""),
+          // In create mode, don't auto-select student - user must select (matching legacy behavior)
+          studentId: rentalId && rentalDetails ? studentId : "", // Only use studentId in edit mode
           rentalStartDate: rentalStartDate,
           onGoing: onGoing,
           duration: duration,
@@ -370,7 +379,7 @@ export function EquipmentRentalsModal({
             retailValue: inst.retailValue || "",
             assetTag: inst.assetTag || "",
             monthlyRate: inst.monthlyRate || "0",
-            numberOfMonths: inst.numberOfMonths || "1",
+            numberOfMonths: inst.numberOfMonths || "", // Use actual value or empty (not default to "1")
             total: inst.total || "0.00",
           }));
           setInstruments(mappedInstruments);
@@ -390,7 +399,7 @@ export function EquipmentRentalsModal({
               retailValue: "",
               assetTag: "",
               monthlyRate: "0",
-              numberOfMonths: "1",
+              numberOfMonths: "", // Empty in create mode (matching legacy behavior)
               total: "0.00",
             }
           ]);
@@ -413,6 +422,73 @@ export function EquipmentRentalsModal({
       fetchEquipmentRentalsData();
     }
   }, [open, fetchEquipmentRentalsData]);
+
+  // Recalculate instrument totals when dates change (if both dates are present)
+  useEffect(() => {
+    if (
+      !formData.onGoing &&
+      formData.rentalStartDate &&
+      formData.returnDate &&
+      instruments.length > 0
+    ) {
+      // Only recalculate if we have instruments with monthly rates
+      const hasInstrumentsWithRates = instruments.some(
+        (inst) => inst.instrumentId > 0 && parseFloat(inst.monthlyRate || "0") > 0
+      );
+      if (hasInstrumentsWithRates) {
+        recalculateInstrumentTotalsFromDates(formData.rentalStartDate, formData.returnDate);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.rentalStartDate, formData.returnDate, formData.onGoing]);
+
+  // Calculate total based on date difference (matching legacy behavior)
+  // Legacy calculation: (days between start and return) * (monthlyRate / 30)
+  // Example: Nov 10 to Dec 31 = 51 days, $20/month = $0.666667/day, Total = 51 * 0.666667 = 34.00
+  const calculateTotalFromDates = (startDate: Date, returnDate: Date, monthlyRate: number): string => {
+    if (!startDate || !returnDate || monthlyRate <= 0) {
+      return "0.00";
+    }
+
+    // Calculate difference in days (return date is inclusive, so we count the difference)
+    // Nov 10 to Dec 31 = 51 days (not including +1, as the return date day is the last rental day)
+    const diffTime = returnDate.getTime() - startDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Count days from start to return (inclusive of return day)
+    
+    // Calculate per day rate (assuming 30 days per month, matching legacy)
+    const daysPerMonth = 30;
+    const perDayRate = monthlyRate / daysPerMonth;
+    
+    // Calculate total: days * per day rate
+    const total = diffDays * perDayRate;
+    return total.toFixed(2);
+  };
+
+  // Recalculate all instrument totals based on date difference
+  const recalculateInstrumentTotalsFromDates = (startDate: Date | undefined, returnDate: Date | undefined) => {
+    if (!startDate || !returnDate) {
+      return;
+    }
+
+    setInstruments((prev) =>
+      prev.map((inst) => {
+        if (inst.instrumentId === 0 || !inst.monthlyRate) {
+          return inst;
+        }
+
+        const monthlyRate = parseFloat(inst.monthlyRate || "0");
+        if (monthlyRate <= 0) {
+          return inst;
+        }
+
+        const total = calculateTotalFromDates(startDate, returnDate, monthlyRate);
+        return {
+          ...inst,
+          total: total,
+        };
+      })
+    );
+  };
 
   const handleInputChange = (
     field: keyof EquipmentRentalFormData,
@@ -462,6 +538,38 @@ export function EquipmentRentalsModal({
         }
       }
 
+      // Update all instruments' numberOfMonths when duration changes (matching legacy behavior)
+      if (field === "duration" && !newData.onGoing) {
+        const durationMatch = String(value).match(/^(\d+)-month/);
+        if (durationMatch) {
+          const months = durationMatch[1];
+          setInstruments((prev) =>
+            prev.map((inst) => ({
+              ...inst,
+              numberOfMonths: months,
+              // Recalculate total when duration changes
+              total:
+                inst.monthlyRate && parseFloat(inst.monthlyRate) > 0
+                  ? (parseFloat(inst.monthlyRate) * parseInt(months)).toFixed(2)
+                  : "0.00",
+            }))
+          );
+        }
+      }
+
+      // Recalculate instrument totals based on date difference when dates change
+      if (
+        (field === "rentalStartDate" || field === "returnDate") &&
+        !newData.onGoing &&
+        newData.rentalStartDate &&
+        newData.returnDate
+      ) {
+        // Use setTimeout to ensure state is updated before recalculating
+        setTimeout(() => {
+          recalculateInstrumentTotalsFromDates(newData.rentalStartDate, newData.returnDate);
+        }, 0);
+      }
+
       return newData;
     });
   };
@@ -482,8 +590,29 @@ export function EquipmentRentalsModal({
 
         if (field === "monthlyRate" || field === "numberOfMonths") {
           const monthlyRate = parseFloat(updated.monthlyRate || "0");
-          const numberOfMonths = parseFloat(updated.numberOfMonths || "0");
-          updated.total = (monthlyRate * numberOfMonths).toFixed(2);
+          
+          // If we have both start and return dates, calculate based on date difference
+          if (
+            !formData.onGoing &&
+            formData.rentalStartDate &&
+            formData.returnDate &&
+            monthlyRate > 0
+          ) {
+            updated.total = calculateTotalFromDates(
+              formData.rentalStartDate,
+              formData.returnDate,
+              monthlyRate
+            );
+          } else {
+            // Fallback to monthly calculation
+            const numberOfMonths = parseFloat(updated.numberOfMonths || "0");
+            // Only calculate total if both values are valid numbers
+            if (!isNaN(monthlyRate) && !isNaN(numberOfMonths) && numberOfMonths > 0) {
+              updated.total = (monthlyRate * numberOfMonths).toFixed(2);
+            } else {
+              updated.total = "0.00";
+            }
+          }
         }
 
         return updated;
@@ -508,7 +637,7 @@ export function EquipmentRentalsModal({
       retailValue: "",
       assetTag: "",
       monthlyRate: "0",
-      numberOfMonths: "1",
+      numberOfMonths: "", // Empty in create mode (matching legacy behavior)
       total: "0.00",
     };
     setInstruments((prev) => [...prev, newInstrument]);
@@ -527,7 +656,7 @@ export function EquipmentRentalsModal({
           retailValue: "",
           assetTag: "",
           monthlyRate: "0",
-          numberOfMonths: "1",
+          numberOfMonths: "", // Empty in create mode (matching legacy behavior)
           total: "0.00",
         }];
       }
@@ -638,8 +767,34 @@ export function EquipmentRentalsModal({
 
   const handleReprintAgreement = () => {
     if (!rentalId) return;
-    if (onReprintAgreement) return onReprintAgreement(rentalId);
-    toast.success("Reprint Agreement triggered");
+    
+    // Calculate totals from instruments (matching legacy behavior and UI display)
+    // Use the same calculation as displayed in the UI
+    const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+    const subTotal = filledInstruments.reduce(
+      (sum, instrument) => sum + parseFloat(instrument.total || "0"),
+      0
+    );
+    const hst = subTotal * 0.13; // 13% HST
+    const instrumentsTotal = subTotal + hst;
+
+    // Build URL with query parameters (matching legacy format)
+    // Note: parameter name is 'instutmentsTotal' (typo in legacy, but must match)
+    const legacyBaseUrl = process.env.NEXT_PUBLIC_LEGACY_URL || 'https://dev2.studiomanagerweb.com/admin';
+    const params = new URLSearchParams({
+      subTotal: subTotal.toFixed(2),
+      hst: hst.toFixed(2),
+      instutmentsTotal: instrumentsTotal.toFixed(2), // Note: typo in legacy parameter name
+    });
+    const url = `${legacyBaseUrl}/${location}/print/rental-receipt?${params.toString()}`;
+
+    // Open in new window (matching legacy behavior)
+    window.open(url, '_blank');
+    
+    // Call callback if provided
+    if (onReprintAgreement) {
+      onReprintAgreement(rentalId);
+    }
   };
 
   const handleEquipmentReturned = async () => {
@@ -921,12 +1076,12 @@ export function EquipmentRentalsModal({
             <div className="flex items-center gap-4">
               <Label className="w-24">Student</Label>
               <Select
-                value={formData.studentId}
+                value={formData.studentId || undefined}
                 onValueChange={(value) => handleInputChange("studentId", value)}
                 disabled={isEditMode}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Select Student" />
+                  <SelectValue placeholder={isEditMode ? "Select Student" : "Student"} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableStudents.map((student) => (
