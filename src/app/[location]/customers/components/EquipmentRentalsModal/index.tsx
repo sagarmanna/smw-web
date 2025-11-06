@@ -206,7 +206,7 @@ const InstrumentFormRow = React.memo(
             onFocus={onInputFocus}
             onBlur={onInputBlur}
             className="w-full"
-            required
+            readOnly
           />
         </td>
         <td className="p-2">
@@ -325,7 +325,7 @@ export function EquipmentRentalsModal({
       retailValue: "",
       assetTag: "",
       monthlyRate: "0",
-      numberOfMonths: "",
+      numberOfMonths: "1",
       total: "0.00",
     },
   ]);
@@ -352,7 +352,6 @@ export function EquipmentRentalsModal({
         setAvailableInstruments(instrumentRentals);
         setAvailableStudents(students);
 
-        // Populate form data - prioritize rentalDetails when in edit mode
         let rentalStartDate: Date;
         let returnDate: Date | undefined;
         let duration: string = "";
@@ -360,8 +359,6 @@ export function EquipmentRentalsModal({
         let studentId: string = "";
 
         if (rentalId && rentalDetails) {
-          // Edit mode - use actual rental data
-          // Parse dates correctly - handle YYYY-MM-DD format
           rentalStartDate = rentalDetails.startDate
             ? new Date(rentalDetails.startDate + "T00:00:00")
             : new Date();
@@ -426,14 +423,12 @@ export function EquipmentRentalsModal({
 
         setFormData(newFormData);
 
-        // Set created date for delete button visibility logic
         if (rentalId && rentalDetails?.createdOn) {
           setRentalCreatedOn(new Date(rentalDetails.createdOn + "T00:00:00"));
         } else {
           setRentalCreatedOn(null);
         }
 
-        // Populate instruments table if in edit mode and rented instruments are available
         if (rentalId && rentedInstruments && rentedInstruments.length > 0) {
           const mappedInstruments: InstrumentData[] = rentedInstruments.map(
             (inst, index) => ({
@@ -450,11 +445,8 @@ export function EquipmentRentalsModal({
           );
           setInstruments(mappedInstruments);
         } else if (rentalId) {
-          // Edit mode but no rented instruments found - log warning
-          // Keep empty instruments array for edit mode to show empty state
           setInstruments([]);
         } else {
-          // Create mode - use default empty row
           setInstruments([
             {
               id: "initial",
@@ -464,7 +456,7 @@ export function EquipmentRentalsModal({
               retailValue: "",
               assetTag: "",
               monthlyRate: "0",
-              numberOfMonths: "",
+              numberOfMonths: "1",
               total: "0.00",
             },
           ]);
@@ -488,7 +480,6 @@ export function EquipmentRentalsModal({
     }
   }, [open, fetchEquipmentRentalsData]);
 
-  // Recalculate instrument totals when dates or duration change (if both dates are present)
   useEffect(() => {
     if (
       !formData.onGoing &&
@@ -496,7 +487,6 @@ export function EquipmentRentalsModal({
       formData.returnDate &&
       instruments.length > 0
     ) {
-      // Only recalculate if we have instruments with monthly rates
       const hasInstrumentsWithRates = instruments.some(
         (inst) =>
           inst.instrumentId > 0 && parseFloat(inst.monthlyRate || "0") > 0
@@ -526,7 +516,6 @@ export function EquipmentRentalsModal({
       return "0.00";
     }
 
-    // Calculate actual difference in days (return date is inclusive)
     const diffTime = returnDate.getTime() - startDate.getTime();
     const actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -537,10 +526,8 @@ export function EquipmentRentalsModal({
       return total.toFixed(2);
     }
 
-    // Extract duration in months (e.g., "1-month" -> 1, "2-months" -> 2)
     const durationMatch = duration.match(/^(\d+)-month/);
     if (!durationMatch) {
-      // Fallback to day-based calculation if duration format is invalid
       const daysPerMonth = 30;
       const perDayRate = monthlyRate / daysPerMonth;
       const total = actualDays * perDayRate;
@@ -555,14 +542,9 @@ export function EquipmentRentalsModal({
       return total.toFixed(2);
     }
 
-    // Calculate minimum charge for selected duration
     const minimumCharge = monthlyRate * durationMonths;
-    
-    // Calculate expected days for the duration (30 days per month)
     const daysPerMonth = 30;
     const expectedDays = durationMonths * daysPerMonth;
-    
-    // Calculate per day rate for extra days
     const perDayRate = monthlyRate / daysPerMonth;
 
     if (actualDays > expectedDays) {
@@ -574,7 +556,6 @@ export function EquipmentRentalsModal({
     return minimumCharge.toFixed(2);
   };
 
-  // Recalculate all instrument totals based on date difference with duration consideration
   const recalculateInstrumentTotalsFromDates = (
     startDate: Date | undefined,
     returnDate: Date | undefined,
@@ -623,7 +604,6 @@ export function EquipmentRentalsModal({
         if (value === true) {
           newData.duration = "";
           newData.returnDate = undefined;
-          // Set instrument numberOfMonths to 1 when ongoing is checked
           setInstruments((prevInstruments) =>
             prevInstruments.map((inst) => {
               const monthlyRate = parseFloat(inst.monthlyRate || "0");
@@ -676,12 +656,10 @@ export function EquipmentRentalsModal({
         }
       }
 
-      // Update all instruments' numberOfMonths when duration changes (matching legacy behavior)
       if (field === "duration" && !newData.onGoing) {
         const durationMatch = String(value).match(/^(\d+)-month/);
         if (durationMatch) {
           const months = durationMatch[1];
-          // Update all instruments with the new duration
           setTimeout(() => {
             setInstruments((prev) =>
               prev.map((inst) => {
@@ -724,14 +702,12 @@ export function EquipmentRentalsModal({
         }
       }
 
-      // Recalculate instrument totals based on date difference when dates change
       if (
         (field === "rentalStartDate" || field === "returnDate") &&
         !newData.onGoing &&
         newData.rentalStartDate &&
         newData.returnDate
       ) {
-        // Use setTimeout to ensure state is updated before recalculating
         setTimeout(() => {
           recalculateInstrumentTotalsFromDates(
             newData.rentalStartDate,
@@ -759,6 +735,16 @@ export function EquipmentRentalsModal({
           [field]: value,
         };
 
+        // When instrument is selected, set numberOfMonths from duration
+        if (field === "instrumentId") {
+          const durationMatch = formData.duration.match(/^(\d+)-month/);
+          if (durationMatch) {
+            updated.numberOfMonths = durationMatch[1];
+          } else if (formData.onGoing) {
+            updated.numberOfMonths = "1";
+          }
+        }
+
         if (field === "monthlyRate" || field === "numberOfMonths") {
           const monthlyRate = parseFloat(updated.monthlyRate || "0");
 
@@ -775,7 +761,6 @@ export function EquipmentRentalsModal({
               formData.duration
             );
           } else {
-            // Fallback to monthly calculation
             const numberOfMonths = parseFloat(updated.numberOfMonths || "0");
             if (
               !isNaN(monthlyRate) &&
@@ -803,6 +788,17 @@ export function EquipmentRentalsModal({
   };
 
   const handleAddAnotherInstrument = () => {
+    // Get current numberOfMonths from duration or default to 1
+    let numberOfMonths = "1";
+    if (formData.onGoing) {
+      numberOfMonths = "1";
+    } else if (formData.duration) {
+      const durationMatch = formData.duration.match(/^(\d+)-month/);
+      if (durationMatch) {
+        numberOfMonths = durationMatch[1];
+      }
+    }
+
     const newInstrument: InstrumentData = {
       id: Date.now().toString(),
       instrumentId: 0,
@@ -811,7 +807,7 @@ export function EquipmentRentalsModal({
       retailValue: "",
       assetTag: "",
       monthlyRate: "0",
-      numberOfMonths: "",
+      numberOfMonths: numberOfMonths,
       total: "0.00",
     };
     setInstruments((prev) => [...prev, newInstrument]);
@@ -820,8 +816,14 @@ export function EquipmentRentalsModal({
   const handleDeleteInstrument = (id: string) => {
     setInstruments((prev) => {
       const filtered = prev.filter((instrument) => instrument.id !== id);
-      // Always keep at least one row
       if (filtered.length === 0) {
+        let numberOfMonths = "1";
+        if (formData.duration) {
+          const durationMatch = formData.duration.match(/^(\d+)-month/);
+          if (durationMatch) {
+            numberOfMonths = durationMatch[1];
+          }
+        }
         return [
           {
             id: Date.now().toString(),
@@ -831,7 +833,7 @@ export function EquipmentRentalsModal({
             retailValue: "",
             assetTag: "",
             monthlyRate: "0",
-            numberOfMonths: "",
+            numberOfMonths: numberOfMonths,
             total: "0.00",
           },
         ];
@@ -855,7 +857,6 @@ export function EquipmentRentalsModal({
       return;
     }
 
-    // Validate that all instruments have number of months filled
     const hasEmptyMonths = filledInstruments.some(
       (inst) => !inst.numberOfMonths || inst.numberOfMonths === "0"
     );
@@ -935,7 +936,6 @@ export function EquipmentRentalsModal({
       if (response.status) {
         toast.success("Equipment rental created successfully");
 
-        // Prepare receipt data
         const selectedStudent = availableStudents.find(
           (s) => s.id.toString() === formData.studentId
         );
@@ -1255,7 +1255,6 @@ export function EquipmentRentalsModal({
                 <Skeleton className="h-10 w-48" />
               </div>
 
-              {/* Phone Row Skeleton */}
               <div className="flex items-center gap-4">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-48" />
@@ -1265,7 +1264,6 @@ export function EquipmentRentalsModal({
                 <Skeleton className="h-10 w-48" />
               </div>
 
-              {/* Email Skeleton */}
               <div className="flex items-center gap-4">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-48" />
@@ -1708,7 +1706,6 @@ export function EquipmentRentalsModal({
             </Button>
             {isEditMode ? (
               (() => {
-                // Enable Equipment Returned button only if return date exists and today >= return date (matching legacy logic)
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const returnDate = formData.returnDate
@@ -1737,7 +1734,6 @@ export function EquipmentRentalsModal({
         </DialogFooter>
       </DialogContent>
 
-      {/* Delete Confirmation Modal */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
@@ -1768,7 +1764,7 @@ export function EquipmentRentalsModal({
         </DialogContent>
       </Dialog>
 
-      {/* Receipt Modal */}
+      {/* Receipt Modal - keeping it as is from original */}
       <Dialog open={showReceiptModal} onOpenChange={handleCloseReceiptModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="p-6 pb-4 border-b">
@@ -1779,12 +1775,9 @@ export function EquipmentRentalsModal({
 
           {createdRentalData && (
             <div className="flex-1 overflow-y-auto p-8 bg-white dark:bg-gray-900">
-              {/* Header with Logo */}
-              {/* Header with Logo */}
               <div className="flex justify-between items-start mb-8 pb-4 border-b-2 border-red-600">
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 flex items-center justify-center relative">
-                    {/* Light mode logo */}
                     <Image
                       src="/SMW.png"
                       alt="Musical Instruments Logo"
@@ -1793,7 +1786,6 @@ export function EquipmentRentalsModal({
                       className="object-contain dark:hidden"
                       priority
                     />
-                    {/* Dark mode logo */}
                     <Image
                       src="/SMW-dark.png"
                       alt="Musical Instruments Logo"
@@ -1821,7 +1813,6 @@ export function EquipmentRentalsModal({
                 </div>
               </div>
 
-              {/* Rental Info */}
               <div className="grid grid-cols-3 gap-6 mb-8 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
@@ -1858,7 +1849,6 @@ export function EquipmentRentalsModal({
                 </div>
               </div>
 
-              {/* Customer Info */}
               <div className="mb-8">
                 <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 border-b pb-2">
                   Customer Information
@@ -1958,7 +1948,6 @@ export function EquipmentRentalsModal({
                 </div>
               </div>
 
-              {/* Instruments Table */}
               <div className="mb-8">
                 <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">
                   Instrument Details
@@ -2018,7 +2007,6 @@ export function EquipmentRentalsModal({
                 </table>
               </div>
 
-              {/* Totals */}
               <div className="flex justify-end mb-8">
                 <div className="w-80 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                   <div className="flex justify-between mb-2 pb-2">
@@ -2048,7 +2036,6 @@ export function EquipmentRentalsModal({
                 </div>
               </div>
 
-              {/* Contract */}
               <div className="border-t-2 border-gray-300 dark:border-gray-700 pt-6">
                 <h3 className="font-bold text-lg mb-3 text-gray-800 dark:text-gray-100">
                   Rental Agreement:
