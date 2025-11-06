@@ -1779,7 +1779,7 @@ export function EquipmentRentalsModal({
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 flex items-center justify-center relative">
                     <Image
-                      src="/SMW.png"
+                      src="/admin/v2/SMW.png"
                       alt="Musical Instruments Logo"
                       width={80}
                       height={80}
@@ -1787,7 +1787,7 @@ export function EquipmentRentalsModal({
                       priority
                     />
                     <Image
-                      src="/SMW-dark.png"
+                      src="/admin/v2/SMW-dark.png"
                       alt="Musical Instruments Logo"
                       width={80}
                       height={80}
