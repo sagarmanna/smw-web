@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Image from "next/image";
 import {
   Select,
   SelectContent,
@@ -39,7 +40,11 @@ import {
   type RentedInstrument,
   type RentalDetails,
 } from "./Equipment-Rentals.api";
-import { createEquipmentRental, equipmentReturned, deleteEquipmentRental } from "@/lib/api/legacyApiAdapter";
+import {
+  createEquipmentRental,
+  equipmentReturned,
+  deleteEquipmentRental,
+} from "@/lib/api/legacyApiAdapter";
 
 interface InstrumentData {
   id: string;
@@ -97,7 +102,11 @@ const InstrumentFormRow = React.memo(
     showDelete,
   }: {
     instrument: InstrumentData;
-    onInstrumentChange: (id: string, field: keyof InstrumentData, value: string) => void;
+    onInstrumentChange: (
+      id: string,
+      field: keyof InstrumentData,
+      value: string
+    ) => void;
     onInputFocus: (e: React.FocusEvent<HTMLInputElement>) => void;
     onInputBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
     availableInstruments: InstrumentRental[];
@@ -119,8 +128,16 @@ const InstrumentFormRow = React.memo(
               );
               if (selectedInstrument) {
                 onInstrumentChange(instrument.id, "instrumentId", value);
-                onInstrumentChange(instrument.id, "instrumentCode", selectedInstrument.code);
-                onInstrumentChange(instrument.id, "instrument", selectedInstrument.description);
+                onInstrumentChange(
+                  instrument.id,
+                  "instrumentCode",
+                  selectedInstrument.code
+                );
+                onInstrumentChange(
+                  instrument.id,
+                  "instrument",
+                  selectedInstrument.description
+                );
                 onInstrumentChange(
                   instrument.id,
                   "monthlyRate",
@@ -134,10 +151,7 @@ const InstrumentFormRow = React.memo(
             </SelectTrigger>
             <SelectContent>
               {availableInstruments.map((item) => (
-                <SelectItem
-                  key={item.id}
-                  value={item.id.toString()}
-                >
+                <SelectItem key={item.id} value={item.id.toString()}>
                   {item.description}
                 </SelectItem>
               ))}
@@ -159,7 +173,9 @@ const InstrumentFormRow = React.memo(
         <td className="p-2">
           <Input
             value={instrument.assetTag}
-            onChange={(e) => onInstrumentChange(instrument.id, "assetTag", e.target.value)}
+            onChange={(e) =>
+              onInstrumentChange(instrument.id, "assetTag", e.target.value)
+            }
             onFocus={onInputFocus}
             onBlur={onInputBlur}
             className="w-full"
@@ -181,11 +197,16 @@ const InstrumentFormRow = React.memo(
           <Input
             value={instrument.numberOfMonths}
             onChange={(e) =>
-              onInstrumentChange(instrument.id, "numberOfMonths", e.target.value)
+              onInstrumentChange(
+                instrument.id,
+                "numberOfMonths",
+                e.target.value
+              )
             }
             onFocus={onInputFocus}
             onBlur={onInputBlur}
             className="w-full"
+            readOnly
           />
         </td>
         <td className="p-2">
@@ -218,7 +239,7 @@ InstrumentFormRow.displayName = "InstrumentFormRow";
 const calculateReturnDate = (startDate: Date, months: number): Date => {
   const dayOfMonth = startDate.getDate();
   const returnDate = new Date(startDate.getTime());
-  
+
   if (dayOfMonth >= 1 && dayOfMonth <= 7) {
     returnDate.setMonth(returnDate.getMonth() + months - 1);
     returnDate.setMonth(returnDate.getMonth() + 1, 0);
@@ -226,7 +247,7 @@ const calculateReturnDate = (startDate: Date, months: number): Date => {
     returnDate.setMonth(returnDate.getMonth() + months);
     returnDate.setMonth(returnDate.getMonth() + 1, 0);
   }
-  
+
   return returnDate;
 };
 
@@ -246,6 +267,30 @@ export function EquipmentRentalsModal({
   const [returning, setReturning] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  interface CreatedRentalData {
+    customerName: string;
+    customerAddress: string;
+    customerCity: string;
+    customerPostalCode: string;
+    homePhone: string;
+    workPhone: string;
+    otherPhone: string;
+    email: string;
+    studentFirstName: string;
+    studentLastName: string;
+    startDate: string;
+    duration: number;
+    returnDate: string | null;
+    instruments: InstrumentData[];
+    subTotal: number;
+    hst: number;
+    total: number;
+    location: string;
+  }
+
+  const [createdRentalData, setCreatedRentalData] =
+    useState<CreatedRentalData | null>(null);
   const [availableInstruments, setAvailableInstruments] = useState<
     InstrumentRental[]
   >([]);
@@ -280,9 +325,9 @@ export function EquipmentRentalsModal({
       retailValue: "",
       assetTag: "",
       monthlyRate: "0",
-      numberOfMonths: "", // Empty in create mode (matching legacy behavior)
+      numberOfMonths: "1",
       total: "0.00",
-    }
+    },
   ]);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
 
@@ -296,13 +341,17 @@ export function EquipmentRentalsModal({
         : await getEquipmentRentalsInfo(location, customerId);
 
       if (response && response.success) {
-        const { instrumentRentals, students, customerInfo, rentedInstruments, rentalDetails } =
-          response.data.body;
+        const {
+          instrumentRentals,
+          students,
+          customerInfo,
+          rentedInstruments,
+          rentalDetails,
+        } = response.data.body;
 
         setAvailableInstruments(instrumentRentals);
         setAvailableStudents(students);
 
-        // Populate form data - prioritize rentalDetails when in edit mode
         let rentalStartDate: Date;
         let returnDate: Date | undefined;
         let duration: string = "";
@@ -310,36 +359,41 @@ export function EquipmentRentalsModal({
         let studentId: string = "";
 
         if (rentalId && rentalDetails) {
-          // Edit mode - use actual rental data
-          // Parse dates correctly - handle YYYY-MM-DD format
-          rentalStartDate = rentalDetails.startDate 
-            ? new Date(rentalDetails.startDate + 'T00:00:00') // Add time to avoid timezone issues
+          rentalStartDate = rentalDetails.startDate
+            ? new Date(rentalDetails.startDate + "T00:00:00")
             : new Date();
-          returnDate = rentalDetails.returnDate 
-            ? new Date(rentalDetails.returnDate + 'T00:00:00') // Add time to avoid timezone issues
+          returnDate = rentalDetails.returnDate
+            ? new Date(rentalDetails.returnDate + "T00:00:00")
             : undefined;
-          // Format duration to match Select component format: "1-month" or "2-months"
-          duration = rentalDetails.duration 
-            ? `${rentalDetails.duration}-month${rentalDetails.duration > 1 ? "s" : ""}` 
+          duration = rentalDetails.duration
+            ? `${rentalDetails.duration}-month${
+                rentalDetails.duration > 1 ? "s" : ""
+              }`
             : "";
-          // Handle both number (0/1) and boolean values from API
-          onGoing = rentalDetails.isOnGoing !== undefined && rentalDetails.isOnGoing !== null
-            ? Boolean(rentalDetails.isOnGoing)
-            : false;
+          onGoing =
+            rentalDetails.isOnGoing !== undefined &&
+            rentalDetails.isOnGoing !== null
+              ? Boolean(rentalDetails.isOnGoing)
+              : false;
           studentId = rentalDetails.studentId?.toString() || "";
 
-          // Only calculate return date if it's not provided, not ongoing, and we have start date and duration
-          if (!returnDate && !onGoing && rentalDetails.startDate && rentalDetails.duration) {
-            returnDate = calculateReturnDate(new Date(rentalDetails.startDate + 'T00:00:00'), rentalDetails.duration);
+          if (
+            !returnDate &&
+            !onGoing &&
+            rentalDetails.startDate &&
+            rentalDetails.duration
+          ) {
+            returnDate = calculateReturnDate(
+              new Date(rentalDetails.startDate + "T00:00:00"),
+              rentalDetails.duration
+            );
           }
         } else {
-          // Create mode - match legacy behavior: student and date should require user selection
-          // Start date can have a default (today) but user must select it
-          rentalStartDate = new Date(); // Default to today, but user can change it
+          rentalStartDate = new Date();
           returnDate = undefined;
           duration = "";
           onGoing = false;
-          studentId = ""; // Empty - user must select (matching legacy Select2 placeholder behavior)
+          studentId = "";
         }
 
         const newFormData: EquipmentRentalFormData = {
@@ -351,48 +405,48 @@ export function EquipmentRentalsModal({
           workPhone: customerInfo.workPhone || "",
           otherPhone: customerInfo.otherPhone || "",
           email: customerInfo.email || "",
-          // In create mode, don't auto-select student - user must select (matching legacy behavior)
-          studentId: rentalId && rentalDetails ? studentId : "", // Only use studentId in edit mode
+          studentId: rentalId && rentalDetails ? studentId : "",
           rentalStartDate: rentalStartDate,
           onGoing: onGoing,
           duration: duration,
           returnDate: returnDate,
-          securityDeposit: rentalDetails?.securityDeposit !== undefined && rentalDetails?.securityDeposit !== null
-            ? (Boolean(rentalDetails.securityDeposit) ? "yes" : "no")
-            : "no",
+          securityDeposit:
+            rentalDetails?.securityDeposit !== undefined &&
+            rentalDetails?.securityDeposit !== null
+              ? Boolean(rentalDetails.securityDeposit)
+                ? "yes"
+                : "no"
+              : "no",
           tenderType: rentalDetails?.tenderType?.toString() || "",
           depositAmount: rentalDetails?.depositAmount || "",
         };
 
         setFormData(newFormData);
 
-        // Set created date for delete button visibility logic
         if (rentalId && rentalDetails?.createdOn) {
-          setRentalCreatedOn(new Date(rentalDetails.createdOn + 'T00:00:00'));
+          setRentalCreatedOn(new Date(rentalDetails.createdOn + "T00:00:00"));
         } else {
           setRentalCreatedOn(null);
         }
 
-        // Populate instruments table if in edit mode and rented instruments are available
         if (rentalId && rentedInstruments && rentedInstruments.length > 0) {
-          const mappedInstruments: InstrumentData[] = rentedInstruments.map((inst, index) => ({
-            id: `rented-${inst.instrumentId}-${index}`,
-            instrumentId: inst.instrumentId,
-            instrumentCode: inst.instrumentCode,
-            instrument: inst.instrument,
-            retailValue: inst.retailValue || "",
-            assetTag: inst.assetTag || "",
-            monthlyRate: inst.monthlyRate || "0",
-            numberOfMonths: inst.numberOfMonths || "", // Use actual value or empty (not default to "1")
-            total: inst.total || "0.00",
-          }));
+          const mappedInstruments: InstrumentData[] = rentedInstruments.map(
+            (inst, index) => ({
+              id: `rented-${inst.instrumentId}-${index}`,
+              instrumentId: inst.instrumentId,
+              instrumentCode: inst.instrumentCode,
+              instrument: inst.instrument,
+              retailValue: inst.retailValue || "",
+              assetTag: inst.assetTag || "",
+              monthlyRate: inst.monthlyRate || "0",
+              numberOfMonths: inst.numberOfMonths || "",
+              total: inst.total || "0.00",
+            })
+          );
           setInstruments(mappedInstruments);
         } else if (rentalId) {
-          // Edit mode but no rented instruments found - log warning
-          // Keep empty instruments array for edit mode to show empty state
           setInstruments([]);
         } else {
-          // Create mode - use default empty row
           setInstruments([
             {
               id: "initial",
@@ -402,9 +456,9 @@ export function EquipmentRentalsModal({
               retailValue: "",
               assetTag: "",
               monthlyRate: "0",
-              numberOfMonths: "", // Empty in create mode (matching legacy behavior)
+              numberOfMonths: "1",
               total: "0.00",
-            }
+            },
           ]);
         }
       } else {
@@ -426,7 +480,6 @@ export function EquipmentRentalsModal({
     }
   }, [open, fetchEquipmentRentalsData]);
 
-  // Recalculate instrument totals when dates or duration change (if both dates are present)
   useEffect(() => {
     if (
       !formData.onGoing &&
@@ -434,29 +487,28 @@ export function EquipmentRentalsModal({
       formData.returnDate &&
       instruments.length > 0
     ) {
-      // Only recalculate if we have instruments with monthly rates
       const hasInstrumentsWithRates = instruments.some(
-        (inst) => inst.instrumentId > 0 && parseFloat(inst.monthlyRate || "0") > 0
+        (inst) =>
+          inst.instrumentId > 0 && parseFloat(inst.monthlyRate || "0") > 0
       );
       if (hasInstrumentsWithRates) {
         recalculateInstrumentTotalsFromDates(
-          formData.rentalStartDate, 
-          formData.returnDate, 
+          formData.rentalStartDate,
+          formData.returnDate,
           formData.duration
         );
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.rentalStartDate, formData.returnDate, formData.duration, formData.onGoing]);
+  }, [
+    formData.rentalStartDate,
+    formData.returnDate,
+    formData.duration,
+    formData.onGoing,
+  ]);
 
-  // Calculate total based on date difference with minimum charge for selected duration
-  // Logic: 
-  // - Minimum charge = monthlyRate * duration (e.g., 1 month = $20)
-  // - If actual days > (duration * 30): charge minimum + extra days
-  // - If actual days <= (duration * 30): charge minimum (don't reduce)
   const calculateTotalFromDates = (
-    startDate: Date, 
-    returnDate: Date, 
+    startDate: Date,
+    returnDate: Date,
     monthlyRate: number,
     duration?: string
   ): string => {
@@ -464,11 +516,9 @@ export function EquipmentRentalsModal({
       return "0.00";
     }
 
-    // Calculate actual difference in days (return date is inclusive)
     const diffTime = returnDate.getTime() - startDate.getTime();
-    const actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Count days from start to return (inclusive of return day)
-    
-    // If no duration selected, use simple day-based calculation
+    const actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
     if (!duration) {
       const daysPerMonth = 30;
       const perDayRate = monthlyRate / daysPerMonth;
@@ -476,10 +526,8 @@ export function EquipmentRentalsModal({
       return total.toFixed(2);
     }
 
-    // Extract duration in months (e.g., "1-month" -> 1, "2-months" -> 2)
     const durationMatch = duration.match(/^(\d+)-month/);
     if (!durationMatch) {
-      // Fallback to day-based calculation if duration format is invalid
       const daysPerMonth = 30;
       const perDayRate = monthlyRate / daysPerMonth;
       const total = actualDays * perDayRate;
@@ -494,30 +542,22 @@ export function EquipmentRentalsModal({
       return total.toFixed(2);
     }
 
-    // Calculate minimum charge for selected duration
     const minimumCharge = monthlyRate * durationMonths;
-    
-    // Calculate expected days for the duration (30 days per month)
     const daysPerMonth = 30;
     const expectedDays = durationMonths * daysPerMonth;
-    
-    // Calculate per day rate for extra days
     const perDayRate = monthlyRate / daysPerMonth;
-    
-    // If actual days exceed expected days, charge minimum + extra days
+
     if (actualDays > expectedDays) {
       const extraDays = actualDays - expectedDays;
-      const total = minimumCharge + (extraDays * perDayRate);
+      const total = minimumCharge + extraDays * perDayRate;
       return total.toFixed(2);
     }
-    
-    // If actual days <= expected days, charge minimum (don't reduce)
+
     return minimumCharge.toFixed(2);
   };
 
-  // Recalculate all instrument totals based on date difference with duration consideration
   const recalculateInstrumentTotalsFromDates = (
-    startDate: Date | undefined, 
+    startDate: Date | undefined,
     returnDate: Date | undefined,
     duration?: string
   ) => {
@@ -536,7 +576,12 @@ export function EquipmentRentalsModal({
           return inst;
         }
 
-        const total = calculateTotalFromDates(startDate, returnDate, monthlyRate, duration);
+        const total = calculateTotalFromDates(
+          startDate,
+          returnDate,
+          monthlyRate,
+          duration
+        );
         return {
           ...inst,
           total: total,
@@ -559,13 +604,28 @@ export function EquipmentRentalsModal({
         if (value === true) {
           newData.duration = "";
           newData.returnDate = undefined;
+          setInstruments((prevInstruments) =>
+            prevInstruments.map((inst) => {
+              const monthlyRate = parseFloat(inst.monthlyRate || "0");
+              const total =
+                monthlyRate > 0 ? (monthlyRate * 1).toFixed(2) : "0.00";
+              return {
+                ...inst,
+                numberOfMonths: "1",
+                total: total,
+              };
+            })
+          );
         } else {
           if (newData.rentalStartDate && newData.duration) {
             const durationMatch = newData.duration.match(/^(\d+)-month/);
             if (durationMatch) {
               const months = parseInt(durationMatch[1]);
               if (!isNaN(months) && months > 0) {
-                newData.returnDate = calculateReturnDate(newData.rentalStartDate, months);
+                newData.returnDate = calculateReturnDate(
+                  newData.rentalStartDate,
+                  months
+                );
               }
             }
           }
@@ -581,7 +641,10 @@ export function EquipmentRentalsModal({
           if (durationMatch) {
             const months = parseInt(durationMatch[1]);
             if (!isNaN(months) && months > 0) {
-              newData.returnDate = calculateReturnDate(newData.rentalStartDate, months);
+              newData.returnDate = calculateReturnDate(
+                newData.rentalStartDate,
+                months
+              );
             } else {
               newData.returnDate = undefined;
             }
@@ -593,57 +656,62 @@ export function EquipmentRentalsModal({
         }
       }
 
-      // Update all instruments' numberOfMonths when duration changes (matching legacy behavior)
       if (field === "duration" && !newData.onGoing) {
         const durationMatch = String(value).match(/^(\d+)-month/);
         if (durationMatch) {
           const months = durationMatch[1];
-          setInstruments((prev) =>
-            prev.map((inst) => {
-              const updated = {
-                ...inst,
-                numberOfMonths: months,
-              };
-              
-              // If we have both dates, recalculate using date-based logic with minimum charge
-              if (newData.rentalStartDate && newData.returnDate && inst.monthlyRate) {
-                const monthlyRate = parseFloat(inst.monthlyRate || "0");
-                if (monthlyRate > 0) {
-                  updated.total = calculateTotalFromDates(
-                    newData.rentalStartDate,
-                    newData.returnDate,
-                    monthlyRate,
-                    String(value)
-                  );
+          setTimeout(() => {
+            setInstruments((prev) =>
+              prev.map((inst) => {
+                const updated = {
+                  ...inst,
+                  numberOfMonths: months,
+                };
+
+                if (
+                  newData.rentalStartDate &&
+                  newData.returnDate &&
+                  inst.monthlyRate
+                ) {
+                  const monthlyRate = parseFloat(inst.monthlyRate || "0");
+                  if (monthlyRate > 0) {
+                    updated.total = calculateTotalFromDates(
+                      newData.rentalStartDate,
+                      newData.returnDate,
+                      monthlyRate,
+                      String(value)
+                    );
+                  } else {
+                    updated.total = "0.00";
+                  }
+                } else if (
+                  inst.monthlyRate &&
+                  parseFloat(inst.monthlyRate) > 0
+                ) {
+                  updated.total = (
+                    parseFloat(inst.monthlyRate) * parseInt(months)
+                  ).toFixed(2);
                 } else {
                   updated.total = "0.00";
                 }
-              } else {
-                // Fallback to monthly calculation if dates not available
-                updated.total =
-                  inst.monthlyRate && parseFloat(inst.monthlyRate) > 0
-                    ? (parseFloat(inst.monthlyRate) * parseInt(months)).toFixed(2)
-                    : "0.00";
-              }
-              
-              return updated;
-            })
-          );
+
+                return updated;
+              })
+            );
+          }, 0);
         }
       }
 
-      // Recalculate instrument totals based on date difference when dates change
       if (
         (field === "rentalStartDate" || field === "returnDate") &&
         !newData.onGoing &&
         newData.rentalStartDate &&
         newData.returnDate
       ) {
-        // Use setTimeout to ensure state is updated before recalculating
         setTimeout(() => {
           recalculateInstrumentTotalsFromDates(
-            newData.rentalStartDate, 
-            newData.returnDate, 
+            newData.rentalStartDate,
+            newData.returnDate,
             newData.duration
           );
         }, 0);
@@ -667,10 +735,19 @@ export function EquipmentRentalsModal({
           [field]: value,
         };
 
+        // When instrument is selected, set numberOfMonths from duration
+        if (field === "instrumentId") {
+          const durationMatch = formData.duration.match(/^(\d+)-month/);
+          if (durationMatch) {
+            updated.numberOfMonths = durationMatch[1];
+          } else if (formData.onGoing) {
+            updated.numberOfMonths = "1";
+          }
+        }
+
         if (field === "monthlyRate" || field === "numberOfMonths") {
           const monthlyRate = parseFloat(updated.monthlyRate || "0");
-          
-          // If we have both start and return dates, calculate based on date difference with duration
+
           if (
             !formData.onGoing &&
             formData.rentalStartDate &&
@@ -684,10 +761,12 @@ export function EquipmentRentalsModal({
               formData.duration
             );
           } else {
-            // Fallback to monthly calculation
             const numberOfMonths = parseFloat(updated.numberOfMonths || "0");
-            // Only calculate total if both values are valid numbers
-            if (!isNaN(monthlyRate) && !isNaN(numberOfMonths) && numberOfMonths > 0) {
+            if (
+              !isNaN(monthlyRate) &&
+              !isNaN(numberOfMonths) &&
+              numberOfMonths > 0
+            ) {
               updated.total = (monthlyRate * numberOfMonths).toFixed(2);
             } else {
               updated.total = "0.00";
@@ -709,6 +788,17 @@ export function EquipmentRentalsModal({
   };
 
   const handleAddAnotherInstrument = () => {
+    // Get current numberOfMonths from duration or default to 1
+    let numberOfMonths = "1";
+    if (formData.onGoing) {
+      numberOfMonths = "1";
+    } else if (formData.duration) {
+      const durationMatch = formData.duration.match(/^(\d+)-month/);
+      if (durationMatch) {
+        numberOfMonths = durationMatch[1];
+      }
+    }
+
     const newInstrument: InstrumentData = {
       id: Date.now().toString(),
       instrumentId: 0,
@@ -717,7 +807,7 @@ export function EquipmentRentalsModal({
       retailValue: "",
       assetTag: "",
       monthlyRate: "0",
-      numberOfMonths: "", // Empty in create mode (matching legacy behavior)
+      numberOfMonths: numberOfMonths,
       total: "0.00",
     };
     setInstruments((prev) => [...prev, newInstrument]);
@@ -726,19 +816,27 @@ export function EquipmentRentalsModal({
   const handleDeleteInstrument = (id: string) => {
     setInstruments((prev) => {
       const filtered = prev.filter((instrument) => instrument.id !== id);
-      // Always keep at least one row
       if (filtered.length === 0) {
-        return [{
-          id: Date.now().toString(),
-          instrumentId: 0,
-          instrumentCode: "",
-          instrument: "",
-          retailValue: "",
-          assetTag: "",
-          monthlyRate: "0",
-          numberOfMonths: "", // Empty in create mode (matching legacy behavior)
-          total: "0.00",
-        }];
+        let numberOfMonths = "1";
+        if (formData.duration) {
+          const durationMatch = formData.duration.match(/^(\d+)-month/);
+          if (durationMatch) {
+            numberOfMonths = durationMatch[1];
+          }
+        }
+        return [
+          {
+            id: Date.now().toString(),
+            instrumentId: 0,
+            instrumentCode: "",
+            instrument: "",
+            retailValue: "",
+            assetTag: "",
+            monthlyRate: "0",
+            numberOfMonths: numberOfMonths,
+            total: "0.00",
+          },
+        ];
       }
       return filtered;
     });
@@ -750,11 +848,20 @@ export function EquipmentRentalsModal({
       return;
     }
 
-    // Filter out instruments that haven't been filled in (instrumentId = 0)
-    const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+    const filledInstruments = instruments.filter(
+      (inst) => inst.instrumentId > 0
+    );
 
     if (filledInstruments.length === 0) {
       toast.error("Please add at least one instrument");
+      return;
+    }
+
+    const hasEmptyMonths = filledInstruments.some(
+      (inst) => !inst.numberOfMonths || inst.numberOfMonths === "0"
+    );
+    if (hasEmptyMonths) {
+      toast.error("Please fill in the number of months for all instruments");
       return;
     }
 
@@ -770,19 +877,26 @@ export function EquipmentRentalsModal({
       const duration = durationMatch ? parseInt(durationMatch[1]) : 1;
 
       const tenderTypeMap: Record<string, string> = {
-        "cash": "1",
+        cash: "1",
         "credit-card": "2",
-        "preauthorized": "3",
+        preauthorized: "3",
       };
-      const tenderTypeNumber = tenderTypeMap[formData.tenderType] || formData.tenderType || "";
+      const tenderTypeNumber =
+        tenderTypeMap[formData.tenderType] || formData.tenderType || "";
 
-      const startDateFormatted = format(formData.rentalStartDate, "MMM dd, yyyy");
+      const startDateFormatted = format(
+        formData.rentalStartDate,
+        "MMM dd, yyyy"
+      );
 
       let returnDateISO = "";
       if (formData.returnDate) {
         returnDateISO = formData.returnDate.toISOString();
       } else if (!formData.onGoing && formData.rentalStartDate) {
-        const calculatedReturnDate = calculateReturnDate(formData.rentalStartDate, duration);
+        const calculatedReturnDate = calculateReturnDate(
+          formData.rentalStartDate,
+          duration
+        );
         returnDateISO = calculatedReturnDate.toISOString();
       }
 
@@ -802,30 +916,56 @@ export function EquipmentRentalsModal({
       const hst = subTotal * 0.13;
       const instrumentsTotal = subTotal + hst;
 
-      const response = await createEquipmentRental(
-        location,
-        customerId,
-        {
-          userId: customerId,
-          customerName: formData.customer,
-          studentId: parseInt(formData.studentId),
-          startDate: startDateFormatted,
-          isOnGoing: formData.onGoing,
-          duration: duration,
-          returnDate: returnDateISO,
-          securityDeposit: formData.securityDeposit,
-          tenderType: tenderTypeNumber,
-          depositAmount: formData.depositAmount || "",
-          instruments: mappedInstruments,
-          subTotal: subTotal,
-          hst: hst,
-          instrumentsTotal: instrumentsTotal,
-        }
-      );
+      const response = await createEquipmentRental(location, customerId, {
+        userId: customerId,
+        customerName: formData.customer,
+        studentId: parseInt(formData.studentId),
+        startDate: startDateFormatted,
+        isOnGoing: formData.onGoing,
+        duration: duration,
+        returnDate: returnDateISO,
+        securityDeposit: formData.securityDeposit,
+        tenderType: tenderTypeNumber,
+        depositAmount: formData.depositAmount || "",
+        instruments: mappedInstruments,
+        subTotal: subTotal,
+        hst: hst,
+        instrumentsTotal: instrumentsTotal,
+      });
 
       if (response.status) {
         toast.success("Equipment rental created successfully");
-        onOpenChange(false);
+
+        const selectedStudent = availableStudents.find(
+          (s) => s.id.toString() === formData.studentId
+        );
+
+        setCreatedRentalData({
+          customerName: formData.customer,
+          customerAddress: formData.address,
+          customerCity: formData.city,
+          customerPostalCode: formData.postalCode,
+          homePhone: formData.homePhone,
+          workPhone: formData.workPhone,
+          otherPhone: formData.otherPhone,
+          email: formData.email,
+          studentFirstName: selectedStudent?.fullName.split(" ")[0] || "",
+          studentLastName:
+            selectedStudent?.fullName.split(" ").slice(1).join(" ") || "",
+          startDate: format(formData.rentalStartDate, "yyyy-MM-dd"),
+          duration: duration,
+          returnDate: returnDateISO
+            ? format(new Date(returnDateISO), "yyyy-MM-dd")
+            : "",
+          instruments: filledInstruments,
+          subTotal: subTotal,
+          hst: hst,
+          total: instrumentsTotal,
+          location: location,
+        });
+
+        setShowReceiptModal(true);
+
         if (onSave) {
           onSave({
             ...formData,
@@ -833,11 +973,15 @@ export function EquipmentRentalsModal({
           });
         }
       } else {
-        const errorMessage = response.errors?.join(", ") || "Failed to create equipment rental";
+        const errorMessage =
+          response.errors?.join(", ") || "Failed to create equipment rental";
         toast.error(errorMessage);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to create equipment rental";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create equipment rental";
       toast.error(errorMessage);
       console.error("Error creating equipment rental:", error);
     } finally {
@@ -847,31 +991,29 @@ export function EquipmentRentalsModal({
 
   const handleReprintAgreement = () => {
     if (!rentalId) return;
-    
-    // Calculate totals from instruments (matching legacy behavior and UI display)
-    // Use the same calculation as displayed in the UI
-    const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+
+    const filledInstruments = instruments.filter(
+      (inst) => inst.instrumentId > 0
+    );
     const subTotal = filledInstruments.reduce(
       (sum, instrument) => sum + parseFloat(instrument.total || "0"),
       0
     );
-    const hst = subTotal * 0.13; // 13% HST
+    const hst = subTotal * 0.13;
     const instrumentsTotal = subTotal + hst;
 
-    // Build URL with query parameters (matching legacy format)
-    // Note: parameter name is 'instutmentsTotal' (typo in legacy, but must match)
-    const legacyBaseUrl = process.env.NEXT_PUBLIC_LEGACY_URL || 'https://dev2.studiomanagerweb.com/admin';
+    const legacyBaseUrl =
+      process.env.NEXT_PUBLIC_LEGACY_URL ||
+      "https://dev2.studiomanagerweb.com/admin";
     const params = new URLSearchParams({
       subTotal: subTotal.toFixed(2),
       hst: hst.toFixed(2),
-      instutmentsTotal: instrumentsTotal.toFixed(2), // Note: typo in legacy parameter name
+      instutmentsTotal: instrumentsTotal.toFixed(2),
     });
     const url = `${legacyBaseUrl}/${location}/print/rental-receipt?${params.toString()}`;
 
-    // Open in new window (matching legacy behavior)
-    window.open(url, '_blank');
-    
-    // Call callback if provided
+    window.open(url, "_blank");
+
     if (onReprintAgreement) {
       onReprintAgreement(rentalId);
     }
@@ -897,31 +1039,34 @@ export function EquipmentRentalsModal({
       const returnDateFormatted = format(returnDate, "MMM dd, yyyy");
       const returnDateISO = format(returnDate, "yyyy-MM-dd");
 
-      const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+      const filledInstruments = instruments.filter(
+        (inst) => inst.instrumentId > 0
+      );
 
-      const mappedInstruments = filledInstruments.length > 0
-        ? filledInstruments.map((instrument) => {
-            const instrumentTotal = parseFloat(instrument.total || "0");
-            const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
-            return {
-              value: "",
-              asset: "",
-              price: instrument.monthlyRate || "0",
-              duration: instrument.numberOfMonths || "0",
-              total: instrument.total || "0.00",
-              tax: instrumentTax,
-            };
-          })
-        : [
-            {
-              value: "",
-              asset: "",
-              price: "0",
-              duration: "0",
-              total: "0.00",
-              tax: "0.00",
-            },
-          ];
+      const mappedInstruments =
+        filledInstruments.length > 0
+          ? filledInstruments.map((instrument) => {
+              const instrumentTotal = parseFloat(instrument.total || "0");
+              const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+              return {
+                value: "",
+                asset: "",
+                price: instrument.monthlyRate || "0",
+                duration: instrument.numberOfMonths || "0",
+                total: instrument.total || "0.00",
+                tax: instrumentTax,
+              };
+            })
+          : [
+              {
+                value: "",
+                asset: "",
+                price: "0",
+                duration: "0",
+                total: "0.00",
+                tax: "0.00",
+              },
+            ];
 
       const response = await equipmentReturned(
         location,
@@ -947,8 +1092,7 @@ export function EquipmentRentalsModal({
         }
       } else {
         const errorMessage =
-          response.errors?.join(", ") ||
-          "Failed to mark equipment as returned";
+          response.errors?.join(", ") || "Failed to mark equipment as returned";
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -985,50 +1129,49 @@ export function EquipmentRentalsModal({
         return;
       }
 
-      const returnDateISO = formData.returnDate 
+      const returnDateISO = formData.returnDate
         ? format(formData.returnDate, "yyyy-MM-dd")
         : "";
 
-      const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
-
-      const mappedInstruments = filledInstruments.length > 0
-        ? filledInstruments.map((instrument) => {
-            const instrumentTotal = parseFloat(instrument.total || "0");
-            const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
-            return {
-              value: "",
-              asset: "",
-              price: instrument.monthlyRate || "0",
-              duration: instrument.numberOfMonths || "0",
-              total: instrument.total || "0.00",
-              tax: instrumentTax,
-            };
-          })
-        : [
-            {
-              value: "",
-              asset: "",
-              price: "0",
-              duration: "0",
-              total: "0.00",
-              tax: "0.00",
-            },
-          ];
-
-      const response = await deleteEquipmentRental(
-        location,
-        rentalId,
-        {
-          userId: customerId,
-          customerName: formData.customer,
-          studentName: studentName,
-          returnDate: returnDateISO,
-          securityDeposit: "",
-          tenderType: "",
-          depositAmount: formData.depositAmount || "0.00",
-          instruments: mappedInstruments,
-        }
+      const filledInstruments = instruments.filter(
+        (inst) => inst.instrumentId > 0
       );
+
+      const mappedInstruments =
+        filledInstruments.length > 0
+          ? filledInstruments.map((instrument) => {
+              const instrumentTotal = parseFloat(instrument.total || "0");
+              const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+              return {
+                value: "",
+                asset: "",
+                price: instrument.monthlyRate || "0",
+                duration: instrument.numberOfMonths || "0",
+                total: instrument.total || "0.00",
+                tax: instrumentTax,
+              };
+            })
+          : [
+              {
+                value: "",
+                asset: "",
+                price: "0",
+                duration: "0",
+                total: "0.00",
+                tax: "0.00",
+              },
+            ];
+
+      const response = await deleteEquipmentRental(location, rentalId, {
+        userId: customerId,
+        customerName: formData.customer,
+        studentName: studentName,
+        returnDate: returnDateISO,
+        securityDeposit: "",
+        tenderType: "",
+        depositAmount: formData.depositAmount || "0.00",
+        instruments: mappedInstruments,
+      });
 
       if (response.status) {
         toast.success("Equipment rental deleted successfully");
@@ -1038,8 +1181,7 @@ export function EquipmentRentalsModal({
         }
       } else {
         const errorMessage =
-          response.errors?.join(", ") ||
-          "Failed to delete equipment rental";
+          response.errors?.join(", ") || "Failed to delete equipment rental";
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -1058,8 +1200,28 @@ export function EquipmentRentalsModal({
     onOpenChange(false);
   };
 
-  // Calculate totals only from instruments that have been filled in
-  const filledInstruments = instruments.filter(inst => inst.instrumentId > 0);
+  const handleCloseReceiptModal = () => {
+    setShowReceiptModal(false);
+    setCreatedRentalData(null);
+    onOpenChange(false);
+  };
+
+  const handlePrintReceipt = () => {
+    if (!createdRentalData) return;
+
+    const legacyBaseUrl =
+      process.env.NEXT_PUBLIC_LEGACY_URL ||
+      "https://dev2.studiomanagerweb.com/admin";
+    const params = new URLSearchParams({
+      subTotal: createdRentalData.subTotal.toFixed(2),
+      hst: createdRentalData.hst.toFixed(2),
+      instutmentsTotal: createdRentalData.total.toFixed(2),
+    });
+    const url = `${legacyBaseUrl}/${location}/print/rental-receipt?${params.toString()}`;
+    window.open(url, "_blank");
+  };
+
+  const filledInstruments = instruments.filter((inst) => inst.instrumentId > 0);
   const subTotal = filledInstruments.reduce(
     (sum, instrument) => sum + parseFloat(instrument.total || "0"),
     0
@@ -1093,7 +1255,6 @@ export function EquipmentRentalsModal({
                 <Skeleton className="h-10 w-48" />
               </div>
 
-              {/* Phone Row Skeleton */}
               <div className="flex items-center gap-4">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-48" />
@@ -1103,7 +1264,6 @@ export function EquipmentRentalsModal({
                 <Skeleton className="h-10 w-48" />
               </div>
 
-              {/* Email Skeleton */}
               <div className="flex items-center gap-4">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-48" />
@@ -1252,7 +1412,9 @@ export function EquipmentRentalsModal({
                 disabled={isEditMode}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder={isEditMode ? "Select Student" : "Student"} />
+                  <SelectValue
+                    placeholder={isEditMode ? "Select Student" : "Student"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {availableStudents.map((student) => (
@@ -1266,7 +1428,10 @@ export function EquipmentRentalsModal({
 
             <div className="flex items-center gap-4">
               <Label className="w-32">Rental Start Date</Label>
-              <Popover open={isStartDateOpen && !isEditMode} onOpenChange={setIsStartDateOpen}>
+              <Popover
+                open={isStartDateOpen && !isEditMode}
+                onOpenChange={setIsStartDateOpen}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -1351,7 +1516,9 @@ export function EquipmentRentalsModal({
                 onValueChange={(value) =>
                   handleInputChange("securityDeposit", value as "yes" | "no")
                 }
-                className={`flex flex-col space-y-2 ${isEditMode ? "opacity-60 pointer-events-none" : ""}`}
+                className={`flex flex-col space-y-2 ${
+                  isEditMode ? "opacity-60 pointer-events-none" : ""
+                }`}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="yes" id="yes" />
@@ -1377,10 +1544,14 @@ export function EquipmentRentalsModal({
                       <SelectValue placeholder="Select Tender Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Select Tender Type">Select Tender Type</SelectItem>
+                      <SelectItem value="Select Tender Type">
+                        Select Tender Type
+                      </SelectItem>
                       <SelectItem value="cash">Cash</SelectItem>
                       <SelectItem value="credit-card">Credit Card</SelectItem>
-                      <SelectItem value="preauthorized">Preauthorized</SelectItem>
+                      <SelectItem value="preauthorized">
+                        Preauthorized
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <Label className="w-32">Deposit Amount</Label>
@@ -1417,48 +1588,54 @@ export function EquipmentRentalsModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {!isEditMode && instruments.map((instrument) => (
-                    <InstrumentFormRow
-                      key={instrument.id}
-                      instrument={instrument}
-                      onInstrumentChange={handleInstrumentChange}
-                      onInputFocus={handleInputFocus}
-                      onInputBlur={handleInputBlur}
-                      availableInstruments={availableInstruments}
-                      onDelete={() => handleDeleteInstrument(instrument.id)}
-                      showDelete={instruments.length > 1}
-                    />
-                  ))}
-                  {isEditMode && instruments.length > 0 && instruments.map((instrument) => (
-                    <tr
-                      key={instrument.id}
-                      className="border-b dark:border-gray-700"
-                    >
-                      <td className="p-3 font-medium">
-                        {instrument.instrument || 'N/A'}
-                      </td>
-                      <td className="p-3 text-right">
-                        {instrument.retailValue || '0.00'}
-                      </td>
-                      <td className="p-3">{instrument.assetTag || ''}</td>
-                      <td className="p-3 text-right">
-                        {instrument.monthlyRate || '0.00'}
-                      </td>
-                      <td className="p-3 text-right">
-                        {instrument.numberOfMonths || '1'}
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="font-medium">
-                            {instrument.total || '0.00'}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {!isEditMode &&
+                    instruments.map((instrument) => (
+                      <InstrumentFormRow
+                        key={instrument.id}
+                        instrument={instrument}
+                        onInstrumentChange={handleInstrumentChange}
+                        onInputFocus={handleInputFocus}
+                        onInputBlur={handleInputBlur}
+                        availableInstruments={availableInstruments}
+                        onDelete={() => handleDeleteInstrument(instrument.id)}
+                        showDelete={instruments.length > 1}
+                      />
+                    ))}
+                  {isEditMode &&
+                    instruments.length > 0 &&
+                    instruments.map((instrument) => (
+                      <tr
+                        key={instrument.id}
+                        className="border-b dark:border-gray-700"
+                      >
+                        <td className="p-3 font-medium">
+                          {instrument.instrument || "N/A"}
+                        </td>
+                        <td className="p-3 text-right">
+                          {instrument.retailValue || "0.00"}
+                        </td>
+                        <td className="p-3">{instrument.assetTag || ""}</td>
+                        <td className="p-3 text-right">
+                          {instrument.monthlyRate || "0.00"}
+                        </td>
+                        <td className="p-3 text-right">
+                          {instrument.numberOfMonths || "1"}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="font-medium">
+                              {instrument.total || "0.00"}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   {isEditMode && instruments.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-3 text-center text-muted-foreground">
+                      <td
+                        colSpan={6}
+                        className="p-3 text-center text-muted-foreground"
+                      >
                         No instruments found for this rental
                       </td>
                     </tr>
@@ -1494,29 +1671,33 @@ export function EquipmentRentalsModal({
           </div>
         </div>
 
-        <DialogFooter className={`w-full flex gap-2 p-6 pt-4 border-t dark:border-gray-700 bg-background ${isEditMode ? "justify-between sm:justify-between" : "justify-end"}`}>
+        <DialogFooter
+          className={`w-full flex gap-2 p-6 pt-4 border-t dark:border-gray-700 bg-background ${
+            isEditMode ? "justify-between sm:justify-between" : "justify-end"
+          }`}
+        >
           {isEditMode && (
             <div className="flex items-center gap-2">
-              {/* Show delete button only if rental was created today or earlier (matching legacy logic) */}
-              {rentalCreatedOn && (
+              {rentalCreatedOn &&
                 (() => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
                   const createdDate = new Date(rentalCreatedOn);
                   createdDate.setHours(0, 0, 0, 0);
-                  const showDelete = today <= createdDate; // Show if today <= created date
+                  const showDelete = today <= createdDate;
                   return showDelete ? (
-                    <Button 
-                      variant="destructive" 
-                      onClick={handleDeleteClick} 
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteClick}
                       disabled={deleting}
                     >
                       {deleting ? "Deleting..." : "Delete"}
                     </Button>
                   ) : null;
-                })()
-              )}
-              <Button onClick={handleReprintAgreement}>Reprint Agreement</Button>
+                })()}
+              <Button onClick={handleReprintAgreement}>
+                Reprint Agreement
+              </Button>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -1525,20 +1706,19 @@ export function EquipmentRentalsModal({
             </Button>
             {isEditMode ? (
               (() => {
-                // Enable Equipment Returned button only if return date exists and today >= return date (matching legacy logic)
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const returnDate = formData.returnDate 
+                const returnDate = formData.returnDate
                   ? new Date(formData.returnDate)
                   : null;
                 if (returnDate) {
                   returnDate.setHours(0, 0, 0, 0);
                 }
                 const isEnabled = returnDate && today >= returnDate;
-                
+
                 return (
-                  <Button 
-                    onClick={handleEquipmentReturned} 
+                  <Button
+                    onClick={handleEquipmentReturned}
                     disabled={returning || !isEnabled}
                   >
                     {returning ? "Processing..." : "Equipment Returned"}
@@ -1554,7 +1734,6 @@ export function EquipmentRentalsModal({
         </DialogFooter>
       </DialogContent>
 
-      {/* Delete Confirmation Modal */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
@@ -1562,7 +1741,8 @@ export function EquipmentRentalsModal({
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this equipment rental? This action cannot be undone.
+              Are you sure you want to delete this equipment rental? This action
+              cannot be undone.
             </p>
           </div>
           <DialogFooter>
@@ -1580,6 +1760,344 @@ export function EquipmentRentalsModal({
             >
               {deleting ? "Deleting..." : "Delete"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Modal - keeping it as is from original */}
+      <Dialog open={showReceiptModal} onOpenChange={handleCloseReceiptModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <DialogTitle className="text-xl font-semibold">
+              Equipment Rental Receipt
+            </DialogTitle>
+          </DialogHeader>
+
+          {createdRentalData && (
+            <div className="flex-1 overflow-y-auto p-8 bg-white dark:bg-gray-900">
+              <div className="flex justify-between items-start mb-8 pb-4 border-b-2 border-red-600">
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 flex items-center justify-center relative">
+                    <Image
+                      src="/SMW.png"
+                      alt="Musical Instruments Logo"
+                      width={80}
+                      height={80}
+                      className="object-contain dark:hidden"
+                      priority
+                    />
+                    <Image
+                      src="/SMW-dark.png"
+                      alt="Musical Instruments Logo"
+                      width={80}
+                      height={80}
+                      className="object-contain hidden dark:block"
+                      priority
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
+                      Musical Instruments
+                    </h2>
+                    <p className="text-base font-semibold text-gray-600 dark:text-gray-300">
+                      Rental Program
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right text-sm text-gray-600 dark:text-gray-300">
+                  <p className="font-medium">205 Marycroft Ave., Unit 6</p>
+                  <p className="font-medium">
+                    {createdRentalData.location}, Ontario
+                  </p>
+                  <p className="font-medium">Tel: (905) 254-3424</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6 mb-8 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                    Start Date
+                  </p>
+                  <p className="text-base font-medium dark:text-gray-100">
+                    {format(
+                      new Date(createdRentalData.startDate),
+                      "MMM dd, yyyy"
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                    Duration
+                  </p>
+                  <p className="text-base font-medium dark:text-gray-100">
+                    {createdRentalData.duration} Month
+                    {createdRentalData.duration > 1 ? "s" : ""}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                    Return Date
+                  </p>
+                  <p className="text-base font-medium dark:text-gray-100">
+                    {createdRentalData.returnDate
+                      ? format(
+                          new Date(createdRentalData.returnDate),
+                          "MMM dd, yyyy"
+                        )
+                      : "On Going"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 border-b pb-2">
+                  Customer Information
+                </h3>
+                <p className="text-base font-semibold mb-4 dark:text-gray-100">
+                  Parent/Guardian:{" "}
+                  <span className="font-normal">
+                    {createdRentalData.customerName}
+                  </span>
+                </p>
+
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Student
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-800 p-3 rounded">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        First Name:
+                      </p>
+                      <p className="text-base dark:text-gray-100">
+                        {createdRentalData.studentFirstName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        Last Name:
+                      </p>
+                      <p className="text-base dark:text-gray-100">
+                        {createdRentalData.studentLastName}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Address:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.customerAddress}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      City:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.customerCity}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Postal Code:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.customerPostalCode}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Home Phone:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.homePhone}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Work Phone:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.workPhone}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Other Phone:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.otherPhone}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Email:
+                  </p>
+                  <p className="text-sm dark:text-gray-100">
+                    {createdRentalData.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">
+                  Instrument Details
+                </h3>
+                <table className="w-full border-collapse border border-gray-300 dark:border-gray-700">
+                  <thead>
+                    <tr className="bg-gray-100 dark:bg-gray-800">
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-left text-sm font-semibold dark:text-gray-100">
+                        Instrument
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-left text-sm font-semibold dark:text-gray-100">
+                        Retail Value
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-left text-sm font-semibold dark:text-gray-100">
+                        Asset Tag/Serial#
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-right text-sm font-semibold dark:text-gray-100">
+                        Monthly Rate
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-center text-sm font-semibold dark:text-gray-100">
+                        # of Months
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-right text-sm font-semibold dark:text-gray-100">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {createdRentalData.instruments.map(
+                      (inst: InstrumentData, index: number) => (
+                        <tr
+                          key={index}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm dark:text-gray-100">
+                            {inst.instrument}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm text-right dark:text-gray-100">
+                            ${inst.retailValue || "0.00"}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm dark:text-gray-100">
+                            {inst.assetTag || "N/A"}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm text-right dark:text-gray-100">
+                            ${inst.monthlyRate}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm text-center dark:text-gray-100">
+                            {inst.numberOfMonths}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm text-right font-medium dark:text-gray-100">
+                            ${inst.total}
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end mb-8">
+                <div className="w-80 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <div className="flex justify-between mb-2 pb-2">
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      Sub Total:
+                    </span>
+                    <span className="font-medium dark:text-gray-100">
+                      ${createdRentalData.subTotal.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mb-2 pb-2">
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      HST (13%):
+                    </span>
+                    <span className="font-medium dark:text-gray-100">
+                      ${createdRentalData.hst.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t-2 border-gray-300 dark:border-gray-600 pt-3 font-bold text-lg">
+                    <span className="text-gray-800 dark:text-gray-100">
+                      Total:
+                    </span>
+                    <span className="text-gray-800 dark:text-gray-100">
+                      ${createdRentalData.total.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-gray-300 dark:border-gray-700 pt-6">
+                <h3 className="font-bold text-lg mb-3 text-gray-800 dark:text-gray-100">
+                  Rental Agreement:
+                </h3>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-justify leading-relaxed text-gray-700 dark:text-gray-300">
+                    I HAVE RECEIVED FROM ARCADIA ACADEMY OF MUSIC THE ABOVE
+                    LISTED ITEMS WHICH I HAVE EXAMINED AND FIND TO BE IN GOOD
+                    WORKING CONDITION. THE VALUE OF WHICH IS $
+                    {createdRentalData.instruments
+                      .reduce(
+                        (sum, inst) =>
+                          sum + parseFloat(inst.retailValue || "0"),
+                        0
+                      )
+                      .toFixed(2)}
+                    . I AM RENTING THIS FOR A PERIOD OF{" "}
+                    {createdRentalData.duration} MONTH
+                    {createdRentalData.duration > 1 ? "S" : ""} AT THE RATE OF $
+                    {createdRentalData.instruments[0]?.monthlyRate || "0.00"}{" "}
+                    (excl. taxes) PER MONTH. OVERDUE RENT WILL BE DEDUCTED FROM
+                    THE DEPOSIT AT THE PRO RATA DAILY RATE. I,{" "}
+                    <strong>{createdRentalData.customerName}</strong>, WILL BE
+                    RESPONSIBLE FOR THE VALUE OF THE ITEMS, IF FOR ANY REASON
+                    THEY ARE NOT RETURNED TO ARCADIA ACADEMY OF MUSIC. I,{" "}
+                    <strong>{createdRentalData.customerName}</strong>, WILL ALSO
+                    BE RESPONSIBLE FOR ANY DAMAGE TO THESE ITEMS BEYOND NORMAL
+                    EXPECTED WEAR. I,{" "}
+                    <strong>{createdRentalData.customerName}</strong>, WILL PAY
+                    ANY FEES OR COSTS TO THE OWNER IN REPOSSESSING THE ITEMS OR
+                    COLLECTING THE RENTALS DUE. AN ADDITIONAL CHARGE OF $5.00
+                    WILL BE ADDED TO ALL RENTALS RETURNED AFTER THE DUE DATE.
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-gray-300 dark:border-gray-700">
+                  <div className="flex justify-between items-end">
+                    <div className="w-1/2">
+                      <p className="text-sm font-semibold mb-2 dark:text-gray-100">
+                        Customer Signature:
+                      </p>
+                      <div className="border-b-2 border-gray-400 dark:border-gray-600 h-12"></div>
+                    </div>
+                    <div className="w-1/3">
+                      <p className="text-sm font-semibold mb-2 dark:text-gray-100">
+                        Date:
+                      </p>
+                      <div className="border-b-2 border-gray-400 dark:border-gray-600 h-12"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="p-6 pt-4 border-t bg-background">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleCloseReceiptModal}>
+                Close
+              </Button>
+              <Button onClick={handlePrintReceipt}>Print</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
