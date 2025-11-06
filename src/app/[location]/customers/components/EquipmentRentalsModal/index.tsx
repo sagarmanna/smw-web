@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Image from "next/image";
 import {
   Select,
   SelectContent,
@@ -205,6 +206,7 @@ const InstrumentFormRow = React.memo(
             onFocus={onInputFocus}
             onBlur={onInputBlur}
             className="w-full"
+            required
           />
         </td>
         <td className="p-2">
@@ -265,6 +267,30 @@ export function EquipmentRentalsModal({
   const [returning, setReturning] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  interface CreatedRentalData {
+    customerName: string;
+    customerAddress: string;
+    customerCity: string;
+    customerPostalCode: string;
+    homePhone: string;
+    workPhone: string;
+    otherPhone: string;
+    email: string;
+    studentFirstName: string;
+    studentLastName: string;
+    startDate: string;
+    duration: number;
+    returnDate: string | null;
+    instruments: InstrumentData[];
+    subTotal: number;
+    hst: number;
+    total: number;
+    location: string;
+  }
+
+  const [createdRentalData, setCreatedRentalData] =
+    useState<CreatedRentalData | null>(null);
   const [availableInstruments, setAvailableInstruments] = useState<
     InstrumentRental[]
   >([]);
@@ -544,8 +570,7 @@ export function EquipmentRentalsModal({
       const total = minimumCharge + extraDays * perDayRate;
       return total.toFixed(2);
     }
-    
-    // If actual days <= expected days, charge minimum (don't reduce)
+
     return minimumCharge.toFixed(2);
   };
 
@@ -656,42 +681,46 @@ export function EquipmentRentalsModal({
         const durationMatch = String(value).match(/^(\d+)-month/);
         if (durationMatch) {
           const months = durationMatch[1];
-          setInstruments((prev) =>
-            prev.map((inst) => {
-              const updated = {
-                ...inst,
-                numberOfMonths: months,
-              };
+          // Update all instruments with the new duration
+          setTimeout(() => {
+            setInstruments((prev) =>
+              prev.map((inst) => {
+                const updated = {
+                  ...inst,
+                  numberOfMonths: months,
+                };
 
-              if (
-                newData.rentalStartDate &&
-                newData.returnDate &&
-                inst.monthlyRate
-              ) {
-                const monthlyRate = parseFloat(inst.monthlyRate || "0");
-                if (monthlyRate > 0) {
-                  updated.total = calculateTotalFromDates(
-                    newData.rentalStartDate,
-                    newData.returnDate,
-                    monthlyRate,
-                    String(value)
-                  );
+                if (
+                  newData.rentalStartDate &&
+                  newData.returnDate &&
+                  inst.monthlyRate
+                ) {
+                  const monthlyRate = parseFloat(inst.monthlyRate || "0");
+                  if (monthlyRate > 0) {
+                    updated.total = calculateTotalFromDates(
+                      newData.rentalStartDate,
+                      newData.returnDate,
+                      monthlyRate,
+                      String(value)
+                    );
+                  } else {
+                    updated.total = "0.00";
+                  }
+                } else if (
+                  inst.monthlyRate &&
+                  parseFloat(inst.monthlyRate) > 0
+                ) {
+                  updated.total = (
+                    parseFloat(inst.monthlyRate) * parseInt(months)
+                  ).toFixed(2);
                 } else {
                   updated.total = "0.00";
                 }
-              } else {
-                // Fallback to monthly calculation if dates not available
-                updated.total =
-                  inst.monthlyRate && parseFloat(inst.monthlyRate) > 0
-                    ? (parseFloat(inst.monthlyRate) * parseInt(months)).toFixed(
-                        2
-                      )
-                    : "0.00";
-              }
 
-              return updated;
-            })
-          );
+                return updated;
+              })
+            );
+          }, 0);
         }
       }
 
@@ -826,6 +855,15 @@ export function EquipmentRentalsModal({
       return;
     }
 
+    // Validate that all instruments have number of months filled
+    const hasEmptyMonths = filledInstruments.some(
+      (inst) => !inst.numberOfMonths || inst.numberOfMonths === "0"
+    );
+    if (hasEmptyMonths) {
+      toast.error("Please fill in the number of months for all instruments");
+      return;
+    }
+
     if (!formData.rentalStartDate) {
       toast.error("Please select a rental start date");
       return;
@@ -896,7 +934,38 @@ export function EquipmentRentalsModal({
 
       if (response.status) {
         toast.success("Equipment rental created successfully");
-        onOpenChange(false);
+
+        // Prepare receipt data
+        const selectedStudent = availableStudents.find(
+          (s) => s.id.toString() === formData.studentId
+        );
+
+        setCreatedRentalData({
+          customerName: formData.customer,
+          customerAddress: formData.address,
+          customerCity: formData.city,
+          customerPostalCode: formData.postalCode,
+          homePhone: formData.homePhone,
+          workPhone: formData.workPhone,
+          otherPhone: formData.otherPhone,
+          email: formData.email,
+          studentFirstName: selectedStudent?.fullName.split(" ")[0] || "",
+          studentLastName:
+            selectedStudent?.fullName.split(" ").slice(1).join(" ") || "",
+          startDate: format(formData.rentalStartDate, "yyyy-MM-dd"),
+          duration: duration,
+          returnDate: returnDateISO
+            ? format(new Date(returnDateISO), "yyyy-MM-dd")
+            : "",
+          instruments: filledInstruments,
+          subTotal: subTotal,
+          hst: hst,
+          total: instrumentsTotal,
+          location: location,
+        });
+
+        setShowReceiptModal(true);
+
         if (onSave) {
           onSave({
             ...formData,
@@ -1129,6 +1198,27 @@ export function EquipmentRentalsModal({
 
   const handleCancel = () => {
     onOpenChange(false);
+  };
+
+  const handleCloseReceiptModal = () => {
+    setShowReceiptModal(false);
+    setCreatedRentalData(null);
+    onOpenChange(false);
+  };
+
+  const handlePrintReceipt = () => {
+    if (!createdRentalData) return;
+
+    const legacyBaseUrl =
+      process.env.NEXT_PUBLIC_LEGACY_URL ||
+      "https://dev2.studiomanagerweb.com/admin";
+    const params = new URLSearchParams({
+      subTotal: createdRentalData.subTotal.toFixed(2),
+      hst: createdRentalData.hst.toFixed(2),
+      instutmentsTotal: createdRentalData.total.toFixed(2),
+    });
+    const url = `${legacyBaseUrl}/${location}/print/rental-receipt?${params.toString()}`;
+    window.open(url, "_blank");
   };
 
   const filledInstruments = instruments.filter((inst) => inst.instrumentId > 0);
@@ -1674,6 +1764,353 @@ export function EquipmentRentalsModal({
             >
               {deleting ? "Deleting..." : "Delete"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Modal */}
+      <Dialog open={showReceiptModal} onOpenChange={handleCloseReceiptModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <DialogTitle className="text-xl font-semibold">
+              Equipment Rental Receipt
+            </DialogTitle>
+          </DialogHeader>
+
+          {createdRentalData && (
+            <div className="flex-1 overflow-y-auto p-8 bg-white dark:bg-gray-900">
+              {/* Header with Logo */}
+              {/* Header with Logo */}
+              <div className="flex justify-between items-start mb-8 pb-4 border-b-2 border-red-600">
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 flex items-center justify-center relative">
+                    {/* Light mode logo */}
+                    <Image
+                      src="/SMW.png"
+                      alt="Musical Instruments Logo"
+                      width={80}
+                      height={80}
+                      className="object-contain dark:hidden"
+                      priority
+                    />
+                    {/* Dark mode logo */}
+                    <Image
+                      src="/SMW-dark.png"
+                      alt="Musical Instruments Logo"
+                      width={80}
+                      height={80}
+                      className="object-contain hidden dark:block"
+                      priority
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
+                      Musical Instruments
+                    </h2>
+                    <p className="text-base font-semibold text-gray-600 dark:text-gray-300">
+                      Rental Program
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right text-sm text-gray-600 dark:text-gray-300">
+                  <p className="font-medium">205 Marycroft Ave., Unit 6</p>
+                  <p className="font-medium">
+                    {createdRentalData.location}, Ontario
+                  </p>
+                  <p className="font-medium">Tel: (905) 254-3424</p>
+                </div>
+              </div>
+
+              {/* Rental Info */}
+              <div className="grid grid-cols-3 gap-6 mb-8 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                    Start Date
+                  </p>
+                  <p className="text-base font-medium dark:text-gray-100">
+                    {format(
+                      new Date(createdRentalData.startDate),
+                      "MMM dd, yyyy"
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                    Duration
+                  </p>
+                  <p className="text-base font-medium dark:text-gray-100">
+                    {createdRentalData.duration} Month
+                    {createdRentalData.duration > 1 ? "s" : ""}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                    Return Date
+                  </p>
+                  <p className="text-base font-medium dark:text-gray-100">
+                    {createdRentalData.returnDate
+                      ? format(
+                          new Date(createdRentalData.returnDate),
+                          "MMM dd, yyyy"
+                        )
+                      : "On Going"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Customer Info */}
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 border-b pb-2">
+                  Customer Information
+                </h3>
+                <p className="text-base font-semibold mb-4 dark:text-gray-100">
+                  Parent/Guardian:{" "}
+                  <span className="font-normal">
+                    {createdRentalData.customerName}
+                  </span>
+                </p>
+
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Student
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-800 p-3 rounded">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        First Name:
+                      </p>
+                      <p className="text-base dark:text-gray-100">
+                        {createdRentalData.studentFirstName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        Last Name:
+                      </p>
+                      <p className="text-base dark:text-gray-100">
+                        {createdRentalData.studentLastName}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Address:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.customerAddress}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      City:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.customerCity}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Postal Code:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.customerPostalCode}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Home Phone:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.homePhone}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Work Phone:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.workPhone}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Other Phone:
+                    </p>
+                    <p className="text-sm dark:text-gray-100">
+                      {createdRentalData.otherPhone}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Email:
+                  </p>
+                  <p className="text-sm dark:text-gray-100">
+                    {createdRentalData.email}
+                  </p>
+                </div>
+              </div>
+
+              {/* Instruments Table */}
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">
+                  Instrument Details
+                </h3>
+                <table className="w-full border-collapse border border-gray-300 dark:border-gray-700">
+                  <thead>
+                    <tr className="bg-gray-100 dark:bg-gray-800">
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-left text-sm font-semibold dark:text-gray-100">
+                        Instrument
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-left text-sm font-semibold dark:text-gray-100">
+                        Retail Value
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-left text-sm font-semibold dark:text-gray-100">
+                        Asset Tag/Serial#
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-right text-sm font-semibold dark:text-gray-100">
+                        Monthly Rate
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-center text-sm font-semibold dark:text-gray-100">
+                        # of Months
+                      </th>
+                      <th className="border border-gray-300 dark:border-gray-700 p-3 text-right text-sm font-semibold dark:text-gray-100">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {createdRentalData.instruments.map(
+                      (inst: InstrumentData, index: number) => (
+                        <tr
+                          key={index}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm dark:text-gray-100">
+                            {inst.instrument}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm text-right dark:text-gray-100">
+                            ${inst.retailValue || "0.00"}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm dark:text-gray-100">
+                            {inst.assetTag || "N/A"}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm text-right dark:text-gray-100">
+                            ${inst.monthlyRate}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm text-center dark:text-gray-100">
+                            {inst.numberOfMonths}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-700 p-3 text-sm text-right font-medium dark:text-gray-100">
+                            ${inst.total}
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totals */}
+              <div className="flex justify-end mb-8">
+                <div className="w-80 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <div className="flex justify-between mb-2 pb-2">
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      Sub Total:
+                    </span>
+                    <span className="font-medium dark:text-gray-100">
+                      ${createdRentalData.subTotal.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mb-2 pb-2">
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      HST (13%):
+                    </span>
+                    <span className="font-medium dark:text-gray-100">
+                      ${createdRentalData.hst.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t-2 border-gray-300 dark:border-gray-600 pt-3 font-bold text-lg">
+                    <span className="text-gray-800 dark:text-gray-100">
+                      Total:
+                    </span>
+                    <span className="text-gray-800 dark:text-gray-100">
+                      ${createdRentalData.total.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contract */}
+              <div className="border-t-2 border-gray-300 dark:border-gray-700 pt-6">
+                <h3 className="font-bold text-lg mb-3 text-gray-800 dark:text-gray-100">
+                  Rental Agreement:
+                </h3>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <p className="text-sm text-justify leading-relaxed text-gray-700 dark:text-gray-300">
+                    I HAVE RECEIVED FROM ARCADIA ACADEMY OF MUSIC THE ABOVE
+                    LISTED ITEMS WHICH I HAVE EXAMINED AND FIND TO BE IN GOOD
+                    WORKING CONDITION. THE VALUE OF WHICH IS $
+                    {createdRentalData.instruments
+                      .reduce(
+                        (sum, inst) =>
+                          sum + parseFloat(inst.retailValue || "0"),
+                        0
+                      )
+                      .toFixed(2)}
+                    . I AM RENTING THIS FOR A PERIOD OF{" "}
+                    {createdRentalData.duration} MONTH
+                    {createdRentalData.duration > 1 ? "S" : ""} AT THE RATE OF $
+                    {createdRentalData.instruments[0]?.monthlyRate || "0.00"}{" "}
+                    (excl. taxes) PER MONTH. OVERDUE RENT WILL BE DEDUCTED FROM
+                    THE DEPOSIT AT THE PRO RATA DAILY RATE. I,{" "}
+                    <strong>{createdRentalData.customerName}</strong>, WILL BE
+                    RESPONSIBLE FOR THE VALUE OF THE ITEMS, IF FOR ANY REASON
+                    THEY ARE NOT RETURNED TO ARCADIA ACADEMY OF MUSIC. I,{" "}
+                    <strong>{createdRentalData.customerName}</strong>, WILL ALSO
+                    BE RESPONSIBLE FOR ANY DAMAGE TO THESE ITEMS BEYOND NORMAL
+                    EXPECTED WEAR. I,{" "}
+                    <strong>{createdRentalData.customerName}</strong>, WILL PAY
+                    ANY FEES OR COSTS TO THE OWNER IN REPOSSESSING THE ITEMS OR
+                    COLLECTING THE RENTALS DUE. AN ADDITIONAL CHARGE OF $5.00
+                    WILL BE ADDED TO ALL RENTALS RETURNED AFTER THE DUE DATE.
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-gray-300 dark:border-gray-700">
+                  <div className="flex justify-between items-end">
+                    <div className="w-1/2">
+                      <p className="text-sm font-semibold mb-2 dark:text-gray-100">
+                        Customer Signature:
+                      </p>
+                      <div className="border-b-2 border-gray-400 dark:border-gray-600 h-12"></div>
+                    </div>
+                    <div className="w-1/3">
+                      <p className="text-sm font-semibold mb-2 dark:text-gray-100">
+                        Date:
+                      </p>
+                      <div className="border-b-2 border-gray-400 dark:border-gray-600 h-12"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="p-6 pt-4 border-t bg-background">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleCloseReceiptModal}>
+                Close
+              </Button>
+              <Button onClick={handlePrintReceipt}>Print</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
