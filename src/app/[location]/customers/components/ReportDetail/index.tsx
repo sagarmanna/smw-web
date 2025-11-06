@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
-import { getCustomerById, getCustomerOutstandingInvoices, getCustomerPayments } from "../../customers.api";
+import { getCustomerById } from "../../customers.api";
+import { getReportOutstandingInvoices, getReportPrepaidLessons, getReportAvailableCredits, OutstandingInvoiceRaw, PrepaidLessonRaw, AvailableCreditRaw } from "./report-detail-api";
 
 // Data interfaces
 interface OutstandingInvoice {
@@ -40,6 +41,19 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
   const [outstandingInvoices, setOutstandingInvoices] = React.useState<OutstandingInvoice[]>([]);
   const [prepaidLessons, setPrepaidLessons] = React.useState<PrepaidLesson[]>([]);
   const [unusedCredits, setUnusedCredits] = React.useState<UnusedCredit[]>([]);
+
+  // Pagination state per table
+  const [outstandingPage, setOutstandingPage] = React.useState(1);
+  const [outstandingLimit, setOutstandingLimit] = React.useState(10);
+  const [outstandingMeta, setOutstandingMeta] = React.useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
+
+  const [prepaidPage, setPrepaidPage] = React.useState(1);
+  const [prepaidLimit, setPrepaidLimit] = React.useState(10);
+  const [prepaidMeta, setPrepaidMeta] = React.useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
+
+  const [creditsPage, setCreditsPage] = React.useState(1);
+  const [creditsLimit, setCreditsLimit] = React.useState(10);
+  const [creditsMeta, setCreditsMeta] = React.useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
 
   // Column definitions for Outstanding Invoices
   const outstandingInvoicesColumns: ColumnDef<OutstandingInvoice>[] = [
@@ -142,33 +156,53 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
         const customerData = await getCustomerById(location, Number(customerId));
         setCustomer(customerData);
 
-        // Load outstanding invoices
-        const outstandingData = await getCustomerOutstandingInvoices(location, Number(customerId), 1, 99999);
-        const formattedOutstanding = outstandingData.data.map(invoice => ({
-          id: invoice.id,
-          date: invoice.date,
-          owing: invoice.balanceDue
+        // Load outstanding invoices (Report Detail mapping)
+        const outstanding = await getReportOutstandingInvoices(
+          location,
+          Number(customerId),
+          outstandingPage,
+          outstandingLimit
+        );
+        const formattedOutstanding = (outstanding.data || []).map((row: OutstandingInvoiceRaw) => ({
+          id: row.id,
+          date: row.date,
+          owing: typeof row.balanceDue === 'number'
+            ? row.balanceDue
+            : parseCurrencyToNumber(String(row.balanceDue ?? row.owing ?? 0))
         }));
         setOutstandingInvoices(formattedOutstanding);
+        setOutstandingMeta(outstanding.pagination);
 
-        // Load payments data for prepaid lessons and unused credits
-        await getCustomerPayments(location, Number(customerId));
-        
-        // Mock prepaid lessons data (replace with actual API call)
-        const mockPrepaidLessons: PrepaidLesson[] = [
-          { id: "L-4799933", lessonDate: "Oct 23, 2025", status: "Scheduled", paid: 28.75 },
-          { id: "L-4798557", lessonDate: "Nov 06, 2025", status: "Scheduled", paid: 28.75 },
-          { id: "L-4798558", lessonDate: "Nov 13, 2025", status: "Scheduled", paid: 28.75 },
-          { id: "L-4798559", lessonDate: "Nov 20, 2025", status: "Scheduled", paid: 28.75 },
-          { id: "L-4798560", lessonDate: "Nov 27, 2025", status: "Scheduled", paid: 28.75 }
-        ];
-        setPrepaidLessons(mockPrepaidLessons);
+        // Load prepaid lessons
+        const prepaid = await getReportPrepaidLessons(
+          location,
+          Number(customerId),
+          prepaidPage,
+          prepaidLimit
+        );
+        const formattedPrepaid = (prepaid.data || []).map((row: PrepaidLessonRaw) => ({
+          id: String(row.lessonId),
+          lessonDate: row.lessonDate,
+          status: row.status,
+          paid: parseCurrencyToNumber(row.paid)
+        }));
+        setPrepaidLessons(formattedPrepaid);
+        setPrepaidMeta(prepaid.pagination);
 
-        // Mock unused credits data (replace with actual API call)
-        const mockUnusedCredits: UnusedCredit[] = [
-          { id: "", date: "2025-10-23 00:00:00", amount: 100.00 }
-        ];
-        setUnusedCredits(mockUnusedCredits);
+        // Load available credits (unused credits)
+        const credits = await getReportAvailableCredits(
+          location,
+          Number(customerId),
+          creditsPage,
+          creditsLimit
+        );
+        const formattedCredits = (credits.data || []).map((row: AvailableCreditRaw) => ({
+          id: row.id,
+          date: row.date,
+          amount: parseCurrencyToNumber(row.amount)
+        }));
+        setUnusedCredits(formattedCredits);
+        setCreditsMeta(credits.pagination);
 
       } catch (error) {
         console.error('Error loading report data:', error);
@@ -178,12 +212,13 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
     };
 
     loadData();
-  }, [location, customerId]);
+  }, [location, customerId, outstandingPage, outstandingLimit, prepaidPage, prepaidLimit, creditsPage, creditsLimit]);
 
   // Calculate totals
   const outstandingTotal = outstandingInvoices.reduce((sum, invoice) => sum + invoice.owing, 0);
   const prepaidTotal = prepaidLessons.reduce((sum, lesson) => sum + lesson.paid, 0);
   const unusedTotal = unusedCredits.reduce((sum, credit) => sum + credit.amount, 0);
+  const netTotal = outstandingTotal - (prepaidTotal + unusedTotal);
  
 
   const handlePrint = () => {
@@ -195,6 +230,12 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+  const parseCurrencyToNumber = (value: string | number): number => {
+    if (typeof value === 'number') return value;
+    const cleaned = value.replace(/[$,]/g, "");
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
   };
 
   if (loading) {
@@ -235,7 +276,12 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
             onPrint={handlePrint}
             enableSearch={false}
             enableFilter={false}
-            enableRowsPerPage={false}
+            enableRowsPerPage={true}
+            rowsPerPage={outstandingLimit}
+            onRowsPerPageChange={(n) => { setOutstandingLimit(n); setOutstandingPage(1); }}
+            serverSidePagination={outstandingMeta}
+            onServerSidePageChange={(p) => setOutstandingPage(p)}
+            hideRecordCount={false}
             footerRow={{
               id: "Total:",
               date: "",
@@ -263,7 +309,12 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
             onPrint={handlePrint}
             enableSearch={false}
             enableFilter={false}
-            enableRowsPerPage={false}
+            enableRowsPerPage={true}
+            rowsPerPage={prepaidLimit}
+            onRowsPerPageChange={(n) => { setPrepaidLimit(n); setPrepaidPage(1); }}
+            serverSidePagination={prepaidMeta}
+            onServerSidePageChange={(p) => setPrepaidPage(p)}
+            hideRecordCount={false}
             footerRow={{
               id: "Total:",
               lessonDate: "",
@@ -292,7 +343,12 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
             onPrint={handlePrint}
             enableSearch={false}
             enableFilter={false}
-            enableRowsPerPage={false}
+            enableRowsPerPage={true}
+            rowsPerPage={creditsLimit}
+            onRowsPerPageChange={(n) => { setCreditsLimit(n); setCreditsPage(1); }}
+            serverSidePagination={creditsMeta}
+            onServerSidePageChange={(p) => setCreditsPage(p)}
+            hideRecordCount={false}
             footerRow={{
               id: "",
               date: "",
@@ -301,7 +357,7 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
             isLoading={loading}
           />
           <div className="mt-4 text-right text-lg font-bold text-gray-900">
-            {formatCurrency(14.8)}
+            {formatCurrency(netTotal)}
           </div>
         </CardContent>
       </Card>
