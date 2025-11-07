@@ -1706,15 +1706,9 @@ export function EquipmentRentalsModal({
             </Button>
             {isEditMode ? (
               (() => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const returnDate = formData.returnDate
-                  ? new Date(formData.returnDate)
-                  : null;
-                if (returnDate) {
-                  returnDate.setHours(0, 0, 0, 0);
-                }
-                const isEnabled = returnDate && today >= returnDate;
+                const durationMatch = formData.duration.match(/^(\d+)-month/);
+                const durationMonths = durationMatch ? parseInt(durationMatch[1]) : 0;
+                const isEnabled = durationMonths > 2;
 
                 return (
                   <Button
