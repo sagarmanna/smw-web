@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ReusableModal } from "@/components/TablesModals";
 import { toast } from "sonner";
 import { CheckCircle2, Circle } from "lucide-react";
+import { notifyCustomerByEmail } from "@/lib/api/legacyApiAdapter";
 
 interface NotifyViaEmailReasonsModalProps {
   open: boolean;
@@ -19,12 +20,15 @@ export function NotifyViaEmailReasonsModal({
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
 
-  const reasons = [
-    { id: "upcoming-makeup", label: "Upcoming Makeup lesson" },
-    { id: "first-scheduled", label: "First scheduled Lesson" },
-    { id: "overdue-invoice", label: "OverDue Invoice" },
-    { id: "future-lessons", label: "Future Lessons" },
-  ];
+  const reasons = useMemo(
+    () => [
+      { id: "upcoming-makeup", label: "Upcoming Makeup lesson", legacyValue: 1 },
+      { id: "first-scheduled", label: "First scheduled Lesson", legacyValue: 2 },
+      { id: "overdue-invoice", label: "OverDue Invoice", legacyValue: 3 },
+      { id: "future-lessons", label: "Future Lessons", legacyValue: 4 },
+    ],
+    []
+  );
 
   const handleCheckboxChange = (reasonId: string) => {
     setSelectedReasons(prev => 
@@ -37,15 +41,28 @@ export function NotifyViaEmailReasonsModal({
   const handleSend = async () => {
     setIsSending(true);
     try {
-      // TODO: Call API to send notification email
-      // Example: await sendNotificationEmail(location, customerId, selectedReasons);
-      
-      toast.success("Notification email sent successfully");
-      
-      setSelectedReasons([]);
-      onOpenChange(false);
+      const selectedIds = reasons
+        .filter((reason) => selectedReasons.includes(reason.id))
+        .map((reason) => reason.legacyValue);
+
+      const response = await notifyCustomerByEmail(location, customerId, {
+        emailNotifyTypeIds: selectedIds,
+      });
+
+      if (response.status) {
+        toast.success("Notification email sent successfully");
+        setSelectedReasons([]);
+        onOpenChange(false);
+      } else {
+        const errorMessage =
+          response.message || response.errors?.join(", ") ||
+          "Failed to send notification email";
+        toast.error(errorMessage);
+      }
     } catch (error) {
-      toast.error("Failed to send notification email");
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to send notification email";
+      toast.error(errorMessage);
     } finally {
       setIsSending(false);
     }
