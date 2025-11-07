@@ -84,7 +84,8 @@ export const usePaymentCalculations = (
 
     // Calculate overpayment (only from cash)
     // If cash exceeds amount to apply, the excess becomes new credit
-    const amountToCredit = Math.max(0, receivedAmount - amountToApply);
+    // Calculate Amount To Credit = Amount Needed - Amount Received
+    const amountToCredit = Math.max(0, totalOutstanding - receivedAmount);
 
     // Payment Received = Amount entered by user (from input field)
     const paymentReceived = receivedAmount;
