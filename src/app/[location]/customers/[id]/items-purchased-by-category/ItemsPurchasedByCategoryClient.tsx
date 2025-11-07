@@ -7,9 +7,10 @@ import { DetailHeader } from "@/components/DetailHeader";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { usePrintReport } from "@/hooks/usePrintReport";
+import { getItemsPurchasedReport } from "./Items-purchase-category-api";
 
 interface ItemsPurchasedRow {
-  category: string; // e.g., Lesson, Rentals
+  category: string;
   description: string;
   price: number;
 }
@@ -24,35 +25,8 @@ export function ItemsPurchasedByCategoryClient({
   customerId,
 }: ItemsPurchasedByCategoryClientProps) {
   const router = useRouter();
-  const [loading] = React.useState<boolean>(false);
-
-  // Mock data (based on provided screenshot)
-  const rows = React.useMemo<ItemsPurchasedRow[]>(
-    () => [
-      { category: "Lesson", description: "xPiano Contemporary for Test student07 with siva teacher on Oct. 14th, 2025", price: 28.75 },
-      { category: "Lesson", description: "xPiano Hybrid for Test student22 with teacher test on Nov. 3rd, 2025", price: 29.25 },
-      { category: "Lesson", description: "xPiano Contemporary for Test student07 with siva teacher on Oct. 28th, 2025", price: 25.88 },
-      { category: "Lesson", description: "xPiano Hybrid for Test student22 with teacher test on Oct. 27th, 2025", price: 29.25 },
-      { category: "Lesson", description: "xClassical Guitar for Test student22 with Test teacherseng on Oct. 22nd, 2025", price: 28.75 },
-      { category: "Lesson", description: "xGuitar Contemporary for Test student22 with Thomas karenshia on Oct. 22nd, 2025", price: 28.75 },
-      { category: "Lesson", description: "xPiano Contemporary for Test student07 with siva teacher on Oct. 21st, 2025", price: 28.75 },
-      { category: "Lesson", description: "xPiano Hybrid for Test student22 with teacher test on Oct. 20th, 2025", price: 32.50 },
-      { category: "Lesson", description: "xClassical Guitar for Test student22 with Test teacherseng on Oct. 15th, 2025", price: 28.75 },
-      { category: "Lesson", description: "xGuitar Contemporary for Test student22 with Thomas karenshia on Oct. 15th, 2025", price: 28.75 },
-      { category: "Lesson", description: "xPiano Hybrid for Test student22 with teacher test on Sep. 22nd, 2025", price: 32.50 },
-      { category: "Lesson", description: "xPiano Hybrid for Test student22 with teacher test on Oct. 13th, 2025", price: 32.50 },
-      { category: "Lesson", description: "xClassical Guitar for Test student22 with Test teacherseng on Oct. 8th, 2025", price: 28.75 },
-      { category: "Lesson", description: "xGuitar Contemporary for Test student22 with Thomas karenshia on Oct. 8th, 2025", price: 28.75 },
-      { category: "Lesson", description: "xPiano Contemporary for Test student07 with siva teacher on Oct. 7th, 2025", price: 28.75 },
-      { category: "Lesson", description: "xPiano Hybrid for Test student22 with teacher test on Oct. 6th, 2025", price: 32.50 },
-      { category: "Lesson", description: "xClassical Guitar for Test student22 with Test teacherseng on Oct. 1st, 2025", price: 28.75 },
-      { category: "Lesson", description: "xGuitar Contemporary for Test student22 with Thomas karenshia on Oct. 1st, 2025", price: 28.75 },
-      { category: "Lesson", description: "xClassical Guitar for Test student22 with Test teacherseng on Sep. 24th, 2025", price: 28.75 },
-      { category: "Lesson", description: "xGuitar Contemporary for Test student22 with Thomas karenshia on Sep. 24th, 2025", price: 28.75 },
-      { category: "Rentals", description: "Rental Charge", price: 2.00 },
-    ],
-    []
-  );
+  const [loading, setLoading] = React.useState<boolean>(true);
+  const [rows, setRows] = React.useState<ItemsPurchasedRow[]>([]);
 
   const totalPrice = React.useMemo(
     () => rows.reduce((sum, r) => sum + (Number.isFinite(r.price) ? r.price : 0), 0),
@@ -102,23 +76,107 @@ export function ItemsPurchasedByCategoryClient({
     return { from: start, to: end };
   });
 
-  // Pagination state (client-side slicing, table expects server-style props)
+  // Pagination state (server-side)
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
   const [pagination, setPagination] = React.useState({
     page: 1,
     limit: 20,
-    total: rows.length,
-    totalPages: Math.ceil(rows.length / 20) || 1,
+    total: 0,
+    totalPages: 1,
   });
 
+  const toNumber = (value: unknown): number => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === "number") return value;
+    const cleaned = String(value).replace(/[$,]/g, "").trim();
+    const n = Number.parseFloat(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const formatDateForApi = (date: Date): string => {
+    const month = date.toLocaleString("en-US", { month: "short" });
+    const day = String(date.getDate()).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${month} ${day}, ${year}`; // e.g., Nov 07, 2025
+  };
+
   React.useEffect(() => {
-    setPagination((prev) => ({
-      ...prev,
-      total: rows.length,
-      totalPages: Math.ceil(rows.length / prev.limit) || 1,
-      page: Math.min(prev.page, Math.ceil(rows.length / prev.limit) || 1),
-    }));
-  }, [rows.length]);
+    let isCancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const params: Record<string, unknown> = {
+          page: pagination.page,
+          limit: rowsPerPage < 0 ? 99999 : rowsPerPage,
+          startDate: formatDateForApi(range.from),
+          endDate: formatDateForApi(range.to),
+        };
+        const resp = await getItemsPurchasedReport(location, customerId, params);
+
+        const d = resp as unknown;
+        let body: unknown[] = [];
+        if (Array.isArray(d)) {
+          body = d as unknown[];
+        } else if (typeof d === "object" && d !== null) {
+          const obj = d as { data?: unknown; body?: unknown; pagination?: unknown };
+          if (obj.data && typeof obj.data === "object" && obj.data !== null && Array.isArray((obj.data as { body?: unknown }).body as unknown[])) {
+            body = ((obj.data as { body?: unknown }).body as unknown[]) || [];
+          } else if (Array.isArray(obj.data as unknown[])) {
+            body = (obj.data as unknown[]) || [];
+          } else if (Array.isArray(obj.body as unknown[])) {
+            body = (obj.body as unknown[]) || [];
+          }
+        }
+
+        type PaginationLike = { page?: unknown; limit?: unknown; total?: unknown; totalPages?: unknown };
+        let p: PaginationLike | undefined;
+        if (typeof d === "object" && d !== null) {
+          const obj = d as { data?: unknown; pagination?: unknown };
+          if (obj.data && typeof obj.data === "object" && obj.data !== null && (obj.data as { pagination?: unknown }).pagination && typeof (obj.data as { pagination?: unknown }).pagination === "object") {
+            p = (obj.data as { pagination?: unknown }).pagination as PaginationLike;
+          } else if (obj.pagination && typeof obj.pagination === "object") {
+            p = obj.pagination as PaginationLike;
+          }
+        }
+
+        const mappedRows: ItemsPurchasedRow[] = ((body || []) as Array<Record<string, unknown>>).map((row) => {
+          const r = row as Record<string, unknown>;
+          const category = String(
+            r["category"] ?? r["Category"] ?? r["itemCategory"] ?? r["itemCategoryName"] ?? r["category_name"] ?? r["categoryName"] ?? r["type"] ?? ""
+          );
+          const description = String(
+            r["description"] ?? r["Description"] ?? r["itemDescription"] ?? r["activity"] ?? ""
+          );
+          const price = toNumber(
+            r["price"] ?? r["Price"] ?? r["amount"] ?? r["total"] ?? r["Total"] ?? 0
+          );
+          return { category, description, price };
+        });
+
+        if (!isCancelled) {
+          setRows(mappedRows);
+          setPagination({
+            page: Number(p?.page) || 1,
+            limit: Number(p?.limit) || rowsPerPage,
+            total: Number(p?.total) || mappedRows.length,
+            totalPages: Number(p?.totalPages) || 1,
+          });
+        }
+      } catch (_err) {
+        if (!isCancelled) {
+          setRows([]);
+          setPagination((prev) => ({ ...prev, total: 0, totalPages: 1 }));
+        }
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      isCancelled = true;
+    };
+  }, [location, customerId, pagination.page, rowsPerPage, range.from, range.to]);
 
   const handlePageChange = (page: number) => {
     setPagination((prev) => ({ ...prev, page }));
@@ -135,9 +193,6 @@ export function ItemsPurchasedByCategoryClient({
   };
 
   const showPagination = pagination.total > pagination.limit;
-  const startIndex = (pagination.page - 1) * pagination.limit;
-  const endIndex = startIndex + pagination.limit;
-  const pageData = showPagination ? rows.slice(startIndex, endIndex) : rows;
 
   const { handlePrint } = usePrintReport<ItemsPurchasedRow>();
 
@@ -171,7 +226,7 @@ export function ItemsPurchasedByCategoryClient({
         <CustomTable
           title=""
           columns={columns}
-          data={pageData}
+          data={rows}
           footerRow={footerRow}
           isLoading={loading}
           enableSearch={false}
@@ -191,7 +246,12 @@ export function ItemsPurchasedByCategoryClient({
           // Date range
           enableDateRangePicker={true}
           dateRange={range}
-          onDateRangeChange={(r) => r && setRange(r)}
+          onDateRangeChange={(r) => {
+            if (r) {
+              setRange(r);
+              setPagination((prev) => ({ ...prev, page: 1 }));
+            }
+          }}
           size="compact"
           variant="striped"
         />
