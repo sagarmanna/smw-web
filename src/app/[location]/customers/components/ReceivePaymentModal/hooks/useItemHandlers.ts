@@ -4,7 +4,7 @@ import { LessonItem, InvoiceItem, CreditItem, GroupLessonItem } from '../types';
 
 /**
  * Custom hook for handling item selection and payment changes
- * Following Single Responsibility Principle - handles only item manipulation logic
+ * Following Single Responsibility Principle - handles only item manipulation
  */
 export const useItemHandlers = (
   setLessons: React.Dispatch<React.SetStateAction<LessonItem[]>>,
@@ -12,12 +12,19 @@ export const useItemHandlers = (
   setInvoices: React.Dispatch<React.SetStateAction<InvoiceItem[]>>,
   setCredits: React.Dispatch<React.SetStateAction<CreditItem[]>>
 ) => {
-  // Lesson handlers
+  // ==================== LESSONS ====================
   const toggleLesson = useCallback(
     (id: string) => {
-      setLessons(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, selected: !item.selected } : item
+      setLessons((prev) =>
+        prev.map((lesson) =>
+          lesson.id === id
+            ? { 
+                ...lesson, 
+                selected: !lesson.selected,
+                // Clear payment when deselected, restore balance when selected
+                payment: !lesson.selected ? lesson.balance.toFixed(2) : '0.00'
+              }
+            : lesson
         )
       );
     },
@@ -26,26 +33,42 @@ export const useItemHandlers = (
 
   const toggleAllLessons = useCallback(
     (checked: boolean) => {
-      setLessons(prev => prev.map(item => ({ ...item, selected: checked })));
+      setLessons((prev) =>
+        prev.map((lesson) => ({ 
+          ...lesson, 
+          selected: checked,
+          // Clear payment when deselected, restore balance when selected
+          payment: checked ? lesson.balance.toFixed(2) : '0.00'
+        }))
+      );
     },
     [setLessons]
   );
 
   const handleLessonPaymentChange = useCallback(
     (id: string, value: string) => {
-      setLessons(prev =>
-        prev.map(item => (item.id === id ? { ...item, payment: value } : item))
+      setLessons((prev) =>
+        prev.map((lesson) =>
+          lesson.id === id ? { ...lesson, payment: value } : lesson
+        )
       );
     },
     [setLessons]
   );
 
-  // Group Lesson handlers
+  // ==================== GROUP LESSONS ====================
   const toggleGroupLesson = useCallback(
     (id: string) => {
-      setGroupLessons(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, selected: !item.selected } : item
+      setGroupLessons((prev) =>
+        prev.map((groupLesson) =>
+          groupLesson.id === id
+            ? { 
+                ...groupLesson, 
+                selected: !groupLesson.selected,
+                // Clear payment when deselected, restore balance when selected
+                payment: !groupLesson.selected ? groupLesson.balance.toFixed(2) : '0.00'
+              }
+            : groupLesson
         )
       );
     },
@@ -54,26 +77,42 @@ export const useItemHandlers = (
 
   const toggleAllGroupLessons = useCallback(
     (checked: boolean) => {
-      setGroupLessons(prev => prev.map(item => ({ ...item, selected: checked })));
+      setGroupLessons((prev) =>
+        prev.map((groupLesson) => ({ 
+          ...groupLesson, 
+          selected: checked,
+          // Clear payment when deselected, restore balance when selected
+          payment: checked ? groupLesson.balance.toFixed(2) : '0.00'
+        }))
+      );
     },
     [setGroupLessons]
   );
 
   const handleGroupLessonPaymentChange = useCallback(
     (id: string, value: string) => {
-      setGroupLessons(prev =>
-        prev.map(item => (item.id === id ? { ...item, payment: value } : item))
+      setGroupLessons((prev) =>
+        prev.map((groupLesson) =>
+          groupLesson.id === id ? { ...groupLesson, payment: value } : groupLesson
+        )
       );
     },
     [setGroupLessons]
   );
 
-  // Invoice handlers
+  // ==================== INVOICES ====================
   const toggleInvoice = useCallback(
     (id: string) => {
-      setInvoices(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, selected: !item.selected } : item
+      setInvoices((prev) =>
+        prev.map((invoice) =>
+          invoice.id === id
+            ? { 
+                ...invoice, 
+                selected: !invoice.selected,
+                // Clear payment when deselected, restore balance when selected
+                payment: !invoice.selected ? invoice.balance.toFixed(2) : '0.00'
+              }
+            : invoice
         )
       );
     },
@@ -82,26 +121,42 @@ export const useItemHandlers = (
 
   const toggleAllInvoices = useCallback(
     (checked: boolean) => {
-      setInvoices(prev => prev.map(item => ({ ...item, selected: checked })));
+      setInvoices((prev) =>
+        prev.map((invoice) => ({ 
+          ...invoice, 
+          selected: checked,
+          // Clear payment when deselected, restore balance when selected
+          payment: checked ? invoice.balance.toFixed(2) : '0.00'
+        }))
+      );
     },
     [setInvoices]
   );
 
   const handleInvoicePaymentChange = useCallback(
     (id: string, value: string) => {
-      setInvoices(prev =>
-        prev.map(item => (item.id === id ? { ...item, payment: value } : item))
+      setInvoices((prev) =>
+        prev.map((invoice) =>
+          invoice.id === id ? { ...invoice, payment: value } : invoice
+        )
       );
     },
     [setInvoices]
   );
 
-  // Credit handlers
+  // ==================== CREDITS ====================
   const toggleCredit = useCallback(
     (id: string) => {
-      setCredits(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, selected: !item.selected } : item
+      setCredits((prev) =>
+        prev.map((credit) =>
+          credit.id === id
+            ? { 
+                ...credit, 
+                selected: !credit.selected,
+                // Clear payment when deselected, restore amount when selected
+                payment: !credit.selected ? credit.amount.toFixed(2) : '0.00'
+              }
+            : credit
         )
       );
     },
@@ -110,37 +165,46 @@ export const useItemHandlers = (
 
   const toggleAllCredits = useCallback(
     (checked: boolean) => {
-      setCredits(prev => prev.map(item => ({ ...item, selected: checked })));
+      setCredits((prev) =>
+        prev.map((credit) => ({ 
+          ...credit, 
+          selected: checked,
+          // Clear payment when deselected, restore amount when selected
+          payment: checked ? credit.amount.toFixed(2) : '0.00'
+        }))
+      );
     },
     [setCredits]
   );
 
   const handleCreditPaymentChange = useCallback(
     (id: string, value: string) => {
-      setCredits(prev =>
-        prev.map(item => (item.id === id ? { ...item, payment: value } : item))
+      setCredits((prev) =>
+        prev.map((credit) =>
+          credit.id === id ? { ...credit, payment: value } : credit
+        )
       );
     },
     [setCredits]
   );
 
   return {
-    // Lesson handlers
+    // Lessons
     toggleLesson,
     toggleAllLessons,
     handleLessonPaymentChange,
     
-    // Group Lesson handlers
+    // Group Lessons
     toggleGroupLesson,
     toggleAllGroupLessons,
     handleGroupLessonPaymentChange,
     
-    // Invoice handlers
+    // Invoices
     toggleInvoice,
     toggleAllInvoices,
     handleInvoicePaymentChange,
     
-    // Credit handlers
+    // Credits
     toggleCredit,
     toggleAllCredits,
     handleCreditPaymentChange,

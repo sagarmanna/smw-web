@@ -9,6 +9,7 @@ import { useItemHandlers } from './hooks/useItemHandlers';
 import { useFilterHandlers } from './hooks/useFilterHandlers';
 import { usePaymentColumns } from './hooks/usePaymentColumns';
 import { usePaymentCalculations } from './hooks/usePaymentCalculations';
+import { useFilteredLessons, useFilteredGroupLessons } from './hooks/useFilteredData';
 import { ModalHeader } from './components/ModalHeader';
 import { ModalFooter } from './components/ModalFooter';
 import { PaymentFormSection } from './components/PaymentFormSection';
@@ -49,7 +50,11 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.groupLessons
   );
   
-  // Column definitions with dynamic filter options
+  // Apply filters to get filtered data for display
+  const filteredLessons = useFilteredLessons(state.lessons, state.lessonColumnFilters);
+  const filteredGroupLessons = useFilteredGroupLessons(state.groupLessons, state.groupLessonColumnFilters);
+  
+  // Column definitions with dynamic filter options - use ORIGINAL data for column generation
   const columns = usePaymentColumns(
     state.lessons,
     state.groupLessons,
@@ -60,7 +65,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     filterHandlers.groupLessonStudentOptions
   );
   
-  // Calculations with proper formulas
+  // Calculations with proper formulas - use ORIGINAL data for calculations
   const calculations = usePaymentCalculations(
     state.lessons,
     state.groupLessons,
@@ -70,18 +75,22 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.totalOutstanding
   );
 
-  // AUTO-FILL: Update Amount Received when credits or invoices change
-  // Formula: Amount Received = Amount To Apply - Selected Credits
-  const { amountReceived, setAmountReceived } = state;
+  // AUTO-FILL on initial load only - Amount Received is manually editable after that
+  const hasUserEditedAmount = React.useRef(false);
+  
   React.useEffect(() => {
-    if (calculations.suggestedAmountReceived !== undefined) {
+    // Only auto-fill if user hasn't manually edited and suggested amount is valid
+    if (!hasUserEditedAmount.current && calculations.suggestedAmountReceived !== undefined) {
       const suggested = calculations.suggestedAmountReceived.toFixed(2);
-      // Only update if different from current value to avoid infinite loops
-      if (amountReceived !== suggested) {
-        setAmountReceived(suggested);
-      }
+      state.setAmountReceived(suggested);
     }
-  }, [calculations.suggestedAmountReceived, amountReceived, setAmountReceived]);
+  }, [calculations.suggestedAmountReceived, state]);
+
+  // Track when user manually edits the amount
+  const handleAmountReceivedChange = React.useCallback((value: string) => {
+    hasUserEditedAmount.current = true;
+    state.setAmountReceived(value);
+  }, [state]);
 
   /**
    * Handle save action - transforms state into payment data
@@ -163,7 +172,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             reference={state.reference}
             onReferenceChange={state.setReference}
             amountReceived={state.amountReceived}
-            onAmountReceivedChange={state.setAmountReceived}
+            onAmountReceivedChange={handleAmountReceivedChange}
             notes={state.notes}
             onNotesChange={state.setNotes}
             availablePaymentMethods={state.availablePaymentMethods}
@@ -171,11 +180,11 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
           />
 
           <PaymentTablesSection
-            lessons={state.lessons}
+            lessons={filteredLessons}
             lessonColumns={columns.lessonColumns}
             lessonColumnFilters={state.lessonColumnFilters}
             onLessonFilterChange={filterHandlers.handleLessonFilterChange}
-            groupLessons={state.groupLessons}
+            groupLessons={filteredGroupLessons}
             groupLessonColumns={columns.groupLessonColumns}
             groupLessonColumnFilters={state.groupLessonColumnFilters}
             onGroupLessonFilterChange={filterHandlers.handleGroupLessonFilterChange}
