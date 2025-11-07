@@ -41,11 +41,11 @@ export interface DetailHeaderProps {
   }[];
   currentPageTitle: string;
   loading?: boolean;
-  
+  showActions?: boolean;
   // Actions configuration
   actionMenuGroups?: ActionMenuGroup[];
   actionButtonAriaLabel?: string;
-  showActions?: boolean;
+  
   
   // Optional styling
   className?: string;

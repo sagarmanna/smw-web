@@ -1,5 +1,5 @@
 // hooks/usePaymentData.ts
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { LessonItem, InvoiceItem, GroupLessonItem, CreditItem } from '../types';
 import { 
   getReceivePaymentLessons,
@@ -23,11 +23,16 @@ interface UsePaymentDataResult {
   totalOutstanding: number;
   isLoading: boolean;
   error: string | null;
+  setLessons: React.Dispatch<React.SetStateAction<LessonItem[]>>;
+  setGroupLessons: React.Dispatch<React.SetStateAction<GroupLessonItem[]>>;
+  setInvoices: React.Dispatch<React.SetStateAction<InvoiceItem[]>>;
+  setCredits: React.Dispatch<React.SetStateAction<CreditItem[]>>;
 }
 
 /**
  * Custom hook to fetch all payment-related data from APIs
  * Loads all data at once without pagination
+ * Calculates totalOutstanding dynamically based on selected items minus selected credits
  * @param location - The location identifier
  * @param customerId - The customer ID
  */
@@ -42,7 +47,6 @@ export const usePaymentData = (
   const [paymentMethods, setPaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
   const [customerName, setCustomerName] = useState<string>('');
   const [customerIdState, setCustomerIdState] = useState<number>(customerId);
-  const [totalOutstanding, setTotalOutstanding] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +58,32 @@ export const usePaymentData = (
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
   }, []);
+
+  // Calculate total outstanding dynamically based on SELECTED items MINUS selected credits
+  // Formula: Amount Needed = sum of all selected (lessons, group lesson and invoice) - sum of all selected credits
+  const totalOutstanding = useMemo(() => {
+    const lessonsTotal = lessons
+      .filter(l => l.selected)
+      .reduce((sum, l) => sum + l.balance, 0);
+    
+    const groupLessonsTotal = groupLessons
+      .filter(gl => gl.selected)
+      .reduce((sum, gl) => sum + gl.balance, 0);
+    
+    const invoicesTotal = invoices
+      .filter(inv => inv.selected)
+      .reduce((sum, inv) => sum + inv.balance, 0);
+    
+    const selectedCreditsTotal = credits
+      .filter(c => c.selected)
+      .reduce((sum, c) => sum + parseMoneyValue(c.payment), 0);
+    
+    // Amount Needed = sum of selected items - sum of selected credits
+    const total = lessonsTotal + groupLessonsTotal + invoicesTotal - selectedCreditsTotal;
+  
+    
+    return total;
+  }, [lessons, groupLessons, invoices, credits, parseMoneyValue]);
 
   // Load all data
   const loadAllData = useCallback(async () => {
@@ -163,15 +193,6 @@ export const usePaymentData = (
       });
       setCredits(transformedCredits);
 
-      // Calculate total outstanding balance
-      const lessonsTotal = transformedLessons.reduce((sum, l) => sum + l.balance, 0);
-      const groupLessonsTotal = transformedGroupLessons.reduce((sum, gl) => sum + gl.balance, 0);
-      const invoicesTotal = transformedInvoices.reduce((sum, inv) => sum + inv.balance, 0);
-      
-      // Total Outstanding = Sum of all balances (lessons + group lessons + invoices)
-      // Credits are NOT subtracted here - they are applied during payment
-      setTotalOutstanding(lessonsTotal + groupLessonsTotal + invoicesTotal);
-
     } catch (err) {
       console.error('Error fetching payment data:', err);
       setError('Failed to load payment data');
@@ -195,8 +216,12 @@ export const usePaymentData = (
     paymentMethods,
     customerName,
     customerId: customerIdState,
-    totalOutstanding,
+    totalOutstanding: totalOutstanding,
     isLoading,
     error,
+    setLessons,
+    setGroupLessons,
+    setInvoices,
+    setCredits,
   };
 };

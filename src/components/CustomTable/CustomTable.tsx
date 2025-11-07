@@ -32,6 +32,7 @@ export interface ColumnFilter {
   initialValue?: unknown;
   options?: { value: string; label: string }[]; // For dropdown type
   disabled?: (date: Date) => boolean; // Function to disable specific dates
+  quickPreset?: "default" | "payments"; // Optional preset for components like DateRangePicker
 }
 
 export interface CustomTableProps<TData, TValue> {

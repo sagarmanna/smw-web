@@ -1198,13 +1198,18 @@ export function CustomerDetailClient({
           label: "Receive Payment",
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
-        { label: "Print Statement", onClick: () => {} },
+        
         { label: "Print Statement", onClick: () => {} },
         {
           label: "Email Statement",
           onClick: () => setIsEmailStatementModalOpen(true),
         },
-        { label: "A/R Report Detail", onClick: () => {} },
+        { label: "A/R Report Detail", onClick: () => {{
+          const url = `/admin/v2/${location}/report/account-receivable/${id}`;
+          window.open(url, '_blank');
+        } } },
+        // { label: "Items Purchased by Category", onClick: () => {} },
+        // { label: "A/R Report Detail", onClick: () => {} },
         { label: "Items Purchased by Category", onClick: () => router.push(`/${location}/customers/${id}/items-purchased-by-category`) },
         {
           label: "Notify Via Email",

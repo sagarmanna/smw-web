@@ -7,17 +7,14 @@ import { LessonItem, InvoiceItem, CreditItem, GroupLessonItem, PaymentCalculatio
  * Following Single Responsibility Principle - handles only calculation logic
  * Memoized for performance optimization
  * 
- * Business Logic:
- * 1. Cash payment is applied first to invoices
- * 2. Credits are only used if cash is insufficient
- * 3. Amount To Credit = Cash overpayment AFTER using credits (if needed)
- * 
  * Formulas Applied:
- * - Amount To Apply = Σ(selected invoice balances)
- * - Cash Applied = min(cash, amount to apply)
- * - Credits Actually Used = min(selected credits, remaining after cash)
- * - Amount To Credit = Cash overpayment (if any)
- * - Amount Needed = TotalOutstanding (static display)
+ * - Amount Needed = sum of all selected (lessons, group lesson and invoice) - sum of all selected credits
+ * - Amount Received = Amount entered by user (from input field)
+ * - Available Credits = Total credits (all credits regardless of selection)
+ * - Selected Credits = sum of all selected credits
+ * - Amount To Apply = sum of all selected (lessons, group lesson and invoice)
+ * - Amount To Credit = (Amount Received + Selected Credits) - Amount To Apply
+ * - Suggested Amount Received = Amount To Apply - Selected Credits
  */
 export const usePaymentCalculations = (
   lessons: LessonItem[],
@@ -37,12 +34,12 @@ export const usePaymentCalculations = (
       return isNaN(parsed) ? 0 : parsed;
     };
 
-    // Calculate total available credits (all credits regardless of selection)
+    // Available Credits: Total credits (all credits regardless of selection)
     const availableCredits = credits.reduce((sum, credit) => {
       return sum + parseMoneyValue(credit.amount);
     }, 0);
 
-    // Calculate selected credits (maximum credits user wants to use)
+    // Selected Credits: sum of all selected credits
     const selectedCreditsAmount = credits
       .filter(credit => credit.selected)
       .reduce((sum, credit) => {
@@ -70,21 +67,18 @@ export const usePaymentCalculations = (
         return sum + parseMoneyValue(invoice.payment);
       }, 0);
 
-    // Sum of all selected balances (lessons + group lessons + invoices)
+    // Amount To Apply: sum of all selected (lessons, group lesson and invoice)
     const totalSelectedBalances = lessonsBalance + groupLessonsBalance + invoicesBalance;
 
-    // Parse amount received from input
+    // Amount Received: Amount entered by user (from input field)
     const receivedAmount = parseMoneyValue(amountReceived);
 
     // Amount To Apply = Σ(selected invoice balances)
     const amountToApply = totalSelectedBalances;
 
-    // Business Logic: Cash is applied first, then credits if needed
-    // We don't need to track these values separately for the return calculation
-
-    // Calculate overpayment (only from cash)
-    // If cash exceeds amount to apply, the excess becomes new credit
-    const amountToCredit = Math.max(0, receivedAmount - amountToApply);
+    // Amount To Credit: (Amount Received + Selected Credits) - Amount To Apply
+    // This can be negative (underpayment) or positive (overpayment)
+    const amountToCredit = (receivedAmount + selectedCreditsAmount) - amountToApply;
 
     // Payment Received = Amount entered by user (from input field)
     const paymentReceived = receivedAmount;
@@ -93,8 +87,8 @@ export const usePaymentCalculations = (
     // This is what should be displayed/auto-filled in the Amount Received input
     const suggestedAmountReceived = Math.max(0, amountToApply - selectedCreditsAmount);
 
-    // Amount Needed = TotalOutstanding (static display of total owed)
-    const amountNeeded = totalOutstanding;
+    // Amount Needed = TotalOutstanding (sum of selected items - selected credits)
+    const amountNeeded = totalSelectedBalances;
 
     // Calculate payment totals for each category
     const lessonPayments = lessonsBalance;
@@ -103,11 +97,11 @@ export const usePaymentCalculations = (
 
     return {
       availableCredits,
-      selectedCredits: selectedCreditsAmount, // Credits user selected (checked), not necessarily used
+      selectedCredits: selectedCreditsAmount,
       amountToApply,
       amountToCredit,
       paymentReceived,
-      suggestedAmountReceived, // NEW: Calculated amount that should show in input
+      suggestedAmountReceived,
       amountNeeded,
       lessonPayments,
       groupLessonPayments,

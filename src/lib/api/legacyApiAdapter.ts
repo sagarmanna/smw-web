@@ -28,6 +28,82 @@ export interface StudentCreateData {
   gender: "not-specified" | "male" | "female";
 }
 
+export interface NotifyEmailData {
+  emailNotifyTypeIds: number[];
+}
+
+/**
+ * Delete a user using the legacy API
+ */
+export async function deleteUser(
+  location: string,
+  userId: string | number
+): Promise<LegacyApiResponse> {
+  const url = `/admin/${location}/user/delete?id=${userId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Send notification email using the legacy API
+ */
+export async function notifyCustomerByEmail(
+  location: string,
+  customerId: string | number,
+  notifyData: NotifyEmailData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+
+  if (notifyData.emailNotifyTypeIds.length === 0) {
+    throw new Error('At least one email notify type must be selected.');
+  }
+
+  notifyData.emailNotifyTypeIds.forEach((typeId) => {
+    formData.append('NotificationEmailType[emailNotifyType][]', typeId.toString());
+  });
+
+  const url = `/admin/${location}/email/notify-email?customerId=${customerId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
 /**
  * Update a lesson using the legacy API
  */

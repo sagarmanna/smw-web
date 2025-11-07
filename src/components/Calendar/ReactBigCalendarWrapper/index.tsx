@@ -47,6 +47,7 @@ export interface CalendarEvent {
     isOwingRentalAgreement?: boolean;
     tooltip?: string;
     programId?: string;
+    url?: string;
   };
 }
 
@@ -444,11 +445,28 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
     const extendedProps = event.extendedProps || {};
     const isUpdating = updatingEvents.has(event.id);
     
-    // Simple click handler for all devices
+    // Simple click handler for all devices - only handle left clicks
     const handleEventClickLocal = (e: React.MouseEvent) => {
+      // Only handle left clicks (button 0 or undefined)
+      if (e.button === 2 || e.button === 1) {
+        return; // Allow default behavior for right-click and middle-click
+      }
+      
       e.preventDefault();
       e.stopPropagation();
       handleEventClick(event);
+    };
+    
+    // Right-click handler - open lesson in new tab on desktop
+    const handleContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Only open in new tab on desktop (not mobile)
+      const isMobile = window.innerWidth < 768; // md breakpoint
+      if (!isMobile && extendedProps.url) {
+        window.open(extendedProps.url, '_blank');
+      }
     };
     
     // Calculate event duration in minutes
@@ -482,6 +500,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             <div 
               className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-center cursor-pointer"
               onClick={handleEventClickLocal}
+              onContextMenu={handleContextMenu}
             >
               {/* Single row: Icon, time, title, and status icons */}
               <div className="flex items-center gap-1 w-full min-w-0">
@@ -552,6 +571,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
           <div 
             className="relative h-full w-full overflow-hidden px-1 py-0.5 flex flex-col cursor-pointer"
             onClick={handleEventClickLocal}
+            onContextMenu={handleContextMenu}
           >
             {/* Top row: Icon, time, and status icons */}
             <div className="flex items-center justify-between w-full flex-shrink-0">

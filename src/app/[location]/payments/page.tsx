@@ -1,9 +1,12 @@
-import React from 'react'
+import { PaymentsClient } from "./PaymentsClient";
 
-export default function PaymentsPage() {
-  return (
-    <div>
-      <h1>Payments</h1>
-    </div>
-  )
+interface PaymentsPageProps {
+  params: Promise<{
+    location: string;
+  }>;
+}
+
+export default async function PaymentsPage({ params }: PaymentsPageProps) {
+  const { location } = await params;
+  return <PaymentsClient location={location} />;
 }
