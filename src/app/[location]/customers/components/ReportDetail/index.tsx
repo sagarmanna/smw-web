@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
-import { getCustomerById } from "../../customers.api";
+import { getCustomerById, getCustomerInfo } from "../../customers.api";
 import { getReportOutstandingInvoices, getReportPrepaidLessons, getReportAvailableCredits, OutstandingInvoiceRaw, PrepaidLessonRaw, AvailableCreditRaw } from "./report-detail-api";
 import { useRouter } from "next/navigation";
 import { DetailHeader } from "@/components/DetailHeader";
@@ -40,7 +40,7 @@ interface ReportDetailProps {
 export function ReportDetail({ customerId, customerName, location }: ReportDetailProps) {
   const router = useRouter();
   const [loading, setLoading] = React.useState(true);
-  const [, setCustomer] = React.useState<{ firstName: string; lastName: string } | null>(null);
+  const [customerDisplayName, setCustomerDisplayName] = React.useState<string>(customerName);
   const [outstandingInvoices, setOutstandingInvoices] = React.useState<OutstandingInvoice[]>([]);
   const [prepaidLessons, setPrepaidLessons] = React.useState<PrepaidLesson[]>([]);
   const [unusedCredits, setUnusedCredits] = React.useState<UnusedCredit[]>([]);
@@ -155,9 +155,19 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
     const loadData = async () => {
       setLoading(true);
       try {
-        // Load customer data
-        const customerData = await getCustomerById(location, Number(customerId));
-        setCustomer(customerData);
+        // Load customer name (prefer info endpoint)
+        const info = await getCustomerInfo(location, Number(customerId));
+        if (info?.success && info.data?.profile?.name) {
+          setCustomerDisplayName(info.data.profile.name);
+        } else {
+          const customerData = await getCustomerById(location, Number(customerId));
+          if (customerData) {
+            const fullName = [customerData.firstName, customerData.lastName].filter(Boolean).join(" ");
+            setCustomerDisplayName(fullName || customerName || String(customerId));
+          } else {
+            setCustomerDisplayName(customerName || String(customerId));
+          }
+        }
 
         // Load outstanding invoices (Report Detail mapping)
         const outstanding = await getReportOutstandingInvoices(
@@ -254,11 +264,11 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
   return (
     <div className="min-h-screen p-2">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4">
         <DetailHeader
           breadcrumbItems={[
             { label: "Customers", onClick: () => router.push(`/${location}/customers`) },
-            { label: customerName, onClick: () => router.push(`/${location}/customers/${customerId}`) },
+            { label: customerDisplayName || customerName || String(customerId), onClick: () => router.push(`/${location}/customers/${customerId}`) },
           ]}
           currentPageTitle="Account"
           showActions={false}

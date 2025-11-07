@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { getItemsPurchasedReport } from "./Items-purchase-category-api";
+import { getCustomerById, getCustomerInfo } from "../../customers.api";
 
 interface ItemsPurchasedRow {
   category: string;
@@ -27,6 +28,7 @@ export function ItemsPurchasedByCategoryClient({
   const router = useRouter();
   const [loading, setLoading] = React.useState<boolean>(true);
   const [rows, setRows] = React.useState<ItemsPurchasedRow[]>([]);
+  const [customerName, setCustomerName] = React.useState<string>("");
 
   const totalPrice = React.useMemo(
     () => rows.reduce((sum, r) => sum + (Number.isFinite(r.price) ? r.price : 0), 0),
@@ -196,6 +198,31 @@ export function ItemsPurchasedByCategoryClient({
 
   const { handlePrint } = usePrintReport<ItemsPurchasedRow>();
 
+  // Fetch customer name for breadcrumb
+  React.useEffect(() => {
+    let cancelled = false;
+    const loadCustomer = async () => {
+      try {
+        const info = await getCustomerInfo(location, Number(customerId));
+        if (!cancelled && info?.success && info.data?.profile?.name) {
+          setCustomerName(info.data.profile.name);
+          return;
+        }
+        const c = await getCustomerById(location, Number(customerId));
+        if (!cancelled && c) {
+          const fullName = [c.firstName, c.lastName].filter(Boolean).join(" ");
+          setCustomerName(fullName || String(customerId));
+        }
+      } catch {
+        if (!cancelled) setCustomerName(String(customerId));
+      }
+    };
+    loadCustomer();
+    return () => {
+      cancelled = true;
+    };
+  }, [location, customerId]);
+
   const onPrintClick = React.useCallback(() => {
     handlePrint({
       reportTitle: "Items Purchased By Category",
@@ -210,11 +237,11 @@ export function ItemsPurchasedByCategoryClient({
 
   return (
     <div className="bg-white dark:bg-black -mt-2">
-      <div className="px-4 pt-4">
+      <div className="px-2 pt-2">
         <DetailHeader
           breadcrumbItems={[
             { label: "Customers", onClick: () => router.push(`/${location}/customers`) },
-            { label: customerId, onClick: () => router.push(`/${location}/customers/${customerId}`) },
+            { label: customerName || customerId, onClick: () => router.push(`/${location}/customers/${customerId}`) },
           ]}
           currentPageTitle="Items Purchased by Category"
           showActions={false}
