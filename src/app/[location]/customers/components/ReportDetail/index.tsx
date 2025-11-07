@@ -8,6 +8,8 @@ import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { getCustomerById } from "../../customers.api";
 import { getReportOutstandingInvoices, getReportPrepaidLessons, getReportAvailableCredits, OutstandingInvoiceRaw, PrepaidLessonRaw, AvailableCreditRaw } from "./report-detail-api";
+import { useRouter } from "next/navigation";
+import { DetailHeader } from "@/components/DetailHeader";
 
 // Data interfaces
 interface OutstandingInvoice {
@@ -36,6 +38,7 @@ interface ReportDetailProps {
 }
 
 export function ReportDetail({ customerId, customerName, location }: ReportDetailProps) {
+  const router = useRouter();
   const [loading, setLoading] = React.useState(true);
   const [, setCustomer] = React.useState<{ firstName: string; lastName: string } | null>(null);
   const [outstandingInvoices, setOutstandingInvoices] = React.useState<OutstandingInvoice[]>([]);
@@ -249,14 +252,18 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen p-2">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-        
-          <p className="text-sm text-gray-600">Customers / {customerName} / Account</p>
-        </div>
-        
+      <div className="mb-6">
+        <DetailHeader
+          breadcrumbItems={[
+            { label: "Customers", onClick: () => router.push(`/${location}/customers`) },
+            { label: customerName, onClick: () => router.push(`/${location}/customers/${customerId}`) },
+          ]}
+          currentPageTitle="Account"
+          showActions={false}
+          actionMenuGroups={[]}
+        />
       </div>
 
       {/* Outstanding Invoices Section */}
