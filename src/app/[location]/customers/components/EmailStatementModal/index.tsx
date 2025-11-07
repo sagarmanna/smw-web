@@ -256,8 +256,8 @@ export default function EmailStatementModal({
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.studentName}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.programName}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacherName}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;<div style="text-align: right;">">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db; <div style="text-align: right;">">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;<div style="text-align: right;">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db; <div style="text-align: right;">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
       </tr>`).join('')}
     </tbody>
   </table>

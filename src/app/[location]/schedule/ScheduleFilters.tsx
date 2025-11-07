@@ -4,8 +4,7 @@ import { FC } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Combobox } from "@/components/ui/combobox";
-import { CalendarIcon, Clock, Filter } from "lucide-react";
+import { CalendarIcon, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Program, Teacher } from "./schedule.api";
@@ -66,65 +65,9 @@ export const ScheduleFilters: FC<ScheduleFiltersProps> = ({
   if (isMobile) {
     return (
       <div className="flex flex-col md:hidden gap-2">
-        {/* First row: Filter by (50%) and Date (50%) - Only show in teacher view */}
+        {/* Date Picker - mobile full width for teacher view */}
         {currentView === "teacher" && (
-          <div className="flex gap-2 mt-1">
-            {/* Filter by label - 50% */}
-            <div className="w-1/2 flex items-center gap-1 text-xs">
-              <Filter className="h-3 w-3" />
-              <span className="font-medium">Filter by:</span>
-            </div>
-            
-            {/* Date Picker - 50% */}
-            <div className="w-1/2">
-              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "w-full h-6 px-1 text-xs justify-center font-normal",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-1 h-3 w-3" />
-                    {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start" {...popoverContentProps}>
-                    <div className="p-2 border-b">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={goToToday}
-                        className="w-full h-8 text-xs"
-                      >
-                        <Clock className="mr-1 h-3 w-3" />
-                        Today
-                      </Button>
-                    </div>
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      defaultMonth={selectedDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          handleDateSelect(date);
-                        }
-                      }}
-                      captionLayout="dropdown"
-                      fromYear={2005}
-                      toYear={2125}
-                    />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-        )}
-
-        {/* Date Picker - mobile full width for classroom view */}
-        {currentView === "classroom" && (
-          <div className="w-full">
+          <div className="w-1/2 ml-auto">
             <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -169,49 +112,53 @@ export const ScheduleFilters: FC<ScheduleFiltersProps> = ({
           </div>
         )}
 
-        {/* Program Filter - mobile full width - Only show in teacher view */}
-        {currentView === "teacher" && (
-          <div className="w-full">
-            <Combobox
-              options={[
-                { value: "all", label: "All Programs" },
-                ...programs.map((program) => ({
-                  value: program.id.toString(),
-                  label: program.name,
-                }))
-              ]}
-              value={selectedProgram || "all"}
-              onValueChange={(value) => onProgramChange(value === "all" ? "" : value)}
-              placeholder={programsLoading ? "Loading..." : "Program"}
-              searchPlaceholder="Search programs..."
-              emptyText="No programs found."
-              disabled={programsLoading}
-              popoverContentProps={popoverContentProps}
-            />
+        {/* Date Picker - mobile full width for classroom view */}
+        {currentView === "classroom" && (
+          <div className="w-1/2 ml-auto">
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "w-full h-6 px-1 text-xs justify-center font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-1 h-3 w-3" />
+                  {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start" {...popoverContentProps}>
+                  <div className="p-2 border-b">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToToday}
+                      className="w-full h-8 text-xs"
+                    >
+                      <Clock className="mr-1 h-3 w-3" />
+                      Today
+                    </Button>
+                  </div>
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    defaultMonth={selectedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        handleDateSelect(date);
+                      }
+                    }}
+                    captionLayout="dropdown"
+                    fromYear={2005}
+                    toYear={2125}
+                  />
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
-        {/* Teacher Filter - mobile full width - Only show in teacher view */}
-        {currentView === "teacher" && (
-          <div className="w-full mb-2">
-            <Combobox
-              options={[
-                { value: "all", label: "All Teachers" },
-                ...filteredTeachers.map((teacher) => ({
-                  value: teacher.id.toString(),
-                  label: teacher.name,
-                }))
-              ]}
-              value={selectedTeacher || "all"}
-              onValueChange={(value) => onTeacherChange(value === "all" ? "" : value)}
-              placeholder={teachersLoading ? "Loading..." : "Teacher"}
-              searchPlaceholder="Search teachers..."
-              emptyText="No teachers found."
-              disabled={teachersLoading}
-              popoverContentProps={popoverContentProps}
-            />
-          </div>
-        )}
       </div>
     );
   }
@@ -219,13 +166,6 @@ export const ScheduleFilters: FC<ScheduleFiltersProps> = ({
   // Desktop Filters
   return (
     <div className="hidden md:flex items-center gap-2">
-      {currentView === "teacher" && (
-        <div className="flex items-center gap-1">
-          <Filter className="h-3 w-3" />
-          <span className="font-medium text-xs">Filters:</span>
-        </div>
-      )}
-
       {/* Date Picker - desktop */}
       <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
         <PopoverTrigger asChild>
@@ -296,49 +236,6 @@ export const ScheduleFilters: FC<ScheduleFiltersProps> = ({
         </PopoverContent>
       </Popover>
 
-      {/* Program Filter - desktop - Only show in teacher view */}
-      {currentView === "teacher" && (
-        <div className="min-w-[100px]">
-            <Combobox
-              options={[
-                { value: "all", label: "All Programs" },
-                ...programs.map((program) => ({
-                  value: program.id.toString(),
-                  label: program.name,
-                }))
-              ]}
-              value={selectedProgram || "all"}
-              onValueChange={(value) => onProgramChange(value === "all" ? "" : value)}
-              placeholder={programsLoading ? "Loading..." : "Program"}
-              searchPlaceholder="Search programs..."
-              emptyText="No programs found."
-              disabled={programsLoading}
-              popoverContentProps={popoverContentProps}
-            />
-        </div>
-      )}
-
-      {/* Teacher Filter - desktop - Only show in teacher view */}
-      {currentView === "teacher" && (
-        <div className="min-w-[100px]">
-            <Combobox
-              options={[
-                { value: "all", label: "All Teachers" },
-                ...filteredTeachers.map((teacher) => ({
-                  value: teacher.id.toString(),
-                  label: teacher.name,
-                }))
-              ]}
-              value={selectedTeacher || "all"}
-              onValueChange={(value) => onTeacherChange(value === "all" ? "" : value)}
-              placeholder={teachersLoading ? "Loading..." : "Teacher"}
-              searchPlaceholder="Search teachers..."
-              emptyText="No teachers found."
-              disabled={teachersLoading}
-              popoverContentProps={popoverContentProps}
-            />
-        </div>
-      )}
     </div>
   );
 };
