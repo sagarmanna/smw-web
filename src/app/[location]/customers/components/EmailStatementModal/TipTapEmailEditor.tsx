@@ -13,6 +13,7 @@ import { Subscript as SubscriptMark } from '@tiptap/extension-subscript';
 import { Superscript as SuperscriptMark } from '@tiptap/extension-superscript';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
+import { FontFamily } from '@tiptap/extension-font-family';
 import { Link } from '@tiptap/extension-link';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { 
@@ -53,6 +54,7 @@ export default function TipTapEmailEditor({
   const [showTemplates, setShowTemplates] = React.useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = React.useState(false);
   const [selectedTemplate, setSelectedTemplate] = React.useState<number>(0);
+  const [showBlocks, setShowBlocks] = React.useState(false);
   const [replaceContents, setReplaceContents] = React.useState(true);
   const [saveHint, setSaveHint] = React.useState<string | null>(null);
   const [hasSelection, setHasSelection] = React.useState(false);
@@ -95,22 +97,63 @@ export default function TipTapEmailEditor({
   const [isAnchorOpen, setIsAnchorOpen] = React.useState(false);
   const [anchorId, setAnchorId] = React.useState('');
   // Rich insertions
-  const [isImageInsertOpen, setIsImageInsertOpen] = React.useState(false);
-  const [insImgUrl, setInsImgUrl] = React.useState('');
-  const [insImgAlt, setInsImgAlt] = React.useState('');
-  const [insImgWidth, setInsImgWidth] = React.useState('');
-  const [insImgHeight, setInsImgHeight] = React.useState('');
+  const [imgAsTag, setImgAsTag] = React.useState(false);
   const [isFlashOpen, setIsFlashOpen] = React.useState(false);
   const [flashUrl, setFlashUrl] = React.useState('');
   const [flashWidth, setFlashWidth] = React.useState('');
   const [flashHeight, setFlashHeight] = React.useState('');
+  const [flashHSpace, setFlashHSpace] = React.useState('');
+  const [flashVSpace, setFlashVSpace] = React.useState('');
+  const [flashTab, setFlashTab] = React.useState<'general'|'properties'|'advanced'>('general');
+  const [flashScale, setFlashScale] = React.useState<'notset'|'showall'|'noborder'|'exactfit'>('notset');
+  const [flashScriptAccess, setFlashScriptAccess] = React.useState<'notset'|'always'|'samedomain'|'never'>('notset');
+  const [flashWindowMode, setFlashWindowMode] = React.useState<'notset'|'window'|'opaque'|'transparent'>('notset');
+  const [flashQuality, setFlashQuality] = React.useState<'notset'|'best'|'high'|'autohigh'|'medium'|'autolow'|'low'>('high');
+  const [flashAlign, setFlashAlign] = React.useState<'notset'|'left'|'absbottom'|'absmiddle'|'baseline'|'bottom'|'middle'|'right'|'texttop'|'top'>('notset');
+  const [flashMenu, setFlashMenu] = React.useState(true);
+  const [flashAutoPlay, setFlashAutoPlay] = React.useState(true);
+  const [flashLoop, setFlashLoop] = React.useState(true);
+  const [flashAllowFullscreen, setFlashAllowFullscreen] = React.useState(true);
+  const [flashId, setFlashId] = React.useState('');
+  const [flashBgColor, setFlashBgColor] = React.useState('');
+  const [flashClasses, setFlashClasses] = React.useState('');
+  const [flashStyle, setFlashStyle] = React.useState('');
   const [isIframeOpen, setIsIframeOpen] = React.useState(false);
+  const [iframeTab, setIframeTab] = React.useState<'general'|'advanced'>('general');
   const [iframeUrl, setIframeUrl] = React.useState('');
   const [iframeWidth, setIframeWidth] = React.useState('');
   const [iframeHeight, setIframeHeight] = React.useState('');
+  const [iframeAlign, setIframeAlign] = React.useState<'notset'|'left'|'right'|'top'|'middle'|'bottom'>('notset');
+  const [iframeScrollbars, setIframeScrollbars] = React.useState(false);
+  const [iframeBorder, setIframeBorder] = React.useState(false);
+  const [iframeName, setIframeName] = React.useState('');
+  const [iframeTitle, setIframeTitle] = React.useState('');
+  const [iframeLongDesc, setIframeLongDesc] = React.useState('');
   const [iframeAllow, setIframeAllow] = React.useState(true);
+  const [iframeId, setIframeId] = React.useState('');
+  const [iframeStyle, setIframeStyle] = React.useState('');
+  const [iframeClasses, setIframeClasses] = React.useState('');
+  // Table insert modal
+  const [isTableOpen, setIsTableOpen] = React.useState(false);
+  const [tableTab, setTableTab] = React.useState<'props'|'advanced'>('props');
+  const [tableRows, setTableRows] = React.useState('3');
+  const [tableCols, setTableCols] = React.useState('3');
+  const [tableWidth, setTableWidth] = React.useState('');
+  const [tableHeight, setTableHeight] = React.useState('');
+  const [tableHeaders, setTableHeaders] = React.useState<'none'|'row'|'col'|'both'>('none');
+  const [tableBorder, setTableBorder] = React.useState('1');
+  const [tableAlign, setTableAlign] = React.useState<'notset'|'left'|'center'|'right'>('notset');
+  const [tableCellSpacing, setTableCellSpacing] = React.useState('1');
+  const [tableCellPadding, setTableCellPadding] = React.useState('1');
+  const [tableCaption, setTableCaption] = React.useState('');
+  const [tableSummary, setTableSummary] = React.useState('');
+  const [tableId, setTableId] = React.useState('');
+  const [tableLangDir, setTableLangDir] = React.useState<'notset'|'ltr'|'rtl'>('notset');
+  const [tableStyle, setTableStyle] = React.useState('');
+  const [tableClasses, setTableClasses] = React.useState('');
   const [smileyOpen, setSmileyOpen] = React.useState(false);
   const [specialOpen, setSpecialOpen] = React.useState(false);
+  const [specialSelected, setSpecialSelected] = React.useState<string | null>(null);
   // Form properties modal state (keep hooks grouped to ensure stable order)
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [formSelectionHtml, setFormSelectionHtml] = React.useState<string>('');
@@ -161,7 +204,7 @@ export default function TipTapEmailEditor({
 
   // Image Button properties modal state
   const [isIMGModalOpen, setIsIMGModalOpen] = React.useState(false);
-  const [imgTab, setImgTab] = React.useState<'info' | 'advanced'>('info');
+  const [imgTab, setImgTab] = React.useState<'info' | 'link' | 'advanced'>('info');
   const [imgUrl, setImgUrl] = React.useState<string>('');
   const [imgAlt, setImgAlt] = React.useState<string>('');
   const [imgWidth, setImgWidth] = React.useState<string>('');
@@ -219,6 +262,7 @@ export default function TipTapEmailEditor({
       Underline,
       TextStyle,
       Color,
+      FontFamily,
       SubscriptMark,
       SuperscriptMark,
       Link.configure({
@@ -242,6 +286,106 @@ export default function TipTapEmailEditor({
       },
     },
   });
+
+  // Helper to reliably apply text style to selection or caret
+  const applyTextStyle = (attrs: Record<string, string>) => {
+    if (!editor || isSourceView) return;
+    const { state } = editor;
+    const { empty, from, to, $from } = state.selection;
+    // If there is no selection, apply to the entire current text block
+    if (empty) {
+      const blockStart = $from.start();
+      const blockEnd = $from.end();
+      const originalPos = from;
+      editor
+        .chain()
+        .focus()
+        .setTextSelection({ from: blockStart, to: blockEnd })
+        .extendMarkRange('textStyle')
+        .setMark('textStyle', attrs)
+        .setTextSelection({ from: originalPos, to: originalPos })
+        .run();
+      return;
+    }
+    // With a selection, just apply to the selected range
+    editor.chain().focus().extendMarkRange('textStyle').setMark('textStyle', attrs).run();
+  };
+
+  const applyStyleFromDropdown = (value: string) => {
+    if (!editor || !value) return;
+    const chain = editor.chain().focus();
+    switch (value) {
+      // Block styles
+      case 'italic-title':
+        chain.setHeading({ level: 2 }).run();
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'subtitle':
+        chain.setParagraph().run();
+        editor.chain().focus().toggleItalic().run();
+        editor.chain().focus().setColor('#6b7280').run();
+        editor.chain().focus().setMark('textStyle', { fontSize: '18px' }).run();
+        break;
+      case 'special-container':
+        editor.commands.insertContent('<div style="border:1px solid #d1d5db;padding:12px;border-radius:6px;background:#f9fafb;">&ZeroWidthSpace;</div>');
+        break;
+      case 'blockquote':
+        chain.toggleBlockquote().run();
+        break;
+      case 'code-block':
+        chain.toggleCodeBlock().run();
+        break;
+
+      // Inline styles
+      case 'marker':
+        applyTextStyle({ backgroundColor: '#ffff00' });
+        break;
+      case 'big': {
+        // 18px approximates Big; use larger if desired
+        applyTextStyle({ fontSize: '18px' });
+        break;
+      }
+      case 'small': {
+        applyTextStyle({ fontSize: '12px' });
+        break;
+      }
+      case 'typewriter':
+        editor.chain().focus().setFontFamily("'Courier New', Courier, monospace").run();
+        break;
+      case 'computer-code':
+        chain.toggleCode().run();
+        break;
+      case 'keyboard-phrase':
+        editor.chain().focus().setFontFamily("'Courier New', Courier, monospace").run();
+        editor.chain().focus().setMark('textStyle', { backgroundColor: '#f3f4f6' }).run();
+        break;
+      case 'sample-text':
+        editor.chain().focus().setFontFamily("'Courier New', Courier, monospace").run();
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'variable':
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'deleted-text':
+        chain.toggleStrike().run();
+        break;
+      case 'inserted-text':
+        chain.toggleUnderline().run();
+        break;
+      case 'cited-work':
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'inline-quotation':
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'language-rtl':
+        wrapSelectionWithDir('rtl');
+        break;
+      case 'language-ltr':
+        wrapSelectionWithDir('ltr');
+        break;
+    }
+  };
 
   React.useEffect(() => {
     if (editor && content !== editor.getHTML()) {
@@ -474,6 +618,83 @@ export default function TipTapEmailEditor({
     setIsLinkOpen(false);
   };
 
+  // Reusable Link Info section (used in Link modal and Image modal → Link tab)
+  const LinkInfoFields = ({ withTypeSelector = true }: { withTypeSelector?: boolean }) => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 items-end">
+        {withTypeSelector && (
+          <div>
+            <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Link Type</label>
+            <select value={linkType} onChange={(e)=>setLinkType(e.target.value as 'url'|'anchor'|'email')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+              <option value="url">URL</option>
+              <option value="anchor">Link to anchor in the text</option>
+              <option value="email">E-mail</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      {(!withTypeSelector || linkType === 'url') && (
+        <div className="grid grid-cols-12 gap-4 items-end">
+          <div className="col-span-3">
+            <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Protocol</label>
+            <select value={protocol} onChange={(e)=>setProtocol(e.target.value as 'http'|'https'|'ftp'|'news'|'other')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+              <option value="http">http://</option>
+              <option value="https">https://</option>
+              <option value="ftp">ftp://</option>
+              <option value="news">news://</option>
+              <option value="other">&lt;other&gt;</option>
+            </select>
+          </div>
+          <div className="col-span-9">
+            <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
+            <input value={linkUrl} onChange={(e)=>setLinkUrl(e.target.value)} placeholder="example.com/path" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+          </div>
+        </div>
+      )}
+
+      {/* Show Blocks styles */}
+      {showBlocks && (
+        <style jsx global>{`
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror p,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h1,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h2,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h3,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h4,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h5,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h6,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror blockquote,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror pre,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror ul,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror ol,
+          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror table {
+            outline: 1px dashed #cbd5e1;
+            position: relative;
+          }
+        `}</style>
+      )}
+
+      {withTypeSelector && linkType === 'anchor' && (
+        <div>
+          <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Select Anchor</label>
+          <select value={anchorTarget} onChange={(e)=>setAnchorTarget(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+            <option value=""></option>
+            {anchorList.map((id)=> (
+              <option key={id} value={id}>#{id}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {withTypeSelector && linkType === 'email' && (
+        <div>
+          <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
+          <input value={emailAddr} onChange={(e)=>setEmailAddr(e.target.value)} placeholder="user@example.com" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+        </div>
+      )}
+    </div>
+  );
+
   const openAnchorModal = () => {
     setAnchorId('');
     setIsAnchorOpen(true);
@@ -497,46 +718,93 @@ export default function TipTapEmailEditor({
   };
 
   const openImageInsert = () => {
-    setInsImgUrl('');
-    setInsImgAlt('');
-    setInsImgWidth('');
-    setInsImgHeight('');
-    setIsImageInsertOpen(true);
-  };
-  const submitImageInsert = () => {
-    if (!insImgUrl.trim()) { setIsImageInsertOpen(false); return; }
-    const attrs: string[] = [`src=\"${escapeHtml(insImgUrl.trim())}\"`];
-    if (insImgAlt.trim()) attrs.push(`alt=\"${escapeHtml(insImgAlt.trim())}\"`);
-    const w = parseInt(insImgWidth, 10); if (!Number.isNaN(w) && w > 0) attrs.push(`width=\"${w}\"`);
-    const h = parseInt(insImgHeight, 10); if (!Number.isNaN(h) && h > 0) attrs.push(`height=\"${h}\"`);
-    insertHtml(`<img ${attrs.join(' ')} />`);
-    setIsImageInsertOpen(false);
+    setImgAsTag(true);
+    openImageButtonModal();
   };
 
   const openFlashModal = () => {
+    setFlashTab('general');
     setFlashUrl('');
     setFlashWidth('');
     setFlashHeight('');
+    setFlashHSpace('');
+    setFlashVSpace('');
+    setFlashScale('notset');
+    setFlashScriptAccess('notset');
+    setFlashWindowMode('notset');
+    setFlashQuality('high');
+    setFlashAlign('notset');
+    setFlashMenu(true);
+    setFlashAutoPlay(true);
+    setFlashLoop(true);
+    setFlashAllowFullscreen(true);
+    setFlashId('');
+    setFlashBgColor('');
+    setFlashClasses('');
+    setFlashStyle('');
     setIsFlashOpen(true);
   };
   const submitFlashModal = () => {
     if (!flashUrl.trim()) { setIsFlashOpen(false); return; }
     const w = parseInt(flashWidth, 10); const h = parseInt(flashHeight, 10);
-    const size = `${!Number.isNaN(w)&&w>0?` width=\"${w}\"`:''}${!Number.isNaN(h)&&h>0?` height=\"${h}\"`:''}`;
-    const html = `<object data=\"${escapeHtml(flashUrl.trim())}\" type=\"application/x-shockwave-flash\"${size}></object>`;
+    const attrs: string[] = [`data=\"${escapeHtml(flashUrl.trim())}\"`, `type=\"application/x-shockwave-flash\"`];
+    if (!Number.isNaN(w) && w>0) attrs.push(`width=\"${w}\"`);
+    if (!Number.isNaN(h) && h>0) attrs.push(`height=\"${h}\"`);
+    if (flashId.trim()) attrs.push(`id=\"${escapeHtml(flashId.trim())}\"`);
+    const styleParts: string[] = [];
+    const hs = parseInt(flashHSpace,10); if (!Number.isNaN(hs) && hs>0) styleParts.push(`margin-left:${hs}px;margin-right:${hs}px`);
+    const vs = parseInt(flashVSpace,10); if (!Number.isNaN(vs) && vs>0) styleParts.push(`margin-top:${vs}px;margin-bottom:${vs}px`);
+    if (flashBgColor.trim()) styleParts.push(`background:${flashBgColor.trim()}`);
+    if (flashStyle.trim()) styleParts.push(flashStyle.trim());
+    if (styleParts.length) attrs.push(`style=\"${styleParts.join(';')}\"`);
+    if (flashClasses.trim()) attrs.push(`class=\"${escapeHtml(flashClasses.trim())}\"`);
+
+    // Params as inner <param> tags for completeness
+    const params: string[] = [];
+    if (flashMenu) params.push('<param name="menu" value="true" />');
+    if (flashAutoPlay) params.push('<param name="autoplay" value="true" />');
+    if (flashLoop) params.push('<param name="loop" value="true" />');
+    if (flashAllowFullscreen) params.push('<param name="allowFullScreen" value="true" />');
+    if (flashScale !== 'notset') params.push(`<param name="scale" value="${flashScale}" />`);
+    if (flashScriptAccess !== 'notset') params.push(`<param name="allowScriptAccess" value="${flashScriptAccess}" />`);
+    if (flashWindowMode !== 'notset') params.push(`<param name="wmode" value="${flashWindowMode}" />`);
+    if (flashQuality !== 'notset') params.push(`<param name="quality" value="${flashQuality}" />`);
+    if (flashAlign !== 'notset') params.push(`<param name="salign" value="${flashAlign}" />`);
+    const html = `<object ${attrs.join(' ')}>${params.join('')}</object>`;
     insertHtml(html);
     setIsFlashOpen(false);
   };
 
   const openIframeModal = () => {
-    setIframeUrl(''); setIframeWidth(''); setIframeHeight(''); setIframeAllow(true); setIsIframeOpen(true);
+    setIframeTab('general');
+    setIframeUrl(''); setIframeWidth(''); setIframeHeight('');
+    setIframeAlign('notset'); setIframeScrollbars(false); setIframeBorder(false);
+    setIframeName(''); setIframeTitle(''); setIframeLongDesc('');
+    setIframeAllow(true); setIframeId(''); setIframeStyle(''); setIframeClasses('');
+    setIsIframeOpen(true);
   };
   const submitIframeModal = () => {
     if (!iframeUrl.trim()) { setIsIframeOpen(false); return; }
-    const attrs: string[] = [`src=\"${escapeHtml(iframeUrl.trim())}\"`, `frameborder=\"0\"`];
+    const attrs: string[] = [`src=\"${escapeHtml(iframeUrl.trim())}\"`];
     const w = parseInt(iframeWidth, 10); if (!Number.isNaN(w) && w>0) attrs.push(`width=\"${w}\"`);
     const h = parseInt(iframeHeight, 10); if (!Number.isNaN(h) && h>0) attrs.push(`height=\"${h}\"`);
     if (iframeAllow) attrs.push(`allowfullscreen`);
+    if (iframeName.trim()) attrs.push(`name=\"${escapeHtml(iframeName.trim())}\"`);
+    if (iframeTitle.trim()) attrs.push(`title=\"${escapeHtml(iframeTitle.trim())}\"`);
+    if (iframeLongDesc.trim()) attrs.push(`longdesc=\"${escapeHtml(iframeLongDesc.trim())}\"`);
+    // frameborder & scrolling for legacy support
+    attrs.push(`frameborder=\"${iframeBorder ? '1' : '0'}\"`);
+    if (iframeScrollbars) attrs.push(`scrolling=\"yes\"`);
+    if (iframeId.trim()) attrs.push(`id=\"${escapeHtml(iframeId.trim())}\"`);
+    if (iframeClasses.trim()) attrs.push(`class=\"${escapeHtml(iframeClasses.trim())}\"`);
+    const styleParts: string[] = [];
+    if (iframeAlign==='left') styleParts.push('float:left');
+    if (iframeAlign==='right') styleParts.push('float:right');
+    if (iframeAlign==='top') styleParts.push('vertical-align:top');
+    if (iframeAlign==='middle') styleParts.push('vertical-align:middle');
+    if (iframeAlign==='bottom') styleParts.push('vertical-align:bottom');
+    if (iframeStyle.trim()) styleParts.push(iframeStyle.trim());
+    if (styleParts.length) attrs.push(`style=\"${styleParts.join(';')}\"`);
     insertHtml(`<iframe ${attrs.join(' ')}></iframe>`);
     setIsIframeOpen(false);
   };
@@ -547,6 +815,52 @@ export default function TipTapEmailEditor({
 
   const insertChar = (s: string) => {
     editor.chain().focus().insertContent(s).run();
+  };
+
+  const openTableModal = () => {
+    setTableTab('props');
+    setIsTableOpen(true);
+  };
+  const submitTableModal = () => {
+    const rowsNum = Math.max(1, parseInt(tableRows, 10) || 1);
+    const colsNum = Math.max(1, parseInt(tableCols, 10) || 1);
+
+    const attrs: string[] = [];
+    if (tableBorder.trim()) attrs.push(`border=\"${escapeHtml(tableBorder.trim())}\"`);
+    if (tableCellSpacing.trim()) attrs.push(`cellspacing=\"${escapeHtml(tableCellSpacing.trim())}\"`);
+    if (tableCellPadding.trim()) attrs.push(`cellpadding=\"${escapeHtml(tableCellPadding.trim())}\"`);
+    if (tableSummary.trim()) attrs.push(`summary=\"${escapeHtml(tableSummary.trim())}\"`);
+    if (tableId.trim()) attrs.push(`id=\"${escapeHtml(tableId.trim())}\"`);
+    if (tableClasses.trim()) attrs.push(`class=\"${escapeHtml(tableClasses.trim())}\"`);
+    if (tableLangDir !== 'notset') attrs.push(`dir=\"${tableLangDir}\"`);
+    const styleParts: string[] = [];
+    const w = parseInt(tableWidth, 10); if (!Number.isNaN(w) && w>0) styleParts.push(`width:${w}px`);
+    const h = parseInt(tableHeight, 10); if (!Number.isNaN(h) && h>0) styleParts.push(`height:${h}px`);
+    if (tableAlign === 'left') styleParts.push('margin-left:0;margin-right:auto');
+    if (tableAlign === 'center') styleParts.push('margin-left:auto;margin-right:auto');
+    if (tableAlign === 'right') styleParts.push('margin-left:auto;margin-right:0');
+    if (tableStyle.trim()) styleParts.push(tableStyle.trim());
+    if (styleParts.length) attrs.push(`style=\"${styleParts.join(';')}\"`);
+
+    const makeCells = (count: number, asHeader = false) =>
+      new Array(count).fill(0).map(() => asHeader ? '<th></th>' : '<td></td>').join('');
+
+    let thead = '';
+    let bodyRows = rowsNum;
+    if (tableHeaders === 'row' || tableHeaders === 'both') {
+      thead = `<thead><tr>${makeCells(colsNum, true)}</tr></thead>`;
+      bodyRows = Math.max(0, rowsNum - 1);
+    }
+    const useThInFirstCol = tableHeaders === 'col' || tableHeaders === 'both';
+    const tbodyRows = new Array(bodyRows).fill(0).map(() => {
+      const cells = new Array(colsNum).fill(0).map((_, i) => i===0 && useThInFirstCol ? '<th></th>' : '<td></td>').join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+
+    const caption = tableCaption.trim() ? `<caption>${escapeHtml(tableCaption.trim())}</caption>` : '';
+    const html = `<table ${attrs.join(' ')}>${caption}${thead}<tbody>${tbodyRows}</tbody></table>`;
+    insertHtml(html);
+    setIsTableOpen(false);
   };
 
   const handleCopy = async () => {
@@ -1005,9 +1319,14 @@ export default function TipTapEmailEditor({
     setImgRatio(null);
     setIsIMGModalOpen(true);
   };
+
+  const openImageButtonProps = () => {
+    setImgAsTag(false);
+    openImageButtonModal();
+  };
   const submitIMGModal = () => {
     if (!imgUrl.trim()) { setIsIMGModalOpen(false); return; }
-    const attrs: string[] = [ `type="image"`, `src="${escapeHtml(imgUrl.trim())}"` ];
+    const attrs: string[] = imgAsTag ? [ `src="${escapeHtml(imgUrl.trim())}"` ] : [ `type="image"`, `src="${escapeHtml(imgUrl.trim())}"` ];
     if (imgAlt.trim()) attrs.push(`alt="${escapeHtml(imgAlt.trim())}"`);
     const w = parseInt(imgWidth, 10); if (!Number.isNaN(w) && w > 0) attrs.push(`width="${w}"`);
     const h = parseInt(imgHeight, 10); if (!Number.isNaN(h) && h > 0) attrs.push(`height="${h}"`);
@@ -1025,7 +1344,14 @@ export default function TipTapEmailEditor({
     if (styles.length) attrs.push(`style="${styles.join(';')}"`);
     if (imgClasses.trim()) attrs.push(`class="${escapeHtml(imgClasses.trim())}"`);
     if (imgLongDesc.trim()) attrs.push(`data-longdesc="${escapeHtml(imgLongDesc.trim())}"`);
-    insertHtml(`<input ${attrs.join(' ')} />`);
+    let html = imgAsTag ? `<img ${attrs.join(' ')} />` : `<input ${attrs.join(' ')} />`;
+    // Optional Link wrapping when in insert-image mode
+    if (imgAsTag && linkUrl.trim()) {
+      const aAttrs: string[] = [`href="${escapeHtml(linkUrl.trim())}"`];
+      if (targetOpt && targetOpt !== 'notset') aAttrs.push(`target="${targetOpt}"`);
+      html = `<a ${aAttrs.join(' ')}>${html}</a>`;
+    }
+    insertHtml(html);
     setIsIMGModalOpen(false);
   };
   const insertImageButton = () => insertHtml('<input type="image" src="https://via.placeholder.com/100x32?text=Submit" alt="Submit" />');
@@ -1108,6 +1434,125 @@ export default function TipTapEmailEditor({
     <div className={`tiptap-wrapper ${className}`}>
       {/* Toolbar */}
       <div className="tiptap-toolbar flex flex-wrap items-center gap-1 p-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600 rounded-t-md">
+        {/* Styles dropdown */}
+        <div className="relative">
+          <select
+            className="appearance-none bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-sm rounded px-2 py-1 pr-6"
+            title="Styles"
+            onChange={(e)=>{ applyStyleFromDropdown(e.target.value); e.currentTarget.selectedIndex = 0; }}
+          >
+            <option value="" hidden>Styles</option>
+            <optgroup label="Block Styles">
+              <option value="italic-title" style={{ fontStyle: 'italic', fontWeight: 600 }}>Italic Title</option>
+              <option value="subtitle" style={{ fontStyle: 'italic', color: '#6b7280' }}>Subtitle</option>
+              <option value="special-container" style={{ border: '1px solid #d1d5db', padding: '2px 6px' }}>Special Container</option>
+              <option value="blockquote" style={{ fontStyle: 'italic', color: '#6b7280' }}>Blockquote</option>
+              <option value="code-block" style={{ fontFamily: 'JetBrains Mono, Fira Code, Courier New, monospace' }}>Code Block</option>
+            </optgroup>
+            <optgroup label="Inline Styles">
+              <option value="marker" style={{ backgroundColor: '#ffff00' }}>Marker</option>
+              <option value="big" style={{ fontSize: '18px' }}>Big</option>
+              <option value="small" style={{ fontSize: '12px' }}>Small</option>
+              <option value="typewriter" style={{ fontFamily: 'Courier New, Courier, monospace' }}>Typewriter</option>
+              <option value="computer-code" style={{ fontFamily: 'JetBrains Mono, Fira Code, Courier New, monospace' }}>Computer Code</option>
+              <option value="keyboard-phrase" style={{ fontFamily: 'Courier New, Courier, monospace', backgroundColor: '#f3f4f6' }}>Keyboard Phrase</option>
+              <option value="sample-text" style={{ fontFamily: 'Courier New, Courier, monospace', fontStyle: 'italic' }}>Sample Text</option>
+              <option value="variable" style={{ fontStyle: 'italic' }}>Variable</option>
+              <option value="deleted-text" style={{ textDecoration: 'line-through' }}>Deleted Text</option>
+              <option value="inserted-text" style={{ textDecoration: 'underline' }}>Inserted Text</option>
+              <option value="cited-work" style={{ fontStyle: 'italic' }}>Cited Work</option>
+              <option value="inline-quotation" style={{ fontStyle: 'italic' }}>Inline Quotation</option>
+              <option value="language-rtl">Language: RTL</option>
+              <option value="language-ltr">Language: LTR</option>
+            </optgroup>
+          </select>
+        </div>
+
+        {/* Paragraph format dropdown */}
+        <div className="relative">
+          <select
+            className="appearance-none bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-sm rounded px-2 py-1 pr-6"
+            title="Paragraph format"
+            onChange={(e)=>{
+              const v = e.target.value;
+              if (!editor) return;
+              if (v === 'p') editor.chain().focus().setParagraph().run();
+              if (v.startsWith('h')) editor.chain().focus().setHeading({ level: Number(v.replace('h','')) as 1|2|3|4|5|6 }).run();
+              e.currentTarget.selectedIndex = 0;
+            }}
+          >
+            <option value="" hidden>Normal</option>
+            <option value="p">Paragraph</option>
+            <option value="h1">Heading 1</option>
+            <option value="h2">Heading 2</option>
+            <option value="h3">Heading 3</option>
+            <option value="h4">Heading 4</option>
+            <option value="h5">Heading 5</option>
+            <option value="h6">Heading 6</option>
+          </select>
+        </div>
+
+        {/* Font family dropdown */}
+        <div className="relative">
+          <select
+            className="appearance-none bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-sm rounded px-2 py-1 pr-6"
+            title="Font"
+            onChange={(e)=>{
+              const v = e.target.value;
+              if (!editor) return;
+              if (v) editor.chain().focus().setFontFamily(v).run();
+              e.currentTarget.selectedIndex = 0;
+            }}
+          >
+            <option value="" hidden>Font</option>
+            <option value="Arial, Helvetica, sans-serif">Arial</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Times New Roman', Times, serif">Times New Roman</option>
+            <option value="'Courier New', Courier, monospace">Courier New</option>
+            <option value="Verdana, Geneva, Tahoma, sans-serif">Verdana</option>
+            <option value="Tahoma, Geneva, sans-serif">Tahoma</option>
+            <option value="'Trebuchet MS', Helvetica, sans-serif">Trebuchet MS</option>
+            <option value="Impact, Charcoal, sans-serif">Impact</option>
+          </select>
+        </div>
+
+        {/* Font size dropdown */}
+        <div className="relative">
+          <select
+            className="appearance-none bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-sm rounded px-2 py-1 pr-6"
+            title="Size"
+            onChange={(e)=>{
+              const v = e.target.value;
+              if (!editor) return;
+              if (v) editor.chain().focus().setMark('textStyle', { fontSize: v }).run();
+              e.currentTarget.selectedIndex = 0;
+            }}
+          >
+            <option value="" hidden>Size</option>
+            <option value="10px">10</option>
+            <option value="12px">12</option>
+            <option value="14px">14</option>
+            <option value="16px">16</option>
+            <option value="18px">18</option>
+            <option value="24px">24</option>
+            <option value="36px">36</option>
+          </select>
+        </div>
+
+        {/* Text color and Background color */}
+        <div className="flex items-center gap-1 ml-1">
+          <label className="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300" title="Text color">
+            <span>A</span>
+            <input type="color" className="w-8 h-6 p-0 border border-gray-300 dark:border-gray-600 rounded" onChange={(e)=>editor?.chain().focus().setColor(e.target.value).run()} />
+          </label>
+          <label className="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300" title="Background color">
+            <span className="px-0.5 bg-gray-200 text-gray-800">A</span>
+            <input type="color" className="w-8 h-6 p-0 border border-gray-300 dark:border-gray-600 rounded" onChange={(e)=>editor?.chain().focus().setMark('textStyle', { backgroundColor: e.target.value }).run()} />
+          </label>
+        </div>
+
+        <ToolbarDivider />
+
         {/* File/Actions */}
         <ToolbarButton
           onClick={() => {
@@ -1373,6 +1818,11 @@ export default function TipTapEmailEditor({
 
         <ToolbarDivider />
 
+        {/* Show Blocks */}
+        <ToolbarButton onClick={() => setShowBlocks(v=>!v)} title="Show blocks" isActive={showBlocks}>
+          <LayoutPanelLeft className="h-4 w-4" />
+        </ToolbarButton>
+
         {/* Text Direction */}
         <ToolbarButton onClick={() => wrapSelectionWithDir('ltr')} title="Text direction: left to right">
           <MoveRight className="h-4 w-4" />
@@ -1446,7 +1896,7 @@ export default function TipTapEmailEditor({
 
         {/* Table Controls */}
         <ToolbarButton
-          onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+          onClick={openTableModal}
           title="Insert Table"
         >
           <TableIcon className="h-4 w-4" />
@@ -1497,7 +1947,7 @@ export default function TipTapEmailEditor({
         <ToolbarButton onClick={openButtonModal} title="Button">
           <MousePointerClick className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={openImageButtonModal} title="Image Button">
+        <ToolbarButton onClick={openImageButtonProps} title="Image Button">
           <ImageIcon className="h-4 w-4" />
         </ToolbarButton>
         <ToolbarButton onClick={openHiddenModal} title="Hidden Field">
@@ -1549,7 +1999,7 @@ export default function TipTapEmailEditor({
       ) : (
         <EditorContent 
           editor={editor} 
-          className="tiptap-editor-wrapper bg-white dark:bg-gray-900 border-x border-b border-gray-300 dark:border-gray-600 rounded-b-md"
+          className={`tiptap-editor-wrapper bg-white dark:bg-gray-900 border-x border-b border-gray-300 dark:border-gray-600 rounded-b-md ${showBlocks ? 'tiptap-show-blocks' : ''}`}
         />
       )}
 
@@ -1914,13 +2364,16 @@ export default function TipTapEmailEditor({
           <div className="relative w-full max-w-3xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="px-4 pt-3 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Image Button Properties</h3>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{imgAsTag ? 'Image Properties' : 'Image Button Properties'}</h3>
                 <button aria-label="Close properties" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsIMGModalOpen(false)}>
                   <CloseIcon className="h-4 w-4" />
                 </button>
               </div>
               <div className="mt-3 flex gap-2 border-b border-gray-200 dark:border-gray-700">
                 <button className={`px-3 py-1.5 text-sm ${imgTab==='info'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setImgTab('info')}>Image Info</button>
+                {imgAsTag && (
+                  <button className={`px-3 py-1.5 text-sm ${imgTab==='link'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setImgTab('link')}>Link</button>
+                )}
                 <button className={`px-3 py-1.5 text-sm ${imgTab==='advanced'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setImgTab('advanced')}>Advanced</button>
               </div>
             </div>
@@ -1997,6 +2450,20 @@ export default function TipTapEmailEditor({
                         <div className="text-sm text-gray-500">Enter URL to preview</div>
                       )}
                     </div>
+                  </div>
+                </div>
+              ) : imgTab === 'link' ? (
+                <div className="space-y-3">
+                  <LinkInfoFields withTypeSelector={false} />
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Target</label>
+                    <select value={targetOpt} onChange={(e)=>setTargetOpt(e.target.value as 'notset'|'frame'|'popup'|'_blank'|'_top'|'_self'|'_parent')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                      <option value="notset">&lt;not set&gt;</option>
+                      <option value="_blank">New Window (_blank)</option>
+                      <option value="_top">Topmost Window (_top)</option>
+                      <option value="_self">Same Window (_self)</option>
+                      <option value="_parent">Parent Window (_parent)</option>
+                    </select>
                   </div>
                 </div>
               ) : (
@@ -2262,72 +2729,145 @@ export default function TipTapEmailEditor({
         </div>
       )}
 
-      {/* Insert Image Modal */}
-      {isImageInsertOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setIsImageInsertOpen(false)} />
-          <div className="relative w-full max-w-md rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert Image</h3>
-              <button aria-label="Close image" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsImageInsertOpen(false)}>
-                <CloseIcon className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
-                <input value={insImgUrl} onChange={(e)=>setInsImgUrl(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Alternative Text</label>
-                <input value={insImgAlt} onChange={(e)=>setInsImgAlt(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
-                  <input value={insImgWidth} onChange={(e)=>setInsImgWidth(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
-                  <input value={insImgHeight} onChange={(e)=>setInsImgHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
-                </div>
-              </div>
-            </div>
-            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
-              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsImageInsertOpen(false)}>Cancel</button>
-              <button className="px-3 py-2 text-sm rounded bg-blue-600 text-white" onClick={submitImageInsert}>OK</button>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {/* Flash Modal */}
       {isFlashOpen && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setIsFlashOpen(false)} />
-          <div className="relative w-full max-w-md rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert Flash</h3>
-              <button aria-label="Close flash" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsFlashOpen(false)}>
-                <CloseIcon className="h-4 w-4" />
-              </button>
+          <div className="relative w-full max-w-2xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 pt-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Flash Properties</h3>
+                <button aria-label="Close flash" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsFlashOpen(false)}>
+                  <CloseIcon className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-3 flex gap-2 border-b border-gray-200 dark:border-gray-700">
+                <button className={`px-3 py-1.5 text-sm ${flashTab==='general'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setFlashTab('general')}>General</button>
+                <button className={`px-3 py-1.5 text-sm ${flashTab==='properties'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setFlashTab('properties')}>Properties</button>
+                <button className={`px-3 py-1.5 text-sm ${flashTab==='advanced'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setFlashTab('advanced')}>Advanced</button>
+              </div>
             </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
-                <input value={flashUrl} onChange={(e)=>setFlashUrl(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
-                  <input value={flashWidth} onChange={(e)=>setFlashWidth(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+            <div className="p-4">
+              {flashTab === 'general' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
+                    <input value={flashUrl} onChange={(e)=>setFlashUrl(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
+                      <input value={flashWidth} onChange={(e)=>setFlashWidth(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
+                      <input value={flashHeight} onChange={(e)=>setFlashHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">HSpace</label>
+                      <input value={flashHSpace} onChange={(e)=>setFlashHSpace(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">VSpace</label>
+                      <input value={flashVSpace} onChange={(e)=>setFlashVSpace(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Preview</div>
+                    <div className="border border-gray-300 dark:border-gray-700 rounded p-2 h-[220px] bg-white dark:bg-gray-900" />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
-                  <input value={flashHeight} onChange={(e)=>setFlashHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              ) : flashTab === 'properties' ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Scale</label>
+                      <select value={flashScale} onChange={(e)=>setFlashScale(e.target.value as 'notset'|'showall'|'noborder'|'exactfit')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                        <option value="notset">&lt;not set&gt;</option>
+                        <option value="showall">Show all</option>
+                        <option value="noborder">No Border</option>
+                        <option value="exactfit">Exact Fit</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Script Access</label>
+                      <select value={flashScriptAccess} onChange={(e)=>setFlashScriptAccess(e.target.value as 'notset'|'always'|'samedomain'|'never')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                        <option value="notset">&lt;not set&gt;</option>
+                        <option value="always">Always</option>
+                        <option value="samedomain">Same domain</option>
+                        <option value="never">Never</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Window mode</label>
+                      <select value={flashWindowMode} onChange={(e)=>setFlashWindowMode(e.target.value as 'notset'|'window'|'opaque'|'transparent')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                        <option value="notset">&lt;not set&gt;</option>
+                        <option value="window">Window</option>
+                        <option value="opaque">Opaque</option>
+                        <option value="transparent">Transparent</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Quality</label>
+                      <select value={flashQuality} onChange={(e)=>setFlashQuality(e.target.value as 'notset'|'best'|'high'|'autohigh'|'medium'|'autolow'|'low')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                        <option value="notset">&lt;not set&gt;</option>
+                        <option value="best">Best</option>
+                        <option value="high">High</option>
+                        <option value="autohigh">Auto High</option>
+                        <option value="medium">Medium</option>
+                        <option value="autolow">Auto Low</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Alignment</label>
+                      <select value={flashAlign} onChange={(e)=>setFlashAlign(e.target.value as 'notset'|'left'|'absbottom'|'absmiddle'|'baseline'|'bottom'|'middle'|'right'|'texttop'|'top')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                        <option value="notset">&lt;not set&gt;</option>
+                        <option value="left">Left</option>
+                        <option value="absbottom">Abs Bottom</option>
+                        <option value="absmiddle">Abs Middle</option>
+                        <option value="baseline">Baseline</option>
+                        <option value="bottom">Bottom</option>
+                        <option value="middle">Middle</option>
+                        <option value="right">Right</option>
+                        <option value="texttop">Text Top</option>
+                        <option value="top">Top</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="border rounded p-2">
+                    <div className="text-sm font-medium mb-1">Variables for Flash</div>
+                    <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={flashMenu} onChange={(e)=>setFlashMenu(e.target.checked)} /> Enable Flash Menu</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={flashAutoPlay} onChange={(e)=>setFlashAutoPlay(e.target.checked)} /> Auto Play</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={flashLoop} onChange={(e)=>setFlashLoop(e.target.checked)} /> Loop</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={flashAllowFullscreen} onChange={(e)=>setFlashAllowFullscreen(e.target.checked)} /> Allow Fullscreen</label>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <p className="text-xs text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 p-2 rounded">Note: Flash is deprecated in modern browsers. This inserts legacy &lt;object&gt; markup.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Id</label>
+                    <input value={flashId} onChange={(e)=>setFlashId(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Background color</label>
+                    <input value={flashBgColor} onChange={(e)=>setFlashBgColor(e.target.value)} placeholder="#ffffff" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Stylesheet Classes</label>
+                    <input value={flashClasses} onChange={(e)=>setFlashClasses(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Style</label>
+                    <input value={flashStyle} onChange={(e)=>setFlashStyle(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                </div>
+              )}
+              <p className="mt-3 text-xs text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 p-2 rounded">Note: Flash is deprecated in modern browsers. This inserts legacy &lt;object&gt; markup.</p>
             </div>
             <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
               <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsFlashOpen(false)}>Cancel</button>
@@ -2341,19 +2881,52 @@ export default function TipTapEmailEditor({
       {specialOpen && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setSpecialOpen(false)} />
-          <div className="relative w-full max-w-xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+          <div className="relative w-full max-w-3xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert Special Character</h3>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Select Special Character</h3>
               <button aria-label="Close special" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setSpecialOpen(false)}>
                 <CloseIcon className="h-4 w-4" />
               </button>
             </div>
             <div className="p-4">
-              <div className="grid grid-cols-10 gap-2">
-                {['©','®','™','§','±','÷','×','µ','£','€','¥','¢','–','—','•','…','←','→','↑','↓','∞','≈','≠','≤','≥','Ω','π','η','θ','δ','α','β','γ','Δ','∑','∫','√','∂','°','‰','℉','℃'].map((ch)=> (
-                  <button key={ch} className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={()=>{ insertChar(ch); setSpecialOpen(false); }}>{ch}</button>
-                ))}
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-9">
+                  <div className="h-[360px] overflow-auto border border-gray-300 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-800">
+                    <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(16, minmax(0, 1fr))' }}>
+                      {(() => {
+                        const chars = (
+                          `!"#$%&'()*+,-./0123456789:;<>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\`` +
+                          `abcdefghijklmnopqrstuvwxyz{|}~` +
+                          `©®™§±÷×µ£€¥¢–—•…←→↑↓∞≈≠≤≥ΩπηθδαβγΔ∑∫√∂°‰℉℃` +
+                          `ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞß` +
+                          `àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ` +
+                          `¿¡ˇ˘¸˛ˆ˜˙¨`)
+                          .split('');
+                        return chars.map((ch, i) => (
+                          <button
+                            key={i}
+                            className={`w-8 h-8 text-base flex items-center justify-center rounded border ${specialSelected===ch? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-300 dark:border-gray-700'} hover:bg-gray-100 dark:hover:bg-gray-800`}
+                            onMouseEnter={()=> setSpecialSelected(ch)}
+                            onClick={()=> { insertChar(ch); setSpecialOpen(false); setSpecialSelected(null); }}
+                            title={ch}
+                          >{ch}</button>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                </div>
+                <div className="col-span-3">
+                  <div className="border border-gray-300 dark:border-gray-700 rounded p-4 h-[120px] flex items-center justify-center text-5xl bg-white dark:bg-gray-900">
+                    {specialSelected || ''}
+                  </div>
+                  <div className="mt-3 text-sm text-gray-800 dark:text-gray-200">
+                    {specialSelected ? `&#${specialSelected.codePointAt(0)};` : '\u00A0'}
+                  </div>
+                </div>
               </div>
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setSpecialOpen(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -2363,19 +2936,29 @@ export default function TipTapEmailEditor({
       {smileyOpen && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setSmileyOpen(false)} />
-          <div className="relative w-full max-w-xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+          <div className="relative w-full max-w-md rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert Smiley</h3>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert a Smiley</h3>
               <button aria-label="Close smiley" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setSmileyOpen(false)}>
                 <CloseIcon className="h-4 w-4" />
               </button>
             </div>
             <div className="p-4">
-              <div className="grid grid-cols-10 gap-2">
-                {['😀','😁','😂','🤣','😊','😇','😉','😍','😘','😎','🤔','😢','😭','😡','👍','👎','👏','🙏','🎉','💡','✅','❌','⭐','❤️','🔥','⚠️','😴','🤒','🤩','🤯','🥳','😐','😕','😮','🙃','😇','🤗','😏','🤤','😴','🤕','🤧','🤮','🤠','🤡','👀','👋','👌','✌️','🤞','👊','🙏','💪','💯','✨','🎁','🍰','☕','🍕','🏆','🚀','📌','📎','🔒','🔑'].map((e)=> (
-                  <button key={e} className="px-2 py-1 text-lg rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={()=>{ insertChar(e); setSmileyOpen(false); }}>{e}</button>
+              <div className="grid grid-cols-8 gap-2">
+                {[
+                  '🙂','🙁','😐','😉','😮','😛','😲','😏',
+                  '😳','😬','😴','😕','😔','😊','😇','🤓',
+                  '😈','😢','💡','👍','👎','❤️','💔','💋',
+                  '✉️'
+                ].map((e)=> (
+                  <button key={e} className="w-10 h-10 flex items-center justify-center text-xl rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    onClick={()=>{ insertChar(e); setSmileyOpen(false); }}
+                  >{e}</button>
                 ))}
               </div>
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setSmileyOpen(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -2385,35 +2968,210 @@ export default function TipTapEmailEditor({
       {isIframeOpen && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setIsIframeOpen(false)} />
-          <div className="relative w-full max-w-md rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Insert iFrame</h3>
-              <button aria-label="Close iframe" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsIframeOpen(false)}>
-                <CloseIcon className="h-4 w-4" />
-              </button>
+          <div className="relative w-full max-w-2xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 pt-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">IFrame Properties</h3>
+                <button aria-label="Close iframe" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hoverbg-gray-800" onClick={() => setIsIframeOpen(false)}>
+                  <CloseIcon className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-3 flex gap-2 border-b border-gray-200 dark:border-gray-700">
+                <button className={`px-3 py-1.5 text-sm ${iframeTab==='general'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setIframeTab('general')}>General</button>
+                <button className={`px-3 py-1.5 text-sm ${iframeTab==='advanced'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setIframeTab('advanced')}>Advanced</button>
+              </div>
             </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
-                <input value={iframeUrl} onChange={(e)=>setIframeUrl(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
-                  <input value={iframeWidth} onChange={(e)=>setIframeWidth(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+            <div className="p-4">
+              {iframeTab === 'general' ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
+                    <input value={iframeUrl} onChange={(e)=>setIframeUrl(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
+                      <input value={iframeWidth} onChange={(e)=>setIframeWidth(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
+                      <input value={iframeHeight} onChange={(e)=>setIframeHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Alignment</label>
+                      <select value={iframeAlign} onChange={(e)=>setIframeAlign(e.target.value as 'notset'|'left'|'right'|'top'|'middle'|'bottom')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                        <option value="notset">&lt;not set&gt;</option>
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                        <option value="top">Top</option>
+                        <option value="middle">Middle</option>
+                        <option value="bottom">Bottom</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <input type="checkbox" checked={iframeScrollbars} onChange={(e)=>setIframeScrollbars(e.target.checked)} /> Enable scrollbars
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <input type="checkbox" checked={iframeBorder} onChange={(e)=>setIframeBorder(e.target.checked)} /> Show frame border
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                      <input value={iframeName} onChange={(e)=>setIframeName(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Advisory Title</label>
+                      <input value={iframeTitle} onChange={(e)=>setIframeTitle(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Long Description URL</label>
+                    <input value={iframeLongDesc} onChange={(e)=>setIframeLongDesc(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" checked={iframeAllow} onChange={(e)=>setIframeAllow(e.target.checked)} /> Allow Fullscreen
+                  </label>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
-                  <input value={iframeHeight} onChange={(e)=>setIframeHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Id</label>
+                    <input value={iframeId} onChange={(e)=>setIframeId(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Stylesheet Classes</label>
+                    <input value={iframeClasses} onChange={(e)=>setIframeClasses(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Style</label>
+                    <input value={iframeStyle} onChange={(e)=>setIframeStyle(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
                 </div>
-              </div>
-              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <input type="checkbox" checked={iframeAllow} onChange={(e)=>setIframeAllow(e.target.checked)} /> Allow Fullscreen
-              </label>
+              )}
             </div>
             <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
               <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsIframeOpen(false)}>Cancel</button>
               <button className="px-3 py-2 text-sm rounded bg-blue-600 text-white" onClick={submitIframeModal}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Table Properties Modal */}
+      {isTableOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsTableOpen(false)} />
+          <div className="relative w-full max-w-xl rounded-md bg-white dark:bg-gray-900 shadow-xl border border-gray-300 dark:border-gray-700">
+            <div className="px-4 pt-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Table Properties</h3>
+                <button aria-label="Close table" className="p-1.5 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setIsTableOpen(false)}>
+                  <CloseIcon className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-3 flex gap-2 border-b border-gray-200 dark:border-gray-700">
+                <button className={`px-3 py-1.5 text-sm ${tableTab==='props'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setTableTab('props')}>Table Properties</button>
+                <button className={`px-3 py-1.5 text-sm ${tableTab==='advanced'?'border-b-2 border-gray-900 dark:border-gray-100 font-medium':''}`} onClick={()=>setTableTab('advanced')}>Advanced</button>
+              </div>
+            </div>
+            <div className="p-4">
+              {tableTab === 'props' ? (
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Row 1: Rows | Width | Height */}
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Rows</label>
+                    <input value={tableRows} onChange={(e)=>setTableRows(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Width</label>
+                    <input value={tableWidth} onChange={(e)=>setTableWidth(e.target.value)} placeholder="500" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Height</label>
+                    <input value={tableHeight} onChange={(e)=>setTableHeight(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+
+                  {/* Row 2: Columns | Headers | Alignment */}
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Columns</label>
+                    <input value={tableCols} onChange={(e)=>setTableCols(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Headers</label>
+                    <select value={tableHeaders} onChange={(e)=>setTableHeaders(e.target.value as 'none'|'row'|'col'|'both')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                      <option value="none">None</option>
+                      <option value="row">First Row</option>
+                      <option value="col">First column</option>
+                      <option value="both">Both</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Alignment</label>
+                    <select value={tableAlign} onChange={(e)=>setTableAlign(e.target.value as 'notset'|'left'|'center'|'right')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                      <option value="notset">&lt;not set&gt;</option>
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+
+                  {/* Row 3: Border size | Cell spacing | Cell padding */}
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Border size</label>
+                    <input value={tableBorder} onChange={(e)=>setTableBorder(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Cell spacing</label>
+                    <input value={tableCellSpacing} onChange={(e)=>setTableCellSpacing(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Cell padding</label>
+                    <input value={tableCellPadding} onChange={(e)=>setTableCellPadding(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+
+                  {/* Row 4: Caption (span 3) */}
+                  <div className="col-span-3">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Caption</label>
+                    <input value={tableCaption} onChange={(e)=>setTableCaption(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+
+                  {/* Row 5: Summary (span 3) */}
+                  <div className="col-span-3">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Summary</label>
+                    <input value={tableSummary} onChange={(e)=>setTableSummary(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Id</label>
+                    <input value={tableId} onChange={(e)=>setTableId(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Language Direction</label>
+                    <select value={tableLangDir} onChange={(e)=>setTableLangDir(e.target.value as 'notset'|'ltr'|'rtl')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+                      <option value="notset">&lt;not set&gt;</option>
+                      <option value="ltr">Left to Right (LTR)</option>
+                      <option value="rtl">Right to Left (RTL)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Style</label>
+                    <input value={tableStyle} onChange={(e)=>setTableStyle(e.target.value)} placeholder="width:500px;" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Stylesheet Classes</label>
+                    <input value={tableClasses} onChange={(e)=>setTableClasses(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+              <button className="px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200" onClick={() => setIsTableOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 text-sm rounded bg-blue-600 text-white" onClick={submitTableModal}>OK</button>
             </div>
           </div>
         </div>
@@ -2440,59 +3198,7 @@ export default function TipTapEmailEditor({
 
               {/* Body */}
               {linkTab === 'info' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 items-end">
-                    <div>
-                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Link Type</label>
-                      <select value={linkType} onChange={(e)=>setLinkType(e.target.value as 'url'|'anchor'|'email')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
-                        <option value="url">URL</option>
-                        <option value="anchor">Link to anchor in the text</option>
-                        <option value="email">E-mail</option>
-                      </select>
-                    </div>
-                    {/* Text field removed per requirements */}
-                  </div>
-
-                  {linkType === 'url' && (
-                    <div className="grid grid-cols-12 gap-4 items-end">
-                      <div className="col-span-3">
-                        <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Protocol</label>
-                        <select value={protocol} onChange={(e)=>setProtocol(e.target.value as 'http'|'https'|'ftp'|'news'|'other')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
-                          <option value="http">http://</option>
-                          <option value="https">https://</option>
-                          <option value="ftp">ftp://</option>
-                          <option value="news">news://</option>
-                          <option value="other">&lt;other&gt;</option>
-                        </select>
-                      </div>
-                      <div className="col-span-9">
-                        <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
-                        <input value={linkUrl} onChange={(e)=>setLinkUrl(e.target.value)} placeholder="example.com/path" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
-                      </div>
-                    </div>
-                  )}
-
-                  {linkType === 'anchor' && (
-                    <div>
-                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Select Anchor</label>
-                      <select value={anchorTarget} onChange={(e)=>setAnchorTarget(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
-                        <option value=""></option>
-                        {anchorList.map((id)=> (
-                          <option key={id} value={id}>#{id}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {linkType === 'email' && (
-                    <div>
-                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
-                      <input value={emailAddr} onChange={(e)=>setEmailAddr(e.target.value)} placeholder="user@example.com" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
-                    </div>
-                  )}
-
-                  {/* Title field removed per requirements */}
-                </div>
+                <LinkInfoFields withTypeSelector />
               )}
 
               {linkTab === 'target' && (
