@@ -29,6 +29,36 @@ export interface StudentCreateData {
 }
 
 /**
+ * Delete a user using the legacy API
+ */
+export async function deleteUser(
+  location: string,
+  userId: string | number
+): Promise<LegacyApiResponse> {
+  const url = `/admin/${location}/user/delete?id=${userId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
  * Update a lesson using the legacy API
  */
 export async function updateLesson(
