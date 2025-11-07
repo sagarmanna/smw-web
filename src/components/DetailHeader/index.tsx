@@ -43,8 +43,9 @@ export interface DetailHeaderProps {
   loading?: boolean;
   showActions?: boolean;
   // Actions configuration
-  actionMenuGroups: ActionMenuGroup[];
+  actionMenuGroups?: ActionMenuGroup[];
   actionButtonAriaLabel?: string;
+  
   
   // Optional styling
   className?: string;
@@ -54,9 +55,9 @@ export function DetailHeader({
   breadcrumbItems,
   currentPageTitle,
   loading = false,
-  showActions = true,
-  actionMenuGroups,
+  actionMenuGroups = [],
   actionButtonAriaLabel = "Actions",
+  showActions = true,
   className = "",
 }: DetailHeaderProps) {
   return (
@@ -121,60 +122,59 @@ export function DetailHeader({
       </div>
 
       {/* Actions Section */}
-      <div className="flex-shrink-0">
-        {showActions && (
+      {showActions && actionMenuGroups.length > 0 ? (
+        <div className="flex-shrink-0">
           <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200" 
-              aria-label={actionButtonAriaLabel}
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200" 
+                aria-label={actionButtonAriaLabel}
+              >
+                <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              align="end" 
+              className="w-56 sm:w-64 p-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg"
+              sideOffset={8}
             >
-              <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            align="end" 
-            className="w-56 sm:w-64 p-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg"
-            sideOffset={8}
-          >
-            {actionMenuGroups.map((group, groupIndex) => (
-              <React.Fragment key={groupIndex}>
-                {group.label && (
-                  <>
-                    <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      {group.label}
-                    </DropdownMenuLabel>
+              {actionMenuGroups.map((group, groupIndex) => (
+                <React.Fragment key={groupIndex}>
+                  {group.label && (
+                    <>
+                      <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        {group.label}
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator className="my-1 bg-gray-200 dark:bg-gray-700" />
+                    </>
+                  )}
+                  {group.items.map((item, itemIndex) => (
+                    <DropdownMenuItem
+                      key={itemIndex}
+                      onClick={item.onClick}
+                      disabled={item.disabled}
+                      className={`
+                        px-3 py-2 text-sm cursor-pointer rounded-md mx-1 transition-colors duration-150
+                        ${item.variant === "destructive" 
+                          ? "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20" 
+                          : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"}
+                        ${item.disabled ? "opacity-50 cursor-not-allowed hover:bg-transparent" : ""}
+                      `}
+                    >
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                  {group.separator && groupIndex < actionMenuGroups.length - 1 && (
                     <DropdownMenuSeparator className="my-1 bg-gray-200 dark:bg-gray-700" />
-                  </>
-                )}
-                {group.items.map((item, itemIndex) => (
-                  <DropdownMenuItem
-                    key={itemIndex}
-                    onClick={item.onClick}
-                    disabled={item.disabled}
-                    className={`
-                      px-3 py-2 text-sm cursor-pointer rounded-md mx-1 transition-colors duration-150
-                      ${item.variant === "destructive" 
-                        ? "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20" 
-                        : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-                      }
-                      ${item.disabled ? "opacity-50 cursor-not-allowed hover:bg-transparent" : ""}
-                    `}
-                  >
-                    {item.label}
-                  </DropdownMenuItem>
-                ))}
-                {group.separator && groupIndex < actionMenuGroups.length - 1 && (
-                  <DropdownMenuSeparator className="my-1 bg-gray-200 dark:bg-gray-700" />
-                )}
-              </React.Fragment>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        )}
-      </div>
+                  )}
+                </React.Fragment>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
     </div>
   );
 }
