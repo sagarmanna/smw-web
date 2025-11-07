@@ -41,7 +41,7 @@ export interface DetailHeaderProps {
   }[];
   currentPageTitle: string;
   loading?: boolean;
-  
+  showActions?: boolean;
   // Actions configuration
   actionMenuGroups: ActionMenuGroup[];
   actionButtonAriaLabel?: string;
@@ -54,6 +54,7 @@ export function DetailHeader({
   breadcrumbItems,
   currentPageTitle,
   loading = false,
+  showActions = true,
   actionMenuGroups,
   actionButtonAriaLabel = "Actions",
   className = "",
@@ -121,7 +122,8 @@ export function DetailHeader({
 
       {/* Actions Section */}
       <div className="flex-shrink-0">
-        <DropdownMenu>
+        {showActions && (
+          <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
               variant="ghost" 
@@ -171,6 +173,7 @@ export function DetailHeader({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
     </div>
   );
