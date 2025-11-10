@@ -114,26 +114,29 @@ export default function EmailStatementModal({
   };
 
 
-  // Track if content has been initialized for this modal session
-  const contentInitialized = React.useRef(false);
-
-  // Initialize form when modal opens with complete email content (text + tables HTML)
+  // Initialize form when modal opens or when API data changes
   React.useEffect(() => {
-    if (open && !contentInitialized.current) {
+    if (open) {
       // Pre-fill with customer emails if available
       setRecipients(customerEmails.filter(email => email && email.trim() !== ""));
       setSubject(initialSubject || `Customer Statement from ${locationName}`);
       
       // Generate complete email content with text AND tables together
-      const completeContent = initialContent || generateCompleteEmailHTML();
+      // If initialContent (emailHeader) is provided, combine it with generated tables
+      // Otherwise, generate complete content from scratch
+      let completeContent: string;
+      if (initialContent) {
+        // initialContent is the emailHeader from API, combine it with tables
+        const tablesHTML = generateTablesHTML();
+        completeContent = `<p>${initialContent}</p>` + tablesHTML;
+      } else {
+        // Generate complete content from scratch
+        completeContent = generateCompleteEmailHTML();
+      }
       setContent(completeContent);
-      contentInitialized.current = true;
-    } else if (!open) {
-      // Reset flag when modal closes
-      contentInitialized.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, customerEmails, locationName, initialSubject, initialContent]);
+  }, [open, customerEmails, locationName, initialSubject, initialContent, privateLessonDueData, groupLessonDueData, invoiceData, totalBalance]);
 
   // Generate complete email HTML with introductory text AND tables
   const generateCompleteEmailHTML = () => {
@@ -483,6 +486,7 @@ export default function EmailStatementModal({
           <Label htmlFor="content">Email Content (Text and Tables are editable)</Label>
           <div className={`${errors.content ? "border border-red-500 rounded-md" : ""}`}>
             <TipTapEmailEditor
+              key={`email-editor-${open}-${initialContent ? 'api' : 'default'}`}
               content={content}
               onChange={(value) => {
                 setContent(value);
@@ -554,6 +558,7 @@ export default function EmailStatementModal({
             
             {/* TipTap Editor in Fullscreen */}
             <TipTapEmailEditor
+              key={`email-editor-fullscreen-${open}-${initialContent ? 'api' : 'default'}`}
               content={content}
               onChange={(value) => {
                 setContent(value);

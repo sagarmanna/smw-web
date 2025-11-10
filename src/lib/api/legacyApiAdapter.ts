@@ -833,6 +833,55 @@ export async function createBlankInvoice(
   }
 }
 
+export interface SendEmailData {
+  objectId: number; // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
+  userId: number;
+  to: string[];
+  subject: string;
+  content: string;
+}
+
+/**
+ * Send email using the legacy API
+ */
+export async function sendEmail(
+  location: string,
+  emailData: SendEmailData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  
+  // Add to recipients (array format)
+  emailData.to.forEach((email) => {
+    formData.append('EmailForm[to][]', email);
+  });
+  
+  formData.append('EmailForm[subject]', emailData.subject);
+  formData.append('EmailForm[content]', emailData.content);
+
+  const url = `/admin/${location}/email/send?EmailForm[objectId]=${emailData.objectId}&EmailForm[userId]=${emailData.userId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
 export interface PaymentReceiveData {
   userId: string | number;
   date: string; // Format: "MMM dd, yyyy" (e.g., "Nov 09, 2025")

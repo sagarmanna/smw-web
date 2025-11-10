@@ -29,6 +29,8 @@ import {
   CustomerSummaryData,
   CustomerInfoData,
   getCustomerPaymentById,
+  getEmailStatement,
+  EmailStatementData,
 } from "../customers.api";
 import { SummaryCard } from "@/components/SummaryCard";
 import { BookOpen, FileText, Star, DollarSign, User } from "lucide-react";
@@ -53,7 +55,7 @@ import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
 import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
-import { createStudent, createNote } from "@/lib/api/legacyApiAdapter";
+import { createStudent, createNote, sendEmail } from "@/lib/api/legacyApiAdapter";
 import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 
@@ -189,6 +191,8 @@ export function CustomerDetailClient({
   >(null);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
+  const [emailStatementData, setEmailStatementData] = React.useState<EmailStatementData | null>(null);
+  const [isLoadingEmailStatement, setIsLoadingEmailStatement] = React.useState<boolean>(false);
   const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
@@ -449,10 +453,53 @@ export function CustomerDetailClient({
     setEquipmentRentalsPagination(result.pagination);
   };
 
-  const handleSendEmailStatement = (emailData: EmailFormData) => {
-    console.log("Sending email statement:", emailData);
-    setIsEmailStatementModalOpen(false);
-    // Show success toast notification
+  // Fetch email statement data when modal opens
+  React.useEffect(() => {
+    if (isEmailStatementModalOpen && location && id) {
+      setIsLoadingEmailStatement(true);
+      getEmailStatement(location, Number(id))
+        .then((data: EmailStatementData | null) => {
+          if (data) {
+            setEmailStatementData(data);
+          }
+        })
+        .catch((error: unknown) => {
+          console.error("Error fetching email statement:", error);
+          toast.error("Failed to load email statement data");
+        })
+        .finally(() => {
+          setIsLoadingEmailStatement(false);
+        });
+    } else if (!isEmailStatementModalOpen) {
+      // Clear email statement data when modal closes
+      setEmailStatementData(null);
+    }
+  }, [isEmailStatementModalOpen, location, id]);
+
+  const handleSendEmailStatement = async (emailData: EmailFormData) => {
+    try {
+      // Send email using legacy API
+      // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
+      const response = await sendEmail(location, {
+        objectId: 8, // Customer Statement
+        userId: Number(id),
+        to: emailData.recipients,
+        subject: emailData.subject,
+        content: emailData.content,
+      });
+
+      if (response.status) {
+        toast.success("Email sent successfully");
+        setIsEmailStatementModalOpen(false);
+      } else {
+        const errorMessage = response.message || "Failed to send email";
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to send email";
+      toast.error(errorMessage);
+    }
   };
 
   // Handle creating a new comment/note
@@ -2449,12 +2496,24 @@ export function CustomerDetailClient({
         customerName={
           customer ? `${customer.firstName} ${customer.lastName}` : undefined
         }
-        customerEmails={emails.map((e) => e.email)}
+        customerEmails={
+          emailStatementData?.customerEmails || emails.map((e) => e.email)
+        }
         locationName="Arcadia Academy of Music"
-        privateLessonDueData={privateLessonDueData}
-        groupLessonDueData={groupLessonDueData}
-        invoiceData={invoiceData}
-        totalBalance={summaryData.balance}
+        initialSubject={emailStatementData?.emailSubject}
+        initialContent={emailStatementData?.emailHeader}
+        privateLessonDueData={
+          emailStatementData?.privateLessonsDue || privateLessonDueData
+        }
+        groupLessonDueData={
+          emailStatementData?.groupLessonsDue || groupLessonDueData
+        }
+        invoiceData={emailStatementData?.invoices || invoiceData}
+        totalBalance={
+          emailStatementData
+            ? `$${emailStatementData.totalBalance.toFixed(2)}`
+            : summaryData.balance
+        }
       />
 
       {/* Receive Payment Modal */}
