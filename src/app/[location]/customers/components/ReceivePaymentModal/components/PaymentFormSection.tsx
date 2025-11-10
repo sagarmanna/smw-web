@@ -22,7 +22,6 @@ interface PaymentFormSectionProps {
   onNotesChange: (value: string) => void;
   availablePaymentMethods: Array<{ value: string; label: string }>;
   isLoadingPaymentMethods?: boolean;
-  // NEW: Customer dropdown props
   isCustomerRoute?: boolean;
   customersList?: Array<{ value: string; label: string; id: number }>;
   isLoadingCustomers?: boolean;
@@ -31,7 +30,6 @@ interface PaymentFormSectionProps {
 
 /**
  * Payment form section with dynamic payment methods from API
- * Following Single Responsibility Principle - handles only form display
  * Conditionally renders customer field based on route type
  */
 export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
@@ -50,7 +48,6 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
   onNotesChange,
   availablePaymentMethods,
   isLoadingPaymentMethods = false,
-  // NEW: Customer dropdown props
   isCustomerRoute = true,
   customersList = [],
   isLoadingCustomers = false,
@@ -74,26 +71,24 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
         <FormField label="Customer" required>
           {isCustomerRoute ? (
             // Customer Route Mode: Show disabled input with customer name
-            <div className="relative">
-              <Input
-                value={customer || 'Loading...'}
-                onChange={e => onCustomerChange(e.target.value)}
-                className="h-9 pr-20"
-                disabled
-                placeholder="Loading customer..."
-              />
-            </div>
+            <Input
+              value={customer || 'Loading...'}
+              onChange={e => onCustomerChange(e.target.value)}
+              className="h-9"
+              disabled
+              placeholder="Loading customer..."
+            />
           ) : (
             // Non-Customer Route Mode: Show searchable dropdown
             <Select 
               value={customerId?.toString() || ''} 
               onValueChange={onCustomerSelect}
-              disabled={isLoadingCustomers || customersList.length === 0}
+              disabled={isLoadingCustomers}
             >
               <SelectTrigger className="h-9">
                 <SelectValue placeholder={isLoadingCustomers ? "Loading customers..." : "Select customer"} />
               </SelectTrigger>
-              <SelectContent className="max-h-[200px] overflow-y-auto">
+              <SelectContent className="max-h-[300px]">
                 {isLoadingCustomers ? (
                   <SelectItem value="loading" disabled>
                     Loading customers...
@@ -125,7 +120,7 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
             disabled={isLoadingPaymentMethods || availablePaymentMethods.length === 0}
           >
             <SelectTrigger className="h-9">
-              <SelectValue placeholder={isLoadingPaymentMethods ? "Loading..." : "Cash"} />
+              <SelectValue placeholder={isLoadingPaymentMethods ? "Loading..." : "Select method"} />
             </SelectTrigger>
             <SelectContent>
               {isLoadingPaymentMethods ? (
