@@ -591,12 +591,65 @@ export function CustomerDetailClient({
       const response = await receivePayment(location, legacyPaymentData);
 
       if (response.status) {
-        // Success - refresh data and close modal
-        toast.success("Payment saved successfully");
+        // Success - close receive payment modal
         setIsReceivePaymentModalOpen(false);
         
-        // Optionally refresh payment data
-        // You might want to refetch payments list here
+        // Refresh payments list and related data to get the latest payment
+        try {
+          // Refresh payments list to get the latest payment
+          const paymentsResponse = await getCustomerPayments(location, Number(id), 1, 1);
+          if (paymentsResponse.data && paymentsResponse.data.length > 0) {
+            const latestPayment = paymentsResponse.data[0];
+            setSelectedPayment(latestPayment);
+            setSelectedPaymentIndex(0);
+            
+            // Refresh related data for the receipt modal
+            // Refresh private lesson due data
+            try {
+              const privateLessonDueResult = await getCustomerPrivateLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setPrivateLessonDueData(privateLessonDueResult.data || []);
+            } catch {}
+            
+            // Refresh group lesson due data
+            try {
+              const groupLessonDueResult = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setGroupLessonDueData(groupLessonDueResult.data || []);
+            } catch {}
+            
+            // Refresh invoice data
+            try {
+              const invoiceResult = await getCustomerInvoices(location, Number(id), 1);
+              setInvoiceData(invoiceResult || []);
+            } catch {}
+            
+            // Refresh summary data
+            try {
+              const summaryResult = await getCustomerSummary(location, Number(id));
+              if (summaryResult && summaryResult.data) {
+                setSummaryData(summaryResult.data);
+              }
+            } catch {}
+            
+            // Open payment receipt modal
+            setIsPaymentReceiptModalOpen(true);
+          } else {
+            // If we can't get the payment, still show success
+            toast.success("Payment saved successfully");
+          }
+        } catch (error) {
+          console.error("Error fetching payment details:", error);
+          toast.success("Payment saved successfully");
+        }
       } else {
         const errorMessage = response.message || response.errors?.join(", ") || "Failed to save payment";
         console.error("Payment save error:", errorMessage);
