@@ -10,6 +10,7 @@ import { Plus } from "lucide-react";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { PaymentsReceiptModal } from "./components/PaymentReceipt/ReceivePayment";
 import { PaymentsReceivePaymentModal } from "./components/PaymentReceipt";
+import { getPayments, PaymentDto } from "./payments.api";
 
 interface PaymentsClientProps {
   location: string;
@@ -26,14 +27,6 @@ interface PaymentRow {
   amount: number;
 }
 
-// Temporary UI data (mock) – replace with API integration later
-const MOCK_PAYMENTS: PaymentRow[] = [
-  { id: "P-1573435", number: "P-1573435", date: new Date(2025, 9, 1), customer: "Jack Black", paymentMethod: "Visa", notes: null, reference: null, amount: 230 },
-  { id: "P-1597152", number: "P-1597152", date: new Date(2025, 9, 21), customer: "Sam Al", paymentMethod: "Cash", notes: null, reference: "Test", amount: 28.75 },
-  { id: "P-1591560", number: "P-1591560", date: new Date(2025, 9, 25), customer: "Testing 123", paymentMethod: "Cash", notes: null, reference: null, amount: 100 },
-  
-];
-
 export function PaymentsClient({ location }: PaymentsClientProps) {
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
   const [page, setPage] = React.useState<number>(1);
@@ -41,6 +34,115 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
   const [selectedRow, setSelectedRow] = React.useState<PaymentRow | null>(null);
   const [receiptOpen, setReceiptOpen] = React.useState<boolean>(false);
   const [receiveOpen, setReceiveOpen] = React.useState<boolean>(false);
+  
+  // API states
+  const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [payments, setPayments] = React.useState<PaymentRow[]>([]);
+  const [pagination, setPagination] = React.useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  });
+
+  // Helper function to parse amount string to number
+  const parseAmount = (amountStr: string): number => {
+    return parseFloat(amountStr.replace(/[$,]/g, '')) || 0;
+  };
+
+  // Helper function to parse date string
+  const parseDate = (dateStr: string): Date => {
+    // Format: "Nov 10, 2025"
+    return new Date(dateStr);
+  };
+
+  // Fetch payments from API
+  const fetchPayments = React.useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const cf = columnFilters as {
+        number?: string;
+        date?: { from?: Date; to?: Date };
+        customer?: string;
+        paymentMethod?: string;
+        amount?: string;
+      };
+
+      // Build filters object - only include filters that have actual values
+      const filters: {
+        number?: string;
+        from?: string;
+        to?: string;
+        customer?: string;
+        paymentMethod?: string;
+        amount?: string;
+      } = {};
+
+      if (cf.number && cf.number.trim() !== '') {
+        filters.number = cf.number;
+      }
+      
+      // Add date filters - check if date object exists and has from/to properties
+      if (cf.date && typeof cf.date === 'object') {
+        if (cf.date.from) {
+          filters.from = format(cf.date.from, 'yyyy-MM-dd');
+          console.log('Date filter FROM:', filters.from, 'Original:', cf.date.from);
+        }
+        if (cf.date.to) {
+          filters.to = format(cf.date.to, 'yyyy-MM-dd');
+          console.log('Date filter TO:', filters.to, 'Original:', cf.date.to);
+        }
+      }
+      
+      if (cf.customer && cf.customer.trim() !== '') {
+        filters.customer = cf.customer;
+      }
+      if (cf.paymentMethod && cf.paymentMethod !== '' && cf.paymentMethod !== 'All') {
+        filters.paymentMethod = cf.paymentMethod;
+      }
+      if (cf.amount && cf.amount.trim() !== '') {
+        filters.amount = cf.amount;
+      }
+
+      console.log('Fetching payments with filters:', filters);
+
+      const response = await getPayments(location, page, rowsPerPage, filters);
+
+      console.log('API Response:', response);
+
+      // Transform API data to PaymentRow format
+      const transformedData: PaymentRow[] = response.data.map((payment: PaymentDto) => ({
+        id: payment.id.toString(),
+        number: payment.number,
+        date: parseDate(payment.date),
+        customer: payment.customer,
+        paymentMethod: payment.paymentMethod,
+        notes: payment.notes || null,
+        reference: payment.reference || null,
+        amount: parseAmount(payment.amount),
+      }));
+
+      console.log('Transformed data count:', transformedData.length);
+
+      setPayments(transformedData);
+      setPagination(response.pagination);
+    } catch (err) {
+      console.error('Failed to fetch payments:', err);
+      setError('Failed to load payments. Please try again.');
+      setPayments([]);
+      setPagination({ page: 1, limit: 20, total: 0, totalPages: 1 });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location, page, rowsPerPage, columnFilters]);
+
+  // Fetch payments on mount and when dependencies change
+  React.useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   // Client-side search uses CustomTable's getSearchValue
   const getSearchValue = React.useCallback((row: PaymentRow) => {
@@ -59,8 +161,8 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
   }, []);
 
   const numberOptions = React.useMemo(() => {
-    return Array.from(new Set(MOCK_PAYMENTS.map(r => r.number))).map(n => ({ value: n, label: n }));
-  }, []);
+    return Array.from(new Set(payments.map(r => r.number))).map(n => ({ value: n, label: n }));
+  }, [payments]);
 
   const columns = React.useMemo<ColumnDef<PaymentRow>[]>(
     () => [
@@ -76,7 +178,11 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         size: 180,
         cell: ({ row }) => format(row.original.date, "MMM dd, yyyy"),
         meta: { printable: true, printableName: "Date" },
-        filter: { type: "date-range", initialValue: { from: startOfMonth(new Date()), to: endOfMonth(new Date()) }, quickPreset: "payments" },
+        filter: { 
+          type: "date-range",
+          initialValue: undefined,
+          quickPreset: "payments" 
+        },
       },
       {
         accessorKey: "customer",
@@ -100,6 +206,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
             { value: "Debit", label: "Debit" },
             { value: "E-Transfer", label: "E-Transfer" },
             { value: "Gift Card", label: "Gift Card" },
+            { value: "Account Entry", label: "Account Entry" },
           ],
         },
       },
@@ -126,70 +233,30 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
     [numberOptions]
   );
 
-  const data = React.useMemo(() => MOCK_PAYMENTS, []);
-
-  const filteredRows = React.useMemo(() => {
-    let result = data;
-    const cf = columnFilters as {
-      number?: string;
-      date?: { from?: Date; to?: Date };
-      customer?: string;
-      paymentMethod?: string;
-      amount?: string;
-    };
-
-    if (cf.number) {
-      result = result.filter(r => r.number === cf.number);
-    }
-    if (cf.date?.from && cf.date?.to) {
-      const from = cf.date.from;
-      const to = cf.date.to;
-      result = result.filter(r => r.date >= from && r.date <= to);
-    }
-    if (cf.customer && cf.customer.trim() !== "") {
-      const q = cf.customer.toLowerCase();
-      result = result.filter(r => (r.customer || '').toLowerCase().includes(q));
-    }
-    if (cf.paymentMethod && cf.paymentMethod !== "") {
-      result = result.filter(r => r.paymentMethod === cf.paymentMethod);
-    }
-    if (cf.amount && cf.amount.trim() !== "") {
-      const q = cf.amount.replace(/[^0-9.-]/g, "");
-      result = result.filter(r => String(r.amount).includes(q));
-    }
-    return result;
-  }, [data, columnFilters]);
-
-  const total = filteredRows.length;
-  const totalPages = Math.max(1, Math.ceil(total / (rowsPerPage === -1 ? total || 1 : rowsPerPage)));
-  const pagination = { page, limit: rowsPerPage, total, totalPages };
-
-  const pagedRows = React.useMemo(() => {
-    if (rowsPerPage === -1) return filteredRows;
-    const start = (page - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    return filteredRows.slice(start, end);
-  }, [filteredRows, page, rowsPerPage]);
-
   const handleColumnFilterChange = React.useCallback((columnKey: string, value: unknown) => {
+    console.log('Column filter changed:', columnKey, value);
     setColumnFilters((prev) => ({ ...prev, [columnKey]: value }));
-    setPage(1);
+    setPage(1); // Reset to first page when filters change
   }, []);
 
   // Handler for saving new payment
   const handlePaymentSaved = React.useCallback(() => {
-    // TODO: Refresh payments list from API
-    console.log("Payment saved, refreshing list...");
+    fetchPayments(); // Refresh payments list after saving
     setReceiveOpen(false);
-  }, []);
+  }, [fetchPayments]);
+
+  // Handler for retry
+  const handleRetry = React.useCallback(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   return (
     <ReportPageLayout
       title="Payments"
       subtitle="Browse all payments, search and sort"
-      isLoading={false}
-      error={null}
-      onRetry={() => {}}
+      isLoading={isLoading}
+      error={error}
+      onRetry={handleRetry}
       actions={
         <Button className="bg-primary hover:bg-primary/90" onClick={() => setReceiveOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -199,7 +266,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
     >
       <CustomTable<PaymentRow, unknown>
         columns={columns}
-        data={pagedRows}
+        data={payments}
         size="compact"
         variant="default"
         enableSearch={false}
@@ -223,7 +290,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         onColumnFilterChange={handleColumnFilterChange}
         columnFilterPlaceholders={{
           number: "Number",
-          date: "Date Range",
+          date: "Select Date Range",
           customer: "Customer",
           paymentMethod: "Payment Method",
           amount: "Amount",
