@@ -6,9 +6,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
-import { PaymentsReceiptModal } from "./components/PaymentReceipt/ReceivePayment";
 import { PaymentsReceivePaymentModal } from "./components/PaymentReceipt";
 import { getPayments, PaymentDto } from "./payments.api";
 
@@ -32,8 +31,8 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
   const [page, setPage] = React.useState<number>(1);
   const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
   const [selectedRow, setSelectedRow] = React.useState<PaymentRow | null>(null);
-  const [receiptOpen, setReceiptOpen] = React.useState<boolean>(false);
-  const [receiveOpen, setReceiveOpen] = React.useState<boolean>(false);
+  const [modalOpen, setModalOpen] = React.useState<boolean>(false);
+  const [isNewPayment, setIsNewPayment] = React.useState<boolean>(false);
   
   // API states
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
@@ -89,11 +88,9 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
       if (cf.date && typeof cf.date === 'object') {
         if (cf.date.from) {
           filters.from = format(cf.date.from, 'yyyy-MM-dd');
-          console.log('Date filter FROM:', filters.from, 'Original:', cf.date.from);
         }
         if (cf.date.to) {
           filters.to = format(cf.date.to, 'yyyy-MM-dd');
-          console.log('Date filter TO:', filters.to, 'Original:', cf.date.to);
         }
       }
       
@@ -107,11 +104,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         filters.amount = cf.amount;
       }
 
-      console.log('Fetching payments with filters:', filters);
-
       const response = await getPayments(location, page, rowsPerPage, filters);
-
-      console.log('API Response:', response);
 
       // Transform API data to PaymentRow format
       const transformedData: PaymentRow[] = response.data.map((payment: PaymentDto) => ({
@@ -125,12 +118,9 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         amount: parseAmount(payment.amount),
       }));
 
-      console.log('Transformed data count:', transformedData.length);
-
       setPayments(transformedData);
       setPagination(response.pagination);
     } catch (err) {
-      console.error('Failed to fetch payments:', err);
       setError('Failed to load payments. Please try again.');
       setPayments([]);
       setPagination({ page: 1, limit: 20, total: 0, totalPages: 1 });
@@ -234,21 +224,87 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
   );
 
   const handleColumnFilterChange = React.useCallback((columnKey: string, value: unknown) => {
-    console.log('Column filter changed:', columnKey, value);
-    setColumnFilters((prev) => ({ ...prev, [columnKey]: value }));
+    setColumnFilters((prev) => {
+      const newFilters = { ...prev, [columnKey]: value };
+      
+      // Remove filter if value is empty/null/undefined
+      if (!value) {
+        delete newFilters[columnKey];
+      } else if (typeof value === 'string' && value.trim() === '') {
+        delete newFilters[columnKey];
+      } else if (typeof value === 'object' && value !== null) {
+        // For date range objects, check if both from and to are missing
+        const dateObj = value as { from?: Date; to?: Date };
+        if (!dateObj.from && !dateObj.to) {
+          delete newFilters[columnKey];
+        }
+      }
+      
+      return newFilters;
+    });
     setPage(1); // Reset to first page when filters change
   }, []);
 
-  // Handler for saving new payment
+  // Clear all filters
+  const handleClearFilters = React.useCallback(() => {
+    setColumnFilters({});
+    setPage(1);
+  }, []);
+
+  // Check if any filters are active
+  const hasActiveFilters = React.useMemo(() => {
+    return Object.keys(columnFilters).some(key => {
+      const value = columnFilters[key];
+      if (typeof value === 'string') return value.trim() !== '';
+      if (typeof value === 'object' && value !== null) {
+        // For date objects, check if from or to exists
+        const dateObj = value as { from?: Date; to?: Date };
+        return !!(dateObj.from || dateObj.to);
+      }
+      return false;
+    });
+  }, [columnFilters]);
+
+  // Count active filters
+  const activeFilterCount = React.useMemo(() => {
+    return Object.keys(columnFilters).filter(key => {
+      const value = columnFilters[key];
+      if (typeof value === 'string') return value.trim() !== '';
+      if (typeof value === 'object' && value !== null) {
+        // For date objects, check if from or to exists
+        const dateObj = value as { from?: Date; to?: Date };
+        return !!(dateObj.from || dateObj.to);
+      }
+      return false;
+    }).length;
+  }, [columnFilters]);
+
+  // Handler for saving payment
   const handlePaymentSaved = React.useCallback(() => {
     fetchPayments(); // Refresh payments list after saving
-    setReceiveOpen(false);
+    setModalOpen(false);
+    setSelectedRow(null);
+    setIsNewPayment(false);
   }, [fetchPayments]);
 
   // Handler for retry
   const handleRetry = React.useCallback(() => {
     fetchPayments();
   }, [fetchPayments]);
+
+  // Handler for new payment button
+  const handleNewPayment = React.useCallback(() => {
+    setSelectedRow(null);
+    setIsNewPayment(true);
+    setModalOpen(true);
+  }, []);
+
+  // Handler for row click
+  const handleRowClick = React.useCallback((row: PaymentRow) => {
+    setSelectedRow(row);
+    setIsNewPayment(false);
+    setModalOpen(true);
+  }, []);
 
   return (
     <ReportPageLayout
@@ -258,10 +314,22 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
       error={error}
       onRetry={handleRetry}
       actions={
-        <Button className="bg-primary hover:bg-primary/90" onClick={() => setReceiveOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Receive Payment
-        </Button>
+        <div className="flex items-center gap-2">
+          {hasActiveFilters && (
+            <Button 
+              variant="outline" 
+              onClick={handleClearFilters}
+              className="flex items-center gap-2"
+            >
+              <X className="h-4 w-4" />
+              Clear Filters ({activeFilterCount})
+            </Button>
+          )}
+          <Button className="bg-primary hover:bg-primary/90" onClick={handleNewPayment}>
+            <Plus className="h-4 w-4 mr-2" />
+            Receive Payment
+          </Button>
+        </div>
       }
     >
       <CustomTable<PaymentRow, unknown>
@@ -296,27 +364,25 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
           amount: "Amount",
         }}
         stickyHeader={true}
-        onRowClick={(row) => {
-          setSelectedRow(row);
-          setReceiptOpen(true);
-        }}
+        onRowClick={handleRowClick}
       />
       
-      {/* Payment Receipt Modal */}
-      <PaymentsReceiptModal
-        open={receiptOpen}
-        onOpenChange={setReceiptOpen}
-        row={selectedRow || undefined}
-        locationName={location}
-      />
-      
-      {/* Receive Payment Modal - NO customerId prop = Dropdown Mode */}
+      {/* Single Payment Modal - used for both new payments and viewing existing ones */}
       <PaymentsReceivePaymentModal
-        open={receiveOpen}
-        onOpenChange={setReceiveOpen}
+        open={modalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) {
+            setSelectedRow(null);
+            setIsNewPayment(false);
+          }
+        }}
         onSave={handlePaymentSaved}
         location={location}
-        // Don't pass customerId to trigger dropdown mode
+        // When clicking a row, we could pass the customer info if needed
+        // For now, keeping it as dropdown mode for both scenarios
+        customerId={selectedRow?.id || undefined}
+        customerName={selectedRow?.customer || undefined}
       />
     </ReportPageLayout>
   );
