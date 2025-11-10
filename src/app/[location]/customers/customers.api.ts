@@ -1377,6 +1377,77 @@ export interface NotifyEmailUpdateResponse {
   };
 }
 
+export interface EmailStatementData {
+  privateLessonsDue: Array<{
+    lessonDate: string;
+    studentName: string;
+    programName: string;
+    teacherName: string;
+    amount: number | string;
+  }>;
+  groupLessonsDue: Array<{
+    lessonDate: string;
+    studentName: string;
+    programName: string;
+    teacherName: string;
+    amount: number | string;
+  }>;
+  invoices: Array<{
+    id: string;
+    date: string;
+    status: string;
+    total: number;
+    balance: number;
+  }>;
+  credits: Array<{
+    id: number;
+    type: string;
+    reference: string;
+    amount: number;
+  }>;
+  totalBalance: number;
+  customerEmails: string[];
+  emailSubject: string;
+  emailHeader: string;
+}
+
+export interface EmailStatementResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: EmailStatementData;
+  };
+}
+
+/**
+ * Get email statement data for a customer
+ * @param location - The location slug
+ * @param customerId - The customer ID
+ * @returns Email statement data
+ */
+export async function getEmailStatement(
+  location: string,
+  customerId: number
+): Promise<EmailStatementData | null> {
+  try {
+    const response = await apiClient.get<EmailStatementResponse>(
+      `/admin/v2/${location}/customers/${customerId}/email-statement`
+    );
+
+    if (response.data.success && response.data.data.body) {
+      return response.data.data.body;
+    }
+
+    return null;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error("Error fetching email statement:", error);
+    throw new Error(
+      apiError.response?.data?.message || "Failed to fetch email statement"
+    );
+  }
+}
+
 /**
  * Get notification email types with checked status for a customer
  * @param location - The location slug
