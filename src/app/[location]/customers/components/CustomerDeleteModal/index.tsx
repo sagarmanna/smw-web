@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ReusableModal } from "@/components/TablesModals";
-import { deleteUser } from "@/lib/api/legacyApiAdapter";
+import { deleteCustomer } from "../../customers.api";
 
 
 interface CustomerDeleteModalProps {
@@ -25,26 +25,21 @@ export function CustomerDeleteModal({
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      const response = await deleteUser(location, customerId);
+      const response = await deleteCustomer(location, customerId);
 
-      if (response.status) {
-        console.log('user deleted')
-        // onOpenChange(false);
-        // onDeleteSuccess?.();
+      if (response.success) {
+        onOpenChange(false);
+        onDeleteSuccess?.();
       } else {
-        const errorMessage =
-        response.message || response.errors?.join(", ") ||
-        "Unable to delete this user.";
-        console.log('user may deleted', errorMessage);
-        // onDeleteError?.(errorMessage);
-        // onOpenChange(false);
+        const errorMessage = response.message || "Unable to delete this customer.";
+        onDeleteError?.(errorMessage);
+        onOpenChange(false);
       }
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Unable to delete this user.";
-      console.log('user may deleted', errorMessage);
-      // onDeleteError?.(errorMessage);
-      // onOpenChange(false);
+        error instanceof Error ? error.message : "Unable to delete this customer.";
+      onDeleteError?.(errorMessage);
+      onOpenChange(false);
     } finally {
       setIsDeleting(false);
     }
