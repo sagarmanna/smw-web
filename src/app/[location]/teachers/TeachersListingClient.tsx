@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { TeacherRow, mockTeachersData } from "./teachers.api";
@@ -18,6 +19,7 @@ interface TeachersClientProps {
 }
 
 export function TeachersListingClient({ location }: TeachersClientProps) {
+  const router = useRouter();
   const [rows, setRows] = React.useState<TeacherRow[]>([]);
   const [total, setTotal] = React.useState<number>(0);
   const [totalPages, setTotalPages] = React.useState<number>(0);
@@ -220,8 +222,10 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
           json: exportToJson,
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
-        // onRowClick removed - keeping rows static (non-clickable)
-        // rowClassName removed - no special styling for clickable rows
+        onRowClick={(row) => {
+          router.push(`/${location}/teachers/${row.id}`);
+        }}
+        rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
       
       <AddTeacherModal
