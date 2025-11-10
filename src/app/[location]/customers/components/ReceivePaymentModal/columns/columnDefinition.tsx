@@ -3,9 +3,10 @@ import * as React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { LessonItem, InvoiceItem, CreditItem, TableRow, GroupLessonItem } from '../types';
+import { DEFAULT_DATE_RANGE } from '../constants';
 
 /**
- * Column definitions for Lessons table with dynamic student filter
+ * Column definitions for Lessons table with dynamic student filter and date range filter on Due Date
  */
 export const createLessonColumns = (
   lessons: LessonItem[],
@@ -43,6 +44,11 @@ export const createLessonColumns = (
     accessorKey: 'dueDate',
     header: 'Due Date',
     size: 180,
+    filter: {
+      type: 'date-range' as const,
+      initialValue: undefined, // No initial value - shows all data
+      quickPreset: 'payments',
+    },
   },
   {
     accessorKey: 'student',
@@ -98,7 +104,7 @@ export const createLessonColumns = (
 ];
 
 /**
- * Column definitions for Group Lessons table with dynamic student filter
+ * Column definitions for Group Lessons table with dynamic student filter and date range filter on Due Date
  */
 export const createGroupLessonColumns = (
   groupLessons: GroupLessonItem[],
@@ -136,6 +142,11 @@ export const createGroupLessonColumns = (
     accessorKey: 'dueDate',
     header: 'Due Date',
     size: 180,
+    filter: {
+      type: 'date-range' as const,
+      initialValue: undefined, // No initial value - shows all data
+      quickPreset: 'payments',
+    },
   },
   {
     accessorKey: 'student',

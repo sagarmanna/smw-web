@@ -134,9 +134,11 @@ export interface PaymentTablesSectionProps {
 }
 
 export interface FilterConfig {
-  type: 'date-range' | 'dropdown' | 'text';
+  type: 'date-range' | 'dropdown' | 'text' | 'string';
   disabled?: (date: Date) => boolean;
   options?: Array<{ value: string; label: string }>;
+  initialValue?: unknown;
+  quickPreset?: string;
 }
 
 export interface ColumnFilter {

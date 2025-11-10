@@ -36,7 +36,7 @@ export const usePaymentState = (
   const [amountReceived, setAmountReceived] = useState('0.00');
   const [notes, setNotes] = useState('');
   
-  // Filter state
+  // Filter state - Initialize with empty filters (no date filter by default)
   const [lessonColumnFilters, setLessonColumnFilters] = useState<ColumnFilter>({});
   const [groupLessonColumnFilters, setGroupLessonColumnFilters] = useState<ColumnFilter>({});
   
