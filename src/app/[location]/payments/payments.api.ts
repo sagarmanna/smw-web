@@ -37,6 +37,7 @@ export interface PaymentsListResponse {
 /**
  * Fetch payments list with pagination and filters
  * Endpoint: GET /admin/v2/{location}/payments
+ * NOTE: Date filtering is done client-side as the API doesn't support from/to parameters
  */
 export async function getPayments(
   location: string,
@@ -44,8 +45,6 @@ export async function getPayments(
   limit: number = 20,
   filters?: {
     number?: string;
-    from?: string;
-    to?: string;
     customer?: string;
     paymentMethod?: string;
     amount?: string;
@@ -64,15 +63,9 @@ export async function getPayments(
     params.append('page', page.toString());
     params.append('limit', limit === -1 ? '99999' : limit.toString());
 
-    // Add filters if provided
+    // Add filters if provided (excluding date filters)
     if (filters?.number) {
       params.append('number', filters.number);
-    }
-    if (filters?.from) {
-      params.append('from', filters.from);
-    }
-    if (filters?.to) {
-      params.append('to', filters.to);
     }
     if (filters?.customer) {
       params.append('customer', filters.customer);
