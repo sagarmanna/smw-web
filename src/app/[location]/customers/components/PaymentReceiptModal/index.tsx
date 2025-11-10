@@ -15,6 +15,8 @@ import EmailStatementModal from "../EmailStatementModal";
 import type { InvoiceData, GroupLessonDueData } from "../../tableConfigs";
 import { receivePayment, PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
+import { getPaymentMethods } from "../ReceivePaymentModal/api/receive-payment.api";
+import type { PaymentMethod } from "../ReceivePaymentModal/api/receive-payment.api";
 
 export interface PaymentReceiptData {
   date: string;
@@ -76,21 +78,49 @@ export function PaymentReceiptModal({
   const [editDate, setEditDate] = React.useState<Date>(new Date());
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<boolean>(false);
   const [isSaving, setIsSaving] = React.useState<boolean>(false);
+  const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>([]);
+  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = React.useState<boolean>(false);
 
-  // Helper function to map payment method names to IDs
-  const getPaymentMethodId = (methodName: string): number => {
-    const methodMap: Record<string, number> = {
-      'Cash': 1,
-      'Cheque': 2,
-      'Debit': 3,
-      'Visa': 4,
-      'Mastercard': 5,
-      'Amex': 6,
-      'Gift Card': 7,
-      'E-Transfer': 8,
-    };
-    return methodMap[methodName] || 1; // Default to Cash (1) if not found
-  };
+  // Fetch payment methods when modal opens
+  React.useEffect(() => {
+    if (open) {
+      setIsLoadingPaymentMethods(true);
+      getPaymentMethods()
+        .then((methods) => {
+          setPaymentMethods(methods);
+          // Set payment method from existing payment or default to Cash
+          if (methods.length > 0) {
+            setEditForm((prev) => {
+              // If payment exists and has a method name, try to find it by name
+              if (payment?.notes && prev.method === "") {
+                const foundMethod = methods.find(m => 
+                  m.name.toLowerCase() === payment.notes?.toLowerCase()
+                );
+                if (foundMethod) {
+                  return { ...prev, method: foundMethod.id.toString() };
+                }
+              }
+              // Otherwise, set default to Cash if available
+              if (!prev.method || prev.method === "") {
+                const cashMethod = methods.find(m => m.name.toLowerCase() === 'cash');
+                if (cashMethod) {
+                  return { ...prev, method: cashMethod.id.toString() };
+                } else {
+                  return { ...prev, method: methods[0].id.toString() };
+                }
+              }
+              return prev;
+            });
+          }
+        })
+        .catch((error) => {
+          console.error('Error fetching payment methods:', error);
+        })
+        .finally(() => {
+          setIsLoadingPaymentMethods(false);
+        });
+    }
+  }, [open, payment?.notes]);
 
   // Helper function to format date to "MMM dd, yyyy" format
   const formatDateForLegacy = (date: Date | string): string => {
@@ -103,7 +133,7 @@ export function PaymentReceiptModal({
   };
   const [editForm, setEditForm] = React.useState<{ date: string; method: string; reference: string; amountReceived: string }>(() => ({
     date: payment?.date || "",
-    method: payment?.notes || "Cash",
+    method: "", // Will be set from payment methods API
     reference: "",
     amountReceived: (() => {
       const raw = payment?.amount as unknown;
@@ -114,16 +144,17 @@ export function PaymentReceiptModal({
 
   React.useEffect(() => {
     // Reset form when opening or payment changes
-    setEditForm({
+    // Note: method will be set from payment methods API in the other useEffect
+    setEditForm((prev) => ({
       date: payment?.date || "",
-      method: payment?.notes || "Cash",
+      method: prev.method || "", // Keep existing method or empty
       reference: "",
       amountReceived: (() => {
         const raw = payment?.amount as unknown;
         const num = typeof raw === "number" ? raw : typeof raw === "string" ? parseFloat(raw.replace(/[^0-9.-]+/g, "")) : 0;
         return Number.isFinite(num) ? String(num) : "0.00";
       })(),
-    });
+    }));
     setEditDate(new Date());
   }, [payment, open]);
 
@@ -757,19 +788,30 @@ export function PaymentReceiptModal({
               </div>
               <div className="space-y-1">
                 <Label>Payment Method</Label>
-                <Select value={editForm.method} onValueChange={(v) => setEditForm((s) => ({ ...s, method: v }))}>
+                <Select 
+                  value={editForm.method} 
+                  onValueChange={(v) => setEditForm((s) => ({ ...s, method: v }))}
+                  disabled={isLoadingPaymentMethods || paymentMethods.length === 0}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select method" />
+                    <SelectValue placeholder={isLoadingPaymentMethods ? "Loading..." : "Select method"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Cash">Cash</SelectItem>
-                    <SelectItem value="Cheque">Cheque</SelectItem>
-                    <SelectItem value="Debit">Debit</SelectItem>
-                    <SelectItem value="Visa">Visa</SelectItem>
-                    <SelectItem value="Mastercard">Mastercard</SelectItem>
-                    <SelectItem value="Amex">Amex</SelectItem>
-                    <SelectItem value="Gift Card">Gift Card</SelectItem>
-                    <SelectItem value="E-Transfer">E-Transfer</SelectItem>
+                    {isLoadingPaymentMethods ? (
+                      <SelectItem value="loading" disabled>
+                        Loading payment methods...
+                      </SelectItem>
+                    ) : paymentMethods.length > 0 ? (
+                      paymentMethods.map((method) => (
+                        <SelectItem key={method.id} value={method.id.toString()}>
+                          {method.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        No payment methods available
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1041,8 +1083,8 @@ export function PaymentReceiptModal({
                       // Format date
                       const formattedDate = formatDateForLegacy(editDate);
                       
-                      // Get payment method ID
-                      const paymentMethodId = getPaymentMethodId(editForm.method);
+                      // Payment method value is already the ID as a string, just convert to number
+                      const paymentMethodId = Number(editForm.method) || 1; // Default to 1 if invalid
                       
                       // Prepare invoice payments array
                       const invoicePayments = invAllocations

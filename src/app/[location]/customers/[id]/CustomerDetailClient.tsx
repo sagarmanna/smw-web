@@ -529,27 +529,20 @@ export function CustomerDetailClient({
       // Import the legacy API function
       const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
       
-      // Helper function to map payment method names to IDs
-      const getPaymentMethodId = (methodName: string): number => {
-        const methodMap: Record<string, number> = {
-          'Cash': 1,
-          'Cheque': 2,
-          'Debit': 3,
-          'Visa': 4,
-          'Mastercard': 5,
-          'Amex': 6,
-          'Gift Card': 7,
-          'E-Transfer': 8,
-        };
-        return methodMap[methodName] || 1; // Default to Cash (1) if not found
+      // Payment method value is already the ID as a string, just convert to number
+      const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
+
+      // Helper function to format numbers to 2 decimal places
+      const formatToTwoDecimals = (value: number): number => {
+        return Math.round(value * 100) / 100;
       };
 
       // Calculate amount needed (sum of all selected items)
       const lessonPaymentsTotal = Object.values(paymentData.lessonPayments || {}).reduce((sum, val) => sum + val, 0);
       const groupLessonPaymentsTotal = Object.values(paymentData.groupLessonPayments || {}).reduce((sum, val) => sum + val, 0);
       const invoicePaymentsTotal = Object.values(paymentData.invoicePayments || {}).reduce((sum, val) => sum + val, 0);
-      const amountNeeded = lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal;
-      const amountToDistribute = amountNeeded;
+      const amountNeeded = formatToTwoDecimals(lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal);
+      const amountToDistribute = formatToTwoDecimals(amountNeeded);
 
       // Prepare invoice payments array
       // Strip "I-" prefix from invoice IDs if present (legacy API expects numeric ID only)
@@ -571,18 +564,24 @@ export function CustomerDetailClient({
             .filter(({ id }) => id !== null && id !== undefined && id !== '') // Filter out invalid IDs
         : [];
 
+      // Prepare invoice payments array with formatted values
+      const formattedInvoicePayments = invoicePaymentsArray.map(inv => ({
+        id: inv.id,
+        value: formatToTwoDecimals(inv.value),
+      }));
+
       // Prepare payment data for legacy API
       const legacyPaymentData: PaymentReceiveData = {
         userId: Number(id),
         date: paymentData.date, // Already in "MMM dd, yyyy" format
-        paymentMethodId: getPaymentMethodId(paymentData.paymentMethod),
+        paymentMethodId: paymentMethodId,
         reference: paymentData.reference || '',
-        amount: paymentData.amountReceived,
+        amount: formatToTwoDecimals(paymentData.amountReceived),
         amountNeeded: amountNeeded,
         selectedCreditValue: 0.00,
         amountToDistribute: amountToDistribute,
         notes: paymentData.notes || '',
-        invoicePayments: invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        invoicePayments: formattedInvoicePayments.length > 0 ? formattedInvoicePayments : undefined,
         canUsePaymentCredits: 0,
         canUseInvoiceCredits: 0,
         prId: '',
@@ -592,12 +591,65 @@ export function CustomerDetailClient({
       const response = await receivePayment(location, legacyPaymentData);
 
       if (response.status) {
-        // Success - refresh data and close modal
-        toast.success("Payment saved successfully");
+        // Success - close receive payment modal
         setIsReceivePaymentModalOpen(false);
         
-        // Optionally refresh payment data
-        // You might want to refetch payments list here
+        // Refresh payments list and related data to get the latest payment
+        try {
+          // Refresh payments list to get the latest payment
+          const paymentsResponse = await getCustomerPayments(location, Number(id), 1, 1);
+          if (paymentsResponse.data && paymentsResponse.data.length > 0) {
+            const latestPayment = paymentsResponse.data[0];
+            setSelectedPayment(latestPayment);
+            setSelectedPaymentIndex(0);
+            
+            // Refresh related data for the receipt modal
+            // Refresh private lesson due data
+            try {
+              const privateLessonDueResult = await getCustomerPrivateLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setPrivateLessonDueData(privateLessonDueResult.data || []);
+            } catch {}
+            
+            // Refresh group lesson due data
+            try {
+              const groupLessonDueResult = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setGroupLessonDueData(groupLessonDueResult.data || []);
+            } catch {}
+            
+            // Refresh invoice data
+            try {
+              const invoiceResult = await getCustomerInvoices(location, Number(id), 1);
+              setInvoiceData(invoiceResult || []);
+            } catch {}
+            
+            // Refresh summary data
+            try {
+              const summaryResult = await getCustomerSummary(location, Number(id));
+              if (summaryResult && summaryResult.data) {
+                setSummaryData(summaryResult.data);
+              }
+            } catch {}
+            
+            // Open payment receipt modal
+            setIsPaymentReceiptModalOpen(true);
+          } else {
+            // If we can't get the payment, still show success
+            toast.success("Payment saved successfully");
+          }
+        } catch (error) {
+          console.error("Error fetching payment details:", error);
+          toast.success("Payment saved successfully");
+        }
       } else {
         const errorMessage = response.message || response.errors?.join(", ") || "Failed to save payment";
         console.error("Payment save error:", errorMessage);
