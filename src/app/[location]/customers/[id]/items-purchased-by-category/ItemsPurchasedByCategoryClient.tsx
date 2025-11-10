@@ -225,7 +225,7 @@ export function ItemsPurchasedByCategoryClient({
 
   const onPrintClick = React.useCallback(() => {
     handlePrint({
-      reportTitle: "Items Purchased By Category",
+      reportTitle: "Customer Items Report",
       columns,
       data: rows,
       footer: footerRow,

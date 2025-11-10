@@ -1358,7 +1358,10 @@ export function CustomerDetailClient({
         } } },
         // { label: "Items Purchased by Category", onClick: () => {} },
         // { label: "A/R Report Detail", onClick: () => {} },
-        { label: "Items Purchased by Category", onClick: () => router.push(`/${location}/customers/${id}/items-purchased-by-category`) },
+        { label: "Items Purchased by Category", onClick: () => {
+          const url = `/admin/v2/${location}/customers/${id}/items-purchased-by-category`;
+          window.open(url, '_blank');
+        } },
         {
           label: "Notify Via Email",
           onClick: () => setIsNotifyModalOpen(true),
