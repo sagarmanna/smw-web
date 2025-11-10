@@ -169,7 +169,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[1400px] h-[90vh] flex flex-col p-0">
-        <ModalHeader amountNeeded={calculations.amountNeeded} />
+        <ModalHeader amountNeeded={calculations.amountNeeded} selectedCredits={calculations.selectedCredits} />
 
         <div className="overflow-y-auto flex-1 px-6">
           <PaymentFormSection

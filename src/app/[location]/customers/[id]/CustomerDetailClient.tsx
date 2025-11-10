@@ -529,27 +529,20 @@ export function CustomerDetailClient({
       // Import the legacy API function
       const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
       
-      // Helper function to map payment method names to IDs
-      const getPaymentMethodId = (methodName: string): number => {
-        const methodMap: Record<string, number> = {
-          'Cash': 1,
-          'Cheque': 2,
-          'Debit': 3,
-          'Visa': 4,
-          'Mastercard': 5,
-          'Amex': 6,
-          'Gift Card': 7,
-          'E-Transfer': 8,
-        };
-        return methodMap[methodName] || 1; // Default to Cash (1) if not found
+      // Payment method value is already the ID as a string, just convert to number
+      const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
+
+      // Helper function to format numbers to 2 decimal places
+      const formatToTwoDecimals = (value: number): number => {
+        return Math.round(value * 100) / 100;
       };
 
       // Calculate amount needed (sum of all selected items)
       const lessonPaymentsTotal = Object.values(paymentData.lessonPayments || {}).reduce((sum, val) => sum + val, 0);
       const groupLessonPaymentsTotal = Object.values(paymentData.groupLessonPayments || {}).reduce((sum, val) => sum + val, 0);
       const invoicePaymentsTotal = Object.values(paymentData.invoicePayments || {}).reduce((sum, val) => sum + val, 0);
-      const amountNeeded = lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal;
-      const amountToDistribute = amountNeeded;
+      const amountNeeded = formatToTwoDecimals(lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal);
+      const amountToDistribute = formatToTwoDecimals(amountNeeded);
 
       // Prepare invoice payments array
       // Strip "I-" prefix from invoice IDs if present (legacy API expects numeric ID only)
@@ -571,18 +564,24 @@ export function CustomerDetailClient({
             .filter(({ id }) => id !== null && id !== undefined && id !== '') // Filter out invalid IDs
         : [];
 
+      // Prepare invoice payments array with formatted values
+      const formattedInvoicePayments = invoicePaymentsArray.map(inv => ({
+        id: inv.id,
+        value: formatToTwoDecimals(inv.value),
+      }));
+
       // Prepare payment data for legacy API
       const legacyPaymentData: PaymentReceiveData = {
         userId: Number(id),
         date: paymentData.date, // Already in "MMM dd, yyyy" format
-        paymentMethodId: getPaymentMethodId(paymentData.paymentMethod),
+        paymentMethodId: paymentMethodId,
         reference: paymentData.reference || '',
-        amount: paymentData.amountReceived,
+        amount: formatToTwoDecimals(paymentData.amountReceived),
         amountNeeded: amountNeeded,
         selectedCreditValue: 0.00,
         amountToDistribute: amountToDistribute,
         notes: paymentData.notes || '',
-        invoicePayments: invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        invoicePayments: formattedInvoicePayments.length > 0 ? formattedInvoicePayments : undefined,
         canUsePaymentCredits: 0,
         canUseInvoiceCredits: 0,
         prId: '',
