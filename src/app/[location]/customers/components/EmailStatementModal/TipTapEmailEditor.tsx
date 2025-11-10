@@ -40,6 +40,11 @@ interface TipTapEmailEditorProps {
   localStorageKey?: string;
 }
 
+type AnchorOption = {
+  id: string;
+  name?: string;
+};
+
 export default function TipTapEmailEditor({
   content,
   onChange,
@@ -78,9 +83,17 @@ export default function TipTapEmailEditor({
   const [linkTitle, setLinkTitle] = React.useState('');
   const [linkNewWindow, setLinkNewWindow] = React.useState(true);
   const [targetOpt, setTargetOpt] = React.useState<'notset'|'frame'|'popup'|'_blank'|'_top'|'_self'|'_parent'>('notset');
-  const [anchorList, setAnchorList] = React.useState<string[]>([]);
+  const [anchorList, setAnchorList] = React.useState<AnchorOption[]>([]);
   const [anchorTarget, setAnchorTarget] = React.useState('');
+  const [anchorTargetByName, setAnchorTargetByName] = React.useState('');
+  const [anchorTargetById, setAnchorTargetById] = React.useState('');
   const [emailAddr, setEmailAddr] = React.useState('');
+  // Email extras for mailto links
+  const [emailSubject, setEmailSubject] = React.useState('');
+  const [emailBody, setEmailBody] = React.useState('');
+  // Store selection when opening link modal
+  const [linkSelectionFrom, setLinkSelectionFrom] = React.useState<number | null>(null);
+  const [linkSelectionTo, setLinkSelectionTo] = React.useState<number | null>(null);
   // Advanced fields
   const [advId, setAdvId] = React.useState('');
   const [advName, setAdvName] = React.useState('');
@@ -96,6 +109,7 @@ export default function TipTapEmailEditor({
   const [advCharset, setAdvCharset] = React.useState('');
   const [isAnchorOpen, setIsAnchorOpen] = React.useState(false);
   const [anchorId, setAnchorId] = React.useState('');
+  const [anchorName, setAnchorName] = React.useState('');
   // Rich insertions
   const [imgAsTag, setImgAsTag] = React.useState(false);
   const [isFlashOpen, setIsFlashOpen] = React.useState(false);
@@ -519,21 +533,39 @@ export default function TipTapEmailEditor({
     }
   };
 
-  const getAnchorsFromHtml = (html: string): string[] => {
-    const ids = new Set<string>();
+  const getAnchorsFromHtml = (html: string): AnchorOption[] => {
+    const map = new Map<string, AnchorOption>();
     try {
       const div = document.createElement('div');
       div.innerHTML = html;
-      const elements = div.querySelectorAll('[id]');
+      const elements = div.querySelectorAll('[data-anchor-id], [data-anchor-name], a[id], a[name]');
       elements.forEach((el) => {
-        const id = (el as HTMLElement).id;
-        if (id) ids.add(id);
+        const element = el as HTMLElement;
+        const id = element.id?.trim();
+        if (!id) return;
+        const candidateName =
+          element.getAttribute('data-anchor-name') ||
+          element.getAttribute('name') ||
+          undefined;
+        const name = candidateName ? candidateName.trim() : undefined;
+        const existing = map.get(id);
+        if (existing) {
+          if (!existing.name && name) {
+            map.set(id, { id, name });
+          }
+        } else {
+          map.set(id, { id, name });
+        }
       });
     } catch {}
-    return Array.from(ids);
+    return Array.from(map.values());
   };
 
   const openLinkModal = () => {
+    const { from, to } = editor.state.selection;
+    setLinkSelectionFrom(from);
+    setLinkSelectionTo(to);
+
     const sel = getSelectionAsHtmlAndText();
     setLinkTab('info');
     setLinkType('url');
@@ -544,7 +576,11 @@ export default function TipTapEmailEditor({
     setLinkNewWindow(true);
     setTargetOpt('notset');
     setAnchorTarget('');
+    setAnchorTargetByName('');
+    setAnchorTargetById('');
     setEmailAddr('');
+    setEmailSubject('');
+    setEmailBody('');
     setAdvId('');
     setAdvName('');
     setAdvLangDir('notset');
@@ -557,7 +593,6 @@ export default function TipTapEmailEditor({
     setAdvStyle('');
     setAdvContentType('');
     setAdvCharset('');
-    // collect anchors from current doc
     setAnchorList(getAnchorsFromHtml(editor.getHTML()));
     setIsLinkOpen(true);
   };
@@ -571,74 +606,135 @@ export default function TipTapEmailEditor({
       return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('ftp://') || url.startsWith('news://') ? url : `${prefix}${url}`;
     }
     if (linkType === 'anchor') {
-      if (!anchorTarget.trim()) return '';
-      return `#${anchorTarget.trim()}`;
+      const target = anchorTarget.trim();
+      if (!target) return '';
+      return target.startsWith('#') ? target : `#${target}`;
     }
     // email
-    const email = emailAddr.trim();
-    if (!email) return '';
-    return `mailto:${email}`;
+    const raw = emailAddr.trim();
+    if (!raw) return '';
+    const recipients = raw
+      .split(/[;,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(',');
+    const params: string[] = [];
+    if (emailSubject.trim()) params.push(`subject=${encodeURIComponent(emailSubject.trim())}`);
+    if (emailBody.trim()) params.push(`body=${encodeURIComponent(emailBody.trim())}`);
+    const query = params.length ? `?${params.join('&')}` : '';
+    return `mailto:${recipients}${query}`;
   };
 
   const submitLinkModal = () => {
     const href = buildHref();
     if (!href) { setIsLinkOpen(false); return; }
-    const attrs: Record<string, string> = { href };
+
+    const linkAttrs: { href: string; target?: string | null; rel?: string | null; class?: string | null } = { href };
+    const extraAttrs: Record<string, string> = {};
+
     // Target mapping
     if (targetOpt === '_blank') {
-      attrs.target = '_blank';
-      attrs.rel = 'noopener noreferrer';
+      linkAttrs.target = '_blank';
+      linkAttrs.rel = 'noopener noreferrer';
     } else if (targetOpt !== 'notset' && targetOpt !== 'popup' && targetOpt !== 'frame') {
-      attrs.target = targetOpt;
+      linkAttrs.target = targetOpt;
     }
-    // Title removed from Link Info tab; use Advanced 'Advisory Title' if needed
+
     // Advanced attributes
-    if (advId.trim()) attrs.id = advId.trim();
-    if (advName.trim()) attrs.name = advName.trim();
-    if (advLangDir !== 'notset') attrs.dir = advLangDir;
-    if (advLangCode.trim()) attrs.lang = advLangCode.trim();
-    if (advAccessKey.trim()) attrs.accesskey = advAccessKey.trim();
-    if (advTabIndex.trim()) attrs.tabindex = advTabIndex.trim();
-    if (advClasses.trim()) attrs.class = advClasses.trim();
-    if (advRel.trim()) attrs.rel = attrs.rel ? `${attrs.rel} ${advRel.trim()}` : advRel.trim();
-    if (advStyle.trim()) attrs.style = advStyle.trim();
-    if (advContentType.trim()) attrs.type = advContentType.trim();
-    if (advCharset.trim()) attrs.charset = advCharset.trim();
+    if (advClasses.trim()) linkAttrs.class = advClasses.trim();
+    if (advTitle.trim()) extraAttrs.title = advTitle.trim();
+    if (advStyle.trim()) extraAttrs.style = advStyle.trim();
+    if (advId.trim()) extraAttrs.id = advId.trim();
+    if (advLangCode.trim()) extraAttrs.lang = advLangCode.trim();
+    if (advLangDir !== 'notset') extraAttrs.dir = advLangDir;
+    if (advRel.trim()) {
+      const combinedRel = linkAttrs.rel ? `${linkAttrs.rel} ${advRel.trim()}` : advRel.trim();
+      linkAttrs.rel = combinedRel;
+    }
 
-    // Build attribute string
-    const attrStr = Object.entries(attrs)
-      .map(([k, v]) => `${k}="${escapeHtml(v)}"`)
+    const applyExtraAttrs = (chain: ReturnType<typeof editor.chain>) => {
+      if (Object.keys(extraAttrs).length) {
+        chain.updateAttributes('link', extraAttrs as { [key: string]: string | null });
+      }
+      return chain;
+    };
+
+    // Restore the saved selection and apply the link
+    if (linkSelectionFrom !== null && linkSelectionTo !== null) {
+      // If there was a selection when modal opened, restore it and apply link
+      applyExtraAttrs(
+        editor
+        .chain()
+        .focus()
+        .setTextSelection({ from: linkSelectionFrom, to: linkSelectionTo })
+        .setLink(linkAttrs)
+      ).run();
+    } else {
+      // No selection - just insert the link with the URL as text
+      const allAttrs = { ...linkAttrs, ...extraAttrs };
+      const attrString = Object.entries(allAttrs)
+        .filter(([, value]) => value != null && value !== '')
+        .map(([key, value]) => `${key}="${escapeHtml(String(value))}"`)
       .join(' ');
+      editor
+        .chain()
+        .focus()
+        .insertContent(`<a ${attrString}>${escapeHtml(href)}</a>`)
+        .run();
+    }
 
-    const sel = getSelectionAsHtmlAndText();
-    const display = sel && sel.html && sel.html.trim() !== ''
-      ? sel.html
-      : escapeHtml(href);
-    editor.chain().focus().insertContent(`<a ${attrStr}>${display}</a>`).run();
+    setLinkSelectionFrom(null);
+    setLinkSelectionTo(null);
     setIsLinkOpen(false);
   };
 
   // Reusable Link Info section (used in Link modal and Image modal → Link tab)
-  const LinkInfoFields = ({ withTypeSelector = true }: { withTypeSelector?: boolean }) => (
+  const LinkInfoFields = ({ withTypeSelector = true }: { withTypeSelector?: boolean }) => {
+    const effectiveType = withTypeSelector ? linkType : 'url';
+    const anchorNameOptions = Array.from(
+      anchorList
+        .filter((item): item is AnchorOption & { name: string } => Boolean(item.name))
+        .reduce((acc, item) => {
+          if (!acc.has(item.name)) acc.set(item.name, item);
+          return acc;
+        }, new Map<string, AnchorOption>())
+        .values()
+    );
+
+    return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 items-end">
         {withTypeSelector && (
           <div>
             <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Link Type</label>
-            <select value={linkType} onChange={(e)=>setLinkType(e.target.value as 'url'|'anchor'|'email')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+            <select
+              value={linkType}
+              onChange={(e)=>{
+                const value = e.target.value as 'url'|'anchor'|'email';
+                setLinkType(value);
+                if (value !== 'anchor') {
+                  setAnchorTarget('');
+                  setAnchorTargetByName('');
+                  setAnchorTargetById('');
+                }
+              }}
+              className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+            >
               <option value="url">URL</option>
               <option value="anchor">Link to anchor in the text</option>
               <option value="email">E-mail</option>
             </select>
           </div>
         )}
-      </div>
 
-      {(!withTypeSelector || linkType === 'url') && (
+        {effectiveType === 'url' && (
         <div className="grid grid-cols-12 gap-4 items-end">
           <div className="col-span-3">
             <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Protocol</label>
-            <select value={protocol} onChange={(e)=>setProtocol(e.target.value as 'http'|'https'|'ftp'|'news'|'other')} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
+              <select
+                value={protocol}
+                onChange={(e)=>setProtocol(e.target.value as 'http'|'https'|'ftp'|'news'|'other')}
+                className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+              >
               <option value="http">http://</option>
               <option value="https">https://</option>
               <option value="ftp">ftp://</option>
@@ -648,69 +744,118 @@ export default function TipTapEmailEditor({
           </div>
           <div className="col-span-9">
             <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">URL</label>
-            <input value={linkUrl} onChange={(e)=>setLinkUrl(e.target.value)} placeholder="example.com/path" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              <input
+                value={linkUrl}
+                onChange={(e)=>setLinkUrl(e.target.value)}
+                placeholder="example.com/path"
+                className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+              />
           </div>
         </div>
       )}
 
-      {/* Show Blocks styles */}
-      {showBlocks && (
-        <style jsx global>{`
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror p,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h1,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h2,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h3,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h4,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h5,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror h6,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror blockquote,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror pre,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror ul,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror ol,
-          .tiptap-editor-wrapper.tiptap-show-blocks .ProseMirror table {
-            outline: 1px dashed #cbd5e1;
-            position: relative;
-          }
-        `}</style>
-      )}
-
-      {withTypeSelector && linkType === 'anchor' && (
+        {withTypeSelector && effectiveType === 'anchor' && (
+          <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Select Anchor</label>
-          <select value={anchorTarget} onChange={(e)=>setAnchorTarget(e.target.value)} className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm">
-            <option value=""></option>
-            {anchorList.map((id)=> (
-              <option key={id} value={id}>#{id}</option>
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">By Anchor Name</label>
+              <select
+                value={anchorTargetByName}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setAnchorTargetByName(value);
+                  setAnchorTargetById('');
+                  setAnchorTarget(value);
+                }}
+                disabled={anchorNameOptions.length === 0}
+                className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+              >
+                <option value="">{anchorNameOptions.length ? 'Select anchor name' : 'No named anchors'}</option>
+                {anchorNameOptions.map((item) => (
+                  <option key={`name-${item.id}`} value={item.id}>
+                    {item.name} ({item.id})
+                  </option>
             ))}
           </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">By Element Id</label>
+              <select
+                value={anchorTargetById}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setAnchorTargetById(value);
+                  setAnchorTargetByName('');
+                  setAnchorTarget(value);
+                }}
+                className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+              >
+                <option value="">{anchorList.length ? 'Select anchor id' : 'No anchors found'}</option>
+                {anchorList.map((item) => (
+                  <option key={`id-${item.id}`} value={item.id}>
+                    {item.id}
+                    {item.name ? ` (${item.name})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
         </div>
       )}
 
-      {withTypeSelector && linkType === 'email' && (
+        {withTypeSelector && effectiveType === 'email' && (
+          <div className="space-y-3">
         <div>
-          <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
-          <input value={emailAddr} onChange={(e)=>setEmailAddr(e.target.value)} placeholder="user@example.com" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">E-Mail Address</label>
+              <input
+                value={emailAddr}
+                onChange={(e)=>setEmailAddr(e.target.value)}
+                placeholder="user@example.com, second@example.com"
+                className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Message Subject</label>
+              <input
+                value={emailSubject}
+                onChange={(e)=>setEmailSubject(e.target.value)}
+                className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Message Body</label>
+              <textarea
+                value={emailBody}
+                onChange={(e)=>setEmailBody(e.target.value)}
+                className="w-full min-h-[100px] rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+              />
+            </div>
         </div>
       )}
     </div>
   );
+  };
 
   const openAnchorModal = () => {
     setAnchorId('');
+    setAnchorName('');
     setIsAnchorOpen(true);
   };
 
   const submitAnchorModal = () => {
     const id = anchorId.trim();
     if (!id) { setIsAnchorOpen(false); return; }
+    const label = (anchorName.trim() || id).trim();
     const sel = getSelectionAsHtmlAndText();
     const inner = sel?.html && sel.html.trim() !== '' ? sel.html : '';
+    const marker = `<span id="${escapeHtml(id)}" class="tiptap-anchor-marker" contenteditable="false" data-anchor-id="${escapeHtml(id)}" data-anchor-label="${escapeHtml(label)}"${anchorName.trim() ? ` data-anchor-name="${escapeHtml(anchorName.trim())}"` : ''}></span>`;
     if (inner) {
-      insertHtml(`<span id="${escapeHtml(id)}">${inner}</span>`);
+      insertHtml(`${marker}${inner}`);
     } else {
-      insertHtml(`<a id="${escapeHtml(id)}"></a>`);
+      insertHtml(`${marker}&nbsp;`);
     }
     setIsAnchorOpen(false);
+    setAnchorId('');
+    setAnchorName('');
+    setAnchorList(getAnchorsFromHtml(editor.getHTML()));
   };
 
   const insertHorizontalRule = () => {
@@ -1432,6 +1577,42 @@ export default function TipTapEmailEditor({
 
   return (
     <div className={`tiptap-wrapper ${className}`}>
+      <style jsx global>{`
+        .tiptap-editor-wrapper .tiptap-anchor-marker {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          font-size: 12px;
+          line-height: 1;
+          color: #dc2626;
+          margin-right: 4px;
+          cursor: default;
+          position: relative;
+        }
+        .tiptap-editor-wrapper .tiptap-anchor-marker::before {
+          content: '🚩';
+        }
+        .tiptap-editor-wrapper .tiptap-anchor-marker::after {
+          content: attr(data-anchor-label);
+          position: absolute;
+          opacity: 0;
+          background: #111827;
+          color: #f9fafb;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 10px;
+          transform: translate(-50%, -150%);
+          left: 50%;
+          white-space: nowrap;
+          pointer-events: none;
+          z-index: 10;
+        }
+        .tiptap-editor-wrapper .tiptap-anchor-marker:hover::after {
+          opacity: 1;
+        }
+      `}</style>
       {/* Toolbar */}
       <div className="tiptap-toolbar flex flex-wrap items-center gap-1 p-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600 rounded-t-md">
         {/* Styles dropdown */}
@@ -3197,9 +3378,7 @@ export default function TipTapEmailEditor({
               </div>
 
               {/* Body */}
-              {linkTab === 'info' && (
-                <LinkInfoFields withTypeSelector />
-              )}
+              {linkTab === 'info' && <LinkInfoFields withTypeSelector />}
 
               {linkTab === 'target' && (
                 <div>
@@ -3307,8 +3486,23 @@ export default function TipTapEmailEditor({
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Anchor Name</label>
-                <input value={anchorId} onChange={(e)=>setAnchorId(e.target.value)} placeholder="section-1" className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm" />
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Anchor Name (optional)</label>
+                <input
+                  value={anchorName}
+                  onChange={(e)=>setAnchorName(e.target.value)}
+                  placeholder="Statement Section"
+                  className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Element Id</label>
+                <input
+                  value={anchorId}
+                  onChange={(e)=>setAnchorId(e.target.value)}
+                  placeholder="statement-section"
+                  className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Use lowercase letters, numbers, or dashes. This is the value used in links (#statement-section).</p>
               </div>
             </div>
             <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
