@@ -688,7 +688,7 @@ export function CustomerDetailClient({
             } catch {}
             
             // Open payment receipt modal
-            setIsPaymentReceiptModalOpen(true);
+            // setIsPaymentReceiptModalOpen(true);
           } else {
             // If we can't get the payment, still show success
             toast.success("Payment saved successfully");
