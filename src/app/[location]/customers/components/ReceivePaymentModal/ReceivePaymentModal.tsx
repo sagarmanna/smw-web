@@ -27,11 +27,12 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   customerName,
   location,
 }) => {
-  // State management with API integration
+  // State management with API integration - only load when modal is open
   const state = usePaymentState(
     location || 'burlington',
     customerId ? parseInt(customerId) : 0,
-    customerName
+    customerName,
+    open // Pass open state to control when to fetch data
   );
   
   // Item manipulation handlers

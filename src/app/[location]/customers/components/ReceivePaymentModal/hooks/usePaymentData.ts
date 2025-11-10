@@ -35,10 +35,12 @@ interface UsePaymentDataResult {
  * Calculates totalOutstanding dynamically based on selected items minus selected credits
  * @param location - The location identifier
  * @param customerId - The customer ID
+ * @param shouldLoad - Whether to load data (only when modal is open)
  */
 export const usePaymentData = (
   location: string,
-  customerId: number
+  customerId: number,
+  shouldLoad: boolean = true
 ): UsePaymentDataResult => {
   const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [groupLessons, setGroupLessons] = useState<GroupLessonItem[]>([]);
@@ -201,12 +203,22 @@ export const usePaymentData = (
     }
   }, [location, customerId, parseMoneyValue]);
 
-  // Load all data on mount
+  // Load all data only when shouldLoad is true (modal is open) and location/customerId are available
   useEffect(() => {
-    if (location && customerId) {
+    if (shouldLoad && location && customerId) {
       loadAllData();
+    } else if (!shouldLoad) {
+      // Reset data when modal closes to avoid stale data
+      setLessons([]);
+      setGroupLessons([]);
+      setInvoices([]);
+      setCredits([]);
+      setPaymentMethods([]);
+      setCustomerName('');
+      setIsLoading(false);
+      setError(null);
     }
-  }, [location, customerId, loadAllData]);
+  }, [shouldLoad, location, customerId, loadAllData]);
 
   return {
     lessons,
