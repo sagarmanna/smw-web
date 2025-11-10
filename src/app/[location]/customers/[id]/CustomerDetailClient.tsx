@@ -569,7 +569,8 @@ export function CustomerDetailClient({
     lessonPayments: Record<string, number>;
     groupLessonPayments?: Record<string, number>;
     invoicePayments?: Record<string, number>;
-    creditPayments?: Record<string, number>;
+    paymentCredits?: Record<string, number>;
+    invoiceCredits?: Record<string, number>;
   }) => {
     setIsSavingPayment(true);
     try {
@@ -591,31 +592,66 @@ export function CustomerDetailClient({
       const amountNeeded = formatToTwoDecimals(lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal);
       const amountToDistribute = formatToTwoDecimals(amountNeeded);
 
-      // Prepare invoice payments array
-      // Strip "I-" prefix from invoice IDs if present (legacy API expects numeric ID only)
+      // Prepare lesson payments array (IDs are already numeric from API)
+      const lessonPaymentsArray = paymentData.lessonPayments
+        ? Object.entries(paymentData.lessonPayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare group lesson payments array (IDs are already numeric from API)
+      const groupLessonPaymentsArray = paymentData.groupLessonPayments
+        ? Object.entries(paymentData.groupLessonPayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare invoice payments array (IDs are already numeric from API, no "I-" prefix needed)
       const invoicePaymentsArray = paymentData.invoicePayments
         ? Object.entries(paymentData.invoicePayments)
             .filter(([_, value]) => value > 0)
-            .map(([id, value]) => {
-              // Remove "I-" prefix if present (e.g., "I-52343" -> "52343")
-              let cleanId = id.startsWith('I-') ? id.substring(2) : id;
-              // Ensure it's a valid numeric ID (remove any other prefixes or non-numeric characters)
-              cleanId = cleanId.replace(/[^0-9]/g, '');
-              // Convert to number if it's a valid numeric string
-              const numericId = cleanId && !isNaN(Number(cleanId)) ? Number(cleanId) : cleanId;
-              return {
-                id: numericId,
-                value: value,
-              };
-            })
-            .filter(({ id }) => id !== null && id !== undefined && id !== '') // Filter out invalid IDs
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
         : [];
 
-      // Prepare invoice payments array with formatted values
-      const formattedInvoicePayments = invoicePaymentsArray.map(inv => ({
-        id: inv.id,
-        value: formatToTwoDecimals(inv.value),
-      }));
+      // Prepare payment credits array (IDs are already numeric from API)
+      const paymentCreditsArray = paymentData.paymentCredits
+        ? Object.entries(paymentData.paymentCredits)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare invoice credits array (IDs are already numeric from API)
+      const invoiceCreditsArray = paymentData.invoiceCredits
+        ? Object.entries(paymentData.invoiceCredits)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Calculate selected credit value (sum of all selected credits)
+      const selectedCreditValue = formatToTwoDecimals(
+        paymentCreditsArray.reduce((sum, c) => sum + c.value, 0) +
+        invoiceCreditsArray.reduce((sum, c) => sum + c.value, 0)
+      );
 
       // Prepare payment data for legacy API
       const legacyPaymentData: PaymentReceiveData = {
@@ -625,12 +661,16 @@ export function CustomerDetailClient({
         reference: paymentData.reference || '',
         amount: formatToTwoDecimals(paymentData.amountReceived),
         amountNeeded: amountNeeded,
-        selectedCreditValue: 0.00,
+        selectedCreditValue: selectedCreditValue,
         amountToDistribute: amountToDistribute,
         notes: paymentData.notes || '',
-        invoicePayments: formattedInvoicePayments.length > 0 ? formattedInvoicePayments : undefined,
-        canUsePaymentCredits: 0,
-        canUseInvoiceCredits: 0,
+        lessonPayments: lessonPaymentsArray.length > 0 ? lessonPaymentsArray : undefined,
+        groupLessonPayments: groupLessonPaymentsArray.length > 0 ? groupLessonPaymentsArray : undefined,
+        invoicePayments: invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        paymentCredits: paymentCreditsArray.length > 0 ? paymentCreditsArray : undefined,
+        invoiceCredits: invoiceCreditsArray.length > 0 ? invoiceCreditsArray : undefined,
+        canUsePaymentCredits: paymentCreditsArray.length > 0 ? 1 : 0,
+        canUseInvoiceCredits: invoiceCreditsArray.length > 0 ? 1 : 0,
         prId: '',
       };
 

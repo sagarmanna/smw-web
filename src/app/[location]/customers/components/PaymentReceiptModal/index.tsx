@@ -1087,12 +1087,26 @@ export function PaymentReceiptModal({
                       const paymentMethodId = Number(editForm.method) || 1; // Default to 1 if invalid
                       
                       // Prepare invoice payments array
+                      // Convert invoice ID from string to number (handle both "I-06489" format and numeric strings)
                       const invoicePayments = invAllocations
                         .filter(inv => inv.amount > 0)
-                        .map(inv => ({
-                          id: inv.id,
-                          value: inv.amount,
-                        }));
+                        .map(inv => {
+                          // Extract numeric ID from string (handle "I-06489" format or numeric string)
+                          let cleanId = inv.id;
+                          if (typeof cleanId === 'string') {
+                            // Remove "I-" prefix if present (e.g., "I-52343" -> "52343")
+                            cleanId = cleanId.startsWith('I-') ? cleanId.substring(2) : cleanId;
+                            // Ensure it's a valid numeric ID (remove any other prefixes or non-numeric characters)
+                            cleanId = cleanId.replace(/[^0-9]/g, '');
+                          }
+                          // Convert to number
+                          const numericId = cleanId && !isNaN(Number(cleanId)) ? Number(cleanId) : 0;
+                          return {
+                            id: numericId,
+                            value: inv.amount,
+                          };
+                        })
+                        .filter(inv => inv.id > 0); // Filter out invalid IDs
 
                       // Prepare payment data for legacy API
                       const paymentData: PaymentReceiveData = {

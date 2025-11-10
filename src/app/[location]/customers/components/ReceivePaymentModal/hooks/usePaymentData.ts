@@ -172,10 +172,10 @@ export const usePaymentData = (
         const balance = parseMoneyValue(invoice.balance);
 
         return {
-          id: invoice.id,
+          id: invoice.id.toString(),
           selected: true,
           date: invoice.date,
-          number: invoice.id,
+          number: invoice.number,
           status: invoice.status,
           amount: total,
           payments: payments,

@@ -44,6 +44,10 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     legacyUrl: '/schedule'
   },
   {
+    pattern: '/payments',
+    legacyUrl: '/payment/index?PaymentSearch%5BisDefault%5D=1'
+  },
+  {
     pattern: '/menu-flags',
     legacyUrl: '/admin/menu-flags'
   },
