@@ -3,7 +3,7 @@
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
@@ -171,7 +171,8 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         filter: { 
           type: "date-range",
           initialValue: undefined,
-          quickPreset: "payments" 
+          quickPreset: "payments",
+          allowClear: true
         },
       },
       {
@@ -225,59 +226,45 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
 
   const handleColumnFilterChange = React.useCallback((columnKey: string, value: unknown) => {
     setColumnFilters((prev) => {
-      const newFilters = { ...prev, [columnKey]: value };
+      const newFilters = { ...prev };
       
+      // Special handling for date filters - explicitly handle undefined to trigger reset
+      if (columnKey === 'date') {
+        if (value === undefined || value === null) {
+          // Delete the key entirely to trigger proper reset
+          delete newFilters[columnKey];
+        } else if (typeof value === 'object' && value !== null) {
+          const dateObj = value as { from?: Date; to?: Date };
+          if (!dateObj.from && !dateObj.to) {
+            // Both dates cleared - delete the filter
+            delete newFilters[columnKey];
+          } else {
+            // Valid date range
+            newFilters[columnKey] = value;
+          }
+        }
+      }
       // Remove filter if value is empty/null/undefined
-      if (!value) {
+      else if (!value) {
         delete newFilters[columnKey];
       } else if (typeof value === 'string' && value.trim() === '') {
         delete newFilters[columnKey];
       } else if (typeof value === 'object' && value !== null) {
-        // For date range objects, check if both from and to are missing
-        const dateObj = value as { from?: Date; to?: Date };
-        if (!dateObj.from && !dateObj.to) {
+        // For other object filters, check if empty
+        const obj = value as Record<string, unknown>;
+        if (Object.keys(obj).length === 0) {
           delete newFilters[columnKey];
+        } else {
+          newFilters[columnKey] = value;
         }
+      } else {
+        newFilters[columnKey] = value;
       }
       
       return newFilters;
     });
     setPage(1); // Reset to first page when filters change
   }, []);
-
-  // Clear all filters
-  const handleClearFilters = React.useCallback(() => {
-    setColumnFilters({});
-    setPage(1);
-  }, []);
-
-  // Check if any filters are active
-  const hasActiveFilters = React.useMemo(() => {
-    return Object.keys(columnFilters).some(key => {
-      const value = columnFilters[key];
-      if (typeof value === 'string') return value.trim() !== '';
-      if (typeof value === 'object' && value !== null) {
-        // For date objects, check if from or to exists
-        const dateObj = value as { from?: Date; to?: Date };
-        return !!(dateObj.from || dateObj.to);
-      }
-      return false;
-    });
-  }, [columnFilters]);
-
-  // Count active filters
-  const activeFilterCount = React.useMemo(() => {
-    return Object.keys(columnFilters).filter(key => {
-      const value = columnFilters[key];
-      if (typeof value === 'string') return value.trim() !== '';
-      if (typeof value === 'object' && value !== null) {
-        // For date objects, check if from or to exists
-        const dateObj = value as { from?: Date; to?: Date };
-        return !!(dateObj.from || dateObj.to);
-      }
-      return false;
-    }).length;
-  }, [columnFilters]);
 
   // Handler for saving payment
   const handlePaymentSaved = React.useCallback(() => {
@@ -314,22 +301,10 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
       error={error}
       onRetry={handleRetry}
       actions={
-        <div className="flex items-center gap-2">
-          {hasActiveFilters && (
-            <Button 
-              variant="outline" 
-              onClick={handleClearFilters}
-              className="flex items-center gap-2"
-            >
-              <X className="h-4 w-4" />
-              Clear Filters ({activeFilterCount})
-            </Button>
-          )}
-          <Button className="bg-primary hover:bg-primary/90" onClick={handleNewPayment}>
-            <Plus className="h-4 w-4 mr-2" />
-            Receive Payment
-          </Button>
-        </div>
+        <Button className="bg-primary hover:bg-primary/90" onClick={handleNewPayment}>
+          <Plus className="h-4 w-4 mr-2" />
+          Receive Payment
+        </Button>
       }
     >
       <CustomTable<PaymentRow, unknown>
@@ -363,6 +338,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
           paymentMethod: "Payment Method",
           amount: "Amount",
         }}
+        key={JSON.stringify(columnFilters.date || null)}
         stickyHeader={true}
         onRowClick={handleRowClick}
       />
