@@ -832,3 +832,78 @@ export async function createBlankInvoice(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+export interface PaymentReceiveData {
+  userId: string | number;
+  date: string; // Format: "MMM dd, yyyy" (e.g., "Nov 09, 2025")
+  paymentMethodId: number;
+  reference: string;
+  amount: number;
+  amountNeeded: number;
+  selectedCreditValue: number;
+  amountToDistribute: number;
+  notes: string;
+  invoicePayments?: Array<{
+    id: string | number;
+    value: number;
+  }>;
+  canUsePaymentCredits?: number; // 0 or 1
+  canUseInvoiceCredits?: number; // 0 or 1
+  prId?: string; // Optional, can be empty
+}
+
+/**
+ * Receive a payment using the legacy API
+ */
+export async function receivePayment(
+  location: string,
+  paymentData: PaymentReceiveData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  
+  formData.append('Payment[user_id]', paymentData.userId.toString());
+  formData.append('PaymentForm[date]', paymentData.date);
+  formData.append('Payment[payment_method_id]', paymentData.paymentMethodId.toString());
+  formData.append('Payment[reference]', paymentData.reference || '');
+  formData.append('PaymentForm[amount]', paymentData.amount.toString());
+  formData.append('PaymentForm[amountNeeded]', paymentData.amountNeeded.toString());
+  formData.append('PaymentForm[selectedCreditValue]', paymentData.selectedCreditValue.toString());
+  formData.append('PaymentForm[amountToDistribute]', paymentData.amountToDistribute.toString());
+  formData.append('PaymentForm[notes]', paymentData.notes || '');
+  
+  // Add invoice payments if provided
+  if (paymentData.invoicePayments && paymentData.invoicePayments.length > 0) {
+    paymentData.invoicePayments.forEach((invoicePayment, index) => {
+      formData.append(`PaymentForm[invoicePayments][${index}][id]`, invoicePayment.id.toString());
+      formData.append(`PaymentForm[invoicePayments][${index}][value]`, invoicePayment.value.toString());
+    });
+  }
+  
+  formData.append('PaymentForm[canUsePaymentCredits]', (paymentData.canUsePaymentCredits || 0).toString());
+  formData.append('PaymentForm[canUseInvoiceCredits]', (paymentData.canUseInvoiceCredits || 0).toString());
+  formData.append('PaymentForm[userId]', paymentData.userId.toString());
+  formData.append('PaymentForm[prId]', paymentData.prId || '');
+
+  const url = `/admin/${location}/payment/receive`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}

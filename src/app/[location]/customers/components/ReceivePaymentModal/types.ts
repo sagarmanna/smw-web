@@ -101,7 +101,7 @@ export interface PaginationState {
 export interface ReceivePaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: ReceivePaymentData) => void;
+  onSave: (data: ReceivePaymentData) => Promise<void> | void;
   customerName?: string;
   customerId?: string;
   location?: string;

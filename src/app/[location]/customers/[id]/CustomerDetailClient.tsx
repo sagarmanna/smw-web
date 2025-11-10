@@ -54,6 +54,8 @@ import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
 import { createStudent, createNote } from "@/lib/api/legacyApiAdapter";
+import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 import {
   InvoiceData,
@@ -177,6 +179,7 @@ export function CustomerDetailClient({
   const [selectedRentalId, setSelectedRentalId] = React.useState<number | null>(null);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
+  const [isSavingPayment, setIsSavingPayment] = React.useState<boolean>(false);
   const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
     React.useState<boolean>(false);
   const [selectedPayment, setSelectedPayment] =
@@ -505,7 +508,7 @@ export function CustomerDetailClient({
   const handlePrintInvoice = () => {};
 
   // Handle receiving payment
-  const handleReceivePayment = (paymentData: {
+  const handleReceivePayment = async (paymentData: {
     customer: string;
     date: string;
     paymentMethod: string;
@@ -513,15 +516,92 @@ export function CustomerDetailClient({
     amountReceived: number;
     notes: string;
     selectedLessons: string[];
+    selectedGroupLessons?: string[];
+    selectedInvoices?: string[];
+    selectedCredits?: string[];
     lessonPayments: Record<string, number>;
+    groupLessonPayments?: Record<string, number>;
+    invoicePayments?: Record<string, number>;
+    creditPayments?: Record<string, number>;
   }) => {
-    console.log("Payment received:", paymentData);
-    // TODO: Call API to save payment
-    // Example: await saveCustomerPayment(location, Number(id), paymentData);
+    setIsSavingPayment(true);
+    try {
+      // Import the legacy API function
+      const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
+      
+      // Helper function to map payment method names to IDs
+      const getPaymentMethodId = (methodName: string): number => {
+        const methodMap: Record<string, number> = {
+          'Cash': 1,
+          'Cheque': 2,
+          'Debit': 3,
+          'Visa': 4,
+          'Mastercard': 5,
+          'Amex': 6,
+          'Gift Card': 7,
+          'E-Transfer': 8,
+        };
+        return methodMap[methodName] || 1; // Default to Cash (1) if not found
+      };
 
-    // Refresh data after payment
-    // You can reload specific sections or all data
-    setIsReceivePaymentModalOpen(false);
+      // Calculate amount needed (sum of all selected items)
+      const lessonPaymentsTotal = Object.values(paymentData.lessonPayments || {}).reduce((sum, val) => sum + val, 0);
+      const groupLessonPaymentsTotal = Object.values(paymentData.groupLessonPayments || {}).reduce((sum, val) => sum + val, 0);
+      const invoicePaymentsTotal = Object.values(paymentData.invoicePayments || {}).reduce((sum, val) => sum + val, 0);
+      const amountNeeded = lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal;
+      const amountToDistribute = amountNeeded;
+
+      // Prepare invoice payments array
+      const invoicePaymentsArray = paymentData.invoicePayments
+        ? Object.entries(paymentData.invoicePayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: id,
+              value: value,
+            }))
+        : [];
+
+      // Prepare payment data for legacy API
+      const legacyPaymentData: PaymentReceiveData = {
+        userId: Number(id),
+        date: paymentData.date, // Already in "MMM dd, yyyy" format
+        paymentMethodId: getPaymentMethodId(paymentData.paymentMethod),
+        reference: paymentData.reference || '',
+        amount: paymentData.amountReceived,
+        amountNeeded: amountNeeded,
+        selectedCreditValue: 0.00,
+        amountToDistribute: amountToDistribute,
+        notes: paymentData.notes || '',
+        invoicePayments: invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        canUsePaymentCredits: 0,
+        canUseInvoiceCredits: 0,
+        prId: '',
+      };
+
+      // Call legacy API
+      const response = await receivePayment(location, legacyPaymentData);
+
+      if (response.status) {
+        // Success - refresh data and close modal
+        toast.success("Payment saved successfully");
+        setIsReceivePaymentModalOpen(false);
+        
+        // Optionally refresh payment data
+        // You might want to refetch payments list here
+      } else {
+        const errorMessage = response.message || response.errors?.join(", ") || "Failed to save payment";
+        console.error("Payment save error:", errorMessage);
+        toast.error(errorMessage);
+        // Don't close modal on error so user can retry
+      }
+    } catch (error) {
+      console.error("Error saving payment:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save payment";
+      toast.error(errorMessage);
+      // Don't close modal on error so user can retry
+    } finally {
+      setIsSavingPayment(false);
+    }
   };
 
   // Helper function to calculate amount needed
@@ -2332,6 +2412,8 @@ export function CustomerDetailClient({
       <PaymentReceiptModal
         open={isPaymentReceiptModalOpen}
         onOpenChange={setIsPaymentReceiptModalOpen}
+        location={location}
+        customerId={Number(id)}
         payment={selectedPayment || undefined}
         customerName={
           (customer &&
