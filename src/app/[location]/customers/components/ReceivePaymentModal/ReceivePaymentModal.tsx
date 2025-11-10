@@ -22,15 +22,16 @@ import { PaymentTablesSection } from './components/PaymentTablesSection';
 const isCustomerInRoute = (): boolean => {
   if (typeof window === 'undefined') return false;
   const path = window.location.pathname.toLowerCase();
-  return path.includes('/customer');
+  // Check if path matches pattern like /customers/123
+  return path.includes('/customers/') && /\/customers\/\d+/.test(path);
 };
 
 /**
  * Main Receive Payment Modal Component with API Integration
  * No pagination - loads all data at once for accurate calculations
  * Supports two modes:
- * 1. Customer Route Mode: Shows fixed customer name (route has "customer" keyword)
- * 2. Dropdown Mode: Shows customer dropdown (route does NOT have "customer" keyword)
+ * 1. Customer Route Mode: Shows fixed customer name (route has "customer" keyword + ID)
+ * 2. Dropdown Mode: Shows customer dropdown (route does NOT match pattern)
  */
 export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   open,
@@ -41,14 +42,19 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   location,
 }) => {
   // Determine if we're in customer route mode
-  const isInCustomerRoute = React.useMemo(() => isCustomerInRoute(), []);
+  const isInCustomerRoute: boolean = React.useMemo(() => {
+    const routeCheck = isCustomerInRoute();
+    // Also check if customerId is provided and valid
+    const hasValidCustomerId = Boolean(customerId && customerId !== '0' && customerId !== '' && parseInt(customerId) > 0);
+    return routeCheck && hasValidCustomerId;
+  }, [customerId]);
   
   // State management with API integration - only load when modal is open
   const state = usePaymentState(
     location || 'burlington',
-    customerId ? parseInt(customerId) : 0,
+    customerId && customerId !== '0' ? parseInt(customerId) : 0,
     customerName,
-    open, // Pass open state to control when to fetch data
+    open,
     isInCustomerRoute
   );
   
@@ -72,7 +78,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   const filteredLessons = useFilteredLessons(state.lessons, state.lessonColumnFilters);
   const filteredGroupLessons = useFilteredGroupLessons(state.groupLessons, state.groupLessonColumnFilters);
   
-  // Column definitions with dynamic filter options - use ORIGINAL data for column generation
+  // Column definitions with dynamic filter options
   const columns = usePaymentColumns(
     state.lessons,
     state.groupLessons,
@@ -83,7 +89,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     filterHandlers.groupLessonStudentOptions
   );
   
-  // Calculations with proper formulas - use ORIGINAL data for calculations
+  // Calculations with proper formulas
   const calculations = usePaymentCalculations(
     state.lessons,
     state.groupLessons,
@@ -93,11 +99,10 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.totalOutstanding
   );
 
-  // AUTO-FILL on initial load only - Amount Received is manually editable after that
+  // AUTO-FILL on initial load only
   const hasUserEditedAmount = React.useRef(false);
   
   React.useEffect(() => {
-    // Only auto-fill if user hasn't manually edited and suggested amount is valid
     if (!hasUserEditedAmount.current && calculations.suggestedAmountReceived !== undefined) {
       const suggested = calculations.suggestedAmountReceived.toFixed(2);
       state.setAmountReceived(suggested);
@@ -113,9 +118,15 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   const [isSaving, setIsSaving] = React.useState<boolean>(false);
 
   /**
-   * Handle save action - transforms state into payment data
+   * Handle save action
    */
   const handleSave = React.useCallback(async () => {
+    // Validate that a customer is selected
+    if (!state.customerId || state.customerId === 0) {
+      alert('Please select a customer before saving payment');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const paymentData: ReceivePaymentData = {
@@ -138,7 +149,6 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
       await onSave(paymentData);
     } catch (error) {
       console.error("Error saving payment:", error);
-      // Error handling is done in the parent component
     } finally {
       setIsSaving(false);
     }
@@ -205,8 +215,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             onNotesChange={state.setNotes}
             availablePaymentMethods={state.availablePaymentMethods}
             isLoadingPaymentMethods={state.isLoading}
-            // NEW: Customer dropdown props
-            isCustomerRoute={state.isInCustomerRoute}
+            isCustomerRoute={isInCustomerRoute}
             customersList={state.customersList}
             isLoadingCustomers={state.isLoadingCustomers}
             onCustomerSelect={state.handleCustomerChange}

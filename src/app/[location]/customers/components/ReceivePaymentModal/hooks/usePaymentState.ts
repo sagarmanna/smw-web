@@ -12,8 +12,8 @@ export const usePaymentState = (
   location: string,
   customerId: number,
   initialCustomerName?: string,
-  shouldLoad: boolean = true, // Only load data when modal is open
-  isCustomerRoute: boolean = true // Whether we're in a customer-specific route
+  shouldLoad: boolean = true,
+  isCustomerRoute: boolean = true
 ) => {
   // Fetch all data from APIs at once - only when shouldLoad is true
   const { 
@@ -41,11 +41,11 @@ export const usePaymentState = (
   const [amountReceived, setAmountReceived] = useState('0.00');
   const [notes, setNotes] = useState('');
   
-  // Filter state - Initialize with empty filters (no date filter by default)
+  // Filter state
   const [lessonColumnFilters, setLessonColumnFilters] = useState<ColumnFilter>({});
   const [groupLessonColumnFilters, setGroupLessonColumnFilters] = useState<ColumnFilter>({});
   
-  // Data state - using API data for all tables
+  // Data state
   const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [groupLessons, setGroupLessons] = useState<GroupLessonItem[]>([]);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
@@ -56,40 +56,32 @@ export const usePaymentState = (
 
   // Update customer data when API data is loaded
   useEffect(() => {
-    if (apiCustomerName) {
+    if (apiCustomerName && isCustomerRoute) {
       setCustomer(apiCustomerName);
     }
     if (apiCustomerId) {
       setCustomerIdState(apiCustomerId);
     }
-  }, [apiCustomerName, apiCustomerId]);
+  }, [apiCustomerName, apiCustomerId, isCustomerRoute]);
 
   // Update lessons when API data is loaded
   useEffect(() => {
-    if (apiLessons.length > 0) {
-      setLessons(apiLessons);
-    }
+    setLessons(apiLessons);
   }, [apiLessons]);
 
   // Update group lessons when API data is loaded
   useEffect(() => {
-    if (apiGroupLessons.length > 0) {
-      setGroupLessons(apiGroupLessons);
-    }
+    setGroupLessons(apiGroupLessons);
   }, [apiGroupLessons]);
 
   // Update invoices when API data is loaded
   useEffect(() => {
-    if (apiInvoices.length > 0) {
-      setInvoices(apiInvoices);
-    }
+    setInvoices(apiInvoices);
   }, [apiInvoices]);
 
   // Update credits when API data is loaded
   useEffect(() => {
-    if (apiCredits.length > 0) {
-      setCredits(apiCredits);
-    }
+    setCredits(apiCredits);
   }, [apiCredits]);
 
   // Update payment methods when API data is loaded and set "Cash" as default
@@ -105,7 +97,6 @@ export const usePaymentState = (
       if (cashMethod) {
         setPaymentMethod(cashMethod.value);
       } else if (apiPaymentMethods[0]) {
-        // Fallback to first payment method if "Cash" is not available
         setPaymentMethod(apiPaymentMethods[0].value);
       }
     }
@@ -118,7 +109,7 @@ export const usePaymentState = (
     }
   }, [totalOutstanding, amountReceived]);
 
-  // NEW: Handle customer selection from dropdown
+  // Handle customer selection from dropdown
   const handleCustomerChange = async (selectedCustomerId: string) => {
     const newCustomerId = parseInt(selectedCustomerId);
     
@@ -139,6 +130,25 @@ export const usePaymentState = (
       setAmountReceived('0.00');
     }
   };
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!shouldLoad) {
+      setCustomer(initialCustomerName || '');
+      setCustomerIdState(customerId);
+      setPaymentDate(new Date());
+      setPaymentMethod('');
+      setReference('');
+      setAmountReceived('0.00');
+      setNotes('');
+      setLessonColumnFilters({});
+      setGroupLessonColumnFilters({});
+      setLessons([]);
+      setGroupLessons([]);
+      setInvoices([]);
+      setCredits([]);
+    }
+  }, [shouldLoad, initialCustomerName, customerId]);
 
   return {
     // Form state
@@ -178,7 +188,7 @@ export const usePaymentState = (
     isLoading,
     error,
     
-    // NEW: Customer dropdown support
+    // Customer dropdown support
     isInCustomerRoute: isCustomerRoute,
     customersList,
     isLoadingCustomers,

@@ -29,21 +29,14 @@ interface UsePaymentDataResult {
   setGroupLessons: React.Dispatch<React.SetStateAction<GroupLessonItem[]>>;
   setInvoices: React.Dispatch<React.SetStateAction<InvoiceItem[]>>;
   setCredits: React.Dispatch<React.SetStateAction<CreditItem[]>>;
-  // NEW: Customer dropdown data
   customersList: Array<{ value: string; label: string; id: number }>;
   isLoadingCustomers: boolean;
-  // NEW: Function to reload payment data when customer changes
   reloadPaymentData: (newCustomerId: number) => Promise<void>;
 }
 
 /**
  * Custom hook to fetch all payment-related data from APIs
  * Loads all data at once without pagination
- * Calculates totalOutstanding dynamically based on selected items minus selected credits
- * @param location - The location identifier
- * @param customerId - The customer ID
- * @param shouldLoad - Whether to load data (only when modal is open)
- * @param isCustomerRoute - Whether we're in a customer-specific route
  */
 export const usePaymentData = (
   location: string,
@@ -58,10 +51,9 @@ export const usePaymentData = (
   const [paymentMethods, setPaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
   const [customerName, setCustomerName] = useState<string>('');
   const [customerIdState, setCustomerIdState] = useState<number>(customerId);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // NEW: Customer dropdown state
   const [customersList, setCustomersList] = useState<Array<{ value: string; label: string; id: number }>>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
 
@@ -74,8 +66,7 @@ export const usePaymentData = (
     return isNaN(parsed) ? 0 : parsed;
   }, []);
 
-  // Calculate total outstanding dynamically based on SELECTED items MINUS selected credits
-  // Formula: Amount Needed = sum of all selected (lessons, group lesson and invoice) - sum of all selected credits
+  // Calculate total outstanding dynamically
   const totalOutstanding = useMemo(() => {
     const lessonsTotal = lessons
       .filter(l => l.selected)
@@ -93,15 +84,14 @@ export const usePaymentData = (
       .filter(c => c.selected)
       .reduce((sum, c) => sum + parseMoneyValue(c.payment), 0);
     
-    // Amount Needed = sum of selected items - sum of selected credits
     const total = lessonsTotal + groupLessonsTotal + invoicesTotal - selectedCreditsTotal;
     
     return total;
   }, [lessons, groupLessons, invoices, credits, parseMoneyValue]);
 
-  // NEW: Load customers list for dropdown (only when NOT in customer route)
+  // Load customers list for dropdown
   const loadCustomersList = useCallback(async () => {
-    if (isCustomerRoute) return; // Skip if we're in customer-specific route
+    if (isCustomerRoute) return;
     
     setIsLoadingCustomers(true);
     try {
@@ -123,10 +113,17 @@ export const usePaymentData = (
 
   // Load payment data for a specific customer
   const loadPaymentData = useCallback(async (targetCustomerId: number) => {
-    if (!targetCustomerId || targetCustomerId === 0) return;
+    if (!targetCustomerId || targetCustomerId === 0) {
+      // Clear data if no customer selected
+      setLessons([]);
+      setGroupLessons([]);
+      setInvoices([]);
+      setCredits([]);
+      return;
+    }
     
     try {
-      // Load all lessons (using large limit to get all records)
+      // Load all lessons
       const lessonsResult = await getReceivePaymentLessons(location, targetCustomerId, 1, 99999);
       const transformedLessons: LessonItem[] = lessonsResult.data.map(lesson => {
         const balance = parseMoneyValue(lesson.balance);
@@ -215,19 +212,20 @@ export const usePaymentData = (
     }
   }, [location, parseMoneyValue]);
 
-  // NEW: Reload payment data when customer changes (for dropdown mode)
+  // Reload payment data when customer changes
   const reloadPaymentData = useCallback(async (newCustomerId: number) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // Update customer ID
       setCustomerIdState(newCustomerId);
       
-      // Load customer name
-      const customerData = await getCustomerView(location, newCustomerId);
-      if (customerData) {
-        setCustomerName(customerData.fullName);
+      // Load customer name if in customer route
+      if (isCustomerRoute && newCustomerId > 0) {
+        const customerData = await getCustomerView(location, newCustomerId);
+        if (customerData) {
+          setCustomerName(customerData.fullName);
+        }
       }
       
       // Load payment data
@@ -239,10 +237,12 @@ export const usePaymentData = (
     } finally {
       setIsLoading(false);
     }
-  }, [location, loadPaymentData]);
+  }, [location, loadPaymentData, isCustomerRoute]);
 
   // Load all data on mount
   const loadAllData = useCallback(async () => {
+    if (!location) return;
+    
     setIsLoading(true);
     setError(null);
 
@@ -283,22 +283,23 @@ export const usePaymentData = (
     }
   }, [location, customerId, isCustomerRoute, loadCustomersList, loadPaymentData]);
 
-  // Load all data only when shouldLoad is true (modal is open) and location/customerId are available
+  // Load all data only when shouldLoad is true
   useEffect(() => {
-    if (shouldLoad && location && customerId) {
+    if (shouldLoad && location) {
       loadAllData();
     } else if (!shouldLoad) {
-      // Reset data when modal closes to avoid stale data
+      // Reset data when modal closes
       setLessons([]);
       setGroupLessons([]);
       setInvoices([]);
       setCredits([]);
       setPaymentMethods([]);
       setCustomerName('');
+      setCustomersList([]);
       setIsLoading(false);
       setError(null);
     }
-  }, [shouldLoad, location, customerId, loadAllData]);
+  }, [shouldLoad, location, loadAllData]);
 
   return {
     lessons,
@@ -315,7 +316,6 @@ export const usePaymentData = (
     setGroupLessons,
     setInvoices,
     setCredits,
-    // NEW: Customer dropdown data
     customersList,
     isLoadingCustomers,
     reloadPaymentData,
