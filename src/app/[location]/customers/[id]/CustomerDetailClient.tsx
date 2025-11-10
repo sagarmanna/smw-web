@@ -552,13 +552,23 @@ export function CustomerDetailClient({
       const amountToDistribute = amountNeeded;
 
       // Prepare invoice payments array
+      // Strip "I-" prefix from invoice IDs if present (legacy API expects numeric ID only)
       const invoicePaymentsArray = paymentData.invoicePayments
         ? Object.entries(paymentData.invoicePayments)
             .filter(([_, value]) => value > 0)
-            .map(([id, value]) => ({
-              id: id,
-              value: value,
-            }))
+            .map(([id, value]) => {
+              // Remove "I-" prefix if present (e.g., "I-52343" -> "52343")
+              let cleanId = id.startsWith('I-') ? id.substring(2) : id;
+              // Ensure it's a valid numeric ID (remove any other prefixes or non-numeric characters)
+              cleanId = cleanId.replace(/[^0-9]/g, '');
+              // Convert to number if it's a valid numeric string
+              const numericId = cleanId && !isNaN(Number(cleanId)) ? Number(cleanId) : cleanId;
+              return {
+                id: numericId,
+                value: value,
+              };
+            })
+            .filter(({ id }) => id !== null && id !== undefined && id !== '') // Filter out invalid IDs
         : [];
 
       // Prepare payment data for legacy API
