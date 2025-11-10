@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "../ReceivePaymentModal/components/DatePicker";
 import EmailStatementModal from "../EmailStatementModal";
 import type { InvoiceData, GroupLessonDueData } from "../../tableConfigs";
+import { receivePayment, PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 export interface PaymentReceiptData {
   date: string;
@@ -25,6 +27,8 @@ export interface PaymentReceiptData {
 interface PaymentReceiptModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  location?: string;
+  customerId?: number;
   payment?: PaymentReceiptData | null;
   customerName?: string;
   customerEmail?: string;
@@ -50,6 +54,8 @@ interface PaymentReceiptModalProps {
 export function PaymentReceiptModal({
   open,
   onOpenChange,
+  location,
+  customerId,
   payment,
   customerName,
   customerEmail,
@@ -69,6 +75,32 @@ export function PaymentReceiptModal({
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [editDate, setEditDate] = React.useState<Date>(new Date());
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<boolean>(false);
+  const [isSaving, setIsSaving] = React.useState<boolean>(false);
+
+  // Helper function to map payment method names to IDs
+  const getPaymentMethodId = (methodName: string): number => {
+    const methodMap: Record<string, number> = {
+      'Cash': 1,
+      'Cheque': 2,
+      'Debit': 3,
+      'Visa': 4,
+      'Mastercard': 5,
+      'Amex': 6,
+      'Gift Card': 7,
+      'E-Transfer': 8,
+    };
+    return methodMap[methodName] || 1; // Default to Cash (1) if not found
+  };
+
+  // Helper function to format date to "MMM dd, yyyy" format
+  const formatDateForLegacy = (date: Date | string): string => {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[d.getMonth()];
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${month} ${day}, ${year}`;
+  };
   const [editForm, setEditForm] = React.useState<{ date: string; method: string; reference: string; amountReceived: string }>(() => ({
     date: payment?.date || "",
     method: payment?.notes || "Cash",
@@ -989,23 +1021,83 @@ export function PaymentReceiptModal({
               <>
                 <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
                 <Button
-                  onClick={() => {
-                    const allocations = lessonEditRows.map(r => ({ lessonDate: r.date, amount: r.allocation }));
-                    const glAllocations = groupLessonEditRows.map(r => ({ date: r.date, student: r.student, amount: r.allocation }));
-                    const invAllocations = invoiceEditRows.map(r => ({ id: r.number, amount: r.allocation }));
-                    onEdit?.({
-                      date: editForm.date || payment?.date || "",
-                      method: editForm.method,
-                      reference: editForm.reference,
-                      amountReceived: parseMoneyToNumber(editForm.amountReceived),
-                      allocations,
-                      groupLessonAllocations: glAllocations,
-                      invoiceAllocations: invAllocations,
-                    });
-                    setIsEditing(false);
+                  disabled={isSaving}
+                  onClick={async () => {
+                    if (!location || !customerId) {
+                      toast.error('Location and customer ID are required');
+                      return;
+                    }
+
+                    setIsSaving(true);
+                    try {
+                      const allocations = lessonEditRows.map(r => ({ lessonDate: r.date, amount: r.allocation }));
+                      const glAllocations = groupLessonEditRows.map(r => ({ date: r.date, student: r.student, amount: r.allocation }));
+                      const invAllocations = invoiceEditRows.map(r => ({ id: r.number, amount: r.allocation }));
+                      
+                      const amountReceived = parseMoneyToNumber(editForm.amountReceived);
+                      const calculatedAmountToApply = amountToApply;
+                      const calculatedAmountToCredit = amountToCredit;
+                      
+                      // Format date
+                      const formattedDate = formatDateForLegacy(editDate);
+                      
+                      // Get payment method ID
+                      const paymentMethodId = getPaymentMethodId(editForm.method);
+                      
+                      // Prepare invoice payments array
+                      const invoicePayments = invAllocations
+                        .filter(inv => inv.amount > 0)
+                        .map(inv => ({
+                          id: inv.id,
+                          value: inv.amount,
+                        }));
+
+                      // Prepare payment data for legacy API
+                      const paymentData: PaymentReceiveData = {
+                        userId: customerId,
+                        date: formattedDate,
+                        paymentMethodId: paymentMethodId,
+                        reference: editForm.reference || '',
+                        amount: amountReceived,
+                        amountNeeded: calculatedAmountToApply,
+                        selectedCreditValue: 0.00,
+                        amountToDistribute: calculatedAmountToApply,
+                        notes: editForm.reference || '',
+                        invoicePayments: invoicePayments.length > 0 ? invoicePayments : undefined,
+                        canUsePaymentCredits: 0,
+                        canUseInvoiceCredits: 0,
+                        prId: '',
+                      };
+
+                      // Call legacy API
+                      const response = await receivePayment(location, paymentData);
+
+                      if (response.status) {
+                        toast.success('Payment saved successfully');
+                        // Call onEdit callback to update local state
+                        onEdit?.({
+                          date: formattedDate,
+                          method: editForm.method,
+                          reference: editForm.reference,
+                          amountReceived: amountReceived,
+                          allocations,
+                          groupLessonAllocations: glAllocations,
+                          invoiceAllocations: invAllocations,
+                        });
+                        setIsEditing(false);
+                      } else {
+                        const errorMessage = response.message || response.errors?.join(", ") || "Failed to save payment";
+                        toast.error(errorMessage);
+                      }
+                    } catch (error) {
+                      const errorMessage = error instanceof Error ? error.message : "Failed to save payment";
+                      toast.error(errorMessage);
+                    } finally {
+                      setIsSaving(false);
+                    }
                   }}
                 >
-                  Save
+                  {isSaving ? "Saving..." : "Save"}
                 </Button>
               </>
             ) : (

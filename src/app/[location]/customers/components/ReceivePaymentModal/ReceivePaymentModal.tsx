@@ -92,28 +92,38 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.setAmountReceived(value);
   }, [state]);
 
+  const [isSaving, setIsSaving] = React.useState<boolean>(false);
+
   /**
    * Handle save action - transforms state into payment data
    */
-  const handleSave = React.useCallback(() => {
-    const paymentData: ReceivePaymentData = {
-      customer: state.customer,
-      date: format(state.paymentDate, 'MMM dd, yyyy'),
-      paymentMethod: state.paymentMethod,
-      reference: state.reference,
-      amountReceived: parseFloat(state.amountReceived) || 0,
-      notes: state.notes,
-      selectedLessons: DataMapper.extractSelectedIds(state.lessons),
-      selectedGroupLessons: DataMapper.extractSelectedIds(state.groupLessons),
-      selectedInvoices: DataMapper.extractSelectedIds(state.invoices),
-      selectedCredits: DataMapper.extractSelectedIds(state.credits),
-      lessonPayments: DataMapper.createPaymentMap(state.lessons),
-      groupLessonPayments: DataMapper.createPaymentMap(state.groupLessons),
-      invoicePayments: DataMapper.createPaymentMap(state.invoices),
-      creditPayments: DataMapper.createPaymentMap(state.credits),
-    };
-    
-    onSave(paymentData);
+  const handleSave = React.useCallback(async () => {
+    setIsSaving(true);
+    try {
+      const paymentData: ReceivePaymentData = {
+        customer: state.customer,
+        date: format(state.paymentDate, 'MMM dd, yyyy'),
+        paymentMethod: state.paymentMethod,
+        reference: state.reference,
+        amountReceived: parseFloat(state.amountReceived) || 0,
+        notes: state.notes,
+        selectedLessons: DataMapper.extractSelectedIds(state.lessons),
+        selectedGroupLessons: DataMapper.extractSelectedIds(state.groupLessons),
+        selectedInvoices: DataMapper.extractSelectedIds(state.invoices),
+        selectedCredits: DataMapper.extractSelectedIds(state.credits),
+        lessonPayments: DataMapper.createPaymentMap(state.lessons),
+        groupLessonPayments: DataMapper.createPaymentMap(state.groupLessons),
+        invoicePayments: DataMapper.createPaymentMap(state.invoices),
+        creditPayments: DataMapper.createPaymentMap(state.credits),
+      };
+      
+      await onSave(paymentData);
+    } catch (error) {
+      console.error("Error saving payment:", error);
+      // Error handling is done in the parent component
+    } finally {
+      setIsSaving(false);
+    }
   }, [state, onSave]);
 
   /**
@@ -196,7 +206,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
           />
         </div>
 
-        <ModalFooter onClose={handleClose} onSave={handleSave} />
+        <ModalFooter onClose={handleClose} onSave={handleSave} isLoading={isSaving} />
       </DialogContent>
     </Dialog>
   );
