@@ -85,7 +85,7 @@ export function PaymentReceiptModal({
   React.useEffect(() => {
     if (open) {
       setIsLoadingPaymentMethods(true);
-      getPaymentMethods()
+      getPaymentMethods(location || "training-location")
         .then((methods) => {
           setPaymentMethods(methods);
           // Set payment method from existing payment or default to Cash

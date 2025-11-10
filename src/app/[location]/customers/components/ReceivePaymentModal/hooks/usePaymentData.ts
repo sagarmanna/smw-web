@@ -95,7 +95,7 @@ export const usePaymentData = (
     try {
       // Load customer data and payment methods
       const [methodsData, customerData] = await Promise.all([
-        getPaymentMethods(),
+        getPaymentMethods(location),
         getCustomerView(location, customerId)
       ]);
 
