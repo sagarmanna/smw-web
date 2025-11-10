@@ -1,10 +1,12 @@
-import React from 'react'
+import { TeachersListingClient } from "./TeachersListingClient";
 
-export default function TeachersPage() {
-  return (
-    <div>
-      <h1>Teachers</h1>
-    </div>
-  )
+interface TeachersPageProps {
+  params: Promise<{
+    location: string;
+  }>;
 }
 
+export default async function TeachersPage({ params }: TeachersPageProps) {
+  const { location } = await params;
+  return <TeachersListingClient location={location} />;
+}
