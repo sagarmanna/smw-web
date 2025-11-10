@@ -1317,3 +1317,32 @@ export async function getCustomerHistory(
     };
   }
 }
+
+/**
+ * Delete a customer
+ * @param location - The location slug
+ * @param customerId - The customer ID
+ * @returns Success response
+ */
+export async function deleteCustomer(
+  location: string,
+  customerId: number
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await apiClient.delete<{
+      success: boolean;
+      message: string;
+      data: { success: boolean };
+    }>(`/admin/v2/${location}/customers/${customerId}`);
+    
+    return {
+      success: response.data.success,
+      message: response.data.message,
+    };
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to delete customer');
+  }
+}
