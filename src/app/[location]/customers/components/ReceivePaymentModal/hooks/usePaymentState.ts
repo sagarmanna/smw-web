@@ -12,7 +12,8 @@ export const usePaymentState = (
   location: string,
   customerId: number,
   initialCustomerName?: string,
-  shouldLoad: boolean = true // Only load data when modal is open
+  shouldLoad: boolean = true, // Only load data when modal is open
+  isCustomerRoute: boolean = true // Whether we're in a customer-specific route
 ) => {
   // Fetch all data from APIs at once - only when shouldLoad is true
   const { 
@@ -26,7 +27,10 @@ export const usePaymentState = (
     totalOutstanding,
     isLoading,
     error,
-  } = usePaymentData(location, customerId, shouldLoad);
+    customersList,
+    isLoadingCustomers,
+    reloadPaymentData,
+  } = usePaymentData(location, customerId, shouldLoad, isCustomerRoute);
 
   // Form state
   const [customer, setCustomer] = useState(initialCustomerName || '');
@@ -37,7 +41,7 @@ export const usePaymentState = (
   const [amountReceived, setAmountReceived] = useState('0.00');
   const [notes, setNotes] = useState('');
   
-  // Filter state
+  // Filter state - Initialize with empty filters (no date filter by default)
   const [lessonColumnFilters, setLessonColumnFilters] = useState<ColumnFilter>({});
   const [groupLessonColumnFilters, setGroupLessonColumnFilters] = useState<ColumnFilter>({});
   
@@ -114,6 +118,28 @@ export const usePaymentState = (
     }
   }, [totalOutstanding, amountReceived]);
 
+  // NEW: Handle customer selection from dropdown
+  const handleCustomerChange = async (selectedCustomerId: string) => {
+    const newCustomerId = parseInt(selectedCustomerId);
+    
+    if (newCustomerId && newCustomerId !== customerIdState) {
+      // Update customer ID state
+      setCustomerIdState(newCustomerId);
+      
+      // Find and set customer name from list
+      const selectedCustomer = customersList.find((c: { id: number; label: string; value: string }) => c.id === newCustomerId);
+      if (selectedCustomer) {
+        setCustomer(selectedCustomer.label);
+      }
+      
+      // Reload payment data for new customer
+      await reloadPaymentData(newCustomerId);
+      
+      // Reset amount received after data loads
+      setAmountReceived('0.00');
+    }
+  };
+
   return {
     // Form state
     customer,
@@ -151,5 +177,11 @@ export const usePaymentState = (
     totalOutstanding,
     isLoading,
     error,
+    
+    // NEW: Customer dropdown support
+    isInCustomerRoute: isCustomerRoute,
+    customersList,
+    isLoadingCustomers,
+    handleCustomerChange,
   };
 };

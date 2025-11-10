@@ -9,7 +9,9 @@ import {
   getInvoiceCredits,
   getPaymentMethods, 
   getCustomerView,
-  PaymentMethod 
+  getCustomersList,
+  PaymentMethod,
+  Customer
 } from '../api/receive-payment.api';
 
 interface UsePaymentDataResult {
@@ -27,6 +29,11 @@ interface UsePaymentDataResult {
   setGroupLessons: React.Dispatch<React.SetStateAction<GroupLessonItem[]>>;
   setInvoices: React.Dispatch<React.SetStateAction<InvoiceItem[]>>;
   setCredits: React.Dispatch<React.SetStateAction<CreditItem[]>>;
+  // NEW: Customer dropdown data
+  customersList: Array<{ value: string; label: string; id: number }>;
+  isLoadingCustomers: boolean;
+  // NEW: Function to reload payment data when customer changes
+  reloadPaymentData: (newCustomerId: number) => Promise<void>;
 }
 
 /**
@@ -36,11 +43,13 @@ interface UsePaymentDataResult {
  * @param location - The location identifier
  * @param customerId - The customer ID
  * @param shouldLoad - Whether to load data (only when modal is open)
+ * @param isCustomerRoute - Whether we're in a customer-specific route
  */
 export const usePaymentData = (
   location: string,
   customerId: number,
-  shouldLoad: boolean = true
+  shouldLoad: boolean = true,
+  isCustomerRoute: boolean = true
 ): UsePaymentDataResult => {
   const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [groupLessons, setGroupLessons] = useState<GroupLessonItem[]>([]);
@@ -51,6 +60,10 @@ export const usePaymentData = (
   const [customerIdState, setCustomerIdState] = useState<number>(customerId);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // NEW: Customer dropdown state
+  const [customersList, setCustomersList] = useState<Array<{ value: string; label: string; id: number }>>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
 
   // Helper function to safely parse monetary values
   const parseMoneyValue = useCallback((value: string | number | undefined | null): number => {
@@ -82,38 +95,39 @@ export const usePaymentData = (
     
     // Amount Needed = sum of selected items - sum of selected credits
     const total = lessonsTotal + groupLessonsTotal + invoicesTotal - selectedCreditsTotal;
-  
     
     return total;
   }, [lessons, groupLessons, invoices, credits, parseMoneyValue]);
 
-  // Load all data
-  const loadAllData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
+  // NEW: Load customers list for dropdown (only when NOT in customer route)
+  const loadCustomersList = useCallback(async () => {
+    if (isCustomerRoute) return; // Skip if we're in customer-specific route
+    
+    setIsLoadingCustomers(true);
     try {
-      // Load customer data and payment methods
-      const [methodsData, customerData] = await Promise.all([
-        getPaymentMethods(location),
-        getCustomerView(location, customerId)
-      ]);
-
-      // Transform payment methods data
-      const transformedMethods = methodsData.map((method: PaymentMethod) => ({
-        value: method.id.toString(),
-        label: method.name
+      const result = await getCustomersList(location, 1, 1000, true, false, 'asc');
+      
+      const transformedCustomers = result.data.map((customer: Customer) => ({
+        value: customer.id.toString(),
+        label: `${customer.firstName} ${customer.lastName}`,
+        id: customer.id
       }));
-      setPaymentMethods(transformedMethods);
+      
+      setCustomersList(transformedCustomers);
+    } catch (err) {
+      console.error('Error fetching customers list:', err);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  }, [location, isCustomerRoute]);
 
-      // Set customer data
-      if (customerData) {
-        setCustomerName(customerData.fullName);
-        setCustomerIdState(customerData.id);
-      }
-
+  // Load payment data for a specific customer
+  const loadPaymentData = useCallback(async (targetCustomerId: number) => {
+    if (!targetCustomerId || targetCustomerId === 0) return;
+    
+    try {
       // Load all lessons (using large limit to get all records)
-      const lessonsResult = await getReceivePaymentLessons(location, customerId, 1, 99999);
+      const lessonsResult = await getReceivePaymentLessons(location, targetCustomerId, 1, 99999);
       const transformedLessons: LessonItem[] = lessonsResult.data.map(lesson => {
         const balance = parseMoneyValue(lesson.balance);
         return {
@@ -132,7 +146,7 @@ export const usePaymentData = (
       setLessons(transformedLessons);
 
       // Load all group lessons
-      const groupLessonsResult = await getReceivePaymentGroupLessons(location, customerId, 1, 99999);
+      const groupLessonsResult = await getReceivePaymentGroupLessons(location, targetCustomerId, 1, 99999);
       const transformedGroupLessons: GroupLessonItem[] = groupLessonsResult.data.map(groupLesson => {
         const balance = parseMoneyValue(groupLesson.balance);
         return {
@@ -151,7 +165,7 @@ export const usePaymentData = (
       setGroupLessons(transformedGroupLessons);
 
       // Load all invoices
-      const invoicesResult = await getReceivePaymentInvoices(location, customerId, 1, 99999);
+      const invoicesResult = await getReceivePaymentInvoices(location, targetCustomerId, 1, 99999);
       const transformedInvoices: InvoiceItem[] = invoicesResult.data.map(invoice => {
         const total = parseMoneyValue(invoice.total);
         const payments = parseMoneyValue(invoice.payments);
@@ -173,8 +187,8 @@ export const usePaymentData = (
 
       // Load all credits
       const [paymentCreditsResult, invoiceCreditsResult] = await Promise.all([
-        getPaymentCredits(location, customerId, 1, 99999),
-        getInvoiceCredits(location, customerId, 1, 99999)
+        getPaymentCredits(location, targetCustomerId, 1, 99999),
+        getInvoiceCredits(location, targetCustomerId, 1, 99999)
       ]);
 
       const allCredits = [
@@ -197,11 +211,77 @@ export const usePaymentData = (
 
     } catch (err) {
       console.error('Error fetching payment data:', err);
+      throw err;
+    }
+  }, [location, parseMoneyValue]);
+
+  // NEW: Reload payment data when customer changes (for dropdown mode)
+  const reloadPaymentData = useCallback(async (newCustomerId: number) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Update customer ID
+      setCustomerIdState(newCustomerId);
+      
+      // Load customer name
+      const customerData = await getCustomerView(location, newCustomerId);
+      if (customerData) {
+        setCustomerName(customerData.fullName);
+      }
+      
+      // Load payment data
+      await loadPaymentData(newCustomerId);
+      
+    } catch (err) {
+      console.error('Error reloading payment data:', err);
+      setError('Failed to load payment data for selected customer');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location, loadPaymentData]);
+
+  // Load all data on mount
+  const loadAllData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Always load payment methods
+      const methodsData = await getPaymentMethods(location);
+      const transformedMethods = methodsData.map((method: PaymentMethod) => ({
+        value: method.id.toString(),
+        label: method.name
+      }));
+      setPaymentMethods(transformedMethods);
+
+      // Load customers list if NOT in customer route
+      if (!isCustomerRoute) {
+        await loadCustomersList();
+      }
+
+      // Load customer-specific data if customerId is provided
+      if (customerId && customerId !== 0) {
+        // Load customer data (only if in customer route)
+        if (isCustomerRoute) {
+          const customerData = await getCustomerView(location, customerId);
+          if (customerData) {
+            setCustomerName(customerData.fullName);
+            setCustomerIdState(customerData.id);
+          }
+        }
+
+        // Load payment data
+        await loadPaymentData(customerId);
+      }
+
+    } catch (err) {
+      console.error('Error fetching payment data:', err);
       setError('Failed to load payment data');
     } finally {
       setIsLoading(false);
     }
-  }, [location, customerId, parseMoneyValue]);
+  }, [location, customerId, isCustomerRoute, loadCustomersList, loadPaymentData]);
 
   // Load all data only when shouldLoad is true (modal is open) and location/customerId are available
   useEffect(() => {
@@ -228,12 +308,16 @@ export const usePaymentData = (
     paymentMethods,
     customerName,
     customerId: customerIdState,
-    totalOutstanding: totalOutstanding,
+    totalOutstanding,
     isLoading,
     error,
     setLessons,
     setGroupLessons,
     setInvoices,
     setCredits,
+    // NEW: Customer dropdown data
+    customersList,
+    isLoadingCustomers,
+    reloadPaymentData,
   };
 };
