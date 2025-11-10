@@ -42,11 +42,13 @@ interface UsePaymentDataResult {
  * Calculates totalOutstanding dynamically based on selected items minus selected credits
  * @param location - The location identifier
  * @param customerId - The customer ID
- * @param isCustomerRoute - Whether the route contains "customer" keyword
+ * @param shouldLoad - Whether to load data (only when modal is open)
+ * @param isCustomerRoute - Whether we're in a customer-specific route
  */
 export const usePaymentData = (
   location: string,
   customerId: number,
+  shouldLoad: boolean = true,
   isCustomerRoute: boolean = true
 ): UsePaymentDataResult => {
   const [lessons, setLessons] = useState<LessonItem[]>([]);
@@ -246,7 +248,7 @@ export const usePaymentData = (
 
     try {
       // Always load payment methods
-      const methodsData = await getPaymentMethods();
+      const methodsData = await getPaymentMethods(location);
       const transformedMethods = methodsData.map((method: PaymentMethod) => ({
         value: method.id.toString(),
         label: method.name
@@ -281,12 +283,22 @@ export const usePaymentData = (
     }
   }, [location, customerId, isCustomerRoute, loadCustomersList, loadPaymentData]);
 
-  // Load all data on mount
+  // Load all data only when shouldLoad is true (modal is open) and location/customerId are available
   useEffect(() => {
-    if (location) {
+    if (shouldLoad && location && customerId) {
       loadAllData();
+    } else if (!shouldLoad) {
+      // Reset data when modal closes to avoid stale data
+      setLessons([]);
+      setGroupLessons([]);
+      setInvoices([]);
+      setCredits([]);
+      setPaymentMethods([]);
+      setCustomerName('');
+      setIsLoading(false);
+      setError(null);
     }
-  }, [location, loadAllData]);
+  }, [shouldLoad, location, customerId, loadAllData]);
 
   return {
     lessons,

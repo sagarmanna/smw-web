@@ -458,12 +458,12 @@ export async function getInvoiceCredits(
 
 /**
  * Fetch available payment methods
- * Endpoint: GET /admin/v2/payment-methods
+ * Endpoint: GET /admin/v2/{location}/payment-methods
  */
-export async function getPaymentMethods(): Promise<PaymentMethod[]> {
+export async function getPaymentMethods(location: string): Promise<PaymentMethod[]> {
   try {
     const response = await apiClient.get<PaymentMethodsResponse>(
-      `/admin/v2/payment-methods`
+      `/admin/v2/${location}/payment-methods`
     );
 
     if (response.data.success && response.data.data.body) {

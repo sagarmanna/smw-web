@@ -54,6 +54,8 @@ import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
 import { createStudent, createNote } from "@/lib/api/legacyApiAdapter";
+import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 import {
   InvoiceData,
@@ -177,6 +179,7 @@ export function CustomerDetailClient({
   const [selectedRentalId, setSelectedRentalId] = React.useState<number | null>(null);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
+  const [isSavingPayment, setIsSavingPayment] = React.useState<boolean>(false);
   const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
     React.useState<boolean>(false);
   const [selectedPayment, setSelectedPayment] =
@@ -505,7 +508,7 @@ export function CustomerDetailClient({
   const handlePrintInvoice = () => {};
 
   // Handle receiving payment
-  const handleReceivePayment = (paymentData: {
+  const handleReceivePayment = async (paymentData: {
     customer: string;
     date: string;
     paymentMethod: string;
@@ -513,15 +516,154 @@ export function CustomerDetailClient({
     amountReceived: number;
     notes: string;
     selectedLessons: string[];
+    selectedGroupLessons?: string[];
+    selectedInvoices?: string[];
+    selectedCredits?: string[];
     lessonPayments: Record<string, number>;
+    groupLessonPayments?: Record<string, number>;
+    invoicePayments?: Record<string, number>;
+    creditPayments?: Record<string, number>;
   }) => {
-    console.log("Payment received:", paymentData);
-    // TODO: Call API to save payment
-    // Example: await saveCustomerPayment(location, Number(id), paymentData);
+    setIsSavingPayment(true);
+    try {
+      // Import the legacy API function
+      const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
+      
+      // Payment method value is already the ID as a string, just convert to number
+      const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
 
-    // Refresh data after payment
-    // You can reload specific sections or all data
-    setIsReceivePaymentModalOpen(false);
+      // Helper function to format numbers to 2 decimal places
+      const formatToTwoDecimals = (value: number): number => {
+        return Math.round(value * 100) / 100;
+      };
+
+      // Calculate amount needed (sum of all selected items)
+      const lessonPaymentsTotal = Object.values(paymentData.lessonPayments || {}).reduce((sum, val) => sum + val, 0);
+      const groupLessonPaymentsTotal = Object.values(paymentData.groupLessonPayments || {}).reduce((sum, val) => sum + val, 0);
+      const invoicePaymentsTotal = Object.values(paymentData.invoicePayments || {}).reduce((sum, val) => sum + val, 0);
+      const amountNeeded = formatToTwoDecimals(lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal);
+      const amountToDistribute = formatToTwoDecimals(amountNeeded);
+
+      // Prepare invoice payments array
+      // Strip "I-" prefix from invoice IDs if present (legacy API expects numeric ID only)
+      const invoicePaymentsArray = paymentData.invoicePayments
+        ? Object.entries(paymentData.invoicePayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => {
+              // Remove "I-" prefix if present (e.g., "I-52343" -> "52343")
+              let cleanId = id.startsWith('I-') ? id.substring(2) : id;
+              // Ensure it's a valid numeric ID (remove any other prefixes or non-numeric characters)
+              cleanId = cleanId.replace(/[^0-9]/g, '');
+              // Convert to number if it's a valid numeric string
+              const numericId = cleanId && !isNaN(Number(cleanId)) ? Number(cleanId) : cleanId;
+              return {
+                id: numericId,
+                value: value,
+              };
+            })
+            .filter(({ id }) => id !== null && id !== undefined && id !== '') // Filter out invalid IDs
+        : [];
+
+      // Prepare invoice payments array with formatted values
+      const formattedInvoicePayments = invoicePaymentsArray.map(inv => ({
+        id: inv.id,
+        value: formatToTwoDecimals(inv.value),
+      }));
+
+      // Prepare payment data for legacy API
+      const legacyPaymentData: PaymentReceiveData = {
+        userId: Number(id),
+        date: paymentData.date, // Already in "MMM dd, yyyy" format
+        paymentMethodId: paymentMethodId,
+        reference: paymentData.reference || '',
+        amount: formatToTwoDecimals(paymentData.amountReceived),
+        amountNeeded: amountNeeded,
+        selectedCreditValue: 0.00,
+        amountToDistribute: amountToDistribute,
+        notes: paymentData.notes || '',
+        invoicePayments: formattedInvoicePayments.length > 0 ? formattedInvoicePayments : undefined,
+        canUsePaymentCredits: 0,
+        canUseInvoiceCredits: 0,
+        prId: '',
+      };
+
+      // Call legacy API
+      const response = await receivePayment(location, legacyPaymentData);
+
+      if (response.status) {
+        // Success - close receive payment modal
+        setIsReceivePaymentModalOpen(false);
+        
+        // Refresh payments list and related data to get the latest payment
+        try {
+          // Refresh payments list to get the latest payment
+          const paymentsResponse = await getCustomerPayments(location, Number(id), 1, 1);
+          if (paymentsResponse.data && paymentsResponse.data.length > 0) {
+            const latestPayment = paymentsResponse.data[0];
+            setSelectedPayment(latestPayment);
+            setSelectedPaymentIndex(0);
+            
+            // Refresh related data for the receipt modal
+            // Refresh private lesson due data
+            try {
+              const privateLessonDueResult = await getCustomerPrivateLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setPrivateLessonDueData(privateLessonDueResult.data || []);
+            } catch {}
+            
+            // Refresh group lesson due data
+            try {
+              const groupLessonDueResult = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setGroupLessonDueData(groupLessonDueResult.data || []);
+            } catch {}
+            
+            // Refresh invoice data
+            try {
+              const invoiceResult = await getCustomerInvoices(location, Number(id), 1);
+              setInvoiceData(invoiceResult || []);
+            } catch {}
+            
+            // Refresh summary data
+            try {
+              const summaryResult = await getCustomerSummary(location, Number(id));
+              if (summaryResult && summaryResult.data) {
+                setSummaryData(summaryResult.data);
+              }
+            } catch {}
+            
+            // Open payment receipt modal
+            setIsPaymentReceiptModalOpen(true);
+          } else {
+            // If we can't get the payment, still show success
+            toast.success("Payment saved successfully");
+          }
+        } catch (error) {
+          console.error("Error fetching payment details:", error);
+          toast.success("Payment saved successfully");
+        }
+      } else {
+        const errorMessage = response.message || response.errors?.join(", ") || "Failed to save payment";
+        console.error("Payment save error:", errorMessage);
+        toast.error(errorMessage);
+        // Don't close modal on error so user can retry
+      }
+    } catch (error) {
+      console.error("Error saving payment:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save payment";
+      toast.error(errorMessage);
+      // Don't close modal on error so user can retry
+    } finally {
+      setIsSavingPayment(false);
+    }
   };
 
   // Helper function to calculate amount needed
@@ -1199,7 +1341,13 @@ export function CustomerDetailClient({
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
         
-        { label: "Print Statement", onClick: () => {} },
+        { 
+          label: "Print Statement", 
+          onClick: () => {
+            const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/print/customer-statement?id=${id}`;
+            window.open(legacyUrl, '_blank');
+          } 
+        },
         {
           label: "Email Statement",
           onClick: () => setIsEmailStatementModalOpen(true),
@@ -2326,6 +2474,8 @@ export function CustomerDetailClient({
       <PaymentReceiptModal
         open={isPaymentReceiptModalOpen}
         onOpenChange={setIsPaymentReceiptModalOpen}
+        location={location}
+        customerId={Number(id)}
         payment={selectedPayment || undefined}
         customerName={
           (customer &&

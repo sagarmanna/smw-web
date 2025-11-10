@@ -12,9 +12,10 @@ export const usePaymentState = (
   location: string,
   customerId: number,
   initialCustomerName?: string,
-  isCustomerRoute: boolean = true
+  shouldLoad: boolean = true, // Only load data when modal is open
+  isCustomerRoute: boolean = true // Whether we're in a customer-specific route
 ) => {
-  // Fetch all data from APIs at once
+  // Fetch all data from APIs at once - only when shouldLoad is true
   const { 
     lessons: apiLessons,
     groupLessons: apiGroupLessons,
@@ -26,11 +27,10 @@ export const usePaymentState = (
     totalOutstanding,
     isLoading,
     error,
-    // NEW: Customer dropdown data
     customersList,
     isLoadingCustomers,
     reloadPaymentData,
-  } = usePaymentData(location, customerId, isCustomerRoute);
+  } = usePaymentData(location, customerId, shouldLoad, isCustomerRoute);
 
   // Form state
   const [customer, setCustomer] = useState(initialCustomerName || '');
@@ -53,14 +53,6 @@ export const usePaymentState = (
   
   // Available payment methods from API
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
-
-  // NEW: Track if we're in customer route mode
-  const [isInCustomerRoute, setIsInCustomerRoute] = useState(isCustomerRoute);
-
-  // Update customer route mode
-  useEffect(() => {
-    setIsInCustomerRoute(isCustomerRoute);
-  }, [isCustomerRoute]);
 
   // Update customer data when API data is loaded
   useEffect(() => {
@@ -135,7 +127,7 @@ export const usePaymentState = (
       setCustomerIdState(newCustomerId);
       
       // Find and set customer name from list
-      const selectedCustomer = customersList.find(c => c.id === newCustomerId);
+      const selectedCustomer = customersList.find((c: { id: number; label: string; value: string }) => c.id === newCustomerId);
       if (selectedCustomer) {
         setCustomer(selectedCustomer.label);
       }
@@ -187,7 +179,7 @@ export const usePaymentState = (
     error,
     
     // NEW: Customer dropdown support
-    isInCustomerRoute,
+    isInCustomerRoute: isCustomerRoute,
     customersList,
     isLoadingCustomers,
     handleCustomerChange,
