@@ -653,13 +653,33 @@ export function CustomerDetailClient({
         invoiceCreditsArray.reduce((sum, c) => sum + c.value, 0)
       );
 
+      // Calculate amount received following legacy logic (matches _form.php line 272):
+      // amountNeeded - creditAmount < 0 ? (amountNeeded > 0 ? '0.00' : amountNeeded - creditAmount) : (-(creditAmount - amountNeeded))
+      // Simplified: if credits fully cover and amountNeeded > 0, return 0.00, otherwise return amountNeeded - creditAmount
+      const amountAfterCredits = amountNeeded - selectedCreditValue;
+      let calculatedAmount: number;
+      if (amountAfterCredits < 0) {
+        // Credits exceed amount needed
+        calculatedAmount = amountNeeded > 0 ? 0.00 : amountAfterCredits;
+      } else {
+        // Credits don't fully cover amount needed (or exactly match)
+        // (-(creditAmount - amountNeeded)) = amountNeeded - creditAmount
+        calculatedAmount = amountAfterCredits;
+      }
+      
+      // Use the calculated amount when credits are present (matching legacy auto-calculation behavior)
+      // When no credits are used, use the user-entered amount
+      const finalAmount = selectedCreditValue > 0 
+        ? formatToTwoDecimals(calculatedAmount)
+        : formatToTwoDecimals(paymentData.amountReceived);
+
       // Prepare payment data for legacy API
       const legacyPaymentData: PaymentReceiveData = {
         userId: Number(id),
         date: paymentData.date, // Already in "MMM dd, yyyy" format
         paymentMethodId: paymentMethodId,
         reference: paymentData.reference || '',
-        amount: formatToTwoDecimals(paymentData.amountReceived),
+        amount: finalAmount,
         amountNeeded: amountNeeded,
         selectedCreditValue: selectedCreditValue,
         amountToDistribute: amountToDistribute,
