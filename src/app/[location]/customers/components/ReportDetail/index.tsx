@@ -10,6 +10,8 @@ import { getCustomerById, getCustomerInfo } from "../../customers.api";
 import { getReportOutstandingInvoices, getReportPrepaidLessons, getReportAvailableCredits, OutstandingInvoiceRaw, PrepaidLessonRaw, AvailableCreditRaw } from "./report-detail-api";
 import { useRouter } from "next/navigation";
 import { DetailHeader } from "@/components/DetailHeader";
+import { Button } from "@/components/ui/button";
+import { Printer } from "lucide-react";
 
 // Data interfaces
 interface OutstandingInvoice {
@@ -234,8 +236,160 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
   const netTotal = outstandingTotal - (prepaidTotal + unusedTotal);
  
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    const safe = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+
+    // Open early to avoid popup blockers and show a preparing state
+    const win = window.open("", "_blank");
+    if (!win) {
+      alert("Please allow popups for this site to print");
+      return;
+    }
+    try { win.opener = null; } catch {}
+    win.document.open();
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8" /><title>Preparing…</title><style>
+      body{font-family:Arial,Helvetica,sans-serif;padding:20px;color:#111827}
+    </style></head><body><div>Preparing print view…</div></body></html>`);
+    win.document.close();
+
+    // Fetch ALL rows for each section in one request if supported
+    const outstandingLimitAll = outstandingMeta?.total ? Math.max(outstandingMeta.total, 1) : 1000;
+    const prepaidLimitAll = prepaidMeta?.total ? Math.max(prepaidMeta.total, 1) : 1000;
+    const creditsLimitAll = creditsMeta?.total ? Math.max(creditsMeta.total, 1) : 1000;
+
+    const [outstandingAllResp, prepaidAllResp, creditsAllResp] = await Promise.all([
+      getReportOutstandingInvoices(location, Number(customerId), 1, outstandingLimitAll),
+      getReportPrepaidLessons(location, Number(customerId), 1, prepaidLimitAll),
+      getReportAvailableCredits(location, Number(customerId), 1, creditsLimitAll),
+    ]);
+
+    const allOutstanding: OutstandingInvoice[] = (outstandingAllResp.data || []).map((row: OutstandingInvoiceRaw) => ({
+      id: row.id,
+      date: row.date,
+      owing: typeof row.balanceDue === 'number'
+        ? row.balanceDue
+        : parseCurrencyToNumber(String(row.balanceDue ?? row.owing ?? 0))
+    }));
+    const allPrepaid: PrepaidLesson[] = (prepaidAllResp.data || []).map((row: PrepaidLessonRaw) => ({
+      id: String(row.lessonId),
+      lessonDate: row.lessonDate,
+      status: row.status,
+      paid: parseCurrencyToNumber(row.paid)
+    }));
+    const allCredits: UnusedCredit[] = (creditsAllResp.data || []).map((row: AvailableCreditRaw) => ({
+      id: row.id,
+      date: row.date,
+      amount: parseCurrencyToNumber(row.amount)
+    }));
+
+    const outstandingTotalAll = allOutstanding.reduce((sum, r) => sum + r.owing, 0);
+    const prepaidTotalAll = allPrepaid.reduce((sum, r) => sum + r.paid, 0);
+    const unusedTotalAll = allCredits.reduce((sum, r) => sum + r.amount, 0);
+    const netTotalAll = outstandingTotalAll - (prepaidTotalAll + unusedTotalAll);
+
+    const section = (title: string, headers: string[], rowsHtml: string, footerHtml?: string) => `
+      <h2 style="font-size:14px;font-weight:700;margin:18px 0 8px;">${title}</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            ${headers
+              .map(
+                (h) =>
+                  `<th style="border:1px solid #000;padding:6px 8px;background:#f3f4f6;text-align:left;">${h}</th>`
+              )
+              .join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+          ${footerHtml ? footerHtml : ""}
+        </tbody>
+      </table>
+    `;
+    const outstandingRows = allOutstanding
+      .map(
+        (r) => `
+          <tr>
+            <td style="border:1px solid #000;padding:6px 8px;">${safe(r.id)}</td>
+            <td style="border:1px solid #000;padding:6px 8px;">${safe(r.date)}</td>
+            <td style="border:1px solid #000;padding:6px 8px;text-align:right;">${formatCurrency(r.owing)}</td>
+          </tr>
+        `
+      )
+      .join("");
+    const outstandingFooter = `
+      <tr>
+        <td style="border:1px solid #000;padding:6px 8px;font-weight:700;">Total:</td>
+        <td style="border:1px solid #000;padding:6px 8px;"></td>
+        <td style="border:1px solid #000;padding:6px 8px;text-align:right;font-weight:700;">${formatCurrency(outstandingTotalAll)}</td>
+      </tr>
+    `;
+    const prepaidRows = allPrepaid
+      .map(
+        (r) => `
+          <tr>
+            <td style="border:1px solid #000;padding:6px 8px;">${safe(r.id)}</td>
+            <td style="border:1px solid #000;padding:6px 8px;">${safe(r.lessonDate)}</td>
+            <td style="border:1px solid #000;padding:6px 8px;">${safe(r.status)}</td>
+            <td style="border:1px solid #000;padding:6px 8px;text-align:right;">${formatCurrency(r.paid)}</td>
+          </tr>
+        `
+      )
+      .join("");
+    const prepaidFooter = `
+      <tr>
+        <td style="border:1px solid #000;padding:6px 8px;font-weight:700;">Total:</td>
+        <td style="border:1px solid #000;padding:6px 8px;"></td>
+        <td style="border:1px solid #000;padding:6px 8px;"></td>
+        <td style="border:1px solid #000;padding:6px 8px;text-align:right;font-weight:700;">${formatCurrency(prepaidTotalAll)}</td>
+      </tr>
+    `;
+    const creditsRows = allCredits
+      .map(
+        (r) => `
+          <tr>
+            <td style="border:1px solid #000;padding:6px 8px;">${safe(r.id)}</td>
+            <td style="border:1px solid #000;padding:6px 8px;">${safe(r.date)}</td>
+            <td style="border:1px solid #000;padding:6px 8px;text-align:right;">${formatCurrency(r.amount)}</td>
+          </tr>
+        `
+      )
+      .join("");
+    const creditsFooter = `
+      <tr>
+        <td style="border:1px solid #000;padding:6px 8px;"></td>
+        <td style="border:1px solid #000;padding:6px 8px;font-weight:700;">Total:</td>
+        <td style="border:1px solid #000;padding:6px 8px;text-align:right;font-weight:700;">${formatCurrency(unusedTotalAll)}</td>
+      </tr>
+    `;
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Account - ${customerDisplayName || customerName}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            body { font-family: Arial, Helvetica, sans-serif; color:#111827; padding:18px; }
+            h1 { font-size:18px; margin:0 0 12px; }
+            @media print { @page { margin: 12mm; } body { padding: 8px; } }
+          </style>
+        </head>
+        <body>
+          <h1>${safe(customerDisplayName || customerName)}</h1>
+          ${section("Outstanding Invoices", ["ID", "Date", "Owing"], outstandingRows, outstandingFooter)}
+          ${section("Prepaid Lessons", ["ID", "Lesson Date", "Status", "Paid"], prepaidRows, prepaidFooter)}
+          ${section("Unused Credits", ["ID", "Date", "Amount"], creditsRows, creditsFooter)}
+          <div style="text-align:right;margin-top:14px;font-size:14px;font-weight:800;">
+            ${formatCurrency(netTotalAll)}
+          </div>
+        </body>
+      </html>
+    `;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { try { win.print(); } catch {} }, 200);
   };
 
   const formatCurrency = (amount: number) => {
@@ -272,7 +426,17 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
           ]}
           currentPageTitle="Account"
           showActions={false}
-          actionMenuGroups={[]}
+          rightContent={
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-9 w-9 sm:h-10 sm:w-10"
+              onClick={handlePrint}
+              aria-label="Print"
+            >
+              <Printer className="h-4 w-4 sm:h-5 sm:w-5" />
+            </Button>
+          }
         />
       </div>
 
@@ -289,8 +453,7 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
             variant="striped"
             enableSorting={true}
             enableExport={false}
-            enablePrint={true}
-            onPrint={handlePrint}
+            enablePrint={false}
             enableSearch={false}
             enableFilter={false}
             enableRowsPerPage={true}
@@ -322,8 +485,7 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
             variant="striped"
             enableSorting={true}
             enableExport={false}
-            enablePrint={true}
-            onPrint={handlePrint}
+            enablePrint={false}
             enableSearch={false}
             enableFilter={false}
             enableRowsPerPage={true}
@@ -356,8 +518,7 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
             variant="striped"
             enableSorting={true}
             enableExport={false}
-            enablePrint={true}
-            onPrint={handlePrint}
+            enablePrint={false}
             enableSearch={false}
             enableFilter={false}
             enableRowsPerPage={true}

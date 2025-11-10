@@ -46,6 +46,8 @@ export interface DetailHeaderProps {
   actionMenuGroups?: ActionMenuGroup[];
   actionButtonAriaLabel?: string;
   
+  // Optional right-side custom content (e.g., a print button)
+  rightContent?: React.ReactNode;
   
   // Optional styling
   className?: string;
@@ -58,6 +60,7 @@ export function DetailHeader({
   actionMenuGroups = [],
   actionButtonAriaLabel = "Actions",
   showActions = true,
+  rightContent,
   className = "",
 }: DetailHeaderProps) {
   return (
@@ -122,7 +125,11 @@ export function DetailHeader({
       </div>
 
       {/* Actions Section */}
-      {showActions && actionMenuGroups.length > 0 ? (
+      {rightContent ? (
+        <div className="flex-shrink-0">
+          {rightContent}
+        </div>
+      ) : showActions && actionMenuGroups.length > 0 ? (
         <div className="flex-shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
