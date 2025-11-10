@@ -1199,7 +1199,13 @@ export function CustomerDetailClient({
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
         
-        { label: "Print Statement", onClick: () => {} },
+        { 
+          label: "Print Statement", 
+          onClick: () => {
+            const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/print/customer-statement?id=${id}`;
+            window.open(legacyUrl, '_blank');
+          } 
+        },
         {
           label: "Email Statement",
           onClick: () => setIsEmailStatementModalOpen(true),
