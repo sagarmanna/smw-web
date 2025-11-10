@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ReusableModal } from "@/components/TablesModals";
 import { toast } from "sonner";
 import { CheckCircle2, Circle } from "lucide-react";
-import { notifyCustomerByEmail } from "@/lib/api/legacyApiAdapter";
+import { getNotifyEmailPreview, updateNotifyEmail, NotifyEmailType } from "../../customers.api";
 
 interface NotifyViaEmailReasonsModalProps {
   open: boolean;
@@ -19,49 +19,58 @@ export function NotifyViaEmailReasonsModal({
 }: NotifyViaEmailReasonsModalProps) {
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [emailTypes, setEmailTypes] = useState<NotifyEmailType[]>([]);
 
-  const reasons = useMemo(
-    () => [
-      { id: "upcoming-makeup", label: "Upcoming Makeup lesson", legacyValue: 1 },
-      { id: "first-scheduled", label: "First scheduled Lesson", legacyValue: 2 },
-      { id: "overdue-invoice", label: "OverDue Invoice", legacyValue: 3 },
-      { id: "future-lessons", label: "Future Lessons", legacyValue: 4 },
-    ],
-    []
-  );
+  // Fetch notification email types when modal opens
+  useEffect(() => {
+    if (open && customerId) {
+      setIsLoading(true);
+      getNotifyEmailPreview(location, customerId)
+        .then((types) => {
+          setEmailTypes(types);
+          // Set selected reasons based on checked status
+          const checkedIds = types
+            .filter((type) => type.isChecked)
+            .map((type) => type.id.toString());
+          setSelectedReasons(checkedIds);
+        })
+        .catch((error) => {
+          console.error('Failed to load notification email types:', error);
+          toast.error('Failed to load notification email types');
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [open, location, customerId]);
 
-  const handleCheckboxChange = (reasonId: string) => {
+  const handleCheckboxChange = (typeId: number) => {
+    const typeIdStr = typeId.toString();
     setSelectedReasons(prev => 
-      prev.includes(reasonId)
-        ? prev.filter(id => id !== reasonId)
-        : [...prev, reasonId]
+      prev.includes(typeIdStr)
+        ? prev.filter(id => id !== typeIdStr)
+        : [...prev, typeIdStr]
     );
   };
 
   const handleSend = async () => {
     setIsSending(true);
     try {
-      const selectedIds = reasons
-        .filter((reason) => selectedReasons.includes(reason.id))
-        .map((reason) => reason.legacyValue);
+      const selectedIds = selectedReasons.map(id => parseInt(id, 10));
 
-      const response = await notifyCustomerByEmail(location, customerId, {
-        emailNotifyTypeIds: selectedIds,
-      });
+      const response = await updateNotifyEmail(location, customerId, selectedIds);
 
-      if (response.status) {
-        toast.success("Notification email sent successfully");
-        setSelectedReasons([]);
+      if (response.success) {
+        toast.success("Notification email settings updated successfully");
         onOpenChange(false);
       } else {
-        const errorMessage =
-          response.message || response.errors?.join(", ") ||
-          "Failed to send notification email";
+        const errorMessage = response.message || "Failed to update notification email settings";
         toast.error(errorMessage);
       }
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Failed to send notification email";
+        error instanceof Error ? error.message : "Failed to update notification email settings";
       toast.error(errorMessage);
     } finally {
       setIsSending(false);
@@ -81,10 +90,10 @@ export function NotifyViaEmailReasonsModal({
       disabled: isSending,
     },
     {
-      label: isSending ? "Sending..." : "Send",
+      label: isSending ? "Saving..." : "Save",
       onClick: handleSend,
       variant: "default" as const,
-      disabled: selectedReasons.length === 0 || isSending,
+      disabled: isSending || isLoading,
     },
   ];
 
@@ -98,24 +107,34 @@ export function NotifyViaEmailReasonsModal({
       showFooter={true}
     >
       <div className="space-y-2">
-        {reasons.map((reason) => (
-          <div
-            key={reason.id}
-            onClick={() => !isSending && handleCheckboxChange(reason.id)}
-            className={`flex items-center space-x-3 p-3 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
-              isSending ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {selectedReasons.includes(reason.id) ? (
-              <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-            ) : (
-              <Circle className="w-5 h-5 text-gray-400 dark:text-gray-600 flex-shrink-0" />
-            )}
-            <span className="text-sm text-gray-700 dark:text-gray-300 select-none">
-              {reason.label}
-            </span>
+        {isLoading ? (
+          <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+            Loading notification types...
           </div>
-        ))}
+        ) : emailTypes.length === 0 ? (
+          <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+            No notification types available
+          </div>
+        ) : (
+          emailTypes.map((emailType) => (
+            <div
+              key={emailType.id}
+              onClick={() => !isSending && handleCheckboxChange(emailType.id)}
+              className={`flex items-center space-x-3 p-3 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
+                isSending ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {selectedReasons.includes(emailType.id.toString()) ? (
+                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+              ) : (
+                <Circle className="w-5 h-5 text-gray-400 dark:text-gray-600 flex-shrink-0" />
+              )}
+              <span className="text-sm text-gray-700 dark:text-gray-300 select-none">
+                {emailType.emailNotifyType}
+              </span>
+            </div>
+          ))
+        )}
       </div>
     </ReusableModal>
   );
