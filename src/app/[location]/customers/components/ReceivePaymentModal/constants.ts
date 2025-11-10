@@ -1,4 +1,5 @@
 // constants.ts
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 // No default payment methods - all loaded dynamically from API
 export const PAYMENT_METHODS = [] as const;
@@ -19,6 +20,12 @@ export const CALENDAR_CONFIG = {
   fromYear: 2005,
   toYear: 2125,
   captionLayout: 'dropdown' as const,
+} as const;
+
+// Default date range for filters - current month (used as placeholder/suggestion only)
+export const DEFAULT_DATE_RANGE = {
+  from: startOfMonth(new Date()),
+  to: endOfMonth(new Date()),
 } as const;
 
 export const MESSAGES = {

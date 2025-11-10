@@ -1,66 +1,41 @@
+// components/ReceivePayment.tsx
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
-import {
-  PaymentReceiptModal as CustomerPaymentReceiptModal,
-  type PaymentReceiptData,
-} from "@/app/[location]/customers/components/PaymentReceiptModal";
+import { ReceivePaymentModal } from "@/app/[location]/customers/components/ReceivePaymentModal";
+import { ReceivePaymentData } from "@/app/[location]/customers/components/ReceivePaymentModal/types";
 
-export interface PaymentRowLike {
-  date: Date;
-  customer: string;
-  paymentMethod: string;
-  reference?: string | null;
-  amount: number;
-}
-
-interface PaymentsReceiptModalProps {
+interface PaymentsReceivePaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  row?: PaymentRowLike | null;
-  customerEmail?: string;
-  customerPhone?: string;
-  locationName?: string;
+  onSave: (data: ReceivePaymentData) => void;
+  location: string;
+  customerId?: string;
+  customerName?: string;
 }
 
-export function PaymentsReceiptModal({
+/**
+ * Wrapper component for Receive Payment Modal in Payments page
+ * This is NOT a customer route, so it will show the customer dropdown
+ */
+export function PaymentsReceivePaymentModal({
   open,
   onOpenChange,
-  row,
-  customerEmail,
-  customerPhone,
-  locationName,
-}: PaymentsReceiptModalProps) {
-  const payment: PaymentReceiptData | null = row
-    ? {
-        date: format(row.date, "MMM dd, yyyy"),
-        notes: row.paymentMethod,
-        amount: row.amount,
-        used: row.amount,
-        remaining: 0,
-      }
-    : null;
-
+  onSave,
+  location,
+  customerId,
+  customerName,
+}: PaymentsReceivePaymentModalProps) {
   return (
-    <CustomerPaymentReceiptModal
+    <ReceivePaymentModal
       open={open}
       onOpenChange={onOpenChange}
-      payment={payment || undefined}
-      customerName={row?.customer}
-      customerEmail={customerEmail}
-      customerPhone={customerPhone}
-      locationName={locationName}
-      // Exclude group lesson data by not passing it
-      groupLessonDueData={[]}
-      onEdit={() => {}}
-      onDelete={() => {}}
-      onPrint={() => {}}
-      onEmail={() => {}}
+      onSave={onSave}
+      location={location}
+      // Pass customerId as undefined or '0' to trigger dropdown mode
+      // The modal will detect that the route doesn't contain "customer"
+      customerId={customerId || '0'}
+      customerName={customerName}
     />
   );
 }
-
-export default PaymentsReceiptModal;
-
-

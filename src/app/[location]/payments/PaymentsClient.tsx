@@ -8,8 +8,8 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
-import { PaymentsReceiptModal } from "./components/PaymentReceipt";
-import { PaymentsReceivePaymentModal } from "./components/PaymentReceipt/ReceivePayment";
+import { PaymentsReceiptModal } from "./components/PaymentReceipt/ReceivePayment";
+import { PaymentsReceivePaymentModal } from "./components/PaymentReceipt";
 
 interface PaymentsClientProps {
   location: string;
@@ -202,8 +202,14 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
 
   const handleColumnFilterChange = React.useCallback((columnKey: string, value: unknown) => {
     setColumnFilters((prev) => ({ ...prev, [columnKey]: value }));
-    // Reset to first page on filter change for consistent UX
     setPage(1);
+  }, []);
+
+  // Handler for saving new payment
+  const handlePaymentSaved = React.useCallback(() => {
+    // TODO: Refresh payments list from API
+    console.log("Payment saved, refreshing list...");
+    setReceiveOpen(false);
   }, []);
 
   return (
@@ -231,7 +237,6 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         enablePrint={false}
         enableExport={false}
         customHeaderComponent={null}
-        // Toolbar record count and rows-per-page
         showRecordCountInToolbar={true}
         enableRowsPerPage={true}
         rowsPerPage={rowsPerPage}
@@ -239,11 +244,9 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
           setRowsPerPage(newRowsPerPage);
           setPage(1);
         }}
-        // Server-side style pagination just for UI (no API yet)
         serverSidePagination={pagination}
         onServerSidePageChange={(newPage) => setPage(newPage)}
         hideRecordCount={true}
-        // Column filter inputs row
         enableColumnFilters={true}
         columnFilters={columnFilters}
         onColumnFilterChange={handleColumnFilterChange}
@@ -260,20 +263,23 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
           setReceiptOpen(true);
         }}
       />
+      
+      {/* Payment Receipt Modal */}
       <PaymentsReceiptModal
         open={receiptOpen}
         onOpenChange={setReceiptOpen}
         row={selectedRow || undefined}
         locationName={location}
       />
+      
+      {/* Receive Payment Modal - NO customerId prop = Dropdown Mode */}
       <PaymentsReceivePaymentModal
         open={receiveOpen}
         onOpenChange={setReceiveOpen}
-        onSave={() => setReceiveOpen(false)}
+        onSave={handlePaymentSaved}
         location={location}
+        // Don't pass customerId to trigger dropdown mode
       />
     </ReportPageLayout>
   );
 }
-
-
