@@ -152,6 +152,41 @@ export interface CustomerViewResponse {
   };
 }
 
+// NEW: Customer List Interface
+export interface Customer {
+  id: number;
+  isActive: boolean;
+  firstName: string;
+  lastName: string;
+  email: string;
+  allEmails: string;
+  students: string;
+  balance: string;
+}
+
+export interface CustomerListResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: Customer[];
+    footer: {
+      id: string;
+      isActive: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      students: string;
+      balance: string;
+    };
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+}
+
 // ==========================================
 // API FUNCTIONS WITH PAGINATION SUPPORT
 // ==========================================
@@ -445,6 +480,7 @@ export async function getPaymentMethods(): Promise<PaymentMethod[]> {
 /**
  * Fetch customer view data (name, etc.)
  * Endpoint: GET /admin/v2/{location}/customers/{customerId}/customer-view
+ * Only called when route contains "customer" keyword
  */
 export async function getCustomerView(
   location: string,
@@ -463,5 +499,64 @@ export async function getCustomerView(
   } catch (error: unknown) {
     console.error('Error fetching customer view:', error);
     return null;
+  }
+}
+
+/**
+ * NEW: Fetch customers list for dropdown
+ * Endpoint: GET /admin/v2/{location}/customers
+ * Called when route does NOT contain "customer" keyword
+ */
+export async function getCustomersList(
+  location: string,
+  page: number = 1,
+  limit: number = 1000,
+  showActive: boolean = true,
+  showInActive: boolean = false,
+  order: 'asc' | 'desc' = 'asc'
+): Promise<{
+  data: Customer[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}> {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    params.append('showActive', showActive.toString());
+    params.append('showInActive', showInActive.toString());
+    params.append('order', order);
+
+    const response = await apiClient.get<CustomerListResponse>(
+      `/admin/v2/${location}/customers`,
+      { params }
+    );
+
+    if (response.data.success && response.data.data.body) {
+      return {
+        data: response.data.data.body,
+        pagination: response.data.data.pagination || {
+          page: 1,
+          limit: 20,
+          total: response.data.data.body.length,
+          totalPages: 1,
+        },
+      };
+    }
+
+    return {
+      data: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    };
+  } catch (error: unknown) {
+    console.error('Error fetching customers list:', error);
+    return {
+      data: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    };
   }
 }

@@ -16,8 +16,21 @@ import { PaymentFormSection } from './components/PaymentFormSection';
 import { PaymentTablesSection } from './components/PaymentTablesSection';
 
 /**
+ * Utility function to check if current route contains "customer" keyword
+ * Used to determine whether to show customer dropdown or fixed customer name
+ */
+const isCustomerInRoute = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  return path.includes('/customer');
+};
+
+/**
  * Main Receive Payment Modal Component with API Integration
  * No pagination - loads all data at once for accurate calculations
+ * Supports two modes:
+ * 1. Customer Route Mode: Shows fixed customer name (route has "customer" keyword)
+ * 2. Dropdown Mode: Shows customer dropdown (route does NOT have "customer" keyword)
  */
 export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   open,
@@ -27,11 +40,15 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   customerName,
   location,
 }) => {
+  // Determine if we're in customer route mode
+  const isInCustomerRoute = React.useMemo(() => isCustomerInRoute(), []);
+  
   // State management with API integration
   const state = usePaymentState(
     location || 'burlington',
     customerId ? parseInt(customerId) : 0,
-    customerName
+    customerName,
+    isInCustomerRoute
   );
   
   // Item manipulation handlers
@@ -177,6 +194,11 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             onNotesChange={state.setNotes}
             availablePaymentMethods={state.availablePaymentMethods}
             isLoadingPaymentMethods={state.isLoading}
+            // NEW: Customer dropdown props
+            isCustomerRoute={state.isInCustomerRoute}
+            customersList={state.customersList}
+            isLoadingCustomers={state.isLoadingCustomers}
+            onCustomerSelect={state.handleCustomerChange}
           />
 
           <PaymentTablesSection

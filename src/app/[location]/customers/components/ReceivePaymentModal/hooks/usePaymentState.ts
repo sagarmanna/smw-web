@@ -11,7 +11,8 @@ import { usePaymentData } from './usePaymentData';
 export const usePaymentState = (
   location: string,
   customerId: number,
-  initialCustomerName?: string
+  initialCustomerName?: string,
+  isCustomerRoute: boolean = true
 ) => {
   // Fetch all data from APIs at once
   const { 
@@ -25,7 +26,11 @@ export const usePaymentState = (
     totalOutstanding,
     isLoading,
     error,
-  } = usePaymentData(location, customerId);
+    // NEW: Customer dropdown data
+    customersList,
+    isLoadingCustomers,
+    reloadPaymentData,
+  } = usePaymentData(location, customerId, isCustomerRoute);
 
   // Form state
   const [customer, setCustomer] = useState(initialCustomerName || '');
@@ -48,6 +53,14 @@ export const usePaymentState = (
   
   // Available payment methods from API
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
+
+  // NEW: Track if we're in customer route mode
+  const [isInCustomerRoute, setIsInCustomerRoute] = useState(isCustomerRoute);
+
+  // Update customer route mode
+  useEffect(() => {
+    setIsInCustomerRoute(isCustomerRoute);
+  }, [isCustomerRoute]);
 
   // Update customer data when API data is loaded
   useEffect(() => {
@@ -113,6 +126,28 @@ export const usePaymentState = (
     }
   }, [totalOutstanding, amountReceived]);
 
+  // NEW: Handle customer selection from dropdown
+  const handleCustomerChange = async (selectedCustomerId: string) => {
+    const newCustomerId = parseInt(selectedCustomerId);
+    
+    if (newCustomerId && newCustomerId !== customerIdState) {
+      // Update customer ID state
+      setCustomerIdState(newCustomerId);
+      
+      // Find and set customer name from list
+      const selectedCustomer = customersList.find(c => c.id === newCustomerId);
+      if (selectedCustomer) {
+        setCustomer(selectedCustomer.label);
+      }
+      
+      // Reload payment data for new customer
+      await reloadPaymentData(newCustomerId);
+      
+      // Reset amount received after data loads
+      setAmountReceived('0.00');
+    }
+  };
+
   return {
     // Form state
     customer,
@@ -150,5 +185,11 @@ export const usePaymentState = (
     totalOutstanding,
     isLoading,
     error,
+    
+    // NEW: Customer dropdown support
+    isInCustomerRoute,
+    customersList,
+    isLoadingCustomers,
+    handleCustomerChange,
   };
 };
