@@ -1340,6 +1340,10 @@ export async function deleteCustomer(
       message: response.data.message,
     };
   } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
+    if (apiError.response?.data?.message) {
+      throw new Error(apiError.response.data.message);
+    }
     if (error instanceof Error) {
       throw error;
     }

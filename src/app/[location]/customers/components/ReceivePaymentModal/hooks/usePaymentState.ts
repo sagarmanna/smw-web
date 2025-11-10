@@ -11,9 +11,10 @@ import { usePaymentData } from './usePaymentData';
 export const usePaymentState = (
   location: string,
   customerId: number,
-  initialCustomerName?: string
+  initialCustomerName?: string,
+  shouldLoad: boolean = true // Only load data when modal is open
 ) => {
-  // Fetch all data from APIs at once
+  // Fetch all data from APIs at once - only when shouldLoad is true
   const { 
     lessons: apiLessons,
     groupLessons: apiGroupLessons,
@@ -25,7 +26,7 @@ export const usePaymentState = (
     totalOutstanding,
     isLoading,
     error,
-  } = usePaymentData(location, customerId);
+  } = usePaymentData(location, customerId, shouldLoad);
 
   // Form state
   const [customer, setCustomer] = useState(initialCustomerName || '');
