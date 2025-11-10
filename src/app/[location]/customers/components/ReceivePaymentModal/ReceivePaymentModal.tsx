@@ -143,7 +143,12 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
         lessonPayments: DataMapper.createPaymentMap(state.lessons),
         groupLessonPayments: DataMapper.createPaymentMap(state.groupLessons),
         invoicePayments: DataMapper.createPaymentMap(state.invoices),
-        creditPayments: DataMapper.createPaymentMap(state.credits),
+        paymentCredits: DataMapper.createPaymentMap(
+          state.credits.filter(c => c.type === 'Payment Credit')
+        ),
+        invoiceCredits: DataMapper.createPaymentMap(
+          state.credits.filter(c => c.type === 'Invoice Credit')
+        ),
       };
       
       await onSave(paymentData);

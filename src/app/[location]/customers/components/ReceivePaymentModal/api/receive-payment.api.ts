@@ -58,7 +58,8 @@ export interface ReceivePaymentGroupLessonsResponse {
 }
 
 export interface ReceivePaymentInvoice {
-  id: string;
+  id: number;
+  number: string;
   date: string;
   status: string;
   total: string;

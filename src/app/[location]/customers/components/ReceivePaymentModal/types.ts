@@ -75,7 +75,8 @@ export interface ReceivePaymentData {
   lessonPayments: Record<string, number>;
   groupLessonPayments: Record<string, number>;
   invoicePayments: Record<string, number>;
-  creditPayments: Record<string, number>;
+  paymentCredits: Record<string, number>;
+  invoiceCredits: Record<string, number>;
 }
 
 export interface PaymentCalculations {

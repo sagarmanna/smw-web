@@ -892,8 +892,24 @@ export interface PaymentReceiveData {
   selectedCreditValue: number;
   amountToDistribute: number;
   notes: string;
+  lessonPayments?: Array<{
+    id: number;
+    value: number;
+  }>;
+  groupLessonPayments?: Array<{
+    id: number;
+    value: number;
+  }>;
   invoicePayments?: Array<{
-    id: string | number;
+    id: number;
+    value: number;
+  }>;
+  paymentCredits?: Array<{
+    id: number;
+    value: number;
+  }>;
+  invoiceCredits?: Array<{
+    id: number;
     value: number;
   }>;
   canUsePaymentCredits?: number; // 0 or 1
@@ -925,11 +941,43 @@ export async function receivePayment(
   formData.append('PaymentForm[amountToDistribute]', formatDecimal(paymentData.amountToDistribute));
   formData.append('PaymentForm[notes]', paymentData.notes || '');
   
+  // Add lesson payments if provided
+  if (paymentData.lessonPayments && paymentData.lessonPayments.length > 0) {
+    paymentData.lessonPayments.forEach((lessonPayment, index) => {
+      formData.append(`PaymentForm[lessonPayments][${index}][id]`, lessonPayment.id.toString());
+      formData.append(`PaymentForm[lessonPayments][${index}][value]`, formatDecimal(lessonPayment.value));
+    });
+  }
+  
+  // Add group lesson payments if provided
+  if (paymentData.groupLessonPayments && paymentData.groupLessonPayments.length > 0) {
+    paymentData.groupLessonPayments.forEach((groupLessonPayment, index) => {
+      formData.append(`PaymentForm[groupLessonPayments][${index}][id]`, groupLessonPayment.id.toString());
+      formData.append(`PaymentForm[groupLessonPayments][${index}][value]`, formatDecimal(groupLessonPayment.value));
+    });
+  }
+  
   // Add invoice payments if provided
   if (paymentData.invoicePayments && paymentData.invoicePayments.length > 0) {
     paymentData.invoicePayments.forEach((invoicePayment, index) => {
       formData.append(`PaymentForm[invoicePayments][${index}][id]`, invoicePayment.id.toString());
       formData.append(`PaymentForm[invoicePayments][${index}][value]`, formatDecimal(invoicePayment.value));
+    });
+  }
+  
+  // Add payment credits if provided
+  if (paymentData.paymentCredits && paymentData.paymentCredits.length > 0) {
+    paymentData.paymentCredits.forEach((paymentCredit, index) => {
+      formData.append(`PaymentForm[paymentCredits][${index}][id]`, paymentCredit.id.toString());
+      formData.append(`PaymentForm[paymentCredits][${index}][value]`, formatDecimal(paymentCredit.value));
+    });
+  }
+  
+  // Add invoice credits if provided
+  if (paymentData.invoiceCredits && paymentData.invoiceCredits.length > 0) {
+    paymentData.invoiceCredits.forEach((invoiceCredit, index) => {
+      formData.append(`PaymentForm[invoiceCredits][${index}][id]`, invoiceCredit.id.toString());
+      formData.append(`PaymentForm[invoiceCredits][${index}][value]`, formatDecimal(invoiceCredit.value));
     });
   }
   
