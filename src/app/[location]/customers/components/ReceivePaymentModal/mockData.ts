@@ -1,44 +1,5 @@
 // mockData.ts
-import { LessonItem, InvoiceItem, CreditItem, GroupLessonItem } from './types';
-
-export const createMockLessons = (): LessonItem[] => [
-  {
-    id: '1',
-    selected: true,
-    date: 'Oct 23, 2025 @ 11:00 AM',
-    dueDate: 'Sep 15, 2025',
-    student: '456 234',
-    program: 'Vocal Core',
-    teacher: 'Art Tatum',
-    amount: 36.25,
-    balance: 36.25,
-    payment: '36.25',
-  },
-  {
-    id: '2',
-    selected: true,
-    date: 'Nov 06, 2025 @ 11:00 AM',
-    dueDate: 'Oct 15, 2025',
-    student: '456 234',
-    program: 'Vocal Core',
-    teacher: 'Art Tatum',
-    amount: 36.25,
-    balance: 36.25,
-    payment: '36.25',
-  },
-  {
-    id: '3',
-    selected: true,
-    date: 'Nov 13, 2025 @ 11:00 AM',
-    dueDate: 'Oct 15, 2025',
-    student: '456 234',
-    program: 'Vocal Core',
-    teacher: 'Art Tatum',
-    amount: 36.25,
-    balance: 36.25,
-    payment: '36.25',
-  },
-];
+import { CreditItem, GroupLessonItem } from './types';
 
 export const createMockGroupLessons = (): GroupLessonItem[] => [
   {
@@ -88,36 +49,6 @@ export const createMockGroupLessons = (): GroupLessonItem[] => [
     amount: 45.00,
     balance: 45.00,
     payment: '45.00',
-  },
-];
-
-export const createMockInvoices = (): InvoiceItem[] => [
-  {
-    id: '1',
-    selected: true,
-    date: 'May 09, 2024',
-    number: 'I-61871',
-    amount: 36.25,
-    balance: 36.25,
-    payment: '36.25',
-  },
-  {
-    id: '2',
-    selected: true,
-    date: 'May 16, 2024',
-    number: 'I-62196',
-    amount: 36.25,
-    balance: 36.25,
-    payment: '36.25',
-  },
-  {
-    id: '3',
-    selected: true,
-    date: 'May 23, 2024',
-    number: 'I-62622',
-    amount: 36.25,
-    balance: 36.25,
-    payment: '36.25',
   },
 ];
 

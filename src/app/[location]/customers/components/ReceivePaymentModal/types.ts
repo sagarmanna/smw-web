@@ -32,7 +32,9 @@ export interface InvoiceItem {
   selected: boolean;
   date: string;
   number: string;
+  status: string;
   amount: number;
+  payments: number;
   balance: number;
   payment: string;
 }
@@ -73,25 +75,37 @@ export interface ReceivePaymentData {
   lessonPayments: Record<string, number>;
   groupLessonPayments: Record<string, number>;
   invoicePayments: Record<string, number>;
-  creditPayments: Record<string, number>;
+  paymentCredits: Record<string, number>;
+  invoiceCredits: Record<string, number>;
 }
 
 export interface PaymentCalculations {
   availableCredits: number;
   selectedCredits: number;
+  amountToApply: number;
+  amountToCredit: number;
+  paymentReceived: number;
+  amountNeeded: number;
+  suggestedAmountReceived: number;
   lessonPayments: number;
   groupLessonPayments: number;
   invoicePayments: number;
-  amountToApply: number;
-  amountToCredit: number;
+}
+
+export interface PaginationState {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface ReceivePaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: ReceivePaymentData) => void;
+  onSave: (data: ReceivePaymentData) => Promise<void> | void;
   customerName?: string;
   customerId?: string;
+  location?: string;
   amountNeeded?: number;
 }
 
@@ -121,9 +135,11 @@ export interface PaymentTablesSectionProps {
 }
 
 export interface FilterConfig {
-  type: 'date-range' | 'dropdown' | 'text';
+  type: 'date-range' | 'dropdown' | 'text' | 'string';
   disabled?: (date: Date) => boolean;
   options?: Array<{ value: string; label: string }>;
+  initialValue?: unknown;
+  quickPreset?: string;
 }
 
 export interface ColumnFilter {

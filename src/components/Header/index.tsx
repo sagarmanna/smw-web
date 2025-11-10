@@ -29,6 +29,7 @@ import { useLocationChange } from "@/hooks/useLocationChange";
 import { useLocationAccess } from "@/hooks/useLocationAccess";
 import { useLocationFeatures } from "@/hooks/useLocationFeatures";
 import { getCurrentPageFeature, getLegacyUrl } from "@/utils/pageFeatureDetection";
+import { getLegacyUrl as getLegacyUrlForRoute } from "@/utils/legacyRouteMapper";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -94,25 +95,54 @@ export default function Header({ onMenuClick }: HeaderProps) {
       // Switch to legacy mode
       setIsLegacyMode(true);
       
-      // Extract the current page from the pathname
-      const currentPage = pathname.split('/').pop() || 'dashboard';
+      // Get all route params as a flat object
+      const routeParams: Record<string, string> = {};
+      if (params.id) routeParams.id = params.id as string;
+      if (params.location) routeParams.location = params.location as string;
+      // Add more params as needed
       
-      // Map modern pages to their legacy equivalents
-      const legacyPageMap: { [key: string]: string } = {
-        'dashboard': '/dashboard',
-        'schedule': '/schedule',
-        'menu-flags': '/admin/menu-flags', // Special case for admin pages
-        'customers': '/user/index?UserSearch%5Brole_name%5D=customer',
-      };
+      // Use the scalable route mapper to get legacy URL
+      const legacyPath = getLegacyUrlForRoute(pathname, routeParams);
       
-      let legacyPath;
-      if (legacyPageMap[currentPage]) {
-        legacyPath = legacyPageMap[currentPage];
-      } else {
-        legacyPath = pathname.replace('/v2', '');
+      // Fallback: if no mapping found, extract the path after location
+      // Pathname format: /admin/v2/{location}/...rest
+      // We want: /...rest (just the path part after location)
+      let finalPath = legacyPath;
+      if (!finalPath) {
+        // Remove /admin/v2/ prefix if present, ensure leading slash
+        let pathWithoutPrefix = pathname.replace(/^\/admin\/v2\//, '/');
+        // If pathname doesn't match above pattern, try removing just /v2/
+        if (pathWithoutPrefix === pathname) {
+          pathWithoutPrefix = pathname.replace(/^\/v2\//, '/');
+        }
+        // If path starts with /{location}/, remove that segment
+        if (location && pathWithoutPrefix.startsWith(`/${location}/`)) {
+          finalPath = pathWithoutPrefix.replace(`/${location}/`, '/');
+        } else if (location && pathWithoutPrefix === `/${location}`) {
+          // Handle case where location is at the end (no trailing path)
+          finalPath = '/';
+        } else {
+          // Fallback: just remove /v2
+          finalPath = pathname.replace('/v2', '');
+        }
       }
       
-      const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL || 'http://localhost:8080'}${legacyPath}`;
+      // Build full legacy URL
+      // Legacy URL structure: {baseUrl}/admin/{location}{path} or {baseUrl}/{location}{path} if baseUrl already has /admin
+      // Example: https://dev2.studiomanagerweb.com/admin/training-location/user/view?id=14041
+      let baseUrl = process.env.NEXT_PUBLIC_LEGACY_URL || 'http://localhost:8080';
+      
+      // Remove trailing slash if present
+      baseUrl = baseUrl.replace(/\/$/, '');
+      
+      // Check if baseUrl already includes /admin
+      const hasAdminPrefix = baseUrl.endsWith('/admin');
+      
+      // Build the URL - if baseUrl already has /admin, just add /{location}{path}
+      // Otherwise add /admin/{location}{path}
+      const legacyUrl = hasAdminPrefix 
+        ? `${baseUrl}/${location}${finalPath}`
+        : `${baseUrl}/admin/${location}${finalPath}`;
       
       // Redirect to legacy page
       window.location.href = legacyUrl;
@@ -255,8 +285,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
             {/* Search or other content can go here */}
           </div>
           
-          {/* Legacy Mode Switch - Only show on modern pages */}
-          {isModernPage && (
+          {/* Legacy Mode Switch - Only show on modern pages and specific locations */}
+          {isModernPage && (pathname.includes('burlington') || pathname.includes('training-location')) && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

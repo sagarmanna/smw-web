@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { DetailHeader, ActionMenuGroup } from "@/components/DetailHeader";
+import { ActionMenuGroup } from "@/components/DetailHeader";
+import { DetailHeaderWithProfile } from "../components/DetailHeaderWithProfile";
 import {
   getCustomerById,
   CustomerRow,
@@ -14,16 +15,25 @@ import {
   getCustomerEquipmentRentals,
   getCustomerRecurringPayments,
   getCustomerPrivateLessonDue,
+  getCustomerPrivateLessons,
+  getCustomerGroupLessons,
   getCustomerGroupLessonDue,
   getCustomerPayments,
   getCustomerStudents,
   getCustomerSummary,
   getCustomerInfo,
+  getCustomerEnrolments,
+  getCustomerProformaInvoices,
+  getCustomerComments,
+  getCustomerHistory,
   CustomerSummaryData,
   CustomerInfoData,
+  getCustomerPaymentById,
+  getEmailStatement,
+  EmailStatementData,
 } from "../customers.api";
 import { SummaryCard } from "@/components/SummaryCard";
-import { BookOpen, FileText, Star, DollarSign } from "lucide-react";
+import { BookOpen, FileText, Star, DollarSign, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
@@ -38,6 +48,16 @@ import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
+import { PaymentReceiptModal } from "../components/PaymentReceiptModal";
+import AddStudentModal from "../components/AddStudentModal/index";
+import { NotifyViaEmailReasonsModal } from "../components/NotifyViaEmailModal";
+import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
+import EmailStatementModal, {
+  EmailFormData,
+} from "../components/EmailStatementModal/index";
+import { createStudent, createNote, sendEmail } from "@/lib/api/legacyApiAdapter";
+import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 import {
   InvoiceData,
@@ -60,9 +80,6 @@ import {
   CommentData,
   HistoryData,
 } from "../tabConfigs";
-import { mockCustomerTabData } from "../mockData/customersMockData";
-import AddStudentModal from "../components/AddStudentModal/index";
-import EmailStatementModal, { EmailFormData } from "../components/EmailStatementModal/index";
 
 interface PhoneNumber {
   id: string;
@@ -85,9 +102,11 @@ interface Address {
   label: string;
   address: string;
   city: string;
-  province: string;
-  country: string;
+  cityId: number;
+  provinceId: number;
+  countryId: number;
   postalCode: string;
+  note?: string;
   isPrimary?: boolean;
 }
 
@@ -107,7 +126,7 @@ export function CustomerDetailClient({
   const [loading, setLoading] = React.useState<boolean>(true);
   const [studentsLoading, setStudentsLoading] = React.useState<boolean>(false);
   const [studentsError, setStudentsError] = React.useState<string | null>(null);
-  const [_studentsPagination, setStudentsPagination] = React.useState({
+  const [studentsPagination, setStudentsPagination] = React.useState({
     page: 1,
     limit: 10,
     total: 0,
@@ -125,6 +144,17 @@ export function CustomerDetailClient({
   const [outstandingInvoicesLoading, setOutstandingInvoicesLoading] =
     React.useState<boolean>(false);
 
+  // Equipment rentals pagination state
+  const [equipmentRentalsPagination, setEquipmentRentalsPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [equipmentRentalsLoading, setEquipmentRentalsLoading] =
+    React.useState<boolean>(false);
+
   // Simple pagination state for all tabs - CONSOLIDATED (removed duplicates)
   const [tabPagination, setTabPagination] = React.useState<
     Record<
@@ -140,18 +170,32 @@ export function CustomerDetailClient({
   const [tabRowsPerPage, setTabRowsPerPage] = React.useState<
     Record<string, number>
   >({});
-  const [showAllEquipment, setShowAllEquipment] =
-    React.useState<boolean>(false);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] =
     React.useState<boolean>(false);
   const [isRecurringPaymentModalOpen, setIsRecurringPaymentModalOpen] =
     React.useState<boolean>(false);
+  const [selectedRecurringPaymentId, setSelectedRecurringPaymentId] =
+    React.useState<number | undefined>(undefined);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] =
     React.useState<boolean>(false);
-  const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
-    React.useState<boolean>(false);
+  const [selectedRentalId, setSelectedRentalId] = React.useState<number | null>(null);
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
+  const [isSavingPayment, setIsSavingPayment] = React.useState<boolean>(false);
+  const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
+    React.useState<boolean>(false);
+  const [selectedPayment, setSelectedPayment] =
+    React.useState<PaymentData | null>(null);
+  const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<
+    number | null
+  >(null);
+  const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
+    React.useState<boolean>(false);
+  const [emailStatementData, setEmailStatementData] = React.useState<EmailStatementData | null>(null);
+  const [isLoadingEmailStatement, setIsLoadingEmailStatement] = React.useState<boolean>(false);
+  const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
   // Local state for editable customer details
   const [localFirstName, setLocalFirstName] = React.useState<string>("");
@@ -171,14 +215,47 @@ export function CustomerDetailClient({
   });
 
   // Handle adding new student
-  const handleAddStudent = (studentData: StudentData) => {
-    setStudentData((prev) => [...prev, studentData]);
-    // Update pagination when adding new student
-    setStudentsPagination((prev) => ({
-      ...prev,
-      total: prev.total + 1,
-      totalPages: Math.ceil((prev.total + 1) / prev.limit),
-    }));
+  const handleAddStudent = async (studentData: StudentData) => {
+    try {
+      setStudentsLoading(true);
+      setStudentsError(null);
+
+      // Call legacy API to create student
+      const response = await createStudent(location, Number(id), {
+        firstName: studentData.firstName || "",
+        lastName: studentData.lastName || "",
+        customerId: Number(id),
+        birthDate: studentData.birthDate || "",
+        gender:
+          (studentData.gender as "not-specified" | "male" | "female") ||
+          "not-specified",
+      });
+
+      if (response.status) {
+        // Success: reload students from API to get the newly created student with proper data
+        const { data: students, pagination: sPag } = await getCustomerStudents(
+          location,
+          Number(id),
+          studentsPagination.page,
+          studentsPagination.limit
+        );
+        setStudentData(students);
+        setStudentsPagination(sPag);
+      } else {
+        // API returned an error
+        const errorMessage =
+          response.errors?.join(", ") || "Failed to create student";
+        setStudentsError(errorMessage);
+        console.error("Error creating student:", errorMessage);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create student";
+      setStudentsError(errorMessage);
+      console.error("Error creating student:", error);
+    } finally {
+      setStudentsLoading(false);
+    }
   };
 
   // Handle students pagination
@@ -247,6 +324,56 @@ export function CustomerDetailClient({
     [location, id]
   );
 
+  // Handle equipment rentals pagination
+  const handleEquipmentRentalsPageChange = React.useCallback(
+    async (page: number) => {
+      setEquipmentRentalsLoading(true);
+      try {
+        const limit =
+          equipmentRentalsPagination.limit === -1
+            ? 99999
+            : equipmentRentalsPagination.limit;
+        const result = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          page,
+          limit
+        );
+
+        setEquipmentRentalData(result.data);
+        setEquipmentRentalsPagination(result.pagination);
+      } catch (error) {
+        console.error("Error loading equipment rentals:", error);
+      } finally {
+        setEquipmentRentalsLoading(false);
+      }
+    },
+    [location, id, equipmentRentalsPagination.limit]
+  );
+
+  const handleEquipmentRentalsRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      setEquipmentRentalsLoading(true);
+      try {
+        const limit = rowsPerPage === -1 ? 99999 : rowsPerPage;
+        const result = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          1,
+          limit
+        );
+
+        setEquipmentRentalData(result.data);
+        setEquipmentRentalsPagination(result.pagination);
+      } catch (error) {
+        console.error("Error loading equipment rentals:", error);
+      } finally {
+        setEquipmentRentalsLoading(false);
+      }
+    },
+    [location, id]
+  );
+
   // Simple pagination handlers for all tabs (following AccountReceivableClient pattern)
   const handleTabPageChange = React.useCallback(
     (tabKey: string, page: number) => {
@@ -275,20 +402,149 @@ export function CustomerDetailClient({
   );
 
   // Handle adding new recurring payment
-  const handleAddRecurringPayment = () => {
+  const handleAddRecurringPayment = async () => {
     setIsRecurringPaymentModalOpen(false);
+    setSelectedRecurringPaymentId(undefined);
+    // Refresh recurring payments list
+    try {
+      const { data, pagination } = await getCustomerRecurringPayments(
+        location,
+        Number(id),
+        recurringPaymentsPagination.page,
+        recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+      );
+      setRecurringPaymentData(data || []);
+      setRecurringPaymentsPagination(pagination);
+    } catch (error) {
+      console.error('Error refreshing recurring payments:', error);
+    }
+  };
+
+  // Handle deleting recurring payment
+  const handleDeleteRecurringPayment = async () => {
+    setIsRecurringPaymentModalOpen(false);
+    setSelectedRecurringPaymentId(undefined);
+    // Refresh recurring payments list
+    try {
+      const { data, pagination } = await getCustomerRecurringPayments(
+        location,
+        Number(id),
+        recurringPaymentsPagination.page,
+        recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+      );
+      setRecurringPaymentData(data || []);
+      setRecurringPaymentsPagination(pagination);
+    } catch (error) {
+      console.error('Error refreshing recurring payments:', error);
+    }
   };
 
   // Handle adding new equipment rental
-  const handleAddEquipmentRental = (_data: unknown) => {
+  const handleAddEquipmentRental = async (data: unknown) => {
     setIsEquipmentRentalsModalOpen(false);
+    // Reload equipment rentals after adding new one
+    const result = await getCustomerEquipmentRentals(
+      location,
+      Number(id),
+      equipmentRentalsPagination.page,
+      equipmentRentalsPagination.limit
+    );
+    setEquipmentRentalData(result.data);
+    setEquipmentRentalsPagination(result.pagination);
   };
 
-  // Handle email statement send
-  const handleSendEmailStatement = (_emailData: EmailFormData) => {
-    // TODO: Implement API call to send email statement
-    setIsEmailStatementModalOpen(false);
-    // Show success toast notification
+  // Fetch email statement data when modal opens
+  React.useEffect(() => {
+    if (isEmailStatementModalOpen && location && id) {
+      setIsLoadingEmailStatement(true);
+      getEmailStatement(location, Number(id))
+        .then((data: EmailStatementData | null) => {
+          if (data) {
+            setEmailStatementData(data);
+          }
+        })
+        .catch((error: unknown) => {
+          console.error("Error fetching email statement:", error);
+          toast.error("Failed to load email statement data");
+        })
+        .finally(() => {
+          setIsLoadingEmailStatement(false);
+        });
+    } else if (!isEmailStatementModalOpen) {
+      // Clear email statement data when modal closes
+      setEmailStatementData(null);
+    }
+  }, [isEmailStatementModalOpen, location, id]);
+
+  const handleSendEmailStatement = async (emailData: EmailFormData) => {
+    try {
+      // Send email using legacy API
+      // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
+      const response = await sendEmail(location, {
+        objectId: 8, // Customer Statement
+        userId: Number(id),
+        to: emailData.recipients,
+        subject: emailData.subject,
+        content: emailData.content,
+      });
+
+      if (response.status) {
+        toast.success("Email sent successfully");
+        setIsEmailStatementModalOpen(false);
+      } else {
+        const errorMessage = response.message || "Failed to send email";
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to send email";
+      toast.error(errorMessage);
+    }
+  };
+
+  // Handle creating a new comment/note
+  const handleAddComment = async () => {
+    if (!commentInput.trim()) {
+      return; // Don't submit empty comments
+    }
+
+    try {
+      setCommentLoading(true);
+      const response = await createNote(
+        location,
+        Number(id),
+        2, // instanceType = 2 for customer notes
+        commentInput.trim()
+      );
+
+      if (response.status) {
+        // Success: reload comments from API to get the newly created comment
+        const comments = await getCustomerComments(location, Number(id));
+        setCommentData(comments);
+        setCommentInput(""); // Clear input
+      } else {
+        // API returned an error
+        const errorMessage =
+          response.errors?.join(", ") || "Failed to create comment";
+        console.error("Error creating comment:", errorMessage);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create comment";
+      console.error("Error creating comment:", error);
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  // Navigate to legacy Proforma Invoice create page (new tab)
+  const handleProformaInvoiceNavigate = () => {
+    const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/create?Invoice%5Bcustomer_id%5D=${id}`;
+    if (typeof window !== "undefined") {
+      window.open(legacyUrl, "_blank", "noopener,noreferrer");
+    } else {
+      router.push(legacyUrl);
+    }
   };
 
   // Handle invoice actions
@@ -296,12 +552,10 @@ export function CustomerDetailClient({
     // TODO: Implement invoice creation logic
   };
 
-  const handlePrintInvoice = (_invoiceId: string) => {
-    // TODO: Implement invoice printing logic
-  };
+  const handlePrintInvoice = () => {};
 
   // Handle receiving payment
-  const handleReceivePayment = (paymentData: {
+  const handleReceivePayment = async (paymentData: {
     customer: string;
     date: string;
     paymentMethod: string;
@@ -309,18 +563,217 @@ export function CustomerDetailClient({
     amountReceived: number;
     notes: string;
     selectedLessons: string[];
+    selectedGroupLessons?: string[];
+    selectedInvoices?: string[];
+    selectedCredits?: string[];
     lessonPayments: Record<string, number>;
+    groupLessonPayments?: Record<string, number>;
+    invoicePayments?: Record<string, number>;
+    paymentCredits?: Record<string, number>;
+    invoiceCredits?: Record<string, number>;
   }) => {
-    console.log("Payment received:", paymentData);
-    // TODO: Call API to save payment
-    // Example: await saveCustomerPayment(location, Number(id), paymentData);
+    setIsSavingPayment(true);
+    try {
+      // Import the legacy API function
+      const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
+      
+      // Payment method value is already the ID as a string, just convert to number
+      const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
 
-    // Refresh data after payment
-    // You can reload specific sections or all data
-    setIsReceivePaymentModalOpen(false);
+      // Helper function to format numbers to 2 decimal places
+      const formatToTwoDecimals = (value: number): number => {
+        return Math.round(value * 100) / 100;
+      };
+
+      // Calculate amount needed (sum of all selected items)
+      const lessonPaymentsTotal = Object.values(paymentData.lessonPayments || {}).reduce((sum, val) => sum + val, 0);
+      const groupLessonPaymentsTotal = Object.values(paymentData.groupLessonPayments || {}).reduce((sum, val) => sum + val, 0);
+      const invoicePaymentsTotal = Object.values(paymentData.invoicePayments || {}).reduce((sum, val) => sum + val, 0);
+      const amountNeeded = formatToTwoDecimals(lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal);
+      const amountToDistribute = formatToTwoDecimals(amountNeeded);
+
+      // Prepare lesson payments array (IDs are already numeric from API)
+      const lessonPaymentsArray = paymentData.lessonPayments
+        ? Object.entries(paymentData.lessonPayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare group lesson payments array (IDs are already numeric from API)
+      const groupLessonPaymentsArray = paymentData.groupLessonPayments
+        ? Object.entries(paymentData.groupLessonPayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare invoice payments array (IDs are already numeric from API, no "I-" prefix needed)
+      const invoicePaymentsArray = paymentData.invoicePayments
+        ? Object.entries(paymentData.invoicePayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare payment credits array (IDs are already numeric from API)
+      const paymentCreditsArray = paymentData.paymentCredits
+        ? Object.entries(paymentData.paymentCredits)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare invoice credits array (IDs are already numeric from API)
+      const invoiceCreditsArray = paymentData.invoiceCredits
+        ? Object.entries(paymentData.invoiceCredits)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Calculate selected credit value (sum of all selected credits)
+      const selectedCreditValue = formatToTwoDecimals(
+        paymentCreditsArray.reduce((sum, c) => sum + c.value, 0) +
+        invoiceCreditsArray.reduce((sum, c) => sum + c.value, 0)
+      );
+
+      // Calculate amount received following legacy logic (matches _form.php line 272):
+      // amountNeeded - creditAmount < 0 ? (amountNeeded > 0 ? '0.00' : amountNeeded - creditAmount) : (-(creditAmount - amountNeeded))
+      // Simplified: if credits fully cover and amountNeeded > 0, return 0.00, otherwise return amountNeeded - creditAmount
+      const amountAfterCredits = amountNeeded - selectedCreditValue;
+      let calculatedAmount: number;
+      if (amountAfterCredits < 0) {
+        // Credits exceed amount needed
+        calculatedAmount = amountNeeded > 0 ? 0.00 : amountAfterCredits;
+      } else {
+        // Credits don't fully cover amount needed (or exactly match)
+        // (-(creditAmount - amountNeeded)) = amountNeeded - creditAmount
+        calculatedAmount = amountAfterCredits;
+      }
+      
+      // Use the calculated amount when credits are present (matching legacy auto-calculation behavior)
+      // When no credits are used, use the user-entered amount
+      const finalAmount = selectedCreditValue > 0 
+        ? formatToTwoDecimals(calculatedAmount)
+        : formatToTwoDecimals(paymentData.amountReceived);
+
+      // Prepare payment data for legacy API
+      const legacyPaymentData: PaymentReceiveData = {
+        userId: Number(id),
+        date: paymentData.date, // Already in "MMM dd, yyyy" format
+        paymentMethodId: paymentMethodId,
+        reference: paymentData.reference || '',
+        amount: finalAmount,
+        amountNeeded: amountNeeded,
+        selectedCreditValue: selectedCreditValue,
+        amountToDistribute: amountToDistribute,
+        notes: paymentData.notes || '',
+        lessonPayments: lessonPaymentsArray.length > 0 ? lessonPaymentsArray : undefined,
+        groupLessonPayments: groupLessonPaymentsArray.length > 0 ? groupLessonPaymentsArray : undefined,
+        invoicePayments: invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        paymentCredits: paymentCreditsArray.length > 0 ? paymentCreditsArray : undefined,
+        invoiceCredits: invoiceCreditsArray.length > 0 ? invoiceCreditsArray : undefined,
+        canUsePaymentCredits: paymentCreditsArray.length > 0 ? 1 : 0,
+        canUseInvoiceCredits: invoiceCreditsArray.length > 0 ? 1 : 0,
+        prId: '',
+      };
+
+      // Call legacy API
+      const response = await receivePayment(location, legacyPaymentData);
+
+      if (response.status) {
+        // Success - close receive payment modal
+        setIsReceivePaymentModalOpen(false);
+        
+        // Refresh payments list and related data to get the latest payment
+        try {
+          // Refresh payments list to get the latest payment
+          const paymentsResponse = await getCustomerPayments(location, Number(id), 1, 1);
+          if (paymentsResponse.data && paymentsResponse.data.length > 0) {
+            const latestPayment = paymentsResponse.data[0];
+            setSelectedPayment(latestPayment);
+            setSelectedPaymentIndex(0);
+            
+            // Refresh related data for the receipt modal
+            // Refresh private lesson due data
+            try {
+              const privateLessonDueResult = await getCustomerPrivateLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setPrivateLessonDueData(privateLessonDueResult.data || []);
+            } catch {}
+            
+            // Refresh group lesson due data
+            try {
+              const groupLessonDueResult = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setGroupLessonDueData(groupLessonDueResult.data || []);
+            } catch {}
+            
+            // Refresh invoice data
+            try {
+              const invoiceResult = await getCustomerInvoices(location, Number(id), 1);
+              setInvoiceData(invoiceResult || []);
+            } catch {}
+            
+            // Refresh summary data
+            try {
+              const summaryResult = await getCustomerSummary(location, Number(id));
+              if (summaryResult && summaryResult.data) {
+                setSummaryData(summaryResult.data);
+              }
+            } catch {}
+            
+            // Open payment receipt modal
+            // setIsPaymentReceiptModalOpen(true);
+          } else {
+            // If we can't get the payment, still show success
+            toast.success("Payment saved successfully");
+          }
+        } catch (error) {
+          console.error("Error fetching payment details:", error);
+          toast.success("Payment saved successfully");
+        }
+      } else {
+        const errorMessage = response.message || response.errors?.join(", ") || "Failed to save payment";
+        console.error("Payment save error:", errorMessage);
+        toast.error(errorMessage);
+        // Don't close modal on error so user can retry
+      }
+    } catch (error) {
+      console.error("Error saving payment:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save payment";
+      toast.error(errorMessage);
+      // Don't close modal on error so user can retry
+    } finally {
+      setIsSavingPayment(false);
+    }
   };
 
-  // ADD THIS HELPER FUNCTION
+  // Helper function to calculate amount needed
   const calculateAmountNeeded = () => {
     const parseAmount = (value: string) => {
       const num = parseFloat(value.replace(/[$,]/g, ""));
@@ -343,16 +796,41 @@ export function CustomerDetailClient({
   const [equipmentRentalData, setEquipmentRentalData] = React.useState<
     EquipmentRentalData[]
   >([]);
-  const [recurringPaymentData, setRecurringPaymentData] = React.useState<
+  const [_recurringPaymentData, setRecurringPaymentData] = React.useState<
     RecurringPaymentData[]
   >([]);
+  const [recurringPaymentsPagination, setRecurringPaymentsPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
   const [privateLessonDueData, setPrivateLessonDueData] = React.useState<
     PrivateLessonDueData[]
   >([]);
   const [groupLessonDueData, setGroupLessonDueData] = React.useState<
     GroupLessonDueData[]
   >([]);
+  const [groupLessonDuePagination, setGroupLessonDuePagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [groupLessonDueFooterTotal, setGroupLessonDueFooterTotal] =
+    React.useState<string>("$0.00");
   const [paymentData, setPaymentData] = React.useState<PaymentData[]>([]);
+  const [paymentsPagination, setPaymentsPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [paymentsFooterRemaining, setPaymentsFooterRemaining] =
+    React.useState<string>("$0.00");
+  const [paymentsLoading, setPaymentsLoading] = React.useState<boolean>(false);
 
   // Tab data states
   const [studentData, setStudentData] = React.useState<StudentData[]>([]);
@@ -367,7 +845,60 @@ export function CustomerDetailClient({
     ProformaInvoiceData[]
   >([]);
   const [commentData, setCommentData] = React.useState<CommentData[]>([]);
+  const [commentInput, setCommentInput] = React.useState<string>("");
+  const [commentLoading, setCommentLoading] = React.useState<boolean>(false);
   const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
+
+  // Enrolments server-side pagination state
+  const [enrolmentsPagination, setEnrolmentsPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [enrolmentsLoading, setEnrolmentsLoading] =
+    React.useState<boolean>(false);
+
+  // History server-side pagination state
+  const [historyPagination, setHistoryPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [historyLoading, setHistoryLoading] = React.useState<boolean>(false);
+
+  // Private lessons server-side pagination state
+  const [privateLessonsPagination, setPrivateLessonsPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [privateLessonsLoading, setPrivateLessonsLoading] =
+    React.useState<boolean>(false);
+
+  // Group lessons server-side pagination state
+  const [groupLessonsPagination, setGroupLessonsPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [groupLessonsLoading, setGroupLessonsLoading] =
+    React.useState<boolean>(false);
+
+  // Pro-forma invoices server-side pagination state
+  const [proformaInvoicesPagination, setProformaInvoicesPagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [proformaInvoicesLoading, setProformaInvoicesLoading] =
+    React.useState<boolean>(false);
 
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
@@ -375,20 +906,22 @@ export function CustomerDetailClient({
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [discount, setDiscount] = React.useState<number>(0);
   const [openingBalance, setOpeningBalance] = React.useState<number>(0);
-  const [hasOpeningBalance, setHasOpeningBalance] = React.useState<boolean>(false);
-
-  // Calculate footer for private lesson due
-  const privateLessonDueTotal = privateLessonDueData.reduce(
-    (sum, item) => sum + item.amount,
-    0
+  const [openingBalanceId, setOpeningBalanceId] = React.useState<number | null>(
+    null
   );
-  const privateLessonDueFooterRow: PrivateLessonDueData = {
-    lessonDate: "Total:",
-    student: "",
-    program: "",
-    teacher: "",
-    amount: privateLessonDueTotal,
-  };
+  const [hasOpeningBalance, setHasOpeningBalance] =
+    React.useState<boolean>(false);
+
+  // Private lesson due server-side pagination and footer
+  const [privateLessonDuePagination, setPrivateLessonDuePagination] =
+    React.useState({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0,
+    });
+  const [privateLessonDueFooterTotal, setPrivateLessonDueFooterTotal] =
+    React.useState<string>("$0.00");
 
   // Calculate footer for outstanding invoices
   // Use API total only when showing all records, otherwise calculate from visible data
@@ -417,16 +950,12 @@ export function CustomerDetailClient({
   };
 
   // Calculate footer for payments (only remaining column)
-  const paymentRemainingTotal = paymentData.reduce(
-    (sum, item) => sum + item.remaining,
-    0
-  );
   const paymentFooterRow: PaymentData = {
     date: "",
     notes: "",
     amount: 0,
     used: 0,
-    remaining: paymentRemainingTotal,
+    remaining: paymentsFooterRemaining,
   };
 
   // Tab data mapping for easy access
@@ -439,6 +968,57 @@ export function CustomerDetailClient({
     commentData,
     historyData,
   };
+
+  // Handle payments pagination
+  const handlePaymentsPageChange = React.useCallback(
+    async (page: number) => {
+      setPaymentsLoading(true);
+      try {
+        const result = await getCustomerPayments(
+          location,
+          Number(id),
+          page,
+          paymentsPagination.limit === -1 ? 99999 : paymentsPagination.limit
+        );
+
+        setPaymentData(result.data || []);
+        setPaymentsPagination(result.pagination);
+        if (result.footer?.totalRemaining) {
+          setPaymentsFooterRemaining(result.footer.totalRemaining);
+        }
+      } catch (error) {
+        console.error("Error loading payments:", error);
+      } finally {
+        setPaymentsLoading(false);
+      }
+    },
+    [location, id, paymentsPagination.limit]
+  );
+
+  const handlePaymentsRowsPerPageChange = React.useCallback(
+    async (rowsPerPage: number) => {
+      setPaymentsLoading(true);
+      try {
+        const result = await getCustomerPayments(
+          location,
+          Number(id),
+          1,
+          rowsPerPage === -1 ? 99999 : rowsPerPage
+        );
+
+        setPaymentData(result.data || []);
+        setPaymentsPagination(result.pagination);
+        if (result.footer?.totalRemaining) {
+          setPaymentsFooterRemaining(result.footer.totalRemaining);
+        }
+      } catch (error) {
+        console.error("Error loading payments:", error);
+      } finally {
+        setPaymentsLoading(false);
+      }
+    },
+    [location, id]
+  );
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -485,7 +1065,7 @@ export function CustomerDetailClient({
               id: String(e.id),
               label: e.label,
               email: e.email,
-              note: e.note || "", // Ensure note is always included
+              note: e.note || "",
               isPrimary: e.isPrimary,
             }));
             setEmails(formattedEmails);
@@ -514,9 +1094,11 @@ export function CustomerDetailClient({
               label: a.label,
               address: a.address,
               city: a.city,
-              province: a.province,
-              country: a.country,
+              cityId: a.cityId,
+              provinceId: a.provinceId,
+              countryId: a.countryId,
               postalCode: a.postalCode,
+              note: a.note,
               isPrimary: a.isPrimary,
             }));
             setAddresses(formattedAddresses);
@@ -529,10 +1111,9 @@ export function CustomerDetailClient({
           // FIXED: Opening balance handling
           if (infoResponse.data.openingBalance) {
             const amount = infoResponse.data.openingBalance.amount || 0;
-            // API returns the amount with correct sign:
-            // negative amount = credit (customer has money)
-            // positive amount = owing (customer owes money)
+            const id = infoResponse.data.openingBalance.id;
             setOpeningBalance(amount);
+            setOpeningBalanceId(id);
             setHasOpeningBalance(true);
           }
         }
@@ -555,60 +1136,217 @@ export function CustomerDetailClient({
           outstandingInvoicesResult.footer.totalAmount
         );
 
+        // Load equipment rentals with pagination
+        setEquipmentRentalsLoading(true);
+        const equipmentRentalsResult = await getCustomerEquipmentRentals(
+          location,
+          Number(id),
+          1,
+          10
+        );
+        setEquipmentRentalData(equipmentRentalsResult.data);
+        setEquipmentRentalsPagination(equipmentRentalsResult.pagination);
+        setEquipmentRentalsLoading(false);
+
         // Load other table data in parallel
-        const [
-          invoices,
-          equipmentRentals,
-          recurringPayments,
-          privateLessonDue,
-          groupLessonDue,
-          payments,
-        ] = await Promise.all([
+        const [invoices, _paymentsIgnore] = await Promise.all([
           getCustomerInvoices(location, Number(id), 1),
-          getCustomerEquipmentRentals(location, Number(id)),
-          getCustomerRecurringPayments(location, Number(id)),
-          getCustomerPrivateLessonDue(location, Number(id)),
-          getCustomerGroupLessonDue(location, Number(id)),
-          getCustomerPayments(location, Number(id)),
+          Promise.resolve([]),
         ]);
 
         setInvoiceData(invoices || []);
-        setEquipmentRentalData(equipmentRentals || []);
-        setRecurringPaymentData(recurringPayments || []);
-        setPrivateLessonDueData(privateLessonDue || []);
-        setGroupLessonDueData(groupLessonDue || []);
-        setPaymentData(payments || []);
+        // Load recurring payments (no transform) with server-side pagination
+        try {
+          const { data: recurring, pagination: rPag } =
+            await getCustomerRecurringPayments(location, Number(id), 1, 10);
+          setRecurringPaymentData(recurring || []);
+          setRecurringPaymentsPagination(rPag);
+        } catch {}
 
-        // Load students data from API
+        // Load private lesson dues with footer and pagination (no transform)
+        try {
+          const privateLessonDueResult = await getCustomerPrivateLessonDue(
+            location,
+            Number(id),
+            1,
+            10
+          );
+          setPrivateLessonDueData(privateLessonDueResult.data || []);
+          setPrivateLessonDuePagination(privateLessonDueResult.pagination);
+          if (privateLessonDueResult.footer?.totalAmount) {
+            setPrivateLessonDueFooterTotal(
+              privateLessonDueResult.footer.totalAmount
+            );
+          } else {
+            setPrivateLessonDueFooterTotal("$0.00");
+          }
+        } catch {}
+
+        // Load group lesson dues with footer and pagination (no transform)
+        try {
+          const groupLessonDueResult = await getCustomerGroupLessonDue(
+            location,
+            Number(id),
+            1,
+            10
+          );
+          setGroupLessonDueData(groupLessonDueResult.data || []);
+          setGroupLessonDuePagination(groupLessonDueResult.pagination);
+          if (groupLessonDueResult.footer?.totalAmount) {
+            setGroupLessonDueFooterTotal(
+              groupLessonDueResult.footer.totalAmount
+            );
+          } else {
+            setGroupLessonDueFooterTotal("$0.00");
+          }
+        } catch {}
+        // Load payments with footer (no transform)
+        try {
+          setPaymentsLoading(true);
+          const paymentsResult = await getCustomerPayments(
+            location,
+            Number(id),
+            1,
+            10
+          );
+          setPaymentData(paymentsResult.data || []);
+          setPaymentsPagination(paymentsResult.pagination);
+          if (paymentsResult.footer?.totalRemaining) {
+            setPaymentsFooterRemaining(paymentsResult.footer.totalRemaining);
+          } else {
+            setPaymentsFooterRemaining("$0.00");
+          }
+        } finally {
+          setPaymentsLoading(false);
+        }
+
+        // Load students data from API (server-side pagination)
         setStudentsLoading(true);
         setStudentsError(null);
         try {
-          const students = await getCustomerStudents(location, Number(id));
+          const { data: students, pagination: sPag } =
+            await getCustomerStudents(location, Number(id), 1, 10);
           setStudentData(students);
-          // Update pagination state based on API response
-          setStudentsPagination((prev) => ({
-            ...prev,
-            total: students.length,
-            totalPages: Math.ceil(students.length / prev.limit),
-          }));
-        } catch (error) {
+          setStudentsPagination(sPag);
+        } catch {
           setStudentsError("Failed to load students data");
           setStudentData([]);
+          setStudentsPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
         } finally {
           setStudentsLoading(false);
         }
 
-        // Load other tab data (mock data for now)
-        setEnrolmentData(mockCustomerTabData.enrolmentData);
-        setPrivateLessonData(mockCustomerTabData.privateLessonData);
-        setGroupLessonData(mockCustomerTabData.groupLessonData);
-        setProformaInvoiceData(mockCustomerTabData.proformaInvoiceData);
-        setCommentData(mockCustomerTabData.commentData);
-        setHistoryData(mockCustomerTabData.historyData);
+        // Load enrolments data from API (server-side pagination)
+        try {
+          setEnrolmentsLoading(true);
+          const { data: enrolments, pagination: ePag } =
+            await getCustomerEnrolments(location, Number(id), 1, 10);
+          setEnrolmentData(enrolments);
+          setEnrolmentsPagination(ePag);
+        } catch {
+          setEnrolmentData([]);
+          setEnrolmentsPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
+        } finally {
+          setEnrolmentsLoading(false);
+        }
+
+        // Load private lessons tab data from API (server-side pagination)
+        try {
+          setPrivateLessonsLoading(true);
+          const { data: privateLessons, pagination: plPagination } =
+            await getCustomerPrivateLessons(location, Number(id), 1, 10);
+          setPrivateLessonData(privateLessons);
+          setPrivateLessonsPagination(plPagination);
+        } catch {
+          setPrivateLessonData([]);
+          setPrivateLessonsPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
+        } finally {
+          setPrivateLessonsLoading(false);
+        }
+
+        // Load group lessons tab data from API (server-side pagination)
+        try {
+          setGroupLessonsLoading(true);
+          const { data: groupLessons, pagination: glPagination } =
+            await getCustomerGroupLessons(location, Number(id), 1, 10);
+          setGroupLessonData(groupLessons);
+          setGroupLessonsPagination(glPagination);
+        } catch {
+          setGroupLessonData([]);
+          setGroupLessonsPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
+        } finally {
+          setGroupLessonsLoading(false);
+        }
+
+        // Load pro-forma invoices tab data from API (server-side pagination)
+        try {
+          setProformaInvoicesLoading(true);
+          const { data: proformas, pagination: pfPagination } =
+            await getCustomerProformaInvoices(location, Number(id), 1, 10);
+          setProformaInvoiceData(proformas);
+          setProformaInvoicesPagination(pfPagination);
+        } catch {
+          setProformaInvoiceData([]);
+          setProformaInvoicesPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
+        } finally {
+          setProformaInvoicesLoading(false);
+        }
+        // Load comments tab data from API
+        try {
+          const comments = await getCustomerComments(location, Number(id));
+          setCommentData(comments);
+        } catch {
+          setCommentData([]);
+        }
+        // Load history tab data from API (server-side pagination)
+        try {
+          setHistoryLoading(true);
+          const { data: history, pagination: hPag } = await getCustomerHistory(
+            location,
+            Number(id),
+            1,
+            10
+          );
+          setHistoryData(history);
+          setHistoryPagination(hPag);
+        } catch {
+          setHistoryData([]);
+          setHistoryPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
+        } finally {
+          setHistoryLoading(false);
+        }
       } catch (error) {
         console.error("Error loading customer data:", error);
       } finally {
         setLoading(false);
+        // const summary = await getCustomerSummary(location, Number(id));
+        // if (summary?.success && summary.data) {
+        //   setSummaryData(summary.data);
+        // }
       }
     };
 
@@ -700,7 +1438,7 @@ export function CustomerDetailClient({
     []
   );
 
-  // UPDATED: Define action menu groups with Receive Payment handler
+  // Define action menu groups
   const customerActionMenuGroups: ActionMenuGroup[] = [
     {
       label: "Actions",
@@ -709,22 +1447,60 @@ export function CustomerDetailClient({
           label: "Receive Payment",
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
-        { label: "Print Statement", onClick: () => {} },
-        { label: "Email Statement", onClick: () => setIsEmailStatementModalOpen(true) },
-        { label: "A/R Report Detail", onClick: () => {} },
-        { label: "Items Purchased by Category", onClick: () => {} },
-        { label: "Notify Via Email", onClick: () => {} },
+        
+        { 
+          label: "Print Statement", 
+          onClick: () => {
+            const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/print/customer-statement?id=${id}`;
+            window.open(legacyUrl, '_blank');
+          } 
+        },
+        {
+          label: "Email Statement",
+          onClick: () => setIsEmailStatementModalOpen(true),
+        },
+        { label: "A/R Report Detail", onClick: () => {{
+          const url = `/admin/v2/${location}/report/account-receivable/${id}`;
+          window.open(url, '_blank');
+        } } },
+        // { label: "Items Purchased by Category", onClick: () => {} },
+        // { label: "A/R Report Detail", onClick: () => {} },
+        { label: "Items Purchased by Category", onClick: () => {
+          const url = `/admin/v2/${location}/customers/${id}/items-purchased-by-category`;
+          window.open(url, '_blank');
+        } },
+        {
+          label: "Notify Via Email",
+          onClick: () => setIsNotifyModalOpen(true),
+        },
       ],
       separator: true,
     },
     {
-      items: [{ label: "Delete", onClick: () => {}, variant: "destructive" }],
+      items: [
+        {
+          label: "Delete",
+          onClick: () => setIsDeleteModalOpen(true),
+          variant: "destructive",
+        },
+      ],
     },
   ];
 
+  // Auto-dismiss error after 5 seconds
+  React.useEffect(() => {
+    if (deleteError) {
+      const timer = setTimeout(() => {
+        setDeleteError(null);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [deleteError]);
+
   return (
     <div className="bg-white dark:bg-black -mt-2">
-      <DetailHeader
+      <DetailHeaderWithProfile
         breadcrumbItems={[
           {
             label: "Customers",
@@ -739,7 +1515,15 @@ export function CustomerDetailClient({
         loading={loading}
         actionMenuGroups={customerActionMenuGroups}
         actionButtonAriaLabel="Customer actions"
+        showProfileIcon={true}
+        profileIconSize="md"
       />
+
+      {deleteError && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+          {deleteError}
+        </div>
+      )}
 
       {/* Payment History Cards */}
       <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pb-4">
@@ -773,56 +1557,54 @@ export function CustomerDetailClient({
         />
       </div>
 
-      {/* Details and Info Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
-        {/* Details Card */}
-        <DetailsCard
-          data={{
-            firstName: localFirstName,
-            lastName: localLastName,
-            role: role,
-            referralSource: referralSource,
-            status: status,
-            picture: picture,
-          }}
-          onSave={handleDetailsSave}
-          loading={loading}
-        />
-
-        {/* Right Column - Info Cards */}
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4 lg:items-start">
+        {/* Left Column */}
         <div className="space-y-3 sm:space-y-4">
-          <EmailCard
-            emails={emails}
-            onAddClick={() => {}}
-            onSave={setEmails}
+          {/* Details Card */}
+          <DetailsCard
+            data={{
+              firstName: localFirstName,
+              lastName: localLastName,
+              role: role,
+              referralSource: referralSource,
+              status: status,
+              picture: picture,
+            }}
+            onSave={handleDetailsSave}
             loading={loading}
+            location={location}
+            customerId={Number(id)}
           />
 
-          <PhoneCard
-            phones={phones}
-            onSave={(newPhones) => setPhones(newPhones)}
-            loading={loading}
-          />
-        </div>
-      </div>
-
-      {/* Tables and Additional Info Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
-        {/* Left Column - Main Tables */}
-        <div className="space-y-3 sm:space-y-4">
+          {/* Invoices Table */}
           <InvoiceTable
             data={invoiceData}
             loading={loading}
+            id={id}
             onAddInvoice={handleAddInvoice}
             onPrintInvoice={handlePrintInvoice}
+            location={location}
+            customerId={id}
+            customerName={`${localFirstName || ""}${
+              localLastName ? ` ${localLastName}` : ""
+            }`}
           />
 
+          {/* Outstanding Invoices */}
           <TableCard
             title="Outstanding Invoices"
             data={outstandingInvoiceData}
             columns={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.columns}
             loading={outstandingInvoicesLoading || loading}
             footerRow={outstandingInvoiceFooterRow}
+            onRowClick={(row) => {
+              const invoiceUrl = (row as OutstandingInvoiceData).url;
+              if (invoiceUrl) {
+                const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${invoiceUrl}`;
+                window.open(url, "_blank", "noopener");
+              }
+            }}
             onAdd={() => {}}
             size={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.size}
             variant={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.variant}
@@ -840,44 +1622,98 @@ export function CustomerDetailClient({
               CUSTOMER_TABLE_CONFIGS.outstandingInvoices.enableFilter
             }
             iconType="none"
-            // Enable "Show All" checkbox (no rows per page dropdown)
-            enableShowAll={true}
+            enableShowAll={outstandingInvoicesPagination.total > 10}
             showAllLabel="Show All"
-            // Server-side pagination props
             serverSidePagination={outstandingInvoicesPagination}
             onServerSidePageChange={handleOutstandingInvoicesPageChange}
             rowsPerPage={outstandingInvoicesPagination.limit}
             onRowsPerPageChange={handleOutstandingInvoicesRowsPerPageChange}
             rowsPerPageOptions={[10]}
           />
+
+          {/* Mobile Email and Phone Cards - Only on Mobile */}
+          <div className="lg:hidden space-y-3 sm:space-y-4">
+            <EmailCard
+              emails={emails}
+              onAddClick={() => {}}
+              onSave={setEmails}
+              loading={loading}
+              location={location}
+              customerId={Number(id)}
+            />
+
+            <PhoneCard
+              phones={phones}
+              onSave={(newPhones) => setPhones(newPhones)}
+              loading={loading}
+              location={location}
+              customerId={Number(id)}
+            />
+          </div>
         </div>
 
         {/* Right Column - Info Cards */}
         <div className="space-y-3 sm:space-y-4">
+          {/* Desktop Email and Phone Cards */}
+          <div className="hidden lg:block">
+            <EmailCard
+              emails={emails}
+              onAddClick={() => {}}
+              onSave={setEmails}
+              loading={loading}
+              location={location}
+              customerId={Number(id)}
+            />
+          </div>
+
+          <div className="hidden lg:block">
+            <PhoneCard
+              phones={phones}
+              onSave={(newPhones) => setPhones(newPhones)}
+              loading={loading}
+              location={location}
+              customerId={Number(id)}
+            />
+          </div>
+
           <AddressCard
             addresses={addresses}
             onSave={(newAddresses) => setAddresses(newAddresses)}
             loading={loading}
+            location={location}
+            customerId={Number(id)}
           />
 
           <DiscountCard
             discount={discount}
             onSave={(newDiscount) => setDiscount(newDiscount)}
             loading={loading}
+            location={location}
+            customerId={Number(id)}
           />
 
           <OpeningBalanceCard
             amount={openingBalance}
             hasBalance={hasOpeningBalance}
             customerId={id}
+            openingBalanceId={openingBalanceId ?? undefined}
             location={location}
-            onSave={(amount, balanceType) => {
-              // When saving from modal: owing = positive, credit = negative
+            onSave={async (amount, balanceType, invoiceId) => {
+              // UPDATE: Add invoiceId parameter
               const savedAmount = balanceType === "credit" ? -amount : amount;
               setOpeningBalance(savedAmount);
+              setOpeningBalanceId(invoiceId);
               setHasOpeningBalance(true);
-              // TODO: Call API to save: 
-              // { amount: savedAmount, type: balanceType === "credit" ? "negative" : "positive" }
+              
+              // Refresh summary data to update credits & outstanding invoice
+              try {
+                const summary = await getCustomerSummary(location, Number(id));
+                if (summary?.success && summary.data) {
+                  setSummaryData(summary.data);
+                }
+              } catch (error) {
+                console.error("Error refreshing summary data:", error);
+              }
             }}
             loading={loading}
           />
@@ -896,8 +1732,15 @@ export function CustomerDetailClient({
           title="Equipment Rentals"
           data={equipmentRentalData}
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
-          loading={loading}
+          loading={equipmentRentalsLoading || loading}
           onAdd={() => setIsEquipmentRentalsModalOpen(true)}
+          onRowClick={(row) => {
+            const r = row as unknown as EquipmentRentalData;
+            if (r && typeof r.id === "number") {
+              setSelectedRentalId(r.id);
+              setIsEquipmentRentalsModalOpen(true);
+            }
+          }}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableSorting}
@@ -909,14 +1752,33 @@ export function CustomerDetailClient({
             CUSTOMER_TABLE_CONFIGS.equipmentRentals.enableRowsPerPage
           }
           iconType="plus"
+          enableShowAll={true}
+          showAllLabel="Show All"
+          serverSidePagination={equipmentRentalsPagination}
+          onServerSidePageChange={handleEquipmentRentalsPageChange}
+          rowsPerPage={equipmentRentalsPagination.limit}
+          onRowsPerPageChange={handleEquipmentRentalsRowsPerPageChange}
+          rowsPerPageOptions={[10]}
         />
 
         <TableCard
           title="Recurring Payments"
-          data={recurringPaymentData}
+          data={_recurringPaymentData}
           columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
           loading={loading}
-          onAdd={() => setIsRecurringPaymentModalOpen(true)}
+          onAdd={() => {
+            setSelectedRecurringPaymentId(undefined);
+            setIsRecurringPaymentModalOpen(true);
+          }}
+          onRowClick={(row) => {
+            // Extract ID from row - check common ID field names
+            const rec = row as unknown as Record<string, unknown>;
+            const paymentId = rec["id"] ?? rec["paymentId"] ?? rec["payment_id"] ?? rec["recurringPaymentId"];
+            if (paymentId !== undefined && paymentId !== null) {
+              setSelectedRecurringPaymentId(Number(paymentId));
+              setIsRecurringPaymentModalOpen(true);
+            }
+          }}
           size={CUSTOMER_TABLE_CONFIGS.recurringPayments.size}
           variant={CUSTOMER_TABLE_CONFIGS.recurringPayments.variant}
           enableSorting={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSorting}
@@ -924,10 +1786,37 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.recurringPayments.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.recurringPayments.enableFilter}
-          enableRowsPerPage={
-            CUSTOMER_TABLE_CONFIGS.recurringPayments.enableRowsPerPage
-          }
+          enableRowsPerPage={true}
           iconType="plus"
+          serverSidePagination={recurringPaymentsPagination}
+          onServerSidePageChange={async (page: number) => {
+            try {
+              const { data, pagination } = await getCustomerRecurringPayments(
+                location,
+                Number(id),
+                page,
+                recurringPaymentsPagination.limit === -1
+                  ? 99999
+                  : recurringPaymentsPagination.limit
+              );
+              setRecurringPaymentData(data || []);
+              setRecurringPaymentsPagination(pagination);
+            } catch {}
+          }}
+          rowsPerPage={recurringPaymentsPagination.limit}
+          onRowsPerPageChange={async (limit: number) => {
+            try {
+              const { data, pagination } = await getCustomerRecurringPayments(
+                location,
+                Number(id),
+                1,
+                limit
+              );
+              setRecurringPaymentData(data || []);
+              setRecurringPaymentsPagination(pagination);
+            } catch {}
+          }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
         />
 
         <TableCard
@@ -935,7 +1824,21 @@ export function CustomerDetailClient({
           data={privateLessonDueData}
           columns={CUSTOMER_TABLE_CONFIGS.privateLessonDue.columns}
           loading={loading}
-          footerRow={privateLessonDueFooterRow}
+          footerRow={{
+            lessonDate: "",
+            studentName: "",
+            programName: "",
+            teacherName: "",
+            amount: privateLessonDueFooterTotal,
+            url: "",
+          }}
+          onRowClick={(row) => {
+            const lessonUrl = (row as PrivateLessonDueData).url;
+            if (lessonUrl) {
+              const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${lessonUrl}`;
+              window.open(url, "_blank", "noopener");
+            }
+          }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.privateLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.privateLessonDue.variant}
@@ -944,10 +1847,45 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableFilter}
-          enableRowsPerPage={
-            CUSTOMER_TABLE_CONFIGS.privateLessonDue.enableRowsPerPage
-          }
+          enableRowsPerPage={true}
           iconType="none"
+          enableShowAll={false}
+          showAllLabel="Show All"
+          serverSidePagination={privateLessonDuePagination}
+          onServerSidePageChange={async (page: number) => {
+            try {
+              const result = await getCustomerPrivateLessonDue(
+                location,
+                Number(id),
+                page,
+                privateLessonDuePagination.limit === -1
+                  ? 99999
+                  : privateLessonDuePagination.limit
+              );
+              setPrivateLessonDueData(result.data || []);
+              setPrivateLessonDuePagination(result.pagination);
+              if (result.footer?.totalAmount) {
+                setPrivateLessonDueFooterTotal(result.footer.totalAmount);
+              }
+            } catch {}
+          }}
+          rowsPerPage={privateLessonDuePagination.limit}
+          onRowsPerPageChange={async (limit: number) => {
+            try {
+              const result = await getCustomerPrivateLessonDue(
+                location,
+                Number(id),
+                1,
+                limit
+              );
+              setPrivateLessonDueData(result.data || []);
+              setPrivateLessonDuePagination(result.pagination);
+              if (result.footer?.totalAmount) {
+                setPrivateLessonDueFooterTotal(result.footer.totalAmount);
+              }
+            } catch {}
+          }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
         />
 
         <TableCard
@@ -955,6 +1893,20 @@ export function CustomerDetailClient({
           data={groupLessonDueData}
           columns={CUSTOMER_TABLE_CONFIGS.groupLessonDue.columns}
           loading={loading}
+          footerRow={{
+            lessonDate: "",
+            studentName: "",
+            programName: "",
+            teacherName: "",
+            amount: groupLessonDueFooterTotal,
+          }}
+          onRowClick={(row) => {
+            const lessonUrl = (row as GroupLessonDueData).url;
+            if (lessonUrl) {
+              const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/${lessonUrl}`;
+              window.open(url, "_blank", "noopener");
+            }
+          }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.groupLessonDue.size}
           variant={CUSTOMER_TABLE_CONFIGS.groupLessonDue.variant}
@@ -963,18 +1915,84 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableFilter}
-          enableRowsPerPage={
-            CUSTOMER_TABLE_CONFIGS.groupLessonDue.enableRowsPerPage
-          }
+          enableRowsPerPage={true}
           iconType="none"
+          enableShowAll={false}
+          showAllLabel="Show All"
+          serverSidePagination={groupLessonDuePagination}
+          onServerSidePageChange={async (page: number) => {
+            try {
+              const result = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                page,
+                groupLessonDuePagination.limit === -1
+                  ? 99999
+                  : groupLessonDuePagination.limit
+              );
+              setGroupLessonDueData(result.data || []);
+              setGroupLessonDuePagination(result.pagination);
+              if (result.footer?.totalAmount) {
+                setGroupLessonDueFooterTotal(result.footer.totalAmount);
+              }
+            } catch {}
+          }}
+          rowsPerPage={groupLessonDuePagination.limit}
+          onRowsPerPageChange={async (limit: number) => {
+            try {
+              const result = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                1,
+                limit
+              );
+              setGroupLessonDueData(result.data || []);
+              setGroupLessonDuePagination(result.pagination);
+              if (result.footer?.totalAmount) {
+                setGroupLessonDueFooterTotal(result.footer.totalAmount);
+              }
+            } catch {}
+          }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
         />
 
         <TableCard
           title="Payments"
           data={paymentData}
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
-          loading={loading}
+          loading={paymentsLoading || loading}
           footerRow={paymentFooterRow}
+          onRowClick={async (row) => {
+            const rec = row as unknown as Record<string, unknown>;
+            const pid = rec["paymentId"] ?? rec["id"] ?? rec["payment_id"];
+            if (pid !== undefined && pid !== null) {
+              try {
+                const detail = await getCustomerPaymentById(
+                  location,
+                  Number(id),
+                  String(pid)
+                );
+                if (detail) {
+                  setSelectedPayment(detail);
+                  const idx = paymentData.findIndex((p) => {
+                    const anyP = p as unknown as Record<string, unknown>;
+                    const pId =
+                      anyP["paymentId"] ?? anyP["id"] ?? anyP["payment_id"];
+                    return pId !== undefined && String(pId) === String(pid);
+                  });
+                  setSelectedPaymentIndex(idx >= 0 ? idx : null);
+                  setIsPaymentReceiptModalOpen(true);
+                  return;
+                }
+              } catch {}
+            }
+            // Fallback to existing behavior when no paymentId found or fetch failed
+            const payment = row as PaymentData;
+            setSelectedPayment(payment);
+            const idx = paymentData.findIndex((p) => p === payment);
+            setSelectedPaymentIndex(idx >= 0 ? idx : null);
+            setIsPaymentReceiptModalOpen(true);
+          }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.payments.size}
           variant={CUSTOMER_TABLE_CONFIGS.payments.variant}
@@ -983,7 +2001,7 @@ export function CustomerDetailClient({
           enablePrint={CUSTOMER_TABLE_CONFIGS.payments.enablePrint}
           enableSearch={CUSTOMER_TABLE_CONFIGS.payments.enableSearch}
           enableFilter={CUSTOMER_TABLE_CONFIGS.payments.enableFilter}
-          enableRowsPerPage={CUSTOMER_TABLE_CONFIGS.payments.enableRowsPerPage}
+          enableRowsPerPage={true}
           iconType="chevron"
           dropdownItems={[
             {
@@ -992,6 +2010,11 @@ export function CustomerDetailClient({
             },
           ]}
           dropdownLabel="Payment Actions"
+          serverSidePagination={paymentsPagination}
+          onServerSidePageChange={handlePaymentsPageChange}
+          rowsPerPage={paymentsPagination.limit}
+          onRowsPerPageChange={handlePaymentsRowsPerPageChange}
+          rowsPerPageOptions={[10]}
         />
       </div>
 
@@ -1015,26 +2038,57 @@ export function CustomerDetailClient({
             const fullData =
               tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
 
-            // Get pagination info for this tab
             const pagination = tabPagination[tabKey];
 
-            // Slice data based on current page and rows per page (like AccountReceivableClient)
-            const startIndex = pagination
-              ? (pagination.page - 1) * pagination.limit
-              : 0;
-            const endIndex = pagination
-              ? startIndex + pagination.limit
-              : fullData.length;
-            const data = fullData.slice(startIndex, endIndex);
+            const isPrivateLessonsTab = tabKey === "private-lessons";
+            const isGroupLessonsTab = tabKey === "group-lessons";
+            const isProformaInvoicesTab = tabKey === "proforma-invoices";
+            const isStudentsTab = tabKey === "students";
+            const isEnrolmentsTab = tabKey === "enrolments";
+            const isHistoryTab = tabKey === "history";
 
-            // Show pagination if total records > 10
-            const shouldShowPagination = pagination && pagination.total > 10;
+            let data = fullData;
+            if (
+              !isPrivateLessonsTab &&
+              !isGroupLessonsTab &&
+              !isProformaInvoicesTab
+            ) {
+              const startIndex = pagination
+                ? (pagination.page - 1) * pagination.limit
+                : 0;
+              const endIndex = pagination
+                ? startIndex + pagination.limit
+                : fullData.length;
+              data = fullData.slice(startIndex, endIndex);
+            }
 
-            // Use specific loading state for students tab
-            const isLoading = tabKey === "students" ? studentsLoading : loading;
+            const shouldShowPagination =
+              (pagination && pagination.total > 10) ||
+              (isPrivateLessonsTab &&
+                privateLessonsPagination.total >
+                  privateLessonsPagination.limit) ||
+              (isGroupLessonsTab &&
+                groupLessonsPagination.total > groupLessonsPagination.limit) ||
+              (isProformaInvoicesTab &&
+                proformaInvoicesPagination.total >
+                  proformaInvoicesPagination.limit);
+
+            const isLoading =
+              tabKey === "students"
+                ? studentsLoading
+                : isPrivateLessonsTab
+                ? privateLessonsLoading || loading
+                : isGroupLessonsTab
+                ? groupLessonsLoading || loading
+                : isProformaInvoicesTab
+                ? proformaInvoicesLoading || loading
+                : isEnrolmentsTab
+                ? enrolmentsLoading || loading
+                : isHistoryTab
+                ? historyLoading || loading
+                : loading;
             const error = tabKey === "students" ? studentsError : null;
 
-            // Define bottom content for comments tab
             const commentsBottomContent =
               tabKey === "comments" ? (
                 <div className="mt-4 flex items-center space-x-2">
@@ -1042,14 +2096,63 @@ export function CustomerDetailClient({
                     type="text"
                     placeholder="Type message"
                     className="flex-grow"
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        commentInput.trim() &&
+                        !commentLoading
+                      ) {
+                        handleAddComment();
+                      }
+                    }}
+                    disabled={commentLoading}
                   />
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
+                    className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white disabled:opacity-50"
+                    onClick={handleAddComment}
+                    disabled={!commentInput.trim() || commentLoading}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
+                </div>
+              ) : undefined;
+
+            const commentsCustomContent =
+              tabKey === "comments" ? (
+                <div className="space-y-4">
+                  {Array.isArray(commentData) && commentData.length > 0 ? (
+                    commentData.map((c: CommentData, idx: number) => (
+                      <div
+                        key={c.id ?? idx}
+                        className="flex items-start justify-between gap-4"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center border">
+                            <User className="h-6 w-6 text-gray-500" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-600">
+                              {c.createdUser}
+                            </div>
+                            <div className="text-sm text-gray-800 dark:text-gray-200">
+                              {c.content}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 whitespace-nowrap">
+                          {c.createdOn}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No comments found.
+                    </div>
+                  )}
                 </div>
               ) : undefined;
 
@@ -1065,32 +2168,319 @@ export function CustomerDetailClient({
                   onAdd={() => {
                     if (tabKey === "students") {
                       setIsAddStudentModalOpen(true);
+                    } else if (tabKey === "proforma-invoices") {
+                      handleProformaInvoiceNavigate();
                     } else {
                       // TODO: Implement add functionality for other tabs
                     }
                   }}
                   emptyState={config.emptyState}
                   hasTable={config.hasTable}
+                  customContent={commentsCustomContent}
                   bottomContent={commentsBottomContent}
-                  // Simple pagination following AccountReceivableClient pattern
                   enablePagination={shouldShowPagination}
                   serverSidePagination={
-                    shouldShowPagination ? tabPagination[tabKey] : undefined
+                    isPrivateLessonsTab
+                      ? privateLessonsPagination
+                      : isGroupLessonsTab
+                      ? groupLessonsPagination
+                      : isProformaInvoicesTab
+                      ? proformaInvoicesPagination
+                      : isStudentsTab
+                      ? studentsPagination
+                      : isEnrolmentsTab
+                      ? enrolmentsPagination
+                      : isHistoryTab
+                      ? historyPagination
+                      : shouldShowPagination
+                      ? tabPagination[tabKey]
+                      : undefined
                   }
                   onPageChange={
-                    shouldShowPagination
+                    isPrivateLessonsTab
+                      ? (page: number) => {
+                          setPrivateLessonsLoading(true);
+                          getCustomerPrivateLessons(
+                            location,
+                            Number(id),
+                            page,
+                            privateLessonsPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setPrivateLessonData(data);
+                              setPrivateLessonsPagination(pagination);
+                            })
+                            .finally(() => setPrivateLessonsLoading(false));
+                        }
+                      : isGroupLessonsTab
+                      ? (page: number) => {
+                          setGroupLessonsLoading(true);
+                          getCustomerGroupLessons(
+                            location,
+                            Number(id),
+                            page,
+                            groupLessonsPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setGroupLessonData(data);
+                              setGroupLessonsPagination(pagination);
+                            })
+                            .finally(() => setGroupLessonsLoading(false));
+                        }
+                      : isStudentsTab
+                      ? (page: number) => {
+                          setStudentsLoading(true);
+                          getCustomerStudents(
+                            location,
+                            Number(id),
+                            page,
+                            studentsPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setStudentData(data);
+                              setStudentsPagination(pagination);
+                            })
+                            .finally(() => setStudentsLoading(false));
+                        }
+                      : isEnrolmentsTab
+                      ? (page: number) => {
+                          setEnrolmentsLoading(true);
+                          getCustomerEnrolments(
+                            location,
+                            Number(id),
+                            page,
+                            enrolmentsPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setEnrolmentData(data);
+                              setEnrolmentsPagination(pagination);
+                            })
+                            .finally(() => setEnrolmentsLoading(false));
+                        }
+                      : isHistoryTab
+                      ? (page: number) => {
+                          setHistoryLoading(true);
+                          getCustomerHistory(
+                            location,
+                            Number(id),
+                            page,
+                            historyPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setHistoryData(data);
+                              setHistoryPagination(pagination);
+                            })
+                            .finally(() => setHistoryLoading(false));
+                        }
+                      : isProformaInvoicesTab
+                      ? (page: number) => {
+                          setProformaInvoicesLoading(true);
+                          getCustomerProformaInvoices(
+                            location,
+                            Number(id),
+                            page,
+                            proformaInvoicesPagination.limit
+                          )
+                            .then(({ data, pagination }) => {
+                              setProformaInvoiceData(data);
+                              setProformaInvoicesPagination(pagination);
+                            })
+                            .finally(() => setProformaInvoicesLoading(false));
+                        }
+                      : shouldShowPagination
                       ? (page: number) => handleTabPageChange(tabKey, page)
                       : undefined
                   }
                   onRowsPerPageChange={
-                    shouldShowPagination
+                    isPrivateLessonsTab
+                      ? (rowsPerPage: number) => {
+                          setPrivateLessonsLoading(true);
+                          getCustomerPrivateLessons(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setPrivateLessonData(data);
+                              setPrivateLessonsPagination(pagination);
+                            })
+                            .finally(() => setPrivateLessonsLoading(false));
+                        }
+                      : isGroupLessonsTab
+                      ? (rowsPerPage: number) => {
+                          setGroupLessonsLoading(true);
+                          getCustomerGroupLessons(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setGroupLessonData(data);
+                              setGroupLessonsPagination(pagination);
+                            })
+                            .finally(() => setGroupLessonsLoading(false));
+                        }
+                      : isStudentsTab
+                      ? (rowsPerPage: number) => {
+                          setStudentsLoading(true);
+                          getCustomerStudents(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setStudentData(data);
+                              setStudentsPagination(pagination);
+                            })
+                            .finally(() => setStudentsLoading(false));
+                        }
+                      : isEnrolmentsTab
+                      ? (rowsPerPage: number) => {
+                          setEnrolmentsLoading(true);
+                          getCustomerEnrolments(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setEnrolmentData(data);
+                              setEnrolmentsPagination(pagination);
+                            })
+                            .finally(() => setEnrolmentsLoading(false));
+                        }
+                      : isHistoryTab
+                      ? (rowsPerPage: number) => {
+                          setHistoryLoading(true);
+                          getCustomerHistory(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setHistoryData(data);
+                              setHistoryPagination(pagination);
+                            })
+                            .finally(() => setHistoryLoading(false));
+                        }
+                      : isProformaInvoicesTab
+                      ? (rowsPerPage: number) => {
+                          setProformaInvoicesLoading(true);
+                          getCustomerProformaInvoices(
+                            location,
+                            Number(id),
+                            1,
+                            rowsPerPage
+                          )
+                            .then(({ data, pagination }) => {
+                              setProformaInvoiceData(data);
+                              setProformaInvoicesPagination(pagination);
+                            })
+                            .finally(() => setProformaInvoicesLoading(false));
+                        }
+                      : shouldShowPagination
                       ? (rowsPerPage: number) =>
                           handleTabRowsPerPageChange(tabKey, rowsPerPage)
                       : undefined
                   }
-                  rowsPerPage={tabRowsPerPage[tabKey] || 10}
+                  rowsPerPage={
+                    isPrivateLessonsTab
+                      ? privateLessonsPagination.limit
+                      : isGroupLessonsTab
+                      ? groupLessonsPagination.limit
+                      : isProformaInvoicesTab
+                      ? proformaInvoicesPagination.limit
+                      : isStudentsTab
+                      ? studentsPagination.limit
+                      : isEnrolmentsTab
+                      ? enrolmentsPagination.limit
+                      : isHistoryTab
+                      ? historyPagination.limit
+                      : tabRowsPerPage[tabKey] || 10
+                  }
                   rowsPerPageOptions={[5, 10, 20, 50, 100]}
                   initialRowsPerPage={10}
+                  onRowClick={(row: unknown) => {
+                    const getScalarField = (
+                      obj: unknown,
+                      keys: string[]
+                    ): string | number | undefined => {
+                      if (!obj || typeof obj !== "object") return undefined;
+                      const rec = obj as Record<string, unknown>;
+                      for (const key of keys) {
+                        const value = rec[key];
+                        if (
+                          typeof value === "string" ||
+                          typeof value === "number"
+                        ) {
+                          return value;
+                        }
+                      }
+                      return undefined;
+                    };
+                    const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+
+                    if (isStudentsTab) {
+                      const studentId = getScalarField(row, [
+                        "id",
+                        "studentId",
+                      ]);
+                      if (studentId) {
+                        window.open(
+                          `${legacyBase}/${location}/student/view?id=${studentId}`,
+                          "_blank",
+                          "noopener"
+                        );
+                      }
+                    } else if (isEnrolmentsTab) {
+                      const enrolmentId = getScalarField(row, [
+                        "id",
+                        "enrolmentId",
+                        "enrollmentId",
+                      ]);
+                      if (enrolmentId) {
+                        window.open(
+                          `${legacyBase}/${location}/enrolment/view?id=${enrolmentId}`,
+                          "_blank",
+                          "noopener"
+                        );
+                      }
+                    } else if (isPrivateLessonsTab || isGroupLessonsTab) {
+                      // Get url field from row
+                      const url = getScalarField(row, ["url"]);
+
+                      if (url && typeof url === "string") {
+                        // Use the url directly from API
+                        window.open(
+                          `${legacyBase}/${location}/${url}`,
+                          "_blank",
+                          "noopener"
+                        );
+                      } else {
+                        // Fallback: construct URL from id if url field is missing
+                        const lessonId = getScalarField(row, [
+                          "id",
+                          "lessonId",
+                        ]);
+                        if (lessonId) {
+                          window.open(
+                            `${legacyBase}/${location}/lesson/view?id=${lessonId}`,
+                            "_blank",
+                            "noopener"
+                          );
+                        } else {
+                          console.error(
+                            "No url or id found for lesson row:",
+                            row
+                          );
+                        }
+                      }
+                    }
+                  }}
                 />
               </TabsContent>
             );
@@ -1098,35 +2488,67 @@ export function CustomerDetailClient({
         </Tabs>
       </div>
 
+      {/* Modals */}
+
       {/* Add Student Modal */}
       <AddStudentModal
         open={isAddStudentModalOpen}
         onOpenChange={setIsAddStudentModalOpen}
         onSave={handleAddStudent}
         customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+          (customer &&
+            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
+          _customerInfo?.profile?.name ||
+          ""
         }
       />
 
       {/* Recurring Payment Modal */}
       <RecurringPaymentModal
         open={isRecurringPaymentModalOpen}
-        onOpenChange={setIsRecurringPaymentModalOpen}
+        onOpenChange={(open) => {
+          setIsRecurringPaymentModalOpen(open);
+          if (!open) {
+            setSelectedRecurringPaymentId(undefined);
+          }
+        }}
         onSave={handleAddRecurringPayment}
+        onDelete={handleDeleteRecurringPayment}
         customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+          (customer &&
+            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
+          _customerInfo?.profile?.name ||
+          ""
         }
+        location={location}
+        customerId={Number(id)}
+        recurringPaymentId={selectedRecurringPaymentId}
       />
 
       {/* Equipment Rentals Modal */}
       <EquipmentRentalsModal
         open={isEquipmentRentalsModalOpen}
-        onOpenChange={setIsEquipmentRentalsModalOpen}
+        onOpenChange={(open) => {
+          setIsEquipmentRentalsModalOpen(open);
+          if (!open) setSelectedRentalId(null);
+        }}
         onSave={handleAddEquipmentRental}
-        customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
-        }
-        customerEmail={customer?.email}
+        customerId={Number(id)}
+        location={location}
+        rentalId={selectedRentalId ?? undefined}
+        onEquipmentReturned={(rid) => {
+          setEquipmentRentalData((prev) => prev.filter((r) => (r as EquipmentRentalData).id !== rid));
+          setEquipmentRentalsPagination((prev) => ({
+            ...prev,
+            total: Math.max((prev.total || 0) - 1, 0),
+          }));
+          setIsEquipmentRentalsModalOpen(false);
+          setSelectedRentalId(null);
+        }}
+        onReprintAgreement={(rid) => {
+          // Placeholder: integrate actual print endpoint if available
+          console.info("Reprint Agreement for rental", rid);
+        }}
       />
 
       {/* Email Statement Modal */}
@@ -1134,13 +2556,27 @@ export function CustomerDetailClient({
         open={isEmailStatementModalOpen}
         onOpenChange={setIsEmailStatementModalOpen}
         onSend={handleSendEmailStatement}
-        customerName={customer ? `${customer.firstName} ${customer.lastName}` : undefined}
-        customerEmails={emails.map(e => e.email)}
+        customerName={
+          customer ? `${customer.firstName} ${customer.lastName}` : undefined
+        }
+        customerEmails={
+          emailStatementData?.customerEmails || emails.map((e) => e.email)
+        }
         locationName="Arcadia Academy of Music"
-        privateLessonDueData={privateLessonDueData}
-        groupLessonDueData={groupLessonDueData}
-        invoiceData={invoiceData}
-        totalBalance={summaryData.balance}
+        initialSubject={emailStatementData?.emailSubject}
+        initialContent={emailStatementData?.emailHeader}
+        privateLessonDueData={
+          emailStatementData?.privateLessonsDue || privateLessonDueData
+        }
+        groupLessonDueData={
+          emailStatementData?.groupLessonsDue || groupLessonDueData
+        }
+        invoiceData={emailStatementData?.invoices || invoiceData}
+        totalBalance={
+          emailStatementData
+            ? `$${emailStatementData.totalBalance.toFixed(2)}`
+            : summaryData.balance
+        }
       />
 
       {/* Receive Payment Modal */}
@@ -1148,11 +2584,115 @@ export function CustomerDetailClient({
         open={isReceivePaymentModalOpen}
         onOpenChange={setIsReceivePaymentModalOpen}
         onSave={handleReceivePayment}
+        location={location}
         customerName={
           customer ? `${customer.firstName} ${customer.lastName}` : undefined
         }
         customerId={id}
         amountNeeded={calculateAmountNeeded()}
+      />
+
+      {/* Payment Receipt Modal */}
+      <PaymentReceiptModal
+        open={isPaymentReceiptModalOpen}
+        onOpenChange={setIsPaymentReceiptModalOpen}
+        location={location}
+        customerId={Number(id)}
+        payment={selectedPayment || undefined}
+        customerName={
+          (customer &&
+            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
+          _customerInfo?.profile?.name ||
+          emails[0]?.email ||
+          "Customer"
+        }
+        customerEmail={emails[0]?.email}
+        customerEmails={emails.map((e) => e.email)}
+        customerPhone={phones[0]?.number}
+        privateLessonDue={
+          privateLessonDueData as unknown as Array<{
+            lessonDate: string;
+            studentName: string;
+            programName: string;
+            teacherName: string;
+            amount: number | string;
+          }>
+        }
+        groupLessonDueData={groupLessonDueData}
+        invoiceData={invoiceData}
+        totalBalance={summaryData.balance}
+        locationName="Arcadia Academy of Music"
+        onEdit={(data) => {
+          if (selectedPaymentIndex === null) return;
+          const parseNum = (v: unknown) =>
+            typeof v === "number"
+              ? v
+              : typeof v === "string"
+              ? parseFloat(v.replace(/[^0-9.-]+/g, ""))
+              : 0;
+          setPaymentData((prev) =>
+            prev.map((p, i) => {
+              if (i !== selectedPaymentIndex) return p;
+              const usedNum = parseNum(p.used);
+              const newAmount = data.amountReceived;
+              const newRemaining = Math.max(0, newAmount - usedNum);
+              return {
+                ...p,
+                date: data.date || p.date,
+                notes: data.method || p.notes,
+                amount: newAmount,
+                remaining: newRemaining,
+              };
+            })
+          );
+          setSelectedPayment((prev) => {
+            if (!prev) return prev;
+            const usedNum =
+              typeof prev.used === "number"
+                ? prev.used
+                : parseFloat(String(prev.used).replace(/[^0-9.-]+/g, "")) || 0;
+            const newRemaining = Math.max(0, data.amountReceived - usedNum);
+            return {
+              ...prev,
+              date: data.date || prev.date,
+              notes: data.method || prev.notes,
+              amount: data.amountReceived,
+              remaining: newRemaining,
+            };
+          });
+        }}
+        onDelete={() => {
+          if (selectedPaymentIndex === null) return;
+          setPaymentData((prev) =>
+            prev.filter((_, i) => i !== selectedPaymentIndex)
+          );
+          setPaymentsPagination((prev) => ({
+            ...prev,
+            total: Math.max((prev.total || 0) - 1, 0),
+          }));
+          setSelectedPayment(null);
+          setSelectedPaymentIndex(null);
+        }}
+        onPrint={() => {}}
+        onEmail={() => {}}
+      />
+
+      {/* Notify Via Email Modal */}
+      <NotifyViaEmailReasonsModal
+        open={isNotifyModalOpen}
+        onOpenChange={setIsNotifyModalOpen}
+        location={location}
+        customerId={Number(id)}
+      />
+
+      {/* Customer Delete Modal */}
+      <CustomerDeleteModal
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        location={location}
+        customerId={Number(id)}
+        onDeleteSuccess={() => router.push(`/${location}/customers/`)}
+        onDeleteError={(error) => setDeleteError(error)}
       />
     </div>
   );

@@ -14,22 +14,31 @@ interface EmailStatementModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSend: (emailData: EmailFormData) => void;
+  onDelete?: () => void;
   customerName?: string;
   customerEmails?: string[];
   locationName?: string;
+  initialSubject?: string;
+  initialContent?: string;
   privateLessonDueData?: Array<{
     lessonDate: string;
     student: string;
     program: string;
     teacher: string;
     amount: number;
+  } | {
+    lessonDate: string;
+    studentName: string;
+    programName: string;
+    teacherName: string;
+    amount: number | string;
   }>;
   groupLessonDueData?: Array<{
     lessonDate: string;
-    student: string;
-    program: string;
-    teacher: string;
-    amount: number;
+    studentName: string;
+    programName: string;
+    teacherName: string;
+    amount: number | string;
   }>;
   invoiceData?: Array<{
     id: string;
@@ -52,9 +61,12 @@ export default function EmailStatementModal({
   open, 
   onOpenChange, 
   onSend, 
+  onDelete,
   customerName: _customerName,
   customerEmails = [],
   locationName = "Arcadia Academy of Music",
+  initialSubject,
+  initialContent,
   privateLessonDueData = [],
   groupLessonDueData = [],
   invoiceData = [],
@@ -102,115 +114,182 @@ export default function EmailStatementModal({
   };
 
 
-  // Track if content has been initialized for this modal session
-  const contentInitialized = React.useRef(false);
-
-  // Initialize form when modal opens with complete email content (text + tables HTML)
+  // Initialize form when modal opens or when API data changes
   React.useEffect(() => {
-    if (open && !contentInitialized.current) {
+    if (open) {
       // Pre-fill with customer emails if available
       setRecipients(customerEmails.filter(email => email && email.trim() !== ""));
-      setSubject(`Customer Statement from ${locationName}`);
+      setSubject(initialSubject || `Customer Statement from ${locationName}`);
       
       // Generate complete email content with text AND tables together
-      const completeContent = generateCompleteEmailHTML();
+      // If initialContent (emailHeader) is provided, combine it with generated tables
+      // Otherwise, generate complete content from scratch
+      let completeContent: string;
+      if (initialContent) {
+        // initialContent is the emailHeader from API, combine it with tables
+        const tablesHTML = generateTablesHTML();
+        completeContent = `<p>${initialContent}</p>` + tablesHTML;
+      } else {
+        // Generate complete content from scratch
+        completeContent = generateCompleteEmailHTML();
+      }
       setContent(completeContent);
-      contentInitialized.current = true;
-    } else if (!open) {
-      // Reset flag when modal closes
-      contentInitialized.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, customerEmails, locationName]);
+  }, [open, customerEmails, locationName, initialSubject, initialContent, privateLessonDueData, groupLessonDueData, invoiceData, totalBalance]);
 
   // Generate complete email HTML with introductory text AND tables
   const generateCompleteEmailHTML = () => {
-    const introText = `<p>For your convenience, please see your next billing statement below. As a reminder, payments are due the first week of the month.</p>`;
+    const introText = `<p>For your convenience, please see your next billing statement below. As a reminder, payments are due the first week of the month.</p><p>We would also like to take this opportunity to remind you that we have a number of convenient and more economical ways of making payments. These methods of payments with corresponding discounts are outlined in our Payment Method: Commitment Plan which can be found at our front desk.</p>`;
     
     const tablesHTML = generateTablesHTML();
     
-    const closingText = `<p>We would also like to take this opportunity to remind you that we have a number of convenient and more economical ways of making payments. These methods of payments with corresponding discounts are outlined in our Payment Method: Commitment Plan which can be found at our front desk.</p>`;
-    
-    return introText + tablesHTML + closingText;
+    return introText + tablesHTML;
   };
 
+  const editorTemplates = React.useMemo(() => ([
+    {
+      label: 'Image and Title',
+      description: 'One main image with a title and text that surround the image.',
+      content: `
+        <div style="font-size:14px; color:#111827; line-height:1.6;">
+          <h2 style="margin:0 0 12px 0; font-weight:700; font-size:20px;">Your Big Announcement</h2>
+          <img src="https://via.placeholder.com/800x260" alt="Banner" style="width:100%; height:auto; border:1px solid #d1d5db; border-radius:4px;" />
+          <p style="margin:12px 0 0 0;">Write a short introduction paragraph here to describe your announcement. Keep it concise and helpful.</p>
+        </div>
+      `,
+    },
+    {
+      label: 'Strange Template',
+      description: 'Two columns layout, each with a title and some text.',
+      content: `
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse; font-size:14px;">
+          <tr>
+            <td style="width:50%; vertical-align:top; padding:8px;">
+              <h3 style="margin:0 0 8px 0; font-size:16px; font-weight:600;">Left Column</h3>
+              <p style="margin:0;">This is some example text in the left column. You can replace it.</p>
+            </td>
+            <td style="width:50%; vertical-align:top; padding:8px;">
+              <h3 style="margin:0 0 8px 0; font-size:16px; font-weight:600;">Right Column</h3>
+              <p style="margin:0;">This is some example text in the right column. Add your own content here.</p>
+            </td>
+          </tr>
+        </table>
+      `,
+    },
+    {
+      label: 'Text and Table',
+      description: 'Heading with paragraph and a simple data table.',
+      content: `
+        <div style="font-size:14px; color:#111827; line-height:1.6;">
+          <h3 style="margin:0 0 8px 0; font-weight:700; font-size:18px;">Summary</h3>
+          <p style="margin:0 0 12px 0;">Below is a simple table you can edit directly in the email editor.</p>
+          <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #d1d5db;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="text-align:left; border:1px solid #d1d5db;">Item</th>
+                <th style="text-align:left; border:1px solid #d1d5db;">Qty</th>
+                <th style="text-align:right; border:1px solid #d1d5db;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border:1px solid #d1d5db;">Example A</td>
+                <td style="border:1px solid #d1d5db;">1</td>
+                <td style="border:1px solid #d1d5db; text-align:right;">$10.00</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;">Example B</td>
+                <td style="border:1px solid #d1d5db;">2</td>
+                <td style="border:1px solid #d1d5db; text-align:right;">$25.00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `,
+    },
+  ]), [privateLessonDueData, groupLessonDueData, invoiceData, totalBalance, locationName]);
+
   // Generate table HTML for email content (using real customer data)
-  const generateTablesHTML = () => {
+  function generateTablesHTML() {
     return `
 <div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px;">Private Lessons Due</h3>
-  <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
+  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
       <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Student</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Program</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Teacher</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Amount</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Balance</th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
       </tr>
     </thead>
     <tbody>
-      ${privateLessonDueData.map(lesson => `<tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.lessonDate}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.student}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.program}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacher}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
-      </tr>`).join('')}
+      ${privateLessonDueData.map((lesson) => {
+        type Legacy = { lessonDate: string; student: string; program: string; teacher: string; amount: number };
+        type Api = { lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string };
+        const isApi = (l: Legacy | Api): l is Api => 'studentName' in (l as Record<string, unknown>);
+        const student = isApi(lesson as Legacy | Api) ? (lesson as Api).studentName : (lesson as Legacy).student;
+        const program = isApi(lesson as Legacy | Api) ? (lesson as Api).programName : (lesson as Legacy).program;
+        const teacher = isApi(lesson as Legacy | Api) ? (lesson as Api).teacherName : (lesson as Legacy).teacher;
+        const amountVal = (lesson as Legacy | Api).amount as number | string;
+        const amountStr = typeof amountVal === 'string' ? amountVal : formatCurrency(amountVal);
+        return `<tr style=\"border-bottom: 1px solid #e5e7eb;\">\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${lesson.lessonDate}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${student}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${program}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${teacher}</td>\n        <td style=\"padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;\">${amountStr}</td>\n        <td style=\"padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;\">${amountStr}</td>\n      </tr>`;
+      }).join('')}
     </tbody>
   </table>
 
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Group Lessons Due</h3>
-  <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
+  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
       <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Student</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Program</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Teacher</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Amount</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Balance</th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
       </tr>
     </thead>
     <tbody>
       ${groupLessonDueData.map(lesson => `<tr style="border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.lessonDate}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.student}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.program}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacher}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(lesson.amount)}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.studentName}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.programName}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacherName}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;<div style="text-align: right;">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db; <div style="text-align: right;">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
       </tr>`).join('')}
     </tbody>
   </table>
 
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Invoices</h3>
-  <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
+  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
       <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
         <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Number</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Amount</th>
-        <th style="text-align: right; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Balance</th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
       </tr>
     </thead>
     <tbody>
       ${invoiceData.map(invoice => `<tr style="border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${invoice.date}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${invoice.id}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(invoice.total)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${formatCurrency(invoice.balance)}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(invoice.total)}</div></td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(invoice.balance)}</div></td>
       </tr>`).join('')}
     </tbody>
   </table>
 
   <div style="margin-top: 24px; padding-top: 16px; border-top: 2px solid #d1d5db;">
-    <table style="width: 100%; font-size: 14px;">
+    <table class="email-statement-total" style="width: 100%; font-size: 14px;">
       <tr>
         <td style="font-weight: bold; color: #111827; text-align: left;">Total</td>
-        <td style="font-weight: bold; color: #111827; text-align: right;">${totalBalance}</td>
+        <td style="font-weight: bold; color: #111827;"><div style="text-align: right;">${totalBalance}</div></td>
       </tr>
     </table>
   </div>
@@ -221,7 +300,7 @@ export default function EmailStatementModal({
     <p style="margin: 0;">${locationName}</p>
   </div>
 </div>`;
-  };
+  }
 
   // Handle email input
   const handleEmailInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -292,6 +371,10 @@ export default function EmailStatementModal({
     }
   };
 
+  const handleDelete = () => {
+    onDelete?.();
+  };
+
   const handleCancel = () => {
     // Reset form
     setRecipients([]);
@@ -301,6 +384,14 @@ export default function EmailStatementModal({
     setErrors({});
     onOpenChange(false);
   };
+
+  const leftActions = [
+    {
+      label: "Delete",
+      onClick: handleDelete,
+      variant: "destructive" as const,
+    },
+  ];
 
   const modalActions = [
     {
@@ -324,6 +415,7 @@ export default function EmailStatementModal({
         size="full"
         className="max-w-4xl max-h-[90vh]"
         actions={modalActions}
+        leftActions={leftActions}
       >
         <div className="space-y-4">
         {/* To Field with Email Tags */}
@@ -394,6 +486,7 @@ export default function EmailStatementModal({
           <Label htmlFor="content">Email Content (Text and Tables are editable)</Label>
           <div className={`${errors.content ? "border border-red-500 rounded-md" : ""}`}>
             <TipTapEmailEditor
+              key={`email-editor-${open}-${initialContent ? 'api' : 'default'}`}
               content={content}
               onChange={(value) => {
                 setContent(value);
@@ -401,6 +494,8 @@ export default function EmailStatementModal({
               }}
               onFullscreenChange={setIsContentExpanded}
               isFullscreen={isContentExpanded}
+              templates={editorTemplates}
+              localStorageKey={`email-statement-${locationName}`}
             />
           </div>
           
@@ -463,6 +558,7 @@ export default function EmailStatementModal({
             
             {/* TipTap Editor in Fullscreen */}
             <TipTapEmailEditor
+              key={`email-editor-fullscreen-${open}-${initialContent ? 'api' : 'default'}`}
               content={content}
               onChange={(value) => {
                 setContent(value);
@@ -470,6 +566,8 @@ export default function EmailStatementModal({
               }}
               isFullscreen={true}
               className="fullscreen"
+              templates={editorTemplates}
+              localStorageKey={`email-statement-${locationName}`}
             />
           </div>
         </div>

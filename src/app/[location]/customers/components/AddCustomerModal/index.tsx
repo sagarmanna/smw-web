@@ -8,6 +8,7 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
+import { isDev } from "@/utils/env";
 
 interface AddCustomerModalProps {
   isOpen: boolean;
@@ -159,7 +160,11 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
         // Redirect to the customer detail page
         const customerId = response.data.data?.id;
         if (customerId) {
+          if(isDev() || location === "training-location"){
+            router.push(`customers/${customerId}`);
+          } else {
           window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${customerId}`;
+          }
           // TODO: Uncomment this when the new web is ready
           // router.push(`customers/${customerId}`);
         }
@@ -231,115 +236,117 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
       actions={modalActions}
       showFooter={true}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="firstname">First Name *</Label>
-            <Input
-              id="firstname"
-              value={formData.firstname}
-              onChange={(e) => handleInputChange("firstname", e.target.value)}
-              placeholder="Enter first name"
-              disabled={isSubmitting}
-              className={errors.firstname ? "border-red-600 dark:border-red-400" : ""}
-            />
-            {errors.firstname && (
-              <p className="text-sm text-red-600 dark:text-red-400">{errors.firstname}</p>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="lastname">Last Name *</Label>
-            <Input
-              id="lastname"
-              value={formData.lastname}
-              onChange={(e) => handleInputChange("lastname", e.target.value)}
-              placeholder="Enter last name"
-              disabled={isSubmitting}
-              className={errors.lastname ? "border-red-600 dark:border-red-400" : ""}
-            />
-            {errors.lastname && (
-              <p className="text-sm text-red-600 dark:text-red-400">{errors.lastname}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="email">Email *</Label>
-          <div className="relative">
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              placeholder="Enter email address"
-              disabled={isSubmitting}
-              className={errors.email ? "border-red-600 dark:border-red-400" : ""}
-            />
-            {isValidatingEmail && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-              </div>
-            )}
-          </div>
-          {errors.email && (
-            <p className="text-sm text-red-600 dark:text-red-400">{errors.email}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="referralSource">How did you find us?</Label>
-          <Select
-            value={formData.referralSourceId}
-            onValueChange={(value) => handleInputChange("referralSourceId", value)}
-            disabled={isSubmitting || isLoading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select referral source" />
-            </SelectTrigger>
-            <SelectContent>
-              {referralSources.map((source) => (
-                <SelectItem key={source.id} value={source.id.toString()}>
-                  {source.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isLoading && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading referral sources...</p>
-          )}
-        </div>
-
-        {formData.referralSourceId && (() => {
-          const selectedSource = referralSources.find(source => source.id.toString() === formData.referralSourceId);
-          const isOther = selectedSource?.name?.toLowerCase().includes('other');
-          
-          return isOther ? (
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto px-6 pb-4">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="description">Additional Details</Label>
+              <Label htmlFor="firstname">First Name *</Label>
               <Input
-                id="description"
-                value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
-                placeholder="Enter additional details (optional)"
+                id="firstname"
+                value={formData.firstname}
+                onChange={(e) => handleInputChange("firstname", e.target.value)}
+                placeholder="Enter first name"
                 disabled={isSubmitting}
+                className={errors.firstname ? "border-red-600 dark:border-red-400" : ""}
               />
+              {errors.firstname && (
+                <p className="text-sm text-red-600 dark:text-red-400">{errors.firstname}</p>
+              )}
             </div>
-          ) : null;
-        })()}
-
-        {errors.submit && (
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-            <p className="text-sm text-red-600 dark:text-red-400">{errors.submit}</p>
+            
+            <div className="space-y-2">
+              <Label htmlFor="lastname">Last Name *</Label>
+              <Input
+                id="lastname"
+                value={formData.lastname}
+                onChange={(e) => handleInputChange("lastname", e.target.value)}
+                placeholder="Enter last name"
+                disabled={isSubmitting}
+                className={errors.lastname ? "border-red-600 dark:border-red-400" : ""}
+              />
+              {errors.lastname && (
+                <p className="text-sm text-red-600 dark:text-red-400">{errors.lastname}</p>
+              )}
+            </div>
           </div>
-        )}
 
-        {isSubmitting && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="space-y-2">
+            <Label htmlFor="email">Email *</Label>
+            <div className="relative">
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                placeholder="Enter email address"
+                disabled={isSubmitting}
+                className={errors.email ? "border-red-600 dark:border-red-400" : ""}
+              />
+              {isValidatingEmail && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                </div>
+              )}
+            </div>
+            {errors.email && (
+              <p className="text-sm text-red-600 dark:text-red-400">{errors.email}</p>
+            )}
           </div>
-        )}
-      </form>
+
+          <div className="space-y-2">
+            <Label htmlFor="referralSource">How did you find us?</Label>
+            <Select
+              value={formData.referralSourceId}
+              onValueChange={(value) => handleInputChange("referralSourceId", value)}
+              disabled={isSubmitting || isLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select referral source" />
+              </SelectTrigger>
+              <SelectContent>
+                {referralSources.map((source) => (
+                  <SelectItem key={source.id} value={source.id.toString()}>
+                    {source.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isLoading && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading referral sources...</p>
+            )}
+          </div>
+
+          {formData.referralSourceId && (() => {
+            const selectedSource = referralSources.find(source => source.id.toString() === formData.referralSourceId);
+            const isOther = selectedSource?.name?.toLowerCase().includes('other');
+            
+            return isOther ? (
+              <div className="space-y-2">
+                <Label htmlFor="description">Additional Details</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  placeholder="Enter additional details (optional)"
+                  disabled={isSubmitting}
+                />
+              </div>
+            ) : null;
+          })()}
+
+          {errors.submit && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-sm text-red-600 dark:text-red-400">{errors.submit}</p>
+            </div>
+          )}
+
+          {isSubmitting && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+        </div>
+      </div>
     </ReusableModal>
   );
 }

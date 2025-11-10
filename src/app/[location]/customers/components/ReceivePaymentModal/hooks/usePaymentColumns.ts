@@ -1,4 +1,4 @@
-/// hooks/usePaymentColumns.ts
+// hooks/usePaymentColumns.ts
 import { useMemo } from 'react';
 import { LessonItem, InvoiceItem, CreditItem, GroupLessonItem } from '../types';
 import {
@@ -6,12 +6,11 @@ import {
   createGroupLessonColumns,
   createInvoiceColumns,
   createCreditColumns,
-} from '../columns/columnDefinitions';
+} from '../columns/columnDefinition';
 
 /**
- * Custom hook for managing table column definitions
- * Following Single Responsibility Principle - handles only column configuration
- * Memoized for performance optimization
+ * Custom hook for managing table column definitions with dynamic filter options
+ * No pagination - all data loaded at once
  */
 export const usePaymentColumns = (
   lessons: LessonItem[],
@@ -31,7 +30,9 @@ export const usePaymentColumns = (
     toggleAllCredits: (checked: boolean) => void;
     toggleCredit: (id: string) => void;
     handleCreditPaymentChange: (id: string, value: string) => void;
-  }
+  },
+  lessonStudentOptions: Array<{ value: string; label: string }>,
+  groupLessonStudentOptions: Array<{ value: string; label: string }>
 ) => {
   const lessonColumns = useMemo(
     () =>
@@ -39,13 +40,15 @@ export const usePaymentColumns = (
         lessons,
         handlers.toggleAllLessons,
         handlers.toggleLesson,
-        handlers.handleLessonPaymentChange
+        handlers.handleLessonPaymentChange,
+        lessonStudentOptions
       ),
     [
       lessons,
       handlers.toggleAllLessons,
       handlers.toggleLesson,
       handlers.handleLessonPaymentChange,
+      lessonStudentOptions,
     ]
   );
 
@@ -55,13 +58,15 @@ export const usePaymentColumns = (
         groupLessons,
         handlers.toggleAllGroupLessons,
         handlers.toggleGroupLesson,
-        handlers.handleGroupLessonPaymentChange
+        handlers.handleGroupLessonPaymentChange,
+        groupLessonStudentOptions
       ),
     [
       groupLessons,
       handlers.toggleAllGroupLessons,
       handlers.toggleGroupLesson,
       handlers.handleGroupLessonPaymentChange,
+      groupLessonStudentOptions,
     ]
   );
 

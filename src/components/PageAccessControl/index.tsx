@@ -13,11 +13,23 @@ interface PageAccessControlProps {
 // Constants for better maintainability
 const ALLOWED_PATHS = [
   '/dashboard',
-  '/menu-flags', 
-  '/customers',
+  '/schedule',
+  '/enrolments',
   '/students',
+  '/customers',
   '/[location]/report/account-receivable/[id]',
   '/teachers',
+  '/private-lessons',
+  '/group-courses',
+  '/unscheduled-lessons',
+  '/recurring-payments',
+  '/payment-preferences',
+  '/invoices',
+  '/payments',
+  '/release-notes',
+  '/items',
+  '/timeline',
+  '/menu-flags', 
 ] as const;
 
 // Helper function to normalize pathname by replacing dynamic segments

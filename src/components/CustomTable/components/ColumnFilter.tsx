@@ -5,10 +5,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Filter, X } from "lucide-react";
+import { Filter, X, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ColumnFilter } from "../CustomTable";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 interface ColumnFilterProps {
   filter: ColumnFilter;
@@ -30,6 +31,7 @@ export function ColumnFilterComponent({
   placeholder = "Filter...",
 }: ColumnFilterProps) {
   const [open, setOpen] = React.useState(false);
+  const [dropdownSearch, setDropdownSearch] = React.useState("");
   
   // Use the actual value, or initial value only if value is truly undefined
   const currentValue = value !== undefined ? value : filter.initialValue;
@@ -55,6 +57,13 @@ export function ColumnFilterComponent({
   // Type guards for better type safety
   const isDate = (value: unknown): value is Date => value instanceof Date;
   const isString = (value: unknown): value is string => typeof value === 'string';
+  const isDateRange = (val: unknown): val is { from?: Date; to?: Date } => {
+    if (val === null || typeof val !== 'object') return false;
+    return (
+      'from' in (val as { from?: unknown }) ||
+      'to' in (val as { to?: unknown })
+    );
+  };
 
   const renderFilterContent = () => {
     switch (filter.type) {
@@ -138,9 +147,20 @@ export function ColumnFilterComponent({
                 }
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <div className="p-1">
-                {filter.options?.map((option) => (
+            <PopoverContent className="w-56 p-0" align="start">
+              <div className="p-2 border-b">
+                <div className="relative">
+                  <Search className="h-3 w-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    className="h-7 w-full rounded border border-input bg-background pl-6 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    placeholder="Search..."
+                    value={dropdownSearch}
+                    onChange={(e) => setDropdownSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="max-h-60 overflow-auto p-1">
+                {filter.options?.filter(opt => opt.label.toLowerCase().includes(dropdownSearch.toLowerCase())).map((option) => (
                   <Button
                     key={option.value}
                     variant="ghost"
@@ -157,49 +177,19 @@ export function ColumnFilterComponent({
         );
 
       case "date-range":
-        // For now, we'll implement this as a simple date picker
-        // In the future, this could be expanded to support date ranges
         return (
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "h-8 w-full px-2 text-sm justify-center font-normal",
-                  !hasValue && "text-muted-foreground",
-                  className
-                )}
-              >
-                {hasValue && isDate(currentValue) ? format(currentValue, "yyyy-MM-dd") : "Date Range"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <div className="p-2 border-b">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onValueChange(new Date());
-                    setOpen(false);
-                  }}
-                  className="w-full h-8 text-sm"
-                >
-                  Today
-                </Button>
-              </div>
-              <Calendar
-                mode="single"
-                selected={isDate(currentValue) ? currentValue : undefined}
-                defaultMonth={isDate(currentValue) ? currentValue : new Date()}
-                onSelect={handleDateSelect}
-                captionLayout="dropdown"
-                fromYear={2005}
-                toYear={2125}
-                disabled={filter.disabled}
-              />
-            </PopoverContent>
-          </Popover>
+          <DateRangePicker
+            preset={filter.quickPreset}
+            value={(() => {
+              const from = isDateRange(currentValue) ? currentValue.from : undefined;
+              const to = isDateRange(currentValue) ? currentValue.to : undefined;
+              return from && to ? { from, to } : undefined;
+            })()}
+            onChange={(range) => {
+              onValueChange(range);
+            }}
+            className="min-w-[240px]"
+          />
         );
 
       default:

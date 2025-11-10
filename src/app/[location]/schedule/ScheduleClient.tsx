@@ -681,7 +681,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 md:gap-4">
           {/* Tabs on the left */}
           <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
-            <TabsList className="grid grid-cols-2 h-7 md:h-8 w-auto">
+            <TabsList className="grid grid-cols-2 h-10 w-auto">
               <TabsTrigger value="teacher" className="text-xs px-2 md:px-4">Teacher View</TabsTrigger>
               <TabsTrigger value="classroom" className="text-xs px-2 md:px-4">Classroom View</TabsTrigger>
             </TabsList>
@@ -742,7 +742,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       </div>
 
       {/* Calendar Content - Natural height */}
-      <div className="flex-1 mt-4 md:mt-6">
+      <div className="flex-1 mt-2 md:mt-8 lg:mt-2">
       <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as "teacher" | "classroom")}>
           <TabsContent value="teacher">
             <div>

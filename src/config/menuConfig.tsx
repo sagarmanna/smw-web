@@ -57,7 +57,7 @@ export const buildMenuUrl = (item: MenuItem, location: string): string => {
   if (!item.url) return '#';
   
   if (item.source === 'legacy') {
-    return `${ENV_FLAGS.legacyBaseUrl}${item.url}`;
+    return `${ENV_FLAGS.legacyBaseUrl}/${location}${item.url}`;
   }
   
   // For modern pages, use Next.js routing
@@ -376,7 +376,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       id: 'payments',
       title: 'Payments',
       icon: <DollarSign className="h-4 w-4" />,
-      url: '/payment/index?PaymentSearch%5BisDefault%5D=1',
+      url: getMenuSource(locationFlags, 'payments') === 'legacy' ? '/payment/index?PaymentSearch%5BisDefault%5D=1' : '/payments',
       source: getMenuSource(locationFlags, 'payments') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'payments') ? ('no' as const) : ('yes' as const),

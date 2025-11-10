@@ -24,15 +24,23 @@ interface StudentFormData {
 }
 
 export default function AddStudentModal({ open, onOpenChange, onSave, customerName }: AddStudentModalProps) {
+  const normalize = (v?: string) => (typeof v === "string" ? v : "");
+  const sanitizeName = (name?: string) => normalize(name).replace(/undefined/gi, "").replace(/\s+/g, " ").trim();
   const [formData, setFormData] = React.useState<StudentFormData>({
     firstName: "",
     lastName: "",
-    customerName: customerName || "",
+    customerName: sanitizeName(customerName),
     birthDate: "",
     gender: "not-specified",
   });
 
   const [errors, setErrors] = React.useState<Partial<StudentFormData>>({});
+
+  // Keep customerName in sync when the prop changes (e.g., after data loads)
+  React.useEffect(() => {
+    const name = sanitizeName(customerName);
+    setFormData((prev) => ({ ...prev, customerName: name }));
+  }, [customerName, open]);
 
   // Format date to "Feb 14, 2020" style
   const formatBirthDate = (dateString: string): string => {
@@ -59,8 +67,28 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
       newErrors.firstName = "First name is required";
     }
 
-    if (!formData.birthDate) {
-      newErrors.birthDate = "Birth date is required";
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = "Last name is required" as unknown as StudentFormData["lastName"];
+    }
+
+    if (!formData.customerName.trim()) {
+      newErrors.customerName = "Customer name is required" as unknown as StudentFormData["customerName"];
+    }
+
+    // Birth date is optional; only validate when provided
+    if (formData.birthDate) {
+      const d = new Date(formData.birthDate);
+      const valid = !isNaN(d.getTime());
+      const today = new Date();
+      if (!valid) {
+        newErrors.birthDate = "Invalid birth date" as unknown as StudentFormData["birthDate"];
+      } else if (d > today) {
+        newErrors.birthDate = "Birth date cannot be in the future" as unknown as StudentFormData["birthDate"];
+      }
+    }
+
+    if (!["not-specified", "male", "female"].includes(formData.gender)) {
+      newErrors.gender = "Please select gender" as unknown as StudentFormData["gender"];
     }
 
     setErrors(newErrors);
@@ -85,7 +113,7 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
       setFormData({
         firstName: "",
         lastName: "",
-        customerName: customerName || "",
+        customerName: sanitizeName(customerName),
         birthDate: "",
         gender: "not-specified",
       });
@@ -99,7 +127,7 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
     setFormData({
       firstName: "",
       lastName: "",
-      customerName: customerName || "",
+      customerName: sanitizeName(customerName),
       birthDate: "",
       gender: "not-specified",
     });
@@ -127,81 +155,97 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
       title="Add Student"
       size="md"
       actions={modalActions}
+      showFooter={true}
     >
-      <div className="space-y-4">
-        {/* First Name */}
-        <div className="space-y-2">
-          <Label htmlFor="firstName">First Name</Label>
-          <Input
-            id="firstName"
-            value={formData.firstName}
-            onChange={(e) => handleInputChange("firstName", e.target.value)}
-            className={errors.firstName ? "border-red-500" : ""}
-            placeholder="Enter first name"
-          />
-          {errors.firstName && (
-            <p className="text-sm text-red-500">{errors.firstName}</p>
-          )}
-        </div>
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto px-6 pb-4">
+        <div className="space-y-4">
+          {/* First Name */}
+          <div className="space-y-2">
+            <Label htmlFor="firstName">First Name</Label>
+            <Input
+              id="firstName"
+              value={formData.firstName}
+              onChange={(e) => handleInputChange("firstName", e.target.value)}
+              className={errors.firstName ? "border-red-500" : ""}
+              placeholder="Enter first name"
+            />
+            {errors.firstName && (
+              <p className="text-sm text-red-500">{errors.firstName}</p>
+            )}
+          </div>
 
-        {/* Last Name */}
-        <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name</Label>
-          <Input
-            id="lastName"
-            value={formData.lastName}
-            onChange={(e) => handleInputChange("lastName", e.target.value)}
-            placeholder="Enter last name"
-          />
-        </div>
+          {/* Last Name */}
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Last Name</Label>
+            <Input
+              id="lastName"
+              value={formData.lastName}
+              onChange={(e) => handleInputChange("lastName", e.target.value)}
+              className={errors.lastName ? "border-red-500" : ""}
+              placeholder="Enter last name"
+            />
+            {errors.lastName && (
+              <p className="text-sm text-red-500">{errors.lastName as unknown as string}</p>
+            )}
+          </div>
 
-        {/* Customer Name */}
-        <div className="space-y-2">
-          <Label htmlFor="customerName">Customer Name</Label>
-          <Input
-            id="customerName"
-            value={formData.customerName}
-            onChange={(e) => handleInputChange("customerName", e.target.value)}
-            placeholder="Enter customer name"
-          />
-        </div>
+          {/* Customer Name */}
+          <div className="space-y-2">
+            <Label htmlFor="customerName">Customer Name</Label>
+            <Input
+              id="customerName"
+              value={formData.customerName}
+              onChange={(e) => handleInputChange("customerName", e.target.value)}
+              className={errors.customerName ? "border-red-500" : ""}
+              placeholder="Enter customer name"
+              readOnly
+              disabled
+            />
+            {errors.customerName && (
+              <p className="text-sm text-red-500">{errors.customerName as unknown as string}</p>
+            )}
+          </div>
 
-        {/* Birth Date */}
-        <div className="space-y-2">
-          <Label htmlFor="birthDate">Birth Date</Label>
-          <Input
-            id="birthDate"
-            type="date"
-            value={formData.birthDate}
-            onChange={(e) => handleInputChange("birthDate", e.target.value)}
-            className={errors.birthDate ? "border-red-500" : ""}
-          />
-          {errors.birthDate && (
-            <p className="text-sm text-red-500">{errors.birthDate}</p>
-          )}
-        </div>
+          {/* Birth Date */}
+          <div className="space-y-2">
+            <Label htmlFor="birthDate">Birth Date</Label>
+            <Input
+              id="birthDate"
+              type="date"
+              value={formData.birthDate}
+              onChange={(e) => handleInputChange("birthDate", e.target.value)}
+              className={errors.birthDate ? "border-red-500" : ""}
+            />
+            {errors.birthDate && (
+              <p className="text-sm text-red-500">{errors.birthDate}</p>
+            )}
+          </div>
 
-        {/* Gender */}
-        <div className="space-y-3">
-          <Label>Gender</Label>
-          <RadioGroup
-            value={formData.gender}
-            onValueChange={(value) => handleInputChange("gender", value)}
-            className="flex flex-col space-y-2"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="not-specified" id="not-specified" />
-              <Label htmlFor="not-specified">Not Specified</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="male" id="male" />
-              <Label htmlFor="male">Male</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="female" id="female" />
-              <Label htmlFor="female">Female</Label>
-            </div>
-          </RadioGroup>
+          {/* Gender */}
+          <div className="space-y-3">
+            <Label>Gender</Label>
+            <RadioGroup
+              value={formData.gender}
+              onValueChange={(value) => handleInputChange("gender", value)}
+              className="flex flex-col space-y-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="not-specified" id="not-specified" />
+                <Label htmlFor="not-specified">Not Specified</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="male" id="male" />
+                <Label htmlFor="male">Male</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="female" id="female" />
+                <Label htmlFor="female">Female</Label>
+              </div>
+            </RadioGroup>
+            {errors.gender && (
+              <p className="text-sm text-red-500">{errors.gender as unknown as string}</p>
+            )}
+          </div>
         </div>
       </div>
     </ReusableModal>
