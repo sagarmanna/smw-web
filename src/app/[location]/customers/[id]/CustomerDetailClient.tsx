@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { DetailHeaderWithProfile } from "../components/DetailHeaderWithProfile";
 import {
@@ -32,8 +32,6 @@ import {
   getEmailStatement,
   EmailStatementData,
 } from "../customers.api";
-import { SummaryCard } from "@/components/SummaryCard";
-import { BookOpen, FileText, Star, DollarSign, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
@@ -56,6 +54,7 @@ import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
 import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
+import { SummaryCards } from "./components/SummaryCards";
 import { createStudent, createNote, sendEmail } from "@/lib/api/legacyApiAdapter";
 import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
@@ -1550,36 +1549,7 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
       )}
 
       {/* Payment History Cards */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pb-4">
-        <SummaryCard
-          title="Lessons Due"
-          value={summaryData.lessonsDue}
-          icon={<BookOpen className="h-6 w-6 text-white" />}
-          iconBackgroundColor="bg-cyan-500"
-          loading={loading}
-        />
-        <SummaryCard
-          title="Outstanding Invoice"
-          value={summaryData.outstandingInvoice}
-          icon={<FileText className="h-6 w-6 text-white" />}
-          iconBackgroundColor="bg-orange-500"
-          loading={loading}
-        />
-        <SummaryCard
-          title="Credits"
-          value={summaryData.totalCredits}
-          icon={<Star className="h-6 w-6 text-white" />}
-          iconBackgroundColor="bg-green-500"
-          loading={loading}
-        />
-        <SummaryCard
-          title="Balance"
-          value={summaryData.balance}
-          icon={<DollarSign className="h-6 w-6 text-white" />}
-          iconBackgroundColor="bg-orange-400"
-          loading={loading}
-        />
-      </div>
+      <SummaryCards summaryData={summaryData} loading={loading} />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4 lg:items-start">
