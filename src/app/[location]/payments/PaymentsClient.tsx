@@ -10,7 +10,8 @@ import { Plus } from "lucide-react";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { PaymentsReceivePaymentModal } from "./components/PaymentReceipt";
 import { getPayments, PaymentDto } from "./payments.api";
-import { ReceivePaymentData } from "../customers/components/ReceivePaymentModal/types";
+import { receivePayment, PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 interface PaymentsClientProps {
   location: string;
@@ -267,33 +268,167 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
     setPage(1); // Reset to first page when filters change
   }, []);
 
-  // Handler for saving payment - THIS IS THE KEY FIX
-  const handleSavePayment = React.useCallback(async (data: ReceivePaymentData) => {
+  // Handler for saving payment - matches customer detail implementation
+  const handleSavePayment = React.useCallback(async (paymentData: {
+    customer: string;
+    date: string;
+    paymentMethod: string;
+    reference: string;
+    amountReceived: number;
+    notes: string;
+    selectedLessons: string[];
+    selectedGroupLessons?: string[];
+    selectedInvoices?: string[];
+    selectedCredits?: string[];
+    lessonPayments: Record<string, number>;
+    groupLessonPayments?: Record<string, number>;
+    invoicePayments?: Record<string, number>;
+    paymentCredits?: Record<string, number>;
+    invoiceCredits?: Record<string, number>;
+  }) => {
     try {
-      // Call your API endpoint to save the payment
-      const response = await fetch(`/api/${location}/payments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+      // Payment method value is already the ID as a string, just convert to number
+      const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to save payment');
+      // Helper function to format numbers to 2 decimal places
+      const formatToTwoDecimals = (value: number): number => {
+        return Math.round(value * 100) / 100;
+      };
+
+      // Calculate amount needed (sum of all selected items)
+      const lessonPaymentsTotal = Object.values(paymentData.lessonPayments || {}).reduce((sum, val) => sum + val, 0);
+      const groupLessonPaymentsTotal = Object.values(paymentData.groupLessonPayments || {}).reduce((sum, val) => sum + val, 0);
+      const invoicePaymentsTotal = Object.values(paymentData.invoicePayments || {}).reduce((sum, val) => sum + val, 0);
+      const amountNeeded = formatToTwoDecimals(lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal);
+      const amountToDistribute = formatToTwoDecimals(amountNeeded);
+
+      // Prepare lesson payments array (IDs are already numeric from API)
+      const lessonPaymentsArray = paymentData.lessonPayments
+        ? Object.entries(paymentData.lessonPayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare group lesson payments array (IDs are already numeric from API)
+      const groupLessonPaymentsArray = paymentData.groupLessonPayments
+        ? Object.entries(paymentData.groupLessonPayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare invoice payments array (IDs are already numeric from API, no "I-" prefix needed)
+      const invoicePaymentsArray = paymentData.invoicePayments
+        ? Object.entries(paymentData.invoicePayments)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare payment credits array (IDs are already numeric from API)
+      const paymentCreditsArray = paymentData.paymentCredits
+        ? Object.entries(paymentData.paymentCredits)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare invoice credits array (IDs are already numeric from API)
+      const invoiceCreditsArray = paymentData.invoiceCredits
+        ? Object.entries(paymentData.invoiceCredits)
+            .filter(([_, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Calculate selected credit value (sum of all selected credits)
+      const selectedCreditValue = formatToTwoDecimals(
+        paymentCreditsArray.reduce((sum, c) => sum + c.value, 0) +
+        invoiceCreditsArray.reduce((sum, c) => sum + c.value, 0)
+      );
+
+      // Calculate amount received following legacy logic
+      const amountAfterCredits = amountNeeded - selectedCreditValue;
+      let calculatedAmount: number;
+      if (amountAfterCredits < 0) {
+        // Credits exceed amount needed
+        calculatedAmount = amountNeeded > 0 ? 0.00 : amountAfterCredits;
+      } else {
+        // Credits don't fully cover amount needed (or exactly match)
+        calculatedAmount = amountAfterCredits;
       }
-
-      // After successful save, refresh the payments list
-      await fetchPayments();
       
-      // Close the modal and reset state
-      setModalOpen(false);
-      setSelectedRow(null);
-      setIsNewPayment(false);
+      // Use the calculated amount when credits are present (matching legacy auto-calculation behavior)
+      // When no credits are used, use the user-entered amount
+      const finalAmount = selectedCreditValue > 0 
+        ? formatToTwoDecimals(calculatedAmount)
+        : formatToTwoDecimals(paymentData.amountReceived);
+
+      // Extract customer ID from the customer string
+      // Assuming format: "Customer Name (ID: 123)" or just "123"
+      const customerIdMatch = paymentData.customer.match(/\(ID:\s*(\d+)\)/);
+      const customerId = customerIdMatch ? Number(customerIdMatch[1]) : Number(paymentData.customer);
+
+      // Prepare payment data for legacy API
+      const legacyPaymentData: PaymentReceiveData = {
+        userId: customerId,
+        date: paymentData.date, // Already in "MMM dd, yyyy" format
+        paymentMethodId: paymentMethodId,
+        reference: paymentData.reference || '',
+        amount: finalAmount,
+        amountNeeded: amountNeeded,
+        selectedCreditValue: selectedCreditValue,
+        amountToDistribute: amountToDistribute,
+        notes: paymentData.notes || '',
+        lessonPayments: lessonPaymentsArray.length > 0 ? lessonPaymentsArray : undefined,
+        groupLessonPayments: groupLessonPaymentsArray.length > 0 ? groupLessonPaymentsArray : undefined,
+        invoicePayments: invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        paymentCredits: paymentCreditsArray.length > 0 ? paymentCreditsArray : undefined,
+        invoiceCredits: invoiceCreditsArray.length > 0 ? invoiceCreditsArray : undefined,
+        canUsePaymentCredits: paymentCreditsArray.length > 0 ? 1 : 0,
+        canUseInvoiceCredits: invoiceCreditsArray.length > 0 ? 1 : 0,
+        prId: '',
+      };
+
+      // Call legacy API
+      const response = await receivePayment(location, legacyPaymentData);
+
+      if (response.status) {
+        toast.success("Payment saved successfully");
+        
+        // Refresh the payments list
+        await fetchPayments();
+        
+        // Close the modal
+        setModalOpen(false);
+        setSelectedRow(null);
+        setIsNewPayment(false);
+      } else {
+        const errorMessage = response.message || response.errors?.join(", ") || "Failed to save payment";
+        console.error("Payment save error:", errorMessage);
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
+      }
     } catch (error) {
-      console.error('Error saving payment:', error);
-      // Re-throw so the modal can handle the error (show error message, etc.)
+      console.error("Error saving payment:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save payment";
+      toast.error(errorMessage);
       throw error;
     }
   }, [location, fetchPayments]);
