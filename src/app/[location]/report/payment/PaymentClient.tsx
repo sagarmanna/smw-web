@@ -15,7 +15,26 @@ const allPaymentsColumns: ColumnDef<Payment>[] = [
   { accessorKey: "paymentMethodName", header: "Payment Method", size: 150, meta: { printable: true, printableName: "Payment Method" } },
   { accessorKey: "paymentId", header: "Payment ID", size: 150, meta: { printable: true, printableName: "Payment ID" } },
   { accessorKey: "customer", header: "Customer", size: 200, meta: { printable: true, printableName: "Customer" } },
-  { accessorKey: "reference", header: "Reference", size: 150, meta: { printable: true, printableName: "Reference" }, cell: ({ row }) => row.original.reference || "N/A" },
+  { 
+    accessorKey: "students", 
+    header: "Students", 
+    size: 200, 
+    meta: { printable: true, printableName: "Students" }, 
+    cell: ({ row }) => {
+      if (row.original.paymentDate === "TOTAL") return "";
+      return row.original.students || "N/A";
+    }
+  },
+  { 
+    accessorKey: "reference", 
+    header: "Reference", 
+    size: 150, 
+    meta: { printable: true, printableName: "Reference" }, 
+    cell: ({ row }) => {
+      if (row.original.paymentDate === "TOTAL") return "";
+      return row.original.reference || "N/A";
+    }
+  },
   { 
     accessorKey: "amount", 
     header: "Amount", 
@@ -67,16 +86,30 @@ export const PaymentClient = ({ location }: { location: string }) => {
         summaryOnly,
       });
 
-      if (response.success) {
+      if (response.success && response.data) {
         setData(response.data.body || []);
-        setPagination(response.data.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
-        setFooter(response.data.footer);
+        
+        // Fix pagination using the response structure
+        if (response.data.pagination) {
+          setPagination({
+            page: response.data.pagination.page,
+            limit: response.data.pagination.limit,
+            total: response.data.pagination.total,
+            totalPages: response.data.pagination.totalPages
+          });
+        }
+        
+        setFooter(response.data.footer || null);
       } else {
         setError(response.message || "An unknown error occurred");
+        setData([]);
+        setPagination({ page: 1, limit: 20, total: 0, totalPages: 1 });
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
       setError(errorMessage);
+      setData([]);
+      setPagination({ page: 1, limit: 20, total: 0, totalPages: 1 });
     } finally {
       setIsLoading(false);
     }
@@ -109,31 +142,36 @@ export const PaymentClient = ({ location }: { location: string }) => {
   }, [activeFilter]);
 
   const footerRow = React.useMemo(() => {
-    if (!footer) return undefined;
+    // Calculate total from current page data
+    const currentPageTotal = data.reduce((sum, item) => {
+      const amount = typeof item.amount === 'string' ? parseFloat(item.amount) : item.amount;
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
     
     if (activeFilter === 'summary_only') {
       return {
         paymentDate: "TOTAL",
         paymentMethod: "",
-        amount: footer.amount,
+        amount: currentPageTotal.toFixed(2),
       };
     }
     
     return {
       paymentId: "",
       paymentDate: "TOTAL",
-      amount: footer.amount,
-      paymentMethodId: 0,
       paymentMethodName: "",
       customer: "",
+      students: "",
+      reference: "",
+      amount: currentPageTotal.toFixed(2),
+      paymentMethodId: 0,
       userId: "",
-      reference: null,
     };
-  }, [footer, activeFilter]);
+  }, [data, activeFilter]);
 
   const { handlePrint } = usePrintReport<(Payment | PaymentSummary)>();
 
-  if (isLoading) {
+  if (isLoading && data.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <LoadingAnimation size="xl" text="Loading payments data..." className="text-center" />

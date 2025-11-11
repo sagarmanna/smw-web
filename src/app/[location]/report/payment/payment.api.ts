@@ -9,6 +9,7 @@ export interface Payment {
   paymentMethodId: number;
   paymentMethodName: string;
   customer: string;
+  students?: string;
   userId: string;
   reference: string | null;
 }
