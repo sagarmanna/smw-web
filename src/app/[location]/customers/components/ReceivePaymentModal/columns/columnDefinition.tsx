@@ -1,9 +1,204 @@
-// columns/columnDefinitions.tsx
+/// columns/columnDefinitions.tsx
 import * as React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { LessonItem, InvoiceItem, CreditItem, TableRow, GroupLessonItem } from '../types';
-import { DEFAULT_DATE_RANGE } from '../constants';
+
+/**
+ * Payment Input Component for Lessons
+ */
+const LessonPaymentInput: React.FC<{
+  row: TableRow<LessonItem>;
+  handleLessonPaymentChange: (id: string, value: string) => void;
+}> = ({ row, handleLessonPaymentChange }) => {
+  const [localValue, setLocalValue] = React.useState(row.original.payment);
+  const [error, setError] = React.useState<string | null>(null);
+  
+  React.useEffect(() => {
+    setLocalValue(row.original.payment);
+    setError(null);
+  }, [row.original.payment]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+    setError(null);
+  };
+  
+  const handleBlur = () => {
+    const numericValue = parseFloat(localValue) || 0;
+    
+    if (numericValue > row.original.balance) {
+      setError("Can't over pay!");
+      setLocalValue(row.original.payment); // Reset to previous valid value
+      return;
+    }
+    
+    handleLessonPaymentChange(row.original.id, localValue);
+  };
+  
+  return (
+    <div className="flex flex-col items-end">
+      <Input
+        type="text"
+        value={localValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        className={`h-8 w-24 text-sm text-right ${error ? 'border-red-500' : ''}`}
+        placeholder="0.00"
+      />
+      {error && (
+        <span className="text-xs text-red-500 mt-1">{error}</span>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Payment Input Component for Group Lessons
+ */
+const GroupLessonPaymentInput: React.FC<{
+  row: TableRow<GroupLessonItem>;
+  handleGroupLessonPaymentChange: (id: string, value: string) => void;
+}> = ({ row, handleGroupLessonPaymentChange }) => {
+  const [localValue, setLocalValue] = React.useState(row.original.payment);
+  const [error, setError] = React.useState<string | null>(null);
+  
+  React.useEffect(() => {
+    setLocalValue(row.original.payment);
+    setError(null);
+  }, [row.original.payment]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+    setError(null);
+  };
+  
+  const handleBlur = () => {
+    const numericValue = parseFloat(localValue) || 0;
+    
+    if (numericValue > row.original.balance) {
+      setError("Can't over pay!");
+      setLocalValue(row.original.payment); // Reset to previous valid value
+      return;
+    }
+    
+    handleGroupLessonPaymentChange(row.original.id, localValue);
+  };
+  
+  return (
+    <div className="flex flex-col items-end">
+      <Input
+        type="text"
+        value={localValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        className={`h-8 w-24 text-sm text-right ${error ? 'border-red-500' : ''}`}
+        placeholder="0.00"
+      />
+      {error && (
+        <span className="text-xs text-red-500 mt-1">{error}</span>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Payment Input Component for Invoices
+ */
+const InvoicePaymentInput: React.FC<{
+  row: TableRow<InvoiceItem>;
+  handleInvoicePaymentChange: (id: string, value: string) => void;
+}> = ({ row, handleInvoicePaymentChange }) => {
+  const [localValue, setLocalValue] = React.useState(row.original.payment);
+  const [error, setError] = React.useState<string | null>(null);
+  
+  React.useEffect(() => {
+    setLocalValue(row.original.payment);
+    setError(null);
+  }, [row.original.payment]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+    setError(null);
+  };
+  
+  const handleBlur = () => {
+    const numericValue = parseFloat(localValue) || 0;
+    
+    if (numericValue > row.original.balance) {
+      setError("Can't over pay!");
+      setLocalValue(row.original.payment); // Reset to previous valid value
+      return;
+    }
+    
+    handleInvoicePaymentChange(row.original.id, localValue);
+  };
+  
+  return (
+    <div className="flex flex-col items-end">
+      <Input
+        type="text"
+        value={localValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        className={`h-8 w-24 text-sm text-right ${error ? 'border-red-500' : ''}`}
+        placeholder="0.00"
+      />
+      {error && (
+        <span className="text-xs text-red-500 mt-1">{error}</span>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Payment Input Component for Credits
+ */
+const CreditPaymentInput: React.FC<{
+  row: TableRow<CreditItem>;
+  handleCreditPaymentChange: (id: string, value: string) => void;
+}> = ({ row, handleCreditPaymentChange }) => {
+  const [localValue, setLocalValue] = React.useState(row.original.payment);
+  const [error, setError] = React.useState<string | null>(null);
+  
+  React.useEffect(() => {
+    setLocalValue(row.original.payment);
+    setError(null);
+  }, [row.original.payment]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+    setError(null);
+  };
+  
+  const handleBlur = () => {
+    const numericValue = parseFloat(localValue) || 0;
+    
+    if (numericValue > row.original.amount) {
+      setError("Can't over pay!");
+      setLocalValue(row.original.payment); // Reset to previous valid value
+      return;
+    }
+    
+    handleCreditPaymentChange(row.original.id, localValue);
+  };
+  
+  return (
+    <div className="flex flex-col items-end">
+      <Input
+        type="text"
+        value={localValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        className={`h-8 w-24 text-sm text-right ${error ? 'border-red-500' : ''}`}
+        placeholder="0.00"
+      />
+      {error && (
+        <span className="text-xs text-red-500 mt-1">{error}</span>
+      )}
+    </div>
+  );
+};
 
 /**
  * Column definitions for Lessons table with dynamic student filter and date range filter on Due Date
@@ -46,7 +241,7 @@ export const createLessonColumns = (
     size: 180,
     filter: {
       type: 'date-range' as const,
-      initialValue: undefined, // No initial value - shows all data
+      initialValue: undefined,
       quickPreset: 'payments',
     },
   },
@@ -90,15 +285,10 @@ export const createLessonColumns = (
     header: 'Payment',
     size: 110,
     cell: ({ row }: { row: TableRow<LessonItem> }) => (
-      <div className="flex justify-end">
-        <Input
-          type="text"
-          value={row.original.payment}
-          onChange={e => handleLessonPaymentChange(row.original.id, e.target.value)}
-          className="h-8 w-24 text-sm text-right"
-          placeholder="0.00"
-        />
-      </div>
+      <LessonPaymentInput 
+        row={row} 
+        handleLessonPaymentChange={handleLessonPaymentChange} 
+      />
     ),
   },
 ];
@@ -144,7 +334,7 @@ export const createGroupLessonColumns = (
     size: 180,
     filter: {
       type: 'date-range' as const,
-      initialValue: undefined, // No initial value - shows all data
+      initialValue: undefined,
       quickPreset: 'payments',
     },
   },
@@ -188,15 +378,10 @@ export const createGroupLessonColumns = (
     header: 'Payment',
     size: 110,
     cell: ({ row }: { row: TableRow<GroupLessonItem> }) => (
-      <div className="flex justify-end">
-        <Input
-          type="text"
-          value={row.original.payment}
-          onChange={e => handleGroupLessonPaymentChange(row.original.id, e.target.value)}
-          className="h-8 w-24 text-sm text-right"
-          placeholder="0.00"
-        />
-      </div>
+      <GroupLessonPaymentInput 
+        row={row} 
+        handleGroupLessonPaymentChange={handleGroupLessonPaymentChange} 
+      />
     ),
   },
 ];
@@ -274,15 +459,10 @@ export const createInvoiceColumns = (
     header: 'Payment',
     size: 110,
     cell: ({ row }: { row: TableRow<InvoiceItem> }) => (
-      <div className="flex justify-end">
-        <Input
-          type="text"
-          value={row.original.payment}
-          onChange={e => handleInvoicePaymentChange(row.original.id, e.target.value)}
-          className="h-8 w-24 text-sm text-right"
-          placeholder="0.00"
-        />
-      </div>
+      <InvoicePaymentInput 
+        row={row} 
+        handleInvoicePaymentChange={handleInvoicePaymentChange} 
+      />
     ),
   },
 ];
@@ -339,15 +519,10 @@ export const createCreditColumns = (
     header: 'Payment',
     size: 110,
     cell: ({ row }: { row: TableRow<CreditItem> }) => (
-      <div className="flex justify-end">
-        <Input
-          type="text"
-          value={row.original.payment}
-          onChange={e => handleCreditPaymentChange(row.original.id, e.target.value)}
-          className="h-8 w-24 text-sm text-right"
-          placeholder="0.00"
-        />
-      </div>
+      <CreditPaymentInput 
+        row={row} 
+        handleCreditPaymentChange={handleCreditPaymentChange} 
+      />
     ),
   },
 ];
