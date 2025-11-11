@@ -8,6 +8,7 @@ export interface LegacyApiResponse {
   url?: string;
   message?: string;
   errors?: string[];
+  data?: string; // HTML content for payment receipt
 }
 
 export interface LessonUpdateData {
