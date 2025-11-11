@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { getPayments, getSales, PaymentsRow, SalesRow } from "./sales-and-payment.api";
 import { formatCurrency, formatLocationName } from "@/utils";
+import { ReportPageLayout } from "@/components/ReportPageLayout";
 
 
 interface SalesAndPaymentClientProps {
@@ -293,19 +294,20 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
   };
 
   return (
-    <div className="w-full">
-      <div className="mx-auto">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-card-foreground">Sales and Payments Report</h1>
-            <div><DateRangePicker value={range} onChange={(r) => r && setRange(r)} /></div>
-          </div>
-          <div className="flex items-center gap-2">
-            
-            <Button variant="outline" size="icon" aria-label="Print report" onClick={handlePrint}>
-              <Printer className="h-4 w-4" />
-            </Button>
-          </div>
+    <ReportPageLayout
+      title="Sales and Payments Report"
+      subtitle="Track sales and payment transactions"
+      isLoading={isLoading}
+      error={error}
+      onRetry={load}
+    >
+      <div className="space-y-4">
+        {/* Date Picker and Print Button */}
+        <div className="flex items-center justify-end gap-2">
+          <DateRangePicker value={range} onChange={(r) => r && setRange(r)} />
+          <Button variant="outline" size="icon" aria-label="Print report" onClick={handlePrint}>
+            <Printer className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Sales */}
@@ -340,6 +342,6 @@ export function SalesAndPaymentClient({ location }: SalesAndPaymentClientProps) 
           <div className="text-sm text-red-600">{error}</div>
         )}
       </div>
-    </div>
+    </ReportPageLayout>
   );
 }
