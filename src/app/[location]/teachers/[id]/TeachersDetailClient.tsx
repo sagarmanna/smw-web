@@ -9,6 +9,7 @@ import { EmailCard } from "@/app/[location]/customers/components/EmailCard";
 import { PhoneCard } from "@/app/[location]/customers/components/PhoneCard";
 import { AddressCard } from "@/app/[location]/customers/components/AddressCard";
 import { QualificationsCard } from "../components/QualificationsCard";
+import { PRIVATE_PROGRAMS, GROUP_PROGRAMS } from "../components/QualificationsCard/AddQualificationModal";
 import {
   // getTeacherById,
   // getTeacherInfo,
@@ -134,11 +135,25 @@ export function TeachersDetailClient({
         // Mock addresses - empty for now
         setAddresses([]);
 
-        // Mock private qualifications - empty
-        setPrivateQualifications([]);
+        // Mock private qualifications
+        setPrivateQualifications([
+          { id: 1, name: "Test65", rate: 10.00 },
+          { id: 2, name: "test72.5", rate: 10.00 },
+          { id: 3, name: "Instrument", rate: 20.00 },
+          { id: 4, name: "xClarinet", rate: 36.00 },
+          { id: 5, name: "xPiano Contemporary", rate: 10.00 },
+          { id: 6, name: "xGuitar Core", rate: 10.00 },
+          { id: 7, name: "xGuitar Contemporary", rate: 10.00 },
+          { id: 8, name: "xGuitar Hybrid", rate: 10.00 },
+          { id: 9, name: "xPiano Hybrid", rate: undefined },
+          { id: 10, name: "40th Anniversary Vocal", rate: 25.00 },
+          { id: 11, name: "Rami Test Program", rate: 30.00 },
+        ]);
 
-        // Mock group qualifications - empty
-        setGroupQualifications([]);
+        // Mock group qualifications
+        setGroupQualifications([
+          { id: 12, name: "Rami Group Program", rate: 20.00 },
+        ]);
 
       } catch (error) {
         console.error("Error loading teacher data:", error);
@@ -241,11 +256,27 @@ export function TeachersDetailClient({
           <QualificationsCard
             title="Private Qualifications"
             qualifications={privateQualifications}
+            type="private"
             onView={() => {
               // TODO: Open view modal
             }}
-            onAdd={() => {
-              // TODO: Open add modal
+            onAdd={(newQualifications) => {
+              // Add new qualifications to the list
+              const nextId = privateQualifications.length > 0 
+                ? Math.max(...privateQualifications.map(q => q.id)) + 1 
+                : 1;
+              
+              const qualificationsToAdd = newQualifications.map((qual, index) => {
+                // Find the program label from the program value
+                const program = PRIVATE_PROGRAMS.find(p => p.value === qual.program);
+                return {
+                  id: nextId + index,
+                  name: program?.label || qual.program,
+                  rate: qual.rate,
+                };
+              });
+              
+              setPrivateQualifications([...privateQualifications, ...qualificationsToAdd]);
             }}
             loading={loading}
           />
@@ -254,11 +285,27 @@ export function TeachersDetailClient({
           <QualificationsCard
             title="Group Qualifications"
             qualifications={groupQualifications}
+            type="group"
             onView={() => {
               // TODO: Open view modal
             }}
-            onAdd={() => {
-              // TODO: Open add modal
+            onAdd={(newQualifications) => {
+              // Add new qualifications to the list
+              const nextId = groupQualifications.length > 0 
+                ? Math.max(...groupQualifications.map(q => q.id)) + 1 
+                : 1;
+              
+              const qualificationsToAdd = newQualifications.map((qual, index) => {
+                // Find the program label from the program value
+                const program = GROUP_PROGRAMS.find(p => p.value === qual.program);
+                return {
+                  id: nextId + index,
+                  name: program?.label || qual.program,
+                  rate: qual.rate,
+                };
+              });
+              
+              setGroupQualifications([...groupQualifications, ...qualificationsToAdd]);
             }}
             loading={loading}
           />

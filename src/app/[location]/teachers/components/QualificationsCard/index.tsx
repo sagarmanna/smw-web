@@ -3,16 +3,18 @@
 import * as React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Eye, Plus } from "lucide-react";
+import { Eye, EyeOff, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Qualification } from "../../teachers.api";
+import { AddQualificationModal, PRIVATE_PROGRAMS, GROUP_PROGRAMS } from "./AddQualificationModal";
 
 interface QualificationsCardProps {
   title: string;
   qualifications: Qualification[];
   onView: () => void;
-  onAdd: () => void;
+  onAdd: (qualifications: Array<{ program: string; rate: number }>) => void;
   loading?: boolean;
+  type?: "private" | "group";
 }
 
 export function QualificationsCard({
@@ -21,7 +23,26 @@ export function QualificationsCard({
   onView,
   onAdd,
   loading = false,
+  type = "private",
 }: QualificationsCardProps) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+
+  const handleEyeClick = () => {
+    setIsExpanded(!isExpanded);
+    onView();
+  };
+
+  const handleAddClick = () => {
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddQualifications = (newQualifications: Array<{ program: string; rate: number }>) => {
+    onAdd(newQualifications);
+  };
+
+  const availablePrograms = type === "group" ? GROUP_PROGRAMS : PRIVATE_PROGRAMS;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -31,53 +52,81 @@ export function QualificationsCard({
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={onView}
+            onClick={handleEyeClick}
           >
-            <Eye className="h-4 w-4 text-gray-500" />
+            {isExpanded ? (
+              <EyeOff className="h-4 w-4 text-gray-500" />
+            ) : (
+              <Eye className="h-4 w-4 text-gray-500" />
+            )}
           </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={onAdd}
+            onClick={handleAddClick}
           >
             <Plus className="h-4 w-4 text-gray-500" />
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-          </div>
-        ) : qualifications.length > 0 ? (
-          <div className="space-y-2">
-            {qualifications.map((qual) => (
-              <div
-                key={qual.id}
-                className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md"
-              >
-                <div className="font-medium text-sm">{qual.name}</div>
-                {qual.description && (
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    {qual.description}
-                  </div>
-                )}
-                {qual.dateObtained && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Obtained: {qual.dateObtained}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-4 text-sm text-gray-500">
-            No qualifications added yet.
-          </div>
-        )}
-      </CardContent>
+      {isExpanded && (
+        <CardContent>
+          {loading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+          ) : qualifications.length > 0 ? (
+            <div className="overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-2 px-0 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Name
+                    </th>
+                    <th className="text-left py-2 px-0 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Rate ($/hr)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {qualifications.map((qual, index) => (
+                    <tr
+                      key={qual.id}
+                      className={
+                        index !== qualifications.length - 1
+                          ? "border-b border-gray-100 dark:border-gray-800"
+                          : ""
+                      }
+                    >
+                      <td className="py-3 px-0 text-sm text-gray-800 dark:text-gray-200">
+                        {qual.name}
+                      </td>
+                      <td className="py-3 px-0 text-sm text-gray-800 dark:text-gray-200">
+                        {qual.rate ? `$${qual.rate.toFixed(2)}` : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-4 text-sm text-gray-500">
+              No qualifications added yet.
+            </div>
+          )}
+        </CardContent>
+      )}
+
+      {/* Add Qualification Modal */}
+      <AddQualificationModal
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        title="Qualification"
+        onAdd={handleAddQualifications}
+        availablePrograms={availablePrograms}
+      />
     </Card>
   );
 }
