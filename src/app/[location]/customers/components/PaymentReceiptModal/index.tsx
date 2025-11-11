@@ -32,6 +32,7 @@ interface PaymentReceiptModalProps {
   location?: string;
   customerId?: number;
   payment?: PaymentReceiptData | null;
+  receiptHtml?: string; // HTML content from API response
   customerName?: string;
   customerEmail?: string;
   customerEmails?: string[];
@@ -59,6 +60,7 @@ export function PaymentReceiptModal({
   location,
   customerId,
   payment,
+  receiptHtml,
   customerName,
   customerEmail,
   customerEmails,
@@ -80,6 +82,7 @@ export function PaymentReceiptModal({
   const [isSaving, setIsSaving] = React.useState<boolean>(false);
   const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>([]);
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = React.useState<boolean>(false);
+  const receiptHtmlRef = React.useRef<HTMLDivElement>(null);
 
   // Fetch payment methods when modal opens
   React.useEffect(() => {
@@ -121,6 +124,24 @@ export function PaymentReceiptModal({
         });
     }
   }, [open, payment?.notes]);
+
+  // Handle scripts in HTML receipt content
+  React.useEffect(() => {
+    if (receiptHtml && receiptHtmlRef.current && open) {
+      // Extract and execute scripts from the HTML if needed
+      // Note: React's dangerouslySetInnerHTML doesn't execute scripts by default
+      // We'll let the browser handle any inline scripts that are safe
+      const scripts = receiptHtmlRef.current.querySelectorAll('script');
+      scripts.forEach((oldScript) => {
+        const newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach((attr) => {
+          newScript.setAttribute(attr.name, attr.value);
+        });
+        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+        oldScript.parentNode?.replaceChild(newScript, oldScript);
+      });
+    }
+  }, [receiptHtml, open]);
 
   // Helper function to format date to "MMM dd, yyyy" format
   const formatDateForLegacy = (date: Date | string): string => {
@@ -775,76 +796,88 @@ export function PaymentReceiptModal({
         <DialogHeader className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-semibold">{isEditing ? "Edit Payment" : "Payment Receipt"}</DialogTitle>
-            <div className="text-sm font-semibold">Amount Paid {headerAmount}</div>
+            {!receiptHtml && <div className="text-sm font-semibold">Amount Paid {headerAmount}</div>}
           </div>
         </DialogHeader>
 
         <div className="px-6 pb-4 space-y-6 overflow-y-auto max-h-[70vh]">
-          {isEditing && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <Label>Date</Label>
-                <DatePicker date={editDate} onDateChange={setEditDate} />
-              </div>
-              <div className="space-y-1">
-                <Label>Payment Method</Label>
-                <Select 
-                  value={editForm.method} 
-                  onValueChange={(v) => setEditForm((s) => ({ ...s, method: v }))}
-                  disabled={isLoadingPaymentMethods || paymentMethods.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={isLoadingPaymentMethods ? "Loading..." : "Select method"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {isLoadingPaymentMethods ? (
-                      <SelectItem value="loading" disabled>
-                        Loading payment methods...
-                      </SelectItem>
-                    ) : paymentMethods.length > 0 ? (
-                      paymentMethods.map((method) => (
-                        <SelectItem key={method.id} value={method.id.toString()}>
-                          {method.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>
-                        No payment methods available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Reference</Label>
-                <Input
-                  placeholder="Reference"
-                  value={editForm.reference}
-                  onChange={(e) => setEditForm((s) => ({ ...s, reference: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Amount Received</Label>
-                <Input
-                  type="number"
-                  className="text-right"
-                  value={editForm.amountReceived}
-                  onChange={(e) => setEditForm((s) => ({ ...s, amountReceived: e.target.value }))}
-                />
-              </div>
-            </div>
-          )}
-          {!isEditing && (
-            <p className="text-sm text-muted-foreground">
-              {`This is to acknowledge the receipt of payment${customerName ? ` from ${customerName}` : ""}${payment?.date ? ` on ${payment.date}` : ""} in the amount of ${headerAmount}${paymentMethod ? ` via ${paymentMethod}` : ""}.`}
-              {" We have distributed it to the items below."}
-            </p>
-          )}
+          {/* Render HTML receipt if available */}
+          {receiptHtml && !isEditing ? (
+            <div 
+              ref={receiptHtmlRef}
+              className="receipt-html-content"
+              dangerouslySetInnerHTML={{ __html: receiptHtml }}
+              style={{
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                fontSize: '14px',
+                lineHeight: '1.5',
+              }}
+            />
+          ) : (
+            <>
+              {isEditing ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <Label>Date</Label>
+                    <DatePicker date={editDate} onDateChange={setEditDate} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Payment Method</Label>
+                    <Select 
+                      value={editForm.method} 
+                      onValueChange={(v) => setEditForm((s) => ({ ...s, method: v }))}
+                      disabled={isLoadingPaymentMethods || paymentMethods.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={isLoadingPaymentMethods ? "Loading..." : "Select method"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isLoadingPaymentMethods ? (
+                          <SelectItem value="loading" disabled>
+                            Loading payment methods...
+                          </SelectItem>
+                        ) : paymentMethods.length > 0 ? (
+                          paymentMethods.map((method) => (
+                            <SelectItem key={method.id} value={method.id.toString()}>
+                              {method.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>
+                            No payment methods available
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Reference</Label>
+                    <Input
+                      placeholder="Reference"
+                      value={editForm.reference}
+                      onChange={(e) => setEditForm((s) => ({ ...s, reference: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Amount Received</Label>
+                    <Input
+                      type="number"
+                      className="text-right"
+                      value={editForm.amountReceived}
+                      onChange={(e) => setEditForm((s) => ({ ...s, amountReceived: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {`This is to acknowledge the receipt of payment${customerName ? ` from ${customerName}` : ""}${payment?.date ? ` on ${payment.date}` : ""} in the amount of ${headerAmount}${paymentMethod ? ` via ${paymentMethod}` : ""}.`}
+                  {" We have distributed it to the items below."}
+                </p>
+              )}
 
-          {!isEditing && showAllocations ? (
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">Lessons</div>
-              
+              {!isEditing && showAllocations ? (
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold">Lessons</div>
                   <CustomTable
                     data={allocationRows}
                     columns={allocationColumns}
@@ -856,215 +889,256 @@ export function PaymentReceiptModal({
                     enableFilter={false}
                     enableRowsPerPage={false}
                   />
-               
-            </div>
-          ) : !isEditing ? (
-            <div className="text-center py-8">
-              <h3 className="text-2xl font-semibold mb-2">You didn&apos;t select any lessons or invoices</h3>
-              <p className="text-muted-foreground">
-                so we&apos;ll save this payment as credit to your customer account
-              </p>
-            </div>
-          ) : null}
+                </div>
+              ) : !isEditing ? (
+                <div className="text-center py-8">
+                  <h3 className="text-2xl font-semibold mb-2">You didn&apos;t select any lessons or invoices</h3>
+                  <p className="text-muted-foreground">
+                    so we&apos;ll save this payment as credit to your customer account
+                  </p>
+                </div>
+              ) : null}
 
-          {isEditing && (
-            <>
-              <div className="space-y-3">
-                <div className="text-sm font-semibold">Lessons</div>
-                <CustomTable
-                  data={lessonEditRows}
-                  columns={[
-                    allocationColumns[0],
-                    allocationColumns[1],
-                    { accessorKey: "student", header: "Student" },
-                    { accessorKey: "program", header: "Program" },
-                    { accessorKey: "teacher", header: "Teacher" },
-                    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
-                    { accessorKey: "payment", header: "Payment", cell: ({ row }) => <div className="text-right">{row.getValue("payment") as string}</div> },
-                    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
-                    {
-                      id: "paymentInput",
-                      header: "Payment",
-                      cell: ({ row, table }) => {
-                        const idx = row.index;
-                        const current = (row.original as EditLessonRow).allocation;
-                        return (
-                          <Input
-                            type="number"
-                            value={Number(current).toString()}
-                            onChange={(e) => {
-                              const v = parseFloat(e.target.value || "0");
-                              // Update via a shallow rebuild of memo data is not possible; keep disabled for lessons for now
-                            }}
-                            className="h-8 text-right"
-                            disabled
-                          />
-                        );
-                      },
-                    },
-                  ]}
-                  size="compact"
-                  enableSorting={false}
-                  enableExport={false}
-                  enablePrint={false}
-                  enableSearch={false}
-                  enableFilter={false}
-                  enableRowsPerPage={false}
-                />
-              </div>
+              {isEditing && (
+                <>
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold">Lessons</div>
+                    <CustomTable
+                      data={lessonEditRows}
+                      columns={[
+                        allocationColumns[0],
+                        allocationColumns[1],
+                        { accessorKey: "student", header: "Student" },
+                        { accessorKey: "program", header: "Program" },
+                        { accessorKey: "teacher", header: "Teacher" },
+                        { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+                        { accessorKey: "payment", header: "Payment", cell: ({ row }) => <div className="text-right">{row.getValue("payment") as string}</div> },
+                        { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+                        {
+                          id: "paymentInput",
+                          header: "Payment",
+                          cell: ({ row }) => {
+                            const current = (row.original as EditLessonRow).allocation;
+                            return (
+                              <Input
+                                type="number"
+                                value={Number(current).toString()}
+                                onChange={(e) => {
+                                  const v = parseFloat(e.target.value || "0");
+                                  // Update via a shallow rebuild of memo data is not possible; keep disabled for lessons for now
+                                }}
+                                className="h-8 text-right"
+                                disabled
+                              />
+                            );
+                          },
+                        },
+                      ]}
+                      size="compact"
+                      enableSorting={false}
+                      enableExport={false}
+                      enablePrint={false}
+                      enableSearch={false}
+                      enableFilter={false}
+                      enableRowsPerPage={false}
+                    />
+                  </div>
 
-              {/* Group Lessons - editable payments */}
-              <div className="space-y-3">
-                <div className="text-sm font-semibold">Group Lessons</div>
-                <CustomTable
-                  data={groupLessonEditRows}
-                  columns={[
-                    { accessorKey: "date", header: "Date" },
-                    { accessorKey: "student", header: "Student" },
-                    { accessorKey: "program", header: "Program" },
-                    { accessorKey: "invoiced", header: "Invoiced ?" },
-                    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
-                    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
-                    {
-                      id: "glPayment",
-                      header: "Payment",
-                      cell: ({ row }) => (
-                        <Input
-                          type="number"
-                          value={(row.original as GroupLessonEditRow).allocation.toString()}
-                          onChange={(e) => {
-                            const v = parseFloat(e.target.value || "0");
-                            setGroupLessonEditRows((prev) => prev.map((r, i) => (i === row.index ? { ...r, allocation: Number.isFinite(v) ? v : 0 } : r)));
-                          }}
-                          className="h-8 text-right"
-                        />
-                      ),
-                    },
-                  ]}
-                  size="compact"
-                  enableSorting={false}
-                  enableExport={false}
-                  enablePrint={false}
-                  enableSearch={false}
-                  enableFilter={false}
-                  enableRowsPerPage={false}
-                />
-              </div>
+                  {/* Group Lessons - editable payments */}
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold">Group Lessons</div>
+                    <CustomTable
+                      data={groupLessonEditRows}
+                      columns={[
+                        { accessorKey: "date", header: "Date" },
+                        { accessorKey: "student", header: "Student" },
+                        { accessorKey: "program", header: "Program" },
+                        { accessorKey: "invoiced", header: "Invoiced ?" },
+                        { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+                        { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+                        {
+                          id: "glPayment",
+                          header: "Payment",
+                          cell: ({ row }) => (
+                            <Input
+                              type="number"
+                              value={(row.original as GroupLessonEditRow).allocation.toString()}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value || "0");
+                                setGroupLessonEditRows((prev) =>
+                                  prev.map((r, i) => (i === row.index ? { ...r, allocation: Number.isFinite(v) ? v : 0 } : r))
+                                );
+                              }}
+                              className="h-8 text-right"
+                            />
+                          ),
+                        },
+                      ]}
+                      size="compact"
+                      enableSorting={false}
+                      enableExport={false}
+                      enablePrint={false}
+                      enableSearch={false}
+                      enableFilter={false}
+                      enableRowsPerPage={false}
+                    />
+                  </div>
 
-              {/* Invoices - editable payments */}
-              <div className="space-y-3">
-                <div className="text-sm font-semibold">Invoices</div>
-                <CustomTable
-                  data={invoiceEditRows}
-                  columns={[
-                    { accessorKey: "date", header: "Date" },
-                    { accessorKey: "number", header: "Number" },
-                    { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
-                    { accessorKey: "payment", header: "Payment", cell: ({ row }) => <div className="text-right">{row.getValue("payment") as string}</div> },
-                    { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
-                    {
-                      id: "invPayment",
-                      header: "Payment",
-                      cell: ({ row }) => (
-                        <Input
-                          type="number"
-                          value={(row.original as InvoiceEditRow).allocation.toString()}
-                          onChange={(e) => {
-                            const v = parseFloat(e.target.value || "0");
-                            setInvoiceEditRows((prev) => prev.map((r, i) => (i === row.index ? { ...r, allocation: Number.isFinite(v) ? v : 0 } : r)));
-                          }}
-                          className="h-8 text-right"
-                        />
-                      ),
-                    },
-                  ]}
-                  size="compact"
-                  enableSorting={false}
-                  enableExport={false}
-                  enablePrint={false}
-                  enableSearch={false}
-                  enableFilter={false}
-                  enableRowsPerPage={false}
-                />
-              </div>
-              <div className="flex flex-col items-end gap-2 pt-2">
-                <div className="text-muted-foreground">Amount To Apply {formatCurrency(amountToApply)}</div>
-                <div className="text-muted-foreground">Amount To Credit {formatCurrency(amountToCredit)}</div>
-              </div>
+                  {/* Invoices - editable payments */}
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold">Invoices</div>
+                    <CustomTable
+                      data={invoiceEditRows}
+                      columns={[
+                        { accessorKey: "date", header: "Date" },
+                        { accessorKey: "number", header: "Number" },
+                        { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="text-right">{row.getValue("amount") as string}</div> },
+                        { accessorKey: "payment", header: "Payment", cell: ({ row }) => <div className="text-right">{row.getValue("payment") as string}</div> },
+                        { accessorKey: "balance", header: "Balance", cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> },
+                        {
+                          id: "invPayment",
+                          header: "Payment",
+                          cell: ({ row }) => (
+                            <Input
+                              type="number"
+                              value={(row.original as InvoiceEditRow).allocation.toString()}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value || "0");
+                                setInvoiceEditRows((prev) =>
+                                  prev.map((r, i) => (i === row.index ? { ...r, allocation: Number.isFinite(v) ? v : 0 } : r))
+                                );
+                              }}
+                              className="h-8 text-right"
+                            />
+                          ),
+                        },
+                      ]}
+                      size="compact"
+                      enableSorting={false}
+                      enableExport={false}
+                      enablePrint={false}
+                      enableSearch={false}
+                      enableFilter={false}
+                      enableRowsPerPage={false}
+                    />
+                  </div>
+                  <div className="flex flex-col items-end gap-2 pt-2">
+                    <div className="text-muted-foreground">Amount To Apply {formatCurrency(amountToApply)}</div>
+                    <div className="text-muted-foreground">Amount To Credit {formatCurrency(amountToCredit)}</div>
+                  </div>
+                </>
+              )}
+
+              {/* Group Lessons (read-only) */}
+              {!isEditing && groupLessonRows.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold">Group Lessons</div>
+                  <CustomTable
+                    data={groupLessonRows}
+                    columns={groupLessonColumns}
+                    size="compact"
+                    enableSorting={false}
+                    enableExport={false}
+                    enablePrint={false}
+                    enableSearch={false}
+                    enableFilter={false}
+                    enableRowsPerPage={false}
+                  />
+                </div>
+              )}
+
+              {/* Invoices (read-only) */}
+              {!isEditing && invoiceRows.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold">Invoices</div>
+                  <CustomTable
+                    data={invoiceRows}
+                    columns={invoiceColumns}
+                    size="compact"
+                    enableSorting={false}
+                    enableExport={false}
+                    enablePrint={false}
+                    enableSearch={false}
+                    enableFilter={false}
+                    enableRowsPerPage={false}
+                  />
+                </div>
+              )}
+
+              {/* Payments Used must always be last */}
+              {!isEditing && (
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold">Payments Used</div>
+                  <CustomTable
+                    data={rows}
+                    columns={columns}
+                    size="compact"
+                    enableSorting={false}
+                    enableExport={false}
+                    enablePrint={false}
+                    enableSearch={false}
+                    enableFilter={false}
+                    enableRowsPerPage={false}
+                  />
+                </div>
+              )}
+
+              {/* Tax number placeholder row */}
+              {!isEditing && (
+                <div className="text-sm font-medium pt-2">
+                  HST# <span className="text-muted-foreground">FQRS47785GT1234</span>
+                </div>
+              )}
             </>
-          )}
-
-          {/* Group Lessons (read-only) */}
-          {!isEditing && groupLessonRows.length > 0 && (
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">Group Lessons</div>
-              <CustomTable
-                data={groupLessonRows}
-                columns={groupLessonColumns}
-                size="compact"
-                enableSorting={false}
-                enableExport={false}
-                enablePrint={false}
-                enableSearch={false}
-                enableFilter={false}
-                enableRowsPerPage={false}
-              />
-            </div>
-          )}
-
-          {/* Invoices (read-only) */}
-          {!isEditing && invoiceRows.length > 0 && (
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">Invoices</div>
-              <CustomTable
-                data={invoiceRows}
-                columns={invoiceColumns}
-                size="compact"
-                enableSorting={false}
-                enableExport={false}
-                enablePrint={false}
-                enableSearch={false}
-                enableFilter={false}
-                enableRowsPerPage={false}
-              />
-            </div>
-          )}
-
-          {/* Payments Used must always be last */}
-          {!isEditing && (
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">Payments Used</div>
-              <CustomTable
-                data={rows}
-                columns={columns}
-                size="compact"
-                enableSorting={false}
-                enableExport={false}
-                enablePrint={false}
-                enableSearch={false}
-                enableFilter={false}
-                enableRowsPerPage={false}
-              />
-            </div>
-          )}
-
-          {/* Tax number placeholder row */}
-          {!isEditing && (
-            <div className="text-sm font-medium pt-2">HST# <span className="text-muted-foreground">FQRS47785GT1234</span></div>
           )}
         </div>
 
         <DialogFooter className="px-6 py-4 border-t w-full flex flex-row items-center justify-between sm:justify-between">
-          <div>
-            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete</Button>
-          </div>
-          <div className="flex gap-2">
-            {isEditing ? (
-              <>
-                <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
-                <Button
-                  disabled={isSaving}
-                  onClick={async () => {
+          {receiptHtml && !isEditing ? (
+            <div className="flex gap-2 w-full justify-end">
+              <Button variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  // Extract email URL from HTML if available, or use existing email handler
+                  const emailForm = document.querySelector('#modal-form');
+                  if (emailForm && emailForm instanceof HTMLFormElement) {
+                    emailForm.submit();
+                  } else {
+                    onEmail?.();
+                    setIsEmailStatementOpen(true);
+                  }
+                }}
+              >
+                Email
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  // Extract print URL from HTML or use window print
+                  const printUrl = '/admin/training-location/print/receipt';
+                  if (printUrl) {
+                    window.open(printUrl, '_blank');
+                  } else {
+                    window.print();
+                  }
+                }}
+              >
+                Print
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div>
+                {!receiptHtml && <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete</Button>}
+              </div>
+              <div className="flex gap-2">
+                {isEditing ? (
+                  <>
+                    <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
+                    <Button
+                      disabled={isSaving}
+                      onClick={async () => {
                     if (!location || !customerId) {
                       toast.error('Location and customer ID are required');
                       return;
@@ -1172,7 +1246,9 @@ export function PaymentReceiptModal({
                 </Button>
               </>
             )}
-          </div>
+              </div>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

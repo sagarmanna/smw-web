@@ -3,7 +3,7 @@ import * as React from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { ReceivePaymentModalProps, ReceivePaymentData } from './types';
-import { DataMapper } from './utils';
+import { DataMapper, PaymentCalculator } from './utils';
 import { usePaymentState } from './hooks/usePaymentState';
 import { useItemHandlers } from './hooks/useItemHandlers';
 import { useFilterHandlers } from './hooks/useFilterHandlers';
@@ -127,6 +127,34 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
       return;
     }
 
+    const buildPaymentMap = <T extends { id: string; payment: string; selected?: boolean }>(
+      items: T[]
+    ): Record<string, number> => {
+      return items
+        .filter(item => item.selected)
+        .reduce<Record<string, number>>((acc, item) => {
+          const amount = PaymentCalculator.parsePaymentAmount(item.payment);
+          if (amount > 0) {
+            acc[item.id] = amount;
+          }
+          return acc;
+        }, {});
+    };
+
+    const paymentCredits = buildPaymentMap(
+      state.credits.filter(credit => {
+        const creditType = (credit.type || '').toLowerCase();
+        return creditType.includes('payment credit');
+      })
+    );
+
+    const invoiceCredits = buildPaymentMap(
+      state.credits.filter(credit => {
+        const creditType = (credit.type || '').toLowerCase();
+        return creditType.includes('invoice credit');
+      })
+    );
+
     setIsSaving(true);
     try {
       const paymentData: ReceivePaymentData = {
@@ -140,15 +168,11 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
         selectedGroupLessons: DataMapper.extractSelectedIds(state.groupLessons),
         selectedInvoices: DataMapper.extractSelectedIds(state.invoices),
         selectedCredits: DataMapper.extractSelectedIds(state.credits),
-        lessonPayments: DataMapper.createPaymentMap(state.lessons),
-        groupLessonPayments: DataMapper.createPaymentMap(state.groupLessons),
-        invoicePayments: DataMapper.createPaymentMap(state.invoices),
-        paymentCredits: DataMapper.createPaymentMap(
-          state.credits.filter(c => c.type === 'Payment Credit')
-        ),
-        invoiceCredits: DataMapper.createPaymentMap(
-          state.credits.filter(c => c.type === 'Invoice Credit')
-        ),
+        lessonPayments: buildPaymentMap(state.lessons),
+        groupLessonPayments: buildPaymentMap(state.groupLessons),
+        invoicePayments: buildPaymentMap(state.invoices),
+        paymentCredits,
+        invoiceCredits,
       };
       
       await onSave(paymentData);
