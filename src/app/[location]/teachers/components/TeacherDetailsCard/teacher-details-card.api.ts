@@ -3,7 +3,6 @@ import { apiClient } from "@/lib/api/client";
 export interface UpdateTeacherDetailsData {
   firstName: string;
   lastName: string;
-  role: string;
   birthDate?: string;
 }
 

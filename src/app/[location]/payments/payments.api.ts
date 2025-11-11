@@ -31,13 +31,49 @@ export interface PaymentsListResponse {
 }
 
 // ==========================================
+// HELPER FUNCTIONS
+// ==========================================
+
+/**
+ * Get today's date in YYYY-MM-DD format using US timezone
+ * Defaults to America/New_York (EST/EDT)
+ */
+function getTodayInUSTimezone(timezone: string = 'America/New_York'): string {
+  const now = new Date();
+  
+  // Format date in US timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  
+  const parts = formatter.formatToParts(now);
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  
+  return `${year}-${month}-${day}`;
+}
+
+// ==========================================
 // API FUNCTIONS
 // ==========================================
 
 /**
  * Fetch payments list with pagination and filters
  * Endpoint: GET /admin/v2/{location}/payments
- * NOTE: Date filtering is done client-side as the API doesn't support from/to parameters
+ * 
+ * The API supports the following query parameters:
+ * - page: Page number (default: 1)
+ * - limit: Records per page (default: 20)
+ * - number: Filter by payment number
+ * - customer: Filter by customer name
+ * - paymentMethod: Filter by payment method
+ * - amount: Filter by amount
+ * - startDate: Filter by start date (Format: YYYY-MM-DD)
+ * - endDate: Filter by end date (Format: YYYY-MM-DD)
  */
 export async function getPayments(
   location: string,
@@ -48,7 +84,10 @@ export async function getPayments(
     customer?: string;
     paymentMethod?: string;
     amount?: string;
-  }
+    from?: string;  // Will be sent as startDate
+    to?: string;    // Will be sent as endDate
+  },
+  timezone: string = 'America/New_York' // Allow timezone configuration
 ): Promise<{
   data: PaymentDto[];
   pagination: {
@@ -60,10 +99,12 @@ export async function getPayments(
 }> {
   try {
     const params = new URLSearchParams();
+    
+    // Pagination
     params.append('page', page.toString());
-    params.append('limit', limit === -1 ? '99999' : limit.toString());
+    params.append('limit', limit === -1 ? '999' : limit.toString());
 
-    // Add filters if provided (excluding date filters)
+    // Add all supported filters
     if (filters?.number) {
       params.append('number', filters.number);
     }
@@ -76,6 +117,25 @@ export async function getPayments(
     if (filters?.amount) {
       params.append('amount', filters.amount);
     }
+    
+    // Date filters - API uses startDate and endDate
+    // IMPORTANT: API applies a default date filter if not provided
+    // Always send date range to ensure we get all records
+    if (filters?.from || filters?.to) {
+      // User has applied date filters
+      if (filters.from) {
+        params.append('startDate', filters.from);
+      }
+      if (filters.to) {
+        params.append('endDate', filters.to);
+      }
+    } else {
+      // No user filters - default to current month (today's date in US timezone)
+      const todayStr = getTodayInUSTimezone(timezone);
+      
+      params.append('startDate', todayStr);
+      params.append('endDate', todayStr);
+    }
 
     const response = await apiClient.get<PaymentsListResponse>(
       `/admin/v2/${location}/payments`,
@@ -83,14 +143,17 @@ export async function getPayments(
     );
 
     if (response.data.success && response.data.data.body) {
+      const data = response.data.data.body;
+      const pagination = response.data.data.pagination || {
+        page: 1,
+        limit: 20,
+        total: data.length,
+        totalPages: 1,
+      };
+
       return {
-        data: response.data.data.body,
-        pagination: response.data.data.pagination || {
-          page: 1,
-          limit: 20,
-          total: response.data.data.body.length,
-          totalPages: 1,
-        },
+        data,
+        pagination,
       };
     }
 
@@ -99,7 +162,6 @@ export async function getPayments(
       pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
     };
   } catch (error: unknown) {
-    console.error('Error fetching payments:', error);
     return {
       data: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },

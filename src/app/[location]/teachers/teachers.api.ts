@@ -77,6 +77,7 @@ export interface TeacherInfoData {
 export interface Qualification {
   id: number;
   name: string;
+  rate?: number;
   description?: string;
   dateObtained?: string;
 }
