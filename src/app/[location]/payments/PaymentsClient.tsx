@@ -6,10 +6,11 @@ import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Button } from "@/components/ui/button";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { PaymentsReceivePaymentModal } from "./components/PaymentReceipt";
 import { getPayments, PaymentDto } from "./payments.api";
+import { ReceivePaymentData } from "../customers/components/ReceivePaymentModal/types";
 
 interface PaymentsClientProps {
   location: string;
@@ -266,13 +267,36 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
     setPage(1); // Reset to first page when filters change
   }, []);
 
-  // Handler for saving payment
-  const handlePaymentSaved = React.useCallback(() => {
-    fetchPayments(); // Refresh payments list after saving
-    setModalOpen(false);
-    setSelectedRow(null);
-    setIsNewPayment(false);
-  }, [fetchPayments]);
+  // Handler for saving payment - THIS IS THE KEY FIX
+  const handleSavePayment = React.useCallback(async (data: ReceivePaymentData) => {
+    try {
+      // Call your API endpoint to save the payment
+      const response = await fetch(`/api/${location}/payments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to save payment');
+      }
+
+      // After successful save, refresh the payments list
+      await fetchPayments();
+      
+      // Close the modal and reset state
+      setModalOpen(false);
+      setSelectedRow(null);
+      setIsNewPayment(false);
+    } catch (error) {
+      console.error('Error saving payment:', error);
+      // Re-throw so the modal can handle the error (show error message, etc.)
+      throw error;
+    }
+  }, [location, fetchPayments]);
 
   // Handler for retry
   const handleRetry = React.useCallback(() => {
@@ -353,10 +377,8 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
             setIsNewPayment(false);
           }
         }}
-        onSave={handlePaymentSaved}
+        onSave={handleSavePayment}
         location={location}
-        // When clicking a row, we could pass the customer info if needed
-        // For now, keeping it as dropdown mode for both scenarios
         customerId={selectedRow?.id || undefined}
         customerName={selectedRow?.customer || undefined}
       />
