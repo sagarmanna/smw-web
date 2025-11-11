@@ -28,6 +28,8 @@ interface PaymentFormSectionProps {
   onCustomerSelect?: (customerId: string) => void;
 }
 
+const { useState } = React;
+
 /**
  * Payment form section with dynamic payment methods from API
  * Conditionally renders customer field based on route type
@@ -65,6 +67,37 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
     }
   }, [availablePaymentMethods, paymentMethod, onPaymentMethodChange]);
 
+  // State for customer search
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Filter customers based on search
+  const filteredCustomers = React.useMemo(() => {
+    if (!customerSearch.trim()) return customersList;
+    
+    const searchLower = customerSearch.toLowerCase();
+    return customersList.filter(customer =>
+      customer.label.toLowerCase().includes(searchLower)
+    );
+  }, [customersList, customerSearch]);
+
+  // Auto-focus search input when dropdown opens
+  React.useEffect(() => {
+    if (isDropdownOpen && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isDropdownOpen]);
+
+  // Reset search when dropdown closes
+  React.useEffect(() => {
+    if (!isDropdownOpen) {
+      setCustomerSearch('');
+    }
+  }, [isDropdownOpen]);
+
   return (
     <div className="space-y-5 py-4">
       <div className="grid grid-cols-5 gap-4">
@@ -84,24 +117,46 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
               value={customerId?.toString() || ''} 
               onValueChange={onCustomerSelect}
               disabled={isLoadingCustomers}
+              onOpenChange={setIsDropdownOpen}
             >
               <SelectTrigger className="h-9">
                 <SelectValue placeholder={isLoadingCustomers ? "Loading customers..." : "Select customer"} />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
+                {/* Search input */}
+                <div className="sticky top-0 bg-white border-b px-2 py-2 z-10">
+                  <Input
+                    ref={searchInputRef}
+                    placeholder="Search customers..."
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    className="h-8"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      // Prevent closing dropdown on Enter
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                      }
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                  />
+                </div>
+                
                 {isLoadingCustomers ? (
                   <SelectItem value="loading" disabled>
                     Loading customers...
                   </SelectItem>
-                ) : customersList.length > 0 ? (
-                  customersList.map(customer => (
+                ) : filteredCustomers.length > 0 ? (
+                  filteredCustomers.map(customer => (
                     <SelectItem key={customer.id} value={customer.value}>
                       {customer.label}
                     </SelectItem>
                   ))
                 ) : (
                   <SelectItem value="none" disabled>
-                    No customers available
+                    {customerSearch ? 'No customers found' : 'No customers available'}
                   </SelectItem>
                 )}
               </SelectContent>
