@@ -49,6 +49,7 @@ import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
 import { PaymentReceiptModal } from "../components/PaymentReceiptModal";
+// import { mockReceivePayment } from "../components/PaymentReceiptModal/mocks/legacyReceivePaymentMock";
 import AddStudentModal from "../components/AddStudentModal/index";
 import { NotifyViaEmailReasonsModal } from "../components/NotifyViaEmailModal";
 import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
@@ -80,6 +81,8 @@ import {
   CommentData,
   HistoryData,
 } from "../tabConfigs";
+
+// const SHOULD_USE_RECEIVE_PAYMENT_MOCK = true;
 
 interface PhoneNumber {
   id: string;
@@ -193,6 +196,7 @@ export function CustomerDetailClient({
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
   const [emailStatementData, setEmailStatementData] = React.useState<EmailStatementData | null>(null);
+const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?: string; content?: string } | null>(null);
   const [isLoadingEmailStatement, setIsLoadingEmailStatement] = React.useState<boolean>(false);
   const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
@@ -258,6 +262,16 @@ export function CustomerDetailClient({
       setStudentsLoading(false);
     }
   };
+
+  const handleEmailModalOpenChange = React.useCallback(
+    (open: boolean) => {
+      setIsEmailStatementModalOpen(open);
+      if (!open) {
+        setEmailModalOverrides(null);
+      }
+    },
+    []
+  );
 
   // Handle students pagination
   const handleStudentsPageChange = (_page: number) => {
@@ -577,7 +591,9 @@ export function CustomerDetailClient({
     try {
       // Import the legacy API function
       const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
-      
+      // const legacyReceivePayment = SHOULD_USE_RECEIVE_PAYMENT_MOCK
+      //   ? mockReceivePayment
+      //   : (await import("@/lib/api/legacyApiAdapter")).receivePayment;
       // Payment method value is already the ID as a string, just convert to number
       const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
 
@@ -697,6 +713,7 @@ export function CustomerDetailClient({
 
       // Call legacy API
       const response = await receivePayment(location, legacyPaymentData);
+      // const response = await legacyReceivePayment(location, legacyPaymentData);
 
       if (response.status) {
         // Success - close receive payment modal
@@ -2561,7 +2578,7 @@ export function CustomerDetailClient({
       {/* Email Statement Modal */}
       <EmailStatementModal
         open={isEmailStatementModalOpen}
-        onOpenChange={setIsEmailStatementModalOpen}
+        onOpenChange={handleEmailModalOpenChange}
         onSend={handleSendEmailStatement}
         customerName={
           customer ? `${customer.firstName} ${customer.lastName}` : undefined
@@ -2570,8 +2587,12 @@ export function CustomerDetailClient({
           emailStatementData?.customerEmails || emails.map((e) => e.email)
         }
         locationName="Arcadia Academy of Music"
-        initialSubject={emailStatementData?.emailSubject}
-        initialContent={emailStatementData?.emailHeader}
+        initialSubject={
+          emailModalOverrides?.subject ?? emailStatementData?.emailSubject
+        }
+        initialContent={
+          emailModalOverrides?.content ?? emailStatementData?.emailHeader
+        }
         privateLessonDueData={
           emailStatementData?.privateLessonsDue || privateLessonDueData
         }
@@ -2579,11 +2600,13 @@ export function CustomerDetailClient({
           emailStatementData?.groupLessonsDue || groupLessonDueData
         }
         invoiceData={emailStatementData?.invoices || invoiceData}
+        creditData={emailStatementData?.credits || []}
         totalBalance={
           emailStatementData
             ? `$${emailStatementData.totalBalance.toFixed(2)}`
             : summaryData.balance
         }
+        showDeleteButton={false}
       />
 
       {/* Receive Payment Modal */}
@@ -2687,7 +2710,10 @@ export function CustomerDetailClient({
           setSelectedPaymentIndex(null);
         }}
         onPrint={() => {}}
-        onEmail={() => {}}
+        onEmail={({ subject, content }: { subject: string; content: string }) => {
+          setEmailModalOverrides({ subject, content });
+          setIsEmailStatementModalOpen(true);
+        }}
       />
 
       {/* Notify Via Email Modal */}

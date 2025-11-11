@@ -47,7 +47,14 @@ interface EmailStatementModalProps {
     total: number;
     balance: number;
   }>;
+  creditData?: Array<{
+    id: number;
+    type: string;
+    reference: string;
+    amount: number;
+  }>;
   totalBalance?: string;
+  showDeleteButton?: boolean;
 }
 
 export interface EmailFormData {
@@ -70,7 +77,9 @@ export default function EmailStatementModal({
   privateLessonDueData = [],
   groupLessonDueData = [],
   invoiceData = [],
-  totalBalance = "$0.00"
+  creditData = [],
+  totalBalance = "$0.00",
+  showDeleteButton = false,
 }: EmailStatementModalProps) {
   const [recipients, setRecipients] = React.useState<string[]>([]);
   const [emailInput, setEmailInput] = React.useState<string>("");
@@ -122,15 +131,25 @@ export default function EmailStatementModal({
       setSubject(initialSubject || `Customer Statement from ${locationName}`);
       
       // Generate complete email content with text AND tables together
-      // If initialContent (emailHeader) is provided, combine it with generated tables
-      // Otherwise, generate complete content from scratch
+      // If initialContent is complete HTML (payment receipt, etc.), use it as-is
+      // Otherwise, always use the new intro text (ignore old emailHeader text)
       let completeContent: string;
       if (initialContent) {
-        // initialContent is the emailHeader from API, combine it with tables
-        const tablesHTML = generateTablesHTML();
-        completeContent = `<p>${initialContent}</p>` + tablesHTML;
+        const shouldUseInitialContentAsIs = /<(table|form|div)[\s>]/i.test(initialContent) ||
+          initialContent.includes("payment-receipt") ||
+          initialContent.includes("invoice-lineitem-listing") ||
+          initialContent.includes("credit-lineitem-listing") ||
+          initialContent.includes("email-statement");
+
+        if (shouldUseInitialContentAsIs) {
+          // Use complete HTML as-is (e.g., payment receipt HTML)
+          completeContent = initialContent;
+        } else {
+          // initialContent is just plain text (old emailHeader), ignore it and use new intro text
+          completeContent = generateCompleteEmailHTML();
+        }
       } else {
-        // Generate complete content from scratch
+        // Generate complete content from scratch with new intro text
         completeContent = generateCompleteEmailHTML();
       }
       setContent(completeContent);
@@ -212,8 +231,10 @@ export default function EmailStatementModal({
 
   // Generate table HTML for email content (using real customer data)
   function generateTablesHTML() {
-    return `
-<div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
+    const sections: string[] = [];
+
+    if (privateLessonDueData.length > 0) {
+      const privateLessonsSection = `
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px;">Private Lessons Due</h3>
   <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
@@ -227,20 +248,33 @@ export default function EmailStatementModal({
       </tr>
     </thead>
     <tbody>
-      ${privateLessonDueData.map((lesson) => {
-        type Legacy = { lessonDate: string; student: string; program: string; teacher: string; amount: number };
-        type Api = { lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string };
-        const isApi = (l: Legacy | Api): l is Api => 'studentName' in (l as Record<string, unknown>);
-        const student = isApi(lesson as Legacy | Api) ? (lesson as Api).studentName : (lesson as Legacy).student;
-        const program = isApi(lesson as Legacy | Api) ? (lesson as Api).programName : (lesson as Legacy).program;
-        const teacher = isApi(lesson as Legacy | Api) ? (lesson as Api).teacherName : (lesson as Legacy).teacher;
-        const amountVal = (lesson as Legacy | Api).amount as number | string;
-        const amountStr = typeof amountVal === 'string' ? amountVal : formatCurrency(amountVal);
-        return `<tr style=\"border-bottom: 1px solid #e5e7eb;\">\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${lesson.lessonDate}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${student}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${program}</td>\n        <td style=\"padding: 8px; color: #1f2937; border: 1px solid #d1d5db;\">${teacher}</td>\n        <td style=\"padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;\">${amountStr}</td>\n        <td style=\"padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;\">${amountStr}</td>\n      </tr>`;
-      }).join('')}
+      ${privateLessonDueData
+        .map((lesson) => {
+          type Legacy = { lessonDate: string; student: string; program: string; teacher: string; amount: number };
+          type Api = { lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string };
+          const isApi = (l: Legacy | Api): l is Api => "studentName" in (l as Record<string, unknown>);
+          const student = isApi(lesson as Legacy | Api) ? (lesson as Api).studentName : (lesson as Legacy).student;
+          const program = isApi(lesson as Legacy | Api) ? (lesson as Api).programName : (lesson as Legacy).program;
+          const teacher = isApi(lesson as Legacy | Api) ? (lesson as Api).teacherName : (lesson as Legacy).teacher;
+          const amountVal = (lesson as Legacy | Api).amount as number | string;
+          const amountStr = typeof amountVal === "string" ? amountVal : formatCurrency(amountVal);
+          return `<tr style="border-bottom: 1px solid #e5e7eb;">
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.lessonDate}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${student}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${program}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${teacher}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${amountStr}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${amountStr}</td>
+      </tr>`;
+        })
+        .join("")}
     </tbody>
-  </table>
+  </table>`;
+      sections.push(privateLessonsSection);
+    }
 
+    if (groupLessonDueData.length > 0) {
+      const groupLessonsSection = `
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Group Lessons Due</h3>
   <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
@@ -254,17 +288,29 @@ export default function EmailStatementModal({
       </tr>
     </thead>
     <tbody>
-      ${groupLessonDueData.map(lesson => `<tr style="border-bottom: 1px solid #e5e7eb;">
+      ${groupLessonDueData
+        .map(
+          (lesson) => `<tr style="border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.lessonDate}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.studentName}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.programName}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacherName}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;<div style="text-align: right;">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db; <div style="text-align: right;">${typeof lesson.amount === 'string' ? lesson.amount : formatCurrency(lesson.amount)}</td>
-      </tr>`).join('')}
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;"><div style="text-align: right;">${
+          typeof lesson.amount === "string" ? lesson.amount : formatCurrency(lesson.amount)
+        }</div></td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;"><div style="text-align: right;">${
+          typeof lesson.amount === "string" ? lesson.amount : formatCurrency(lesson.amount)
+        }</div></td>
+      </tr>`
+        )
+        .join("")}
     </tbody>
-  </table>
+  </table>`;
+      sections.push(groupLessonsSection);
+    }
 
+    if (invoiceData.length > 0) {
+      const invoicesSection = `
   <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Invoices</h3>
   <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
     <thead>
@@ -276,15 +322,64 @@ export default function EmailStatementModal({
       </tr>
     </thead>
     <tbody>
-      ${invoiceData.map(invoice => `<tr style="border-bottom: 1px solid #e5e7eb;">
+      ${invoiceData
+        .map(
+          (invoice) => `<tr style="border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${invoice.date}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${invoice.id}</td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(invoice.total)}</div></td>
         <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(invoice.balance)}</div></td>
-      </tr>`).join('')}
+      </tr>`
+        )
+        .join("")}
     </tbody>
-  </table>
+  </table>`;
+      sections.push(invoicesSection);
+    }
 
+    if (creditData.length > 0) {
+      const creditsSection = `
+  <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Payment Credits</h3>
+  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
+    <thead>
+      <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
+        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Type</th>
+        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Reference</th>
+        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
+      </tr>
+    </thead>
+    <tbody>
+      ${creditData
+        .map((credit) => {
+          const reference = credit.reference?.trim()
+            ? credit.reference
+            : `#${credit.id}`;
+          return `<tr style="border-bottom: 1px solid #e5e7eb;">
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${credit.type}</td>
+        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${reference}</td>
+        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(
+          credit.amount
+        )}</div></td>
+      </tr>`;
+        })
+        .join("")}
+    </tbody>
+  </table>`;
+      sections.push(creditsSection);
+    }
+
+    const shouldShowTotal =
+      sections.length > 0 &&
+      totalBalance &&
+      totalBalance.trim() !== "" &&
+      totalBalance.trim() !== "$0.00";
+
+    if (sections.length === 0 && !shouldShowTotal) {
+      return "";
+    }
+
+    const totalSection = shouldShowTotal
+      ? `
   <div style="margin-top: 24px; padding-top: 16px; border-top: 2px solid #d1d5db;">
     <table class="email-statement-total" style="width: 100%; font-size: 14px;">
       <tr>
@@ -292,13 +387,21 @@ export default function EmailStatementModal({
         <td style="font-weight: bold; color: #111827;"><div style="text-align: right;">${totalBalance}</div></td>
       </tr>
     </table>
-  </div>
+  </div>`
+      : "";
 
+    const footer = `
   <div style="margin-top: 32px; font-size: 14px; color: #1f2937; line-height: 1.6;">
     <p style="margin: 0;"><strong>HST#</strong> FQR547785GT1234</p>
     <p style="margin: 16px 0 4px 0;">Thank you,</p>
     <p style="margin: 0;">${locationName}</p>
-  </div>
+  </div>`;
+
+    return `
+<div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
+  ${sections.join("\n")}
+  ${totalSection}
+  ${footer}
 </div>`;
   }
 
@@ -385,13 +488,19 @@ export default function EmailStatementModal({
     onOpenChange(false);
   };
 
-  const leftActions = [
-    {
-      label: "Delete",
-      onClick: handleDelete,
-      variant: "destructive" as const,
-    },
-  ];
+  const leftActions = React.useMemo(() => {
+    if (!showDeleteButton || !onDelete) {
+      return undefined;
+    }
+
+    return [
+      {
+        label: "Delete",
+        onClick: handleDelete,
+        variant: "destructive" as const,
+      },
+    ];
+  }, [showDeleteButton, onDelete, handleDelete]);
 
   const modalActions = [
     {
