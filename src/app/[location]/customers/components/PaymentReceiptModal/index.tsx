@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "../ReceivePaymentModal/components/DatePicker";
-import EmailStatementModal from "../EmailStatementModal";
 import type { InvoiceData, GroupLessonDueData } from "../../tableConfigs";
 import { receivePayment, PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
@@ -51,7 +50,7 @@ interface PaymentReceiptModalProps {
   onEdit?: (data: { date: string; method: string; reference: string; amountReceived: number; allocations?: Array<{ lessonDate: string; amount: number }>; groupLessonAllocations?: Array<{ date: string; student: string; amount: number }>; invoiceAllocations?: Array<{ id: string; amount: number }> }) => void;
   onDelete?: () => void;
   onPrint?: () => void;
-  onEmail?: () => void;
+  onEmail?: (payload: { subject: string; content: string; receiptHtml?: string }) => void;
 }
 
 export function PaymentReceiptModal({
@@ -75,7 +74,6 @@ export function PaymentReceiptModal({
   onPrint,
   onEmail,
 }: PaymentReceiptModalProps) {
-  const [isEmailStatementOpen, setIsEmailStatementOpen] = React.useState<boolean>(false);
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [editDate, setEditDate] = React.useState<Date>(new Date());
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<boolean>(false);
@@ -789,6 +787,25 @@ export function PaymentReceiptModal({
     }
   }, [headerAmount, payment?.date, paymentMethod, customerName, showAllocations, allocationRows, rows, groupLessonRows, invoiceRows, customerPhone, customerEmail]);
 
+  const handleEmailClick = React.useCallback(() => {
+    const contentToUse = receiptHtml || emailContent;
+    if (onEmail) {
+      onEmail({
+        subject: emailSubject,
+        content: contentToUse,
+        receiptHtml,
+      });
+      return;
+    }
+
+    if (receiptHtml) {
+      const emailForm = document.querySelector("#modal-form");
+      if (emailForm && emailForm instanceof HTMLFormElement) {
+        emailForm.submit();
+      }
+    }
+  }, [onEmail, emailSubject, emailContent, receiptHtml]);
+
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1099,16 +1116,7 @@ export function PaymentReceiptModal({
               <Button variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button
                 variant="default"
-                onClick={() => {
-                  // Extract email URL from HTML if available, or use existing email handler
-                  const emailForm = document.querySelector('#modal-form');
-                  if (emailForm && emailForm instanceof HTMLFormElement) {
-                    emailForm.submit();
-                  } else {
-                    onEmail?.();
-                    setIsEmailStatementOpen(true);
-                  }
-                }}
+                onClick={handleEmailClick}
               >
                 Email
               </Button>
@@ -1237,10 +1245,7 @@ export function PaymentReceiptModal({
                 <Button variant="default" onClick={handlePrintReceipt}>Print</Button>
                 <Button
                   variant="default"
-                  onClick={() => {
-                    onEmail?.();
-                    setIsEmailStatementOpen(true);
-                  }}
+                  onClick={handleEmailClick}
                 >
                   EMail
                 </Button>
@@ -1274,25 +1279,6 @@ export function PaymentReceiptModal({
       </DialogContent>
     </Dialog>
 
-    {/* Email Statement Modal */}
-    <EmailStatementModal
-      open={isEmailStatementOpen}
-      onOpenChange={setIsEmailStatementOpen}
-      onSend={() => setIsEmailStatementOpen(false)}
-      onDelete={() => {
-        setIsEmailStatementOpen(false);
-        setShowDeleteConfirm(true);
-      }}
-      initialSubject={emailSubject}
-      initialContent={emailContent}
-      customerName={customerName}
-      customerEmails={customerEmails && customerEmails.length > 0 ? customerEmails : (customerEmail ? [customerEmail] : [])}
-      locationName={locationName || "Arcadia Academy of Music"}
-      privateLessonDueData={privateLessonDue as unknown as Array<{ lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string; }>}
-      groupLessonDueData={groupLessonDueData || []}
-      invoiceData={invoiceData || []}
-      totalBalance={totalBalance || "$0.00"}
-    />
     </>
   );
 }
