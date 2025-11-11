@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Edit, ChevronDown, Calendar } from "lucide-react";
+import { Edit, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -50,12 +50,18 @@ export function TeacherDetailsCard({
 
   const [firstName, setFirstName] = React.useState(data.firstName || "");
   const [lastName, setLastName] = React.useState(data.lastName || "");
-  const [role, setRole] = React.useState(data.role || "Teacher");
   const [birthDate, setBirthDate] = React.useState(data.birthDate || "");
 
   const [showError, setShowError] = React.useState(false);
   const [firstNameTouched, setFirstNameTouched] = React.useState(false);
   const [lastNameTouched, setLastNameTouched] = React.useState(false);
+
+  // Password modal state
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
+  const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [passwordError, setPasswordError] = React.useState("");
+  const [savingPassword, setSavingPassword] = React.useState(false);
 
   const formatDisplayDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -86,7 +92,6 @@ export function TeacherDetailsCard({
   React.useEffect(() => {
     setFirstName(data.firstName || "");
     setLastName(data.lastName || "");
-    setRole(data.role || "Teacher");
     setBirthDate(data.birthDate || "");
     
     setDisplayFields([
@@ -105,12 +110,11 @@ export function TeacherDetailsCard({
         value: data.birthDate ? formatDisplayDate(data.birthDate) : "N/A"
       }
     ]);
-  }, [data.firstName, data.lastName, data.role, data.birthDate]);
+  }, [data.firstName, data.lastName, data.birthDate, data.role]);
 
   const handleEditClick = () => {
     setFirstName(data.firstName || "");
     setLastName(data.lastName || "");
-    setRole(data.role || "Teacher");
     setBirthDate(data.birthDate || "");
     setShowError(false);
     setFirstNameTouched(false);
@@ -130,7 +134,6 @@ export function TeacherDetailsCard({
       const response = await updateTeacherDetails(location, teacherId, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        role: role.trim(),
         birthDate: birthDate || undefined,
       });
 
@@ -138,7 +141,7 @@ export function TeacherDetailsCard({
         onSave({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          role: role.trim(),
+          role: data.role,
           birthDate: birthDate || undefined,
           picture: data.picture,
         });
@@ -152,6 +155,48 @@ export function TeacherDetailsCard({
       toast.error("Failed to update teacher details");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSetPasswordClick = () => {
+    setPassword("");
+    setConfirmPassword("");
+    setPasswordError("");
+    setIsPasswordModalOpen(true);
+  };
+
+  const handlePasswordSave = async () => {
+    // Validate passwords
+    if (!password.trim()) {
+      setPasswordError("Password is required");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      setPasswordError("Password must be at least 6 characters");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      // TODO: Implement actual API call when backend is ready
+      // const response = await setTeacherPassword(location, teacherId, { password });
+      
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      setIsPasswordModalOpen(false);
+      toast.success("Password updated successfully");
+    } catch (error) {
+      console.error("Error updating password:", error);
+      toast.error("Failed to update password");
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -182,9 +227,8 @@ export function TeacherDetailsCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleEditClick}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
+                  <DropdownMenuItem onClick={handleSetPasswordClick}>
+                    Set Password
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -291,28 +335,73 @@ export function TeacherDetailsCard({
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="role">Role</Label>
+          <div className="max-w-[calc(50%-0.5rem)]">
+            <Label htmlFor="birthDate">Birth Date</Label>
             <Input
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
+              id="birthDate"
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
               disabled={saving}
             />
           </div>
+        </div>
+      </ReusableModal>
 
-          <div>
-            <Label htmlFor="birthDate">Birth Date</Label>
-            <div className="relative">
+      {/* Set Password Modal */}
+      <ReusableModal
+        open={isPasswordModalOpen}
+        onOpenChange={setIsPasswordModalOpen}
+        title="Edit"
+        size="md"
+        actions={[
+          {
+            label: "Cancel",
+            onClick: () => setIsPasswordModalOpen(false),
+            variant: "outline",
+            disabled: savingPassword,
+          },
+          {
+            label: savingPassword ? "Saving..." : "Save",
+            onClick: handlePasswordSave,
+            variant: "default",
+            disabled: savingPassword,
+          },
+        ]}
+      >
+        <div className="space-y-4">
+          {passwordError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {passwordError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="password">Password</Label>
               <Input
-                id="birthDate"
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-                disabled={saving}
-                className="pr-10"
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError("");
+                }}
+                disabled={savingPassword}
               />
-              <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            </div>
+            <div>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setPasswordError("");
+                }}
+                disabled={savingPassword}
+              />
             </div>
           </div>
         </div>
