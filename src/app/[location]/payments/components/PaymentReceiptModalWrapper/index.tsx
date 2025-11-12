@@ -26,6 +26,7 @@ export function PaymentReceiptModalWrapper({
     isEditing,
     showDeleteConfirm,
     isSaving,
+    isLoadingData,
     isLoadingPaymentMethods,
     
     // Data
@@ -70,6 +71,7 @@ export function PaymentReceiptModalWrapper({
       open={open}
       onOpenChange={onOpenChange}
       isEditing={isEditing}
+      isLoading={isLoadingData}
       showDeleteConfirm={showDeleteConfirm}
       isSaving={isSaving}
       isLoadingPaymentMethods={isLoadingPaymentMethods}

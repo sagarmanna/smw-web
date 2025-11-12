@@ -46,7 +46,8 @@ import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
-import { PaymentReceiptModal } from "../components/PaymentReceiptModal";
+import { PaymentReceiptModalContainer } from "../components/PaymentReceiptModal";
+
 // import { mockReceivePayment } from "../components/PaymentReceiptModal/mocks/legacyReceivePaymentMock";
 import AddStudentModal from "../components/AddStudentModal/index";
 import { NotifyViaEmailReasonsModal } from "../components/NotifyViaEmailModal";
@@ -55,7 +56,11 @@ import EmailStatementModal, {
   EmailFormData,
 } from "../components/EmailStatementModal/index";
 import { SummaryCards } from "./components/SummaryCards";
-import { createStudent, createNote, sendEmail } from "@/lib/api/legacyApiAdapter";
+import {
+  createStudent,
+  createNote,
+  sendEmail,
+} from "@/lib/api/legacyApiAdapter";
 import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 
@@ -180,13 +185,20 @@ export function CustomerDetailClient({
     React.useState<number | undefined>(undefined);
   const [isEquipmentRentalsModalOpen, setIsEquipmentRentalsModalOpen] =
     React.useState<boolean>(false);
-  const [selectedRentalId, setSelectedRentalId] = React.useState<number | null>(null);
+  const [selectedRentalId, setSelectedRentalId] = React.useState<number | null>(
+    null
+  );
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] =
     React.useState<boolean>(false);
   const [isSavingPayment, setIsSavingPayment] = React.useState<boolean>(false);
   const [isPaymentReceiptModalOpen, setIsPaymentReceiptModalOpen] =
     React.useState<boolean>(false);
-  const [paymentReceiptHtml, setPaymentReceiptHtml] = React.useState<string | null>(null);
+  const [selectedPaymentId, setSelectedPaymentId] = React.useState<
+    number | null
+  >(null);
+  const [paymentReceiptHtml, setPaymentReceiptHtml] = React.useState<
+    string | null
+  >(null);
   const [selectedPayment, setSelectedPayment] =
     React.useState<PaymentData | null>(null);
   const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<
@@ -194,9 +206,14 @@ export function CustomerDetailClient({
   >(null);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
-  const [emailStatementData, setEmailStatementData] = React.useState<EmailStatementData | null>(null);
-const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?: string; content?: string } | null>(null);
-  const [isLoadingEmailStatement, setIsLoadingEmailStatement] = React.useState<boolean>(false);
+  const [emailStatementData, setEmailStatementData] =
+    React.useState<EmailStatementData | null>(null);
+  const [emailModalOverrides, setEmailModalOverrides] = React.useState<{
+    subject?: string;
+    content?: string;
+  } | null>(null);
+  const [isLoadingEmailStatement, setIsLoadingEmailStatement] =
+    React.useState<boolean>(false);
   const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
@@ -262,15 +279,12 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
     }
   };
 
-  const handleEmailModalOpenChange = React.useCallback(
-    (open: boolean) => {
-      setIsEmailStatementModalOpen(open);
-      if (!open) {
-        setEmailModalOverrides(null);
-      }
-    },
-    []
-  );
+  const handleEmailModalOpenChange = React.useCallback((open: boolean) => {
+    setIsEmailStatementModalOpen(open);
+    if (!open) {
+      setEmailModalOverrides(null);
+    }
+  }, []);
 
   // Handle students pagination
   const handleStudentsPageChange = (_page: number) => {
@@ -425,12 +439,14 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
         location,
         Number(id),
         recurringPaymentsPagination.page,
-        recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+        recurringPaymentsPagination.limit === -1
+          ? 99999
+          : recurringPaymentsPagination.limit
       );
       setRecurringPaymentData(data || []);
       setRecurringPaymentsPagination(pagination);
     } catch (error) {
-      console.error('Error refreshing recurring payments:', error);
+      console.error("Error refreshing recurring payments:", error);
     }
   };
 
@@ -444,12 +460,14 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
         location,
         Number(id),
         recurringPaymentsPagination.page,
-        recurringPaymentsPagination.limit === -1 ? 99999 : recurringPaymentsPagination.limit
+        recurringPaymentsPagination.limit === -1
+          ? 99999
+          : recurringPaymentsPagination.limit
       );
       setRecurringPaymentData(data || []);
       setRecurringPaymentsPagination(pagination);
     } catch (error) {
-      console.error('Error refreshing recurring payments:', error);
+      console.error("Error refreshing recurring payments:", error);
     }
   };
 
@@ -511,7 +529,8 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
       }
     } catch (error) {
       console.error("Error sending email:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to send email";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to send email";
       toast.error(errorMessage);
     }
   };
@@ -602,10 +621,18 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
       };
 
       // Calculate amount needed (sum of all selected items)
-      const lessonPaymentsTotal = Object.values(paymentData.lessonPayments || {}).reduce((sum, val) => sum + val, 0);
-      const groupLessonPaymentsTotal = Object.values(paymentData.groupLessonPayments || {}).reduce((sum, val) => sum + val, 0);
-      const invoicePaymentsTotal = Object.values(paymentData.invoicePayments || {}).reduce((sum, val) => sum + val, 0);
-      const amountNeeded = formatToTwoDecimals(lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal);
+      const lessonPaymentsTotal = Object.values(
+        paymentData.lessonPayments || {}
+      ).reduce((sum, val) => sum + val, 0);
+      const groupLessonPaymentsTotal = Object.values(
+        paymentData.groupLessonPayments || {}
+      ).reduce((sum, val) => sum + val, 0);
+      const invoicePaymentsTotal = Object.values(
+        paymentData.invoicePayments || {}
+      ).reduce((sum, val) => sum + val, 0);
+      const amountNeeded = formatToTwoDecimals(
+        lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal
+      );
       const amountToDistribute = formatToTwoDecimals(amountNeeded);
 
       // Prepare lesson payments array (IDs are already numeric from API)
@@ -666,7 +693,7 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
       // Calculate selected credit value (sum of all selected credits)
       const selectedCreditValue = formatToTwoDecimals(
         paymentCreditsArray.reduce((sum, c) => sum + c.value, 0) +
-        invoiceCreditsArray.reduce((sum, c) => sum + c.value, 0)
+          invoiceCreditsArray.reduce((sum, c) => sum + c.value, 0)
       );
 
       // Calculate amount received following legacy logic (matches _form.php line 272):
@@ -676,38 +703,46 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
       let calculatedAmount: number;
       if (amountAfterCredits < 0) {
         // Credits exceed amount needed
-        calculatedAmount = amountNeeded > 0 ? 0.00 : amountAfterCredits;
+        calculatedAmount = amountNeeded > 0 ? 0.0 : amountAfterCredits;
       } else {
         // Credits don't fully cover amount needed (or exactly match)
         // (-(creditAmount - amountNeeded)) = amountNeeded - creditAmount
         calculatedAmount = amountAfterCredits;
       }
-      
+
       // Use the calculated amount when credits are present (matching legacy auto-calculation behavior)
       // When no credits are used, use the user-entered amount
-      const finalAmount = selectedCreditValue > 0 
-        ? formatToTwoDecimals(calculatedAmount)
-        : formatToTwoDecimals(paymentData.amountReceived);
+      const finalAmount =
+        selectedCreditValue > 0
+          ? formatToTwoDecimals(calculatedAmount)
+          : formatToTwoDecimals(paymentData.amountReceived);
 
       // Prepare payment data for legacy API
       const legacyPaymentData: PaymentReceiveData = {
         userId: Number(id),
         date: paymentData.date, // Already in "MMM dd, yyyy" format
         paymentMethodId: paymentMethodId,
-        reference: paymentData.reference || '',
+        reference: paymentData.reference || "",
         amount: finalAmount,
         amountNeeded: amountNeeded,
         selectedCreditValue: selectedCreditValue,
         amountToDistribute: amountToDistribute,
-        notes: paymentData.notes || '',
-        lessonPayments: lessonPaymentsArray.length > 0 ? lessonPaymentsArray : undefined,
-        groupLessonPayments: groupLessonPaymentsArray.length > 0 ? groupLessonPaymentsArray : undefined,
-        invoicePayments: invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
-        paymentCredits: paymentCreditsArray.length > 0 ? paymentCreditsArray : undefined,
-        invoiceCredits: invoiceCreditsArray.length > 0 ? invoiceCreditsArray : undefined,
+        notes: paymentData.notes || "",
+        lessonPayments:
+          lessonPaymentsArray.length > 0 ? lessonPaymentsArray : undefined,
+        groupLessonPayments:
+          groupLessonPaymentsArray.length > 0
+            ? groupLessonPaymentsArray
+            : undefined,
+        invoicePayments:
+          invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        paymentCredits:
+          paymentCreditsArray.length > 0 ? paymentCreditsArray : undefined,
+        invoiceCredits:
+          invoiceCreditsArray.length > 0 ? invoiceCreditsArray : undefined,
         canUsePaymentCredits: paymentCreditsArray.length > 0 ? 1 : 0,
         canUseInvoiceCredits: invoiceCreditsArray.length > 0 ? 1 : 0,
-        prId: '',
+        prId: "",
       };
 
       // Call legacy API
@@ -717,7 +752,7 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
       if (response.status) {
         // Success - close receive payment modal
         setIsReceivePaymentModalOpen(false);
-        
+
         // Store receipt HTML if available
         if (response.data) {
           setPaymentReceiptHtml(response.data);
@@ -726,24 +761,30 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
           // Fallback: Refresh payments list and related data to get the latest payment
           try {
             // Refresh payments list to get the latest payment
-            const paymentsResponse = await getCustomerPayments(location, Number(id), 1, 1);
+            const paymentsResponse = await getCustomerPayments(
+              location,
+              Number(id),
+              1,
+              1
+            );
             if (paymentsResponse.data && paymentsResponse.data.length > 0) {
               const latestPayment = paymentsResponse.data[0];
               setSelectedPayment(latestPayment);
               setSelectedPaymentIndex(0);
-              
+
               // Refresh related data for the receipt modal
               // Refresh private lesson due data
               try {
-                const privateLessonDueResult = await getCustomerPrivateLessonDue(
-                  location,
-                  Number(id),
-                  1,
-                  99999
-                );
+                const privateLessonDueResult =
+                  await getCustomerPrivateLessonDue(
+                    location,
+                    Number(id),
+                    1,
+                    99999
+                  );
                 setPrivateLessonDueData(privateLessonDueResult.data || []);
               } catch {}
-              
+
               // Refresh group lesson due data
               try {
                 const groupLessonDueResult = await getCustomerGroupLessonDue(
@@ -754,21 +795,28 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
                 );
                 setGroupLessonDueData(groupLessonDueResult.data || []);
               } catch {}
-              
+
               // Refresh invoice data
               try {
-                const invoiceResult = await getCustomerInvoices(location, Number(id), 1);
+                const invoiceResult = await getCustomerInvoices(
+                  location,
+                  Number(id),
+                  1
+                );
                 setInvoiceData(invoiceResult || []);
               } catch {}
-              
+
               // Refresh summary data
               try {
-                const summaryResult = await getCustomerSummary(location, Number(id));
+                const summaryResult = await getCustomerSummary(
+                  location,
+                  Number(id)
+                );
                 if (summaryResult && summaryResult.data) {
                   setSummaryData(summaryResult.data);
                 }
               } catch {}
-              
+
               // Open payment receipt modal
               setIsPaymentReceiptModalOpen(true);
             } else {
@@ -781,14 +829,18 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
           }
         }
       } else {
-        const errorMessage = response.message || response.errors?.join(", ") || "Failed to save payment";
+        const errorMessage =
+          response.message ||
+          response.errors?.join(", ") ||
+          "Failed to save payment";
         console.error("Payment save error:", errorMessage);
         toast.error(errorMessage);
         // Don't close modal on error so user can retry
       }
     } catch (error) {
       console.error("Error saving payment:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save payment";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save payment";
       toast.error(errorMessage);
       // Don't close modal on error so user can retry
     } finally {
@@ -974,6 +1026,7 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
 
   // Calculate footer for payments (only remaining column)
   const paymentFooterRow: PaymentData = {
+    id: 0,
     date: "",
     notes: "",
     amount: 0,
@@ -1042,6 +1095,55 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
     },
     [location, id]
   );
+
+  //refresh function for after edit/delete
+  const refreshPaymentData = React.useCallback(async () => {
+    setPaymentsLoading(true);
+    try {
+      // Fetch all related data in parallel for speed
+      const [paymentsRes, summaryRes, outstandingRes] = await Promise.all([
+        getCustomerPayments(
+          location,
+          Number(id),
+          paymentsPagination.page,
+          paymentsPagination.limit
+        ),
+        getCustomerSummary(location, Number(id)),
+        getCustomerOutstandingInvoices(
+          location,
+          Number(id),
+          outstandingInvoicesPagination.page,
+          outstandingInvoicesPagination.limit
+        ),
+      ]);
+
+      // Update payments data
+      setPaymentData(paymentsRes.data || []);
+      setPaymentsPagination(paymentsRes.pagination);
+      if (paymentsRes.footer?.totalRemaining) {
+        setPaymentsFooterRemaining(paymentsRes.footer.totalRemaining);
+      }
+
+      // Update summary
+      if (summaryRes?.success && summaryRes.data) {
+        setSummaryData(summaryRes.data);
+      }
+
+      // Update outstanding invoices
+      setOutstandingInvoiceData(outstandingRes.data);
+      setOutstandingInvoicesPagination(outstandingRes.pagination);
+      setOutstandingInvoiceFooterTotal(outstandingRes.footer.totalAmount);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }, [
+    location,
+    id,
+    paymentsPagination.page,
+    paymentsPagination.limit,
+    outstandingInvoicesPagination.page,
+    outstandingInvoicesPagination.limit,
+  ]);
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -1470,28 +1572,36 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
           label: "Receive Payment",
           onClick: () => setIsReceivePaymentModalOpen(true),
         },
-        
-        { 
-          label: "Print Statement", 
+
+        {
+          label: "Print Statement",
           onClick: () => {
             const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/print/customer-statement?id=${id}`;
-            window.open(legacyUrl, '_blank');
-          } 
+            window.open(legacyUrl, "_blank");
+          },
         },
         {
           label: "Email Statement",
           onClick: () => setIsEmailStatementModalOpen(true),
         },
-        { label: "A/R Report Detail", onClick: () => {{
-          const url = `/admin/v2/${location}/report/account-receivable/${id}`;
-          window.open(url, '_blank');
-        } } },
+        {
+          label: "A/R Report Detail",
+          onClick: () => {
+            {
+              const url = `/admin/v2/${location}/report/account-receivable/${id}`;
+              window.open(url, "_blank");
+            }
+          },
+        },
         // { label: "Items Purchased by Category", onClick: () => {} },
         // { label: "A/R Report Detail", onClick: () => {} },
-        { label: "Items Purchased by Category", onClick: () => {
-          const url = `/admin/v2/${location}/customers/${id}/items-purchased-by-category`;
-          window.open(url, '_blank');
-        } },
+        {
+          label: "Items Purchased by Category",
+          onClick: () => {
+            const url = `/admin/v2/${location}/customers/${id}/items-purchased-by-category`;
+            window.open(url, "_blank");
+          },
+        },
         {
           label: "Notify Via Email",
           onClick: () => setIsNotifyModalOpen(true),
@@ -1698,7 +1808,7 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
               setOpeningBalance(savedAmount);
               setOpeningBalanceId(invoiceId);
               setHasOpeningBalance(true);
-              
+
               // Refresh summary data to update credits & outstanding invoice
               try {
                 const summary = await getCustomerSummary(location, Number(id));
@@ -1767,7 +1877,11 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
           onRowClick={(row) => {
             // Extract ID from row - check common ID field names
             const rec = row as unknown as Record<string, unknown>;
-            const paymentId = rec["id"] ?? rec["paymentId"] ?? rec["payment_id"] ?? rec["recurringPaymentId"];
+            const paymentId =
+              rec["id"] ??
+              rec["paymentId"] ??
+              rec["payment_id"] ??
+              rec["recurringPaymentId"];
             if (paymentId !== undefined && paymentId !== null) {
               setSelectedRecurringPaymentId(Number(paymentId));
               setIsRecurringPaymentModalOpen(true);
@@ -1956,36 +2070,18 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
           loading={paymentsLoading || loading}
           footerRow={paymentFooterRow}
-          onRowClick={async (row) => {
+          onRowClick={(row) => {
+            // Extract payment ID from the row
             const rec = row as unknown as Record<string, unknown>;
-            const pid = rec["paymentId"] ?? rec["id"] ?? rec["payment_id"];
-            if (pid !== undefined && pid !== null) {
-              try {
-                const detail = await getCustomerPaymentById(
-                  location,
-                  Number(id),
-                  String(pid)
-                );
-                if (detail) {
-                  setSelectedPayment(detail);
-                  const idx = paymentData.findIndex((p) => {
-                    const anyP = p as unknown as Record<string, unknown>;
-                    const pId =
-                      anyP["paymentId"] ?? anyP["id"] ?? anyP["payment_id"];
-                    return pId !== undefined && String(pId) === String(pid);
-                  });
-                  setSelectedPaymentIndex(idx >= 0 ? idx : null);
-                  setIsPaymentReceiptModalOpen(true);
-                  return;
-                }
-              } catch {}
+            const paymentId = rec["id"]; // API returns "id" field directly
+
+            if (paymentId !== undefined && paymentId !== null) {
+              setSelectedPaymentId(Number(paymentId));
+              setIsPaymentReceiptModalOpen(true);
+            } else {
+              console.error("Payment ID not found in row data:", row);
+              toast.error("Unable to open payment details");
             }
-            // Fallback to existing behavior when no paymentId found or fetch failed
-            const payment = row as PaymentData;
-            setSelectedPayment(payment);
-            const idx = paymentData.findIndex((p) => p === payment);
-            setSelectedPaymentIndex(idx >= 0 ? idx : null);
-            setIsPaymentReceiptModalOpen(true);
           }}
           onAdd={() => {}}
           size={CUSTOMER_TABLE_CONFIGS.payments.size}
@@ -2531,7 +2627,9 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
         location={location}
         rentalId={selectedRentalId ?? undefined}
         onEquipmentReturned={(rid) => {
-          setEquipmentRentalData((prev) => prev.filter((r) => (r as EquipmentRentalData).id !== rid));
+          setEquipmentRentalData((prev) =>
+            prev.filter((r) => (r as EquipmentRentalData).id !== rid)
+          );
           setEquipmentRentalsPagination((prev) => ({
             ...prev,
             total: Math.max((prev.total || 0) - 1, 0),
@@ -2593,94 +2691,43 @@ const [emailModalOverrides, setEmailModalOverrides] = React.useState<{ subject?:
       />
 
       {/* Payment Receipt Modal */}
-      <PaymentReceiptModal
+      <PaymentReceiptModalContainer
         open={isPaymentReceiptModalOpen}
         onOpenChange={(open) => {
           setIsPaymentReceiptModalOpen(open);
           if (!open) {
-            setPaymentReceiptHtml(null);
+            setSelectedPaymentId(null);
           }
         }}
         location={location}
         customerId={Number(id)}
-        payment={selectedPayment || undefined}
-        receiptHtml={paymentReceiptHtml || undefined}
-        customerName={
-          (customer &&
-            `${customer.firstName || ""} ${customer.lastName || ""}`.trim()) ||
-          _customerInfo?.profile?.name ||
-          emails[0]?.email ||
-          "Customer"
+        paymentId={selectedPaymentId ?? undefined}
+        customerName={`${localFirstName} ${localLastName}`.trim()}
+        customerEmail={
+          emails.find((e) => e.isPrimary)?.email ?? emails[0]?.email
         }
-        customerEmail={emails[0]?.email}
-        customerEmails={emails.map((e) => e.email)}
-        customerPhone={phones[0]?.number}
-        privateLessonDue={
-          privateLessonDueData as unknown as Array<{
-            lessonDate: string;
-            studentName: string;
-            programName: string;
-            teacherName: string;
-            amount: number | string;
-          }>
+        customerPhone={
+          phones.find((p) => p.label === "Mobile")?.number ?? phones[0]?.number
         }
-        groupLessonDueData={groupLessonDueData}
-        invoiceData={invoiceData}
-        totalBalance={summaryData.balance}
-        locationName="Arcadia Academy of Music"
-        onEdit={(data) => {
-          if (selectedPaymentIndex === null) return;
-          const parseNum = (v: unknown) =>
-            typeof v === "number"
-              ? v
-              : typeof v === "string"
-              ? parseFloat(v.replace(/[^0-9.-]+/g, ""))
-              : 0;
-          setPaymentData((prev) =>
-            prev.map((p, i) => {
-              if (i !== selectedPaymentIndex) return p;
-              const usedNum = parseNum(p.used);
-              const newAmount = data.amountReceived;
-              const newRemaining = Math.max(0, newAmount - usedNum);
-              return {
-                ...p,
-                date: data.date || p.date,
-                notes: data.method || p.notes,
-                amount: newAmount,
-                remaining: newRemaining,
-              };
-            })
-          );
-          setSelectedPayment((prev) => {
-            if (!prev) return prev;
-            const usedNum =
-              typeof prev.used === "number"
-                ? prev.used
-                : parseFloat(String(prev.used).replace(/[^0-9.-]+/g, "")) || 0;
-            const newRemaining = Math.max(0, data.amountReceived - usedNum);
-            return {
-              ...prev,
-              date: data.date || prev.date,
-              notes: data.method || prev.notes,
-              amount: data.amountReceived,
-              remaining: newRemaining,
-            };
-          });
+        onEdit={async () => {
+          try {
+            await refreshPaymentData();
+            toast.success("Payment updated successfully");
+          } catch (error) {
+            console.error("Error refreshing data after payment edit:", error);
+            toast.error("Payment updated but failed to refresh data");
+          }
         }}
-        onDelete={() => {
-          if (selectedPaymentIndex === null) return;
-          setPaymentData((prev) =>
-            prev.filter((_, i) => i !== selectedPaymentIndex)
-          );
-          setPaymentsPagination((prev) => ({
-            ...prev,
-            total: Math.max((prev.total || 0) - 1, 0),
-          }));
-          setSelectedPayment(null);
-          setSelectedPaymentIndex(null);
+        onDelete={async () => {
+          try {
+            await refreshPaymentData();
+            toast.success("Payment deleted successfully");
+          } catch (error) {
+            console.error("Error refreshing data after payment delete:", error);
+            toast.error("Payment deleted but failed to refresh data");
+          }
         }}
-        onPrint={() => {}}
-        onEmail={({ subject, content }: { subject: string; content: string }) => {
+        onEmail={({ subject, content }) => {
           setEmailModalOverrides({ subject, content });
           setIsEmailStatementModalOpen(true);
         }}
