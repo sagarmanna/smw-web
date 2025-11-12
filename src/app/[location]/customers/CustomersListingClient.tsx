@@ -544,7 +544,7 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         onRowClick={(row) => {
           // Navigate once per click: push with explicit query param key to avoid parsing quirks
           // TODO: Remove this once we have a proper customer page
-          if(isDev() || location === "training-location"){
+          if(isDev() || location === "training-location" || location === "burlington"){
             router.push(`customers/${row.id}`);
           } else {
             window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${row.id}`;
