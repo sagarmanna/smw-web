@@ -32,8 +32,8 @@ export const usePaymentState = (
     reloadPaymentData,
   } = usePaymentData(location, customerId, shouldLoad, isCustomerRoute);
 
-  // Form state
-  const [customer, setCustomer] = useState(initialCustomerName || '');
+  // Form state - customer stores the customer ID as string
+  const [customer, setCustomer] = useState(customerId > 0 ? customerId.toString() : '0');
   const [customerIdState, setCustomerIdState] = useState<number>(customerId);
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -54,15 +54,23 @@ export const usePaymentState = (
   // Available payment methods from API
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Array<{ value: string; label: string }>>([]);
 
-  // Update customer data when API data is loaded
+  // Update customer data when API data is loaded or customerId prop changes
   useEffect(() => {
-    if (apiCustomerName && isCustomerRoute) {
-      setCustomer(apiCustomerName);
-    }
-    if (apiCustomerId) {
+    if (apiCustomerId && apiCustomerId > 0) {
       setCustomerIdState(apiCustomerId);
+      setCustomer(apiCustomerId.toString());
+      console.log('usePaymentState: Set customer ID to', apiCustomerId);
     }
-  }, [apiCustomerName, apiCustomerId, isCustomerRoute]);
+  }, [apiCustomerId]);
+
+  // Sync with initial customerId prop
+  useEffect(() => {
+    if (customerId > 0) {
+      setCustomerIdState(customerId);
+      setCustomer(customerId.toString());
+      console.log('usePaymentState: Synced with prop customerId', customerId);
+    }
+  }, [customerId]);
 
   // Update lessons when API data is loaded
   useEffect(() => {
@@ -109,19 +117,17 @@ export const usePaymentState = (
     }
   }, [totalOutstanding, amountReceived]);
 
-  // Handle customer selection from dropdown
+  // Handle customer selection from dropdown - this is the main function for dropdown mode
   const handleCustomerChange = async (selectedCustomerId: string) => {
+    console.log('handleCustomerChange called with:', selectedCustomerId);
     const newCustomerId = parseInt(selectedCustomerId);
     
-    if (newCustomerId && newCustomerId !== customerIdState) {
-      // Update customer ID state
+    if (newCustomerId && newCustomerId !== customerIdState && newCustomerId > 0) {
+      // Update customer ID state IMMEDIATELY
       setCustomerIdState(newCustomerId);
+      setCustomer(selectedCustomerId); // Store ID as string
       
-      // Find and set customer name from list
-      const selectedCustomer = customersList.find((c: { id: number; label: string; value: string }) => c.id === newCustomerId);
-      if (selectedCustomer) {
-        setCustomer(selectedCustomer.label);
-      }
+      console.log('Customer changed to:', newCustomerId);
       
       // Reload payment data for new customer
       await reloadPaymentData(newCustomerId);
@@ -134,7 +140,7 @@ export const usePaymentState = (
   // Reset state when modal closes
   useEffect(() => {
     if (!shouldLoad) {
-      setCustomer(initialCustomerName || '');
+      setCustomer(customerId > 0 ? customerId.toString() : '0');
       setCustomerIdState(customerId);
       setPaymentDate(new Date());
       setPaymentMethod('');
@@ -148,13 +154,13 @@ export const usePaymentState = (
       setInvoices([]);
       setCredits([]);
     }
-  }, [shouldLoad, initialCustomerName, customerId]);
+  }, [shouldLoad, customerId]);
 
   return {
-    // Form state
-    customer,
-    setCustomer,
-    customerId: customerIdState,
+    // Form state - customer is now the ID as string
+    customer, // This is the customer ID as string
+    setCustomer, // Direct setter (used by handleCustomerChange)
+    customerId: customerIdState, // Numeric customer ID
     paymentDate,
     setPaymentDate,
     paymentMethod,
@@ -192,6 +198,6 @@ export const usePaymentState = (
     isInCustomerRoute: isCustomerRoute,
     customersList,
     isLoadingCustomers,
-    handleCustomerChange,
+    handleCustomerChange, // This updates both customer ID and reloads data
   };
 };
