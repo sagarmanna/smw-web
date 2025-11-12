@@ -432,7 +432,6 @@ export function PaymentReceiptModal({
   const amountToCredit = React.useMemo(() => Math.max(0, parseMoneyToNumber(editForm.amountReceived) - amountToApply), [editForm.amountReceived, amountToApply]);
 
   // Build email content for payment receipt (only selected payment details)
-  const emailSubject = React.useMemo(() => `Payment Receipt - ${headerAmount}`, [headerAmount]);
   const emailContent = React.useMemo(() => {
     const normalize = (v?: string) => (typeof v === 'string' ? v : '').trim();
     const sanitizeName = (name?: string) => {
@@ -791,7 +790,7 @@ export function PaymentReceiptModal({
     const contentToUse = receiptHtml || emailContent;
     if (onEmail) {
       onEmail({
-        subject: emailSubject,
+        subject: 'Receipt from Arcadia Academy of Music',
         content: contentToUse,
         receiptHtml,
       });
@@ -804,7 +803,7 @@ export function PaymentReceiptModal({
         emailForm.submit();
       }
     }
-  }, [onEmail, emailSubject, emailContent, receiptHtml]);
+  }, [onEmail, emailContent, receiptHtml]);
 
   return (
     <>
@@ -820,16 +819,63 @@ export function PaymentReceiptModal({
         <div className="px-6 pb-4 space-y-6 overflow-y-auto max-h-[70vh]">
           {/* Render HTML receipt if available */}
           {receiptHtml && !isEditing ? (
-            <div 
-              ref={receiptHtmlRef}
-              className="receipt-html-content"
-              dangerouslySetInnerHTML={{ __html: receiptHtml }}
-              style={{
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                fontSize: '14px',
-                lineHeight: '1.5',
-              }}
-            />
+            <>
+              <style>{`
+                .receipt-html-content label {
+                  font-weight: bold !important;
+                  font-size: 15px;
+                  margin-bottom: 12px;
+                  margin-top: 16px;
+                  display: block;
+                }
+                .receipt-html-content table {
+                  border-collapse: separate;
+                  border-spacing: 0 6px;
+                  margin-bottom: 20px;
+                  width: 100%;
+                }
+                .receipt-html-content table thead th {
+                  padding: 12px 14px;
+                  font-weight: 600;
+                  border: 1px solid #ddd;
+                }
+                .receipt-html-content table tbody td {
+                  padding: 12px 14px;
+                  border: 1px solid #ddd;
+                }
+                .receipt-html-content table tbody tr {
+                  margin-bottom: 6px;
+                }
+                .receipt-html-content table tbody tr.line-items-value,
+                .receipt-html-content table tbody tr.credit-items-value {
+                  margin-bottom: 6px;
+                }
+                .receipt-html-content .row {
+                  margin-bottom: 24px;
+                }
+                .receipt-html-content .col-md-12 {
+                  margin-bottom: 16px;
+                }
+                .receipt-html-content h4.payment-receipt {
+                  font-weight: bold !important;
+                  margin-bottom: 16px;
+                  font-size: 16px;
+                }
+                .receipt-html-content .table-striped tbody tr:nth-of-type(odd) {
+                  background-color: rgba(0, 0, 0, 0.02);
+                }
+              `}</style>
+              <div 
+                ref={receiptHtmlRef}
+                className="receipt-html-content"
+                dangerouslySetInnerHTML={{ __html: receiptHtml }}
+                style={{
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
+                }}
+              />
+            </>
           ) : (
             <>
               {isEditing ? (

@@ -3,8 +3,10 @@
 
 import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
-import { ColumnDef, SortingState } from "@tanstack/react-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { getCustomers, CustomerRow } from "./customers.api";
+
+type SortingState = Array<{ id: string; desc: boolean }>;
 
 // Type for export data with dynamic email columns
 interface ExportCustomerRow extends Omit<CustomerRow, 'allEmails'> {
