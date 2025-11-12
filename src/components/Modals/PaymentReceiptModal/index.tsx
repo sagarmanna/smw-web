@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "../../../app/[location]/customers/components/ReceivePaymentModal/components/DatePicker";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import type { 
   PaymentReceiptModalUIProps,
@@ -167,6 +168,28 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
     
   } = props;
 
+  // Check if payment amount is negative
+  const isNegativePayment = React.useMemo(() => {
+    // Parse the headerAmount string (e.g., "-$9.52" or "$9.52")
+    const amountString = headerAmount?.replace(/[^0-9.-]/g, '') || '0';
+    const amount = parseFloat(amountString);
+    return amount < 0;
+  }, [headerAmount]);
+
+  // Show banner state with auto-dismiss
+  const [showBanner, setShowBanner] = React.useState(false);
+
+  React.useEffect(() => {
+    if (open && isNegativePayment && !isEditing) {
+      setShowBanner(true);
+      const timer = setTimeout(() => {
+        setShowBanner(false);
+      }, 15000); // 15 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [open, isNegativePayment, isEditing]);
+
   const hasAllocations = allocationRows.length > 0 || groupLessonRows.length > 0 || invoiceRows.length > 0;
   const hasReceiptRows = receiptRows.length > 0;
   const shouldShowNoSelectionsMessage = !isEditing && !hasAllocations && hasReceiptRows;
@@ -192,6 +215,16 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
               <LoadingState />
             ) : (
               <>
+                {/* Negative Payment Banner */}
+                {showBanner && isNegativePayment && !isEditing && (
+                  <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="font-semibold">
+                      Negative Payments Cannot be Edited
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Render HTML receipt if available */}
                 {receiptHtml && !isEditing ? (
                   <div 
@@ -522,7 +555,12 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                         <Button variant="secondary" onClick={() => onOpenChange(false)}>
                           Cancel
                         </Button>
-                        <Button variant="default" onClick={onEditClick}>
+                        <Button 
+                          variant="default" 
+                          onClick={isNegativePayment ? undefined : onEditClick}
+                          disabled={isNegativePayment}
+                          className={isNegativePayment ? "opacity-50 cursor-not-allowed" : ""}
+                        >
                           Edit
                         </Button>
                         <Button variant="default" onClick={onPrint}>
