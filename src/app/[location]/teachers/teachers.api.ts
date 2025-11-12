@@ -7,6 +7,7 @@ export interface TeacherRow {
   lastName: string;
   email: string;
   phone: string;
+  status: "active" | "inactive";
 }
 
 export interface TeachersListResponse {
@@ -30,6 +31,7 @@ export interface TeachersQuery {
   lastName?: string;
   email?: string;
   phone?: string;
+  status?: "active" | "inactive";
   sort?: 'firstName' | 'lastName' | 'email' | 'phone';
   order?: 'asc' | 'desc';
 }

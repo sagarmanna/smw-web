@@ -33,6 +33,8 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
   const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
   // Modal state
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = React.useState(false);
+  // Server-side style filter state
+  const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
   // Using client-side search via CustomTable; no separate server search state for now
 
   const columns = React.useMemo<ColumnDef<TeacherRow>[]>(() => teacherColumns, []);
@@ -45,6 +47,11 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
       // Since API is not ready, use mock data with client-side filtering and sorting
       let filteredData = [...mockTeachersData];
       
+      // Apply server-side like filters
+      if (activeFilter === "inactive") {
+        filteredData = filteredData.filter((teacher) => teacher.status === "inactive");
+      }
+
       // Apply column filters
       if (columnFilters.firstName) {
         filteredData = filteredData.filter(teacher => 
@@ -94,7 +101,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize, sorting, columnFilters]);
+  }, [page, pageSize, sorting, columnFilters, activeFilter]);
 
   React.useEffect(() => {
     fetchData();
@@ -115,6 +122,11 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
     setPage(1);
     fetchData();
   }, [fetchData]);
+
+  const handleServerSideFilterChange = React.useCallback((filterKey: string | undefined) => {
+    setActiveFilter(filterKey);
+    setPage(1);
+  }, []);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<TeacherRow>({
     reportTitle: "Teachers List",
@@ -182,7 +194,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         enableSearch={false}
         searchPlaceholder="Search teachers..."
         getSearchValue={(r) => `${r.firstName} ${r.lastName} ${r.email} ${r.phone}`}
-        enableFilter={false}
+        enableFilter={true}
         enableRowsPerPage={true}
         enablePrint={true}
         onPrint={() => handlePrint({
@@ -208,6 +220,12 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         onSortingChange={(s) => { setSorting(s); setPage(1); }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
+        serverSideFilterOptions={[
+          { key: "inactive", label: "Show Inactive Teachers" },
+        ]}
+        activeServerSideFilter={activeFilter}
+        onServerSideFilterChange={handleServerSideFilterChange}
+        defaultFilterLabel="All Teachers"
         hideRecordCount={true}
         showRecordCountInToolbar={true}
         rowsPerPage={pageSize}

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Qualification } from "../../teachers.api";
-import { AddQualificationModal, PRIVATE_PROGRAMS, GROUP_PROGRAMS } from "./AddQualificationModal";
+import { AddQualificationModal, PRIVATE_PROGRAMS, GROUP_PROGRAMS } from "../modals/AddQualificationModal";
 
 interface QualificationsCardProps {
   title: string;

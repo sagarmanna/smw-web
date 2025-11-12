@@ -4,367 +4,374 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
-import { TeacherDetailsCard } from "../components/TeacherDetailsCard";
-import { EmailCard } from "@/app/[location]/customers/components/EmailCard";
-import { PhoneCard } from "@/app/[location]/customers/components/PhoneCard";
-import { AddressCard } from "@/app/[location]/customers/components/AddressCard";
-import { QualificationsCard } from "../components/QualificationsCard";
-import { PRIVATE_PROGRAMS, GROUP_PROGRAMS } from "../components/QualificationsCard/AddQualificationModal";
+import { SectionCard } from "@/components/SectionCard";
+import { SectionCardDataRow } from "@/components/SectionCard/types";
+import { useTeacherDetails } from "../hooks/useTeacherDetails";
 import {
-  // getTeacherById,
-  // getTeacherInfo,
-  // getTeacherPrivateQualifications,
-  // getTeacherGroupQualifications,
-  TeacherRow,
-  TeacherInfoData,
-  Qualification,
-} from "../teachers.api";
-
-interface PhoneNumber {
-  id: string;
-  label: string;
-  number: string;
-  extension?: string;
-  note?: string;
-}
-
-interface Email {
-  id: string;
-  label: string;
-  email: string;
-  note?: string;
-  isPrimary?: boolean;
-}
-
-interface Address {
-  id: string;
-  label: string;
-  address: string;
-  city: string;
-  cityId: number;
-  provinceId: number;
-  countryId: number;
-  postalCode: string;
-  note?: string;
-  isPrimary?: boolean;
-}
+  TeacherAddress,
+  TeacherEmail,
+  TeacherPhone,
+  TeacherQualification,
+} from "../types";
+import { EditTeacherDetailsModal } from "../components/modals/EditTeacherDetailsModal";
+import { CreateEmailModal } from "../components/modals/CreateEmailModal";
+import { CreatePhoneModal } from "../components/modals/CreatePhoneModal";
+import { CreateAddressModal } from "../components/modals/CreateAddressModal";
+import {
+  AddQualificationModal,
+  PRIVATE_PROGRAMS,
+  GROUP_PROGRAMS,
+} from "../components/modals/AddQualificationModal";
+import { SetTeacherPasswordModal } from "../components/modals/SetTeacherPasswordModal";
+import {
+  AddressList,
+  EmailList,
+  PhoneList,
+  QualificationsList,
+} from "../components/sections";
 
 interface TeachersDetailClientProps {
   location: string;
   id: string;
 }
 
-export function TeachersDetailClient({
-  location,
-  id,
-}: TeachersDetailClientProps) {
+const formatDisplayDate = (value?: string) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+export function TeachersDetailClient({ location, id }: TeachersDetailClientProps) {
   const router = useRouter();
-  const [teacher, setTeacher] = React.useState<TeacherRow | null>(null);
-  const [_teacherInfo, setTeacherInfo] =
-    React.useState<TeacherInfoData | null>(null);
-  const [loading, setLoading] = React.useState<boolean>(true);
+  const teacherId = Number(id);
 
-  // Local state for editable teacher details
-  const [localFirstName, setLocalFirstName] = React.useState<string>("");
-  const [localLastName, setLocalLastName] = React.useState<string>("");
-  const [role, setRole] = React.useState<string>("Teacher");
-  const [birthDate, setBirthDate] = React.useState<string | undefined>(
-    undefined
-  );
-  const [picture, setPicture] = React.useState<string | undefined>(undefined);
+  const {
+    loading,
+    error,
+    details,
+    emails,
+    phones,
+    addresses,
+    privateQualifications,
+    groupQualifications,
+    refresh,
+    saveDetails,
+    updateEmails,
+    updatePhones,
+    updateAddresses,
+    addPrivateQualifications,
+    addGroupQualifications,
+    updatePassword,
+    savingDetails,
+  } = useTeacherDetails(location, teacherId);
 
-  // Additional teacher data states
-  const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
-  const [emails, setEmails] = React.useState<Email[]>([]);
-  const [addresses, setAddresses] = React.useState<Address[]>([]);
-  const [privateQualifications, setPrivateQualifications] = React.useState<
-    Qualification[]
-  >([]);
-  const [groupQualifications, setGroupQualifications] = React.useState<
-    Qualification[]
-  >([]);
+  const [isEditDetailsOpen, setIsEditDetailsOpen] = React.useState(false);
+  const [showPrivateModal, setShowPrivateModal] = React.useState(false);
+  const [showGroupModal, setShowGroupModal] = React.useState(false);
+  const [isPrivateExpanded, setIsPrivateExpanded] = React.useState(false);
+  const [isGroupExpanded, setIsGroupExpanded] = React.useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-
-      try {
-        // TODO: API calls are on hold during UI development
-        // Uncomment these when backend is ready:
-        
-        // const teacherData = await getTeacherById(location, Number(id));
-        // const infoResponse = await getTeacherInfo(location, Number(id));
-        // const privateQualsResponse = await getTeacherPrivateQualifications(location, Number(id));
-        // const groupQualsResponse = await getTeacherGroupQualifications(location, Number(id));
-
-        // MOCK DATA - Using this for UI development
-        setLocalFirstName("tes123");
-        setLocalLastName("12345");
-        setRole("Teacher");
-        setBirthDate("1992-01-17");
-
-        // Mock emails
-        setEmails([
-          {
-            id: "1",
-            label: "Work",
-            email: "1@example.com",
-            note: "",
-            isPrimary: true,
-          },
-          {
-            id: "2",
-            label: "Home",
-            email: "123@example.com",
-            note: "test note",
-            isPrimary: false,
-          },
-        ]);
-
-        // Mock phones
-        setPhones([
-          {
-            id: "1",
-            label: "Home",
-            number: "(553) 900-0000",
-            extension: "7544",
-            note: "test",
-          },
-        ]);
-
-        // Mock addresses - empty for now
-        setAddresses([]);
-
-        // Mock private qualifications
-        setPrivateQualifications([
-          { id: 1, name: "Test65", rate: 10.00 },
-          { id: 2, name: "test72.5", rate: 10.00 },
-          { id: 3, name: "Instrument", rate: 20.00 },
-          { id: 4, name: "xClarinet", rate: 36.00 },
-          { id: 5, name: "xPiano Contemporary", rate: 10.00 },
-          { id: 6, name: "xGuitar Core", rate: 10.00 },
-          { id: 7, name: "xGuitar Contemporary", rate: 10.00 },
-          { id: 8, name: "xGuitar Hybrid", rate: 10.00 },
-          { id: 9, name: "xPiano Hybrid", rate: undefined },
-          { id: 10, name: "40th Anniversary Vocal", rate: 25.00 },
-          { id: 11, name: "Rami Test Program", rate: 30.00 },
-        ]);
-
-        // Mock group qualifications
-        setGroupQualifications([
-          { id: 12, name: "Rami Group Program", rate: 20.00 },
-        ]);
-
-      } catch (error) {
-        console.error("Error loading teacher data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [location, id]);
-
-  // Handle details save
-  const handleDetailsSave = React.useCallback(
-    (newData: {
-      firstName: string;
-      lastName: string;
-      role: string;
-      birthDate?: string;
-      picture?: string;
-    }) => {
-      // Update local names immediately
-      setLocalFirstName(newData.firstName);
-      setLocalLastName(newData.lastName);
-
-      // Update teacher state with new data
-      setTeacher((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          firstName: newData.firstName,
-          lastName: newData.lastName,
-        };
-      });
-
-      setRole(newData.role);
-      setBirthDate(newData.birthDate);
-      setPicture(newData.picture);
-    },
+  const dropdownOptions = React.useMemo(
+    () => [
+      {
+        title: "Set Password",
+        onClick: () => setIsPasswordModalOpen(true),
+      },
+    ],
     []
   );
 
-  // Define action menu groups
-  const teacherActionMenuGroups: ActionMenuGroup[] = [
-    
-    {
-      label: "Actions",
-      items: [
-        {
-          label: "Delete",
-          onClick: () => {
-            // TODO: Implement teacher deletion
-          },
-          variant: "destructive",
-        },
-      ],
+  const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
+    const fullName = details
+      ? [details.firstName, details.lastName].filter(Boolean).join(" ")
+      : "";
+
+    return [
+      {
+        label: "Name",
+        value: fullName || "N/A",
+      },
+      {
+        label: "Role",
+        value: details?.role || "Teacher",
+      },
+      {
+        label: "Birth Date",
+        value: formatDisplayDate(details?.birthDate),
+      },
+    ];
+  }, [details]);
+
+  const handleEmailCreate = React.useCallback(
+    (newEmail: TeacherEmail) => {
+      updateEmails((prev) => {
+        const base = newEmail.isPrimary
+          ? prev.map((email) => ({ ...email, isPrimary: false }))
+          : prev;
+        return [...base, newEmail];
+      });
     },
-  ];
+    [updateEmails]
+  );
+
+  const handlePhoneCreate = React.useCallback(
+    (newPhone: TeacherPhone) => {
+      updatePhones((prev) => [...prev, newPhone]);
+    },
+    [updatePhones]
+  );
+
+  const handleAddressCreate = React.useCallback(
+    (newAddress: TeacherAddress) => {
+      updateAddresses((prev) => [...prev, newAddress]);
+    },
+    [updateAddresses]
+  );
+
+  const handlePrivateQualificationsAdd = React.useCallback(
+    (items: Array<{ program: string; rate: number }>) => {
+      const nextId =
+        privateQualifications.length > 0
+          ? Math.max(...privateQualifications.map((item) => item.id)) + 1
+          : 1;
+
+      const mapped: TeacherQualification[] = items.map((item, index) => {
+        const program = PRIVATE_PROGRAMS.find(
+          (option) => option.value === item.program
+        );
+        return {
+          id: nextId + index,
+          name: program?.label ?? item.program,
+          rate: item.rate,
+        };
+      });
+
+      addPrivateQualifications(mapped);
+    },
+    [addPrivateQualifications, privateQualifications]
+  );
+
+  const handleGroupQualificationsAdd = React.useCallback(
+    (items: Array<{ program: string; rate: number }>) => {
+      const nextId =
+        groupQualifications.length > 0
+          ? Math.max(...groupQualifications.map((item) => item.id)) + 1
+          : 1;
+
+      const mapped: TeacherQualification[] = items.map((item, index) => {
+        const program = GROUP_PROGRAMS.find(
+          (option) => option.value === item.program
+        );
+        return {
+          id: nextId + index,
+          name: program?.label ?? item.program,
+          rate: item.rate,
+        };
+      });
+
+      addGroupQualifications(mapped);
+    },
+    [addGroupQualifications, groupQualifications]
+  );
+
+  const handlePasswordSave = React.useCallback(
+    async (password: string) => updatePassword(password),
+    [updatePassword]
+  );
+
+  const pageTitle = React.useMemo(() => {
+    const fullName = details
+      ? [details.firstName, details.lastName].filter(Boolean).join(" ")
+      : "";
+    return fullName || `Teacher #${id}`;
+  }, [details, id]);
+
+  const breadcrumbItems = React.useMemo(
+    () => [
+      {
+        label: "Teachers",
+        onClick: () => router.push(`/${location}/teachers`),
+      },
+    ],
+    [location, router]
+  );
+
+  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
+    () => [
+      {
+        label: "Actions",
+        items: [
+          {
+            label: "Delete",
+            onClick: () => {
+              // TODO: implement delete behaviour
+            },
+            variant: "destructive",
+          },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
-    <div className="bg-white dark:bg-black -mt-2">
-      <DetailHeaderWithProfile
-        breadcrumbItems={[
-          {
-            label: "Teachers",
-            onClick: () => router.push(`/${location}/teachers/`),
-          },
-        ]}
-        currentPageTitle={
-          localFirstName && localLastName
-            ? `${localFirstName} ${localLastName}`
-            : id
-        }
-        loading={loading}
-        actionMenuGroups={teacherActionMenuGroups}
-        actionButtonAriaLabel="Teacher actions"
-        showProfileIcon={true}
-        profileIconSize="md"
-      />
+    <>
+      <div className="bg-white dark:bg-black">
+        <DetailHeaderWithProfile
+          breadcrumbItems={breadcrumbItems}
+          currentPageTitle={pageTitle}
+          loading={loading}
+          actionMenuGroups={actionMenuGroups}
+          actionButtonAriaLabel="Teacher actions"
+          showProfileIcon={true}
+          profileIconSize="md"
+        />
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4 lg:items-start">
-        {/* Left Column */}
-        <div className="space-y-3 sm:space-y-4">
-          {/* Details Card */}
-          <TeacherDetailsCard
-            data={{
-              firstName: localFirstName,
-              lastName: localLastName,
-              role: role,
-              birthDate: birthDate,
-              picture: picture,
-            }}
-            onSave={handleDetailsSave}
-            loading={loading}
-            location={location}
-            teacherId={Number(id)}
-          />
-
-          {/* Private Qualifications */}
-          <QualificationsCard
-            title="Private Qualifications"
-            qualifications={privateQualifications}
-            type="private"
-            onView={() => {
-              // TODO: Open view modal
-            }}
-            onAdd={(newQualifications) => {
-              // Add new qualifications to the list
-              const nextId = privateQualifications.length > 0 
-                ? Math.max(...privateQualifications.map(q => q.id)) + 1 
-                : 1;
-              
-              const qualificationsToAdd = newQualifications.map((qual, index) => {
-                // Find the program label from the program value
-                const program = PRIVATE_PROGRAMS.find(p => p.value === qual.program);
-                return {
-                  id: nextId + index,
-                  name: program?.label || qual.program,
-                  rate: qual.rate,
-                };
-              });
-              
-              setPrivateQualifications([...privateQualifications, ...qualificationsToAdd]);
-            }}
-            loading={loading}
-          />
-
-          {/* Group Qualifications */}
-          <QualificationsCard
-            title="Group Qualifications"
-            qualifications={groupQualifications}
-            type="group"
-            onView={() => {
-              // TODO: Open view modal
-            }}
-            onAdd={(newQualifications) => {
-              // Add new qualifications to the list
-              const nextId = groupQualifications.length > 0 
-                ? Math.max(...groupQualifications.map(q => q.id)) + 1 
-                : 1;
-              
-              const qualificationsToAdd = newQualifications.map((qual, index) => {
-                // Find the program label from the program value
-                const program = GROUP_PROGRAMS.find(p => p.value === qual.program);
-                return {
-                  id: nextId + index,
-                  name: program?.label || qual.program,
-                  rate: qual.rate,
-                };
-              });
-              
-              setGroupQualifications([...groupQualifications, ...qualificationsToAdd]);
-            }}
-            loading={loading}
-          />
-
-          {/* Mobile Email and Phone Cards - Only on Mobile */}
-          <div className="lg:hidden space-y-3 sm:space-y-4">
-            <EmailCard
-              emails={emails}
-              onAddClick={() => {}}
-              onSave={setEmails}
-              loading={loading}
-              location={location}
-              customerId={Number(id)}
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="space-y-4">
+            <SectionCard
+              title="Details"
+              data={detailRows}
+              showEdit
+              onEditClick={() => setIsEditDetailsOpen(true)}
+              showDropDown
+              dropdownOptions={dropdownOptions}
             />
 
-            <PhoneCard
-              phones={phones}
-              onSave={(newPhones) => setPhones(newPhones)}
-              loading={loading}
-              location={location}
-              customerId={Number(id)}
+            <SectionCard
+              title="Private Qualifications"
+              data={
+                isPrivateExpanded && privateQualifications.length > 0
+                  ? <QualificationsList items={privateQualifications} />
+                  : undefined
+              }
+              showView
+              viewIsActive={isPrivateExpanded}
+              onViewClick={() => setIsPrivateExpanded((prev) => !prev)}
+              showAddButton
+              onAddClick={() => setShowPrivateModal(true)}
+              emptyState={
+                isPrivateExpanded ? "No private qualifications yet." : undefined
+              }
             />
-          </div>
-        </div>
 
-        {/* Right Column - Info Cards */}
-        <div className="space-y-3 sm:space-y-4">
-          {/* Desktop Email and Phone Cards */}
-          <div className="hidden lg:block">
-            <EmailCard
-              emails={emails}
-              onAddClick={() => {}}
-              onSave={setEmails}
-              loading={loading}
-              location={location}
-              customerId={Number(id)}
+            <SectionCard
+              title="Group Qualifications"
+              data={
+                isGroupExpanded && groupQualifications.length > 0
+                  ? <QualificationsList items={groupQualifications} />
+                  : undefined
+              }
+              showView
+              viewIsActive={isGroupExpanded}
+              onViewClick={() => setIsGroupExpanded((prev) => !prev)}
+              showAddButton
+              onAddClick={() => setShowGroupModal(true)}
+              emptyState={
+                isGroupExpanded ? "No group qualifications yet." : undefined
+              }
             />
           </div>
 
-          <div className="hidden lg:block">
-            <PhoneCard
-              phones={phones}
-              onSave={(newPhones) => setPhones(newPhones)}
-              loading={loading}
-              location={location}
-              customerId={Number(id)}
+          <div className="space-y-4">
+            <SectionCard
+              title="Email"
+              data={
+                emails.length > 0 ? <EmailList emails={emails} /> : undefined
+              }
+              emptyState="No email addresses added yet."
+              showCreateModal
+              renderCreateModal={({ isOpen, close }) => (
+                <CreateEmailModal
+                  open={isOpen}
+                  onClose={close}
+                  onSubmit={handleEmailCreate}
+                />
+              )}
+            />
+
+            <SectionCard
+              title="Phone"
+              data={
+                phones.length > 0 ? <PhoneList phones={phones} /> : undefined
+              }
+              emptyState="No phone numbers added yet."
+              showCreateModal
+              renderCreateModal={({ isOpen, close }) => (
+                <CreatePhoneModal
+                  open={isOpen}
+                  onClose={close}
+                  onSubmit={handlePhoneCreate}
+                />
+              )}
+            />
+
+            <SectionCard
+              title="Addresses"
+              data={
+                addresses.length > 0 ? (
+                  <AddressList addresses={addresses} />
+                ) : undefined
+              }
+              emptyState="No addresses added yet."
+              showCreateModal
+              renderCreateModal={({ isOpen, close }) => (
+                <CreateAddressModal
+                  open={isOpen}
+                  onClose={close}
+                  onSubmit={handleAddressCreate}
+                />
+              )}
             />
           </div>
-
-          <AddressCard
-            addresses={addresses}
-            onSave={(newAddresses) => setAddresses(newAddresses)}
-            loading={loading}
-            location={location}
-            customerId={Number(id)}
-          />
         </div>
       </div>
-    </div>
+
+      <EditTeacherDetailsModal
+        open={isEditDetailsOpen}
+        onClose={() => setIsEditDetailsOpen(false)}
+        details={
+          details ?? {
+            firstName: "",
+            lastName: "",
+            role: "Teacher",
+          }
+        }
+        onSubmit={saveDetails}
+        saving={savingDetails}
+      />
+
+      <AddQualificationModal
+        open={showPrivateModal}
+        onOpenChange={setShowPrivateModal}
+        title="Add Private Qualifications"
+        onAdd={handlePrivateQualificationsAdd}
+        availablePrograms={PRIVATE_PROGRAMS}
+      />
+
+      <AddQualificationModal
+        open={showGroupModal}
+        onOpenChange={setShowGroupModal}
+        title="Add Group Qualifications"
+        onAdd={handleGroupQualificationsAdd}
+        availablePrograms={GROUP_PROGRAMS}
+      />
+
+      <SetTeacherPasswordModal
+        open={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSubmit={handlePasswordSave}
+      />
+    </>
   );
 }
+
+
+
 
