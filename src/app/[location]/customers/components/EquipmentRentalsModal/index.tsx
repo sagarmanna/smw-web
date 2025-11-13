@@ -28,7 +28,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar as CalIcon, Trash2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,8 +37,6 @@ import {
   getEquipmentRentalsInfoForUpdate,
   type InstrumentRental,
   type Student,
-  type RentedInstrument,
-  type RentalDetails,
 } from "./Equipment-Rentals.api";
 import {
   createEquipmentRental,
@@ -236,9 +234,20 @@ const InstrumentFormRow = React.memo(
 
 InstrumentFormRow.displayName = "InstrumentFormRow";
 
+// Base calculation: All months are considered as 30 days for billing purposes
+const DAYS_PER_MONTH = 30;
+
 const calculateReturnDate = (startDate: Date, months: number): Date => {
-  const dayOfMonth = startDate.getDate();
-  const returnDate = new Date(startDate.getTime());
+  // Normalize start date to remove time component
+  const normalizedStart = normalizeDate(startDate);
+  const dayOfMonth = normalizedStart.getDate();
+  
+  // Create a new date object from normalized start date
+  const returnDate = new Date(
+    normalizedStart.getFullYear(),
+    normalizedStart.getMonth(),
+    normalizedStart.getDate()
+  );
 
   if (dayOfMonth >= 1 && dayOfMonth <= 7) {
     returnDate.setMonth(returnDate.getMonth() + months - 1);
@@ -248,7 +257,46 @@ const calculateReturnDate = (startDate: Date, months: number): Date => {
     returnDate.setMonth(returnDate.getMonth() + 1, 0);
   }
 
-  return returnDate;
+  // Return normalized date (no time component)
+  return normalizeDate(returnDate);
+};
+
+const normalizeDate = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const getEndOfMonth = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+const getOngoingBillingDetails = (startDate: Date) => {
+  const normalizedStart = normalizeDate(startDate);
+  const dayOfMonth = normalizedStart.getDate();
+  const endOfMonth = getEndOfMonth(normalizedStart);
+  
+  let totalDays: number;
+  let returnDate: Date;
+  
+  if (dayOfMonth >= 1 && dayOfMonth <= 7) {
+    // Days 1-7: consider 30 days from start date
+    totalDays = DAYS_PER_MONTH;
+    returnDate = new Date(normalizedStart);
+    returnDate.setDate(returnDate.getDate() + DAYS_PER_MONTH);
+  } else {
+    // Days 8 onwards: consider 30 days + remaining days in current month
+    const remainingDays = Math.max(
+      differenceInCalendarDays(normalizeDate(endOfMonth), normalizedStart) + 1,
+      0
+    );
+    totalDays = DAYS_PER_MONTH + remainingDays;
+    // Return date is start date + total days
+    returnDate = new Date(normalizedStart);
+    returnDate.setDate(returnDate.getDate() + totalDays);
+  }
+  
+  return {
+    totalDays,
+    endOfMonth,
+    returnDate: normalizeDate(returnDate),
+  };
 };
 
 export function EquipmentRentalsModal({
@@ -332,6 +380,43 @@ export function EquipmentRentalsModal({
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
 
   const isEditMode = Boolean(rentalId);
+
+  const updateInstrumentsForOngoing = useCallback(
+    (startDate: Date) => {
+      const { totalDays } = getOngoingBillingDetails(startDate);
+
+      setInstruments((prev) =>
+        prev.map((inst) => {
+          const monthlyRate = parseFloat(inst.monthlyRate || "0");
+
+          if (monthlyRate <= 0) {
+            return {
+              ...inst,
+              numberOfMonths:
+                inst.numberOfMonths && inst.numberOfMonths !== "0"
+                  ? inst.numberOfMonths
+                  : "1",
+              total: "0.00",
+            };
+          }
+
+          // Calculate per day rate based on 30 days per month
+          const perDayRate = monthlyRate / DAYS_PER_MONTH;
+          const total = perDayRate * totalDays;
+
+          return {
+            ...inst,
+            numberOfMonths:
+              inst.numberOfMonths && inst.numberOfMonths !== "0"
+                ? inst.numberOfMonths
+                : "1",
+            total: total.toFixed(2),
+          };
+        })
+      );
+    },
+    []
+  );
 
   const fetchEquipmentRentalsData = useCallback(async () => {
     setLoading(true);
@@ -506,6 +591,12 @@ export function EquipmentRentalsModal({
     formData.onGoing,
   ]);
 
+  useEffect(() => {
+    if (formData.onGoing && formData.rentalStartDate) {
+      updateInstrumentsForOngoing(formData.rentalStartDate);
+    }
+  }, [formData.onGoing, formData.rentalStartDate, updateInstrumentsForOngoing]);
+
   const calculateTotalFromDates = (
     startDate: Date,
     returnDate: Date,
@@ -516,43 +607,110 @@ export function EquipmentRentalsModal({
       return "0.00";
     }
 
-    const diffTime = returnDate.getTime() - startDate.getTime();
-    const actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (!duration) {
-      const daysPerMonth = 30;
-      const perDayRate = monthlyRate / daysPerMonth;
-      const total = actualDays * perDayRate;
-      return total.toFixed(2);
-    }
-
-    const durationMatch = duration.match(/^(\d+)-month/);
-    if (!durationMatch) {
-      const daysPerMonth = 30;
-      const perDayRate = monthlyRate / daysPerMonth;
-      const total = actualDays * perDayRate;
-      return total.toFixed(2);
-    }
-
-    const durationMonths = parseInt(durationMatch[1]);
-    if (isNaN(durationMonths) || durationMonths <= 0) {
-      const daysPerMonth = 30;
-      const perDayRate = monthlyRate / daysPerMonth;
-      const total = actualDays * perDayRate;
-      return total.toFixed(2);
-    }
-
-    const minimumCharge = monthlyRate * durationMonths;
-    const daysPerMonth = 30;
-    const expectedDays = durationMonths * daysPerMonth;
+    // Ensure dates are normalized (no time component)
+    const normalizedStart = normalizeDate(startDate);
+    const normalizedReturn = normalizeDate(returnDate);
+    
+    // All months are considered as 30 days for billing purposes
+    const daysPerMonth = DAYS_PER_MONTH;
     const perDayRate = monthlyRate / daysPerMonth;
 
+    // Calculate calendar days between dates
+    const calendarDays = differenceInCalendarDays(normalizedReturn, normalizedStart);
+    
+    // Day calculation logic varies by duration:
+    // - 1 month: Use calendar days as-is (include return date)
+    // - 2 months: Exclude return date (subtract 1)
+    // - 3 months: Include both start and end dates (add 1)
+    // - 4+ months: Use calendar days as-is (no change)
+    // Parse duration - handle both "6-month" and "6-months" formats (case-insensitive)
+    let durationMonths: number | null = null;
+    if (duration) {
+      // Try to match "6-month" or "6-months" (case-insensitive)
+      const durationMatch = duration.match(/^(\d+)-month/i);
+      if (durationMatch) {
+        durationMonths = parseInt(durationMatch[1], 10);
+      }
+    }
+    
+    let actualDays: number;
+    if (!durationMonths || durationMonths === 1) {
+      // Single month or no duration: use calendar days as-is
+      actualDays = Math.max(calendarDays, 0);
+    } else if (durationMonths === 2) {
+      // 2 months: exclude return date (subtract 1)
+      actualDays = Math.max(calendarDays - 1, 0);
+    } else if (durationMonths === 3) {
+      // 3 months: include both start and end dates (add 1)
+      actualDays = Math.max(calendarDays + 1, 0);
+    } else {
+      // 4+ months: If start date is on or after the 8th, count from the next day (9th)
+      // This gives: 30 days base + remaining days from start month (from 9th) + remaining days to end date
+      const startDayOfMonth = normalizedStart.getDate();
+      if (startDayOfMonth >= 8) {
+        // Start counting from the next day (9th)
+        const adjustedStart = new Date(
+          normalizedStart.getFullYear(),
+          normalizedStart.getMonth(),
+          normalizedStart.getDate() + 1
+        );
+        const baseDays = differenceInCalendarDays(
+          normalizedReturn,
+          adjustedStart
+        );
+        
+        // Apply adjustment based on duration months
+        // Pattern: 4-5 months: +1, 6-7 months: 0, 8 months: -1, 9-10 months: -2, 11-12 months: -3
+        // For months > 12, continue the pattern: subtract (months - 7) for 13+, or use -3 as base
+        let adjustment = 0;
+        if (durationMonths === 4 || durationMonths === 5) {
+          adjustment = 1;
+        } else if (durationMonths === 6 || durationMonths === 7) {
+          adjustment = 0;
+        } else if (durationMonths === 8) {
+          adjustment = -1;
+        } else if (durationMonths === 9 || durationMonths === 10) {
+          adjustment = -2;
+        } else if (durationMonths === 11 || durationMonths === 12) {
+          adjustment = -3;
+        } else if (durationMonths > 12) {
+          // For months > 12, continue pattern: -3 for 12, so -4 for 13, -5 for 14, etc.
+          adjustment = -(durationMonths - 9);
+        }
+        
+        actualDays = Math.max(baseDays + adjustment, 0);
+      } else {
+        // Start date is before 8th, use expected days (durationMonths × 30 days)
+        actualDays = durationMonths * daysPerMonth;
+      }
+    }
+
+    const calculateProratedTotal = (days: number) => {
+      // Minimum charge based on DAYS_PER_MONTH (30 days)
+      const billableDays = Math.max(days, daysPerMonth);
+      const total = billableDays * perDayRate;
+      return total.toFixed(2);
+    };
+
+    // If no duration specified, use prorated calculation with minimum DAYS_PER_MONTH (30 days)
+    if (!duration || !durationMonths) {
+      return calculateProratedTotal(actualDays);
+    }
+
+    // Calculate minimum charge based on DAYS_PER_MONTH (30 days per month)
+    // Each month is considered as DAYS_PER_MONTH (30) days for billing purposes
+    const minimumCharge = monthlyRate * durationMonths;
+    const expectedDays = durationMonths * daysPerMonth; // durationMonths × DAYS_PER_MONTH
+
+    // If actual rental days exceed expected days (based on DAYS_PER_MONTH), charge for extra days
     if (actualDays > expectedDays) {
       const extraDays = actualDays - expectedDays;
-      const total = minimumCharge + extraDays * perDayRate;
+      const extraCharge = extraDays * perDayRate;
+      const total = minimumCharge + extraCharge;
       return total.toFixed(2);
     }
 
+    // If actual days are less than or equal to expected days (DAYS_PER_MONTH), charge minimum only
     return minimumCharge.toFixed(2);
   };
 
@@ -602,33 +760,102 @@ export function EquipmentRentalsModal({
 
       if (field === "onGoing") {
         if (value === true) {
+          // Clear duration for ongoing rental (but calculate return date based on start date)
           newData.duration = "";
-          newData.returnDate = undefined;
-          setInstruments((prevInstruments) =>
-            prevInstruments.map((inst) => {
-              const monthlyRate = parseFloat(inst.monthlyRate || "0");
-              const total =
-                monthlyRate > 0 ? (monthlyRate * 1).toFixed(2) : "0.00";
-              return {
-                ...inst,
-                numberOfMonths: "1",
-                total: total,
-              };
-            })
+          
+          // Calculate return date based on start date rules:
+          // - Days 1-7: 30 days from start date
+          // - Days 8+: 30 days + remaining days in current month
+          if (newData.rentalStartDate instanceof Date) {
+            const { returnDate } = getOngoingBillingDetails(newData.rentalStartDate);
+            newData.returnDate = returnDate;
+          } else {
+            newData.returnDate = undefined;
+          }
+          
+          updateInstrumentsForOngoing(
+            newData.rentalStartDate instanceof Date
+              ? newData.rentalStartDate
+              : new Date()
           );
         } else {
-          if (newData.rentalStartDate && newData.duration) {
-            const durationMatch = newData.duration.match(/^(\d+)-month/);
-            if (durationMatch) {
-              const months = parseInt(durationMatch[1]);
-              if (!isNaN(months) && months > 0) {
-                newData.returnDate = calculateReturnDate(
-                  newData.rentalStartDate,
-                  months
-                );
-              }
+          // When unchecking "On Going", always restore to "1-month" (not the previous duration)
+          // This is the expected behavior: regardless of what duration was selected before
+          // checking "On Going", unchecking should always set to "1-month"
+          const restoredDuration = "1-month";
+          const restoredMonths = 1;
+          newData.duration = restoredDuration;
+          
+          // Always recalculate return date from current start date and restored duration
+          // This ensures the total reflects the current dates, not previous dates
+          if (restoredDuration && newData.rentalStartDate && restoredMonths) {
+            // Recalculate return date from current start date and restored duration
+            // This way, even if start date changed while "On Going" was checked,
+            // the return date will be based on the current start date
+            if (!isNaN(restoredMonths) && restoredMonths > 0) {
+              newData.returnDate = calculateReturnDate(
+                newData.rentalStartDate,
+                restoredMonths
+              );
             }
           }
+
+          setTimeout(() => {
+            // Update numberOfMonths in instruments based on restored duration
+            if (restoredMonths && !isNaN(restoredMonths) && restoredMonths > 0) {
+              setInstruments((prevInstruments) =>
+                prevInstruments.map((inst) => ({
+                  ...inst,
+                  numberOfMonths: restoredMonths!.toString(),
+                }))
+              );
+            }
+
+            // Recalculate totals if we have valid dates
+            if (
+              newData.rentalStartDate &&
+              newData.returnDate &&
+              instruments.length > 0
+            ) {
+              recalculateInstrumentTotalsFromDates(
+                newData.rentalStartDate as Date,
+                newData.returnDate as Date,
+                restoredDuration || newData.duration
+              );
+            } else if (restoredMonths && !isNaN(restoredMonths)) {
+              // Fallback: calculate from monthly rate * months
+              setInstruments((prevInstruments) =>
+                prevInstruments.map((inst) => {
+                  const monthlyRate = parseFloat(inst.monthlyRate || "0");
+                  if (monthlyRate > 0) {
+                    return {
+                      ...inst,
+                      numberOfMonths: restoredMonths!.toString(),
+                      total: (monthlyRate * restoredMonths!).toFixed(2),
+                    };
+                  }
+                  return {
+                    ...inst,
+                    numberOfMonths: restoredMonths!.toString(),
+                    total: "0.00",
+                  };
+                })
+              );
+            }
+          }, 0);
+        }
+      }
+
+      // Handle start date changes when "On Going" is checked
+      if (field === "rentalStartDate" && newData.onGoing) {
+        // Recalculate return date based on start date rules for ongoing rentals
+        if (newData.rentalStartDate instanceof Date) {
+          const { returnDate } = getOngoingBillingDetails(newData.rentalStartDate);
+          newData.returnDate = returnDate;
+          // Update instruments when start date changes
+          updateInstrumentsForOngoing(newData.rentalStartDate);
+        } else {
+          newData.returnDate = undefined;
         }
       }
 
@@ -637,7 +864,7 @@ export function EquipmentRentalsModal({
         !newData.onGoing
       ) {
         if (newData.rentalStartDate && newData.duration) {
-          const durationMatch = newData.duration.match(/^(\d+)-month/);
+          const durationMatch = newData.duration.match(/^(\d+)-month/i);
           if (durationMatch) {
             const months = parseInt(durationMatch[1]);
             if (!isNaN(months) && months > 0) {
@@ -657,46 +884,17 @@ export function EquipmentRentalsModal({
       }
 
       if (field === "duration" && !newData.onGoing) {
-        const durationMatch = String(value).match(/^(\d+)-month/);
+        const durationMatch = String(value).match(/^(\d+)-month/i);
         if (durationMatch) {
-          const months = durationMatch[1];
+          const months = parseInt(durationMatch[1]);
+          // Update numberOfMonths in instruments immediately
+          // The useEffect will handle recalculation when return date is set
           setTimeout(() => {
             setInstruments((prev) =>
-              prev.map((inst) => {
-                const updated = {
-                  ...inst,
-                  numberOfMonths: months,
-                };
-
-                if (
-                  newData.rentalStartDate &&
-                  newData.returnDate &&
-                  inst.monthlyRate
-                ) {
-                  const monthlyRate = parseFloat(inst.monthlyRate || "0");
-                  if (monthlyRate > 0) {
-                    updated.total = calculateTotalFromDates(
-                      newData.rentalStartDate,
-                      newData.returnDate,
-                      monthlyRate,
-                      String(value)
-                    );
-                  } else {
-                    updated.total = "0.00";
-                  }
-                } else if (
-                  inst.monthlyRate &&
-                  parseFloat(inst.monthlyRate) > 0
-                ) {
-                  updated.total = (
-                    parseFloat(inst.monthlyRate) * parseInt(months)
-                  ).toFixed(2);
-                } else {
-                  updated.total = "0.00";
-                }
-
-                return updated;
-              })
+              prev.map((inst) => ({
+                ...inst,
+                numberOfMonths: months.toString(),
+              }))
             );
           }, 0);
         }
@@ -737,7 +935,7 @@ export function EquipmentRentalsModal({
 
         // When instrument is selected, set numberOfMonths from duration
         if (field === "instrumentId") {
-          const durationMatch = formData.duration.match(/^(\d+)-month/);
+          const durationMatch = formData.duration.match(/^(\d+)-month/i);
           if (durationMatch) {
             updated.numberOfMonths = durationMatch[1];
           } else if (formData.onGoing) {
@@ -748,7 +946,22 @@ export function EquipmentRentalsModal({
         if (field === "monthlyRate" || field === "numberOfMonths") {
           const monthlyRate = parseFloat(updated.monthlyRate || "0");
 
-          if (
+          if (formData.onGoing && formData.rentalStartDate) {
+            if (monthlyRate > 0) {
+              const { totalDays } = getOngoingBillingDetails(
+                formData.rentalStartDate
+              );
+              // Calculate per day rate based on 30 days per month
+              const perDayRate = monthlyRate / DAYS_PER_MONTH;
+              updated.total = (perDayRate * totalDays).toFixed(2);
+            } else {
+              updated.total = "0.00";
+            }
+
+            if (!updated.numberOfMonths || updated.numberOfMonths === "0") {
+              updated.numberOfMonths = "1";
+            }
+          } else if (
             !formData.onGoing &&
             formData.rentalStartDate &&
             formData.returnDate &&
@@ -793,7 +1006,7 @@ export function EquipmentRentalsModal({
     if (formData.onGoing) {
       numberOfMonths = "1";
     } else if (formData.duration) {
-      const durationMatch = formData.duration.match(/^(\d+)-month/);
+      const durationMatch = formData.duration.match(/^(\d+)-month/i);
       if (durationMatch) {
         numberOfMonths = durationMatch[1];
       }
@@ -819,7 +1032,7 @@ export function EquipmentRentalsModal({
       if (filtered.length === 0) {
         let numberOfMonths = "1";
         if (formData.duration) {
-          const durationMatch = formData.duration.match(/^(\d+)-month/);
+          const durationMatch = formData.duration.match(/^(\d+)-month/i);
           if (durationMatch) {
             numberOfMonths = durationMatch[1];
           }
@@ -1706,7 +1919,7 @@ export function EquipmentRentalsModal({
             </Button>
             {isEditMode ? (
               (() => {
-                const durationMatch = formData.duration.match(/^(\d+)-month/);
+                const durationMatch = formData.duration.match(/^(\d+)-month/i);
                 const durationMonths = durationMatch ? parseInt(durationMatch[1]) : 0;
                 const isEnabled = durationMonths > 2;
 
