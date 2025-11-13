@@ -32,10 +32,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ date, onDateChange }) =>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="h-9 w-full justify-start text-left font-normal bg-white"
+          className="h-9 w-full justify-start text-left font-normal"
         >
-          <CalendarIcon className="mr-2 h-4 w-4 text-gray-500" />
-          <span className="text-gray-900">{format(date, 'MMM dd, yyyy')}</span>
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          <span>{format(date, 'MMM dd, yyyy')}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

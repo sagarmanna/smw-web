@@ -98,6 +98,23 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
     }
   }, [isDropdownOpen]);
 
+  // Handle amount received change with numeric validation
+  const handleAmountReceivedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Allow empty string
+    if (value === '') {
+      onAmountReceivedChange('');
+      return;
+    }
+    
+    // Allow only numbers and single decimal point
+    const numericRegex = /^\d*\.?\d*$/;
+    if (numericRegex.test(value)) {
+      onAmountReceivedChange(value);
+    }
+  };
+
   return (
     <div className="space-y-5 py-4">
       <div className="grid grid-cols-5 gap-4">
@@ -124,7 +141,7 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {/* Search input */}
-                <div className="sticky top-0 bg-white border-b px-2 py-2 z-10">
+                <div className="sticky top-0 bg-background border-b px-2 py-2 z-10">
                   <Input
                     ref={searchInputRef}
                     placeholder="Search customers..."
@@ -210,7 +227,7 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
           <Input
             type="text"
             value={amountReceived}
-            onChange={e => onAmountReceivedChange(e.target.value)}
+            onChange={handleAmountReceivedChange}
             className="h-9 text-right"
             placeholder="0.00"
           />
