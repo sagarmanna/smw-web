@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ReduxProvider } from "@/components/ReduxProvider";
 import { Toaster } from "sonner";
+import { ChunkErrorHandler } from "@/components/ChunkErrorHandler";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <ChunkErrorHandler />
         <ReduxProvider>
           <ThemeProvider
             attribute="class"
