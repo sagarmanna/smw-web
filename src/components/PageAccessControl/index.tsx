@@ -98,11 +98,24 @@ export default function PageAccessControl({ children }: PageAccessControlProps) 
   const pathname = usePathname();
   const params = useParams();
   const { menuItems } = useMenuConfig(); // This gets role-filtered menu items
-  const { userInfo } = useAppSelector((state) => state.user);
+  const { userInfo, isLoading } = useAppSelector((state) => state.user);
 
-  // If user info is not loaded yet, don't render anything
+  // Show loading state while fetching user info
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user info is not loaded yet and not loading, allow rendering (let pages handle their own auth)
+  // This prevents blocking when token is being set or user info is being fetched
   if (!userInfo) {
-    return null;
+    return <>{children}</>;
   }
 
   // Check if user has access to the current page
