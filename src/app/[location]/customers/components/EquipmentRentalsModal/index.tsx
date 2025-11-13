@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { flushSync } from "react-dom";
 import {
   Dialog,
   DialogContent,
@@ -344,6 +345,7 @@ export function EquipmentRentalsModal({
   >([]);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
   const [rentalCreatedOn, setRentalCreatedOn] = useState<Date | null>(null);
+  const [returnDateDisplay, setReturnDateDisplay] = useState<string>("");
 
   const [formData, setFormData] = useState<EquipmentRentalFormData>({
     customer: "",
@@ -447,9 +449,6 @@ export function EquipmentRentalsModal({
           rentalStartDate = rentalDetails.startDate
             ? new Date(rentalDetails.startDate + "T00:00:00")
             : new Date();
-          returnDate = rentalDetails.returnDate
-            ? new Date(rentalDetails.returnDate + "T00:00:00")
-            : undefined;
           duration = rentalDetails.duration
             ? `${rentalDetails.duration}-month${
                 rentalDetails.duration > 1 ? "s" : ""
@@ -462,16 +461,32 @@ export function EquipmentRentalsModal({
               : false;
           studentId = rentalDetails.studentId?.toString() || "";
 
-          if (
-            !returnDate &&
-            !onGoing &&
-            rentalDetails.startDate &&
-            rentalDetails.duration
-          ) {
-            returnDate = calculateReturnDate(
-              new Date(rentalDetails.startDate + "T00:00:00"),
+          // If "On Going" is true, ALWAYS clear duration and return date
+          // Even if API returns returnDate, we ignore it for ongoing rentals
+          if (onGoing) {
+            duration = "";
+            returnDate = undefined; // Explicitly clear return date for ongoing rentals
+          } else {
+            // Only set return date if NOT "On Going"
+            returnDate = rentalDetails.returnDate
+              ? new Date(rentalDetails.returnDate + "T00:00:00")
+              : undefined;
+
+            if (
+              !returnDate &&
+              rentalDetails.startDate &&
               rentalDetails.duration
-            );
+            ) {
+              returnDate = calculateReturnDate(
+                new Date(rentalDetails.startDate + "T00:00:00"),
+                rentalDetails.duration
+              );
+            }
+          }
+          
+          // Final safeguard: If onGoing is true, ensure returnDate is always undefined
+          if (onGoing) {
+            returnDate = undefined;
           }
         } else {
           rentalStartDate = new Date();
@@ -493,8 +508,8 @@ export function EquipmentRentalsModal({
           studentId: rentalId && rentalDetails ? studentId : "",
           rentalStartDate: rentalStartDate,
           onGoing: onGoing,
-          duration: duration,
-          returnDate: returnDate,
+          duration: onGoing ? "" : duration, // Clear duration if onGoing is true
+          returnDate: onGoing ? undefined : returnDate, // Clear returnDate if onGoing is true
           securityDeposit:
             rentalDetails?.securityDeposit !== undefined &&
             rentalDetails?.securityDeposit !== null
@@ -506,7 +521,40 @@ export function EquipmentRentalsModal({
           depositAmount: rentalDetails?.depositAmount || "",
         };
 
-        setFormData(newFormData);
+        // If onGoing is true, ensure returnDate is ALWAYS undefined in newFormData
+        if (onGoing) {
+          newFormData.returnDate = undefined;
+          newFormData.duration = "";
+        }
+
+        // Use flushSync to ensure state updates synchronously so useMemo computes correctly
+        flushSync(() => {
+          setFormData(newFormData);
+          // Clear return date display when onGoing is true
+          if (onGoing) {
+            setReturnDateDisplay("");
+          } else if (returnDate && returnDate instanceof Date && !isNaN(returnDate.getTime())) {
+            setReturnDateDisplay(format(returnDate, "MMM dd, yyyy"));
+          } else {
+            setReturnDateDisplay("");
+          }
+        });
+
+        // Additional safeguard: ensure returnDate is cleared if onGoing is true
+        if (onGoing) {
+          setTimeout(() => {
+            setFormData((prev) => {
+              if (prev.onGoing && prev.returnDate !== undefined) {
+                return {
+                  ...prev,
+                  returnDate: undefined,
+                  duration: "",
+                };
+              }
+              return prev;
+            });
+          }, 0);
+        }
 
         if (rentalId && rentalDetails?.createdOn) {
           setRentalCreatedOn(new Date(rentalDetails.createdOn + "T00:00:00"));
@@ -596,6 +644,49 @@ export function EquipmentRentalsModal({
       updateInstrumentsForOngoing(formData.rentalStartDate);
     }
   }, [formData.onGoing, formData.rentalStartDate, updateInstrumentsForOngoing]);
+
+  // Manage return date display value explicitly - always empty when onGoing is true
+  useEffect(() => {
+    if (formData.onGoing === true) {
+      // ALWAYS set display to empty when onGoing is true - no conditions
+      // Use flushSync to ensure immediate update
+      flushSync(() => {
+        setReturnDateDisplay("");
+      });
+      // Clear returnDate and duration in formData
+      setFormData((prev) => {
+        if (prev.returnDate !== undefined || (prev.duration && prev.duration !== "")) {
+          return {
+            ...prev,
+            returnDate: undefined,
+            duration: "",
+          };
+        }
+        return prev;
+      });
+    } else {
+      // When onGoing is false, update display based on returnDate
+      if (formData.returnDate && formData.returnDate instanceof Date && !isNaN(formData.returnDate.getTime())) {
+        setReturnDateDisplay(format(formData.returnDate, "MMM dd, yyyy"));
+      } else {
+        setReturnDateDisplay("");
+      }
+    }
+  }, [formData.onGoing, formData.returnDate, formData.duration]);
+
+  // Compute return date input value - MUST always be empty when onGoing is true
+  const returnDateInputValue = useMemo(() => {
+    // ABSOLUTE first check - if onGoing is true, ALWAYS return empty string
+    // Do not check anything else, do not format, just return empty
+    if (formData.onGoing === true) {
+      return "";
+    }
+    // Only format date if onGoing is false AND returnDate exists
+    if (formData.returnDate && formData.returnDate instanceof Date && !isNaN(formData.returnDate.getTime())) {
+      return format(formData.returnDate, "MMM dd, yyyy");
+    }
+    return "";
+  }, [formData.onGoing, formData.returnDate]);
 
   const calculateTotalFromDates = (
     startDate: Date,
@@ -760,18 +851,10 @@ export function EquipmentRentalsModal({
 
       if (field === "onGoing") {
         if (value === true) {
-          // Clear duration for ongoing rental (but calculate return date based on start date)
+          // Clear both duration and return date when "On Going" is checked
+          // Both fields should be blank as shown in the UI
           newData.duration = "";
-          
-          // Calculate return date based on start date rules:
-          // - Days 1-7: 30 days from start date
-          // - Days 8+: 30 days + remaining days in current month
-          if (newData.rentalStartDate instanceof Date) {
-            const { returnDate } = getOngoingBillingDetails(newData.rentalStartDate);
-            newData.returnDate = returnDate;
-          } else {
-            newData.returnDate = undefined;
-          }
+          newData.returnDate = undefined;
           
           updateInstrumentsForOngoing(
             newData.rentalStartDate instanceof Date
@@ -848,15 +931,14 @@ export function EquipmentRentalsModal({
 
       // Handle start date changes when "On Going" is checked
       if (field === "rentalStartDate" && newData.onGoing) {
-        // Recalculate return date based on start date rules for ongoing rentals
+        // Keep return date blank when "On Going" is checked
+        // Only update instruments for ongoing billing calculation
         if (newData.rentalStartDate instanceof Date) {
-          const { returnDate } = getOngoingBillingDetails(newData.rentalStartDate);
-          newData.returnDate = returnDate;
-          // Update instruments when start date changes
+          // Update instruments when start date changes (for ongoing billing)
           updateInstrumentsForOngoing(newData.rentalStartDate);
-        } else {
-          newData.returnDate = undefined;
         }
+        // Return date should remain blank/undefined for ongoing rentals
+        newData.returnDate = undefined;
       }
 
       if (
@@ -913,6 +995,12 @@ export function EquipmentRentalsModal({
             newData.duration
           );
         }, 0);
+      }
+
+      // Final safeguard: If "On Going" is checked, ensure duration and return date are blank
+      if (newData.onGoing) {
+        newData.duration = "";
+        newData.returnDate = undefined;
       }
 
       return newData;
@@ -1676,9 +1764,31 @@ export function EquipmentRentalsModal({
                 <Checkbox
                   id="onGoing"
                   checked={formData.onGoing}
-                  onCheckedChange={(checked) =>
-                    handleInputChange("onGoing", checked as boolean)
-                  }
+                  onCheckedChange={(checked) => {
+                    // Ensure we convert to boolean (handles true/false/undefined/"indeterminate")
+                    const isChecked = checked === true;
+                    // Immediately update state to clear return date when checking "On Going"
+                    if (isChecked) {
+                      // Use flushSync to force synchronous updates so Input clears immediately
+                      // Set everything in a single state update to ensure consistency
+                      flushSync(() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          onGoing: true,
+                          returnDate: undefined, // Explicitly clear returnDate
+                          duration: "", // Explicitly clear duration
+                        }));
+                        setReturnDateDisplay(""); // Also clear display value
+                      });
+                      // Update instruments after state is set
+                      const startDate = formData.rentalStartDate instanceof Date 
+                        ? formData.rentalStartDate 
+                        : new Date();
+                      updateInstrumentsForOngoing(startDate);
+                    } else {
+                      handleInputChange("onGoing", false);
+                    }
+                  }}
                   disabled={isEditMode}
                 />
                 <Label htmlFor="onGoing">On Going</Label>
@@ -1688,7 +1798,14 @@ export function EquipmentRentalsModal({
             <div className="flex items-center p-5 gap-4">
               <Label className="w-24">Duration</Label>
               <Select
-                value={formData.duration}
+                value={
+                  // Always show placeholder (undefined) when "On Going" is checked
+                  formData.onGoing 
+                    ? undefined 
+                    : formData.duration && formData.duration !== "" 
+                      ? formData.duration 
+                      : undefined
+                }
                 onValueChange={(value) => handleInputChange("duration", value)}
                 disabled={formData.onGoing || isEditMode}
               >
@@ -1708,15 +1825,11 @@ export function EquipmentRentalsModal({
               </Select>
               <Label className="w-24 ml-6">Return Date</Label>
               <Input
-                value={
-                  formData.returnDate
-                    ? format(formData.returnDate, "MMM dd, yyyy")
-                    : ""
-                }
+                value={returnDateInputValue}
                 readOnly
                 disabled={formData.onGoing || isEditMode}
                 className="bg-gray-50 dark:bg-gray-800 w-48"
-                placeholder={formData.onGoing ? "On Going" : "Select duration"}
+                placeholder=""
               />
             </div>
 
