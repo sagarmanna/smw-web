@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { PaymentReceiptModalUI } from "@/components/modals/PaymentReceiptModal";
+import { PaymentReceiptModalUI } from "@/components/modal/PaymentReceiptModal";
 import { usePaymentReceiptModal } from "./hooks/usePaymentReceiptModal";
 
 interface PaymentReceiptModalWrapperProps {
@@ -28,22 +28,22 @@ export function PaymentReceiptModalWrapper({
     isSaving,
     isLoadingData,
     isLoadingPaymentMethods,
-    
+
     // Data
     paymentData,
     paymentMethods,
     editDate,
     editForm,
-    
+
     // Edit rows
     lessonEditRows,
     groupLessonEditRows,
     invoiceEditRows,
-    
+
     // Calculations
     amountToApply,
     amountToCredit,
-    
+
     // Handlers
     handleEditClick,
     handleCancelEdit,

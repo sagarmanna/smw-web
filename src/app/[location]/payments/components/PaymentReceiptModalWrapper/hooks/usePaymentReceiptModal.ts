@@ -1,5 +1,5 @@
 // hooks/usePaymentReceiptModal.ts
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type {
   AllocationRow,
   GroupLessonRow,
@@ -10,14 +10,14 @@ import type {
   InvoiceEditRow,
   EditFormData,
   PaymentMethod,
-} from '@/components/modals/PaymentReceiptModal/types';
-import { formatCurrency } from '@/utils/formatCurrency';
+} from "@/components/modal/PaymentReceiptModal/types";
+import { formatCurrency } from "@/utils/formatCurrency";
 import {
   convertToEditableRows,
   calculateTotalAllocations,
   calculateCreditAmount,
   createAllocationHandler,
-} from '@/utils/paymentUtils';
+} from "@/utils/paymentUtils";
 
 // ============ MAIN HOOK ============
 interface UsePaymentReceiptModalProps {
@@ -66,7 +66,7 @@ export function usePaymentReceiptModal({
   onSaveSuccess,
 }: UsePaymentReceiptModalProps) {
   // ============ STATE MANAGEMENT ============
-  
+
   // Modal states
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -75,7 +75,8 @@ export function usePaymentReceiptModal({
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Payment data
-  const [paymentData, setPaymentData] = useState<PaymentData>(INITIAL_PAYMENT_DATA);
+  const [paymentData, setPaymentData] =
+    useState<PaymentData>(INITIAL_PAYMENT_DATA);
 
   // Payment methods
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -86,7 +87,9 @@ export function usePaymentReceiptModal({
 
   // Editable rows
   const [lessonEditRows, setLessonEditRows] = useState<EditLessonRow[]>([]);
-  const [groupLessonEditRows, setGroupLessonEditRows] = useState<GroupLessonEditRow[]>([]);
+  const [groupLessonEditRows, setGroupLessonEditRows] = useState<
+    GroupLessonEditRow[]
+  >([]);
   const [invoiceEditRows, setInvoiceEditRows] = useState<InvoiceEditRow[]>([]);
 
   // ============ DATA LOADING ============
@@ -95,12 +98,12 @@ export function usePaymentReceiptModal({
     setIsLoadingData(true);
     try {
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Mock payment data - Replace with actual API call
       const mockPayment = {
         id,
-        amount: 250.00,
+        amount: 250.0,
         date: "Nov 12, 2025",
         method: "Cash",
         reference: "REF-001",
@@ -109,8 +112,8 @@ export function usePaymentReceiptModal({
           email: "john.doe@example.com",
           phone: "(555) 123-4567",
         },
-        used: 250.00,
-        remaining: 0.00,
+        used: 250.0,
+        remaining: 0.0,
       };
 
       const mockAllocations: AllocationRow[] = [
@@ -202,7 +205,7 @@ export function usePaymentReceiptModal({
     setIsLoadingPaymentMethods(true);
     try {
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Mock payment methods - Replace with actual API call
       const mockMethods: PaymentMethod[] = [
@@ -219,7 +222,7 @@ export function usePaymentReceiptModal({
 
       // Set default to Cash if not already set
       if (!editForm.method) {
-        setEditForm(prev => ({ ...prev, method: "1" }));
+        setEditForm((prev) => ({ ...prev, method: "1" }));
       }
     } finally {
       setIsLoadingPaymentMethods(false);
@@ -248,18 +251,32 @@ export function usePaymentReceiptModal({
   useEffect(() => {
     if (isEditing) {
       setLessonEditRows(
-        convertToEditableRows<EditLessonRow>(paymentData.allocationRows, 'payment')
+        convertToEditableRows<EditLessonRow>(
+          paymentData.allocationRows,
+          "payment"
+        )
       );
-      
+
       setGroupLessonEditRows(
-        convertToEditableRows<GroupLessonEditRow>(paymentData.groupLessonRows, 'amount')
+        convertToEditableRows<GroupLessonEditRow>(
+          paymentData.groupLessonRows,
+          "amount"
+        )
       );
-      
+
       setInvoiceEditRows(
-        convertToEditableRows<InvoiceEditRow>(paymentData.invoiceRows, 'payment')
+        convertToEditableRows<InvoiceEditRow>(
+          paymentData.invoiceRows,
+          "payment"
+        )
       );
     }
-  }, [isEditing, paymentData.allocationRows, paymentData.groupLessonRows, paymentData.invoiceRows]);
+  }, [
+    isEditing,
+    paymentData.allocationRows,
+    paymentData.groupLessonRows,
+    paymentData.invoiceRows,
+  ]);
 
   // ============ CALCULATIONS - Using  utilities ============
 
@@ -290,7 +307,7 @@ export function usePaymentReceiptModal({
     setIsSaving(true);
     try {
       // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       console.log("Saving payment:", {
         location,
@@ -314,7 +331,16 @@ export function usePaymentReceiptModal({
     } finally {
       setIsSaving(false);
     }
-  }, [location, paymentId, editForm, lessonEditRows, groupLessonEditRows, invoiceEditRows, loadPaymentData, onSaveSuccess]);
+  }, [
+    location,
+    paymentId,
+    editForm,
+    lessonEditRows,
+    groupLessonEditRows,
+    invoiceEditRows,
+    loadPaymentData,
+    onSaveSuccess,
+  ]);
 
   const handlePrint = useCallback(() => {
     console.log("Print payment receipt");
@@ -363,7 +389,7 @@ export function usePaymentReceiptModal({
   );
 
   const handleEditFormChange = useCallback((updates: Partial<EditFormData>) => {
-    setEditForm(prev => ({ ...prev, ...updates }));
+    setEditForm((prev) => ({ ...prev, ...updates }));
   }, []);
 
   // ============ RETURN ============
@@ -375,22 +401,22 @@ export function usePaymentReceiptModal({
     isSaving,
     isLoadingPaymentMethods,
     isLoadingData,
-    
+
     // Data
     paymentData,
     paymentMethods,
     editDate,
     editForm,
-    
+
     // Edit rows
     lessonEditRows,
     groupLessonEditRows,
     invoiceEditRows,
-    
+
     // Calculations
     amountToApply,
     amountToCredit,
-    
+
     // Handlers
     handleEditClick,
     handleCancelEdit,
