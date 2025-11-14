@@ -1,4 +1,4 @@
-// api/payments.api.ts
+/// api/payments.api.ts
 import { apiClient } from '@/lib/api/client';
 
 // ==========================================
@@ -74,6 +74,8 @@ function getTodayInUSTimezone(timezone: string = 'America/New_York'): string {
  * - amount: Filter by amount
  * - startDate: Filter by start date (Format: YYYY-MM-DD)
  * - endDate: Filter by end date (Format: YYYY-MM-DD)
+ * - sortBy: Field to sort by
+ * - sortOrder: Sort order (ASC or DESC)
  */
 export async function getPayments(
   location: string,
@@ -86,6 +88,8 @@ export async function getPayments(
     amount?: string;
     from?: string;  // Will be sent as startDate
     to?: string;    // Will be sent as endDate
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
   },
   timezone: string = 'America/New_York' // Allow timezone configuration
 ): Promise<{
@@ -117,6 +121,14 @@ export async function getPayments(
     if (filters?.amount) {
       params.append('amount', filters.amount);
     }
+    
+    // Sorting parameters - Always send sorting params
+    // Default to date ASC if not specified
+    const sortBy = filters?.sortBy || 'date';
+    const sortOrder = filters?.sortOrder || 'ASC';
+    
+    params.append('sortBy', sortBy);
+    params.append('sortOrder', sortOrder);
     
     // Date filters - API uses startDate and endDate
     // IMPORTANT: API applies a default date filter if not provided

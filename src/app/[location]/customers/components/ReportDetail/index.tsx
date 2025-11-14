@@ -407,9 +407,9 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-background p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-gray-600">Loading report data...</div>
+          <div className="text-lg text-muted-foreground">Loading report data...</div>
         </div>
       </div>
     );
@@ -529,12 +529,12 @@ export function ReportDetail({ customerId, customerName, location }: ReportDetai
             hideRecordCount={false}
             footerRow={{
               id: "",
-              date: "",
+              date: "Total:",
               amount: unusedTotal
             }}
             isLoading={loading}
           />
-          <div className="mt-4 text-right text-lg font-bold text-gray-900">
+          <div className="mt-4 text-right text-lg font-bold">
             {formatCurrency(netTotal)}
           </div>
         </CardContent>

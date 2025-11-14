@@ -19,6 +19,7 @@ export default function PrintPage() {
     };
   };
   const [print, setPrint] = React.useState<PrintPayload | null>(null);
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
 
   const formatDateRange = (dateRange?: { from: string; to: string }) => {
     if (!dateRange) return '';
@@ -40,6 +41,18 @@ export default function PrintPage() {
       const raw = sessionStorage.getItem('smw:print');
       const parsed = raw ? (JSON.parse(raw) as PrintPayload) : null;
       setPrint(parsed);
+      
+      // Detect dark mode from parent window (opener) or current document
+      const checkDarkMode = () => {
+        // Try to get theme from opener window first
+        if (window.opener && window.opener.document) {
+          return window.opener.document.documentElement.classList.contains('dark');
+        }
+        // Fallback to checking current document
+        return document.documentElement.classList.contains('dark');
+      };
+      
+      setIsDarkMode(checkDarkMode());
     } catch {}
   }, []);
 
@@ -68,24 +81,124 @@ export default function PrintPage() {
 
   const widths = print.columns.map((c: PrintColumn) => c.widthPercent || Math.floor(100 / print.columns.length));
 
+  // Theme-aware colors
+  const colors = isDarkMode ? {
+    body: '#0f172a',
+    text: '#f1f5f9',
+    heading: '#f8fafc',
+    tableBg: '#1e293b',
+    headerBg: '#334155',
+    headerText: '#f1f5f9',
+    border: '#475569',
+    borderStrong: '#64748b',
+    stripedRow: '#334155',
+    footerBg: '#475569',
+    metaText: '#94a3b8'
+  } : {
+    body: '#ffffff',
+    text: '#0f172a',
+    heading: '#0f172a',
+    tableBg: '#ffffff',
+    headerBg: '#f8fafc',
+    headerText: '#111827',
+    border: '#e5e7eb',
+    borderStrong: '#e5e7eb',
+    stripedRow: '#fafafa',
+    footerBg: '#f1f5f9',
+    metaText: '#64748b'
+  };
+
   return (
-    <div style={{ padding: "16px" }}>
+    <div style={{ padding: "16px", backgroundColor: colors.body, minHeight: '100vh' }}>
       <style>{`
         @page { margin: 14mm; }
-        body { margin: 0; color: #0f172a; font-size: 12.75px; line-height: 1.4; }
-        h1 { font-size: 20px; margin: 0 0 8px; font-weight: 800; letter-spacing: -0.01em; text-align: left; }
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; background: #fff; }
-        thead th { background: #f8fafc; color: #111827; font-weight: 700; font-size: 12.5px; padding: 8px 10px; border-bottom: 2px solid #e5e7eb; text-align: center; vertical-align: bottom; word-break: break-word; }
-        tbody td { font-size: 12px; padding: 6px 10px; border-top: 1px solid #e5e7eb; vertical-align: top; word-break: break-word; }
-        tbody tr:nth-child(even) { background: #fafafa; }
-        tbody tr.__print-footer { background: #f1f5f9; }
-        tbody tr.__print-footer td { font-weight: 700; border-top: 2px solid #e5e7eb; }
+        body { 
+          margin: 0; 
+          color: ${colors.text}; 
+          background-color: ${colors.body};
+          font-size: 12.75px; 
+          line-height: 1.4; 
+        }
+        h1 { 
+          font-size: 20px; 
+          margin: 0 0 8px; 
+          font-weight: 800; 
+          letter-spacing: -0.01em; 
+          text-align: left; 
+          color: ${colors.heading};
+        }
+        table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          table-layout: fixed; 
+          background: ${colors.tableBg}; 
+        }
+        thead th { 
+          background: ${colors.headerBg}; 
+          color: ${colors.headerText}; 
+          font-weight: 700; 
+          font-size: 12.5px; 
+          padding: 8px 10px; 
+          border-bottom: 2px solid ${colors.borderStrong}; 
+          text-align: center; 
+          vertical-align: bottom; 
+          word-break: break-word; 
+        }
+        tbody td { 
+          font-size: 12px; 
+          padding: 6px 10px; 
+          border-top: 1px solid ${colors.border}; 
+          vertical-align: top; 
+          word-break: break-word; 
+          color: ${colors.text};
+        }
+        tbody tr:nth-child(even) { 
+          background: ${colors.stripedRow}; 
+        }
+        tbody tr.__print-footer { 
+          background: ${colors.footerBg}; 
+        }
+        tbody tr.__print-footer td { 
+          font-weight: 700; 
+          border-top: 2px solid ${colors.borderStrong}; 
+        }
+        
+        @media print {
+          body {
+            background-color: white !important;
+            color: black !important;
+          }
+          table {
+            background: white !important;
+          }
+          thead th {
+            background: #f8fafc !important;
+            color: #111827 !important;
+            border-bottom: 2px solid #e5e7eb !important;
+          }
+          tbody td {
+            border-top: 1px solid #e5e7eb !important;
+            color: black !important;
+          }
+          tbody tr:nth-child(even) {
+            background: #fafafa !important;
+          }
+          tbody tr.__print-footer {
+            background: #f1f5f9 !important;
+          }
+          tbody tr.__print-footer td {
+            border-top: 2px solid #e5e7eb !important;
+          }
+          h1 {
+            color: black !important;
+          }
+        }
       `}</style>
 
       <h1>{print.title}</h1>
       
       {(print.location || print.dateRange) && (
-        <div style={{ marginBottom: '16px', fontSize: '12px', color: '#64748b' }}>
+        <div style={{ marginBottom: '16px', fontSize: '12px', color: colors.metaText }}>
           {print.location && <span style={{ marginRight: '16px' }}><span style={{ fontWeight: 'bold' }}>Location:</span> {formatLocationName(print.location)}</span>}
           {print.dateRange && <span><span style={{ fontWeight: 'bold' }}>Date Range:</span> {formatDateRange(print.dateRange)}</span>}
         </div>
@@ -128,5 +241,3 @@ export default function PrintPage() {
     </div>
   );
 }
-
-

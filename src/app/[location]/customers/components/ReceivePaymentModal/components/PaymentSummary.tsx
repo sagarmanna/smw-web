@@ -19,8 +19,8 @@ const SummaryRow: React.FC<SummaryRowProps> = ({
   value
 }) => (
   <div className="flex justify-end items-center gap-2">
-    <span className="text-black w-48 text-right">{label}:</span>
-    <span className="text-black font-semibold w-28 text-right">
+    <span className="w-48 text-right">{label}:</span>
+    <span className="font-semibold w-28 text-right">
       ${value.toFixed(2)}
     </span>
   </div>
