@@ -8,7 +8,8 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
-import { PaymentsReceivePaymentModal } from "./components/PaymentReceipt";
+import { PaymentsReceivePaymentModal } from "./components/RecivedPaymentModalWrapper";
+import { PaymentReceiptModalWrapper } from "./components/PaymentReceiptModalWrapper/index";
 import { getPayments, PaymentDto } from "./payments.api";
  
 interface PaymentsClientProps {
@@ -27,14 +28,15 @@ interface PaymentRow {
 }
  
 export function PaymentsClient({ location }: PaymentsClientProps) {
-  const [rowsPerPage, setRowsPerPage] = React.useState<number>(20);
-  const [page, setPage] = React.useState<number>(1);
+  const [rowsPerPage, setRowsPerPage] = React.useState(20);
+  const [page, setPage] = React.useState(1);
   const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'date', desc: false } // Default: sort by date in ASC order (shows ↓ arrow)
   ]);
-  const [selectedRow, setSelectedRow] = React.useState<PaymentRow | null>(null);
-  const [modalOpen, setModalOpen] = React.useState(false);
+  const [receiveModalOpen, setReceiveModalOpen] = React.useState(false);
+  const [receiptModalOpen, setReceiptModalOpen] = React.useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = React.useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [payments, setPayments] = React.useState<PaymentRow[]>([]);
@@ -45,17 +47,9 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
     totalPages: 1,
   });
  
-  // Helper function to parse amount string to number
-  const parseAmount = (amountStr: string): number => {
-    return parseFloat(amountStr.replace(/[$,]/g, '')) || 0;
-  };
+  const parseAmount = (amountStr: string) => parseFloat(amountStr.replace(/[$,]/g, '')) || 0;
+  const parseDate = (dateStr: string) => new Date(dateStr);
  
-  // Helper function to parse date string
-  const parseDate = (dateStr: string): Date => {
-    return new Date(dateStr);
-  };
- 
-  // Fetch payments from API
   const fetchPayments = React.useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -104,8 +98,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
       const actualLimit = rowsPerPage === -1 ? 999999 : rowsPerPage;
       const response = await getPayments(location, page, actualLimit, filters);
  
-      // Transform API data to PaymentRow format
-      const transformedData: PaymentRow[] = response.data.map((payment: PaymentDto) => ({
+      const transformedData = response.data.map((payment: PaymentDto) => ({
         id: payment.id.toString(),
         number: payment.number,
         date: parseDate(payment.date),
@@ -176,7 +169,6 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         header: "Date",
         size: 180,
         cell: ({ row }) => format(row.original.date, "MMM dd, yyyy"),
-        meta: { printable: true, printableName: "Date" },
         filter: {
           type: "date-range",
           initialValue: undefined,
@@ -243,31 +235,14 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
     setColumnFilters((prev) => {
       const newFilters = { ...prev };
       
-      // Special handling for date filters - explicitly handle undefined to trigger reset
       if (columnKey === 'date') {
-        if (value === undefined || value === null) {
-          delete newFilters[columnKey];
-        } else if (typeof value === 'object' && value !== null) {
-          const dateObj = value as { from?: Date; to?: Date };
-          if (!dateObj.from && !dateObj.to) {
-            delete newFilters[columnKey];
-          } else {
-            newFilters[columnKey] = value;
-          }
-        }
-      }
-      // Remove filter if value is empty/null/undefined
-      else if (!value) {
-        delete newFilters[columnKey];
-      } else if (typeof value === 'string' && value.trim() === '') {
-        delete newFilters[columnKey];
-      } else if (typeof value === 'object' && value !== null) {
-        const obj = value as Record<string, unknown>;
-        if (Object.keys(obj).length === 0) {
+        if (!value || (typeof value === 'object' && !((value as { from?: Date; to?: Date }).from || (value as { from?: Date; to?: Date }).to))) {
           delete newFilters[columnKey];
         } else {
           newFilters[columnKey] = value;
         }
+      } else if (!value || (typeof value === 'string' && !value.trim()) || (typeof value === 'object' && Object.keys(value as object).length === 0)) {
+        delete newFilters[columnKey];
       } else {
         newFilters[columnKey] = value;
       }
@@ -276,28 +251,11 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
     });
     setPage(1);
   }, []);
- 
-  // Handler for retry
-  const handleRetry = React.useCallback(() => {
-    fetchPayments();
-  }, [fetchPayments]);
- 
-  // Handler for new payment button
-  const handleNewPayment = React.useCallback(() => {
-    setSelectedRow(null);
-    setModalOpen(true);
+
+  const handleModalClose = React.useCallback((setModalOpen: (open: boolean) => void) => (open: boolean) => {
+    setModalOpen(open);
+    if (!open) setSelectedPaymentId(undefined);
   }, []);
- 
-  // Handler for row click
-  const handleRowClick = React.useCallback((row: PaymentRow) => {
-    setSelectedRow(row);
-    setModalOpen(true);
-  }, []);
- 
-  // Handler for modal save success - refresh the list
-  const handleModalSaveSuccess = React.useCallback(() => {
-    fetchPayments();
-  }, [fetchPayments]);
  
   return (
     <ReportPageLayout
@@ -305,9 +263,9 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
       subtitle="Browse all payments, search and sort"
       isLoading={isLoading}
       error={error}
-      onRetry={handleRetry}
+      onRetry={fetchPayments}
       actions={
-        <Button className="bg-primary hover:bg-primary/90" onClick={handleNewPayment}>
+        <Button className="bg-primary hover:bg-primary/90" onClick={() => setReceiveModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Receive Payment
         </Button>
@@ -320,7 +278,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         variant="default"
         enableSearch={false}
         searchPlaceholder="Search payments..."
-        getSearchValue={(row) => getSearchValue(row as PaymentRow)}
+        getSearchValue={getSearchValue}
         enablePrint={false}
         enableExport={false}
         customHeaderComponent={null}
@@ -333,7 +291,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
           setPage(1);
         }}
         serverSidePagination={pagination}
-        onServerSidePageChange={(newPage) => setPage(newPage)}
+        onServerSidePageChange={setPage}
         hideRecordCount={true}
         enableColumnFilters={true}
         columnFilters={columnFilters}
@@ -350,21 +308,27 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         onSortingChange={handleSortingChange}
         key={JSON.stringify(columnFilters.date || null)}
         stickyHeader={true}
-        onRowClick={handleRowClick}
+        onRowClick={(row) => {
+          setSelectedPaymentId(row.id);
+          setReceiptModalOpen(true);
+        }}
       />
       
-      {/* Payment Modal - completely self-contained */}
+      {/* Recived Payment Modal - completely self-contained */}
       <PaymentsReceivePaymentModal
-        open={modalOpen}
-        onOpenChange={(open) => {
-          setModalOpen(open);
-          if (!open) {
-            setSelectedRow(null);
-          }
-        }}
+        open={receiveModalOpen}
+        onOpenChange={handleModalClose(setReceiveModalOpen)}
         location={location}
-        paymentId={selectedRow?.id}
-        onSaveSuccess={handleModalSaveSuccess}
+        onSaveSuccess={fetchPayments}
+      />
+      
+      {/* Payment Receipt Modal - completely self-contained */}
+      <PaymentReceiptModalWrapper
+        open={receiptModalOpen}
+        onOpenChange={handleModalClose(setReceiptModalOpen)}
+        location={location}
+        paymentId={selectedPaymentId}
+        onSaveSuccess={fetchPayments}
       />
     </ReportPageLayout>
   );
