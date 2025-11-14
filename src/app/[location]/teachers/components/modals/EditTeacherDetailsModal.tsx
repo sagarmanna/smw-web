@@ -31,7 +31,6 @@ export function EditTeacherDetailsModal({
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [birthDate, setBirthDate] = React.useState("");
-  const [role, setRole] = React.useState("Teacher");
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -39,7 +38,6 @@ export function EditTeacherDetailsModal({
       setFirstName(details.firstName ?? "");
       setLastName(details.lastName ?? "");
       setBirthDate(details.birthDate ?? "");
-      setRole(details.role ?? "Teacher");
     }
   }, [details, open]);
 
@@ -56,7 +54,6 @@ export function EditTeacherDetailsModal({
     const payload: TeacherBasicDetails = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      role: role.trim() ? role : "Teacher",
       birthDate: birthDate || undefined,
     };
 
@@ -98,18 +95,6 @@ export function EditTeacherDetailsModal({
                 onChange={(event) => setLastName(event.target.value)}
                 required
                 placeholder="Enter last name"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="teacher-role">Role</Label>
-              <Input
-                id="teacher-role"
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-                placeholder="Teacher"
               />
             </div>
             <div className="space-y-2">

@@ -7,12 +7,7 @@ import { ActionMenuGroup } from "@/components/DetailHeader";
 import { SectionCard } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { useTeacherDetails } from "../hooks/useTeacherDetails";
-import {
-  TeacherAddress,
-  TeacherEmail,
-  TeacherPhone,
-  TeacherQualification,
-} from "../types";
+import { TeacherQualification } from "../types";
 import { EditTeacherDetailsModal } from "../components/modals/EditTeacherDetailsModal";
 import { CreateEmailModal } from "../components/modals/CreateEmailModal";
 import { CreatePhoneModal } from "../components/modals/CreatePhoneModal";
@@ -29,6 +24,12 @@ import {
   PhoneList,
   QualificationsList,
 } from "../components/sections";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import {
+  useEmailHandlers,
+  usePhoneHandlers,
+  useAddressHandlers,
+} from "../hooks/useTeacherItemHandlers";
 
 interface TeachersDetailClientProps {
   location: string;
@@ -52,14 +53,12 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
 
   const {
     loading,
-    error,
     details,
     emails,
     phones,
     addresses,
     privateQualifications,
     groupQualifications,
-    refresh,
     saveDetails,
     updateEmails,
     updatePhones,
@@ -76,6 +75,12 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
   const [isPrivateExpanded, setIsPrivateExpanded] = React.useState(false);
   const [isGroupExpanded, setIsGroupExpanded] = React.useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
+  const [privateQualificationsPage, setPrivateQualificationsPage] = React.useState(1);
+  const [groupQualificationsPage, setGroupQualificationsPage] = React.useState(1);
+
+  const emailHandlers = useEmailHandlers({ emails, updateEmails });
+  const phoneHandlers = usePhoneHandlers({ phones, updatePhones });
+  const addressHandlers = useAddressHandlers({ addresses, updateAddresses });
 
   const dropdownOptions = React.useMemo(
     () => [
@@ -108,31 +113,6 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
     ];
   }, [details]);
 
-  const handleEmailCreate = React.useCallback(
-    (newEmail: TeacherEmail) => {
-      updateEmails((prev) => {
-        const base = newEmail.isPrimary
-          ? prev.map((email) => ({ ...email, isPrimary: false }))
-          : prev;
-        return [...base, newEmail];
-      });
-    },
-    [updateEmails]
-  );
-
-  const handlePhoneCreate = React.useCallback(
-    (newPhone: TeacherPhone) => {
-      updatePhones((prev) => [...prev, newPhone]);
-    },
-    [updatePhones]
-  );
-
-  const handleAddressCreate = React.useCallback(
-    (newAddress: TeacherAddress) => {
-      updateAddresses((prev) => [...prev, newAddress]);
-    },
-    [updateAddresses]
-  );
 
   const handlePrivateQualificationsAdd = React.useCallback(
     (items: Array<{ program: string; rate: number }>) => {
@@ -204,18 +184,18 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
-      {
-        label: "Actions",
-        items: [
-          {
-            label: "Delete",
-            onClick: () => {
+    {
+      label: "Actions",
+      items: [
+        {
+          label: "Delete",
+          onClick: () => {
               // TODO: implement delete behaviour
-            },
-            variant: "destructive",
           },
-        ],
-      },
+          variant: "destructive",
+        },
+      ],
+    },
     ],
     []
   );
@@ -223,15 +203,15 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
   return (
     <>
       <div className="bg-white dark:bg-black">
-        <DetailHeaderWithProfile
+      <DetailHeaderWithProfile
           breadcrumbItems={breadcrumbItems}
           currentPageTitle={pageTitle}
-          loading={loading}
+        loading={loading}
           actionMenuGroups={actionMenuGroups}
-          actionButtonAriaLabel="Teacher actions"
-          showProfileIcon={true}
-          profileIconSize="md"
-        />
+        actionButtonAriaLabel="Teacher actions"
+        showProfileIcon={true}
+        profileIconSize="md"
+      />
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-4">
@@ -248,86 +228,140 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               title="Private Qualifications"
               data={
                 isPrivateExpanded && privateQualifications.length > 0
-                  ? <QualificationsList items={privateQualifications} />
+                  ? (
+                      <QualificationsList 
+                        items={privateQualifications} 
+                        page={privateQualificationsPage}
+                        onPageChange={setPrivateQualificationsPage}
+                        itemsPerPage={10}
+                      />
+                    )
+                  : isPrivateExpanded && privateQualifications.length === 0
+                  ? null
                   : undefined
               }
               showView
               viewIsActive={isPrivateExpanded}
-              onViewClick={() => setIsPrivateExpanded((prev) => !prev)}
+              onViewClick={() => {
+                setIsPrivateExpanded((prev) => !prev);
+                // Reset to page 1 when collapsing/expanding
+                if (!isPrivateExpanded) {
+                  setPrivateQualificationsPage(1);
+                }
+              }}
               showAddButton
               onAddClick={() => setShowPrivateModal(true)}
               emptyState={
-                isPrivateExpanded ? "No private qualifications yet." : undefined
+                isPrivateExpanded && privateQualifications.length === 0
+                  ? "No private qualifications yet."
+                  : undefined
               }
-            />
+            >
+              {!isPrivateExpanded ? <div className="hidden" /> : undefined}
+            </SectionCard>
 
             <SectionCard
               title="Group Qualifications"
               data={
                 isGroupExpanded && groupQualifications.length > 0
-                  ? <QualificationsList items={groupQualifications} />
+                  ? (
+                      <QualificationsList 
+                        items={groupQualifications} 
+                        page={groupQualificationsPage}
+                        onPageChange={setGroupQualificationsPage}
+                        itemsPerPage={10}
+                      />
+                    )
+                  : isGroupExpanded && groupQualifications.length === 0
+                  ? null
                   : undefined
               }
               showView
               viewIsActive={isGroupExpanded}
-              onViewClick={() => setIsGroupExpanded((prev) => !prev)}
+              onViewClick={() => {
+                setIsGroupExpanded((prev) => !prev);
+                // Reset to page 1 when collapsing/expanding
+                if (!isGroupExpanded) {
+                  setGroupQualificationsPage(1);
+                }
+              }}
               showAddButton
               onAddClick={() => setShowGroupModal(true)}
               emptyState={
-                isGroupExpanded ? "No group qualifications yet." : undefined
+                isGroupExpanded && groupQualifications.length === 0
+                  ? "No group qualifications yet."
+                  : undefined
               }
-            />
-          </div>
+            >
+              {!isGroupExpanded ? <div className="hidden" /> : undefined}
+            </SectionCard>
+        </div>
 
           <div className="space-y-4">
             <SectionCard
               title="Email"
               data={
-                emails.length > 0 ? <EmailList emails={emails} /> : undefined
+                emails.length > 0 ? (
+                  <EmailList
+              emails={emails}
+                        onEdit={emailHandlers.handleEdit}
+                        onDelete={emailHandlers.handleDelete}
+                  />
+                ) : undefined
               }
               emptyState="No email addresses added yet."
               showCreateModal
-              renderCreateModal={({ isOpen, close }) => (
-                <CreateEmailModal
-                  open={isOpen}
-                  onClose={close}
-                  onSubmit={handleEmailCreate}
-                />
-              )}
+                  renderCreateModal={({ isOpen, close }) => (
+                    <CreateEmailModal
+                      open={isOpen}
+                      onClose={close}
+                      onSubmit={emailHandlers.handleCreate}
+                    />
+                  )}
             />
 
             <SectionCard
               title="Phone"
               data={
-                phones.length > 0 ? <PhoneList phones={phones} /> : undefined
+                phones.length > 0 ? (
+                  <PhoneList
+              phones={phones}
+                        onEdit={phoneHandlers.handleEdit}
+                        onDelete={phoneHandlers.handleDelete}
+                  />
+                ) : undefined
               }
               emptyState="No phone numbers added yet."
               showCreateModal
-              renderCreateModal={({ isOpen, close }) => (
-                <CreatePhoneModal
-                  open={isOpen}
-                  onClose={close}
-                  onSubmit={handlePhoneCreate}
-                />
-              )}
+                  renderCreateModal={({ isOpen, close }) => (
+                    <CreatePhoneModal
+                      open={isOpen}
+                      onClose={close}
+                      onSubmit={phoneHandlers.handleCreate}
+                    />
+                  )}
             />
 
             <SectionCard
               title="Addresses"
               data={
                 addresses.length > 0 ? (
-                  <AddressList addresses={addresses} />
+                  <AddressList
+                    addresses={addresses}
+                        onEdit={addressHandlers.handleEdit}
+                        onDelete={addressHandlers.handleDelete}
+                  />
                 ) : undefined
               }
               emptyState="No addresses added yet."
               showCreateModal
-              renderCreateModal={({ isOpen, close }) => (
-                <CreateAddressModal
-                  open={isOpen}
-                  onClose={close}
-                  onSubmit={handleAddressCreate}
-                />
-              )}
+                  renderCreateModal={({ isOpen, close }) => (
+                    <CreateAddressModal
+                      open={isOpen}
+                      onClose={close}
+                      onSubmit={addressHandlers.handleCreate}
+                    />
+                  )}
             />
           </div>
         </div>
@@ -340,7 +374,6 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
           details ?? {
             firstName: "",
             lastName: "",
-            role: "Teacher",
           }
         }
         onSubmit={saveDetails}
@@ -367,6 +400,83 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
         open={isPasswordModalOpen}
         onClose={() => setIsPasswordModalOpen(false)}
         onSubmit={handlePasswordSave}
+      />
+
+      {/* Edit modals - rendered separately when editing */}
+      {emailHandlers.editingEmail && (
+        <CreateEmailModal
+          open={true}
+          onClose={() => emailHandlers.setEditingEmail(null)}
+          onSubmit={emailHandlers.handleCreate}
+          editingEmail={emailHandlers.editingEmail}
+        />
+      )}
+
+      {phoneHandlers.editingPhone && (
+        <CreatePhoneModal
+          open={true}
+          onClose={() => phoneHandlers.setEditingPhone(null)}
+          onSubmit={phoneHandlers.handleCreate}
+          editingPhone={phoneHandlers.editingPhone}
+        />
+      )}
+
+      {addressHandlers.editingAddress && (
+        <CreateAddressModal
+          open={true}
+          onClose={() => addressHandlers.setEditingAddress(null)}
+          onSubmit={addressHandlers.handleCreate}
+          editingAddress={addressHandlers.editingAddress}
+        />
+      )}
+
+      {/* Delete Confirmation Modals */}
+      <DeleteConfirmationModal
+        open={!!emailHandlers.emailToDelete}
+        onOpenChange={(open) => !open && emailHandlers.setEmailToDelete(null)}
+        title="Are you sure you want to delete this email?"
+        itemLabel={
+          emailHandlers.emailToDelete
+            ? `${emailHandlers.emailToDelete.label}: ${emailHandlers.emailToDelete.email}`
+            : undefined
+        }
+        onConfirm={emailHandlers.handleDeleteConfirm}
+      />
+
+      <DeleteConfirmationModal
+        open={!!phoneHandlers.phoneToDelete}
+        onOpenChange={(open) => !open && phoneHandlers.setPhoneToDelete(null)}
+        title="Are you sure you want to delete this phone number?"
+        itemLabel={
+          phoneHandlers.phoneToDelete
+            ? `${phoneHandlers.phoneToDelete.label}: ${phoneHandlers.phoneToDelete.number}${
+                phoneHandlers.phoneToDelete.extension
+                  ? ` Ext: ${phoneHandlers.phoneToDelete.extension}`
+                  : ""
+              }`
+            : undefined
+        }
+        onConfirm={phoneHandlers.handleDeleteConfirm}
+      />
+
+      <DeleteConfirmationModal
+        open={!!addressHandlers.addressToDelete}
+        onOpenChange={(open) => !open && addressHandlers.setAddressToDelete(null)}
+        title="Are you sure you want to delete this address?"
+        itemLabel={
+          addressHandlers.addressToDelete
+            ? `${addressHandlers.addressToDelete.label}: ${addressHandlers.addressToDelete.address}${
+                addressHandlers.addressToDelete.city
+                  ? `, ${addressHandlers.addressToDelete.city}`
+                  : ""
+              }${
+                addressHandlers.addressToDelete.province
+                  ? `, ${addressHandlers.addressToDelete.province}`
+                  : ""
+              }`
+            : undefined
+        }
+        onConfirm={addressHandlers.handleDeleteConfirm}
       />
     </>
   );

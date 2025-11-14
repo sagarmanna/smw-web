@@ -195,21 +195,23 @@ export function SectionCard({
         ) : (
           <>
             {isDataRowArray(data) ? (
-              <dl className="divide-y divide-border text-sm">
-                {data.map((item) => (
-                  <div
-                    key={item.label}
-                    className="grid grid-cols-3 items-start gap-4 py-2 sm:grid-cols-4"
-                  >
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:text-sm">
+              <div className="flex justify-center">
+                <dl className="text-sm">
+                  {data.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center py-2.5 mb-2 last:mb-0"
+                    >
+                    <dt className="text-sm font-semibold text-foreground min-w-[120px] text-right pr-6">
                       {item.label}
                     </dt>
-                    <dd className="col-span-2 text-sm text-foreground sm:col-span-3">
+                    <dd className="text-sm text-foreground">
                       {item.value}
                     </dd>
-                  </div>
-                ))}
-              </dl>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             ) : (
               data ?? children
             )}

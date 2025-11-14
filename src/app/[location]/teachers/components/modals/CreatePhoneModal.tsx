@@ -11,31 +11,73 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TeacherPhone } from "../../types";
 
 interface CreatePhoneModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (phone: TeacherPhone) => void;
+  editingPhone?: TeacherPhone | null;
 }
+
+const formatPhoneNumber = (value: string) => {
+  const cleaned = value.replace(/\D/g, "");
+  if (cleaned.length <= 3) {
+    return cleaned;
+  } else if (cleaned.length <= 6) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+  } else {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+};
 
 export function CreatePhoneModal({
   open,
   onClose,
   onSubmit,
+  editingPhone = null,
 }: CreatePhoneModalProps) {
-  const [label, setLabel] = React.useState("");
+  const [label, setLabel] = React.useState("Home");
   const [number, setNumber] = React.useState("");
   const [extension, setExtension] = React.useState("");
   const [note, setNote] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (editingPhone) {
+      setLabel(editingPhone.label || "Home");
+      setNumber(editingPhone.number || "");
+      setExtension(editingPhone.extension || "");
+      setNote(editingPhone.note || "");
+    } else {
+      setLabel("Home");
+      setNumber("");
+      setExtension("");
+      setNote("");
+    }
+    setError(null);
+  }, [editingPhone, open]);
+
   const resetForm = () => {
-    setLabel("");
+    setLabel("Home");
     setNumber("");
     setExtension("");
     setNote("");
     setError(null);
+  };
+
+  const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setNumber(formatted);
+    if (error) setError(null);
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -47,8 +89,8 @@ export function CreatePhoneModal({
     }
 
     const newPhone: TeacherPhone = {
-      id: crypto.randomUUID(),
-      label: label.trim() || "Mobile",
+      id: editingPhone?.id || crypto.randomUUID(),
+      label: label.trim() || "Home",
       number: number.trim(),
       extension: extension.trim() || undefined,
       note: note.trim() || undefined,
@@ -71,7 +113,7 @@ export function CreatePhoneModal({
     >
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>Add Phone</DialogTitle>
+          <DialogTitle>Phone</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
@@ -81,52 +123,61 @@ export function CreatePhoneModal({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="phone-label">Label</Label>
-            <Input
-              id="phone-label"
-              value={label}
-              onChange={(event) => setLabel(event.target.value)}
-              placeholder="Mobile"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone-number">Phone Number</Label>
+            <Label htmlFor="phone-number">
+              Number <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="phone-number"
+              type="tel"
               value={number}
-              onChange={(event) => setNumber(event.target.value)}
-              placeholder="(555) 123-4567"
+              onChange={handlePhoneNumberChange}
+              placeholder="(___) ___-____"
+              maxLength={14}
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="phone-extension">Extension</Label>
-              <Input
-                id="phone-extension"
-                value={extension}
-                onChange={(event) => setExtension(event.target.value)}
-                placeholder="Ext"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone-note">Note</Label>
-              <Input
-                id="phone-note"
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Optional note"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone-label">Label</Label>
+            <Select value={label} onValueChange={setLabel}>
+              <SelectTrigger id="phone-label">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Home">Home</SelectItem>
+                <SelectItem value="Work">Work</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone-extension">Extension</Label>
+            <Input
+              id="phone-extension"
+              type="text"
+              value={extension}
+              onChange={(event) => setExtension(event.target.value)}
+              placeholder="Enter extension"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone-note">Note</Label>
+            <Textarea
+              id="phone-note"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Enter note"
+              rows={3}
+            />
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">Add Phone</Button>
+            <Button type="submit">Save</Button>
           </DialogFooter>
         </form>
       </DialogContent>

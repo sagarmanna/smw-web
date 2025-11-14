@@ -1,6 +1,13 @@
 import { TeacherRow } from "../teachers.api";
+import {
+  TeacherAddress,
+  TeacherBasicDetails,
+  TeacherEmail,
+  TeacherPhone,
+  TeacherQualification,
+} from "../types";
 
-// Mock data for teachers - matches the data shown in the UI image
+// Mock data for teachers listing - matches the data shown in the UI image
 export const mockTeachersData: TeacherRow[] = [
   { id: 1, firstName: "tes123", lastName: "12345", email: "1@example.com", phone: "(553) 900-0000", status: "active" },
   { id: 2, firstName: "Sushanthi", lastName: "Aloysius", email: "sushanthi_aloysius@example.com", phone: "", status: "inactive" },
@@ -36,4 +43,74 @@ export const mockTeachersData: TeacherRow[] = [
   { id: 32, firstName: "Helen", lastName: "Anderson", email: "helen.anderson@example.com", phone: "(555) 567-8901", status: "active" },
   { id: 33, firstName: "Ivan", lastName: "Taylor", email: "ivan.taylor@example.com", phone: "(555) 890-1234", status: "inactive" },
   { id: 34, firstName: "Julia", lastName: "Thomas", email: "julia.thomas@example.com", phone: "(555) 123-4567", status: "active" }
+];
+
+// Mock data for teacher details
+export const MOCK_DETAILS: TeacherBasicDetails = {
+  firstName: "tes123",
+  lastName: "12345",
+  role: "Teacher",
+  birthDate: "1992-01-17",
+};
+
+export const MOCK_EMAILS: TeacherEmail[] = [
+  {
+    id: "1",
+    label: "Work",
+    email: "1@example.com",
+    note: "",
+    isPrimary: true,
+  },
+  {
+    id: "2",
+    label: "Home",
+    email: "123@example.com",
+    note: "test note",
+    isPrimary: false,
+  },
+];
+
+export const MOCK_PHONES: TeacherPhone[] = [
+  {
+    id: "1",
+    label: "Home",
+    number: "(553) 900-0000",
+    extension: "7544",
+    note: "test",
+  },
+];
+
+export const MOCK_ADDRESSES: TeacherAddress[] = [
+  {
+    id: "1",
+    label: "Home",
+    address: "3207 Bunkerhill Place",
+    city: "Burlington",
+    cityId: 1,
+    provinceId: 1,
+    countryId: 1,
+    postalCode: "L7P 0A1",
+    province: "Ontario",
+    country: "Canada",
+    note: "",
+    isPrimary: true,
+  },
+];
+
+export const MOCK_PRIVATE_QUALIFICATIONS: TeacherQualification[] = [
+  { id: 1, name: "Test65", rate: 10.0 },
+  { id: 2, name: "test72.5", rate: 10.0 },
+  { id: 3, name: "Instrument", rate: 20.0 },
+  { id: 4, name: "xClarinet", rate: 36.0 },
+  { id: 5, name: "xPiano Contemporary", rate: 10.0 },
+  { id: 6, name: "xGuitar Core", rate: 10.0 },
+  { id: 7, name: "xGuitar Contemporary", rate: 10.0 },
+  { id: 8, name: "xGuitar Hybrid", rate: 10.0 },
+  { id: 9, name: "xPiano Hybrid" },
+  { id: 10, name: "40th Anniversary Vocal", rate: 25.0 },
+  { id: 11, name: "Rami Test Program", rate: 30.0 },
+];
+
+export const MOCK_GROUP_QUALIFICATIONS: TeacherQualification[] = [
+  { id: 12, name: "Rami Group Program", rate: 20.0 },
 ];

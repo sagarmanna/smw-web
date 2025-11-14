@@ -1,7 +1,7 @@
 export interface TeacherBasicDetails {
   firstName: string;
   lastName: string;
-  role: string;
+  role?: string;
   birthDate?: string;
   picture?: string;
 }
@@ -31,6 +31,8 @@ export interface TeacherAddress {
   provinceId: number;
   countryId: number;
   postalCode: string;
+  province?: string;
+  country?: string;
   note?: string;
   isPrimary?: boolean;
 }

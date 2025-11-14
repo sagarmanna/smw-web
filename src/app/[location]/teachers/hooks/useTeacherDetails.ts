@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { updateTeacherDetails } from "../components/TeacherDetailsCard/teacher-details-card.api";
+import { updateTeacherDetails } from "../teachers.api";
 import {
   TeacherAddress,
   TeacherBasicDetails,
@@ -9,6 +9,14 @@ import {
   TeacherPhone,
   TeacherQualification,
 } from "../types";
+import {
+  MOCK_DETAILS,
+  MOCK_EMAILS,
+  MOCK_PHONES,
+  MOCK_ADDRESSES,
+  MOCK_PRIVATE_QUALIFICATIONS,
+  MOCK_GROUP_QUALIFICATIONS,
+} from "../mockData/mockData";
 
 type TeacherDetailsHookReturn = {
   loading: boolean;
@@ -29,60 +37,6 @@ type TeacherDetailsHookReturn = {
   updatePassword: (password: string) => Promise<boolean>;
   savingDetails: boolean;
 };
-
-const MOCK_DETAILS: TeacherBasicDetails = {
-  firstName: "tes123",
-  lastName: "12345",
-  role: "Teacher",
-  birthDate: "1992-01-17",
-};
-
-const MOCK_EMAILS: TeacherEmail[] = [
-  {
-    id: "1",
-    label: "Work",
-    email: "1@example.com",
-    note: "",
-    isPrimary: true,
-  },
-  {
-    id: "2",
-    label: "Home",
-    email: "123@example.com",
-    note: "test note",
-    isPrimary: false,
-  },
-];
-
-const MOCK_PHONES: TeacherPhone[] = [
-  {
-    id: "1",
-    label: "Home",
-    number: "(553) 900-0000",
-    extension: "7544",
-    note: "test",
-  },
-];
-
-const MOCK_ADDRESSES: TeacherAddress[] = [];
-
-const MOCK_PRIVATE_QUALIFICATIONS: TeacherQualification[] = [
-  { id: 1, name: "Test65", rate: 10.0 },
-  { id: 2, name: "test72.5", rate: 10.0 },
-  { id: 3, name: "Instrument", rate: 20.0 },
-  { id: 4, name: "xClarinet", rate: 36.0 },
-  { id: 5, name: "xPiano Contemporary", rate: 10.0 },
-  { id: 6, name: "xGuitar Core", rate: 10.0 },
-  { id: 7, name: "xGuitar Contemporary", rate: 10.0 },
-  { id: 8, name: "xGuitar Hybrid", rate: 10.0 },
-  { id: 9, name: "xPiano Hybrid" },
-  { id: 10, name: "40th Anniversary Vocal", rate: 25.0 },
-  { id: 11, name: "Rami Test Program", rate: 30.0 },
-];
-
-const MOCK_GROUP_QUALIFICATIONS: TeacherQualification[] = [
-  { id: 12, name: "Rami Group Program", rate: 20.0 },
-];
 
 const simulateRequest = async <T,>(payload: T, delay = 150): Promise<T> =>
   new Promise((resolve) => {
