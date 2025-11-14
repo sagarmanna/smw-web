@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { PaymentReceiptModalUI } from "@/components/Modals/PaymentReceiptModal";
+import { PaymentReceiptModalUI } from "@/components/modals/PaymentReceiptModal";
 import { usePaymentReceiptModal } from "./hooks/usePaymentReceiptModal";
 
 interface PaymentReceiptModalWrapperProps {

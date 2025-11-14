@@ -10,7 +10,7 @@ import type {
   InvoiceEditRow,
   EditFormData,
   PaymentMethod,
-} from '@/components/Modals/PaymentReceiptModal/types';
+} from '@/components/modals/PaymentReceiptModal/types';
 import { formatCurrency } from '@/utils/formatCurrency';
 import {
   convertToEditableRows,

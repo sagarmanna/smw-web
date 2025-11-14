@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PaymentReceiptModalUI } from "@/components/Modals/PaymentReceiptModal";
+import { PaymentReceiptModalUI } from "@/components/modals/PaymentReceiptModal";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { toast } from "sonner";
 import { 
@@ -9,7 +9,7 @@ import {
   PaymentUsedLesson,
   PaymentGroupLesson,
   PaymentInvoice
-} from "./payment-receipt.api";
+} from "./receipt-payment.api";
 import { receivePayment, PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import {
   normalizeAmount,
@@ -32,7 +32,7 @@ import type {
   InvoiceEditRow,
   ReceiptRow,
   EditFormData,
-} from "@/components/Modals/PaymentReceiptModal/types";
+} from "@/components/modals/PaymentReceiptModal/types";
 
 interface PaymentReceiptModalContainerProps {
   open: boolean;

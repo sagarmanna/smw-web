@@ -46,7 +46,7 @@ import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
 import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
-import { PaymentReceiptModalContainer } from "../components/PaymentReceiptModal";
+import { PaymentReceiptModalContainer} from "../components/ReceiptPaymentModal";
 
 // import { mockReceivePayment } from "../components/PaymentReceiptModal/mocks/legacyReceivePaymentMock";
 import AddStudentModal from "../components/AddStudentModal/index";
