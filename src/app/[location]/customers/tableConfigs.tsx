@@ -64,6 +64,7 @@ export interface GroupLessonDueData {
 }
 
 export interface PaymentData {
+  id: number;
   date: string;
   notes: string;
   amount: number | string;

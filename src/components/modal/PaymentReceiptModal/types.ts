@@ -82,6 +82,7 @@ export interface PaymentReceiptModalUIProps {
   showAllocations: boolean;
   receiptHtml?: string;
   receiptHtmlRef?: React.RefObject<HTMLDivElement | null>;
+  isLoading: boolean;
   
   // Tables data
   allocationRows: AllocationRow[];
