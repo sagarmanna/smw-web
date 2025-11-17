@@ -197,7 +197,9 @@ export function InvoiceTable({
         },
         {
           label: "Print",
-          onClick: handlePrint,
+          onClick: () => {
+            window.open(`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/print/customer-invoice?id=${customerId}`, "_blank");
+          },
         },
       ]}
       dropdownLabel="Invoice Actions"
