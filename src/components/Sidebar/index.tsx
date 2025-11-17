@@ -157,7 +157,9 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && isMobile && (
         <div 
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 xl:hidden"
+        // blur also on the background and increase opacity also user should not see the ui behind the overlay
+
+          className="fixed inset-0 z-40 bg-white/80 xl:hidden backdrop-blur-sm "
           onClick={onClose}
         />
       )}
