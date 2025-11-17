@@ -61,30 +61,23 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     if (item.items && item.items.length > 0) {
       // Toggle submenu
       toggleExpanded(item.id);
-    } else if (item.url) {
-      // Handle navigation
-      let url = getMenuUrl(item);
+    } 
+    // else if (item.url) {
+    //   // Handle navigation
+    //   let url = getMenuUrl(item);
       
-      // Add reset parameters for Schedule menu to reset all filters
-      if (item.id === 'schedule' && item.source === 'modern') {
-        const urlObj = new URL(url, window.location.origin);
-        urlObj.searchParams.set('resetDate', 'true');
-        urlObj.searchParams.set('resetFilters', 'true');
-        url = urlObj.pathname + urlObj.search;
-      }
-      
-      if (item.source === 'legacy') {
-        // Redirect to legacy app (full page reload)
-        window.location.href = url;
-      } else {
-        // Use Next.js client-side routing for modern pages
-        router.push(url);
-        // Close sidebar only on mobile after navigation
-        if (isMobile) {
-          onClose?.();
-        }
-      }
-    }
+    //   if (item.source === 'legacy') {
+    //     // Redirect to legacy app (full page reload)
+    //     window.location.href = url;
+    //   } else {
+    //     // Use Next.js client-side routing for modern pages
+    //     router.push(url);
+    //     // Close sidebar only on mobile after navigation
+    //     if (isMobile) {
+    //       onClose?.();
+    //     }
+    //   }
+    // }
   };
 
   const renderMenuItem = (item: MenuItem, level = 0) => {
@@ -95,7 +88,8 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
     return (
       <div key={item.id}>
-        <div
+        {hasChildren ? (
+          <div
           className={cn(
             "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
             level > 0 && "ml-4",
@@ -109,11 +103,6 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             <span>{item.title}</span>
           </div>
           <div className="ml-auto flex items-center space-x-2">
-            {item.source === 'modern' && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-primary text-white">
-                NEW
-              </span>
-            )}
             {hasChildren && (
               <div>
                 {isExpanded ? (
@@ -125,6 +114,34 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             )}
           </div>
         </div>
+        ): (
+          <Link
+          className={cn(
+            "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
+            level > 0 && "ml-4",
+            isActive && "bg-primary/10 text-primary hover:bg-primary/20"
+          )}
+          style={{ paddingLeft: `${paddingLeft}px` }}
+          href={getMenuUrl(item) || ''}
+          onClick={() => {
+            if(isMobile) {
+              onClose?.();
+            }
+          }}
+        >
+          <div className="flex items-center space-x-2">
+            {item.icon}
+            <span>{item.title}</span>
+          </div>
+          <div className="ml-auto flex items-center space-x-2">
+            {item.source === 'modern' && (
+              <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-primary text-white">
+                NEW
+              </span>
+            )}
+          </div>
+        </Link>
+        )}
         
         {hasChildren && isExpanded && (
           <div className="mt-1">
@@ -140,7 +157,9 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && isMobile && (
         <div 
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 xl:hidden"
+        // blur also on the background and increase opacity also user should not see the ui behind the overlay
+
+          className="fixed inset-0 z-40 bg-white/80 xl:hidden backdrop-blur-sm "
           onClick={onClose}
         />
       )}
