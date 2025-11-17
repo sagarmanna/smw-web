@@ -1285,36 +1285,69 @@ export interface HistoryResult {
   };
 }
 
+// Constants for default pagination
+const DEFAULT_PAGINATION = {
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 0,
+} as const;
+
+const FETCH_ALL_LIMIT = 99999;
+
+// Helper to create empty result - avoid duplication
+const createEmptyHistoryResult = (): HistoryResult => ({
+  data: [],
+  pagination: { ...DEFAULT_PAGINATION },
+});
+
+// Helper to build params - separation of concerns
+const buildHistoryQueryParams = (
+  customerId: number,
+  page: number,
+  limit: number,
+  type: string
+): URLSearchParams => {
+  const normalizedLimit = limit === -1 ? FETCH_ALL_LIMIT : limit;
+  
+  return new URLSearchParams({
+    page: page.toString(),
+    limit: normalizedLimit.toString(),
+    type,
+    id: customerId.toString(),
+  });
+};
+
 export async function getCustomerHistory(
   location: string,
   customerId: number,
-  page: number = 1,
-  limit: number = 10
+  page: number = DEFAULT_PAGINATION.page,
+  limit: number = DEFAULT_PAGINATION.limit,
+  type: string = "user"
 ): Promise<HistoryResult> {
   try {
-    const params = new URLSearchParams();
-    if (page) params.append("page", page.toString());
-    if (limit)
-      params.append("limit", limit === -1 ? "99999" : limit.toString());
+    const params = buildHistoryQueryParams(customerId, page, limit, type);
 
     const response = await apiClient.get<HistoryResponse>(
-      `/admin/v2/${location}/customers/${customerId}/history`,
+      `/admin/v2/${location}/history`,
       { params }
     );
+    
     return {
-      data: response.data.data?.body || [],
-      pagination: response.data.data?.pagination || {
-        page: 1,
-        limit: 10,
-        total: 0,
-        totalPages: 0,
-      },
+      data: response.data.data?.body ?? [],
+      pagination: response.data.data?.pagination ?? { ...DEFAULT_PAGINATION },
     };
   } catch (error: unknown) {
-    return {
-      data: [],
-      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
-    };
+    console.error("Error fetching customer history:", {
+      location,
+      customerId,
+      page,
+      limit,
+      type,
+      error: error instanceof Error ? error.message : error,
+    });
+    
+    return createEmptyHistoryResult();
   }
 }
 
