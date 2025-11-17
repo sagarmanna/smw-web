@@ -345,7 +345,6 @@ export function EquipmentRentalsModal({
   >([]);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
   const [rentalCreatedOn, setRentalCreatedOn] = useState<Date | null>(null);
-  const [returnDateDisplay, setReturnDateDisplay] = useState<string>("");
 
   const [formData, setFormData] = useState<EquipmentRentalFormData>({
     customer: "",
@@ -357,7 +356,7 @@ export function EquipmentRentalsModal({
     otherPhone: "",
     email: "",
     studentId: "",
-    rentalStartDate: new Date(),
+    rentalStartDate: undefined,
     onGoing: false,
     duration: "",
     returnDate: undefined,
@@ -439,7 +438,7 @@ export function EquipmentRentalsModal({
         setAvailableInstruments(instrumentRentals);
         setAvailableStudents(students);
 
-        let rentalStartDate: Date;
+        let rentalStartDate: Date | undefined;
         let returnDate: Date | undefined;
         let duration: string = "";
         let onGoing: boolean = false;
@@ -489,7 +488,7 @@ export function EquipmentRentalsModal({
             returnDate = undefined;
           }
         } else {
-          rentalStartDate = new Date();
+          rentalStartDate = undefined;
           returnDate = undefined;
           duration = "";
           onGoing = false;
@@ -522,29 +521,22 @@ export function EquipmentRentalsModal({
         };
 
         // If onGoing is true, ensure returnDate is ALWAYS undefined in newFormData
+        // CRITICAL: Must be done BEFORE setting formData to prevent any calculations
         if (onGoing) {
           newFormData.returnDate = undefined;
           newFormData.duration = "";
         }
-
+        
         // Use flushSync to ensure state updates synchronously so useMemo computes correctly
         flushSync(() => {
           setFormData(newFormData);
-          // Clear return date display when onGoing is true
-          if (onGoing) {
-            setReturnDateDisplay("");
-          } else if (returnDate && returnDate instanceof Date && !isNaN(returnDate.getTime())) {
-            setReturnDateDisplay(format(returnDate, "MMM dd, yyyy"));
-          } else {
-            setReturnDateDisplay("");
-          }
         });
 
-        // Additional safeguard: ensure returnDate is cleared if onGoing is true
+        // Additional safeguard: ensure returnDate is cleared if onGoing is true - run immediately
         if (onGoing) {
-          setTimeout(() => {
+          flushSync(() => {
             setFormData((prev) => {
-              if (prev.onGoing && prev.returnDate !== undefined) {
+              if (prev.onGoing === true) {
                 return {
                   ...prev,
                   returnDate: undefined,
@@ -553,7 +545,7 @@ export function EquipmentRentalsModal({
               }
               return prev;
             });
-          }, 0);
+          });
         }
 
         if (rentalId && rentalDetails?.createdOn) {
@@ -645,17 +637,14 @@ export function EquipmentRentalsModal({
     }
   }, [formData.onGoing, formData.rentalStartDate, updateInstrumentsForOngoing]);
 
-  // Manage return date display value explicitly - always empty when onGoing is true
+  // Clear returnDate and duration when onGoing is true - MUST run when onGoing changes or when returnDate/duration are set while onGoing is true
   useEffect(() => {
     if (formData.onGoing === true) {
-      // ALWAYS set display to empty when onGoing is true - no conditions
+      // ALWAYS clear returnDate and duration when onGoing is true
       // Use flushSync to ensure immediate update
-      flushSync(() => {
-        setReturnDateDisplay("");
-      });
-      // Clear returnDate and duration in formData
       setFormData((prev) => {
-        if (prev.returnDate !== undefined || (prev.duration && prev.duration !== "")) {
+        // Only update if returnDate or duration need to be cleared
+        if (prev.onGoing === true && (prev.returnDate !== undefined || (prev.duration && prev.duration !== ""))) {
           return {
             ...prev,
             returnDate: undefined,
@@ -664,27 +653,22 @@ export function EquipmentRentalsModal({
         }
         return prev;
       });
-    } else {
-      // When onGoing is false, update display based on returnDate
-      if (formData.returnDate && formData.returnDate instanceof Date && !isNaN(formData.returnDate.getTime())) {
-        setReturnDateDisplay(format(formData.returnDate, "MMM dd, yyyy"));
-      } else {
-        setReturnDateDisplay("");
-      }
     }
   }, [formData.onGoing, formData.returnDate, formData.duration]);
 
   // Compute return date input value - MUST always be empty when onGoing is true
+  // This MUST check onGoing FIRST before any other logic
   const returnDateInputValue = useMemo(() => {
-    // ABSOLUTE first check - if onGoing is true, ALWAYS return empty string
-    // Do not check anything else, do not format, just return empty
+    // CRITICAL: ABSOLUTE first check - if onGoing is true, ALWAYS return empty string
+    // Do not check returnDate, do not format, just return empty immediately
     if (formData.onGoing === true) {
       return "";
     }
-    // Only format date if onGoing is false AND returnDate exists
+    // Only format date if onGoing is false AND returnDate exists AND is valid
     if (formData.returnDate && formData.returnDate instanceof Date && !isNaN(formData.returnDate.getTime())) {
       return format(formData.returnDate, "MMM dd, yyyy");
     }
+    // Default: return empty string
     return "";
   }, [formData.onGoing, formData.returnDate]);
 
@@ -941,25 +925,54 @@ export function EquipmentRentalsModal({
         newData.returnDate = undefined;
       }
 
-      if (
-        (field === "rentalStartDate" || field === "duration") &&
-        !newData.onGoing
-      ) {
-        if (newData.rentalStartDate && newData.duration) {
-          const durationMatch = newData.duration.match(/^(\d+)-month/i);
-          if (durationMatch) {
-            const months = parseInt(durationMatch[1]);
-            if (!isNaN(months) && months > 0) {
-              newData.returnDate = calculateReturnDate(
-                newData.rentalStartDate,
-                months
-              );
-            } else {
-              newData.returnDate = undefined;
-            }
+      // Handle start date changes when "On Going" is NOT checked
+      if (field === "rentalStartDate" && !newData.onGoing) {
+        if (newData.rentalStartDate instanceof Date) {
+          // If duration is not selected yet, set return date to last day of the month
+          if (!newData.duration || newData.duration === "") {
+            newData.returnDate = getEndOfMonth(newData.rentalStartDate);
           } else {
-            newData.returnDate = undefined;
+            // If duration is already selected, recalculate based on duration
+            const durationMatch = newData.duration.match(/^(\d+)-month/i);
+            if (durationMatch) {
+              const months = parseInt(durationMatch[1]);
+              if (!isNaN(months) && months > 0) {
+                newData.returnDate = calculateReturnDate(
+                  newData.rentalStartDate,
+                  months
+                );
+              } else {
+                // Fallback to last day of month if duration is invalid
+                newData.returnDate = getEndOfMonth(newData.rentalStartDate);
+              }
+            } else {
+              // Fallback to last day of month if duration format is invalid
+              newData.returnDate = getEndOfMonth(newData.rentalStartDate);
+            }
           }
+        } else {
+          newData.returnDate = undefined;
+        }
+      }
+
+      // Handle duration changes when "On Going" is NOT checked
+      if (field === "duration" && !newData.onGoing) {
+        const durationMatch = String(value).match(/^(\d+)-month/i);
+        if (durationMatch && newData.rentalStartDate instanceof Date) {
+          const months = parseInt(durationMatch[1]);
+          if (!isNaN(months) && months > 0) {
+            // Calculate return date based on duration
+            newData.returnDate = calculateReturnDate(
+              newData.rentalStartDate,
+              months
+            );
+          } else {
+            // If duration is invalid, set to last day of month
+            newData.returnDate = getEndOfMonth(newData.rentalStartDate);
+          }
+        } else if (newData.rentalStartDate instanceof Date) {
+          // If duration is cleared or invalid, set to last day of month
+          newData.returnDate = getEndOfMonth(newData.rentalStartDate);
         } else {
           newData.returnDate = undefined;
         }
@@ -1778,7 +1791,6 @@ export function EquipmentRentalsModal({
                           returnDate: undefined, // Explicitly clear returnDate
                           duration: "", // Explicitly clear duration
                         }));
-                        setReturnDateDisplay(""); // Also clear display value
                       });
                       // Update instruments after state is set
                       const startDate = formData.rentalStartDate instanceof Date 
@@ -1798,6 +1810,7 @@ export function EquipmentRentalsModal({
             <div className="flex items-center p-5 gap-4">
               <Label className="w-24">Duration</Label>
               <Select
+                key={`duration-${formData.onGoing ? "ongoing" : formData.duration || "empty"}`}
                 value={
                   // Always show placeholder (undefined) when "On Going" is checked
                   formData.onGoing 
@@ -1825,7 +1838,13 @@ export function EquipmentRentalsModal({
               </Select>
               <Label className="w-24 ml-6">Return Date</Label>
               <Input
-                value={returnDateInputValue}
+                key={`return-date-${formData.onGoing ? "ongoing-empty" : formData.returnDate?.toISOString() || "empty"}-${formData.returnDate === undefined ? "undefined" : "defined"}`}
+                value={
+                  // Direct inline check - MUST be empty when onGoing is true
+                  formData.onGoing === true
+                    ? ""
+                    : returnDateInputValue
+                }
                 readOnly
                 disabled={formData.onGoing || isEditMode}
                 className="bg-gray-50 dark:bg-gray-800 w-48"
