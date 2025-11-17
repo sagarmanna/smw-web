@@ -294,6 +294,19 @@ export function DetailsCard({
     return "text-gray-700 dark:text-gray-300";
   };
 
+  const getPasswordInputClassName = (isValid: boolean) => {
+    const darkModeClasses = "dark:text-gray-100 dark:bg-gray-900 dark:placeholder:text-gray-500";
+    if ((passwordTouched || showPasswordError) && !isValid) return `border-red-600 text-gray-900 ${darkModeClasses}`;
+    if ((passwordTouched || showPasswordError) && isValid) return `border-green-600 text-gray-900 ${darkModeClasses}`;
+    return `border-gray-300 dark:border-gray-600 text-gray-900 ${darkModeClasses}`;
+  };
+
+  const getPasswordLabelClassName = (isValid: boolean) => {
+    if ((passwordTouched || showPasswordError) && !isValid) return "text-red-600 dark:text-red-400";
+    if ((passwordTouched || showPasswordError) && isValid) return "text-green-600 dark:text-green-400";
+    return "text-gray-700 dark:text-gray-300";
+  };
+
   const handleSetPasswordClick = () => {
     setPassword("");
     setConfirmPassword("");
@@ -308,7 +321,7 @@ export function DetailsCard({
   };
 
   const handlePasswordSave = async () => {
-    const isPasswordValid = (password?.trim() ?? "") !== "";
+    const isPasswordValid = (password?.trim() ?? "") !== "" && password.trim().length >= 6;
     const isConfirmPasswordValid = (confirmPassword?.trim() ?? "") !== "";
     const doPasswordsMatch = password === confirmPassword;
 
@@ -356,7 +369,7 @@ export function DetailsCard({
     setConfirmPasswordTouched(true);
   };
 
-  const isPasswordValid = (password?.trim() ?? "") !== "";
+  const isPasswordValid = (password?.trim() ?? "") !== "" && password.trim().length >= 6;
   const isConfirmPasswordValid = (confirmPassword?.trim() ?? "") !== "";
   const doPasswordsMatch = password === confirmPassword && password !== "";
 
@@ -651,7 +664,7 @@ export function DetailsCard({
           <div className="space-y-2">
             <Label 
               htmlFor="password" 
-              className={`text-sm font-medium ${getLabelClassName(isPasswordValid, passwordTouched)}`}
+              className={`text-sm font-medium ${getPasswordLabelClassName(isPasswordValid)}`}
             >
               Password
             </Label>
@@ -660,19 +673,22 @@ export function DetailsCard({
               type="password"
               value={password}
               onChange={handlePasswordChange}
-              className={`focus:ring-0 focus:outline-none ${getInputClassName(isPasswordValid, passwordTouched)}`}
+              className={`focus:ring-0 focus:outline-none ${getPasswordInputClassName(isPasswordValid)}`}
               style={{ boxShadow: "none" }}
               placeholder="Enter password"
             />
-            {(passwordTouched || showPasswordError) && !isPasswordValid && (
+            {(passwordTouched || showPasswordError) && !isPasswordValid && password.trim() === "" && (
               <p className="text-sm text-red-600 dark:text-red-400">Password cannot be blank.</p>
+            )}
+            {(passwordTouched || showPasswordError) && password.trim() !== "" && password.trim().length < 6 && (
+              <p className="text-sm text-red-600 dark:text-red-400">Password should contain at least 6 characters.</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label 
               htmlFor="confirmPassword" 
-              className={`text-sm font-medium ${getLabelClassName(isConfirmPasswordValid && doPasswordsMatch, confirmPasswordTouched)}`}
+              className={`text-sm font-medium ${getPasswordLabelClassName(isConfirmPasswordValid && doPasswordsMatch)}`}
             >
               Confirm Password
             </Label>
@@ -681,7 +697,7 @@ export function DetailsCard({
               type="password"
               value={confirmPassword}
               onChange={handleConfirmPasswordChange}
-              className={`focus:ring-0 focus:outline-none ${getInputClassName(isConfirmPasswordValid && doPasswordsMatch, confirmPasswordTouched)}`}
+              className={`focus:ring-0 focus:outline-none ${getPasswordInputClassName(isConfirmPasswordValid && doPasswordsMatch)}`}
               style={{ boxShadow: "none" }}
               placeholder="Confirm password"
             />
