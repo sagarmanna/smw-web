@@ -277,7 +277,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       id: 'schedule',
       title: 'Schedule',
       icon: <Calendar className="h-4 w-4" />,
-      url: '/schedule',
+      url: getMenuSource(locationFlags, 'schedule') === 'legacy' ?'/schedule' : '/schedule?resetDate=true&resetFilters=true',
       source: getMenuSource(locationFlags, 'schedule') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'schedule') ? ('no' as const) : ('yes' as const),
