@@ -30,6 +30,7 @@ export const fetchUserInfo = createAsyncThunk(
   async (location: string, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token');
+      const userLocation = localStorage.getItem('location');
       if (!token) {
         throw new Error('No token found in localStorage');
       }
@@ -39,7 +40,7 @@ export const fetchUserInfo = createAsyncThunk(
         throw new Error('NEXT_PUBLIC_API_URL not found in environment variables');
       }
 
-      const response = await fetch(`${apiUrl}/admin/v2/${location}/user`, {
+      const response = await fetch(`${apiUrl}/admin/v2/${userLocation || location}/user`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
