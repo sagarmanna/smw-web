@@ -76,6 +76,27 @@ interface EquipmentRentalFormData {
   depositAmount: string;
 }
 
+export interface CreatedRentalData {
+  customerName: string;
+  customerAddress: string;
+  customerCity: string;
+  customerPostalCode: string;
+  homePhone: string;
+  workPhone: string;
+  otherPhone: string;
+  email: string;
+  studentFirstName: string;
+  studentLastName: string;
+  startDate: string;
+  duration: number;
+  returnDate: string | null;
+  instruments: InstrumentData[];
+  subTotal: number;
+  hst: number;
+  total: number;
+  location: string;
+}
+
 interface EquipmentRentalsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -88,6 +109,11 @@ interface EquipmentRentalsModalProps {
   onReprintAgreement?: (rentalId: number) => void;
   onEquipmentReturned?: (rentalId: number) => void;
   onDelete?: () => void;
+  onEmailClick?: (rentalData: CreatedRentalData) => void;
+  onEmail?: (payload: {
+    subject: string;
+    content: string;
+  }) => void;
 }
 
 const InstrumentFormRow = React.memo(
@@ -310,6 +336,8 @@ export function EquipmentRentalsModal({
   onReprintAgreement,
   onEquipmentReturned,
   onDelete,
+  onEmailClick,
+  onEmail,
 }: EquipmentRentalsModalProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -317,26 +345,6 @@ export function EquipmentRentalsModal({
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  interface CreatedRentalData {
-    customerName: string;
-    customerAddress: string;
-    customerCity: string;
-    customerPostalCode: string;
-    homePhone: string;
-    workPhone: string;
-    otherPhone: string;
-    email: string;
-    studentFirstName: string;
-    studentLastName: string;
-    startDate: string;
-    duration: number;
-    returnDate: string | null;
-    instruments: InstrumentData[];
-    subTotal: number;
-    hst: number;
-    total: number;
-    location: string;
-  }
 
   const [createdRentalData, setCreatedRentalData] =
     useState<CreatedRentalData | null>(null);
@@ -1230,6 +1238,7 @@ export function EquipmentRentalsModal({
       const hst = subTotal * 0.13;
       const instrumentsTotal = subTotal + hst;
 
+      // Call API to create equipment rental
       const response = await createEquipmentRental(location, customerId, {
         userId: customerId,
         customerName: formData.customer,
@@ -1533,6 +1542,40 @@ export function EquipmentRentalsModal({
     });
     const url = `${legacyBaseUrl}/${location}/print/rental-receipt?${params.toString()}`;
     window.open(url, "_blank");
+  };
+
+  const handleEmail = () => {
+    if (!createdRentalData) return;
+
+    if (onEmail) {
+      // Generate email content similar to PaymentReceiptModal
+      const subject = `Equipment Rental Receipt - ${createdRentalData.customerName}`;
+      const content = `
+        <h2>Equipment Rental Receipt</h2>
+        <p><strong>Customer:</strong> ${createdRentalData.customerName}</p>
+        <p><strong>Student:</strong> ${createdRentalData.studentFirstName} ${createdRentalData.studentLastName}</p>
+        <p><strong>Start Date:</strong> ${createdRentalData.startDate}</p>
+        <p><strong>Duration:</strong> ${createdRentalData.duration} Month${createdRentalData.duration > 1 ? 's' : ''}</p>
+        ${createdRentalData.returnDate ? `<p><strong>Return Date:</strong> ${createdRentalData.returnDate}</p>` : '<p><strong>Status:</strong> On Going</p>'}
+        <h3>Instruments:</h3>
+        <ul>
+          ${createdRentalData.instruments.map(inst => 
+            `<li>${inst.instrument} - $${inst.total}</li>`
+          ).join('')}
+        </ul>
+        <p><strong>Sub Total:</strong> $${createdRentalData.subTotal.toFixed(2)}</p>
+        <p><strong>HST:</strong> $${createdRentalData.hst.toFixed(2)}</p>
+        <p><strong>Total:</strong> $${createdRentalData.total.toFixed(2)}</p>
+      `;
+      
+      onEmail({
+        subject,
+        content,
+      });
+    } else if (onEmailClick) {
+      // Fallback to onEmailClick for backward compatibility
+      onEmailClick(createdRentalData);
+    }
   };
 
   const filledInstruments = instruments.filter((inst) => inst.instrumentId > 0);
@@ -2435,6 +2478,7 @@ export function EquipmentRentalsModal({
               <Button variant="outline" onClick={handleCloseReceiptModal}>
                 Close
               </Button>
+              <Button onClick={handleEmail}>Email</Button>
               <Button onClick={handlePrintReceipt}>Print</Button>
             </div>
           </DialogFooter>
