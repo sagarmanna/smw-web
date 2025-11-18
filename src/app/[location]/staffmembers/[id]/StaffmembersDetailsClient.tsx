@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Mail, Phone, MapPin, User } from 'lucide-react';
 import type { Email, Phone as PhoneType, Address } from './staffmembers-details.interface';
+import { LoadingAnimation } from '@/components/LoadingAnimation';
+import { ErrorDisplay } from '@/components/ErrorDisplay';
 
 interface StaffmembersDetailsClientProps {
   location: string;
@@ -19,58 +21,27 @@ export default function StaffmembersDetailsClient({ location }: StaffmembersDeta
   const isLoading = useAppSelector((state) => state.staffMember.isLoading);
   const error = useAppSelector((state) => state.staffMember.error);
 
-  // Loading state
+  // Show full-page loading animation while fetching data
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <DetailHeader
-          breadcrumbItems={[
-            { label: 'Staff Members', href: `/${location}/staffmembers` },
-          ]}
-          currentPageTitle="Loading..."
-          loading={true}
-          showActions={false}
+      <div className="flex items-center justify-center min-h-[600px]">
+        <LoadingAnimation 
+          size="xl" 
+          text="Loading staff member details..." 
+          className="text-center"
         />
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardContent className="pt-6">
-              <Skeleton className="h-6 w-32 mb-4" />
-              <Skeleton className="h-4 w-full mb-2" />
-              <Skeleton className="h-4 w-3/4" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <Skeleton className="h-6 w-32 mb-4" />
-              <Skeleton className="h-4 w-full mb-2" />
-              <Skeleton className="h-4 w-3/4" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </div>  
     );
   }
 
   // Error state
-  if (error) {
+  if (!error) {
     return (
-      <div className="space-y-6">
-        <DetailHeader
-          breadcrumbItems={[
-            { label: 'Staff Members', href: `/${location}/staffmembers` },
-          ]}
-          currentPageTitle="Error"
-          showActions={false}
+        <ErrorDisplay
+          error={error}
+          title="Unable to Load Staff Member Details"
+          fallbackMessage="An unexpected error occurred while loading the staff member details. Please try again later."
         />
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <p className="text-red-600 dark:text-red-400 font-medium">Error loading staff member</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{error}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     );
   }
 
