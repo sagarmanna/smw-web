@@ -15,7 +15,6 @@ interface AddQualificationModalProps {
   availablePrograms?: Array<{ value: string; label: string }>;
 }
 
-// Default programs for Private Qualifications
 export const PRIVATE_PROGRAMS = [
   { value: "xpiano-core", label: "xPiano Core" },
   { value: "xvocal-core", label: "xVocal Core" },
@@ -41,7 +40,6 @@ export const PRIVATE_PROGRAMS = [
   { value: "rami-test-program", label: "Rami Test Program" },
 ];
 
-// Programs for Group Qualifications
 export const GROUP_PROGRAMS = [
   { value: "level-5-theory", label: "Level 5 Theory" },
   { value: "level-6-theory", label: "Level 6 Theory" },
@@ -76,7 +74,6 @@ export function AddQualificationModal({
   const [error, setError] = React.useState("");
 
   const handleSave = async () => {
-    // Validate
     if (selectedPrograms.length === 0) {
       setError("Please select at least one program");
       return;
@@ -89,7 +86,6 @@ export function AddQualificationModal({
 
     setSaving(true);
     try {
-      // TODO: Implement actual API call when backend is ready
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       const qualifications = selectedPrograms.map((program) => ({
@@ -98,12 +94,11 @@ export function AddQualificationModal({
       }));
 
       onAdd(qualifications);
-      
-      // Reset form
+
       setSelectedPrograms([]);
       setRate("");
       setError("");
-      
+
       onOpenChange(false);
       toast.success(`${selectedPrograms.length} qualification(s) added successfully`);
     } catch (error) {
@@ -144,7 +139,7 @@ export function AddQualificationModal({
     >
       <div className="space-y-4">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-red-700">
             {error}
           </div>
         )}
@@ -174,8 +169,8 @@ export function AddQualificationModal({
             step="0.01"
             min="0"
             value={rate}
-            onChange={(e) => {
-              setRate(e.target.value);
+            onChange={(event) => {
+              setRate(event.target.value);
               setError("");
             }}
             disabled={saving}
