@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { PaymentsReceivePaymentModal } from "./components/RecivedPaymentModalWrapper";
-import { PaymentReceiptModalWrapper } from "./components/PaymentReceiptModalWrapper/index";
+import { PaymentReceiptModalWrapper } from "./components/PaymentReceiptModalWrapper";
 import { getPayments, PaymentDto } from "./payments.api";
  
 interface PaymentsClientProps {
@@ -32,7 +32,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
   const [page, setPage] = React.useState(1);
   const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
   const [sorting, setSorting] = React.useState<SortingState>([
-    { id: 'date', desc: false } // Default: sort by date in ASC order (shows ↓ arrow)
+    { id: 'date', desc: false }
   ]);
   const [receiveModalOpen, setReceiveModalOpen] = React.useState(false);
   const [receiptModalOpen, setReceiptModalOpen] = React.useState(false);
@@ -152,7 +152,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
   // - DESC (desc: true) → Shows ↑ arrow (indicates next click goes to ASC)
   const handleSortingChange = React.useCallback((newSorting: SortingState) => {
     setSorting(newSorting);
-    setPage(1); // Reset to first page when sorting changes
+    setPage(1);
   }, []);
  
   const columns = React.useMemo<ColumnDef<PaymentRow>[]>(
@@ -252,9 +252,10 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
     setPage(1);
   }, []);
 
-  const handleModalClose = React.useCallback((setModalOpen: (open: boolean) => void) => (open: boolean) => {
-    setModalOpen(open);
-    if (!open) setSelectedPaymentId(undefined);
+  const handleModalClose = React.useCallback((open: boolean) => {
+    if (!open) {
+      setSelectedPaymentId(undefined);
+    }
   }, []);
  
   return (
@@ -314,18 +315,24 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         }}
       />
       
-      {/* Recived Payment Modal - completely self-contained */}
+      {/* Receive Payment Modal */}
       <PaymentsReceivePaymentModal
         open={receiveModalOpen}
-        onOpenChange={handleModalClose(setReceiveModalOpen)}
+        onOpenChange={(open) => {
+          setReceiveModalOpen(open);
+          handleModalClose(open);
+        }}
         location={location}
         onSaveSuccess={fetchPayments}
       />
       
-      {/* Payment Receipt Modal - completely self-contained */}
+      {/* Payment Receipt Modal */}
       <PaymentReceiptModalWrapper
         open={receiptModalOpen}
-        onOpenChange={handleModalClose(setReceiptModalOpen)}
+        onOpenChange={(open) => {
+          setReceiptModalOpen(open);
+          handleModalClose(open);
+        }}
         location={location}
         paymentId={selectedPaymentId}
         onSaveSuccess={fetchPayments}
