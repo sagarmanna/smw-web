@@ -238,6 +238,19 @@ InstrumentFormRow.displayName = "InstrumentFormRow";
 // Base calculation: All months are considered as 30 days for billing purposes
 const DAYS_PER_MONTH = 30;
 
+// Tender type mappings
+const TENDER_TYPE_MAP: Record<string, string> = {
+  cash: "1",
+  "credit-card": "2",
+  preauthorized: "3",
+};
+
+const TENDER_TYPE_REVERSE_MAP: Record<string, string> = {
+  "1": "cash",
+  "2": "credit-card",
+  "3": "preauthorized",
+};
+
 const calculateReturnDate = (startDate: Date, months: number): Date => {
   // Normalize start date to remove time component
   const normalizedStart = normalizeDate(startDate);
@@ -393,10 +406,7 @@ export function EquipmentRentalsModal({
           if (monthlyRate <= 0) {
             return {
               ...inst,
-              numberOfMonths:
-                inst.numberOfMonths && inst.numberOfMonths !== "0"
-                  ? inst.numberOfMonths
-                  : "1",
+              numberOfMonths: "", // Clear numberOfMonths for ongoing rentals
               total: "0.00",
             };
           }
@@ -407,10 +417,7 @@ export function EquipmentRentalsModal({
 
           return {
             ...inst,
-            numberOfMonths:
-              inst.numberOfMonths && inst.numberOfMonths !== "0"
-                ? inst.numberOfMonths
-                : "1",
+            numberOfMonths: "", // Clear numberOfMonths for ongoing rentals
             total: total.toFixed(2),
           };
         })
@@ -516,7 +523,9 @@ export function EquipmentRentalsModal({
                 ? "yes"
                 : "no"
               : "no",
-          tenderType: rentalDetails?.tenderType?.toString() || "",
+          tenderType: rentalDetails?.tenderType
+            ? TENDER_TYPE_REVERSE_MAP[rentalDetails.tenderType.toString()] || rentalDetails.tenderType.toString()
+            : "",
           depositAmount: rentalDetails?.depositAmount || "",
         };
 
@@ -564,7 +573,7 @@ export function EquipmentRentalsModal({
               retailValue: inst.retailValue || "",
               assetTag: inst.assetTag || "",
               monthlyRate: inst.monthlyRate || "0",
-              numberOfMonths: inst.numberOfMonths || "",
+              numberOfMonths: onGoing ? "" : (inst.numberOfMonths || ""), // Clear numberOfMonths for ongoing rentals
               total: inst.total || "0.00",
             })
           );
@@ -840,6 +849,16 @@ export function EquipmentRentalsModal({
           newData.duration = "";
           newData.returnDate = undefined;
           
+          // Clear numberOfMonths for all instruments when "On Going" is checked
+          setTimeout(() => {
+            setInstruments((prevInstruments) =>
+              prevInstruments.map((inst) => ({
+                ...inst,
+                numberOfMonths: "", // Clear numberOfMonths like returnDate
+              }))
+            );
+          }, 0);
+          
           updateInstrumentsForOngoing(
             newData.rentalStartDate instanceof Date
               ? newData.rentalStartDate
@@ -1040,7 +1059,7 @@ export function EquipmentRentalsModal({
           if (durationMatch) {
             updated.numberOfMonths = durationMatch[1];
           } else if (formData.onGoing) {
-            updated.numberOfMonths = "1";
+            updated.numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
           }
         }
 
@@ -1059,9 +1078,8 @@ export function EquipmentRentalsModal({
               updated.total = "0.00";
             }
 
-            if (!updated.numberOfMonths || updated.numberOfMonths === "0") {
-              updated.numberOfMonths = "1";
-            }
+            // Clear numberOfMonths for ongoing rentals (don't set to "1")
+            updated.numberOfMonths = "";
           } else if (
             !formData.onGoing &&
             formData.rentalStartDate &&
@@ -1105,7 +1123,7 @@ export function EquipmentRentalsModal({
     // Get current numberOfMonths from duration or default to 1
     let numberOfMonths = "1";
     if (formData.onGoing) {
-      numberOfMonths = "1";
+      numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
     } else if (formData.duration) {
       const durationMatch = formData.duration.match(/^(\d+)-month/i);
       if (durationMatch) {
@@ -1132,7 +1150,9 @@ export function EquipmentRentalsModal({
       const filtered = prev.filter((instrument) => instrument.id !== id);
       if (filtered.length === 0) {
         let numberOfMonths = "1";
-        if (formData.duration) {
+        if (formData.onGoing) {
+          numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
+        } else if (formData.duration) {
           const durationMatch = formData.duration.match(/^(\d+)-month/i);
           if (durationMatch) {
             numberOfMonths = durationMatch[1];
@@ -1190,13 +1210,8 @@ export function EquipmentRentalsModal({
       const durationMatch = formData.duration.match(/^(\d+)/);
       const duration = durationMatch ? parseInt(durationMatch[1]) : 1;
 
-      const tenderTypeMap: Record<string, string> = {
-        cash: "1",
-        "credit-card": "2",
-        preauthorized: "3",
-      };
       const tenderTypeNumber =
-        tenderTypeMap[formData.tenderType] || formData.tenderType || "";
+        TENDER_TYPE_MAP[formData.tenderType] || formData.tenderType || "";
 
       const startDateFormatted = format(
         formData.rentalStartDate,
@@ -1642,10 +1657,9 @@ export function EquipmentRentalsModal({
               <Label className="w-24">Customer</Label>
               <Input
                 value={formData.customer}
-                onChange={(e) => handleInputChange("customer", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
             </div>
 
@@ -1653,28 +1667,23 @@ export function EquipmentRentalsModal({
               <Label className="w-24">Address</Label>
               <Input
                 value={formData.address}
-                onChange={(e) => handleInputChange("address", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
               <Label className="w-16">City</Label>
               <Input
                 value={formData.city}
-                onChange={(e) => handleInputChange("city", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
               <Label className="w-8">P.C</Label>
               <Input
                 value={formData.postalCode}
-                onChange={(e) =>
-                  handleInputChange("postalCode", e.target.value)
-                }
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
             </div>
 
@@ -1682,28 +1691,23 @@ export function EquipmentRentalsModal({
               <Label className="w-24">Home Phone</Label>
               <Input
                 value={formData.homePhone}
-                onChange={(e) => handleInputChange("homePhone", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
               <Label className="w-24">Work Phone</Label>
               <Input
                 value={formData.workPhone}
-                onChange={(e) => handleInputChange("workPhone", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
               <Label className="w-24">Other Phone</Label>
               <Input
                 value={formData.otherPhone}
-                onChange={(e) =>
-                  handleInputChange("otherPhone", e.target.value)
-                }
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
             </div>
 
@@ -1711,10 +1715,9 @@ export function EquipmentRentalsModal({
               <Label className="w-24">Email</Label>
               <Input
                 value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
             </div>
 
@@ -1791,6 +1794,15 @@ export function EquipmentRentalsModal({
                           returnDate: undefined, // Explicitly clear returnDate
                           duration: "", // Explicitly clear duration
                         }));
+                      });
+                      // Clear numberOfMonths for all instruments when "On Going" is checked
+                      flushSync(() => {
+                        setInstruments((prevInstruments) =>
+                          prevInstruments.map((inst) => ({
+                            ...inst,
+                            numberOfMonths: "", // Clear numberOfMonths like returnDate
+                          }))
+                        );
                       });
                       // Update instruments after state is set
                       const startDate = formData.rentalStartDate instanceof Date 
