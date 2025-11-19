@@ -1555,7 +1555,7 @@ export function EquipmentRentalsModal({
     (sum, instrument) => sum + parseFloat(instrument.total || "0"),
     0
   );
-  const tax = subTotal * 0.13;
+  const tax = subTotal * 0.13
   const total = subTotal + tax;
 
   if (loading) {
