@@ -2626,10 +2626,6 @@ export function CustomerDetailClient({
         customerId={Number(id)}
         location={location}
         rentalId={selectedRentalId ?? undefined}
-        onEmail={({ subject, content }) => {
-          setEmailModalOverrides({ subject, content });
-          setIsEmailStatementModalOpen(true);
-        }}
         onEquipmentReturned={(rid) => {
           setEquipmentRentalData((prev) =>
             prev.filter((r) => (r as EquipmentRentalData).id !== rid)
