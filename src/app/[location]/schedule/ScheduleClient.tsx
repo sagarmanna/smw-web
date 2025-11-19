@@ -56,6 +56,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const [desktopDatePickerOpen, setDesktopDatePickerOpen] = useState<boolean>(false);
   const [fullscreenDatePickerOpen, setFullscreenDatePickerOpen] = useState<boolean>(false);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   
   // Initial loading state
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
@@ -276,6 +278,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   useEffect(() => {
     const fetchTeacherViewEvents = async () => {
       try {
+        setIsLoading(true);
         setTeacherViewEventsError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         
@@ -296,6 +299,10 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
         }
       } catch (error) {
         setTeacherViewEventsError(error instanceof Error ? error.message : 'Failed to fetch teacher view events');
+      } finally {
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 1000);
       }
     };
 
@@ -582,7 +589,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const timeRange = getTimeRange();
 
   // Show full-page loading animation while fetching initial data
-  if (isInitialLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <LoadingAnimation 
