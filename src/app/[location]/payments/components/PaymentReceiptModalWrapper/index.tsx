@@ -1,13 +1,18 @@
 "use client";
+
 import * as React from "react";
-import { PaymentReceiptModalUI } from "@/components/modal/PaymentReceiptModal";
-import { usePaymentReceiptModal } from "./hooks/usePaymentReceiptModal";
+import { PaymentReceiptModalContainer } from "../../../customers/components/ReceiptPaymentModal";
+import EmailStatementModal, {
+  EmailFormData,
+} from "../../../customers/components/EmailStatementModal/index";
+import { toast } from "sonner";
 
 interface PaymentReceiptModalWrapperProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   location: string;
   paymentId?: string;
+  customerName?: string;
   onSaveSuccess?: () => void;
 }
 
@@ -16,97 +21,73 @@ export function PaymentReceiptModalWrapper({
   onOpenChange,
   location,
   paymentId,
+  customerName,
   onSaveSuccess,
 }: PaymentReceiptModalWrapperProps) {
-  const receiptHtmlRef = React.useRef<HTMLDivElement | null>(null);
+  const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
+  const [emailModalOverrides, setEmailModalOverrides] = React.useState<{
+    subject?: string;
+    content?: string;
+  } | null>(null);
 
-  // Use single hook for all business logic
-  const {
-    // States
-    isEditing,
-    showDeleteConfirm,
-    isSaving,
-    isLoadingData,
-    isLoadingPaymentMethods,
+  const handleEmailModalOpenChange = React.useCallback((open: boolean) => {
+    setIsEmailModalOpen(open);
+    if (!open) {
+      setEmailModalOverrides(null);
+    }
+  }, []);
 
-    // Data
-    paymentData,
-    paymentMethods,
-    editDate,
-    editForm,
+  const handleEmail = React.useCallback((payload: {
+    subject: string;
+    content: string;
+    receiptHtml?: string;
+  }) => {
+    // Set the overrides with receipt content from the receipt modal
+    setEmailModalOverrides({
+      subject: payload.subject,
+      content: payload.content,
+    });
+    
+    // Open the email modal
+    setIsEmailModalOpen(true);
+  }, []);
 
-    // Edit rows
-    lessonEditRows,
-    groupLessonEditRows,
-    invoiceEditRows,
+  const handleSendEmail = async (emailFormData: EmailFormData) => {
+    // Just show a success message, no API call
+    toast.success("Email functionality will be implemented");
+    setIsEmailModalOpen(false);
+  };
 
-    // Calculations
-    amountToApply,
-    amountToCredit,
-
-    // Handlers
-    handleEditClick,
-    handleCancelEdit,
-    handleSave,
-    handlePrint,
-    handleEmail,
-    handleDelete,
-    handleDeleteConfirm,
-    handleDeleteCancel,
-    handleLessonAllocationChange,
-    handleGroupLessonAllocationChange,
-    handleInvoiceAllocationChange,
-    setEditDate,
-    handleEditFormChange,
-  } = usePaymentReceiptModal({
-    open,
-    paymentId,
-    location,
-    onSaveSuccess,
-  });
-
-  // Single return with all props - no duplicate returns
   return (
-    <PaymentReceiptModalUI
-      open={open}
-      onOpenChange={onOpenChange}
-      isEditing={isEditing}
-      isLoading={isLoadingData}
-      showDeleteConfirm={showDeleteConfirm}
-      isSaving={isSaving}
-      isLoadingPaymentMethods={isLoadingPaymentMethods}
-      paymentMethods={paymentMethods}
-      editDate={editDate}
-      editForm={editForm}
-      headerAmount={paymentData.headerAmount}
-      paymentDate={paymentData.paymentDate}
-      paymentMethod={paymentData.paymentMethod}
-      customerName={paymentData.customerName}
-      showAllocations={paymentData.showAllocations}
-      receiptHtml=""
-      allocationRows={paymentData.allocationRows}
-      groupLessonRows={paymentData.groupLessonRows}
-      invoiceRows={paymentData.invoiceRows}
-      receiptRows={paymentData.receiptRows}
-      lessonEditRows={lessonEditRows}
-      groupLessonEditRows={groupLessonEditRows}
-      invoiceEditRows={invoiceEditRows}
-      amountToApply={amountToApply}
-      amountToCredit={amountToCredit}
-      receiptHtmlRef={receiptHtmlRef}
-      onEditClick={handleEditClick}
-      onCancelEdit={handleCancelEdit}
-      onSave={handleSave}
-      onPrint={handlePrint}
-      onEmail={handleEmail}
-      onDelete={handleDelete}
-      onDeleteConfirm={handleDeleteConfirm}
-      onDeleteCancel={handleDeleteCancel}
-      onLessonAllocationChange={handleLessonAllocationChange}
-      onGroupLessonAllocationChange={handleGroupLessonAllocationChange}
-      onInvoiceAllocationChange={handleInvoiceAllocationChange}
-      onEditDateChange={setEditDate}
-      onEditFormChange={handleEditFormChange}
-    />
+    <>
+      <PaymentReceiptModalContainer
+        open={open}
+        onOpenChange={onOpenChange}
+        location={location}
+        paymentId={paymentId}
+        customerName={customerName}
+        onEdit={onSaveSuccess}
+        onDelete={onSaveSuccess}
+        onEmail={handleEmail}
+      />
+
+      {/* Email Modal */}
+      <EmailStatementModal
+        open={isEmailModalOpen}
+        onOpenChange={handleEmailModalOpenChange}
+        onSend={handleSendEmail}
+        customerName={customerName}
+        customerEmails={[]}
+        locationName="Arcadia Academy of Music"
+        initialSubject={emailModalOverrides?.subject ?? "Payment Receipt"}
+        initialContent={emailModalOverrides?.content ?? ""}
+        privateLessonDueData={[]}
+        groupLessonDueData={[]}
+        invoiceData={[]}
+        creditData={[]}
+        totalBalance="$0.00"
+        showDeleteButton={false}
+      />
+    </>
   );
 }

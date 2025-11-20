@@ -76,27 +76,6 @@ interface EquipmentRentalFormData {
   depositAmount: string;
 }
 
-export interface CreatedRentalData {
-  customerName: string;
-  customerAddress: string;
-  customerCity: string;
-  customerPostalCode: string;
-  homePhone: string;
-  workPhone: string;
-  otherPhone: string;
-  email: string;
-  studentFirstName: string;
-  studentLastName: string;
-  startDate: string;
-  duration: number;
-  returnDate: string | null;
-  instruments: InstrumentData[];
-  subTotal: number;
-  hst: number;
-  total: number;
-  location: string;
-}
-
 interface EquipmentRentalsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -109,11 +88,7 @@ interface EquipmentRentalsModalProps {
   onReprintAgreement?: (rentalId: number) => void;
   onEquipmentReturned?: (rentalId: number) => void;
   onDelete?: () => void;
-  onEmailClick?: (rentalData: CreatedRentalData) => void;
-  onEmail?: (payload: {
-    subject: string;
-    content: string;
-  }) => void;
+  onEmail?: (data: { subject: string; content: string }) => void;
 }
 
 const InstrumentFormRow = React.memo(
@@ -336,7 +311,6 @@ export function EquipmentRentalsModal({
   onReprintAgreement,
   onEquipmentReturned,
   onDelete,
-  onEmailClick,
   onEmail,
 }: EquipmentRentalsModalProps) {
   const [loading, setLoading] = useState(false);
@@ -345,6 +319,26 @@ export function EquipmentRentalsModal({
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  interface CreatedRentalData {
+    customerName: string;
+    customerAddress: string;
+    customerCity: string;
+    customerPostalCode: string;
+    homePhone: string;
+    workPhone: string;
+    otherPhone: string;
+    email: string;
+    studentFirstName: string;
+    studentLastName: string;
+    startDate: string;
+    duration: number;
+    returnDate: string | null;
+    instruments: InstrumentData[];
+    subTotal: number;
+    hst: number;
+    total: number;
+    location: string;
+  }
 
   const [createdRentalData, setCreatedRentalData] =
     useState<CreatedRentalData | null>(null);
@@ -1238,7 +1232,6 @@ export function EquipmentRentalsModal({
       const hst = subTotal * 0.13;
       const instrumentsTotal = subTotal + hst;
 
-      // Call API to create equipment rental
       const response = await createEquipmentRental(location, customerId, {
         userId: customerId,
         customerName: formData.customer,
@@ -1821,9 +1814,6 @@ export function EquipmentRentalsModal({
         subject,
         content,
       });
-    } else if (onEmailClick) {
-      // Fallback to onEmailClick for backward compatibility (no API call)
-      onEmailClick(createdRentalData);
     }
   };
 
@@ -2740,7 +2730,9 @@ export function EquipmentRentalsModal({
               <Button variant="outline" onClick={handleCloseReceiptModal}>
                 Close
               </Button>
-              <Button onClick={handleEmail}>Email</Button>
+              {onEmail && (
+                <Button onClick={handleEmail}>Email</Button>
+              )}
               <Button onClick={handlePrintReceipt}>Print</Button>
             </div>
           </DialogFooter>

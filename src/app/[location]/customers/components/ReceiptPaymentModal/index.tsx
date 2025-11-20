@@ -37,7 +37,7 @@ import type {
 interface PaymentReceiptModalContainerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  location?: string;
+  location: string;
   customerId?: number;
   paymentId?: number | string;
   customerName?: string;
@@ -78,18 +78,8 @@ interface PaymentInfo {
 const formatDateForLegacy = (date: Date | string): string => {
   const d = typeof date === "string" ? new Date(date) : date;
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
   const month = months[d.getMonth()];
   const day = String(d.getDate()).padStart(2, "0");
@@ -218,16 +208,10 @@ export function PaymentReceiptModalContainer(
   const [isSaving, setIsSaving] = React.useState(false);
 
   // Data state
-  const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>(
-    []
-  );
-  const [paymentInfo, setPaymentInfo] = React.useState<PaymentInfo | null>(
-    null
-  );
+  const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>([]);
+  const [paymentInfo, setPaymentInfo] = React.useState<PaymentInfo | null>(null);
   const [lessons, setLessons] = React.useState<PaymentUsedLesson[]>([]);
-  const [groupLessons, setGroupLessons] = React.useState<PaymentGroupLesson[]>(
-    []
-  );
+  const [groupLessons, setGroupLessons] = React.useState<PaymentGroupLesson[]>([]);
   const [invoices, setInvoices] = React.useState<PaymentInvoice[]>([]);
 
   // Edit state
@@ -238,15 +222,9 @@ export function PaymentReceiptModalContainer(
     reference: "",
     amountReceived: "0.00",
   });
-  const [lessonEditRows, setLessonEditRows] = React.useState<EditLessonRow[]>(
-    []
-  );
-  const [groupLessonEditRows, setGroupLessonEditRows] = React.useState<
-    GroupLessonEditRow[]
-  >([]);
-  const [invoiceEditRows, setInvoiceEditRows] = React.useState<
-    InvoiceEditRow[]
-  >([]);
+  const [lessonEditRows, setLessonEditRows] = React.useState<EditLessonRow[]>([]);
+  const [groupLessonEditRows, setGroupLessonEditRows] = React.useState<GroupLessonEditRow[]>([]);
+  const [invoiceEditRows, setInvoiceEditRows] = React.useState<InvoiceEditRow[]>([]);
 
   const receiptHtmlRef = React.useRef<HTMLDivElement>(null);
 
@@ -378,9 +356,11 @@ export function PaymentReceiptModalContainer(
 
   // Calculate amounts
   const amountToApply = React.useMemo(() => {
-    return calculateTotalAllocations<
-      EditLessonRow | GroupLessonEditRow | InvoiceEditRow
-    >(lessonEditRows, groupLessonEditRows, invoiceEditRows);
+    return calculateTotalAllocations<EditLessonRow | GroupLessonEditRow | InvoiceEditRow>(
+      lessonEditRows,
+      groupLessonEditRows,
+      invoiceEditRows
+    );
   }, [lessonEditRows, groupLessonEditRows, invoiceEditRows]);
 
   const amountToCredit = React.useMemo(() => {
@@ -444,8 +424,7 @@ export function PaymentReceiptModalContainer(
         selectedCreditValue: 0.0,
         amountToDistribute: amountToApply,
         notes: editForm.reference || "",
-        invoicePayments:
-          invoicePayments.length > 0 ? invoicePayments : undefined,
+        invoicePayments: invoicePayments.length > 0 ? invoicePayments : undefined,
         canUsePaymentCredits: 0,
         canUseInvoiceCredits: 0,
         prId: "",
@@ -498,9 +477,7 @@ export function PaymentReceiptModalContainer(
   const handlePrint = React.useCallback(() => {
     const success = printPaymentReceipt(paymentReceiptData);
     if (!success) {
-      toast.error(
-        "Failed to open print dialog. Please check if pop-ups are blocked."
-      );
+      toast.error("Failed to open print dialog. Please check if pop-ups are blocked.");
     }
   }, [paymentReceiptData]);
 
