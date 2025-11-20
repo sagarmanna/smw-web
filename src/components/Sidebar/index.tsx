@@ -61,23 +61,15 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     if (item.items && item.items.length > 0) {
       // Toggle submenu
       toggleExpanded(item.id);
-    } 
-    // else if (item.url) {
-    //   // Handle navigation
-    //   let url = getMenuUrl(item);
-      
-    //   if (item.source === 'legacy') {
-    //     // Redirect to legacy app (full page reload)
-    //     window.location.href = url;
-    //   } else {
-    //     // Use Next.js client-side routing for modern pages
-    //     router.push(url);
-    //     // Close sidebar only on mobile after navigation
-    //     if (isMobile) {
-    //       onClose?.();
-    //     }
-    //   }
-    // }
+    }
+  };
+
+  // Handle regular click for modern pages (close sidebar on mobile)
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Only close sidebar on mobile for regular clicks (not right-click, middle-click, or Ctrl+Click)
+    if (isMobile && e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      onClose?.();
+    }
   };
 
   const renderMenuItem = (item: MenuItem, level = 0) => {
@@ -114,33 +106,50 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             )}
           </div>
         </div>
-        ): (
-          <Link
-          className={cn(
-            "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
-            level > 0 && "ml-4",
-            isActive && "bg-primary/10 text-primary hover:bg-primary/20"
-          )}
-          style={{ paddingLeft: `${paddingLeft}px` }}
-          href={getMenuUrl(item) || ''}
-          onClick={() => {
-            if(isMobile) {
-              onClose?.();
-            }
-          }}
-        >
-          <div className="flex items-center space-x-2">
-            {item.icon}
-            <span>{item.title}</span>
-          </div>
-          <div className="ml-auto flex items-center space-x-2">
-            {item.source === 'modern' && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-primary text-white">
-                NEW
-              </span>
+        ): item.source === 'legacy' ? (
+          // Legacy pages: use regular <a> tag for full page navigation
+          <a
+            href={getMenuUrl(item) || '#'}
+            className={cn(
+              "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
+              level > 0 && "ml-4",
+              isActive && "bg-primary/10 text-primary hover:bg-primary/20"
             )}
-          </div>
-        </Link>
+            style={{ paddingLeft: `${paddingLeft}px` }}
+            onClick={handleLinkClick}
+          >
+            <div className="flex items-center space-x-2">
+              {item.icon}
+              <span>{item.title}</span>
+            </div>
+            <div className="ml-auto flex items-center space-x-2">
+              {/* Legacy pages don't show NEW badge */}
+            </div>
+          </a>
+        ) : (
+          // Modern pages: use Next.js Link for client-side navigation with browser native behavior
+          <Link
+            href={getMenuUrl(item) || '#'}
+            className={cn(
+              "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
+              level > 0 && "ml-4",
+              isActive && "bg-primary/10 text-primary hover:bg-primary/20"
+            )}
+            style={{ paddingLeft: `${paddingLeft}px` }}
+            onClick={handleLinkClick}
+          >
+            <div className="flex items-center space-x-2">
+              {item.icon}
+              <span>{item.title}</span>
+            </div>
+            <div className="ml-auto flex items-center space-x-2">
+              {item.source === 'modern' && (
+                <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-primary text-white">
+                  NEW
+                </span>
+              )}
+            </div>
+          </Link>
         )}
         
         {hasChildren && isExpanded && (
