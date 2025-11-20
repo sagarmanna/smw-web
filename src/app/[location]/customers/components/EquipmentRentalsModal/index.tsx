@@ -238,6 +238,9 @@ InstrumentFormRow.displayName = "InstrumentFormRow";
 // Base calculation: All months are considered as 30 days for billing purposes
 const DAYS_PER_MONTH = 30;
 
+// Tax rate (can be updated in the future if tax changes)
+const TAX_RATE = 13; // 13% HST
+
 // Tender type mappings
 const TENDER_TYPE_MAP: Record<string, string> = {
   cash: "1",
@@ -1551,11 +1554,18 @@ export function EquipmentRentalsModal({
   };
 
   const filledInstruments = instruments.filter((inst) => inst.instrumentId > 0);
-  const subTotal = filledInstruments.reduce(
-    (sum, instrument) => sum + parseFloat(instrument.total || "0"),
-    0
-  );
-  const tax = subTotal * 0.13
+  
+  let subtotal = 0;
+  let taxTotal = 0;
+
+  filledInstruments.forEach((inst) => {
+    const instrumentTotal = parseFloat(inst.total || "0");
+    subtotal += instrumentTotal;
+    taxTotal += (instrumentTotal * TAX_RATE) / 100;
+  });
+
+  const subTotal = subtotal;
+  const tax = taxTotal;
   const total = subTotal + tax;
 
   if (loading) {
