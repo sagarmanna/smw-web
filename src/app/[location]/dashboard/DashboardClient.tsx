@@ -5,46 +5,26 @@ import { PieChartGraph } from "@/components/Charts/pie-chart-graph";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { useDateRange } from "./DateRangeContext";
-import { useAppSelector } from "@/redux/hooks";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { getMonthlyRevenueData, getPieChartData } from "./dashboard.api";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { useEffect, useMemo, useCallback } from "react";
+import { fetchDashboardData } from "./dashboard.slice";
 import { format } from "date-fns";
 
 interface DashboardClientProps {
   location: string;
 }
 
-interface DashboardData {
-  monthlyRevenue: Array<{ x: string; y: number }>;
-  enrolmentGains: Array<{ name: string; count: number }>;
-  enrolmentLosses: Array<{ name: string; count: number }>;
-  instructionHours: Array<{ name: string; count: number }>;
-}
-
-interface MonthlyRevenueResponse {
-  data: {
-    values: Array<{ x: string; y: number }>;
-  };
-}
-
-interface PieChartResponse {
-  data: {
-    values: Array<{ name: string; count: number }>;
-  };
-}
-
-type ChartApiResponse = MonthlyRevenueResponse | PieChartResponse | null;
-
 export function DashboardClient({ location }: DashboardClientProps) {
   const { dateRange, setDateRange } = useDateRange();
+  const dispatch = useAppDispatch();
   const { userInfo } = useAppSelector((state) => state.user);
   const { permissions } = useAppSelector((state) => state.permissions);
   const formattedLocation = location.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
   
-  const [isLoading, setIsLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const isFetchingRef = useRef(false);
+  // Get dashboard data from Redux
+  const dashboardState = useAppSelector((state) => state.dashboard);
+  const isLoading = dashboardState.isLoading;
+  const error = dashboardState.error;
 
   // Memoize permission checks to prevent unnecessary re-renders
   const chartPermissions = useMemo(() => {
@@ -73,117 +53,66 @@ export function DashboardClient({ location }: DashboardClientProps) {
     return chartPermissions[permission] === true;
   }, [chartPermissions]);
 
+  // Create cache key for current location and date range
+  const cacheKey = useMemo(() => {
+    const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+    const toDate = format(dateRange.to, 'yyyy-MM-dd');
+    return `${location}_${fromDate}_${toDate}`;
+  }, [location, dateRange.from, dateRange.to]);
+
+  // Get dashboard data from Redux state using cache key
+  const dashboardData = useMemo(() => {
+    return dashboardState.data[cacheKey] || null;
+  }, [dashboardState.data, cacheKey]);
+
+  // Check if data exists and is recent (within 5 minutes)
+  const hasCachedData = useMemo(() => {
+    const lastFetched = dashboardState.lastFetched[cacheKey];
+    if (!lastFetched) return false;
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    return lastFetched > fiveMinutesAgo && dashboardData !== null;
+  }, [dashboardState.lastFetched, cacheKey, dashboardData]);
+
   useEffect(() => {
-    const fetchAllData = async () => {
-      // Prevent duplicate API calls
-      if (isFetchingRef.current) {
-        console.log('Dashboard: Skipping fetch - already in progress');
-        return;
-      }
-      
-      console.log('Dashboard: Starting fetch for', location, 'role:', userInfo?.role);
-      isFetchingRef.current = true;
-      
-      // Don't show loading if we already have data and just changing date range
-      if (!dashboardData) {
-        setIsLoading(true);
-      }
-      setError(null);
-      
-      try {
+    // Only fetch data if we have user info and don't have cached data
+    if (!userInfo) return;
+
+    // For admin/owner, fetch immediately if no cached data
+    if (userInfo.role === 'administrator' || userInfo.role === 'owner') {
+      if (!hasCachedData) {
         const fromDate = format(dateRange.from, 'yyyy-MM-dd');
         const toDate = format(dateRange.to, 'yyyy-MM-dd');
         
-        // Only fetch data for charts the user has permission to see
-        const fetchPromises: Promise<ChartApiResponse>[] = [];
-        const chartTypes: string[] = [];
-        
-        // Check permissions and add to fetch promises
-        if (hasPermission('manageMonthlyRevenue')) {
-          fetchPromises.push(getMonthlyRevenueData({ location }));
-          chartTypes.push('monthlyRevenue');
-        }
-        
-        if (hasPermission('manageEnrolmentGains')) {
-          fetchPromises.push(getPieChartData({ fromDate, toDate, location, type: "enrolment-gains" }));
-          chartTypes.push('enrolmentGains');
-        }
-        
-        if (hasPermission('manageEnrolmentLosses')) {
-          fetchPromises.push(getPieChartData({ fromDate, toDate, location, type: "enrolment-losses" }));
-          chartTypes.push('enrolmentLosses');
-        }
-        
-        if (hasPermission('manageInstructionHours')) {
-          fetchPromises.push(getPieChartData({ fromDate, toDate, location, type: "instruction-hours" }));
-          chartTypes.push('instructionHours');
-        }
-
-        // If no permissions, set empty data and stop loading
-        if (fetchPromises.length === 0) {
-          setDashboardData({
-            monthlyRevenue: [],
-            enrolmentGains: [],
-            enrolmentLosses: [],
-            instructionHours: [],
-          });
-          setIsLoading(false);
-          isFetchingRef.current = false;
-          return;
-        }
-
-        // Fetch only the data we need
-        const results = await Promise.all(fetchPromises);
-
-        // Build dashboard data object based on what we fetched
-        const newDashboardData: DashboardData = {
-          monthlyRevenue: [],
-          enrolmentGains: [],
-          enrolmentLosses: [],
-          instructionHours: [],
-        };
-
-        let resultIndex = 0;
-        chartTypes.forEach(chartType => {
-          const result = results[resultIndex];
-          if (chartType === 'monthlyRevenue') {
-            newDashboardData.monthlyRevenue = (result as MonthlyRevenueResponse)?.data?.values ?? [];
-          } else if (chartType === 'enrolmentGains') {
-            newDashboardData.enrolmentGains = (result as PieChartResponse)?.data?.values ?? [];
-          } else if (chartType === 'enrolmentLosses') {
-            newDashboardData.enrolmentLosses = (result as PieChartResponse)?.data?.values ?? [];
-          } else if (chartType === 'instructionHours') {
-            newDashboardData.instructionHours = (result as PieChartResponse)?.data?.values ?? [];
-          }
-          resultIndex++;
-        });
-
-        setDashboardData(newDashboardData);
-        
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data');
-      } finally {
-        setIsLoading(false);
-        isFetchingRef.current = false;
+        dispatch(
+          fetchDashboardData({
+            location,
+            fromDate,
+            toDate,
+            permissions: chartPermissions,
+          })
+        );
       }
-    };
-
-    // Only fetch data if we have user info
-    // For admin/owner, fetch immediately
-    // For staff, wait for permissions to load
-    if (userInfo) {
-      if (userInfo.role === 'administrator' || userInfo.role === 'owner') {
-        fetchAllData();
-      } else if (userInfo.role === 'staffmember' && permissions) {
-        fetchAllData();
+    } else if (userInfo.role === 'staffmember' && permissions) {
+      // For staff, wait for permissions and fetch if no cached data
+      if (!hasCachedData) {
+        const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+        const toDate = format(dateRange.to, 'yyyy-MM-dd');
+        
+        dispatch(
+          fetchDashboardData({
+            location,
+            fromDate,
+            toDate,
+            permissions: chartPermissions,
+          })
+        );
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, dateRange.from, dateRange.to, userInfo?.id, userInfo?.role, chartPermissions]);
+  }, [location, dateRange.from, dateRange.to, userInfo?.id, userInfo?.role, chartPermissions, hasCachedData, dispatch]);
 
-  // Show full-page loading animation while fetching data
-  if (isLoading) {
+  // Show full-page loading animation while fetching data (only if no cached data)
+  if (isLoading && !hasCachedData) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <LoadingAnimation 
@@ -195,8 +124,8 @@ export function DashboardClient({ location }: DashboardClientProps) {
     );
   }
 
-  // Show error state
-  if (error) {
+  // Show error state (only if we don't have cached data to show)
+  if (error && !hasCachedData) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="text-center">
@@ -206,6 +135,21 @@ export function DashboardClient({ location }: DashboardClientProps) {
         </div>
       </div>
     );
+  }
+
+  // If no data and not loading, show empty state (user has no permissions)
+  if (!dashboardData && !isLoading) {
+    const hasAnyPermission = Object.values(chartPermissions).some(perm => perm === true);
+    if (!hasAnyPermission) {
+      return (
+        <div className="flex items-center justify-center min-h-[600px]">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2">No Dashboard Access</h2>
+            <p className="text-muted-foreground">You don&apos;t have permission to view any dashboard charts.</p>
+          </div>
+        </div>
+      );
+    }
   }
   
   return (

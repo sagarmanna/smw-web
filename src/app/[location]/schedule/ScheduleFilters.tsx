@@ -23,17 +23,17 @@ interface ScheduleFiltersProps {
   recentDates: Date[];
   goToToday: () => void;
 
-  // Program props
-  programs: Program[];
-  selectedProgram: string;
-  onProgramChange: (value: string) => void;
-  programsLoading: boolean;
+  // // Program props
+  // programs: Program[];
+  // selectedProgram: string;
+  // onProgramChange: (value: string) => void;
+  // programsLoading: boolean;
 
-  // Teacher props
-  filteredTeachers: Teacher[];
-  selectedTeacher: string;
-  onTeacherChange: (value: string) => void;
-  teachersLoading: boolean;
+  // // Teacher props
+  // filteredTeachers: Teacher[];
+  // selectedTeacher: string;
+  // onTeacherChange: (value: string) => void;
+  // teachersLoading: boolean;
   popoverContentProps?: Omit<PopoverContentProps, 'children'>;
 }
 
@@ -46,14 +46,14 @@ export const ScheduleFilters: FC<ScheduleFiltersProps> = ({
   setDatePickerOpen,
   recentDates,
   goToToday,
-  programs,
-  selectedProgram,
-  onProgramChange,
-  programsLoading,
-  filteredTeachers,
-  selectedTeacher,
-  onTeacherChange,
-  teachersLoading,
+  // programs,
+  // selectedProgram,
+  // onProgramChange,
+  // programsLoading,
+  // filteredTeachers,
+  // selectedTeacher,
+  // onTeacherChange,
+  // teachersLoading,
   popoverContentProps,
 }) => {
 

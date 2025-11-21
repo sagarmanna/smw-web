@@ -3,16 +3,12 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReactBigCalendarWrapper, CalendarWrapperRef } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { CalendarIcon, Tv, Filter, Clock, Maximize, Minimize } from "lucide-react";
+import { Tv, Maximize, Minimize } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { getProgramsList, getTeachersList, getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, Program, Teacher, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent, ClassroomViewAvailability } from "./schedule.api";
+import { getScheduleDetails, getTeacherView, getTeacherViewEvents, getClassroomViewResources, getClassroomViewEvents, ScheduleDetails, TeacherViewResource, TeacherViewEvent, TeacherViewAvailability, ClassroomViewResource, ClassroomViewEvent, ClassroomViewAvailability } from "./schedule.api";
 import { updateLesson, modifyClassroom, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 import { ScheduleFilters } from "./ScheduleFilters";
@@ -49,8 +45,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [currentView, setCurrentView] = useState<"teacher" | "classroom">("teacher");
-  const [selectedProgram, setSelectedProgram] = useState<string>("");
-  const [selectedTeacher, setSelectedTeacher] = useState<string>("");
+  // const [selectedProgram, setSelectedProgram] = useState<string>("");
+  // const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [showAll, setShowAll] = useState<boolean>(false);
   const [mobileDatePickerOpen, setMobileDatePickerOpen] = useState<boolean>(false);
   const [desktopDatePickerOpen, setDesktopDatePickerOpen] = useState<boolean>(false);
@@ -76,17 +72,17 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   const classroomCalendarRef = useRef<CalendarWrapperRef>(null);
 
   // Programs state
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [programsLoading, setProgramsLoading] = useState<boolean>(true);
-  const [programsError, setProgramsError] = useState<string | null>(null);
+  // const [programs, setPrograms] = useState<Program[]>([]);
+  // const [programsLoading, setProgramsLoading] = useState<boolean>(true);
+  // const [programsError, setProgramsError] = useState<string | null>(null);
 
   // Teachers state
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
-  const [teachersError, setTeachersError] = useState<string | null>(null);
+  // const [teachers, setTeachers] = useState<Teacher[]>([]);
+  // const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
+  // const [teachersError, setTeachersError] = useState<string | null>(null);
   
   // Filtered teachers state (based on selected program)
-  const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([]);
+  // const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([]);
 
   // Schedule details state
   const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails | null>(null);
@@ -127,8 +123,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     
     if (resetFilters === 'true') {
       // Reset all filters to default values
-      setSelectedProgram("");
-      setSelectedTeacher("");
+      // setSelectedProgram("");
+      // setSelectedTeacher("");
       setShowAll(false);
     }
     
@@ -144,39 +140,39 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       setIsInitialLoading(true);
       
       // Fetch programs
-      try {
-        setProgramsLoading(true);
-        setProgramsError(null);
-        const programsResponse = await getProgramsList();
+      // try {
+      //   setProgramsLoading(true);
+      //   setProgramsError(null);
+      //   const programsResponse = await getProgramsList();
         
-        if (programsResponse?.success) {
-          setPrograms(programsResponse.data);
-        } else {
-          setProgramsError(programsResponse?.message || 'Failed to fetch programs');
-        }
-      } catch (error) {
-        setProgramsError(error instanceof Error ? error.message : 'Failed to fetch programs');
-      } finally {
-        setProgramsLoading(false);
-      }
+      //   if (programsResponse?.success) {
+      //     setPrograms(programsResponse.data);
+      //   } else {
+      //     setProgramsError(programsResponse?.message || 'Failed to fetch programs');
+      //   }
+      // } catch (error) {
+      //   setProgramsError(error instanceof Error ? error.message : 'Failed to fetch programs');
+      // } finally {
+      //   setProgramsLoading(false);
+      // }
 
       // Fetch teachers (all teachers initially)
-      try {
-        setTeachersLoading(true);
-        setTeachersError(null);
-        const teachersResponse = await getTeachersList(location);
+      // try {
+      //   setTeachersLoading(true);
+      //   setTeachersError(null);
+      //   const teachersResponse = await getTeachersList(location);
         
-        if (teachersResponse?.success) {
-          setTeachers(teachersResponse.data);
-          setFilteredTeachers(teachersResponse.data); // Initially show all teachers
-        } else {
-          setTeachersError(teachersResponse?.message || 'Failed to fetch teachers');
-        }
-      } catch (error) {
-        setTeachersError(error instanceof Error ? error.message : 'Failed to fetch teachers');
-      } finally {
-        setTeachersLoading(false);
-      }
+      //   if (teachersResponse?.success) {
+      //     setTeachers(teachersResponse.data);
+      //     setFilteredTeachers(teachersResponse.data); // Initially show all teachers
+      //   } else {
+      //     setTeachersError(teachersResponse?.message || 'Failed to fetch teachers');
+      //   }
+      // } catch (error) {
+      //   setTeachersError(error instanceof Error ? error.message : 'Failed to fetch teachers');
+      // } finally {
+      //   setTeachersLoading(false);
+      // }
 
       // Fetch classroom view resources
       try {
@@ -199,26 +195,26 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   }, [location]);
 
   // Filter teachers based on selected program using teacherViewResources
-  useEffect(() => {
-    if (!selectedProgram) {
-      // If no program selected, show all teachers
-      setFilteredTeachers(teachers);
-      return;
-    }
+  // useEffect(() => {
+  //   if (!selectedProgram) {
+  //     // If no program selected, show all teachers
+  //     // setFilteredTeachers(teachers);
+  //     return;
+  //   }
 
-    // Use teacherViewResources which are already filtered by the selected program
-    const filteredTeachersList = teachers.filter(teacher => 
-      teacherViewResources.some(resource => resource.id === teacher.id)
-    );
+  //   // Use teacherViewResources which are already filtered by the selected program
+  //   const filteredTeachersList = teachers.filter(teacher => 
+  //     teacherViewResources.some(resource => resource.id === teacher.id)
+  //   );
 
-    setFilteredTeachers(filteredTeachersList);
+  //   setFilteredTeachers(filteredTeachersList);
 
-    // Check if currently selected teacher is still available in filtered list
-    if (selectedTeacher && !filteredTeachersList.some(teacher => teacher.id.toString() === selectedTeacher)) {
-      // Reset teacher selection if selected teacher is not available in filtered list
-      setSelectedTeacher("");
-    }
-  }, [selectedProgram, teachers, teacherViewResources, selectedTeacher]);
+  //   // Check if currently selected teacher is still available in filtered list
+  //   if (selectedTeacher && !filteredTeachersList.some(teacher => teacher.id.toString() === selectedTeacher)) {
+  //     // Reset teacher selection if selected teacher is not available in filtered list
+  //     setSelectedTeacher("");
+  //   }
+  // }, [selectedProgram, teachers, teacherViewResources, selectedTeacher]);
 
   // Fetch schedule details when date changes
   useEffect(() => {
@@ -254,8 +250,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           location, 
           dateStr, 
           showAll, 
-          selectedProgram || undefined, 
-          selectedTeacher || undefined
+          // selectedProgram || undefined, 
+          // selectedTeacher || undefined
         );
         
         if (response?.success) {
@@ -272,7 +268,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     if (currentView === "teacher") {
       fetchTeacherView();
     }
-  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher, currentView]);
+  }, [location, safeSelectedDate, showAll, currentView]);
 
   // Fetch teacher view events when filters or date change
   useEffect(() => {
@@ -287,8 +283,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           location, 
           dateStr, 
           showAll, 
-          selectedProgram || undefined, 
-          selectedTeacher || undefined
+          // selectedProgram || undefined, 
+          // selectedTeacher || undefined
         );
         
         if (response?.success) {
@@ -302,7 +298,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       } finally {
         setTimeout(() => {
           setIsLoading(false);
-        }, 1000);
+        }, 500);
       }
     };
 
@@ -310,7 +306,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
     if (currentView === "teacher") {
       fetchTeacherViewEvents();
     }
-  }, [location, safeSelectedDate, showAll, selectedProgram, selectedTeacher, refreshTrigger, currentView]);
+  }, [location, safeSelectedDate, showAll, refreshTrigger, currentView]);
 
   // Fetch classroom view events when date changes or view switches
   useEffect(() => {
@@ -697,9 +693,9 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
           {/* Filters - Responsive Layout */}
           <div className="w-full lg:w-auto">
             {/* Error display - compact */}
-            {(programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError || classroomViewError) && (
+            {(scheduleDetailsError || teacherViewError || teacherViewEventsError || classroomViewError) && (
               <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded mb-2">
-                {programsError || teachersError || scheduleDetailsError || teacherViewError || teacherViewEventsError || classroomViewError}
+                {scheduleDetailsError || teacherViewError || teacherViewEventsError || classroomViewError}
           </div>
         )}
         
@@ -715,14 +711,14 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                 setDatePickerOpen={setMobileDatePickerOpen}
                 recentDates={recentDates}
                 goToToday={goToToday}
-                programs={programs}
-                selectedProgram={selectedProgram}
-                onProgramChange={setSelectedProgram}
-                programsLoading={programsLoading}
-                filteredTeachers={filteredTeachers}
-                selectedTeacher={selectedTeacher}
-                onTeacherChange={setSelectedTeacher}
-                teachersLoading={teachersLoading}
+                // programs={programs}
+                // selectedProgram={selectedProgram}
+                // onProgramChange={setSelectedProgram}
+                // programsLoading={programsLoading}
+                // filteredTeachers={filteredTeachers}
+                // selectedTeacher={selectedTeacher}
+                // onTeacherChange={setSelectedTeacher}
+                // teachersLoading={teachersLoading}
               />
 
               {/* Desktop Filters */}
@@ -734,14 +730,14 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                 setDatePickerOpen={setDesktopDatePickerOpen}
                 recentDates={recentDates}
                 goToToday={goToToday}
-                programs={programs}
-                selectedProgram={selectedProgram}
-                onProgramChange={setSelectedProgram}
-                programsLoading={programsLoading}
-                filteredTeachers={filteredTeachers}
-                selectedTeacher={selectedTeacher}
-                onTeacherChange={setSelectedTeacher}
-                teachersLoading={teachersLoading}
+                // programs={programs}
+                // selectedProgram={selectedProgram}
+                // onProgramChange={setSelectedProgram}
+                // programsLoading={programsLoading}
+                // filteredTeachers={filteredTeachers}
+                // selectedTeacher={selectedTeacher}
+                // onTeacherChange={setSelectedTeacher}
+                // teachersLoading={teachersLoading}
               />
             </div>
           </div>
@@ -764,8 +760,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                  onEventResize={handleEventResize}
                  editable={true}
                  showAll={showAll}
-                 selectedProgram={selectedProgram}
-                 selectedTeacher={selectedTeacher}
+                //  selectedProgram={selectedProgram}
+                //  selectedTeacher={selectedTeacher}
                  minTime={timeRange.minTime}
                  maxTime={timeRange.maxTime}
                  availability={teacherViewAvailability}
@@ -825,14 +821,14 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                   goToToday();
                   setFullscreenDatePickerOpen(false);
                 }}
-                programs={programs}
-                selectedProgram={selectedProgram}
-                onProgramChange={setSelectedProgram}
-                programsLoading={programsLoading}
-                filteredTeachers={filteredTeachers}
-                selectedTeacher={selectedTeacher}
-                onTeacherChange={setSelectedTeacher}
-                teachersLoading={teachersLoading}
+                // programs={programs}
+                // selectedProgram={selectedProgram}
+                // onProgramChange={setSelectedProgram}
+                // programsLoading={programsLoading}
+                // filteredTeachers={filteredTeachers}
+                // selectedTeacher={selectedTeacher}
+                // onTeacherChange={setSelectedTeacher}
+                // teachersLoading={teachersLoading}
                 popoverContentProps={{ style: { zIndex: 101 } }}
               />
       
@@ -874,8 +870,8 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
                     onEventResize={handleEventResize}
                     editable={true}
                     showAll={showAll}
-                    selectedProgram={selectedProgram}
-                    selectedTeacher={selectedTeacher}
+                    // selectedProgram={selectedProgram}
+                    // selectedTeacher={selectedTeacher}
                     minTime={timeRange.minTime}
                     maxTime={timeRange.maxTime}
                     availability={teacherViewAvailability}
