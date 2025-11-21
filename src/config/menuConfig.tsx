@@ -62,8 +62,13 @@ export const buildMenuUrl = (item: MenuItem, location: string): string => {
   
   // For modern pages, use Next.js routing
   // Note: basePath is already handled by Next.js config, so we don't need to add /admin/v2
+  // Ensure the URL is properly formatted for Next.js Link component
   if (item.url.startsWith('/')) {
-    return `/${location}${item.url}`;
+    // Split URL and query params to ensure proper formatting
+    const [path, query] = item.url.split('?');
+    const basePath = `/${location}${path}`;
+    // Reconstruct URL with query params if they exist
+    return query ? `${basePath}?${query}` : basePath;
   }
   
   return item.url;

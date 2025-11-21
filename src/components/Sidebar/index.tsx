@@ -70,6 +70,8 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     if (isMobile && e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       onClose?.();
     }
+    // Don't prevent default - let Next.js handle navigation
+    // This ensures client-side navigation works correctly in production
   };
 
   const renderMenuItem = (item: MenuItem, level = 0) => {
@@ -137,6 +139,8 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             )}
             style={{ paddingLeft: `${paddingLeft}px` }}
             onClick={handleLinkClick}
+            prefetch={true}
+            scroll={true}
           >
             <div className="flex items-center space-x-2">
               {item.icon}
