@@ -1245,7 +1245,7 @@ export function EquipmentRentalsModal({
         (sum, instrument) => sum + parseFloat(instrument.total || "0"),
         0
       );
-      const hst = subTotal * 0.13;
+      const hst = (subTotal * TAX_RATE) / 100;
       const instrumentsTotal = subTotal + hst;
 
       const response = await createEquipmentRental(location, customerId, {
@@ -1331,7 +1331,7 @@ export function EquipmentRentalsModal({
       (sum, instrument) => sum + parseFloat(instrument.total || "0"),
       0
     );
-    const hst = subTotal * 0.13;
+    const hst = (subTotal * TAX_RATE) / 100;
     const instrumentsTotal = subTotal + hst;
 
     const legacyBaseUrl =
@@ -1379,7 +1379,7 @@ export function EquipmentRentalsModal({
         filledInstruments.length > 0
           ? filledInstruments.map((instrument) => {
               const instrumentTotal = parseFloat(instrument.total || "0");
-              const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+              const instrumentTax = ((instrumentTotal * TAX_RATE) / 100).toFixed(2);
               return {
                 value: "",
                 asset: "",
@@ -1473,7 +1473,7 @@ export function EquipmentRentalsModal({
         filledInstruments.length > 0
           ? filledInstruments.map((instrument) => {
               const instrumentTotal = parseFloat(instrument.total || "0");
-              const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+              const instrumentTax = ((instrumentTotal * TAX_RATE) / 100).toFixed(2);
               return {
                 value: "",
                 asset: "",
