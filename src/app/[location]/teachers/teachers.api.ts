@@ -108,20 +108,6 @@ export interface TeacherInfoData {
   };
 }
 
-// Qualifications Interfaces
-export interface Qualification {
-  id: number;
-  name: string;
-  rate?: number;
-  description?: string;
-  dateObtained?: string;
-}
-
-export interface QualificationsResponse {
-  success: boolean;
-  data: Qualification[];
-}
-
 // NOTE: API is not ready yet, this function will be implemented when backend is available
 export async function getTeachers(
   _location: string,
@@ -196,38 +182,6 @@ export async function getTeacherInfo(
     return response.data;
   } catch (error) {
     console.error('Error fetching teacher info:', error);
-    return null;
-  }
-}
-
-// Get teacher's private qualifications
-export async function getTeacherPrivateQualifications(
-  location: string,
-  id: number
-): Promise<QualificationsResponse | null> {
-  try {
-    const response = await apiClient.get<QualificationsResponse>(
-      `/admin/v2/${location}/teachers/${id}/qualifications/private`
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching private qualifications:', error);
-    return null;
-  }
-}
-
-// Get teacher's group qualifications
-export async function getTeacherGroupQualifications(
-  location: string,
-  id: number
-): Promise<QualificationsResponse | null> {
-  try {
-    const response = await apiClient.get<QualificationsResponse>(
-      `/admin/v2/${location}/teachers/${id}/qualifications/group`
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching group qualifications:', error);
     return null;
   }
 }

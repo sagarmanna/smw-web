@@ -37,12 +37,6 @@ export interface TeacherAddress {
   isPrimary?: boolean;
 }
 
-export interface TeacherQualification {
-  id: number;
-  name: string;
-  rate?: number;
-}
-
 export interface TeacherDetailsState {
   loading: boolean;
   error: string | null;
@@ -50,7 +44,5 @@ export interface TeacherDetailsState {
   emails: TeacherEmail[];
   phones: TeacherPhone[];
   addresses: TeacherAddress[];
-  privateQualifications: TeacherQualification[];
-  groupQualifications: TeacherQualification[];
 }
 

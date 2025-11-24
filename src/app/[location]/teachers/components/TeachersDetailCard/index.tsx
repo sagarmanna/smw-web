@@ -10,6 +10,8 @@ import { SectionCardDataRow, DropdownOption } from "@/components/SectionCard/typ
 import { EditTeacherDetailsModal } from "../modals/EditTeacherDetailsModal";
 import { SetTeacherPasswordModal } from "../modals/SetTeacherPasswordModal";
 import { TeacherBasicDetails } from "../../types";
+import { formatDisplayDate } from "../../utils/dateUtils";
+import { formatFullName } from "../../utils/nameUtils";
 
 interface TeachersDetailCardProps {
   details: TeacherBasicDetails | null;
@@ -24,23 +26,12 @@ export function TeachersDetailCard({
   onSaveDetails,
   onUpdatePassword,
   savingDetails = false,
-  formatDisplayDate,
+  formatDisplayDate: customFormatDate,
 }: TeachersDetailCardProps) {
   const [isEditDetailsOpen, setIsEditDetailsOpen] = React.useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
 
-  const defaultFormatDate = React.useCallback((value?: string) => {
-    if (!value) return "N/A";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "N/A";
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }, []);
-
-  const formatDate = formatDisplayDate || defaultFormatDate;
+  const formatDate = customFormatDate || formatDisplayDate;
 
   const dropdownOptions = React.useMemo<DropdownOption[]>(
     () => [
@@ -53,9 +44,7 @@ export function TeachersDetailCard({
   );
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
-    const fullName = details
-      ? [details.firstName, details.lastName].filter(Boolean).join(" ")
-      : "";
+    const fullName = formatFullName(details?.firstName, details?.lastName);
 
     return [
       {

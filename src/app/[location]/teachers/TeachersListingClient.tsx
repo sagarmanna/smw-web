@@ -43,7 +43,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
     handleColumnFilterChange,
     handleColumnFilterEnter,
     handleServerSideFilterChange,
-  } = useTeacherListing();
+  } = useTeacherListing(location);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<TeacherRow>({
     reportTitle: "Teachers List",
