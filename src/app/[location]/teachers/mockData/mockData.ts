@@ -4,7 +4,6 @@ import {
   TeacherBasicDetails,
   TeacherEmail,
   TeacherPhone,
-  TeacherQualification,
 } from "../types";
 
 // Mock data for teachers listing - matches the data shown in the UI image
@@ -97,20 +96,3 @@ export const MOCK_ADDRESSES: TeacherAddress[] = [
   },
 ];
 
-export const MOCK_PRIVATE_QUALIFICATIONS: TeacherQualification[] = [
-  { id: 1, name: "Test65", rate: 10.0 },
-  { id: 2, name: "test72.5", rate: 10.0 },
-  { id: 3, name: "Instrument", rate: 20.0 },
-  { id: 4, name: "xClarinet", rate: 36.0 },
-  { id: 5, name: "xPiano Contemporary", rate: 10.0 },
-  { id: 6, name: "xGuitar Core", rate: 10.0 },
-  { id: 7, name: "xGuitar Contemporary", rate: 10.0 },
-  { id: 8, name: "xGuitar Hybrid", rate: 10.0 },
-  { id: 9, name: "xPiano Hybrid" },
-  { id: 10, name: "40th Anniversary Vocal", rate: 25.0 },
-  { id: 11, name: "Rami Test Program", rate: 30.0 },
-];
-
-export const MOCK_GROUP_QUALIFICATIONS: TeacherQualification[] = [
-  { id: 12, name: "Rami Group Program", rate: 20.0 },
-];

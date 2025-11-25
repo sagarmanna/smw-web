@@ -2,89 +2,103 @@
 
 import * as React from "react";
 import { SortingState } from "@tanstack/react-table";
-import { TeacherRow, mockTeachersData } from "../teachers.api";
-import { filterTeachers, TeacherFilters } from "../utils/filterTeachers";
-import { sortTeachers, SortField } from "../utils/sortTeachers";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { 
+  fetchTeachers, 
+  setPage, 
+  setPageSize, 
+  setSorting, 
+  setColumnFilters, 
+  setActiveFilter 
+} from "../teachersListing.slice";
+import { TeachersQuery } from "../teachers.api";
+import { SortField } from "../utils/sortTeachers";
 
-export function useTeacherListing() {
-  const [rows, setRows] = React.useState<TeacherRow[]>([]);
-  const [total, setTotal] = React.useState<number>(0);
-  const [totalPages, setTotalPages] = React.useState<number>(0);
-  const [isLoading, setIsLoading] = React.useState<boolean>(true);
-  const [error, setError] = React.useState<string | null>(null);
+export function useTeacherListing(location: string) {
+  const dispatch = useAppDispatch();
 
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [page, setPage] = React.useState<number>(1);
-  const [pageSize, setPageSize] = React.useState<number>(20);
-  const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
-  const [activeFilter, setActiveFilter] = React.useState<string | undefined>(undefined);
+  // Get state from Redux
+  const rows = useAppSelector((state) => state.teachersListing.rows);
+  const total = useAppSelector((state) => state.teachersListing.total);
+  const totalPages = useAppSelector((state) => state.teachersListing.totalPages);
+  const isLoading = useAppSelector((state) => state.teachersListing.isLoading);
+  const error = useAppSelector((state) => state.teachersListing.error);
+  const page = useAppSelector((state) => state.teachersListing.page);
+  const pageSize = useAppSelector((state) => state.teachersListing.pageSize);
+  const sortBy = useAppSelector((state) => state.teachersListing.sortBy);
+  const sortDir = useAppSelector((state) => state.teachersListing.sortDir);
+  const columnFilters = useAppSelector((state) => state.teachersListing.columnFilters);
+  const activeFilter = useAppSelector((state) => state.teachersListing.activeFilter);
+
+  // Convert Redux sorting state to TanStack Table format
+  const sorting: SortingState = React.useMemo(() => {
+    if (!sortBy) return [];
+    return [{ id: sortBy, desc: sortDir === 'desc' }];
+  }, [sortBy, sortDir]);
 
   const fetchData = React.useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+    const query: TeachersQuery = {
+      page,
+      limit: pageSize,
+      firstName: columnFilters.firstName as string | undefined,
+      lastName: columnFilters.lastName as string | undefined,
+      email: columnFilters.email as string | undefined,
+      phone: columnFilters.phone as string | undefined,
+      status: activeFilter === "inactive" ? "inactive" : undefined,
+      sort: sortBy,
+      order: sortDir,
+    };
 
-      // Build filters object
-      const filters: TeacherFilters = {
-        firstName: columnFilters.firstName as string | undefined,
-        lastName: columnFilters.lastName as string | undefined,
-        email: columnFilters.email as string | undefined,
-        phone: columnFilters.phone as string | undefined,
-        status: activeFilter === "inactive" ? "inactive" : undefined,
-      };
+    await dispatch(fetchTeachers({ location, query }));
+  }, [dispatch, location, page, pageSize, columnFilters, activeFilter, sortBy, sortDir]);
 
-      // Apply filters
-      let filteredData = filterTeachers(mockTeachersData, filters);
-
-      // Apply sorting
-      const sortBy = sorting[0]?.id as SortField | undefined;
-      const sortDir = sorting[0]?.desc ? "desc" : "asc";
-
-      if (sortBy) {
-        filteredData = sortTeachers(filteredData, sortBy, sortDir);
-      }
-
-      // Apply pagination
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedData = filteredData.slice(startIndex, endIndex);
-
-      setRows(paginatedData);
-      setTotal(filteredData.length);
-      setTotalPages(Math.ceil(filteredData.length / pageSize));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load teachers");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [page, pageSize, sorting, columnFilters, activeFilter]);
-
+  // Fetch data when dependencies change
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleColumnFilterChange = React.useCallback(
-    async (columnKey: string, filterValue: unknown) => {
-      setColumnFilters((prev) => ({
-        ...prev,
-        [columnKey]: filterValue,
-      }));
-      setPage(1);
+  const handleSetSorting = React.useCallback(
+    (newSorting: SortingState) => {
+      const sortBy = newSorting[0]?.id as SortField | undefined;
+      const sortDir = newSorting[0]?.desc ? 'desc' : 'asc';
+      dispatch(setSorting({ sortBy, sortDir }));
     },
-    []
+    [dispatch]
   );
 
-  const handleColumnFilterEnter = React.useCallback(async () => {
-    setPage(1);
+  const handleSetPage = React.useCallback(
+    (newPage: number) => {
+      dispatch(setPage(newPage));
+    },
+    [dispatch]
+  );
+
+  const handleSetPageSize = React.useCallback(
+    (newSize: number) => {
+      dispatch(setPageSize(newSize));
+    },
+    [dispatch]
+  );
+
+  const handleColumnFilterChange = React.useCallback(
+    (columnKey: string, filterValue: unknown) => {
+      dispatch(setColumnFilters({
+        ...columnFilters,
+        [columnKey]: filterValue,
+      }));
+    },
+    [dispatch, columnFilters]
+  );
+
+  const handleColumnFilterEnter = React.useCallback(() => {
     fetchData();
   }, [fetchData]);
 
   const handleServerSideFilterChange = React.useCallback(
     (filterKey: string | undefined) => {
-      setActiveFilter(filterKey);
-      setPage(1);
+      dispatch(setActiveFilter(filterKey));
     },
-    []
+    [dispatch]
   );
 
   return {
@@ -94,11 +108,11 @@ export function useTeacherListing() {
     isLoading,
     error,
     sorting,
-    setSorting,
+    setSorting: handleSetSorting,
     page,
-    setPage,
+    setPage: handleSetPage,
     pageSize,
-    setPageSize,
+    setPageSize: handleSetPageSize,
     columnFilters,
     activeFilter,
     fetchData,
