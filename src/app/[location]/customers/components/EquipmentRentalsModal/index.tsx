@@ -88,6 +88,7 @@ interface EquipmentRentalsModalProps {
   onReprintAgreement?: (rentalId: number) => void;
   onEquipmentReturned?: (rentalId: number) => void;
   onDelete?: () => void;
+  onEmail?: (data: { subject: string; content: string }) => void;
 }
 
 const InstrumentFormRow = React.memo(
@@ -310,6 +311,7 @@ export function EquipmentRentalsModal({
   onReprintAgreement,
   onEquipmentReturned,
   onDelete,
+  onEmail,
 }: EquipmentRentalsModalProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1535,6 +1537,286 @@ export function EquipmentRentalsModal({
     window.open(url, "_blank");
   };
 
+  const generateEmailContent = useCallback(() => {
+    if (!createdRentalData) return { subject: "", content: "" };
+
+    const {
+      customerName,
+      customerAddress,
+      customerCity,
+      customerPostalCode,
+      homePhone,
+      workPhone,
+      otherPhone,
+      email,
+      studentFirstName,
+      studentLastName,
+      startDate,
+      duration,
+      returnDate,
+      instruments,
+      subTotal,
+      hst,
+      total,
+      location,
+    } = createdRentalData;
+
+    const subject = "Receipt from Arcadia Academy of Music";
+    
+    // Calculate total retail value
+    const totalRetailValue = instruments.reduce(
+      (sum, inst) => sum + parseFloat(inst.retailValue || "0"),
+      0
+    );
+
+    // Get the first instrument's monthly rate (or use first available)
+    const firstInstrumentRate = instruments[0]?.monthlyRate || "0.00";
+
+    // Format dates
+    const formattedStartDate = format(new Date(startDate), "MMM dd, yyyy");
+    const formattedReturnDate = returnDate
+      ? format(new Date(returnDate), "MMM dd, yyyy")
+      : null;
+
+    // Get base URL for images (use window.location.origin or fallback)
+    const baseUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : process.env.NEXT_PUBLIC_BASE_URL || '';
+
+    // Generate instrument table rows - matching receipt modal exactly: p-3 text-sm
+    const instrumentRows = instruments
+      .map(
+        (inst) => `
+        <tr>
+          <td style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; color: #111827; vertical-align: middle;">${inst.instrument}</td>
+          <td style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; color: #111827; vertical-align: middle;">$${inst.retailValue || "0.00"}</td>
+          <td style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; color: #111827; vertical-align: middle;">${inst.assetTag || "N/A"}</td>
+          <td style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; color: #111827; vertical-align: middle;">$${inst.monthlyRate}</td>
+          <td style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; color: #111827; vertical-align: middle;">${inst.numberOfMonths}</td>
+          <td style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; font-weight: 500; color: #111827; vertical-align: middle;">$${inst.total}</td>
+        </tr>
+      `
+      )
+      .join("");
+
+    const content = `
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; max-width: 100%; border-collapse: collapse; background-color: #ffffff;">
+        <tr>
+          <td style="padding: 32px; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #111827; text-align: left;">
+            <!-- Header - Using table for email compatibility -->
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 32px; padding-bottom: 16px; border-bottom: 2px solid #dc2626; border-collapse: collapse;">
+              <tr>
+                <td style="vertical-align: top; padding-right: 16px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+                    <tr>
+                      <td style="vertical-align: middle; padding-right: 16px; width: 80px; height: 80px; line-height: 0;">
+                        <img src="${baseUrl}/admin/v2/SMW.png" alt="Musical Instruments Logo" width="80" height="80" style="width: 80px; height: 80px; max-width: 80px; max-height: 80px; display: block; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic;" />
+                      </td>
+                      <td style="vertical-align: middle;">
+                        <h2 style="font-size: 30px; font-weight: bold; color: #1f2937; margin: 0; line-height: 1.2; padding: 0; text-align: left;">Musical Instruments</h2>
+                        <p style="font-size: 16px; font-weight: 600; color: #6b7280; margin: 4px 0 0 0; padding: 0; text-align: left;">Rental Program</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+                <td style="vertical-align: top; text-align: left; font-size: 14px; color: #6b7280;">
+                  <p style="font-weight: 500; margin: 0; padding: 0; text-align: left;">205 Marycroft Ave., Unit 6</p>
+                  <p style="font-weight: 500; margin: 4px 0; padding: 0; text-align: left;">${location}, Ontario</p>
+                  <p style="font-weight: 500; margin: 4px 0; padding: 0; text-align: left;">Tel: (905) 254-3424</p>
+                </td>
+              </tr>
+            </table>
+
+        <!-- Rental Program Details - Using table for email compatibility -->
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 32px; background-color: #f9fafb; border-radius: 8px; border-collapse: separate; border-spacing: 0;">
+          <tr>
+            <td style="padding: 16px 8px 16px 16px; vertical-align: top; text-align: left;">
+              <p style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin: 0 0 4px 0; text-align: left;">Start Date</p>
+              <p style="font-size: 16px; font-weight: 500; color: #111827; margin: 0; text-align: left;">${formattedStartDate}</p>
+            </td>
+            <td style="padding: 16px 8px; vertical-align: top; text-align: left;">
+              <p style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin: 0 0 4px 0; text-align: left;">Duration</p>
+              <p style="font-size: 16px; font-weight: 500; color: #111827; margin: 0; text-align: left;">${duration} Month${duration > 1 ? "s" : ""}</p>
+            </td>
+            <td style="padding: 16px 16px 16px 8px; vertical-align: top; text-align: left;">
+              <p style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin: 0 0 4px 0; text-align: left;">Return Date</p>
+              <p style="font-size: 16px; font-weight: 500; color: #111827; margin: 0; text-align: left;">${formattedReturnDate || "On Going"}</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Customer Information - Matching receipt modal: mb-8 -->
+        <div style="margin-bottom: 32px; text-align: left;">
+          <h3 style="font-size: 18px; font-weight: bold; color: #1f2937; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; text-align: left;">Customer Information</h3>
+          <p style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #111827; text-align: left;">
+            Parent/Guardian: <span style="font-weight: normal;">${customerName}</span>
+          </p>
+
+          <!-- Student section - Using table for email compatibility -->
+          <div style="margin-bottom: 16px; text-align: left;">
+            <p style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; text-align: left;">Student</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #f9fafb; border-radius: 4px; border-collapse: separate; border-spacing: 0;">
+              <tr>
+                <td style="padding: 12px 8px 12px 12px; vertical-align: top; width: 50%; text-align: left;">
+                  <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">First Name:</p>
+                  <p style="font-size: 16px; color: #111827; margin: 0; text-align: left;">${studentFirstName}</p>
+                </td>
+                <td style="padding: 12px 12px 12px 8px; vertical-align: top; width: 50%; text-align: left;">
+                  <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">Last Name:</p>
+                  <p style="font-size: 16px; color: #111827; margin: 0; text-align: left;">${studentLastName}</p>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Address grid - Using table for email compatibility -->
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 12px; border-collapse: separate; border-spacing: 0;">
+            <tr>
+              <td style="padding: 0 8px 0 0; vertical-align: top; width: 33.33%; text-align: left;">
+                <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">Address:</p>
+                <p style="font-size: 14px; color: #111827; margin: 0; text-align: left;">${customerAddress}</p>
+              </td>
+              <td style="padding: 0 8px; vertical-align: top; width: 33.33%; text-align: left;">
+                <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">City:</p>
+                <p style="font-size: 14px; color: #111827; margin: 0; text-align: left;">${customerCity}</p>
+              </td>
+              <td style="padding: 0 0 0 8px; vertical-align: top; width: 33.33%; text-align: left;">
+                <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">Postal Code:</p>
+                <p style="font-size: 14px; color: #111827; margin: 0; text-align: left;">${customerPostalCode}</p>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Phone grid - Using table for email compatibility -->
+          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 12px; border-collapse: separate; border-spacing: 0;">
+            <tr>
+              <td style="padding: 0 8px 0 0; vertical-align: top; width: 33.33%; text-align: left;">
+                <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">Home Phone:</p>
+                <p style="font-size: 14px; color: #111827; margin: 0; text-align: left;">${homePhone || ""}</p>
+              </td>
+              <td style="padding: 0 8px; vertical-align: top; width: 33.33%; text-align: left;">
+                <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">Work Phone:</p>
+                <p style="font-size: 14px; color: #111827; margin: 0; text-align: left;">${workPhone || ""}</p>
+              </td>
+              <td style="padding: 0 0 0 8px; vertical-align: top; width: 33.33%; text-align: left;">
+                <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">Other Phone:</p>
+                <p style="font-size: 14px; color: #111827; margin: 0; text-align: left;">${otherPhone || ""}</p>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Email -->
+          <div style="text-align: left;">
+            <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 4px 0; text-align: left;">Email:</p>
+            <p style="font-size: 14px; color: #111827; margin: 0; text-align: left;">${email}</p>
+          </div>
+        </div>
+
+        <!-- Instrument Details - Matching receipt modal: mb-8 -->
+        <div style="margin-bottom: 32px; text-align: left;">
+          <h3 style="font-size: 18px; font-weight: bold; color: #1f2937; margin: 0 0 12px 0; text-align: left;">Instrument Details</h3>
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #111827;">Instrument</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #111827;">Retail Value</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #111827;">Asset Tag/Serial#</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #111827;">Monthly Rate</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #111827;"># of Months</th>
+                <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #111827;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${instrumentRows}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Summary of Charges - Using table for email compatibility -->
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 32px;">
+          <tr>
+            <td style="text-align: right;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width: 320px; background-color: #f9fafb; border-radius: 8px; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="font-weight: 600; color: #374151; padding-bottom: 8px;">Sub Total:</td>
+                        <td style="text-align: right; font-weight: 500; color: #111827; padding-bottom: 8px;">$${subTotal.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-weight: 600; color: #374151; padding-bottom: 8px;">HST (13%):</td>
+                        <td style="text-align: right; font-weight: 500; color: #111827; padding-bottom: 8px;">$${hst.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td colspan="2" style="border-top: 2px solid #d1d5db; padding-top: 12px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                              <td style="font-weight: bold; font-size: 18px; color: #1f2937;">Total:</td>
+                              <td style="text-align: right; font-weight: bold; font-size: 18px; color: #1f2937;">$${total.toFixed(2)}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Rental Agreement - Matching receipt modal: border-t-2 pt-6 -->
+        <div style="border-top: 2px solid #d1d5db; padding-top: 24px; text-align: left;">
+          <h3 style="font-weight: bold; font-size: 18px; margin-bottom: 12px; color: #1f2937; text-align: left;">Rental Agreement:</h3>
+          <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; text-align: left;">
+            <p style="font-size: 14px; text-align: left; line-height: 1.75; color: #374151; margin: 0;">
+              I HAVE RECEIVED FROM ARCADIA ACADEMY OF MUSIC THE ABOVE LISTED ITEMS WHICH I HAVE EXAMINED AND FIND TO BE IN GOOD WORKING CONDITION. THE VALUE OF WHICH IS $${totalRetailValue.toFixed(2)}. I AM RENTING THIS FOR A PERIOD OF ${duration} MONTH${duration > 1 ? "S" : ""} AT THE RATE OF $${firstInstrumentRate} (excl. taxes) PER MONTH. OVERDUE RENT WILL BE DEDUCTED FROM THE DEPOSIT AT THE PRO RATA DAILY RATE. I, <strong>${customerName}</strong>, WILL BE RESPONSIBLE FOR THE VALUE OF THE ITEMS, IF FOR ANY REASON THEY ARE NOT RETURNED TO ARCADIA ACADEMY OF MUSIC. I, <strong>${customerName}</strong>, WILL ALSO BE RESPONSIBLE FOR ANY DAMAGE TO THESE ITEMS BEYOND NORMAL EXPECTED WEAR. I, <strong>${customerName}</strong>, WILL PAY ANY FEES OR COSTS TO THE OWNER IN REPOSSESSING THE ITEMS OR COLLECTING THE RENTALS DUE. AN ADDITIONAL CHARGE OF $5.00 WILL BE ADDED TO ALL RENTALS RETURNED AFTER THE DUE DATE.
+            </p>
+          </div>
+
+          <!-- Two clauses - Using table for email compatibility -->
+          <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #d1d5db;">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 24px; border-collapse: separate; border-spacing: 0;">
+              <tr>
+                <td style="padding: 0 8px 0 0; vertical-align: top; width: 50%;">
+                  <div style="border: 2px dashed #9ca3af; padding: 16px; border-radius: 4px;">
+                    <p style="font-size: 14px; font-weight: 600; color: #374151; margin: 0; text-align: center;">RENTAL EQUIPMENT IS NOT COVERED BY ARCADIA ACADEMY OF MUSIC INSURANCE</p>
+                  </div>
+                </td>
+                <td style="padding: 0 0 0 8px; vertical-align: top; width: 50%;">
+                  <div style="border: 2px dashed #9ca3af; padding: 16px; border-radius: 4px;">
+                    <p style="font-size: 14px; font-weight: 600; color: #374151; margin: 0; text-align: center;">RENTAL PAYMENTS DO NOT APPLY TO PURCHASE</p>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+          </td>
+        </tr>
+      </table>
+    `;
+
+    return { subject, content };
+  }, [createdRentalData]);
+
+  const handleEmail = () => {
+    if (!createdRentalData) return;
+
+    // Generate email content and pass to EmailStatementModal via onEmail
+    // NOTE: This only opens the email modal - NO API call is made here
+    const { subject, content } = generateEmailContent();
+    
+    if (onEmail) {
+      // Open EmailStatementModal with pre-filled content (no API call)
+      onEmail({
+        subject,
+        content,
+      });
+    }
+  };
+
   const filledInstruments = instruments.filter((inst) => inst.instrumentId > 0);
   const subTotal = filledInstruments.reduce(
     (sum, instrument) => sum + parseFloat(instrument.total || "0"),
@@ -2411,6 +2693,19 @@ export function EquipmentRentalsModal({
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-gray-300 dark:border-gray-700">
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="border-2 border-dashed border-gray-400 dark:border-gray-600 p-4 rounded">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-center">
+                        RENTAL EQUIPMENT IS NOT COVERED BY ARCADIA ACADEMY OF MUSIC INSURANCE
+                      </p>
+                    </div>
+                    <div className="border-2 border-dashed border-gray-400 dark:border-gray-600 p-4 rounded">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-center">
+                        RENTAL PAYMENTS DO NOT APPLY TO PURCHASE
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="flex justify-between items-end">
                     <div className="w-1/2">
                       <p className="text-sm font-semibold mb-2 dark:text-gray-100">
@@ -2435,6 +2730,9 @@ export function EquipmentRentalsModal({
               <Button variant="outline" onClick={handleCloseReceiptModal}>
                 Close
               </Button>
+              {onEmail && (
+                <Button onClick={handleEmail}>Email</Button>
+              )}
               <Button onClick={handlePrintReceipt}>Print</Button>
             </div>
           </DialogFooter>

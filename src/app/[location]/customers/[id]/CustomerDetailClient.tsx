@@ -488,6 +488,13 @@ export function CustomerDetailClient({
   // Fetch email statement data when modal opens
   React.useEffect(() => {
     if (isEmailStatementModalOpen && location && id) {
+      // Skip API call if emailModalOverrides is set (e.g., from equipment rental receipt)
+      // This means we already have the content and don't need to fetch from API
+      if (emailModalOverrides) {
+        setIsLoadingEmailStatement(false);
+        return;
+      }
+      
       setIsLoadingEmailStatement(true);
       getEmailStatement(location, Number(id))
         .then((data: EmailStatementData | null) => {
@@ -505,8 +512,10 @@ export function CustomerDetailClient({
     } else if (!isEmailStatementModalOpen) {
       // Clear email statement data when modal closes
       setEmailStatementData(null);
+      // Also clear emailModalOverrides when modal closes
+      setEmailModalOverrides(null);
     }
-  }, [isEmailStatementModalOpen, location, id]);
+  }, [isEmailStatementModalOpen, location, id, emailModalOverrides]);
 
   const handleSendEmailStatement = async (emailData: EmailFormData) => {
     try {
