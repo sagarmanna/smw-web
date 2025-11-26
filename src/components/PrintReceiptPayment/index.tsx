@@ -12,6 +12,7 @@ import type {
   InvoiceRow,
   ReceiptRow,
   PaymentReceiptData,
+  LocationDetails,
 } from './types';
 
 // Re-export types for convenience
@@ -25,20 +26,34 @@ export type {
   InvoiceRow,
   ReceiptRow,
   PaymentReceiptData,
-};
-
-// Constants - can be overridden per instance
-export const DEFAULT_COMPANY_INFO: CompanyInfo = {
-  name: "Arcadia Academy of Music ( Training Location )",
-  address: "205 Marycroft Ave., Unit 6",
-  city: "Toronto, Ontario",
-  postalCode: "L4L 5X8",
-  phone: "(905) 254-3424",
-  email: "traininglocation@example.com",
-  website: "www.arcadiamusicacademy.com",
+  LocationDetails,
 };
 
 export const DEFAULT_LOGO_URL = "/admin/v2/SMW.png";
+
+// Helper: Transform LocationDetails to CompanyInfo (DRY)
+export const transformLocationDetailsToCompanyInfo = (
+  locationDetails: LocationDetails | null | undefined
+): CompanyInfo | null => {
+  if (!locationDetails) {
+    return null;
+  }
+
+  // Combine city, province, and country into city field
+  const cityParts = [locationDetails.city, locationDetails.province, locationDetails.country]
+    .filter(Boolean)
+    .join(", ");
+
+  return {
+    name: locationDetails.name || "",
+    address: locationDetails.address || "",
+    city: cityParts || "",
+    postalCode: locationDetails.postalCode || "",
+    phone: locationDetails.phoneNumber || "",
+    email: locationDetails.email || "",
+    website: "", // Website not in API response
+  };
+};
 
 // Helper: Sanitize name
 export const sanitizeName = (name?: string): string => {
@@ -207,9 +222,21 @@ export const generateEmailContent = (config: PrintReceiptConfig): string => {
 // Payment Receipt Builder
 export const buildPaymentReceiptConfig = (
   data: PaymentReceiptData,
-  companyInfo: CompanyInfo = DEFAULT_COMPANY_INFO,
+  companyInfo?: CompanyInfo,
   logoUrl = DEFAULT_LOGO_URL
 ): PrintReceiptConfig => {
+  // Use provided companyInfo, or transform from locationDetails
+  const finalCompanyInfo = companyInfo 
+    || transformLocationDetailsToCompanyInfo(data.locationDetails)
+    || {
+      name: "",
+      address: "",
+      city: "",
+      postalCode: "",
+      phone: "",
+      email: "",
+      website: "",
+    };
   const tables: TableConfig[] = [];
 
   // Lessons table
@@ -294,7 +321,7 @@ export const buildPaymentReceiptConfig = (
   return {
     title: 'Payment Receipt',
     headerAmount: data.headerAmount,
-    companyInfo,
+    companyInfo: finalCompanyInfo,
     customerInfo: {
       name: data.customerName,
       phone: data.customerPhone,

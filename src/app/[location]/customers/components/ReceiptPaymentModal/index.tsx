@@ -9,6 +9,7 @@ import {
   PaymentUsedLesson,
   PaymentGroupLesson,
   PaymentInvoice,
+  LocationDetails,
 } from "./receipt-payment.api";
 import { receivePayment, PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import {
@@ -71,6 +72,7 @@ interface PaymentInfo {
   date: string;
   paymentMethod: string;
   amount: number;
+  locationDetails: LocationDetails | null;
   locationHstRegistrationNo: string;
   acknowledgmentMessage: string;
 }
@@ -348,6 +350,7 @@ export function PaymentReceiptModalContainer(
       customerPhone,
       customerEmail,
       hstNumber: paymentInfo?.locationHstRegistrationNo,
+      locationDetails: paymentInfo?.locationDetails || null,
       allocationRows: showAllocations ? allocationRows : undefined,
       groupLessonRows: groupLessonRows.length > 0 ? groupLessonRows : undefined,
       invoiceRows: invoiceRows.length > 0 ? invoiceRows : undefined,
