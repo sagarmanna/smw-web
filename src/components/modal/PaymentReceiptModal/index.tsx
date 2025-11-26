@@ -136,6 +136,7 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
     paymentDate,
     paymentMethod,
     customerName,
+    hstNumber,
     showAllocations,
     receiptHtml,
     receiptHtmlRef,
@@ -153,6 +154,7 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
     amountToCredit,
     onEditDateChange,
     onEditFormChange,
+    onLessonAllocationChange,
     onGroupLessonAllocationChange,
     onInvoiceAllocationChange,
     onEditClick,
@@ -333,7 +335,7 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                     {/* Edit mode tables */}
                     {isEditing && (
                       <>
-                        {/* Lessons (edit mode - disabled inputs) */}
+                        {/* Lessons (edit mode - editable) */}
                         {lessonEditRows.length > 0 && (
                           <div className="space-y-3">
                             <div className="text-sm font-semibold">Lessons</div>
@@ -345,13 +347,17 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                                   id: "paymentInput",
                                   header: "Payment",
                                   cell: ({ row }) => {
-                                    const current = (row.original as EditLessonRow).allocation;
+                                    const lessonRow = row.original as EditLessonRow;
+                                    const current = lessonRow.allocation;
                                     return (
                                       <Input
                                         type="number"
                                         value={Number(current).toString()}
+                                        onChange={(e) => {
+                                          const v = parseFloat(e.target.value || "0");
+                                          onLessonAllocationChange(row.index, v);
+                                        }}
                                         className="h-8 text-right"
-                                        disabled
                                       />
                                     );
                                   },
@@ -505,9 +511,9 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                     )}
 
                     {/* Tax number */}
-                    {!isEditing && (
+                    {!isEditing && hstNumber && (
                       <div className="text-sm font-medium pt-2">
-                        HST# <span className="text-muted-foreground">FQRS47785GT1234</span>
+                        HST# <span className="text-muted-foreground">{hstNumber}</span>
                       </div>
                     )}
                   </>

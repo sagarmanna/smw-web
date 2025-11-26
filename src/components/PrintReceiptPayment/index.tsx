@@ -38,10 +38,7 @@ export const DEFAULT_COMPANY_INFO: CompanyInfo = {
   website: "www.arcadiamusicacademy.com",
 };
 
-export const DEFAULT_LOGO_URLS = {
-  primary: "/SMW.png",
-  fallback: "/SMW-dark.png",
-};
+export const DEFAULT_LOGO_URL = "/admin/v2/SMW.png";
 
 // Helper: Sanitize name
 export const sanitizeName = (name?: string): string => {
@@ -110,9 +107,10 @@ export const generateCustomerBlock = (customerInfo: CustomerInfo): string => {
 
 // Main: Generate complete print HTML
 export const generatePrintReceiptHtml = (config: PrintReceiptConfig): string => {
-  const origin = window.location.origin || "";
-  const logoUrl = `${origin}${config.logoUrls.primary}`;
-  const fallbackLogoUrl = `${origin}${config.logoUrls.fallback}`;
+  const baseUrl = typeof window !== 'undefined' 
+    ? window.location.origin 
+    : process.env.NEXT_PUBLIC_BASE_URL || '';
+  const logoUrl = `${baseUrl}${config.logoUrl}`;
   
   const fromBlock = generateCompanyBlock(config.companyInfo);
   const toBlock = generateCustomerBlock(config.customerInfo);
@@ -128,8 +126,8 @@ export const generatePrintReceiptHtml = (config: PrintReceiptConfig): string => 
         <h1 style="font-size:18px;margin:0;">${config.title}</h1>
         <div style="font-weight:600;">Amount Paid ${config.headerAmount}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-        <img src="${logoUrl}" onerror="this.onerror=null;this.src='${fallbackLogoUrl}';" alt="Logo" style="height:56px;" />
+      <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:16px;">
+        <img src="${logoUrl}" alt="Logo" width="220" height="220" style="width: 220px; height: 220px; max-width: 220px; max-height: 220px; display: block; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; object-fit: contain; flex-shrink: 0;" />
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:16px;gap:24px;">
         <div><div style="font-size:12px;margin-bottom:6px;">From</div>${fromBlock}</div>
@@ -189,9 +187,6 @@ export const printReceipt = (config: PrintReceiptConfig): boolean => {
 
 // Email helper: Generate email content (similar to print but without print styles)
 export const generateEmailContent = (config: PrintReceiptConfig): string => {
-  const fromBlock = generateCompanyBlock(config.companyInfo);
-  const toBlock = generateCustomerBlock(config.customerInfo);
-  
   const tablesHtml = config.tables
     .map(table => generateTableHtml(table.title, table.headers, table.rows, table.alignments))
     .join('');
@@ -213,7 +208,7 @@ export const generateEmailContent = (config: PrintReceiptConfig): string => {
 export const buildPaymentReceiptConfig = (
   data: PaymentReceiptData,
   companyInfo: CompanyInfo = DEFAULT_COMPANY_INFO,
-  logoUrls = DEFAULT_LOGO_URLS
+  logoUrl = DEFAULT_LOGO_URL
 ): PrintReceiptConfig => {
   const tables: TableConfig[] = [];
 
@@ -308,7 +303,7 @@ export const buildPaymentReceiptConfig = (
     acknowledgmentMessage,
     tables,
     footer,
-    logoUrls,
+    logoUrl,
   };
 };
 

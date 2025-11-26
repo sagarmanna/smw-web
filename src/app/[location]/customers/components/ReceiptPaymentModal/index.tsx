@@ -17,6 +17,7 @@ import {
   calculateCreditAmount,
   createAllocationHandler,
 } from "@/utils/paymentUtils";
+import { parse, isValid } from "date-fns";
 import {
   printPaymentReceipt,
   generatePaymentReceiptEmail,
@@ -242,7 +243,7 @@ export function PaymentReceiptModalContainer(
       setInvoices(data.invoices.data);
       setPaymentMethods(data.paymentMethods);
 
-      // Set default payment method
+      // Set default payment method and date
       if (data.info && data.paymentMethods.length > 0) {
         const foundMethod = data.paymentMethods.find(
           (m) => m.name.toLowerCase() === data.info?.paymentMethod.toLowerCase()
@@ -256,6 +257,24 @@ export function PaymentReceiptModalContainer(
           reference: data.info.reference || "",
           amountReceived: data.info.amount.toString() || "0.00",
         });
+
+        // Parse and set the payment date from API (format: "Nov 12, 2025")
+        if (data.info.date) {
+          let parsedDate: Date | undefined;
+          try {
+            // Try parsing with "MMM dd, yyyy" format
+            parsedDate = parse(data.info.date, "MMM dd, yyyy", new Date());
+            if (!isValid(parsedDate)) {
+              // Try parsing with "MMM d, yyyy" format (single digit day)
+              parsedDate = parse(data.info.date, "MMM d, yyyy", new Date());
+            }
+            if (isValid(parsedDate)) {
+              setEditDate(parsedDate);
+            }
+          } catch (e) {
+            console.error("Error parsing payment date from API:", e);
+          }
+        }
       }
     } catch (error) {
       console.error("Error fetching payment receipt data:", error);
@@ -264,6 +283,13 @@ export function PaymentReceiptModalContainer(
       setIsLoading(false);
     }
   }, [location, paymentId]);
+
+  // Reset editing state when modal closes or paymentId changes
+  React.useEffect(() => {
+    if (!open || !paymentId) {
+      setIsEditing(false);
+    }
+  }, [open, paymentId]);
 
   // Fetch data when modal opens
   React.useEffect(() => {
@@ -341,18 +367,36 @@ export function PaymentReceiptModalContainer(
     ]
   );
 
-  // Initialize edit rows when entering edit mode
+  // Initialize edit rows and date when entering edit mode
   React.useEffect(() => {
     if (isEditing) {
       setLessonEditRows(transformLessonsToEditRows(lessons));
       setGroupLessonEditRows(transformGroupLessonsToEditRows(groupLessonRows));
       setInvoiceEditRows(transformInvoicesToEditRows(invoiceRows));
+      
+      // Set edit date from API if available
+      if (paymentInfo?.date) {
+        let parsedDate: Date | undefined;
+        try {
+          // Try parsing with "MMM dd, yyyy" format
+          parsedDate = parse(paymentInfo.date, "MMM dd, yyyy", new Date());
+          if (!isValid(parsedDate)) {
+            // Try parsing with "MMM d, yyyy" format (single digit day)
+            parsedDate = parse(paymentInfo.date, "MMM d, yyyy", new Date());
+          }
+          if (isValid(parsedDate)) {
+            setEditDate(parsedDate);
+          }
+        } catch (e) {
+          console.error("Error parsing payment date from API:", e);
+        }
+      }
     } else {
       setLessonEditRows([]);
       setGroupLessonEditRows([]);
       setInvoiceEditRows([]);
     }
-  }, [isEditing, lessons, groupLessonRows, invoiceRows]);
+  }, [isEditing, lessons, groupLessonRows, invoiceRows, paymentInfo]);
 
   // Calculate amounts
   const amountToApply = React.useMemo(() => {
@@ -509,6 +553,11 @@ export function PaymentReceiptModalContainer(
   }, []);
 
   // Create allocation handlers
+  const handleLessonAllocationChange = React.useMemo(
+    () => createAllocationHandler(setLessonEditRows),
+    []
+  );
+
   const handleGroupLessonAllocationChange = React.useMemo(
     () => createAllocationHandler(setGroupLessonEditRows),
     []
@@ -534,6 +583,7 @@ export function PaymentReceiptModalContainer(
       customerName={customerName}
       customerPhone={customerPhone}
       customerEmail={customerEmail}
+      hstNumber={paymentInfo?.locationHstRegistrationNo}
       showAllocations={showAllocations}
       receiptHtmlRef={receiptHtmlRef}
       allocationRows={allocationRows}
@@ -550,7 +600,7 @@ export function PaymentReceiptModalContainer(
       amountToCredit={amountToCredit}
       onEditDateChange={setEditDate}
       onEditFormChange={setEditForm}
-      onLessonAllocationChange={() => {}}
+      onLessonAllocationChange={handleLessonAllocationChange}
       onGroupLessonAllocationChange={handleGroupLessonAllocationChange}
       onInvoiceAllocationChange={handleInvoiceAllocationChange}
       onEditClick={handleEditClick}

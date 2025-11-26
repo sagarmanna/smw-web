@@ -1059,15 +1059,20 @@ export function CustomerDetailClient({
     async (page: number) => {
       setPaymentsLoading(true);
       try {
+        const isAllSelected = paymentsPagination.limit === -1;
         const result = await getCustomerPayments(
           location,
           Number(id),
           page,
-          paymentsPagination.limit === -1 ? 99999 : paymentsPagination.limit
+          isAllSelected ? 99999 : paymentsPagination.limit
         );
 
         setPaymentData(result.data || []);
-        setPaymentsPagination(result.pagination);
+        // Preserve -1 in pagination state when "All" is selected, even though API returns 99999
+        setPaymentsPagination({
+          ...result.pagination,
+          limit: isAllSelected ? -1 : result.pagination.limit,
+        });
         if (result.footer?.totalRemaining) {
           setPaymentsFooterRemaining(result.footer.totalRemaining);
         }
@@ -1092,7 +1097,11 @@ export function CustomerDetailClient({
         );
 
         setPaymentData(result.data || []);
-        setPaymentsPagination(result.pagination);
+        // Preserve -1 in pagination state when "All" is selected, even though API returns 99999
+        setPaymentsPagination({
+          ...result.pagination,
+          limit: rowsPerPage === -1 ? -1 : result.pagination.limit,
+        });
         if (result.footer?.totalRemaining) {
           setPaymentsFooterRemaining(result.footer.totalRemaining);
         }
@@ -1110,12 +1119,13 @@ export function CustomerDetailClient({
     setPaymentsLoading(true);
     try {
       // Fetch all related data in parallel for speed
+      const isAllSelected = paymentsPagination.limit === -1;
       const [paymentsRes, summaryRes, outstandingRes] = await Promise.all([
         getCustomerPayments(
           location,
           Number(id),
           paymentsPagination.page,
-          paymentsPagination.limit
+          isAllSelected ? 99999 : paymentsPagination.limit
         ),
         getCustomerSummary(location, Number(id)),
         getCustomerOutstandingInvoices(
@@ -1128,7 +1138,11 @@ export function CustomerDetailClient({
 
       // Update payments data
       setPaymentData(paymentsRes.data || []);
-      setPaymentsPagination(paymentsRes.pagination);
+      // Preserve -1 in pagination state when "All" is selected, even though API returns 99999
+      setPaymentsPagination({
+        ...paymentsRes.pagination,
+        limit: isAllSelected ? -1 : paymentsRes.pagination.limit,
+      });
       if (paymentsRes.footer?.totalRemaining) {
         setPaymentsFooterRemaining(paymentsRes.footer.totalRemaining);
       }
