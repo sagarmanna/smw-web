@@ -44,8 +44,13 @@ export const transformLocationDetailsToCompanyInfo = (
     .filter(Boolean)
     .join(", ");
 
+  // Hardcode "Arcadia Academy Of Music" before location name from API
+  const companyName = locationDetails.name 
+    ? `Arcadia Academy Of Music (${locationDetails.name})`
+    : "Arcadia Academy Of Music";
+
   return {
-    name: locationDetails.name || "",
+    name: companyName,
     address: locationDetails.address || "",
     city: cityParts || "",
     postalCode: locationDetails.postalCode || "",
