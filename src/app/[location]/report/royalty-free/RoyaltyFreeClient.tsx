@@ -48,7 +48,7 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
         
         // Calculate total amount from items if not provided by API
         const calculatedTotal = items.reduce((sum: number, item: RoyaltyFreeItem) => {
-          const amount = typeof item.total === 'string' ? parseFloat(item.total) : item.total;
+          const amount = typeof item.subtotal === 'string' ? parseFloat(item.subtotal) : item.subtotal;
           return sum + (amount || 0);
         }, 0);
         setTotalAmount(response.data.meta?.totalAmount || calculatedTotal);
@@ -116,14 +116,14 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
       },
     },
     {
-      accessorKey: "total",
+      accessorKey: "subtotal",
       header: "Total",
       size: 120,
       cell: ({ row }) => {
-        const total = typeof row.original.total === 'string' 
-          ? parseFloat(row.original.total) 
-          : row.original.total;
-        return <span className="text-right block">{formatCurrency(total)}</span>;
+        const subtotal = typeof row.original.subtotal === 'string' 
+          ? parseFloat(row.original.subtotal) 
+          : row.original.subtotal;
+        return <span className="text-right block">{formatCurrency(subtotal)}</span>;
       },
       enableSorting: false,
       meta: {
@@ -142,6 +142,7 @@ export const RoyaltyFreeClient = ({ location }: { location: string }) => {
       date: "",
       dateLabel: "",
       description: "",
+      subtotal: totalAmount,
       total: totalAmount,
     };
   }, [data.length, totalAmount]);
