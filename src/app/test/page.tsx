@@ -1,7 +1,7 @@
 const Test = () => {
     return (
         <>
-        <div> Test Page | ENV </div>
+        <div> Test Page </div>
         <pre>
         NEXT_PUBLIC_ENV: {process.env.NEXT_PUBLIC_ENV}
         {/* <br />
