@@ -79,6 +79,7 @@ export interface PaymentReceiptModalUIProps {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
+  hstNumber?: string;
   showAllocations: boolean;
   receiptHtml?: string;
   receiptHtmlRef?: React.RefObject<HTMLDivElement | null>;
@@ -119,3 +120,4 @@ export interface PaymentReceiptModalUIProps {
   onEmailFormSubmit?: () => void;
   onPrintFromHtml?: () => void;
 }
+

@@ -31,10 +31,7 @@ export interface PrintReceiptConfig {
   acknowledgmentMessage: string;
   tables: TableConfig[];
   footer?: string;
-  logoUrls: {
-    primary: string;
-    fallback: string;
-  };
+  logoUrl: string;
 }
 
 // Payment Receipt Specific Types
