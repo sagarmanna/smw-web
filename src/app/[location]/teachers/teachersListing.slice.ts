@@ -1,8 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { getTeachers, TeacherRow, TeachersQuery } from './teachers.api';
-import { mockTeachersData } from './mockData/mockData';
-import { filterTeachers, TeacherFilters } from './utils/filterTeachers';
-import { sortTeachers, SortField } from './utils/sortTeachers';
+import { SortField } from './utils/sortTeachers';
 
 interface TeachersListingState {
   rows: TeacherRow[];
@@ -43,10 +41,9 @@ export const fetchTeachers = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Try to fetch from API
       const response = await getTeachers(location, query);
       
-      if (response) {
+      if (response && response.success) {
         return {
           rows: response.data.body,
           total: response.data.pagination.total,
@@ -54,33 +51,11 @@ export const fetchTeachers = createAsyncThunk(
         };
       }
 
-      // Fallback to mock data with client-side filtering/sorting/pagination
-      const filters: TeacherFilters = {
-        firstName: query.firstName,
-        lastName: query.lastName,
-        email: query.email,
-        phone: query.phone,
-        status: query.status,
-      };
-
-      let filteredData = filterTeachers(mockTeachersData, filters);
-
-      // Apply sorting
-      if (query.sort) {
-        filteredData = sortTeachers(filteredData, query.sort, query.order || 'asc');
-      }
-
-      // Apply pagination
-      const page = query.page || 1;
-      const limit = query.limit || 20;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedData = filteredData.slice(startIndex, endIndex);
-
+      // Return empty result if API call fails or returns unsuccessful response
       return {
-        rows: paginatedData,
-        total: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / limit),
+        rows: [],
+        total: 0,
+        totalPages: 0,
       };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch teachers');

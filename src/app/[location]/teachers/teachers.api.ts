@@ -1,5 +1,4 @@
 import { apiClient } from '@/lib/api/client';
-import { mockTeachersData } from './mockData/mockData';
 
 // Teacher Details Update API
 export interface UpdateTeacherDetailsData {
@@ -35,12 +34,12 @@ export async function updateTeacherDetails(
 }
 
 export interface TeacherRow {
-  id: number;
+  userId: number;
+  isActive: boolean;
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
-  status: "active" | "inactive";
+  phoneNumber: string;
 }
 
 export interface TeachersListResponse {
@@ -62,11 +61,15 @@ export interface TeachersQuery {
   limit?: number;
   firstName?: string;
   lastName?: string;
+  studentsName?: string;
   email?: string;
   phone?: string;
-  status?: "active" | "inactive";
-  sort?: 'firstName' | 'lastName' | 'email' | 'phone';
-  order?: 'asc' | 'desc';
+  balance?: "all" | "credit" | "owing";
+  showActive?: boolean;
+  showInActive?: boolean;
+  showAll?: boolean;
+  sort?: "firstName" | "lastName" | "email";
+  order?: "asc" | "desc";
 }
 
 // Teacher Info Data Interfaces
@@ -108,64 +111,99 @@ export interface TeacherInfoData {
   };
 }
 
-// NOTE: API is not ready yet, this function will be implemented when backend is available
+// Constants for default pagination
+const DEFAULT_PAGINATION = {
+  page: 1,
+  limit: 20,
+  total: 0,
+  totalPages: 1,
+} as const;
+
+const FETCH_ALL_LIMIT = 99999;
+
+// Helper to build query parameters - DRY principle
+const buildTeachersQueryParams = (query: TeachersQuery): URLSearchParams => {
+  const params = new URLSearchParams();
+
+  if (query.page) params.append("page", query.page.toString());
+  if (query.limit) {
+    params.append(
+      "limit",
+      query.limit === -1 ? FETCH_ALL_LIMIT.toString() : query.limit.toString()
+    );
+  }
+  if (query.firstName) params.append("firstName", query.firstName);
+  if (query.lastName) params.append("lastName", query.lastName);
+  if (query.studentsName) params.append("studentsName", query.studentsName);
+  if (query.email) params.append("email", query.email);
+  if (query.phone) params.append("phone", query.phone);
+  if (query.balance) params.append("balance", query.balance);
+  if (query.showActive !== undefined) {
+    params.append("showActive", query.showActive.toString());
+  }
+  if (query.showInActive !== undefined) {
+    params.append("showInActive", query.showInActive.toString());
+  }
+  if (query.showAll !== undefined) {
+    params.append("showAll", query.showAll.toString());
+  }
+  if (query.sort) params.append("sort", query.sort);
+  if (query.order) params.append("order", query.order);
+
+  // Always include role=teacher for the user/list endpoint
+  params.append("role", "teacher");
+
+  return params;
+};
+
+// Helper to create empty response - DRY principle
+const createEmptyTeachersResponse = (): TeachersListResponse => ({
+  success: false,
+  message: "Failed to fetch teachers",
+  data: {
+    body: [],
+    pagination: { ...DEFAULT_PAGINATION },
+  },
+});
+
 export async function getTeachers(
-  _location: string,
-  _query: TeachersQuery
+  location: string,
+  query: TeachersQuery
 ): Promise<TeachersListResponse | null> {
-  // TODO: Implement actual API call when backend is ready
-  // For now, return null to indicate API is not available
-  console.log('Teachers API not implemented yet, using mock data in component');
-  return null;
-  
-  /* 
-  // Future implementation when API is ready:
   try {
-    const params = new URLSearchParams();
-    
-    if (query.page) params.append('page', query.page.toString());
-    if (query.limit) params.append('limit', query.limit == -1 ? '99999' : query.limit.toString());
-    if (query.firstName) params.append('firstName', query.firstName);
-    if (query.lastName) params.append('lastName', query.lastName);
-    if (query.email) params.append('email', query.email);
-    if (query.phone) params.append('phone', query.phone);
-    if (query.sort) params.append('sort', query.sort);
-    if (query.order) params.append('order', query.order);
+    const params = buildTeachersQueryParams(query);
 
     const response = await apiClient.get<TeachersListResponse>(
-      `/admin/v2/${location}/teachers`,
+      `/admin/v2/${location}/user/list`,
       { params }
     );
-    
+
     return response.data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error('Error fetching teachers:', error);
-    return {
-      success: false,
-      message: apiError.response?.data?.message || 'Failed to fetch teachers',
-      data: {
-        body: [],
-        pagination: {
-          page: 1,
-          limit: 20,
-          total: 0,
-          totalPages: 1
-        }
-      }
-    };
+    console.error("Error fetching teachers:", error);
+    const emptyResponse = createEmptyTeachersResponse();
+    emptyResponse.message =
+      apiError.response?.data?.message || "Failed to fetch teachers";
+    return emptyResponse;
   }
-  */
 }
 
 export async function getTeacherById(
-  _location: string,
-  _id: number
+  location: string,
+  id: number
 ): Promise<TeacherRow | null> {
   try {
-    // TODO: Implement actual API call when backend is ready
-    return null;
-  } catch (_error: unknown) {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: TeacherRow;
+      message: string;
+    }>(`/admin/v2/${location}/user/${id}`, {
+      params: { role: "teacher" },
+    });
+    return response.data.success ? response.data.data : null;
+  } catch (error: unknown) {
+    console.error("Error fetching teacher by id:", error);
     return null;
   }
 }
@@ -186,5 +224,3 @@ export async function getTeacherInfo(
   }
 }
 
-// Export mock data for use in components
-export { mockTeachersData };

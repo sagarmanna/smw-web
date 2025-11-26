@@ -38,9 +38,16 @@ export const teacherColumns: ColumnDef<TeacherRow>[] = [
     },
   } as ColumnDef<TeacherRow> & { filter: { type: string } },
   {
-    accessorKey: "phone",
+    accessorKey: "phoneNumber",
     header: () => <span>Phone</span>,
-    cell: ({ row }: { row: { original: TeacherRow } }) => <span className="truncate block max-w-[260px]" title={row.original.phone}>{row.original.phone}</span>,
+    cell: ({ getValue }) => {
+      const phoneNumber = getValue() as string;
+      return (
+        <span className="truncate block max-w-[260px]" title={phoneNumber || ""}>
+          {phoneNumber || "-"}
+        </span>
+      );
+    },
     enableSorting: false,
     filter: {
       type: "string"

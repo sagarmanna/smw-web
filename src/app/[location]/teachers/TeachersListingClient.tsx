@@ -54,19 +54,6 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
 
   const { handlePrint } = usePrintReport<TeacherRow>();
 
-    // Show full-page loading animation while fetching data
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-[600px]">
-          <LoadingAnimation 
-            size="xl" 
-            text="Loading teachers data..." 
-            className="text-center"
-          />
-        </div>  
-      );
-    }
-
   if (error) {
     return (
       <ReportPageLayout
@@ -101,6 +88,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
       <CustomTable
         data={rows}
         columns={columns}
+        isLoading={isLoading}
 
         // Visual configuration
         size="compact"
@@ -110,7 +98,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         // Features
         enableSearch={false}
         searchPlaceholder="Search teachers..."
-        getSearchValue={(r) => `${r.firstName} ${r.lastName} ${r.email} ${r.phone}`}
+        getSearchValue={(r) => `${r.firstName} ${r.lastName} ${r.email} ${r.phoneNumber}`}
         enableFilter={true}
         enableRowsPerPage={true}
         enablePrint={true}
@@ -128,7 +116,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
           firstName: "Enter first name",
           lastName: "Enter last name",
           email: "Enter email address",
-          phone: "Enter phone number",
+          phoneNumber: "Enter phone number",
         }}
 
         // Sorting and pagination (server-side)
@@ -160,8 +148,8 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
           json: exportToJson,
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
-        onRowClick={(row) => {
-          router.push(`/${location}/teachers/${row.id}`);
+        onRowClick={(row: TeacherRow) => {
+          router.push(`/${location}/teachers/${row.userId}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
