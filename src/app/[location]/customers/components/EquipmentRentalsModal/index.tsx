@@ -55,6 +55,7 @@ interface InstrumentData {
   monthlyRate: string;
   numberOfMonths: string;
   total: string;
+  taxRate: number;
 }
 
 interface EquipmentRentalFormData {
@@ -142,6 +143,11 @@ const InstrumentFormRow = React.memo(
                   instrument.id,
                   "monthlyRate",
                   selectedInstrument.price.toString()
+                );
+                onInstrumentChange(
+                  instrument.id,
+                  "taxRate",
+                  selectedInstrument.taxRate.toString()
                 );
               }
             }}
@@ -238,6 +244,19 @@ InstrumentFormRow.displayName = "InstrumentFormRow";
 
 // Base calculation: All months are considered as 30 days for billing purposes
 const DAYS_PER_MONTH = 30;
+
+// Tender type mappings
+const TENDER_TYPE_MAP: Record<string, string> = {
+  cash: "1",
+  "credit-card": "2",
+  preauthorized: "3",
+};
+
+const TENDER_TYPE_REVERSE_MAP: Record<string, string> = {
+  "1": "cash",
+  "2": "credit-card",
+  "3": "preauthorized",
+};
 
 const calculateReturnDate = (startDate: Date, months: number): Date => {
   // Normalize start date to remove time component
@@ -378,6 +397,7 @@ export function EquipmentRentalsModal({
       monthlyRate: "0",
       numberOfMonths: "1",
       total: "0.00",
+      taxRate: 13, // Default tax rate, will be updated from API when instrument is selected
     },
   ]);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
@@ -395,10 +415,7 @@ export function EquipmentRentalsModal({
           if (monthlyRate <= 0) {
             return {
               ...inst,
-              numberOfMonths:
-                inst.numberOfMonths && inst.numberOfMonths !== "0"
-                  ? inst.numberOfMonths
-                  : "1",
+              numberOfMonths: "", // Clear numberOfMonths for ongoing rentals
               total: "0.00",
             };
           }
@@ -409,10 +426,7 @@ export function EquipmentRentalsModal({
 
           return {
             ...inst,
-            numberOfMonths:
-              inst.numberOfMonths && inst.numberOfMonths !== "0"
-                ? inst.numberOfMonths
-                : "1",
+            numberOfMonths: "", // Clear numberOfMonths for ongoing rentals
             total: total.toFixed(2),
           };
         })
@@ -518,7 +532,9 @@ export function EquipmentRentalsModal({
                 ? "yes"
                 : "no"
               : "no",
-          tenderType: rentalDetails?.tenderType?.toString() || "",
+          tenderType: rentalDetails?.tenderType
+            ? TENDER_TYPE_REVERSE_MAP[rentalDetails.tenderType.toString()] || rentalDetails.tenderType.toString()
+            : "",
           depositAmount: rentalDetails?.depositAmount || "",
         };
 
@@ -558,22 +574,33 @@ export function EquipmentRentalsModal({
 
         if (rentalId && rentedInstruments && rentedInstruments.length > 0) {
           const mappedInstruments: InstrumentData[] = rentedInstruments.map(
-            (inst, index) => ({
-              id: `rented-${inst.instrumentId}-${index}`,
-              instrumentId: inst.instrumentId,
-              instrumentCode: inst.instrumentCode,
-              instrument: inst.instrument,
-              retailValue: inst.retailValue || "",
-              assetTag: inst.assetTag || "",
-              monthlyRate: inst.monthlyRate || "0",
-              numberOfMonths: inst.numberOfMonths || "",
-              total: inst.total || "0.00",
-            })
+            (inst, index) => {
+              // Find the taxRate from available instruments by matching instrumentId
+              const availableInstrument = instrumentRentals.find(
+                (ai) => ai.id === inst.instrumentId
+              );
+              const taxRate = availableInstrument?.taxRate || 13; // Default to 13 if not found
+              const {instrumentId, instrumentCode, instrument, retailValue, assetTag, monthlyRate, numberOfMonths, total} = inst;
+              return {
+                id: `rented-${instrumentId}-${index}`,
+                instrumentId: instrumentId,
+                instrumentCode: instrumentCode,
+                instrument: instrument,
+                retailValue: retailValue || "",
+                assetTag: assetTag || "",
+                monthlyRate: monthlyRate || "0",
+                numberOfMonths: onGoing ? "" : (numberOfMonths || ""), // Clear numberOfMonths for ongoing rentals
+                total: total || "0.00",
+                taxRate: taxRate,
+              };
+            }
           );
           setInstruments(mappedInstruments);
         } else if (rentalId) {
           setInstruments([]);
         } else {
+          // Get default taxRate from first available instrument or use 13 as fallback
+          const defaultTaxRate = instrumentRentals.length > 0 ? instrumentRentals[0].taxRate : 13;
           setInstruments([
             {
               id: "initial",
@@ -585,6 +612,7 @@ export function EquipmentRentalsModal({
               monthlyRate: "0",
               numberOfMonths: "1",
               total: "0.00",
+              taxRate: defaultTaxRate,
             },
           ]);
         }
@@ -842,6 +870,16 @@ export function EquipmentRentalsModal({
           newData.duration = "";
           newData.returnDate = undefined;
           
+          // Clear numberOfMonths for all instruments when "On Going" is checked
+          setTimeout(() => {
+            setInstruments((prevInstruments) =>
+              prevInstruments.map((inst) => ({
+                ...inst,
+                numberOfMonths: "", // Clear numberOfMonths like returnDate
+              }))
+            );
+          }, 0);
+          
           updateInstrumentsForOngoing(
             newData.rentalStartDate instanceof Date
               ? newData.rentalStartDate
@@ -1033,7 +1071,7 @@ export function EquipmentRentalsModal({
 
         const updated = {
           ...inst,
-          [field]: value,
+          [field]: field === "taxRate" ? parseFloat(value) || 13 : value,
         };
 
         // When instrument is selected, set numberOfMonths from duration
@@ -1042,7 +1080,7 @@ export function EquipmentRentalsModal({
           if (durationMatch) {
             updated.numberOfMonths = durationMatch[1];
           } else if (formData.onGoing) {
-            updated.numberOfMonths = "1";
+            updated.numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
           }
         }
 
@@ -1061,9 +1099,8 @@ export function EquipmentRentalsModal({
               updated.total = "0.00";
             }
 
-            if (!updated.numberOfMonths || updated.numberOfMonths === "0") {
-              updated.numberOfMonths = "1";
-            }
+            // Clear numberOfMonths for ongoing rentals (don't set to "1")
+            updated.numberOfMonths = "";
           } else if (
             !formData.onGoing &&
             formData.rentalStartDate &&
@@ -1107,13 +1144,16 @@ export function EquipmentRentalsModal({
     // Get current numberOfMonths from duration or default to 1
     let numberOfMonths = "1";
     if (formData.onGoing) {
-      numberOfMonths = "1";
+      numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
     } else if (formData.duration) {
       const durationMatch = formData.duration.match(/^(\d+)-month/i);
       if (durationMatch) {
         numberOfMonths = durationMatch[1];
       }
     }
+
+    // Get default taxRate from first available instrument or use 13 as fallback
+    const defaultTaxRate = availableInstruments.length > 0 ? availableInstruments[0].taxRate : 13;
 
     const newInstrument: InstrumentData = {
       id: Date.now().toString(),
@@ -1125,6 +1165,7 @@ export function EquipmentRentalsModal({
       monthlyRate: "0",
       numberOfMonths: numberOfMonths,
       total: "0.00",
+      taxRate: defaultTaxRate,
     };
     setInstruments((prev) => [...prev, newInstrument]);
   };
@@ -1134,12 +1175,16 @@ export function EquipmentRentalsModal({
       const filtered = prev.filter((instrument) => instrument.id !== id);
       if (filtered.length === 0) {
         let numberOfMonths = "1";
-        if (formData.duration) {
+        if (formData.onGoing) {
+          numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
+        } else if (formData.duration) {
           const durationMatch = formData.duration.match(/^(\d+)-month/i);
           if (durationMatch) {
             numberOfMonths = durationMatch[1];
           }
         }
+        // Get default taxRate from first available instrument or use 13 as fallback
+        const defaultTaxRate = availableInstruments.length > 0 ? availableInstruments[0].taxRate : 13;
         return [
           {
             id: Date.now().toString(),
@@ -1151,6 +1196,7 @@ export function EquipmentRentalsModal({
             monthlyRate: "0",
             numberOfMonths: numberOfMonths,
             total: "0.00",
+            taxRate: defaultTaxRate,
           },
         ];
       }
@@ -1192,13 +1238,8 @@ export function EquipmentRentalsModal({
       const durationMatch = formData.duration.match(/^(\d+)/);
       const duration = durationMatch ? parseInt(durationMatch[1]) : 1;
 
-      const tenderTypeMap: Record<string, string> = {
-        cash: "1",
-        "credit-card": "2",
-        preauthorized: "3",
-      };
       const tenderTypeNumber =
-        tenderTypeMap[formData.tenderType] || formData.tenderType || "";
+        TENDER_TYPE_MAP[formData.tenderType] || formData.tenderType || "";
 
       const startDateFormatted = format(
         formData.rentalStartDate,
@@ -1229,7 +1270,13 @@ export function EquipmentRentalsModal({
         (sum, instrument) => sum + parseFloat(instrument.total || "0"),
         0
       );
-      const hst = subTotal * 0.13;
+      // Calculate HST using taxRate from each instrument (weighted average)
+      let totalTax = 0;
+      filledInstruments.forEach((instrument) => {
+        const instrumentTotal = parseFloat(instrument.total || "0");
+        totalTax += (instrumentTotal * instrument.taxRate) / 100;
+      });
+      const hst = totalTax;
       const instrumentsTotal = subTotal + hst;
 
       const response = await createEquipmentRental(location, customerId, {
@@ -1315,7 +1362,13 @@ export function EquipmentRentalsModal({
       (sum, instrument) => sum + parseFloat(instrument.total || "0"),
       0
     );
-    const hst = subTotal * 0.13;
+    // Calculate HST using taxRate from each instrument (weighted average)
+    let totalTax = 0;
+    filledInstruments.forEach((instrument) => {
+      const instrumentTotal = parseFloat(instrument.total || "0");
+      totalTax += (instrumentTotal * instrument.taxRate) / 100;
+    });
+    const hst = totalTax;
     const instrumentsTotal = subTotal + hst;
 
     const legacyBaseUrl =
@@ -1363,7 +1416,8 @@ export function EquipmentRentalsModal({
         filledInstruments.length > 0
           ? filledInstruments.map((instrument) => {
               const instrumentTotal = parseFloat(instrument.total || "0");
-              const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+              // Use taxRate from each instrument instead of hardcoded TAX_RATE
+              const instrumentTax = ((instrumentTotal * instrument.taxRate) / 100).toFixed(2);
               return {
                 value: "",
                 asset: "",
@@ -1457,7 +1511,8 @@ export function EquipmentRentalsModal({
         filledInstruments.length > 0
           ? filledInstruments.map((instrument) => {
               const instrumentTotal = parseFloat(instrument.total || "0");
-              const instrumentTax = (instrumentTotal * 0.13).toFixed(2);
+              // Use taxRate from each instrument instead of hardcoded TAX_RATE
+              const instrumentTax = ((instrumentTotal * instrument.taxRate) / 100).toFixed(2);
               return {
                 value: "",
                 asset: "",
@@ -1818,11 +1873,19 @@ export function EquipmentRentalsModal({
   };
 
   const filledInstruments = instruments.filter((inst) => inst.instrumentId > 0);
-  const subTotal = filledInstruments.reduce(
-    (sum, instrument) => sum + parseFloat(instrument.total || "0"),
-    0
-  );
-  const tax = subTotal * 0.13;
+  
+  let subtotal = 0;
+  let taxTotal = 0;
+
+  filledInstruments.forEach((inst) => {
+    const instrumentTotal = parseFloat(inst.total || "0");
+    subtotal += instrumentTotal;
+    // Use taxRate from each instrument instead of hardcoded TAX_RATE
+    taxTotal += (instrumentTotal * inst.taxRate) / 100;
+  });
+
+  const subTotal = subtotal;
+  const tax = taxTotal;
   const total = subTotal + tax;
 
   if (loading) {
@@ -1924,10 +1987,9 @@ export function EquipmentRentalsModal({
               <Label className="w-24">Customer</Label>
               <Input
                 value={formData.customer}
-                onChange={(e) => handleInputChange("customer", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
             </div>
 
@@ -1935,28 +1997,23 @@ export function EquipmentRentalsModal({
               <Label className="w-24">Address</Label>
               <Input
                 value={formData.address}
-                onChange={(e) => handleInputChange("address", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
               <Label className="w-16">City</Label>
               <Input
                 value={formData.city}
-                onChange={(e) => handleInputChange("city", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
               <Label className="w-8">P.C</Label>
               <Input
                 value={formData.postalCode}
-                onChange={(e) =>
-                  handleInputChange("postalCode", e.target.value)
-                }
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
             </div>
 
@@ -1964,28 +2021,23 @@ export function EquipmentRentalsModal({
               <Label className="w-24">Home Phone</Label>
               <Input
                 value={formData.homePhone}
-                onChange={(e) => handleInputChange("homePhone", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
               <Label className="w-24">Work Phone</Label>
               <Input
                 value={formData.workPhone}
-                onChange={(e) => handleInputChange("workPhone", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
               <Label className="w-24">Other Phone</Label>
               <Input
                 value={formData.otherPhone}
-                onChange={(e) =>
-                  handleInputChange("otherPhone", e.target.value)
-                }
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
             </div>
 
@@ -1993,10 +2045,9 @@ export function EquipmentRentalsModal({
               <Label className="w-24">Email</Label>
               <Input
                 value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
                 className="w-48"
-                readOnly={isEditMode}
-                disabled={isEditMode}
+                readOnly={true}
+                disabled={true}
               />
             </div>
 
@@ -2073,6 +2124,15 @@ export function EquipmentRentalsModal({
                           returnDate: undefined, // Explicitly clear returnDate
                           duration: "", // Explicitly clear duration
                         }));
+                      });
+                      // Clear numberOfMonths for all instruments when "On Going" is checked
+                      flushSync(() => {
+                        setInstruments((prevInstruments) =>
+                          prevInstruments.map((inst) => ({
+                            ...inst,
+                            numberOfMonths: "", // Clear numberOfMonths like returnDate
+                          }))
+                        );
                       });
                       // Update instruments after state is set
                       const startDate = formData.rentalStartDate instanceof Date 

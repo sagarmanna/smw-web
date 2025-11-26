@@ -6,6 +6,7 @@ export interface InstrumentRental {
   code: string;
   description: string;
   price: number;
+  taxRate: number;
 }
 
 export interface Student {
@@ -33,6 +34,7 @@ export interface RentedInstrument {
   monthlyRate: string;
   numberOfMonths: string;
   total: string;
+
 }
 
 export interface RentalDetails {
