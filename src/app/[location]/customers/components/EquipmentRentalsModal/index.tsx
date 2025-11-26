@@ -55,6 +55,7 @@ interface InstrumentData {
   monthlyRate: string;
   numberOfMonths: string;
   total: string;
+  taxRate: number;
 }
 
 interface EquipmentRentalFormData {
@@ -141,6 +142,11 @@ const InstrumentFormRow = React.memo(
                   instrument.id,
                   "monthlyRate",
                   selectedInstrument.price.toString()
+                );
+                onInstrumentChange(
+                  instrument.id,
+                  "taxRate",
+                  selectedInstrument.taxRate.toString()
                 );
               }
             }}
@@ -237,9 +243,6 @@ InstrumentFormRow.displayName = "InstrumentFormRow";
 
 // Base calculation: All months are considered as 30 days for billing purposes
 const DAYS_PER_MONTH = 30;
-
-// Tax rate (can be updated in the future if tax changes)
-const TAX_RATE = 13; // 13% HST
 
 // Tender type mappings
 const TENDER_TYPE_MAP: Record<string, string> = {
@@ -392,6 +395,7 @@ export function EquipmentRentalsModal({
       monthlyRate: "0",
       numberOfMonths: "1",
       total: "0.00",
+      taxRate: 13, // Default tax rate, will be updated from API when instrument is selected
     },
   ]);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
@@ -568,22 +572,33 @@ export function EquipmentRentalsModal({
 
         if (rentalId && rentedInstruments && rentedInstruments.length > 0) {
           const mappedInstruments: InstrumentData[] = rentedInstruments.map(
-            (inst, index) => ({
-              id: `rented-${inst.instrumentId}-${index}`,
-              instrumentId: inst.instrumentId,
-              instrumentCode: inst.instrumentCode,
-              instrument: inst.instrument,
-              retailValue: inst.retailValue || "",
-              assetTag: inst.assetTag || "",
-              monthlyRate: inst.monthlyRate || "0",
-              numberOfMonths: onGoing ? "" : (inst.numberOfMonths || ""), // Clear numberOfMonths for ongoing rentals
-              total: inst.total || "0.00",
-            })
+            (inst, index) => {
+              // Find the taxRate from available instruments by matching instrumentId
+              const availableInstrument = instrumentRentals.find(
+                (ai) => ai.id === inst.instrumentId
+              );
+              const taxRate = availableInstrument?.taxRate || 13; // Default to 13 if not found
+              const {instrumentId, instrumentCode, instrument, retailValue, assetTag, monthlyRate, numberOfMonths, total} = inst;
+              return {
+                id: `rented-${instrumentId}-${index}`,
+                instrumentId: instrumentId,
+                instrumentCode: instrumentCode,
+                instrument: instrument,
+                retailValue: retailValue || "",
+                assetTag: assetTag || "",
+                monthlyRate: monthlyRate || "0",
+                numberOfMonths: onGoing ? "" : (numberOfMonths || ""), // Clear numberOfMonths for ongoing rentals
+                total: total || "0.00",
+                taxRate: taxRate,
+              };
+            }
           );
           setInstruments(mappedInstruments);
         } else if (rentalId) {
           setInstruments([]);
         } else {
+          // Get default taxRate from first available instrument or use 13 as fallback
+          const defaultTaxRate = instrumentRentals.length > 0 ? instrumentRentals[0].taxRate : 13;
           setInstruments([
             {
               id: "initial",
@@ -595,6 +610,7 @@ export function EquipmentRentalsModal({
               monthlyRate: "0",
               numberOfMonths: "1",
               total: "0.00",
+              taxRate: defaultTaxRate,
             },
           ]);
         }
@@ -1053,7 +1069,7 @@ export function EquipmentRentalsModal({
 
         const updated = {
           ...inst,
-          [field]: value,
+          [field]: field === "taxRate" ? parseFloat(value) || 13 : value,
         };
 
         // When instrument is selected, set numberOfMonths from duration
@@ -1134,6 +1150,9 @@ export function EquipmentRentalsModal({
       }
     }
 
+    // Get default taxRate from first available instrument or use 13 as fallback
+    const defaultTaxRate = availableInstruments.length > 0 ? availableInstruments[0].taxRate : 13;
+
     const newInstrument: InstrumentData = {
       id: Date.now().toString(),
       instrumentId: 0,
@@ -1144,6 +1163,7 @@ export function EquipmentRentalsModal({
       monthlyRate: "0",
       numberOfMonths: numberOfMonths,
       total: "0.00",
+      taxRate: defaultTaxRate,
     };
     setInstruments((prev) => [...prev, newInstrument]);
   };
@@ -1161,6 +1181,8 @@ export function EquipmentRentalsModal({
             numberOfMonths = durationMatch[1];
           }
         }
+        // Get default taxRate from first available instrument or use 13 as fallback
+        const defaultTaxRate = availableInstruments.length > 0 ? availableInstruments[0].taxRate : 13;
         return [
           {
             id: Date.now().toString(),
@@ -1172,6 +1194,7 @@ export function EquipmentRentalsModal({
             monthlyRate: "0",
             numberOfMonths: numberOfMonths,
             total: "0.00",
+            taxRate: defaultTaxRate,
           },
         ];
       }
@@ -1245,7 +1268,13 @@ export function EquipmentRentalsModal({
         (sum, instrument) => sum + parseFloat(instrument.total || "0"),
         0
       );
-      const hst = (subTotal * TAX_RATE) / 100;
+      // Calculate HST using taxRate from each instrument (weighted average)
+      let totalTax = 0;
+      filledInstruments.forEach((instrument) => {
+        const instrumentTotal = parseFloat(instrument.total || "0");
+        totalTax += (instrumentTotal * instrument.taxRate) / 100;
+      });
+      const hst = totalTax;
       const instrumentsTotal = subTotal + hst;
 
       const response = await createEquipmentRental(location, customerId, {
@@ -1331,7 +1360,13 @@ export function EquipmentRentalsModal({
       (sum, instrument) => sum + parseFloat(instrument.total || "0"),
       0
     );
-    const hst = (subTotal * TAX_RATE) / 100;
+    // Calculate HST using taxRate from each instrument (weighted average)
+    let totalTax = 0;
+    filledInstruments.forEach((instrument) => {
+      const instrumentTotal = parseFloat(instrument.total || "0");
+      totalTax += (instrumentTotal * instrument.taxRate) / 100;
+    });
+    const hst = totalTax;
     const instrumentsTotal = subTotal + hst;
 
     const legacyBaseUrl =
@@ -1379,7 +1414,8 @@ export function EquipmentRentalsModal({
         filledInstruments.length > 0
           ? filledInstruments.map((instrument) => {
               const instrumentTotal = parseFloat(instrument.total || "0");
-              const instrumentTax = ((instrumentTotal * TAX_RATE) / 100).toFixed(2);
+              // Use taxRate from each instrument instead of hardcoded TAX_RATE
+              const instrumentTax = ((instrumentTotal * instrument.taxRate) / 100).toFixed(2);
               return {
                 value: "",
                 asset: "",
@@ -1473,7 +1509,8 @@ export function EquipmentRentalsModal({
         filledInstruments.length > 0
           ? filledInstruments.map((instrument) => {
               const instrumentTotal = parseFloat(instrument.total || "0");
-              const instrumentTax = ((instrumentTotal * TAX_RATE) / 100).toFixed(2);
+              // Use taxRate from each instrument instead of hardcoded TAX_RATE
+              const instrumentTax = ((instrumentTotal * instrument.taxRate) / 100).toFixed(2);
               return {
                 value: "",
                 asset: "",
@@ -1561,7 +1598,8 @@ export function EquipmentRentalsModal({
   filledInstruments.forEach((inst) => {
     const instrumentTotal = parseFloat(inst.total || "0");
     subtotal += instrumentTotal;
-    taxTotal += (instrumentTotal * TAX_RATE) / 100;
+    // Use taxRate from each instrument instead of hardcoded TAX_RATE
+    taxTotal += (instrumentTotal * inst.taxRate) / 100;
   });
 
   const subTotal = subtotal;
