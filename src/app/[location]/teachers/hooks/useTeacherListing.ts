@@ -36,6 +36,9 @@ export function useTeacherListing(location: string) {
     return [{ id: sortBy, desc: sortDir === 'desc' }];
   }, [sortBy, sortDir]);
 
+  // Create a ref to store the debounce timeout
+  const debounceTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   const fetchData = React.useCallback(async () => {
     const query: TeachersQuery = {
       page,
@@ -53,10 +56,39 @@ export function useTeacherListing(location: string) {
     await dispatch(fetchTeachers({ location, query }));
   }, [dispatch, location, page, pageSize, columnFilters, activeFilter, sortBy, sortDir]);
 
-  // Fetch data when dependencies change
+  // Fetch data immediately for non-filter changes (pagination, sorting, etc.)
+  // Exclude columnFilters from dependencies to avoid immediate fetch on filter change
   React.useEffect(() => {
+    // Clear any pending debounce when other params change
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
     fetchData();
-  }, [fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, location, page, pageSize, activeFilter, sortBy, sortDir]);
+
+  // Debounced effect for column filters to avoid excessive API calls while typing
+  React.useEffect(() => {
+    // Clear previous timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchData();
+    }, 500);
+
+    // Cleanup function
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnFilters]);
 
   const handleSetSorting = React.useCallback(
     (newSorting: SortingState) => {
@@ -92,8 +124,21 @@ export function useTeacherListing(location: string) {
   );
 
   const handleColumnFilterEnter = React.useCallback(() => {
-    fetchData();
-  }, [fetchData]);
+    // Immediately fetch when Enter is pressed, bypassing debounce
+    const query: TeachersQuery = {
+      page: 1, // Reset to first page when filtering
+      limit: pageSize,
+      firstName: columnFilters.firstName as string | undefined,
+      lastName: columnFilters.lastName as string | undefined,
+      email: columnFilters.email as string | undefined,
+      phone: columnFilters.phoneNumber as string | undefined,
+      showActive: activeFilter === "inactive" ? false : undefined,
+      showInActive: activeFilter === "inactive" ? true : undefined,
+      sort: sortBy,
+      order: sortDir,
+    };
+    dispatch(fetchTeachers({ location, query }));
+  }, [dispatch, location, pageSize, columnFilters, activeFilter, sortBy, sortDir]);
 
   const handleServerSideFilterChange = React.useCallback(
     (filterKey: string | undefined) => {
@@ -122,4 +167,5 @@ export function useTeacherListing(location: string) {
     handleServerSideFilterChange,
   };
 }
+
 

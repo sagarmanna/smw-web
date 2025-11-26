@@ -54,19 +54,6 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
 
   const { handlePrint } = usePrintReport<TeacherRow>();
 
-    // Show full-page loading animation while fetching data
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-[600px]">
-          <LoadingAnimation 
-            size="xl" 
-            text="Loading teachers data..." 
-            className="text-center"
-          />
-        </div>  
-      );
-    }
-
   if (error) {
     return (
       <ReportPageLayout
@@ -101,6 +88,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
       <CustomTable
         data={rows}
         columns={columns}
+        isLoading={isLoading}
 
         // Visual configuration
         size="compact"
@@ -160,7 +148,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
           json: exportToJson,
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
-        onRowClick={(row) => {
+        onRowClick={(row: TeacherRow) => {
           router.push(`/${location}/teachers/${row.userId}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
