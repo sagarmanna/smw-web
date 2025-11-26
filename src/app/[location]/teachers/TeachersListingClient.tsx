@@ -110,7 +110,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         // Features
         enableSearch={false}
         searchPlaceholder="Search teachers..."
-        getSearchValue={(r) => `${r.firstName} ${r.lastName} ${r.email} ${r.phone}`}
+        getSearchValue={(r) => `${r.firstName} ${r.lastName} ${r.email} ${r.phoneNumber}`}
         enableFilter={true}
         enableRowsPerPage={true}
         enablePrint={true}
@@ -128,7 +128,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
           firstName: "Enter first name",
           lastName: "Enter last name",
           email: "Enter email address",
-          phone: "Enter phone number",
+          phoneNumber: "Enter phone number",
         }}
 
         // Sorting and pagination (server-side)
@@ -161,7 +161,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row) => {
-          router.push(`/${location}/teachers/${row.id}`);
+          router.push(`/${location}/teachers/${row.userId}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />

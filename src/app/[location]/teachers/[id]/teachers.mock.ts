@@ -59,7 +59,7 @@ export const fetchTeacherInfo = async (id: string) => {
   const teacherId = parseInt(id, 10);
   
   // Find teacher in mock data
-  const teacher = mockTeachersData.find((t) => t.id === teacherId);
+  const teacher = mockTeachersData.find((t) => t.userId === teacherId);
   
   if (!teacher) {
     throw new Error(`Teacher with id ${id} not found`);
@@ -67,7 +67,7 @@ export const fetchTeacherInfo = async (id: string) => {
 
   // Generate dynamic mock data based on the teacher
   const emails = generateMockEmails(teacherId, teacher.email);
-  const phones = generateMockPhones(teacherId, teacher.phone);
+  const phones = generateMockPhones(teacherId, teacher.phoneNumber);
   const addresses = generateMockAddresses(teacherId);
 
   // Generate a birth date (just for demo purposes, using a pattern based on ID)

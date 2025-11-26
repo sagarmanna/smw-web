@@ -43,8 +43,9 @@ export function useTeacherListing(location: string) {
       firstName: columnFilters.firstName as string | undefined,
       lastName: columnFilters.lastName as string | undefined,
       email: columnFilters.email as string | undefined,
-      phone: columnFilters.phone as string | undefined,
-      status: activeFilter === "inactive" ? "inactive" : undefined,
+      phone: columnFilters.phoneNumber as string | undefined,
+      showActive: activeFilter === "inactive" ? false : undefined,
+      showInActive: activeFilter === "inactive" ? true : undefined,
       sort: sortBy,
       order: sortDir,
     };

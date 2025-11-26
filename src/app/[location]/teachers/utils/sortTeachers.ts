@@ -1,6 +1,6 @@
 import { TeacherRow } from "../teachers.api";
 
-export type SortField = "firstName" | "lastName" | "email" | "phone";
+export type SortField = "firstName" | "lastName" | "email";
 export type SortDirection = "asc" | "desc";
 
 export function sortTeachers(

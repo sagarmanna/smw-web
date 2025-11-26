@@ -15,7 +15,8 @@ export function filterTeachers(
   let filtered = [...data];
 
   if (filters.status) {
-    filtered = filtered.filter((teacher) => teacher.status === filters.status);
+    const isActive = filters.status === "active";
+    filtered = filtered.filter((teacher) => teacher.isActive === isActive);
   }
 
   if (filters.firstName) {
@@ -38,7 +39,7 @@ export function filterTeachers(
 
   if (filters.phone) {
     filtered = filtered.filter((teacher) =>
-      teacher.phone.toLowerCase().includes(filters.phone!.toLowerCase())
+      teacher.phoneNumber.toLowerCase().includes(filters.phone!.toLowerCase())
     );
   }
 
