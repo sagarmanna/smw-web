@@ -2,6 +2,12 @@
 
 import { useAppSelector } from '@/redux/hooks';
 
+const globallyModernFeatures = new Set([
+  'rental',
+  'financialSummaryReport',
+  'itemCategory',
+]);
+
 export function useLocationFeatures() {
   const { flags, isLoading } = useAppSelector((state) => state.locationFlags);
   
@@ -9,8 +15,12 @@ export function useLocationFeatures() {
   const getFeatureSourceForLocation = (locationSlug: string, feature: string): 'modern' | 'legacy' => {
     const locationFlags = flags[locationSlug] || {};
     const featureFlag = locationFlags[feature];
-    
-    return featureFlag === 'modern' ? 'modern' : 'legacy';
+    const source =
+      globallyModernFeatures.has(feature) || featureFlag === 'modern'
+        ? 'modern'
+        : 'legacy';
+
+    return source;
   };
 
   return {
