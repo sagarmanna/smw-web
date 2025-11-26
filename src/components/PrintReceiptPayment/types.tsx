@@ -71,6 +71,18 @@ export interface ReceiptRow {
   amount: string;
 }
 
+export interface LocationDetails {
+  name: string;
+  address: string;
+  city: string;
+  province: string;
+  country: string;
+  postalCode: string;
+  phoneNumber: string;
+  email: string;
+  hstRegistrationNo: string;
+}
+
 export interface PaymentReceiptData {
   headerAmount: string;
   paymentDate?: string;
@@ -79,6 +91,7 @@ export interface PaymentReceiptData {
   customerPhone?: string;
   customerEmail?: string;
   hstNumber?: string;
+  locationDetails?: LocationDetails | null;
   allocationRows?: AllocationRow[];
   groupLessonRows?: GroupLessonRow[];
   invoiceRows?: InvoiceRow[];

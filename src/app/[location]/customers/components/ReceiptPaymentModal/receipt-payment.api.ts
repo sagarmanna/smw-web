@@ -5,6 +5,18 @@ import { apiClient } from '@/lib/api/client';
 // INTERFACES
 // ==========================================
 
+export interface LocationDetails {
+  name: string;
+  address: string;
+  city: string;
+  province: string;
+  country: string;
+  postalCode: string;
+  phoneNumber: string;
+  email: string;
+  hstRegistrationNo: string;
+}
+
 export interface PaymentReceiptInfoResponse {
   success: boolean;
   message: string;
@@ -15,6 +27,7 @@ export interface PaymentReceiptInfoResponse {
       paymentMethod: string;
       amount: number;
     }];
+    locationDetails: LocationDetails;
     locationHstRegistrationNo: string;
     acknowledgmentMessage: string;
   };
@@ -213,6 +226,7 @@ export async function getPaymentReceiptInfo(
   date: string;
   paymentMethod: string;
   amount: number;
+  locationDetails: LocationDetails | null;
   locationHstRegistrationNo: string;
   acknowledgmentMessage: string;
 } | null> {
@@ -228,6 +242,7 @@ export async function getPaymentReceiptInfo(
         date: body.date,
         paymentMethod: body.paymentMethod,
         amount: body.amount,
+        locationDetails: response.data.data.locationDetails || null,
         locationHstRegistrationNo: response.data.data.locationHstRegistrationNo,
         acknowledgmentMessage: response.data.data.acknowledgmentMessage,
       };
