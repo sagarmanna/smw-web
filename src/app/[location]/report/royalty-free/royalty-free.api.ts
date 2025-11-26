@@ -7,6 +7,7 @@ export interface RoyaltyFreeItem {
   date: string;
   dateLabel: string; // Pre-formatted date string from API
   description: string;
+  subtotal: number | string; // Can be number or string from API
   total: number | string; // Can be number or string from API
   // Additional fields that might be present in the API response
   itemType?: string;
