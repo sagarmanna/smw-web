@@ -4,7 +4,7 @@ import * as React from "react";
 import { CustomTable } from "@/components/CustomTable";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
-import { RentalRow, testApiConnection, getRentalsList, getRentalStats, RentalFilters } from "./rental.api";
+import { RentalRow, testApiConnection, getRentalsList, RentalFilters } from "./rental.api";
 import { toast } from "sonner";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
@@ -90,6 +90,13 @@ export function RentalClient({ location }: RentalClientProps) {
     }
   }, [location, sorting, activeFilter]);
 
+  const handleRowsPerPageChange = React.useCallback((newRowsPerPage: number) => {
+    setRowsPerPage(newRowsPerPage);
+    // Convert -1 (All) to 99999 for pagination limit, keep -1 only in rowsPerPage for UI
+    const limitForPagination = newRowsPerPage < 0 ? 99999 : newRowsPerPage;
+    setPagination(p => ({ ...p, page: 1, limit: limitForPagination }));
+  }, []);
+
   React.useEffect(() => {
     testApiConnection().then(result => {
       if (!result.success) toast.error(`API Connection Failed: ${result.message}`);
@@ -103,12 +110,12 @@ export function RentalClient({ location }: RentalClientProps) {
   }, [error]);
 
   React.useEffect(() => {
-    fetchRentals(pagination.page, rowsPerPage);
-  }, [fetchRentals, pagination.page, rowsPerPage]);
+    fetchRentals(pagination.page, pagination.limit);
+  }, [fetchRentals, pagination.page, pagination.limit]);
   
   const refetch = React.useCallback(() => {
-    fetchRentals(1, rowsPerPage);
-  }, [fetchRentals, rowsPerPage]);
+    fetchRentals(1, pagination.limit);
+  }, [fetchRentals, pagination.limit]);
 
   const clearErrors = React.useCallback(() => setError(null), []);
 
@@ -174,10 +181,7 @@ export function RentalClient({ location }: RentalClientProps) {
         
         rowsPerPage={rowsPerPage}
         rowsPerPageOptions={[5, 10, 20, 50, 100]}
-        onRowsPerPageChange={(newRowsPerPage) => {
-          setRowsPerPage(newRowsPerPage);
-          setPagination(p => ({ ...p, page: 1 }));
-        }}
+        onRowsPerPageChange={handleRowsPerPageChange}
 
         enableFilter={true}
         serverSideFilterOptions={[

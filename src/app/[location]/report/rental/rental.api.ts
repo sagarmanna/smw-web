@@ -55,7 +55,9 @@ export async function getRentalsList(
     const params = new URLSearchParams();
     if (filters) {
       if (filters.page) params.append('page', filters.page.toString());
-      if (filters.limit) params.append('limit', filters.limit.toString());
+      if (filters.limit !== undefined) {
+        params.append('limit', filters.limit.toString());
+      }
       if (filters.sort) params.append('sort', filters.sort);
       if (filters.order) params.append('order', filters.order);
       if (filters.filterType) params.append('filterType', filters.filterType);
