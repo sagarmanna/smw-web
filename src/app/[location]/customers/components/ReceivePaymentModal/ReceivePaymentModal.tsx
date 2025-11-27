@@ -115,6 +115,20 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.setAmountReceived(value);
   }, [state]);
 
+  // Validation: Amount Received must be at least Amount To Apply
+  const amountMismatch = React.useMemo(() => {
+    const received = parseFloat(state.amountReceived || "0");
+    if (isNaN(received)) return true;
+    const receivedRounded = Math.round(received * 100) / 100;
+    const toApplyRounded = Math.round(calculations.amountToApply * 100) / 100;
+    // Mismatch only when underpaid: Amount Received < Amount To Apply
+    return receivedRounded < toApplyRounded;
+  }, [state.amountReceived, calculations.amountToApply]);
+
+  const amountErrorMessage = amountMismatch
+    ? "Amount mismatched with distributions"
+    : "";
+
   const [isSaving, setIsSaving] = React.useState<boolean>(false);
 
   /**
@@ -124,6 +138,16 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     // Validate that a customer is selected
     if (!state.customerId || state.customerId === 0) {
       alert('Please select a customer before saving payment');
+      return;
+    }
+
+    // Validate amount received vs amount to apply BEFORE building payload / calling API
+    const received = parseFloat(state.amountReceived || "0");
+    const receivedRounded = Math.round((isNaN(received) ? 0 : received) * 100) / 100;
+    const toApplyRounded = Math.round(calculations.amountToApply * 100) / 100;
+    // Block only when underpaid; overpayments are allowed
+    if (receivedRounded < toApplyRounded) {
+      alert('Amount mismatched with distributions');
       return;
     }
 
@@ -181,7 +205,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [state, onSave]);
+  }, [state, calculations.amountToApply, onSave]);
 
   /**
    * Handle close action
@@ -240,6 +264,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             onReferenceChange={state.setReference}
             amountReceived={state.amountReceived}
             onAmountReceivedChange={handleAmountReceivedChange}
+            amountError={amountErrorMessage}
             notes={state.notes}
             onNotesChange={state.setNotes}
             availablePaymentMethods={state.availablePaymentMethods}
@@ -267,7 +292,12 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
           />
         </div>
 
-        <ModalFooter onClose={handleClose} onSave={handleSave} isLoading={isSaving} />
+        <ModalFooter
+          onClose={handleClose}
+          onSave={handleSave}
+          isLoading={isSaving}
+          isSaveDisabled={amountMismatch}
+        />
       </DialogContent>
     </Dialog>
   );

@@ -79,7 +79,7 @@ export function PaymentReceiptModalWrapper({
         customerName={customerName}
         customerEmails={[]}
         locationName="Arcadia Academy of Music"
-        initialSubject={emailModalOverrides?.subject ?? "Payment Receipt"}
+        initialSubject={emailModalOverrides?.subject ?? "Payment from Arcadia Academy of Music"}
         initialContent={emailModalOverrides?.content ?? ""}
         privateLessonDueData={[]}
         groupLessonDueData={[]}

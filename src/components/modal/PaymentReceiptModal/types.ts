@@ -84,6 +84,10 @@ export interface PaymentReceiptModalUIProps {
   receiptHtml?: string;
   receiptHtmlRef?: React.RefObject<HTMLDivElement | null>;
   isLoading: boolean;
+  mode?: "view" | "new"; // "view" for existing receipt, "new" for new payment
+  acknowledgmentMessage?: string; // Thank you message for new payments
+  showEditButton?: boolean; // Control edit button visibility
+  showDeleteButton?: boolean; // Control delete button visibility
   
   // Tables data
   allocationRows: AllocationRow[];

@@ -45,6 +45,37 @@ interface PaymentReceiptModalContainerProps {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  mode?: "view" | "new"; // "view" for existing receipt, "new" for new payment
+  // Direct payment data for "new" mode (bypasses API fetch)
+  directPaymentData?: {
+    date: string;
+    paymentMethod: string;
+    reference: string;
+    amount: number;
+    lessons?: Array<{
+      date: string;
+      student: string;
+      program: string;
+      teacher: string;
+      amount: string;
+      payment: string;
+      balance: string;
+    }>;
+    groupLessons?: Array<{
+      date: string;
+      student: string;
+      program: string;
+      amount: string;
+      balance: string;
+    }>;
+    invoices?: Array<{
+      date: string;
+      number: string;
+      amount: string;
+      payment: string;
+      balance: string;
+    }>;
+  };
   onEdit?: (data: {
     date: string;
     method: string;
@@ -199,6 +230,8 @@ export function PaymentReceiptModalContainer(
     customerName,
     customerEmail,
     customerPhone,
+    mode = "view",
+    directPaymentData,
     onEdit,
     onDelete,
     onEmail,
@@ -233,6 +266,74 @@ export function PaymentReceiptModalContainer(
 
   // Fetch payment receipt data
   const fetchPaymentReceiptData = React.useCallback(async () => {
+    // Skip API fetch if mode is "new" and directPaymentData is provided
+    if (mode === "new" && directPaymentData) {
+      setIsLoading(true);
+      try {
+        // Transform directPaymentData to match expected format
+        const paymentInfo: PaymentInfo = {
+          reference: directPaymentData.reference || "",
+          date: directPaymentData.date,
+          paymentMethod: directPaymentData.paymentMethod,
+          amount: directPaymentData.amount,
+          locationDetails: null,
+          locationHstRegistrationNo: "FQR547785GT1234", // Default HST number
+          acknowledgmentMessage: "Thank you for your payment!",
+        };
+
+        const transformedLessons: PaymentUsedLesson[] = (directPaymentData.lessons || []).map((lesson, index) => ({
+          id: index + 1,
+          originalDate: lesson.date,
+          date: lesson.date,
+          student: lesson.student,
+          program: lesson.program,
+          teacher: lesson.teacher,
+          amount: lesson.amount,
+          payment: lesson.payment,
+          balance: lesson.balance,
+        }));
+
+        const transformedGroupLessons: PaymentGroupLesson[] = (directPaymentData.groupLessons || []).map((gl, index) => ({
+          id: index + 1,
+          date: gl.date,
+          student: gl.student,
+          program: gl.program,
+          invoiced: "No",
+          amount: gl.amount,
+          balance: gl.balance,
+        }));
+
+        const transformedInvoices: PaymentInvoice[] = (directPaymentData.invoices || []).map((inv, index) => ({
+          id: index + 1,
+          date: inv.date,
+          number: inv.number,
+          amount: inv.amount,
+          payment: inv.payment,
+          balance: inv.balance,
+        }));
+
+        setPaymentInfo(paymentInfo);
+        setLessons(transformedLessons);
+        setGroupLessons(transformedGroupLessons);
+        setInvoices(transformedInvoices);
+        setPaymentMethods([]); // Empty for new payment mode
+
+        setEditForm({
+          date: directPaymentData.date || "",
+          method: "",
+          reference: directPaymentData.reference || "",
+          amountReceived: directPaymentData.amount.toString() || "0.00",
+        });
+      } catch (error) {
+        console.error("Error processing payment data:", error);
+        toast.error("Failed to process payment data");
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Original API fetch for "view" mode
     if (!location || !paymentId) return;
 
     setIsLoading(true);
@@ -284,7 +385,7 @@ export function PaymentReceiptModalContainer(
     } finally {
       setIsLoading(false);
     }
-  }, [location, paymentId]);
+  }, [location, paymentId, mode, directPaymentData, customerName]);
 
   // Reset editing state when modal closes or paymentId changes
   React.useEffect(() => {
@@ -299,6 +400,13 @@ export function PaymentReceiptModalContainer(
       fetchPaymentReceiptData();
     }
   }, [open, fetchPaymentReceiptData]);
+
+  // Reset editing state when mode changes
+  React.useEffect(() => {
+    if (mode === "new") {
+      setIsEditing(false);
+    }
+  }, [mode]);
 
   // Computed values
   const amountNumber = React.useMemo(
@@ -429,6 +537,16 @@ export function PaymentReceiptModalContainer(
       return;
     }
 
+    // Extra safety: validate amount received vs amount to apply before proceeding
+    const received = normalizeAmount(editForm.amountReceived);
+    const receivedRounded = Math.round(received * 100) / 100;
+    const toApplyRounded = Math.round(amountToApply * 100) / 100;
+    // Valid when Amount Received >= Amount To Apply; show error only when underpaid
+    if (receivedRounded < toApplyRounded) {
+      toast.error("Amount mismatched with distributions");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const allocations = lessonEditRows.map((r) => ({
@@ -460,7 +578,7 @@ export function PaymentReceiptModalContainer(
         }))
         .filter((inv) => inv.id > 0);
 
-      // Prepare payment data
+      // Prepare payment data and call API
       const paymentData: PaymentReceiveData = {
         userId: customerId,
         date: formattedDate,
@@ -477,29 +595,28 @@ export function PaymentReceiptModalContainer(
         prId: "",
       };
 
-      // Call API
       const response = await receivePayment(location, paymentData);
-
-      if (response.status) {
-        toast.success("Payment saved successfully");
-        onEdit?.({
-          date: formattedDate,
-          method: editForm.method,
-          reference: editForm.reference,
-          amountReceived: amountReceived,
-          allocations,
-          groupLessonAllocations: glAllocations,
-          invoiceAllocations: invAllocations,
-        });
-        setIsEditing(false);
-        fetchPaymentReceiptData();
-      } else {
+      if (!response.status) {
         const errorMessage =
           response.message ||
           response.errors?.join(", ") ||
           "Failed to save payment";
         toast.error(errorMessage);
+        return;
       }
+
+      toast.success("Payment saved successfully");
+      onEdit?.({
+        date: formattedDate,
+        method: editForm.method,
+        reference: editForm.reference,
+        amountReceived: amountReceived,
+        allocations,
+        groupLessonAllocations: glAllocations,
+        invoiceAllocations: invAllocations,
+      });
+      setIsEditing(false);
+      fetchPaymentReceiptData();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to save payment";
@@ -534,7 +651,7 @@ export function PaymentReceiptModalContainer(
       const emailContent = generatePaymentReceiptEmail(paymentReceiptData);
 
       onEmail({
-        subject: "Receipt from Arcadia Academy of Music",
+        subject: "Payment from Arcadia Academy of Music",
         content: emailContent,
         receiptHtml: emailContent,
       });
@@ -614,6 +731,10 @@ export function PaymentReceiptModalContainer(
       onDelete={handleDelete}
       onDeleteConfirm={handleDeleteConfirm}
       onDeleteCancel={handleDeleteCancel}
+      mode={mode}
+      acknowledgmentMessage={paymentInfo?.acknowledgmentMessage}
+      showEditButton={mode === "view"}
+      showDeleteButton={mode === "view"}
     />
   );
 }

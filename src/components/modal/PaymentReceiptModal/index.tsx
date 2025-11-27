@@ -167,7 +167,10 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
     onDeleteCancel,
     onEmailFormSubmit,
     onPrintFromHtml,
-    
+    mode = "view",
+    acknowledgmentMessage,
+    showEditButton = true,
+    showDeleteButton = true,
   } = props;
 
   // Check if payment amount is negative
@@ -196,6 +199,26 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
   const hasReceiptRows = receiptRows.length > 0;
   const shouldShowNoSelectionsMessage = !isEditing && !hasAllocations && hasReceiptRows;
 
+  // Validation: Check if amountReceived matches amountToApply
+  const amountReceivedValue = React.useMemo(() => {
+    const value = parseFloat(editForm.amountReceived || "0");
+    return isNaN(value) ? 0 : value;
+  }, [editForm.amountReceived]);
+
+  const isAmountValid = React.useMemo(() => {
+    if (!isEditing) return true;
+    // Round to 2 decimal places for comparison
+    const received = Math.round(amountReceivedValue * 100) / 100;
+    const toApply = Math.round(amountToApply * 100) / 100;
+    // Valid when Amount Received >= Amount To Apply
+    return received >= toApply;
+  }, [isEditing, amountReceivedValue, amountToApply]);
+
+  const amountValidationError = React.useMemo(() => {
+    if (!isEditing || isAmountValid) return null;
+    return "Amount mismatched with distributions";
+  }, [isEditing, isAmountValid]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -217,6 +240,15 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
               <LoadingState />
             ) : (
               <>
+                {/* Thank you message for new payments */}
+                {mode === "new" && acknowledgmentMessage && !isEditing && (
+                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      {acknowledgmentMessage}
+                    </p>
+                  </div>
+                )}
+
                 {/* Negative Payment Banner */}
                 {showBanner && isNegativePayment && !isEditing && (
                   <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2 duration-300">
@@ -286,13 +318,18 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label>Amount Received</Label>
+                          <Label className={amountValidationError ? "text-red-500" : ""}>
+                            Amount Received
+                          </Label>
                           <Input
                             type="number"
-                            className="text-right"
+                            className={`text-right ${amountValidationError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                             value={editForm.amountReceived}
                             onChange={(e) => onEditFormChange({ ...editForm, amountReceived: e.target.value })}
                           />
+                          {amountValidationError && (
+                            <p className="text-sm text-red-500">{amountValidationError}</p>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -540,7 +577,7 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
               ) : (
                 <>
                   <div>
-                    {!receiptHtml && (
+                    {showDeleteButton && !receiptHtml && (
                       <Button variant="destructive" onClick={onDelete}>
                         Delete
                       </Button>
@@ -552,28 +589,30 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                         <Button variant="secondary" onClick={onCancelEdit}>
                           Cancel
                         </Button>
-                        <Button disabled={isSaving} onClick={onSave}>
+                        <Button disabled={isSaving || !isAmountValid} onClick={onSave}>
                           {isSaving ? "Saving..." : "Save"}
                         </Button>
                       </>
                     ) : (
                       <>
                         <Button variant="secondary" onClick={() => onOpenChange(false)}>
-                          Cancel
+                          Close
                         </Button>
-                        <Button 
-                          variant="default" 
-                          onClick={isNegativePayment ? undefined : onEditClick}
-                          disabled={isNegativePayment}
-                          className={isNegativePayment ? "opacity-50 cursor-not-allowed" : ""}
-                        >
-                          Edit
-                        </Button>
+                        {showEditButton && (
+                          <Button 
+                            variant="default" 
+                            onClick={isNegativePayment ? undefined : onEditClick}
+                            disabled={isNegativePayment}
+                            className={isNegativePayment ? "opacity-50 cursor-not-allowed" : ""}
+                          >
+                            Edit
+                          </Button>
+                        )}
                         <Button variant="default" onClick={onPrint}>
                           Print
                         </Button>
                         <Button variant="default" onClick={onEmail}>
-                          EMail
+                          Email
                         </Button>
                       </>
                     )}

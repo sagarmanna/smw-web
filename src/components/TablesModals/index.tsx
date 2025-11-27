@@ -83,7 +83,7 @@ export function ReusableModal({
           {description && <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">{description}</DialogDescription>}
         </DialogHeader>
         
-        <div className="py-4 overflow-y-auto flex-1">{children}</div>
+        <div className="py-4 overflow-y-auto overflow-x-hidden flex-1 min-w-0">{children}</div>
         
         {showFooter && (actions.length > 0 || leftActions.length > 0) && (
           <DialogFooter className="px-6 py-4 border-t w-full flex flex-row items-center justify-between sm:justify-between">

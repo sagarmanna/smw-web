@@ -30,7 +30,15 @@ interface PaymentRow {
 export function PaymentsClient({ location }: PaymentsClientProps) {
   const [rowsPerPage, setRowsPerPage] = React.useState(20);
   const [page, setPage] = React.useState(1);
-  const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
+  // Initialize date filter with today's date by default
+  const today = React.useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
+  const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({
+    date: { from: today, to: today }
+  });
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'date', desc: false }
   ]);
@@ -171,7 +179,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         cell: ({ row }) => format(row.original.date, "MMM dd, yyyy"),
         filter: {
           type: "date-range",
-          initialValue: undefined,
+          initialValue: { from: today, to: today },
           quickPreset: "payments",
           allowClear: true
         },
@@ -228,7 +236,7 @@ export function PaymentsClient({ location }: PaymentsClientProps) {
         enableSorting: true,
       },
     ],
-    [numberOptions]
+    [numberOptions, today]
   );
  
   const handleColumnFilterChange = React.useCallback((columnKey: string, value: unknown) => {

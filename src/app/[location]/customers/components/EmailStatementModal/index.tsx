@@ -526,7 +526,8 @@ export default function EmailStatementModal({
         actions={modalActions}
         leftActions={leftActions}
       >
-        <div className="space-y-4">
+        {/* Inner content constrained to a readable width like other modals */}
+        <div className="space-y-4 w-full max-w-3xl mx-auto">
         {/* To Field with Email Tags */}
         <div className="space-y-2">
           <Label htmlFor="recipients">To</Label>

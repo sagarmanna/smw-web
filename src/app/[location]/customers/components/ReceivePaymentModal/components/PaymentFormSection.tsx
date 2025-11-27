@@ -18,6 +18,7 @@ interface PaymentFormSectionProps {
   onReferenceChange: (value: string) => void;
   amountReceived: string;
   onAmountReceivedChange: (value: string) => void;
+  amountError?: string;
   notes: string;
   onNotesChange: (value: string) => void;
   availablePaymentMethods: Array<{ value: string; label: string }>;
@@ -46,6 +47,7 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
   onReferenceChange,
   amountReceived,
   onAmountReceivedChange,
+  amountError,
   notes,
   onNotesChange,
   availablePaymentMethods,
@@ -228,9 +230,12 @@ export const PaymentFormSection: React.FC<PaymentFormSectionProps> = ({
             type="text"
             value={amountReceived}
             onChange={handleAmountReceivedChange}
-            className="h-9 text-right"
+            className={`h-9 text-right ${amountError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
             placeholder="0.00"
           />
+          {amountError && (
+            <p className="text-xs text-red-500 mt-1">{amountError}</p>
+          )}
         </FormField>
       </div>
 

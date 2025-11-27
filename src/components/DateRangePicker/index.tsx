@@ -111,19 +111,56 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(value);
   const [tempRange, setTempRange] = useState<DateRange | undefined>(value);
+  const [selectedQuickOption, setSelectedQuickOption] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Check if two date ranges match (comparing dates only, ignoring time)
+  const dateRangesMatch = (range1: DateRange, range2: DateRange): boolean => {
+    const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
+    return (
+      formatDate(range1.from) === formatDate(range2.from) &&
+      formatDate(range1.to) === formatDate(range2.to)
+    );
+  };
+
+  // Find which quick option matches the current selected range
+  const findMatchingQuickOption = (range: DateRange | undefined): string | null => {
+    if (!range) return null;
+    
+    for (const option of quickOptions) {
+      const optionRange = option.getValue();
+      if (dateRangesMatch(range, optionRange)) {
+        return option.label;
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (value) {
       setSelectedRange(value);
       setTempRange(value);
+      // Update selected quick option when value changes
+      const matchingOption = findMatchingQuickOption(value);
+      setSelectedQuickOption(matchingOption);
+    } else {
+      setSelectedQuickOption(null);
     }
-  }, [value]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, preset]);
+
+  // Reset tempRange to selectedRange when popover opens
+  useEffect(() => {
+    if (isOpen) {
+      setTempRange(selectedRange);
+    }
+  }, [isOpen, selectedRange]);
 
   const handleQuickOption = (option: typeof quickOptions[0]) => {
     const range = option.getValue();
     setSelectedRange(range);
     setTempRange(range);
+    setSelectedQuickOption(option.label);
     onChange?.(range);
     setIsOpen(false);
   };
@@ -139,6 +176,9 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
   const handleApply = () => {
     if (tempRange) {
       setSelectedRange(tempRange);
+      // Check if the applied range matches any quick option
+      const matchingOption = findMatchingQuickOption(tempRange);
+      setSelectedQuickOption(matchingOption);
       onChange?.(tempRange);
     }
     setIsOpen(false);
@@ -176,17 +216,23 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
             <div className="hidden md:block border-r p-3 w-[140px]">
               <h4 className="text-sm font-medium mb-3">Quick Options</h4>
               <div className="space-y-1">
-                {quickOptions.map((option) => (
-                  <Button
-                    key={option.label}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-xs h-7 hover:bg-accent"
-                    onClick={() => handleQuickOption(option)}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
+                {quickOptions.map((option) => {
+                  const isSelected = selectedQuickOption === option.label;
+                  return (
+                    <Button
+                      key={option.label}
+                      variant={isSelected ? "secondary" : "ghost"}
+                      size="sm"
+                      className={cn(
+                        "w-full justify-start text-xs h-7 hover:bg-accent",
+                        isSelected && "bg-primary text-primary-foreground hover:bg-primary/90"
+                      )}
+                      onClick={() => handleQuickOption(option)}
+                    >
+                      {option.label}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
 
