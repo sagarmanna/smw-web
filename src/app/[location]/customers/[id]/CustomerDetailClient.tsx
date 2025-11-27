@@ -2664,6 +2664,10 @@ export function CustomerDetailClient({
           // Placeholder: integrate actual print endpoint if available
           console.info("Reprint Agreement for rental", rid);
         }}
+        onEmail={({ subject, content }) => {
+          setEmailModalOverrides({ subject, content });
+          setIsEmailStatementModalOpen(true);
+        }}
       />
 
       {/* Email Statement Modal */}

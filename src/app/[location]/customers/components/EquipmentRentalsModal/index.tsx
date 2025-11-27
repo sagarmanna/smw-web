@@ -1863,6 +1863,9 @@ export function EquipmentRentalsModal({
     // NOTE: This only opens the email modal - NO API call is made here
     const { subject, content } = generateEmailContent();
     
+    // Close receipt modal to prevent dark overlay stacking
+    setShowReceiptModal(false);
+    
     if (onEmail) {
       // Open EmailStatementModal with pre-filled content (no API call)
       onEmail({
