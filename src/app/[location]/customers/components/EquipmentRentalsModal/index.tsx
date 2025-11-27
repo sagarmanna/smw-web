@@ -1425,9 +1425,14 @@ export function EquipmentRentalsModal({
         return;
       }
 
-      const returnDate = new Date();
-      const returnDateFormatted = format(returnDate, "MMM dd, yyyy");
-      const returnDateISO = format(returnDate, "yyyy-MM-dd");
+      // Today's date for Equipment Returned Date (URL parameter)
+      const equipmentReturnedDate = new Date();
+      const returnDateFormatted = format(equipmentReturnedDate, "MMM dd, yyyy");
+      
+      // Original return date from formData (to preserve the expected return date)
+      // If formData.returnDate doesn't exist, use today's date as fallback
+      const originalReturnDate = formData.returnDate || equipmentReturnedDate;
+      const originalReturnDateISO = format(originalReturnDate, "yyyy-MM-dd");
 
       const filledInstruments = instruments.filter(
         (inst) => inst.instrumentId > 0
@@ -1467,7 +1472,7 @@ export function EquipmentRentalsModal({
           userId: customerId,
           customerName: formData.customer,
           studentName: studentName,
-          returnDate: returnDateISO,
+          returnDate: originalReturnDateISO, // Send original return date to preserve it
           securityDeposit: "",
           tenderType: "",
           depositAmount: "0.00",
