@@ -29,7 +29,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar as CalIcon, Trash2 } from "lucide-react";
-import { format, differenceInCalendarDays } from "date-fns";
+import { format, differenceInCalendarDays, differenceInMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -2497,7 +2497,39 @@ export function EquipmentRentalsModal({
                 const durationMatch = formData.duration.match(/^(\d+)-month/i);
                 const durationMonths = durationMatch ? parseInt(durationMatch[1]) : 0;
                 
-                // Check if return date has been reached
+                // Check if ongoing rental with return date >= 2 months from start date
+                const isOngoingWithReturnDateAtLeastTwoMonths = (() => {
+                  if (!formData.onGoing || !formData.returnDate || !formData.rentalStartDate) {
+                    return false;
+                  }
+                  
+                  // Ensure dates are Date objects
+                  if (!(formData.rentalStartDate instanceof Date) || !(formData.returnDate instanceof Date)) {
+                    return false;
+                  }
+                  
+                  const startDate = normalizeDate(formData.rentalStartDate);
+                  const returnDate = normalizeDate(formData.returnDate);
+                  
+                  // Check if return date is in the future from start date
+                  if (returnDate < startDate) {
+                    return false; // Return date cannot be before start date
+                  }
+                  
+                  // Calculate months difference
+                  // differenceInMonths returns the number of full months between dates
+                  const monthsDifference = differenceInMonths(returnDate, startDate);
+                  
+                  // Enable ONLY if return date is >= 2 months from start date
+                  // For example: 
+                  // - Nov 17 to Nov 21 = 0 months (disabled) ✓
+                  // - Nov 17 to Dec 17 = 1 month (disabled) ✓
+                  // - Nov 17 to Jan 17 = 2 months (enabled) ✓
+                  // - Nov 17 to Feb 17 = 3 months (enabled) ✓
+                  return monthsDifference >= 2;
+                })();
+                
+                // Check if return date has been reached (for non-ongoing rentals)
                 const hasReachedReturnDate = (() => {
                   if (!formData.returnDate) return false;
                   const today = normalizeDate(new Date());
@@ -2505,8 +2537,15 @@ export function EquipmentRentalsModal({
                   return today >= returnDate;
                 })();
                 
-                // Enable if duration >= 2 months OR return date has been reached
-                const isEnabled = durationMonths >= 2 || hasReachedReturnDate;
+                // Determine if button should be enabled
+                let isEnabled: boolean;
+                if (formData.onGoing && formData.returnDate) {
+                  // For ongoing rentals with return date, only enable if return date >= 2 months
+                  isEnabled = isOngoingWithReturnDateAtLeastTwoMonths;
+                } else {
+                  // For non-ongoing rentals, enable if duration >= 2 months OR return date has been reached
+                  isEnabled = durationMonths >= 2 || hasReachedReturnDate;
+                }
 
                 return (
                   <Button
