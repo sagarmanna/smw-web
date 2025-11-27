@@ -401,6 +401,7 @@ export function EquipmentRentalsModal({
     },
   ]);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
+  const [isReturnDateOpen, setIsReturnDateOpen] = useState(false);
 
   const isEditMode = Boolean(rentalId);
 
@@ -476,11 +477,16 @@ export function EquipmentRentalsModal({
               : false;
           studentId = rentalDetails.studentId?.toString() || "";
 
-          // If "On Going" is true, ALWAYS clear duration and return date
-          // Even if API returns returnDate, we ignore it for ongoing rentals
+          // If "On Going" is true, clear duration
+          // In edit mode, preserve returnDate from API if it exists (user may want to set it)
           if (onGoing) {
             duration = "";
-            returnDate = undefined; // Explicitly clear return date for ongoing rentals
+            // In edit mode, preserve returnDate from API if it exists
+            if (isEditMode && rentalDetails.returnDate) {
+              returnDate = new Date(rentalDetails.returnDate + "T00:00:00");
+            } else {
+              returnDate = undefined; // Clear return date for ongoing rentals in create mode
+            }
           } else {
             // Only set return date if NOT "On Going"
             returnDate = rentalDetails.returnDate
@@ -499,8 +505,8 @@ export function EquipmentRentalsModal({
             }
           }
           
-          // Final safeguard: If onGoing is true, ensure returnDate is always undefined
-          if (onGoing) {
+          // Final safeguard: If onGoing is true and NOT in edit mode, ensure returnDate is undefined
+          if (onGoing && !isEditMode) {
             returnDate = undefined;
           }
         } else {
@@ -524,7 +530,7 @@ export function EquipmentRentalsModal({
           rentalStartDate: rentalStartDate,
           onGoing: onGoing,
           duration: onGoing ? "" : duration, // Clear duration if onGoing is true
-          returnDate: onGoing ? undefined : returnDate, // Clear returnDate if onGoing is true
+          returnDate: onGoing && !isEditMode ? undefined : returnDate, // Clear returnDate if onGoing is true (only in create mode)
           securityDeposit:
             rentalDetails?.securityDeposit !== undefined &&
             rentalDetails?.securityDeposit !== null
@@ -538,9 +544,10 @@ export function EquipmentRentalsModal({
           depositAmount: rentalDetails?.depositAmount || "",
         };
 
-        // If onGoing is true, ensure returnDate is ALWAYS undefined in newFormData
+        // If onGoing is true, ensure returnDate is undefined in newFormData (only in create mode)
+        // In edit mode, allow returnDate to be set for ongoing rentals
         // CRITICAL: Must be done BEFORE setting formData to prevent any calculations
-        if (onGoing) {
+        if (onGoing && !isEditMode) {
           newFormData.returnDate = undefined;
           newFormData.duration = "";
         }
@@ -550,8 +557,8 @@ export function EquipmentRentalsModal({
           setFormData(newFormData);
         });
 
-        // Additional safeguard: ensure returnDate is cleared if onGoing is true - run immediately
-        if (onGoing) {
+        // Additional safeguard: ensure returnDate is cleared if onGoing is true - run immediately (only in create mode)
+        if (onGoing && !isEditMode) {
           flushSync(() => {
             setFormData((prev) => {
               if (prev.onGoing === true) {
@@ -668,9 +675,10 @@ export function EquipmentRentalsModal({
   }, [formData.onGoing, formData.rentalStartDate, updateInstrumentsForOngoing]);
 
   // Clear returnDate and duration when onGoing is true - MUST run when onGoing changes or when returnDate/duration are set while onGoing is true
+  // BUT: In edit mode, allow setting returnDate for ongoing rentals
   useEffect(() => {
-    if (formData.onGoing === true) {
-      // ALWAYS clear returnDate and duration when onGoing is true
+    if (formData.onGoing === true && !isEditMode) {
+      // ALWAYS clear returnDate and duration when onGoing is true (only in create mode)
       // Use flushSync to ensure immediate update
       setFormData((prev) => {
         // Only update if returnDate or duration need to be cleared
@@ -684,13 +692,20 @@ export function EquipmentRentalsModal({
         return prev;
       });
     }
-  }, [formData.onGoing, formData.returnDate, formData.duration]);
+  }, [formData.onGoing, formData.returnDate, formData.duration, isEditMode]);
 
-  // Compute return date input value - MUST always be empty when onGoing is true
-  // This MUST check onGoing FIRST before any other logic
+  // Compute return date input value
+  // In edit mode with ongoing rental, show returnDate if it exists
   const returnDateInputValue = useMemo(() => {
-    // CRITICAL: ABSOLUTE first check - if onGoing is true, ALWAYS return empty string
-    // Do not check returnDate, do not format, just return empty immediately
+    // In edit mode with ongoing rental, allow showing returnDate
+    if (formData.onGoing === true && isEditMode) {
+      // Show returnDate if it exists
+      if (formData.returnDate && formData.returnDate instanceof Date && !isNaN(formData.returnDate.getTime())) {
+        return format(formData.returnDate, "MMM dd, yyyy");
+      }
+      return "";
+    }
+    // In create mode or non-ongoing: if onGoing is true, return empty string
     if (formData.onGoing === true) {
       return "";
     }
@@ -700,7 +715,7 @@ export function EquipmentRentalsModal({
     }
     // Default: return empty string
     return "";
-  }, [formData.onGoing, formData.returnDate]);
+  }, [formData.onGoing, formData.returnDate, isEditMode]);
 
   const calculateTotalFromDates = (
     startDate: Date,
@@ -866,9 +881,11 @@ export function EquipmentRentalsModal({
       if (field === "onGoing") {
         if (value === true) {
           // Clear both duration and return date when "On Going" is checked
-          // Both fields should be blank as shown in the UI
+          // BUT: In edit mode, allow returnDate to be set for ongoing rentals
           newData.duration = "";
-          newData.returnDate = undefined;
+          if (!isEditMode) {
+            newData.returnDate = undefined;
+          }
           
           // Set numberOfMonths to "1" for all instruments when "On Going" is checked
           setTimeout(() => {
@@ -955,14 +972,17 @@ export function EquipmentRentalsModal({
 
       // Handle start date changes when "On Going" is checked
       if (field === "rentalStartDate" && newData.onGoing) {
-        // Keep return date blank when "On Going" is checked
+        // Keep return date blank when "On Going" is checked (only in create mode)
+        // In edit mode, allow returnDate to be set for ongoing rentals
         // Only update instruments for ongoing billing calculation
         if (newData.rentalStartDate instanceof Date) {
           // Update instruments when start date changes (for ongoing billing)
           updateInstrumentsForOngoing(newData.rentalStartDate);
         }
-        // Return date should remain blank/undefined for ongoing rentals
-        newData.returnDate = undefined;
+        // Return date should remain blank/undefined for ongoing rentals (only in create mode)
+        if (!isEditMode) {
+          newData.returnDate = undefined;
+        }
       }
 
       // Handle start date changes when "On Going" is NOT checked
@@ -1051,7 +1071,8 @@ export function EquipmentRentalsModal({
       }
 
       // Final safeguard: If "On Going" is checked, ensure duration and return date are blank
-      if (newData.onGoing) {
+      // BUT: In edit mode, allow setting returnDate for ongoing rentals
+      if (newData.onGoing && !isEditMode) {
         newData.duration = "";
         newData.returnDate = undefined;
       }
@@ -1474,6 +1495,27 @@ export function EquipmentRentalsModal({
       console.error("Error marking equipment as returned:", error);
     } finally {
       setReturning(false);
+    }
+  };
+
+  const handleUpdateReturnDate = () => {
+    if (!formData.returnDate) {
+      toast.error("Please select a return date");
+      return;
+    }
+
+    // Just update local state and notify parent component
+    // No API call - parent component will handle the save
+    const filledInstruments = instruments.filter(
+      (inst) => inst.instrumentId > 0
+    );
+
+    if (onSave) {
+      onSave({
+        ...formData,
+        instruments: filledInstruments,
+      });
+      toast.success("Return date updated");
     }
   };
 
@@ -2182,19 +2224,62 @@ export function EquipmentRentalsModal({
                 </SelectContent>
               </Select>
               <Label className="w-24 ml-6">Return Date</Label>
-              <Input
-                key={`return-date-${formData.onGoing ? "ongoing-empty" : formData.returnDate?.toISOString() || "empty"}-${formData.returnDate === undefined ? "undefined" : "defined"}`}
-                value={
-                  // Direct inline check - MUST be empty when onGoing is true
-                  formData.onGoing === true
-                    ? ""
-                    : returnDateInputValue
-                }
-                readOnly
-                disabled={formData.onGoing || isEditMode}
-                className="bg-gray-50 dark:bg-gray-800 w-48"
-                placeholder=""
-              />
+              {isEditMode && formData.onGoing ? (
+                // In edit mode with ongoing rental, show date picker to allow setting return date
+                <Popover
+                  open={isReturnDateOpen}
+                  onOpenChange={setIsReturnDateOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-48 justify-start text-left font-normal",
+                        !formData.returnDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalIcon className="mr-2 h-4 w-4" />
+                      {formData.returnDate
+                        ? format(formData.returnDate, "MMM dd, yyyy")
+                        : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.returnDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          handleInputChange("returnDate", date);
+                        } else {
+                          // Clear return date
+                          setFormData((prev) => ({
+                            ...prev,
+                            returnDate: undefined,
+                          }));
+                        }
+                        setIsReturnDateOpen(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                // In create mode or non-ongoing, show read-only input
+                <Input
+                  key={`return-date-${formData.onGoing ? "ongoing-empty" : formData.returnDate?.toISOString() || "empty"}-${formData.returnDate === undefined ? "undefined" : "defined"}`}
+                  value={
+                    // Direct inline check - MUST be empty when onGoing is true
+                    formData.onGoing === true
+                      ? ""
+                      : returnDateInputValue
+                  }
+                  readOnly
+                  disabled={formData.onGoing || isEditMode}
+                  className="bg-gray-50 dark:bg-gray-800 w-48"
+                  placeholder=""
+                />
+              )}
             </div>
 
             <div className="flex items-start p-5 gap-4">
@@ -2391,6 +2476,14 @@ export function EquipmentRentalsModal({
             </div>
           )}
           <div className="flex items-center gap-2">
+            {isEditMode && formData.onGoing && (
+              <Button
+                onClick={handleUpdateReturnDate}
+                disabled={!formData.returnDate}
+              >
+                Edit
+              </Button>
+            )}
             <Button variant="outline" onClick={handleCancel}>
               Close
             </Button>
@@ -2398,7 +2491,17 @@ export function EquipmentRentalsModal({
               (() => {
                 const durationMatch = formData.duration.match(/^(\d+)-month/i);
                 const durationMonths = durationMatch ? parseInt(durationMatch[1]) : 0;
-                const isEnabled = durationMonths > 2;
+                
+                // Check if return date has been reached
+                const hasReachedReturnDate = (() => {
+                  if (!formData.returnDate) return false;
+                  const today = normalizeDate(new Date());
+                  const returnDate = normalizeDate(formData.returnDate);
+                  return today >= returnDate;
+                })();
+                
+                // Enable if duration >= 2 months OR return date has been reached
+                const isEnabled = durationMonths >= 2 || hasReachedReturnDate;
 
                 return (
                   <Button
