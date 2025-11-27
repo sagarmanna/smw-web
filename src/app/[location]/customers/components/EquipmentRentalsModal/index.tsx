@@ -415,7 +415,7 @@ export function EquipmentRentalsModal({
           if (monthlyRate <= 0) {
             return {
               ...inst,
-              numberOfMonths: "", // Clear numberOfMonths for ongoing rentals
+              numberOfMonths: "1", // Set to 1 month for ongoing rentals
               total: "0.00",
             };
           }
@@ -426,7 +426,7 @@ export function EquipmentRentalsModal({
 
           return {
             ...inst,
-            numberOfMonths: "", // Clear numberOfMonths for ongoing rentals
+            numberOfMonths: "1", // Set to 1 month for ongoing rentals
             total: total.toFixed(2),
           };
         })
@@ -589,7 +589,7 @@ export function EquipmentRentalsModal({
                 retailValue: retailValue || "",
                 assetTag: assetTag || "",
                 monthlyRate: monthlyRate || "0",
-                numberOfMonths: onGoing ? "" : (numberOfMonths || ""), // Clear numberOfMonths for ongoing rentals
+                numberOfMonths: onGoing ? "1" : (numberOfMonths || ""), // Set to 1 month for ongoing rentals
                 total: total || "0.00",
                 taxRate: taxRate,
               };
@@ -870,12 +870,12 @@ export function EquipmentRentalsModal({
           newData.duration = "";
           newData.returnDate = undefined;
           
-          // Clear numberOfMonths for all instruments when "On Going" is checked
+          // Set numberOfMonths to "1" for all instruments when "On Going" is checked
           setTimeout(() => {
             setInstruments((prevInstruments) =>
               prevInstruments.map((inst) => ({
                 ...inst,
-                numberOfMonths: "", // Clear numberOfMonths like returnDate
+                numberOfMonths: "1", // Set to 1 month for ongoing rentals
               }))
             );
           }, 0);
@@ -1080,7 +1080,7 @@ export function EquipmentRentalsModal({
           if (durationMatch) {
             updated.numberOfMonths = durationMatch[1];
           } else if (formData.onGoing) {
-            updated.numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
+            updated.numberOfMonths = "1"; // Set to 1 month for ongoing rentals
           }
         }
 
@@ -1099,8 +1099,8 @@ export function EquipmentRentalsModal({
               updated.total = "0.00";
             }
 
-            // Clear numberOfMonths for ongoing rentals (don't set to "1")
-            updated.numberOfMonths = "";
+            // Set numberOfMonths to "1" for ongoing rentals
+            updated.numberOfMonths = "1";
           } else if (
             !formData.onGoing &&
             formData.rentalStartDate &&
@@ -1144,7 +1144,7 @@ export function EquipmentRentalsModal({
     // Get current numberOfMonths from duration or default to 1
     let numberOfMonths = "1";
     if (formData.onGoing) {
-      numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
+      numberOfMonths = "1"; // Set to 1 month for ongoing rentals
     } else if (formData.duration) {
       const durationMatch = formData.duration.match(/^(\d+)-month/i);
       if (durationMatch) {
@@ -1176,7 +1176,7 @@ export function EquipmentRentalsModal({
       if (filtered.length === 0) {
         let numberOfMonths = "1";
         if (formData.onGoing) {
-          numberOfMonths = ""; // Clear numberOfMonths for ongoing rentals
+          numberOfMonths = "1"; // Set to 1 month for ongoing rentals
         } else if (formData.duration) {
           const durationMatch = formData.duration.match(/^(\d+)-month/i);
           if (durationMatch) {
@@ -2125,12 +2125,12 @@ export function EquipmentRentalsModal({
                           duration: "", // Explicitly clear duration
                         }));
                       });
-                      // Clear numberOfMonths for all instruments when "On Going" is checked
+                      // Set numberOfMonths to "1" for all instruments when "On Going" is checked
                       flushSync(() => {
                         setInstruments((prevInstruments) =>
                           prevInstruments.map((inst) => ({
                             ...inst,
-                            numberOfMonths: "", // Clear numberOfMonths like returnDate
+                            numberOfMonths: "1", // Set to 1 month for ongoing rentals
                           }))
                         );
                       });
