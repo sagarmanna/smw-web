@@ -63,13 +63,14 @@ export function useTeacherDetails(
     };
   }, [teacherInfo]);
 
-  const emails = teacherInfo?.email || [];
-  const phones = teacherInfo?.phone || [];
-  const addresses = teacherInfo?.addresses || [];
+  // Memoize arrays to prevent unnecessary re-renders
+  const emails = React.useMemo(() => teacherInfo?.email || [], [teacherInfo?.email]);
+  const phones = React.useMemo(() => teacherInfo?.phone || [], [teacherInfo?.phone]);
+  const addresses = React.useMemo(() => teacherInfo?.addresses || [], [teacherInfo?.addresses]);
 
   const refresh = React.useCallback(async () => {
-    dispatch(fetchTeacher(teacherId.toString()));
-  }, [dispatch, teacherId]);
+    dispatch(fetchTeacher({ location, teacherId }));
+  }, [dispatch, location, teacherId]);
 
   const saveDetails = React.useCallback(
     async (next: TeacherBasicDetails) => {

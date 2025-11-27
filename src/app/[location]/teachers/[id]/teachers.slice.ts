@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { fetchTeacherInfo } from './teachers.mock';
 import { updateTeacherDetails, UpdateTeacherDetailsData } from '../teachers.api';
+import { getTeacherDetails, TeacherDetailsApiResponse } from './teachers-details.api';
 import type { TeacherInfo } from './teachers-details.interface';
 import type { 
   TeacherBasicDetails, 
@@ -15,7 +15,11 @@ interface TeacherState {
   isSaving: boolean;
   error: string | null;
   lastFetched: number | null;
+  currentTeacherId: number | null;
 }
+
+// Cache configuration - data is considered fresh for 5 minutes (300000ms)
+const STALE_TIME_MS = 5 * 60 * 1000;
 
 const initialState: TeacherState = {
   teacherInfo: null,
@@ -23,20 +27,85 @@ const initialState: TeacherState = {
   isSaving: false,
   error: null,
   lastFetched: null,
+  currentTeacherId: null,
 };
 
-// Async thunk for fetching teacher info
+/**
+ * Transforms API response to match the TeacherInfo interface
+ */
+function transformApiResponse(apiResponse: TeacherDetailsApiResponse): TeacherInfo {
+  const { body } = apiResponse.data;
+  
+  return {
+    profile: {
+      name: body.profile.name,
+      role: body.profile.role,
+      birthDate: body.profile.birthDate || undefined,
+      picture: undefined, // Not in API response
+    },
+    email: body.email.map((email) => ({
+      id: email.id.toString(),
+      label: email.label,
+      email: email.email,
+      note: email.note || undefined,
+      isPrimary: email.isPrimary,
+    })),
+    phone: body.phone.map((phone) => ({
+      id: phone.id.toString(),
+      label: phone.label,
+      number: phone.number,
+      extension: phone.extension || undefined,
+      note: phone.note || undefined,
+      isPrimary: phone.isPrimary,
+    })),
+    addresses: body.addresses.map((address) => ({
+      id: address.id.toString(),
+      label: address.label,
+      address: address.address,
+      city: address.city,
+      provinceId: 0, // Not in API response, default to 0
+      countryId: 0, // Not in API response, default to 0
+      cityId: 0, // Not in API response, default to 0
+      postalCode: address.postalCode,
+      province: address.province || undefined,
+      country: address.country || undefined,
+      note: undefined, // Not in API response
+      isPrimary: address.isPrimary,
+    })),
+  };
+}
+
+// Async thunk for fetching teacher info with caching
 export const fetchTeacher = createAsyncThunk(
   'teacher/fetchTeacher',
-  async (id: string, { rejectWithValue }) => {
+  async (
+    { location, teacherId }: { location: string; teacherId: number },
+    { getState, rejectWithValue }
+  ) => {
     try {
-      const result = await fetchTeacherInfo(id);
-
-      if (result.success) {
-        return result.data;
-      } else {
-        throw new Error(result.message || 'Failed to fetch teacher info');
+      // Check if we have fresh cached data
+      const state = getState() as { teacher: TeacherState };
+      const teacherState = state.teacher;
+      
+      if (
+        teacherState.teacherInfo &&
+        teacherState.currentTeacherId === teacherId &&
+        teacherState.lastFetched &&
+        Date.now() - teacherState.lastFetched < STALE_TIME_MS
+      ) {
+        // Return cached data - no API call needed
+        return { data: teacherState.teacherInfo, fromCache: true };
       }
+
+      // Fetch from API
+      const result = await getTeacherDetails(location, teacherId);
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to fetch teacher info');
+      }
+
+      const transformedData = transformApiResponse(result);
+      return { data: transformedData, fromCache: false };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch teacher info');
     }
@@ -72,6 +141,7 @@ const teacherSlice = createSlice({
       state.teacherInfo = null;
       state.error = null;
       state.lastFetched = null;
+      state.currentTeacherId = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -112,15 +182,28 @@ const teacherSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Teacher info reducers
-      .addCase(fetchTeacher.pending, (state) => {
+      .addCase(fetchTeacher.pending, (state, action) => {
+        // Track which teacher we're loading
+        const { teacherId } = action.meta.arg as { location: string; teacherId: number };
+        
+        // If switching to a different teacher, clear old data
+        if (state.currentTeacherId !== null && state.currentTeacherId !== teacherId) {
+          state.teacherInfo = null;
+          state.lastFetched = null;
+        }
+        
+        state.currentTeacherId = teacherId;
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchTeacher.fulfilled, (state, action: PayloadAction<TeacherInfo>) => {
+      .addCase(fetchTeacher.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.teacherInfo = action.payload;
+        state.teacherInfo = action.payload.data;
         state.error = null;
-        state.lastFetched = Date.now();
+        // Only update timestamp if data came from API, not cache
+        if (!action.payload.fromCache) {
+          state.lastFetched = Date.now();
+        }
       })
       .addCase(fetchTeacher.rejected, (state, action) => {
         state.isLoading = false;

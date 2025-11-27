@@ -13,7 +13,7 @@ interface TeacherAddressCardProps {
   loading?: boolean;
 }
 
-export function TeacherAddressCard({
+export const TeacherAddressCard = React.memo(function TeacherAddressCard({
   addresses,
   onUpdate,
   loading = false,
@@ -92,5 +92,5 @@ export function TeacherAddressCard({
       />
     </>
   );
-}
+});
 
