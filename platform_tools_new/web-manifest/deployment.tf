@@ -62,6 +62,14 @@ resource "kubernetes_deployment_v1" "web_deployment" {
             name  = "NEXT_PUBLIC_ENV"
             value = var.enviroment
           }
+          env {
+            name  = "NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY"
+            value = var.openreplay_project_key
+          }
+          env {
+            name  = "NEXT_PUBLIC_OPENREPLAY_INGEST_POINT"
+            value = var.openreplay_ingest_point
+          }
 
           liveness_probe {
             http_get {

@@ -1,5 +1,5 @@
 # Production Environment Configuration for Web
-env = "prod"
+env        = "prod"
 enviroment = "production"
 
 # Web Domain
@@ -24,4 +24,8 @@ web_resource_config = {
     cpu    = "1000m"
     memory = "2Gi"
   }
-} 
+}
+
+#Open replay
+openreplay_project_key  = "ZmHgH6YaStrP2Ua7R7y1"
+openreplay_ingest_point = "https://openreplay.studiomanagerweb.com/ingest"

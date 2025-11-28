@@ -103,4 +103,14 @@ variable "web_replicas" {
   description = "Number of replicas for the web deployment"
   type        = number
   default     = 1
-} 
+}
+
+variable "openreplay_project_key" {
+  description = "Openreplay project key id"
+  type        = string
+}
+
+variable "openreplay_ingest_point" {
+  description = "open replay ingestion point"
+  type        = string
+}
