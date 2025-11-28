@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,7 +90,7 @@ export function TableToolbar<TData>({
   serverSideFilterOptions,
   activeServerSideFilter,
   onServerSideFilterChange,
-  defaultFilterLabel = "All",
+  defaultFilterLabel,
   customHeaderComponent,
   showRecordCount = false,
   recordCountInfo,
@@ -284,21 +285,23 @@ export function TableToolbar<TData>({
             {/* Server-Side Filter Options - Clean Select Style */}
             {serverSideFilterOptions && serverSideFilterOptions.length > 0 && (
               <>
-                <DropdownMenuItem 
-                  onClick={() => onServerSideFilterChange?.(undefined)}
-                  className={`cursor-pointer ${
-                    !activeServerSideFilter 
-                      ? 'bg-primary/10 text-primary font-medium' 
-                      : ''
-                  }`}
-                >
-                  <span className="flex items-center justify-between w-full">
-                    <span>{defaultFilterLabel}</span>
-                    {!activeServerSideFilter && (
-                      <Check className="h-4 w-4 ml-auto" />
-                    )}
-                  </span>
-                </DropdownMenuItem>
+                {defaultFilterLabel && (
+                  <DropdownMenuItem 
+                    onClick={() => onServerSideFilterChange?.(undefined)}
+                    className={`cursor-pointer ${
+                      !activeServerSideFilter 
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : ''
+                    }`}
+                  >
+                    <span className="flex items-center justify-between w-full">
+                      <span>{defaultFilterLabel}</span>
+                      {!activeServerSideFilter && (
+                        <Check className="h-4 w-4 ml-auto" />
+                      )}
+                    </span>
+                  </DropdownMenuItem>
+                )}
                 {serverSideFilterOptions.map((option) => (
                   <DropdownMenuItem 
                     key={option.key}
@@ -324,16 +327,14 @@ export function TableToolbar<TData>({
             {filterOptions && filterOptions.length > 0 && filterOptions.map((option) => (
               <div key={option.key} className="px-2 py-1.5">
                 <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id={`filter-${option.key}`}
                     checked={option.checked || false}
-                    onChange={(e) => option.onToggle?.(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    onCheckedChange={(checked) => option.onToggle?.(checked as boolean)}
                   />
                   <label 
                     htmlFor={`filter-${option.key}`} 
-                    className="text-sm font-medium leading-none cursor-pointer"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                   >
                     {option.label}
                   </label>
