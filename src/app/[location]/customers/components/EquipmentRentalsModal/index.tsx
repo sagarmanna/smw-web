@@ -2850,7 +2850,7 @@ export function EquipmentRentalsModal({
                   </div>
                   <div className="flex justify-between mb-2 pb-2">
                     <span className="font-semibold text-gray-700 dark:text-gray-300">
-                      HST (13%):
+                      TAX (13%):
                     </span>
                     <span className="font-medium dark:text-gray-100">
                       ${createdRentalData.hst.toFixed(2)}
