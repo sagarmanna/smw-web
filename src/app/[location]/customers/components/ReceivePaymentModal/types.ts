@@ -64,7 +64,8 @@ export interface ColumnDefinition<T = unknown> {
 export interface ReceivePaymentData {
   customer: string;
   date: string;
-  paymentMethod: string;
+  paymentMethod: string; // Payment method ID
+  paymentMethodName?: string; // Payment method name (e.g., "Cash", "Cheque")
   reference: string;
   amountReceived: number;
   notes: string;
@@ -77,6 +78,12 @@ export interface ReceivePaymentData {
   invoicePayments: Record<string, number>;
   paymentCredits: Record<string, number>;
   invoiceCredits: Record<string, number>;
+  // Full lesson details for receipt display (optional, used in bypass mode)
+  lessonDetails?: LessonItem[];
+  groupLessonDetails?: GroupLessonItem[];
+  invoiceDetails?: InvoiceItem[];
+  // Full credit details for receipt display (optional, used in bypass mode)
+  creditDetails?: CreditItem[];
 }
 
 export interface PaymentCalculations {

@@ -75,7 +75,8 @@ export const generateTableHtml = (
   title: string,
   headers: string[],
   rows: Array<Record<string, string>>,
-  alignments?: string[]
+  alignments?: string[],
+  hstNumber?: string
 ): string => {
   if (rows.length === 0) return '';
 
@@ -92,12 +93,19 @@ export const generateTableHtml = (
     return `<tr>${cells}</tr>`;
   }).join('');
 
-  return `
+  const tableHtml = `
     <h3 style="margin:16px 0 8px;font-size:14px;">${title}</h3>
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead><tr>${headerRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
     </table>`;
+
+  // Add HST number directly after Payments Used table
+  const hstHtml = title === 'Payments Used' && hstNumber
+    ? `<div style="margin-top:8px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">${hstNumber}</span></div>`
+    : '';
+
+  return tableHtml + hstHtml;
 };
 
 // Helper: Generate company block
@@ -135,17 +143,25 @@ export const generatePrintReceiptHtml = (config: PrintReceiptConfig): string => 
   const fromBlock = generateCompanyBlock(config.companyInfo);
   const toBlock = generateCustomerBlock(config.customerInfo);
   
-  // Generate all tables
+  // Generate all tables with HST number after Payments Used table
   const tablesHtml = config.tables
-    .map(table => generateTableHtml(table.title, table.headers, table.rows, table.alignments))
+    .map(table => generateTableHtml(
+      table.title, 
+      table.headers, 
+      table.rows, 
+      table.alignments,
+      table.title === 'Payments Used' ? config.hstNumber : undefined
+    ))
     .join('');
+
+  // Show HST number separately if no tables (no allocations) but HST exists
+  const hasPaymentsUsedTable = config.tables.some(table => table.title === 'Payments Used');
+  const hstHtml = !hasPaymentsUsedTable && config.hstNumber
+    ? `<div style="margin-top:16px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">${config.hstNumber}</span></div>`
+    : '';
 
   const body = `
     <div style="font-family:system-ui,-apple-system,sans-serif;color:#111;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h1 style="font-size:18px;margin:0;">${config.title}</h1>
-        <div style="font-weight:600;">Amount Paid ${config.headerAmount}</div>
-      </div>
       <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:16px;">
         <img src="${logoUrl}" alt="Logo" width="220" height="220" style="width: 220px; height: 220px; max-width: 220px; max-height: 220px; display: block; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; object-fit: contain; flex-shrink: 0;" />
       </div>
@@ -157,6 +173,7 @@ export const generatePrintReceiptHtml = (config: PrintReceiptConfig): string => 
         ${config.acknowledgmentMessage}
       </p>
       ${tablesHtml}
+      ${hstHtml}
       ${config.footer ? `<div style="margin-top:16px;font-size:12px;">${config.footer}</div>` : ''}
     </div>`;
 
@@ -208,15 +225,27 @@ export const printReceipt = (config: PrintReceiptConfig): boolean => {
 // Email helper: Generate email content (similar to print but without print styles)
 export const generateEmailContent = (config: PrintReceiptConfig): string => {
   const tablesHtml = config.tables
-    .map(table => generateTableHtml(table.title, table.headers, table.rows, table.alignments))
+    .map(table => generateTableHtml(
+      table.title, 
+      table.headers, 
+      table.rows, 
+      table.alignments,
+      table.title === 'Payments Used' ? config.hstNumber : undefined
+    ))
     .join('');
+
+  // Show HST number separately if no tables (no allocations) but HST exists
+  const hasPaymentsUsedTable = config.tables.some(table => table.title === 'Payments Used');
+  const hstHtml = !hasPaymentsUsedTable && config.hstNumber
+    ? `<div style="margin-top:16px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">${config.hstNumber}</span></div>`
+    : '';
 
   return `
     <div style="font-family:system-ui,-apple-system,sans-serif;color:#111;">
       <p>Please find the ${config.title} below</p>
       <p>${config.acknowledgmentMessage}</p>
       ${tablesHtml}
-      ${config.footer ? `<div style="margin-top:16px;font-size:12px;">${config.footer}</div>` : ''}
+      ${hstHtml}
       <p style="margin-top:16px;">Thank you,</p>
       <p>${config.companyInfo.name.split('(')[0].trim()} Team</p>
     </div>`;
@@ -296,8 +325,12 @@ export const buildPaymentReceiptConfig = (
     });
   }
 
-  // Payments Used table
-  if (data.receiptRows && data.receiptRows.length > 0) {
+  // Payments Used table - only show if there are allocations (lessons, group lessons, or invoices)
+  const hasAllocations = (data.allocationRows && data.allocationRows.length > 0) ||
+    (data.groupLessonRows && data.groupLessonRows.length > 0) ||
+    (data.invoiceRows && data.invoiceRows.length > 0);
+  
+  if (data.receiptRows && data.receiptRows.length > 0 && hasAllocations) {
     tables.push({
       title: 'Payments Used',
       headers: ['Reference', 'Date', 'Payment Method', 'Amount'],
@@ -318,10 +351,8 @@ export const buildPaymentReceiptConfig = (
   const methodText = data.paymentMethod ? ` via ${data.paymentMethod}` : "";
   const acknowledgmentMessage = `This is to acknowledge the receipt of payment${fromText}${dateText} in the amount of ${data.headerAmount}${methodText}. We have distributed it to the items below.`;
 
-  // Build footer
-  const footer = data.hstNumber 
-    ? `<div style="font-weight:600;">HST# <span style="font-weight:400">${data.hstNumber}</span></div>`
-    : '';
+  // Build footer (empty, HST number is now shown after Payments Used table)
+  const footer = '';
 
   return {
     title: 'Payment Receipt',
@@ -336,6 +367,7 @@ export const buildPaymentReceiptConfig = (
     tables,
     footer,
     logoUrl,
+    hstNumber: data.hstNumber,
   };
 };
 
