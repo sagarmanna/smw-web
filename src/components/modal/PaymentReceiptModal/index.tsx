@@ -24,16 +24,8 @@ import type {
   ReceiptRow,
 } from "./types";
 
-// Column definitions
-const allocationColumns: ColumnDef<AllocationRow>[] = [
-  {
-    accessorKey: "originalDate",
-    header: "Original Date",
-    cell: ({ row }) => {
-      const v = row.getValue("originalDate") as string;
-      return <div>{v.replace(/ at /gi, " @ ")}</div>;
-    },
-  },
+// Column definitions - base columns without Original Date
+const allocationColumnsBase: ColumnDef<AllocationRow>[] = [
   {
     accessorKey: "date",
     header: "Date",
@@ -60,6 +52,19 @@ const allocationColumns: ColumnDef<AllocationRow>[] = [
     header: "Balance", 
     cell: ({ row }) => <div className="text-right">{row.getValue("balance") as string}</div> 
   },
+];
+
+// Column definitions with Original Date (for view mode - row click)
+const allocationColumnsWithOriginalDate: ColumnDef<AllocationRow>[] = [
+  {
+    accessorKey: "originalDate",
+    header: "Original Date",
+    cell: ({ row }) => {
+      const v = row.getValue("originalDate") as string;
+      return <div>{v.replace(/ at /gi, " @ ")}</div>;
+    },
+  },
+  ...allocationColumnsBase,
 ];
 
 const groupLessonColumns: ColumnDef<GroupLessonRow>[] = [
@@ -99,7 +104,8 @@ const invoiceColumns: ColumnDef<InvoiceRow>[] = [
   },
 ];
 
-const receiptColumns: ColumnDef<ReceiptRow>[] = [
+// Receipt columns for view mode (row click) - original format
+const receiptColumnsView: ColumnDef<ReceiptRow>[] = [
   { accessorKey: "reference", header: "Reference" },
   { accessorKey: "date", header: "Date" },
   { accessorKey: "method", header: "Payment Method" },
@@ -108,6 +114,27 @@ const receiptColumns: ColumnDef<ReceiptRow>[] = [
     header: "Amount",
     cell: ({ row }) => (
       <div className="text-right">{row.getValue("amount") as string}</div>
+    ),
+  },
+];
+
+// Receipt columns for new mode (after save) - updated format with Type and Amount Used
+const receiptColumnsNew: ColumnDef<ReceiptRow>[] = [
+  { accessorKey: "type", header: "Type" },
+  { accessorKey: "reference", header: "Reference" },
+  { accessorKey: "method", header: "Payment Method" },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    cell: ({ row }) => (
+      <div className="text-right">{row.getValue("amount") as string}</div>
+    ),
+  },
+  {
+    accessorKey: "amountUsed",
+    header: "Amount Used",
+    cell: ({ row }) => (
+      <div className="text-right">{row.getValue("amountUsed") as string}</div>
     ),
   },
 ];
@@ -199,25 +226,7 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
   const hasReceiptRows = receiptRows.length > 0;
   const shouldShowNoSelectionsMessage = !isEditing && !hasAllocations && hasReceiptRows;
 
-  // Validation: Check if amountReceived matches amountToApply
-  const amountReceivedValue = React.useMemo(() => {
-    const value = parseFloat(editForm.amountReceived || "0");
-    return isNaN(value) ? 0 : value;
-  }, [editForm.amountReceived]);
-
-  const isAmountValid = React.useMemo(() => {
-    if (!isEditing) return true;
-    // Round to 2 decimal places for comparison
-    const received = Math.round(amountReceivedValue * 100) / 100;
-    const toApply = Math.round(amountToApply * 100) / 100;
-    // Valid when Amount Received >= Amount To Apply
-    return received >= toApply;
-  }, [isEditing, amountReceivedValue, amountToApply]);
-
-  const amountValidationError = React.useMemo(() => {
-    if (!isEditing || isAmountValid) return null;
-    return "Amount mismatched with distributions";
-  }, [isEditing, isAmountValid]);
+  // Validation removed - allow free editing of amount received
 
   return (
     <>
@@ -318,18 +327,15 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className={amountValidationError ? "text-red-500" : ""}>
+                          <Label>
                             Amount Received
                           </Label>
                           <Input
                             type="number"
-                            className={`text-right ${amountValidationError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                            className="text-right"
                             value={editForm.amountReceived}
                             onChange={(e) => onEditFormChange({ ...editForm, amountReceived: e.target.value })}
                           />
-                          {amountValidationError && (
-                            <p className="text-sm text-red-500">{amountValidationError}</p>
-                          )}
                         </div>
                       </div>
                     ) : (
@@ -357,7 +363,7 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                         <div className="text-sm font-semibold">Lessons</div>
                         <CustomTable
                           data={allocationRows}
-                          columns={allocationColumns}
+                          columns={mode === "new" ? allocationColumnsBase : allocationColumnsWithOriginalDate}
                           size="compact"
                           enableSorting={false}
                           enableExport={false}
@@ -379,7 +385,7 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                             <CustomTable
                               data={lessonEditRows}
                               columns={[
-                                ...allocationColumns,
+                                ...allocationColumnsWithOriginalDate,
                                 {
                                   id: "paymentInput",
                                   header: "Payment",
@@ -529,28 +535,40 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                       </div>
                     )}
 
-                    {/* Payments Used (read-only) */}
-                    {!isEditing && (
+                    {/* Payments Used (read-only) - Hide when no lessons/payments selected */}
+                    {!isEditing && hasAllocations && (
                       <div className="space-y-3">
-                        <div className="text-sm font-semibold">Payments Used</div>
-                        <CustomTable
-                          data={receiptRows}
-                          columns={receiptColumns}
-                          size="compact"
-                          enableSorting={false}
-                          enableExport={false}
-                          enablePrint={false}
-                          enableSearch={false}
-                          enableFilter={false}
-                          enableRowsPerPage={false}
-                        />
+                        {receiptRows.length > 0 ? (
+                          <>
+                            <div className="text-sm font-semibold">Payments Used</div>
+                            <CustomTable
+                              data={receiptRows}
+                              columns={mode === "new" ? receiptColumnsNew : receiptColumnsView}
+                              size="compact"
+                              enableSorting={false}
+                              enableExport={false}
+                              enablePrint={false}
+                              enableSearch={false}
+                              enableFilter={false}
+                              enableRowsPerPage={false}
+                            />
+                          </>
+                        ) : null}
+                        {/* HST number - shown directly below Payments Used table */}
+                        {hstNumber && (
+                          <div className="text-sm font-medium pt-2">
+                            HST# <span className="text-muted-foreground">{hstNumber}</span>
+                          </div>
+                        )}
                       </div>
                     )}
-
-                    {/* Tax number */}
-                    {!isEditing && hstNumber && (
-                      <div className="text-sm font-medium pt-2">
-                        HST# <span className="text-muted-foreground">{hstNumber}</span>
+                    
+                    {/* HST number - shown when no allocations but HST exists */}
+                    {!isEditing && !hasAllocations && hstNumber && (
+                      <div className="space-y-3">
+                        <div className="text-sm font-medium pt-2">
+                          HST# <span className="text-muted-foreground">{hstNumber}</span>
+                        </div>
                       </div>
                     )}
                   </>
@@ -589,7 +607,7 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                         <Button variant="secondary" onClick={onCancelEdit}>
                           Cancel
                         </Button>
-                        <Button disabled={isSaving || !isAmountValid} onClick={onSave}>
+                        <Button disabled={isSaving} onClick={onSave}>
                           {isSaving ? "Saving..." : "Save"}
                         </Button>
                       </>

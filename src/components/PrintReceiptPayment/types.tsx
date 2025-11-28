@@ -32,6 +32,7 @@ export interface PrintReceiptConfig {
   tables: TableConfig[];
   footer?: string;
   logoUrl: string;
+  hstNumber?: string;
 }
 
 // Payment Receipt Specific Types

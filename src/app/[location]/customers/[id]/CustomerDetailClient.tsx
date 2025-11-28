@@ -32,6 +32,7 @@ import {
   getEmailStatement,
   EmailStatementData,
 } from "../customers.api";
+import { getPaymentReceiptData } from "../components/ReceiptPaymentModal/receipt-payment.api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
@@ -204,6 +205,35 @@ export function CustomerDetailClient({
   const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<
     number | null
   >(null);
+  const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<{
+    date: string;
+    paymentMethod: string;
+    reference: string;
+    amount: number;
+    lessons?: Array<{
+      date: string;
+      student: string;
+      program: string;
+      teacher: string;
+      amount: string;
+      payment: string;
+      balance: string;
+    }>;
+    groupLessons?: Array<{
+      date: string;
+      student: string;
+      program: string;
+      amount: string;
+      balance: string;
+    }>;
+    invoices?: Array<{
+      date: string;
+      number: string;
+      amount: string;
+      payment: string;
+      balance: string;
+    }>;
+  } | null>(null);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
   const [emailStatementData, setEmailStatementData] =
@@ -601,6 +631,7 @@ export function CustomerDetailClient({
     customer: string;
     date: string;
     paymentMethod: string;
+    paymentMethodName?: string;
     reference: string;
     amountReceived: number;
     notes: string;
@@ -613,6 +644,40 @@ export function CustomerDetailClient({
     invoicePayments?: Record<string, number>;
     paymentCredits?: Record<string, number>;
     invoiceCredits?: Record<string, number>;
+    lessonDetails?: Array<{
+      id: string;
+      date: string;
+      dueDate?: string;
+      student: string;
+      program: string;
+      teacher: string;
+      amount: number;
+      balance: number;
+      payment: string;
+    }>;
+    groupLessonDetails?: Array<{
+      id: string;
+      date: string;
+      student: string;
+      program: string;
+      amount: number;
+      balance: number;
+      payment: string;
+    }>;
+    invoiceDetails?: Array<{
+      id: string;
+      date: string;
+      number: string;
+      amount: number;
+      balance: number;
+      payment: string;
+    }>;
+    creditDetails?: Array<{
+      id: string;
+      reference: string;
+      payment: string;
+      type: string;
+    }>;
   }) => {
     setIsSavingPayment(true);
     try {
@@ -769,72 +834,178 @@ export function CustomerDetailClient({
         } else {
           // Fallback: Refresh payments list and related data to get the latest payment
           try {
-            // Refresh payments list to get the latest payment
-            const paymentsResponse = await getCustomerPayments(
-              location,
-              Number(id),
-              1,
-              1
-            );
-            if (paymentsResponse.data && paymentsResponse.data.length > 0) {
-              const latestPayment = paymentsResponse.data[0];
-              setSelectedPayment(latestPayment);
-              setSelectedPaymentIndex(0);
+          // Refresh payments list to get the latest payment
+          const paymentsResponse = await getCustomerPayments(
+            location,
+            Number(id),
+            1,
+            1
+          );
+          if (paymentsResponse.data && paymentsResponse.data.length > 0) {
+            const latestPayment = paymentsResponse.data[0];
+            setSelectedPayment(latestPayment);
+            setSelectedPaymentIndex(0);
+            setSelectedPaymentId(latestPayment.id);
 
-              // Refresh related data for the receipt modal
-              // Refresh private lesson due data
+              // Fetch payment receipt data which includes lessons
               try {
-                const privateLessonDueResult =
-                  await getCustomerPrivateLessonDue(
-                    location,
-                    Number(id),
-                    1,
-                    99999
-                  );
-                setPrivateLessonDueData(privateLessonDueResult.data || []);
-              } catch {}
+                // Small delay to ensure payment is fully saved in database
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const receiptData = await getPaymentReceiptData(location, latestPayment.id);
+                
+                // Helper function to format currency
+                const formatCurrency = (amount: number): string => {
+                  return `$${amount.toFixed(2)}`;
+                };
+                
+                // Build credits data for Payments Used table from paymentData
+                const credits: Array<{
+                  type: string;
+                  reference: string;
+                  paymentMethod?: string;
+                  amount: string;
+                  amountUsed: string;
+                }> = [];
+                
+                // Get credit details if available
+                const creditDetailsMap = new Map<string, { id: string; reference: string; payment: string; type: string }>();
+                if (paymentData.creditDetails && Array.isArray(paymentData.creditDetails)) {
+                  paymentData.creditDetails.forEach((credit) => {
+                    creditDetailsMap.set(credit.id, credit);
+                  });
+                }
+                
+                // Add invoice credits first (they should appear first in the table)
+                if (paymentData.invoiceCredits && Object.keys(paymentData.invoiceCredits).length > 0) {
+                  Object.entries(paymentData.invoiceCredits).forEach(([id, amount]) => {
+                    const creditDetail = creditDetailsMap.get(id);
+                    // For invoice credits, reference should be the invoice number (like "I-94673")
+                    // Use creditDetail.reference if available, otherwise format the id
+                    const invoiceRef = creditDetail?.reference || (id.startsWith("I-") ? id : `I-${id}`);
+                    credits.push({
+                      type: "Invoice Credit",
+                      reference: invoiceRef,
+                      paymentMethod: "", // Empty for invoice credit
+                      amount: "$0.00", // Always $0.00 for invoice credit
+                      amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount), // Payment column value from credit table
+                    });
+                  });
+                }
+                
+                // Add payment credits
+                if (paymentData.paymentCredits && Object.keys(paymentData.paymentCredits).length > 0) {
+                  Object.entries(paymentData.paymentCredits).forEach(([id, amount]) => {
+                    const creditDetail = creditDetailsMap.get(id);
+                    credits.push({
+                      type: "Payment Credit",
+                      reference: "", // Empty for payment credit
+                      paymentMethod: "Visa", // Always "Visa" for payment credit
+                      amount: formatCurrency(amount), // Amount to apply
+                      amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount), // Payment column value from credit table
+                    });
+                  });
+                }
+                
+                // Use payment method name from paymentData if available, otherwise use from receiptData
+                let paymentMethodName = paymentData.paymentMethodName;
+                if (!paymentMethodName) {
+                  paymentMethodName = receiptData.info?.paymentMethod || paymentData.paymentMethod;
+                }
+                
+                // Build directPaymentData from receipt data
+                const directData = {
+                  date: receiptData.info?.date || paymentData.date,
+                  paymentMethod: paymentMethodName,
+                  reference: receiptData.info?.reference || paymentData.reference || "",
+                  amount: receiptData.info?.amount || paymentData.amountReceived,
+                  lessons: receiptData.lessons.data.map(lesson => ({
+                    date: lesson.date,
+                    student: lesson.student,
+                    program: lesson.program,
+                    teacher: lesson.teacher,
+                    amount: lesson.amount,
+                    payment: lesson.payment,
+                    balance: "$0.00", // Set balance to $0.00 for new payment receipt
+                  })),
+                  groupLessons: receiptData.groupLessons.data.map(gl => ({
+                    date: gl.date,
+                    student: gl.student,
+                    program: gl.program,
+                    amount: gl.amount,
+                    balance: "$0.00", // Set balance to $0.00 for new payment receipt
+                  })),
+                  invoices: receiptData.invoices.data.map(inv => ({
+                    date: inv.date,
+                    number: inv.number,
+                    amount: inv.amount,
+                    payment: inv.payment,
+                    balance: "$0.00", // Set balance to $0.00 for new payment receipt
+                  })),
+                  credits: credits.length > 0 ? credits : undefined,
+                };
+                
+                setDirectPaymentReceiptData(directData);
+              } catch (error) {
+                console.error("Error fetching payment receipt data:", error);
+                // Continue without directPaymentData - modal will fetch from API
+                setDirectPaymentReceiptData(null);
+              }
 
-              // Refresh group lesson due data
-              try {
-                const groupLessonDueResult = await getCustomerGroupLessonDue(
+            // Refresh related data for the receipt modal
+            // Refresh private lesson due data
+            try {
+              const privateLessonDueResult =
+                await getCustomerPrivateLessonDue(
                   location,
                   Number(id),
                   1,
                   99999
                 );
-                setGroupLessonDueData(groupLessonDueResult.data || []);
-              } catch {}
+              setPrivateLessonDueData(privateLessonDueResult.data || []);
+            } catch {}
 
-              // Refresh invoice data
-              try {
-                const invoiceResult = await getCustomerInvoices(
-                  location,
-                  Number(id),
-                  1
-                );
-                setInvoiceData(invoiceResult || []);
-              } catch {}
+            // Refresh group lesson due data
+            try {
+              const groupLessonDueResult = await getCustomerGroupLessonDue(
+                location,
+                Number(id),
+                1,
+                99999
+              );
+              setGroupLessonDueData(groupLessonDueResult.data || []);
+            } catch {}
 
-              // Refresh summary data
-              try {
-                const summaryResult = await getCustomerSummary(
-                  location,
-                  Number(id)
-                );
-                if (summaryResult && summaryResult.data) {
-                  setSummaryData(summaryResult.data);
-                }
-              } catch {}
+            // Refresh invoice data
+            try {
+              const invoiceResult = await getCustomerInvoices(
+                location,
+                Number(id),
+                1
+              );
+              setInvoiceData(invoiceResult || []);
+            } catch {}
+
+            // Refresh summary data
+            try {
+              const summaryResult = await getCustomerSummary(
+                location,
+                Number(id)
+              );
+              if (summaryResult && summaryResult.data) {
+                setSummaryData(summaryResult.data);
+              }
+            } catch {}
 
               // Open payment receipt modal
-              setIsPaymentReceiptModalOpen(true);
-            } else {
-              // If we can't get the payment, still show success
-              toast.success("Payment saved successfully");
-            }
-          } catch (error) {
-            console.error("Error fetching payment details:", error);
+            setIsPaymentReceiptModalOpen(true);
+          } else {
+            // If we can't get the payment, still show success
             toast.success("Payment saved successfully");
+          }
+        } catch (error) {
+          console.error("Error fetching payment details:", error);
+          toast.success("Payment saved successfully");
           }
         }
       } else {
@@ -2720,11 +2891,14 @@ export function CustomerDetailClient({
           setIsPaymentReceiptModalOpen(open);
           if (!open) {
             setSelectedPaymentId(null);
+            setDirectPaymentReceiptData(null);
           }
         }}
         location={location}
         customerId={Number(id)}
         paymentId={selectedPaymentId ?? undefined}
+        mode={directPaymentReceiptData ? "new" : "view"}
+        directPaymentData={directPaymentReceiptData ?? undefined}
         customerName={`${localFirstName} ${localLastName}`.trim()}
         customerEmail={
           emails.find((e) => e.isPrimary)?.email ?? emails[0]?.email

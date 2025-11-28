@@ -99,15 +99,43 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.totalOutstanding
   );
 
-  // AUTO-FILL on initial load only
+  // Track if user has manually edited the amount
   const hasUserEditedAmount = React.useRef(false);
+  const lastCalculatedAmount = React.useRef<number>(0);
+  const lastSelectionsRef = React.useRef<string>("");
   
+  // Calculate the required amount: sum of selected lessons - sum of selected credits
+  const calculatedAmountReceived = React.useMemo(() => {
+    const amountToApply = calculations.amountToApply;
+    const selectedCredits = calculations.selectedCredits;
+    const calculated = Math.max(0, amountToApply - selectedCredits);
+    return calculated;
+  }, [calculations.amountToApply, calculations.selectedCredits]);
+
+  // Track selections to detect when they change
+  const currentSelections = React.useMemo(() => {
+    const lessonIds = state.lessons.filter(l => l.selected).map(l => l.id).join(",");
+    const creditIds = state.credits.filter(c => c.selected).map(c => c.id).join(",");
+    return `${lessonIds}|${creditIds}`;
+  }, [state.lessons, state.credits]);
+
+  // Reset user edit flag when selections change significantly
   React.useEffect(() => {
-    if (!hasUserEditedAmount.current && calculations.suggestedAmountReceived !== undefined) {
-      const suggested = calculations.suggestedAmountReceived.toFixed(2);
-      state.setAmountReceived(suggested);
+    if (lastSelectionsRef.current !== currentSelections) {
+      // Selections changed - reset user edit flag to allow auto-update
+      hasUserEditedAmount.current = false;
+      lastSelectionsRef.current = currentSelections;
     }
-  }, [calculations.suggestedAmountReceived, state]);
+  }, [currentSelections]);
+
+  // AUTO-UPDATE amount received when lessons/credits change (unless user has manually edited)
+  React.useEffect(() => {
+    if (!hasUserEditedAmount.current) {
+      const calculated = calculatedAmountReceived.toFixed(2);
+      state.setAmountReceived(calculated);
+      lastCalculatedAmount.current = calculatedAmountReceived;
+    }
+  }, [calculatedAmountReceived, state]);
 
   // Track when user manually edits the amount
   const handleAmountReceivedChange = React.useCallback((value: string) => {
@@ -115,15 +143,17 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     state.setAmountReceived(value);
   }, [state]);
 
-  // Validation: Amount Received must be at least Amount To Apply
+  // Validation: Amount Received must be at least the calculated amount (lessons - credits)
+  // User can increase but cannot decrease below calculated amount
   const amountMismatch = React.useMemo(() => {
     const received = parseFloat(state.amountReceived || "0");
     if (isNaN(received)) return true;
     const receivedRounded = Math.round(received * 100) / 100;
-    const toApplyRounded = Math.round(calculations.amountToApply * 100) / 100;
-    // Mismatch only when underpaid: Amount Received < Amount To Apply
-    return receivedRounded < toApplyRounded;
-  }, [state.amountReceived, calculations.amountToApply]);
+    const calculatedRounded = Math.round(calculatedAmountReceived * 100) / 100;
+    // Mismatch when user tries to reduce below calculated amount
+    // Allow increases above calculated amount
+    return receivedRounded < calculatedRounded;
+  }, [state.amountReceived, calculatedAmountReceived]);
 
   const amountErrorMessage = amountMismatch
     ? "Amount mismatched with distributions"
@@ -141,13 +171,13 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
       return;
     }
 
-    // Validate amount received vs amount to apply BEFORE building payload / calling API
+    // Validate amount received vs calculated amount (lessons - credits) BEFORE building payload / calling API
     const received = parseFloat(state.amountReceived || "0");
     const receivedRounded = Math.round((isNaN(received) ? 0 : received) * 100) / 100;
-    const toApplyRounded = Math.round(calculations.amountToApply * 100) / 100;
-    // Block only when underpaid; overpayments are allowed
-    if (receivedRounded < toApplyRounded) {
-      alert('Amount mismatched with distributions');
+    const calculatedRounded = Math.round(calculatedAmountReceived * 100) / 100;
+    // Block only when underpaid (below calculated amount); overpayments are allowed
+    if (receivedRounded < calculatedRounded) {
+      alert('Amount received cannot be less than the calculated amount (selected lessons - selected credits)');
       return;
     }
 
@@ -181,10 +211,17 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
 
     setIsSaving(true);
     try {
+      // Find payment method name from available payment methods
+      const selectedPaymentMethod = state.availablePaymentMethods.find(
+        method => method.value === state.paymentMethod
+      );
+      const paymentMethodName = selectedPaymentMethod?.label || "Cash";
+
       const paymentData: ReceivePaymentData = {
         customer: state.customer,
         date: format(state.paymentDate, 'MMM dd, yyyy'),
         paymentMethod: state.paymentMethod,
+        paymentMethodName: paymentMethodName,
         reference: state.reference,
         amountReceived: parseFloat(state.amountReceived) || 0,
         notes: state.notes,
@@ -197,6 +234,12 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
         invoicePayments: buildPaymentMap(state.invoices),
         paymentCredits,
         invoiceCredits,
+        // Include full lesson details for receipt display
+        lessonDetails: state.lessons.filter(lesson => lesson.selected && parseFloat(lesson.payment) > 0),
+        groupLessonDetails: state.groupLessons.filter(gl => gl.selected && parseFloat(gl.payment) > 0),
+        invoiceDetails: state.invoices.filter(inv => inv.selected && parseFloat(inv.payment) > 0),
+        // Include full credit details for receipt display
+        creditDetails: state.credits.filter(credit => credit.selected && parseFloat(credit.payment) > 0),
       };
       
       await onSave(paymentData);

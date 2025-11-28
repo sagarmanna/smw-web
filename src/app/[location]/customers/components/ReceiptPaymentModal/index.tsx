@@ -75,6 +75,13 @@ interface PaymentReceiptModalContainerProps {
       payment: string;
       balance: string;
     }>;
+    credits?: Array<{
+      type: string; // "Invoice Credit" or "Payment Credit"
+      reference: string; // Invoice number for invoice credit, empty for payment credit
+      paymentMethod?: string; // Payment method name for payment credit, empty for invoice credit
+      amount: string; // Amount to apply (for payment credit) or "$0.00" (for invoice credit)
+      amountUsed: string; // Payment column value from credit table
+    }>;
   };
   onEdit?: (data: {
     date: string;
@@ -143,7 +150,7 @@ const transformLessonsToAllocationRows = (
     teacher: lesson.teacher,
     amount: lesson.amount,
     payment: lesson.payment,
-    balance: lesson.balance,
+    balance: "$0.00", // Always show $0.00 for balance in new payment receipt
   }));
 };
 
@@ -206,16 +213,63 @@ const transformInvoicesToEditRows = (
 
 const createReceiptRow = (
   paymentInfo: PaymentInfo | null,
-  headerAmount: string
+  headerAmount: string,
+  mode: "view" | "new" = "view",
+  credits?: Array<{
+    type: string;
+    reference: string;
+    paymentMethod?: string;
+    amount: string;
+    amountUsed: string;
+  }>
 ): ReceiptRow[] => {
-  return [
-    {
+  if (mode === "new") {
+    // New format: Type, Reference, Payment Method, Amount, Amount Used
+    const rows: ReceiptRow[] = [];
+    
+    // Add credits first (Invoice Credit, then Payment Credit)
+    if (credits && credits.length > 0) {
+      // Sort credits: Invoice Credit first, then Payment Credit
+      const sortedCredits = [...credits].sort((a, b) => {
+        if (a.type === "Invoice Credit" && b.type === "Payment Credit") return -1;
+        if (a.type === "Payment Credit" && b.type === "Invoice Credit") return 1;
+        return 0;
+      });
+      
+      sortedCredits.forEach(credit => {
+        rows.push({
+          type: credit.type,
+          reference: credit.reference || "—",
+          date: "",
+          method: credit.paymentMethod || "",
+          amount: credit.amount,
+          amountUsed: credit.amountUsed,
+        });
+      });
+    }
+    
+    // Add payment row
+    rows.push({
+      type: "Payment",
       reference: paymentInfo?.reference || "—",
       date: paymentInfo?.date || "",
       method: paymentInfo?.paymentMethod || "",
       amount: headerAmount,
-    },
-  ];
+      amountUsed: headerAmount,
+    });
+    
+    return rows;
+  } else {
+    // View format: Reference, Date, Payment Method, Amount
+    return [
+      {
+        reference: paymentInfo?.reference || "—",
+        date: paymentInfo?.date || "",
+        method: paymentInfo?.paymentMethod || "",
+        amount: headerAmount,
+      },
+    ];
+  }
 };
 
 export function PaymentReceiptModalContainer(
@@ -443,9 +497,17 @@ export function PaymentReceiptModalContainer(
     [invoices]
   );
 
+  // Extract credits from directPaymentData for new mode
+  const creditsForReceipt = React.useMemo(() => {
+    if (mode === "new" && directPaymentData?.credits) {
+      return directPaymentData.credits;
+    }
+    return undefined;
+  }, [mode, directPaymentData]);
+
   const receiptRows = React.useMemo(
-    () => createReceiptRow(paymentInfo, headerAmount),
-    [paymentInfo, headerAmount]
+    () => createReceiptRow(paymentInfo, headerAmount, mode, creditsForReceipt),
+    [paymentInfo, headerAmount, mode, creditsForReceipt]
   );
 
   // Build payment receipt data for print/email
@@ -457,7 +519,7 @@ export function PaymentReceiptModalContainer(
       customerName,
       customerPhone,
       customerEmail,
-      hstNumber: paymentInfo?.locationHstRegistrationNo,
+      hstNumber: paymentInfo?.locationHstRegistrationNo || paymentInfo?.locationDetails?.hstRegistrationNo,
       locationDetails: paymentInfo?.locationDetails || null,
       allocationRows: showAllocations ? allocationRows : undefined,
       groupLessonRows: groupLessonRows.length > 0 ? groupLessonRows : undefined,
@@ -534,16 +596,6 @@ export function PaymentReceiptModalContainer(
   const handleSave = React.useCallback(async () => {
     if (!location || !customerId) {
       toast.error("Location and customer ID are required");
-      return;
-    }
-
-    // Extra safety: validate amount received vs amount to apply before proceeding
-    const received = normalizeAmount(editForm.amountReceived);
-    const receivedRounded = Math.round(received * 100) / 100;
-    const toApplyRounded = Math.round(amountToApply * 100) / 100;
-    // Valid when Amount Received >= Amount To Apply; show error only when underpaid
-    if (receivedRounded < toApplyRounded) {
-      toast.error("Amount mismatched with distributions");
       return;
     }
 
@@ -703,7 +755,7 @@ export function PaymentReceiptModalContainer(
       customerName={customerName}
       customerPhone={customerPhone}
       customerEmail={customerEmail}
-      hstNumber={paymentInfo?.locationHstRegistrationNo}
+      hstNumber={paymentInfo?.locationHstRegistrationNo || paymentInfo?.locationDetails?.hstRegistrationNo}
       showAllocations={showAllocations}
       receiptHtmlRef={receiptHtmlRef}
       allocationRows={allocationRows}

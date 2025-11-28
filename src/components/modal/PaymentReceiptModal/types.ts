@@ -48,10 +48,12 @@ export interface InvoiceEditRow extends InvoiceRow {
 }
 
 export interface ReceiptRow {
+  type?: string; // "Payment" - only shown in new mode
   reference: string;
   date: string;
   method: string;
   amount: string;
+  amountUsed?: string; // Only shown in new mode
 }
 
 // Edit Form Data
