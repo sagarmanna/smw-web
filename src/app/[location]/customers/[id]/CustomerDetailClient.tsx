@@ -161,6 +161,8 @@ export function CustomerDetailClient({
     });
   const [equipmentRentalsLoading, setEquipmentRentalsLoading] =
     React.useState<boolean>(false);
+  const [showAllEquipmentRentals, setShowAllEquipmentRentals] =
+    React.useState<boolean>(false);
 
   // Simple pagination state for all tabs - CONSOLIDATED (removed duplicates)
   const [tabPagination, setTabPagination] = React.useState<
@@ -1857,16 +1859,34 @@ export function CustomerDetailClient({
       <div className="space-y-3 sm:space-y-4 mt-4">
         <TableCard
           title="Equipment Rentals"
-          data={equipmentRentalData}
+          data={
+            showAllEquipmentRentals
+              ? equipmentRentalData
+              : equipmentRentalData.filter(
+                  (rental) => rental.equipmentReturned !== "Yes"
+                )
+          }
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
           loading={equipmentRentalsLoading || loading}
           onAdd={() => setIsEquipmentRentalsModalOpen(true)}
           onRowClick={(row) => {
             const r = row as unknown as EquipmentRentalData;
+            // Prevent clicking on returned rentals
+            if (r && r.equipmentReturned === "Yes") {
+              return;
+            }
             if (r && typeof r.id === "number") {
               setSelectedRentalId(r.id);
               setIsEquipmentRentalsModalOpen(true);
             }
+          }}
+          rowClassName={(row) => {
+            const r = row as unknown as EquipmentRentalData;
+            // Style returned rentals as disabled/non-clickable
+            if (r && r.equipmentReturned === "Yes") {
+              return "opacity-60 cursor-not-allowed";
+            }
+            return "";
           }}
           size={CUSTOMER_TABLE_CONFIGS.equipmentRentals.size}
           variant={CUSTOMER_TABLE_CONFIGS.equipmentRentals.variant}
@@ -1881,6 +1901,7 @@ export function CustomerDetailClient({
           iconType="plus"
           enableShowAll={true}
           showAllLabel="Show All"
+          onShowAllChange={setShowAllEquipmentRentals}
           serverSidePagination={equipmentRentalsPagination}
           onServerSidePageChange={handleEquipmentRentalsPageChange}
           rowsPerPage={equipmentRentalsPagination.limit}
