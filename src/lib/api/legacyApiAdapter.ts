@@ -613,7 +613,7 @@ export interface EquipmentReturnedData {
   userId: string | number;
   customerName: string;
   studentName: string; // Note: API expects student name, not ID
-  returnDate: string; // Format: "YYYY-MM-DD"
+  // returnDate removed - we don't send it to preserve the original return date
   securityDeposit: string; // Empty string
   tenderType: string; // Empty string
   depositAmount: string; // "0.00"
@@ -659,7 +659,8 @@ export async function equipmentReturned(
   formData.append('EquipmentRentals[userId]', rentalData.userId.toString());
   formData.append('EquipmentRentals[customerId]', rentalData.customerName);
   formData.append('EquipmentRentals[studentId]', rentalData.studentName);
-  formData.append('EquipmentRentals[returnDate]', rentalData.returnDate);
+  // NOTE: We do NOT send EquipmentRentals[returnDate] in FormData to preserve the original return date
+  // The URL parameter 'returnDate' is used for the equipment returned date (today's date)
   
   // Security deposit needs to be sent twice (legacy API quirk) - empty values
   formData.append('EquipmentRentals[securityDeposit]', rentalData.securityDeposit);
