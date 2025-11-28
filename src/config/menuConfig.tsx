@@ -57,21 +57,36 @@ export const buildMenuUrl = (item: MenuItem, location: string): string => {
   if (!item.url) return '#';
   
   if (item.source === 'legacy') {
+    // Legacy pages: return full URL for external navigation
     return `${ENV_FLAGS.legacyBaseUrl}/${location}${item.url}`;
   }
   
-  // For modern pages, use Next.js routing
-  // Note: basePath is already handled by Next.js config, so we don't need to add /admin/v2
-  // Ensure the URL is properly formatted for Next.js Link component
-  if (item.url.startsWith('/')) {
-    // Split URL and query params to ensure proper formatting
-    const [path, query] = item.url.split('?');
-    const basePath = `/${location}${path}`;
-    // Reconstruct URL with query params if they exist
-    return query ? `${basePath}?${query}` : basePath;
+  // For modern pages, ALWAYS return relative paths for Next.js client-side navigation
+  // This ensures Next.js Link component works correctly in production
+  let url = item.url;
+  
+  // If URL is a full URL (starts with http:// or https://), extract the path
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const urlObj = new URL(url);
+      url = urlObj.pathname + urlObj.search;
+    } catch {
+      // If URL parsing fails, default to '/'
+      url = '/';
+    }
   }
   
-  return item.url;
+  // Ensure URL starts with '/' for relative path
+  if (!url.startsWith('/')) {
+    url = '/' + url;
+  }
+  
+  // Split URL and query params to ensure proper formatting
+  const [path, query] = url.split('?');
+  const basePath = `/${location}${path}`;
+  
+  // Reconstruct URL with query params if they exist
+  return query ? `${basePath}?${query}` : basePath;
 };
 
 // Helper function to filter menus based on user role and permissions

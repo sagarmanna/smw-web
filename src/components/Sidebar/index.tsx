@@ -70,8 +70,8 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     if (isMobile && e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       onClose?.();
     }
-    // Don't prevent default - let Next.js handle navigation
-    // This ensures client-side navigation works correctly in production
+    // CRITICAL: Don't prevent default or stop propagation
+    // Let Next.js Link handle navigation natively for client-side routing
   };
 
   const renderMenuItem = (item: MenuItem, level = 0) => {
@@ -79,6 +79,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     const isExpanded = expandedItems.includes(item.id);
     const isActive = isMenuItemActive(item);
     const paddingLeft = level * 20 + 12;
+    const menuUrl = getMenuUrl(item);
 
     return (
       <div key={item.id}>
@@ -111,7 +112,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         ): item.source === 'legacy' ? (
           // Legacy pages: use regular <a> tag for full page navigation
           <a
-            href={getMenuUrl(item) || '#'}
+            href={menuUrl || '#'}
             className={cn(
               "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
               level > 0 && "ml-4",
@@ -128,10 +129,13 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               {/* Legacy pages don't show NEW badge */}
             </div>
           </a>
-        ) : (
-          // Modern pages: use Next.js Link for client-side navigation with browser native behavior
+        ) : menuUrl && menuUrl !== '#' ? (
+          // Modern pages: use Next.js Link for client-side navigation
+          // CRITICAL: No nested <a> tags, no conflicting onClick handlers
+          // Next.js Link handles navigation - we only use onClick for sidebar closing
+          // Only render Link if we have a valid URL (not '#' or empty)
           <Link
-            href={getMenuUrl(item) || '#'}
+            href={menuUrl}
             className={cn(
               "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer",
               level > 0 && "ml-4",
@@ -146,14 +150,28 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               {item.icon}
               <span>{item.title}</span>
             </div>
-            <div className="ml-auto flex items-center space-x-2">
-              {item.source === 'modern' && (
+            {item.source === 'modern' && (
+              <div className="ml-auto">
                 <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-primary text-white">
                   NEW
                 </span>
-              )}
-            </div>
+              </div>
+            )}
           </Link>
+        ) : (
+          // Fallback: if no valid URL, render as non-clickable div
+          <div
+            className={cn(
+              "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium opacity-50 cursor-not-allowed",
+              level > 0 && "ml-4"
+            )}
+            style={{ paddingLeft: `${paddingLeft}px` }}
+          >
+            <div className="flex items-center space-x-2">
+              {item.icon}
+              <span>{item.title}</span>
+            </div>
+          </div>
         )}
         
         {hasChildren && isExpanded && (
