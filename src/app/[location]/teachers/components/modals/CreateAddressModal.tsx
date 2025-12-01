@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -56,7 +55,6 @@ export function CreateAddressModal({
   const [provinceId, setProvinceId] = React.useState(1);
   const [countryId, setCountryId] = React.useState(1);
   const [postalCode, setPostalCode] = React.useState("");
-  const [note, setNote] = React.useState("");
   const [errors, setErrors] = React.useState({
     address: "",
     postalCode: "",
@@ -95,7 +93,6 @@ export function CreateAddressModal({
       setProvinceId(editingAddress.provinceId || 1);
       setCountryId(editingAddress.countryId || 1);
       setPostalCode(editingAddress.postalCode || "");
-      setNote(editingAddress.note || "");
     } else {
       setLabel("Home");
       setAddress("");
@@ -104,7 +101,6 @@ export function CreateAddressModal({
       setProvinceId(1);
       setCountryId(1);
       setPostalCode("");
-      setNote("");
     }
     setErrors({ address: "", postalCode: "", city: "" });
   }, [editingAddress, open]);
@@ -117,7 +113,6 @@ export function CreateAddressModal({
     setProvinceId(1);
     setCountryId(1);
     setPostalCode("");
-    setNote("");
     setErrors({ address: "", postalCode: "", city: "" });
   };
 
@@ -181,7 +176,6 @@ export function CreateAddressModal({
         cityId: cityId || 0,
         provinceId: provinceId || 1,
         countryId: countryId || 1,
-        note: note.trim() || undefined,
         label: label.trim() || "Home",
         isPrimary: false,
       };
@@ -213,7 +207,6 @@ export function CreateAddressModal({
           postalCode: string;
           province?: string | { name?: string };
           country?: string | { name?: string };
-          note?: string;
           label?: string;
           isPrimary?: boolean;
           userContact?: {
@@ -269,10 +262,6 @@ export function CreateAddressModal({
             postalCode: item.postalCode || addressData.postalCode,
             province: normalisedProvince,
             country: normalisedCountry,
-            note:
-              item.note && typeof item.note === "string" && item.note.trim() !== ""
-                ? item.note
-                : addressData.note,
             isPrimary:
               userContact.isPrimary === 1 ||
               userContact.isPrimary === true ||
@@ -488,18 +477,6 @@ export function CreateAddressModal({
             {errors.postalCode && (
               <p className="text-sm text-red-500">{errors.postalCode}</p>
             )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address-note">Note</Label>
-            <Textarea
-              id="address-note"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="Enter note"
-              rows={3}
-              disabled={isSaving}
-            />
           </div>
 
           <DialogFooter>
