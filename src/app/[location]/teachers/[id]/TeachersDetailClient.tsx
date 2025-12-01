@@ -40,6 +40,7 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
     updateEmails,
     updatePhones,
     updateAddresses,
+    refresh,
   } = useTeacherDetails(location, teacherId);
 
   // All hooks must be called before any early returns
@@ -121,12 +122,18 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
                 emails={emails}
                 onUpdate={updateEmails}
                 loading={isLoading}
+                location={location}
+                teacherId={teacherId}
+                onRefresh={refresh}
               />
 
               <TeacherPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
                 loading={isLoading}
+                location={location}
+                teacherId={teacherId}
+                onRefresh={refresh}
               />
             </div>
           </div>
@@ -139,6 +146,9 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
                 emails={emails}
                 onUpdate={updateEmails}
                 loading={isLoading}
+                location={location}
+                teacherId={teacherId}
+                onRefresh={refresh}
               />
             </div>
 
@@ -147,6 +157,9 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
                 phones={phones}
                 onUpdate={updatePhones}
                 loading={isLoading}
+                location={location}
+                teacherId={teacherId}
+                onRefresh={refresh}
               />
             </div>
 
@@ -154,6 +167,9 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               addresses={addresses}
               onUpdate={updateAddresses}
               loading={isLoading}
+              location={location}
+              teacherId={teacherId}
+              onRefresh={refresh}
             />
           </div>
         </div>

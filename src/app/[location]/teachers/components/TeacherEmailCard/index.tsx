@@ -11,12 +11,18 @@ interface TeacherEmailCardProps {
   emails: TeacherEmail[];
   onUpdate: React.Dispatch<React.SetStateAction<TeacherEmail[]>>;
   loading?: boolean;
+  location: string;
+  teacherId: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export const TeacherEmailCard = React.memo(function TeacherEmailCard({
   emails,
   onUpdate,
   loading = false,
+  location,
+  teacherId,
+  onRefresh,
 }: TeacherEmailCardProps) {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   
@@ -29,6 +35,9 @@ export const TeacherEmailCard = React.memo(function TeacherEmailCard({
   } = useEmailHandlers({
     emails,
     updateEmails: onUpdate,
+    location,
+    teacherId,
+    onRefresh,
   });
 
   const handleAddClick = React.useCallback(() => {
@@ -89,6 +98,10 @@ export const TeacherEmailCard = React.memo(function TeacherEmailCard({
         onClose={handleModalClose}
         onSubmit={handleModalSubmit}
         editingEmail={editingEmail}
+        location={location}
+        teacherId={teacherId}
+        onUpdateEmails={onUpdate}
+        currentEmails={emails}
       />
     </>
   );

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TeacherBasicDetails } from "../../types";
+import { toast } from "sonner";
 
 interface EditTeacherDetailsModalProps {
   open: boolean;
@@ -31,7 +32,11 @@ export function EditTeacherDetailsModal({
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [birthDate, setBirthDate] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
+  
+  // Field-level validation states
+  const [firstNameTouched, setFirstNameTouched] = React.useState(false);
+  const [lastNameTouched, setLastNameTouched] = React.useState(false);
+  const [showError, setShowError] = React.useState(false);
 
   React.useEffect(() => {
     if (details) {
@@ -39,17 +44,35 @@ export function EditTeacherDetailsModal({
       setLastName(details.lastName ?? "");
       setBirthDate(details.birthDate ?? "");
     }
+    // Reset validation states when modal opens/closes
+    if (open) {
+      setFirstNameTouched(false);
+      setLastNameTouched(false);
+      setShowError(false);
+    }
   }, [details, open]);
+
+  // Validation helpers
+  const isFirstNameValid = (firstName?.trim() ?? "") !== "";
+  const isLastNameValid = (lastName?.trim() ?? "") !== "";
+  const isFormValid = isFirstNameValid && isLastNameValid;
+
+  const firstNameError = firstNameTouched && !isFirstNameValid ? "First name is required" : "";
+  const lastNameError = lastNameTouched && !isLastNameValid ? "Last name is required" : "";
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("First name and last name are required.");
+    // Mark all fields as touched
+    setFirstNameTouched(true);
+    setLastNameTouched(true);
+
+    if (!isFormValid) {
+      setShowError(true);
       return;
     }
 
-    setError(null);
+    setShowError(false);
 
     const payload: TeacherBasicDetails = {
       firstName: firstName.trim(),
@@ -59,7 +82,13 @@ export function EditTeacherDetailsModal({
 
     const success = await onSubmit(payload);
     if (success) {
+      toast.success("Teacher details updated successfully");
       onClose();
+      // Reset validation states
+      setFirstNameTouched(false);
+      setLastNameTouched(false);
+    } else {
+      toast.error("Failed to update teacher details");
     }
   };
 
@@ -70,9 +99,9 @@ export function EditTeacherDetailsModal({
           <DialogTitle>Edit Teacher Details</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
+          {showError && !isFormValid && (
             <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
+              Please fix the errors below before submitting.
             </div>
           )}
 
@@ -82,22 +111,38 @@ export function EditTeacherDetailsModal({
               <Input
                 id="teacher-first-name"
                 value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-                required
+                onChange={(event) => {
+                  setFirstName(event.target.value);
+                  setFirstNameTouched(true);
+                  setShowError(false);
+                }}
+                onBlur={() => setFirstNameTouched(true)}
+                className={firstNameError ? "border-red-500" : ""}
                 placeholder="Enter first name"
               />
+              {firstNameError && (
+                <p className="text-sm text-red-600">{firstNameError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="teacher-last-name">Last Name</Label>
               <Input
                 id="teacher-last-name"
                 value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
-                required
+                onChange={(event) => {
+                  setLastName(event.target.value);
+                  setLastNameTouched(true);
+                  setShowError(false);
+                }}
+                onBlur={() => setLastNameTouched(true)}
+                className={lastNameError ? "border-red-500" : ""}
                 placeholder="Enter last name"
               />
+              {lastNameError && (
+                <p className="text-sm text-red-600">{lastNameError}</p>
+              )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="teacher-birthdate">Birth Date</Label>
               <Input
                 id="teacher-birthdate"

@@ -11,12 +11,18 @@ interface TeacherPhoneCardProps {
   phones: TeacherPhone[];
   onUpdate: React.Dispatch<React.SetStateAction<TeacherPhone[]>>;
   loading?: boolean;
+  location: string;
+  teacherId: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export const TeacherPhoneCard = React.memo(function TeacherPhoneCard({
   phones,
   onUpdate,
   loading = false,
+  location,
+  teacherId,
+  onRefresh,
 }: TeacherPhoneCardProps) {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   
@@ -29,6 +35,9 @@ export const TeacherPhoneCard = React.memo(function TeacherPhoneCard({
   } = usePhoneHandlers({
     phones,
     updatePhones: onUpdate,
+    location,
+    teacherId,
+    onRefresh,
   });
 
   const handleAddClick = React.useCallback(() => {
@@ -89,6 +98,10 @@ export const TeacherPhoneCard = React.memo(function TeacherPhoneCard({
         onClose={handleModalClose}
         onSubmit={handleModalSubmit}
         editingPhone={editingPhone}
+        location={location}
+        teacherId={teacherId}
+        onUpdatePhones={onUpdate}
+        onRefresh={onRefresh}
       />
     </>
   );

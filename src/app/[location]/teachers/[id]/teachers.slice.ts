@@ -1,6 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { updateTeacherDetails, UpdateTeacherDetailsData } from '../teachers.api';
-import { getTeacherDetails, TeacherDetailsApiResponse } from './teachers-details.api';
+import { getTeacherDetails, TeacherDetailsApiResponse, updateTeacherProfile } from './teachers-details.api';
+
+export interface UpdateTeacherDetailsData {
+  firstName: string;
+  lastName: string;
+  birthDate?: string;
+}
 import type { TeacherInfo } from './teachers-details.interface';
 import type { 
   TeacherBasicDetails, 
@@ -120,12 +125,16 @@ export const updateTeacher = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await updateTeacherDetails(location, teacherId, data);
+      const response = await updateTeacherProfile(location, teacherId, {
+        firstname: data.firstName,
+        lastname: data.lastName,
+        birthDate: data.birthDate,
+      });
 
-      if (response.status) {
+      if (response?.success) {
         return data;
       } else {
-        throw new Error(response.message || 'Failed to update teacher details');
+        throw new Error(response?.message || 'Failed to update teacher details');
       }
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update teacher details');
@@ -145,6 +154,10 @@ const teacherSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+    },
+    // Clear cache to force fresh fetch on next refresh
+    clearCache: (state) => {
+      state.lastFetched = null;
     },
     // Update emails in local state
     updateEmails: (state, action: PayloadAction<TeacherEmail[]>) => {
@@ -232,6 +245,6 @@ const teacherSlice = createSlice({
   },
 });
 
-export const { clearTeacher, clearError, updateEmails, updatePhones, updateAddresses, updateProfile } = teacherSlice.actions;
+export const { clearTeacher, clearError, clearCache, updateEmails, updatePhones, updateAddresses, updateProfile } = teacherSlice.actions;
 export default teacherSlice.reducer;
 
