@@ -13,7 +13,7 @@ interface TeacherEmailCardProps {
   loading?: boolean;
 }
 
-export function TeacherEmailCard({
+export const TeacherEmailCard = React.memo(function TeacherEmailCard({
   emails,
   onUpdate,
   loading = false,
@@ -92,5 +92,5 @@ export function TeacherEmailCard({
       />
     </>
   );
-}
+});
 

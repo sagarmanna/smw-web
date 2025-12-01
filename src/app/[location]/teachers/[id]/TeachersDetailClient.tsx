@@ -24,12 +24,12 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
   const router = useRouter();
   const teacherId = Number(id);
 
-  // Get loading and error from Redux
+  // Get loading and error from Redux - single source of truth
   const isLoading = useAppSelector((state) => state.teacher.isLoading);
   const error = useAppSelector((state) => state.teacher.error);
+  const teacherInfo = useAppSelector((state) => state.teacher.teacherInfo);
 
   const {
-    loading,
     details,
     emails,
     phones,
@@ -76,44 +76,33 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
     []
   );
 
-  // Show full-page loading animation while fetching data
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <LoadingAnimation 
-          size="xl" 
-          text="Loading teacher details..." 
-          className="text-center"
-        />
-      </div>  
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <ErrorDisplay
-        error={error}
-        title="Unable to Load Teacher Details"
-        fallbackMessage="An unexpected error occurred while loading the teacher details. Please try again later."
-      />
-    );
-  }
+  // Error state - show error but still render cards with skeleton
+  const showError = error && !teacherInfo;
 
   return (
     <>
       <div className="bg-white dark:bg-black -mt-2">
+        {showError && (
+          <div className="mb-4">
+            <ErrorDisplay
+              error={error}
+              title="Unable to Load Teacher Details"
+              fallbackMessage="An unexpected error occurred while loading the teacher details. Please try again later."
+            />
+          </div>
+        )}
+        
         <DetailHeaderWithProfile
           breadcrumbItems={breadcrumbItems}
           currentPageTitle={pageTitle}
-          loading={loading}
+          loading={isLoading}
           actionMenuGroups={actionMenuGroups}
           actionButtonAriaLabel="Teacher actions"
           showProfileIcon={true}
           profileIconSize="md"
         />
 
-        {/* Main Content Grid */}
+        {/* Main Content Grid - All cards share the same cached data from Redux */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4 lg:items-start">
           {/* Left Column */}
           <div className="space-y-3 sm:space-y-4">
@@ -123,6 +112,7 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               onSaveDetails={saveDetails}
               onUpdatePassword={updatePassword}
               savingDetails={savingDetails}
+              isLoading={isLoading}
             />
 
             {/* Mobile Email and Phone Cards - Only on Mobile */}
@@ -130,13 +120,13 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               <TeacherEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
-                loading={loading}
+                loading={isLoading}
               />
 
               <TeacherPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
-                loading={loading}
+                loading={isLoading}
               />
             </div>
           </div>
@@ -148,7 +138,7 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               <TeacherEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
-                loading={loading}
+                loading={isLoading}
               />
             </div>
 
@@ -156,14 +146,14 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               <TeacherPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
-                loading={loading}
+                loading={isLoading}
               />
             </div>
 
             <TeacherAddressCard
               addresses={addresses}
               onUpdate={updateAddresses}
-              loading={loading}
+              loading={isLoading}
             />
           </div>
         </div>

@@ -18,14 +18,16 @@ interface TeachersDetailCardProps {
   onSaveDetails: (details: TeacherBasicDetails) => Promise<boolean>;
   onUpdatePassword: (password: string) => Promise<boolean>;
   savingDetails?: boolean;
+  isLoading?: boolean;
   formatDisplayDate?: (value?: string) => string;
 }
 
-export function TeachersDetailCard({
+export const TeachersDetailCard = React.memo(function TeachersDetailCard({
   details,
   onSaveDetails,
   onUpdatePassword,
   savingDetails = false,
+  isLoading = false,
   formatDisplayDate: customFormatDate,
 }: TeachersDetailCardProps) {
   const [isEditDetailsOpen, setIsEditDetailsOpen] = React.useState(false);
@@ -78,6 +80,7 @@ export function TeachersDetailCard({
       <SectionCard
         title="Details"
         data={detailRows}
+        isLoading={isLoading}
         headerActions={
           <>
             <EditButton onClick={() => setIsEditDetailsOpen(true)} />
@@ -106,5 +109,5 @@ export function TeachersDetailCard({
       />
     </>
   );
-}
+});
 
