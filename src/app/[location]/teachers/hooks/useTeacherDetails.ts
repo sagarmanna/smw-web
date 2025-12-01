@@ -19,10 +19,6 @@ import {
   TeacherPhone,
   TeacherQualification,
 } from "../types";
-import {
-  getTeacherPrivateQualifications,
-  getTeacherGroupQualifications,
-} from "../teachers.api";
 
 type TeacherDetailsHookReturn = {
   loading: boolean;
@@ -80,39 +76,6 @@ export function useTeacherDetails(
   const addresses = React.useMemo(() => teacherInfo?.addresses || [], [teacherInfo?.addresses]);
   const privateQualifications = React.useMemo(() => teacherInfo?.privateQualifications || [], [teacherInfo?.privateQualifications]);
   const groupQualifications = React.useMemo(() => teacherInfo?.groupQualifications || [], [teacherInfo?.groupQualifications]);
-
-  // Fetch qualifications on mount and when teacherId changes
-  React.useEffect(() => {
-    if (teacherId && !loading) {
-      // Fetch private qualifications
-      getTeacherPrivateQualifications(location, teacherId).then((response) => {
-        if (response?.success && response.data) {
-          const transformed: TeacherQualification[] = response.data.map((q) => ({
-            id: q.id.toString(),
-            name: q.name,
-            rate: q.rate,
-            description: q.description,
-            dateObtained: q.dateObtained,
-          }));
-          dispatch(updatePrivateQualifications(transformed));
-        }
-      });
-
-      // Fetch group qualifications
-      getTeacherGroupQualifications(location, teacherId).then((response) => {
-        if (response?.success && response.data) {
-          const transformed: TeacherQualification[] = response.data.map((q) => ({
-            id: q.id.toString(),
-            name: q.name,
-            rate: q.rate,
-            description: q.description,
-            dateObtained: q.dateObtained,
-          }));
-          dispatch(updateGroupQualifications(transformed));
-        }
-      });
-    }
-  }, [teacherId, location, loading, dispatch]);
 
   const refresh = React.useCallback(async () => {
     dispatch(fetchTeacher({ location, teacherId }));
