@@ -8,6 +8,7 @@ import { TeacherRow } from "./teachers.api";
 import { teacherColumns } from "./tableConfigs";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -99,17 +100,6 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         searchPlaceholder="Search teachers..."
         getSearchValue={(r) => `${r.firstName} ${r.lastName} ${r.email} ${r.phoneNumber}`}
         enableFilter={true}
-        filterOptions={[
-          {
-            key: "inactive",
-            label: "Show Inactive Teachers",
-            checked: activeFilter === "inactive",
-            predicate: () => true, 
-            onToggle: (checked) => {
-              handleServerSideFilterChange(checked ? "inactive" : undefined);
-            },
-          },
-        ]}
         enableRowsPerPage={true}
         enablePrint={true}
         onPrint={() => handlePrint({
@@ -138,6 +128,12 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
+        serverSideFilterOptions={[
+          { key: "inactive", label: "Show Inactive Teachers" },
+        ]}
+        activeServerSideFilter={activeFilter}
+        onServerSideFilterChange={handleServerSideFilterChange}
+        defaultFilterLabel="All Teachers"
         hideRecordCount={true}
         showRecordCountInToolbar={true}
         rowsPerPage={pageSize}
