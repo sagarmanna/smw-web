@@ -78,6 +78,8 @@ export const TeacherPrivateQualificationCard = React.memo(
     loading = false,
   }: TeacherPrivateQualificationCardProps) {
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+    const [editingQualification, setEditingQualification] = React.useState<TeacherQualification | null>(null);
     const [isExpanded, setIsExpanded] = React.useState(false);
     const [currentPage, setCurrentPage] = React.useState(1);
     const itemsPerPage = 10;
@@ -109,19 +111,52 @@ export const TeacherPrivateQualificationCard = React.memo(
 
     const handleModalSubmit = React.useCallback(
       (data: { programs: string[]; rate?: number }) => {
-        // Transform programs to qualifications and add to the list
-        const newQualifications: TeacherQualification[] = data.programs.map(
-          (program) => ({
-            id: crypto.randomUUID(),
-            name: program,
-            rate: data.rate,
-          })
-        );
+        if (editingQualification) {
+          // Update existing qualification
+          onUpdate((prev) =>
+            prev.map((qual) =>
+              qual.id === editingQualification.id
+                ? {
+                    ...qual,
+                    name: data.programs[0] || qual.name,
+                    rate: data.rate,
+                  }
+                : qual
+            )
+          );
+          setIsEditModalOpen(false);
+          setEditingQualification(null);
+        } else {
+          // Transform programs to qualifications and add to the list
+          const newQualifications: TeacherQualification[] = data.programs.map(
+            (program) => ({
+              id: crypto.randomUUID(),
+              name: program,
+              rate: data.rate,
+            })
+          );
 
-        // Add all new qualifications to the list
-        onUpdate((prev) => [...prev, ...newQualifications]);
-        
-        setIsAddModalOpen(false);
+          // Add all new qualifications to the list
+          onUpdate((prev) => [...prev, ...newQualifications]);
+          
+          setIsAddModalOpen(false);
+        }
+      },
+      [onUpdate, editingQualification]
+    );
+
+    const handleRowClick = React.useCallback(
+      (qualification: TeacherQualification) => {
+        setEditingQualification(qualification);
+        setIsEditModalOpen(true);
+      },
+      []
+    );
+
+    const handleDelete = React.useCallback(
+      (id: string) => {
+        onUpdate((prev) => prev.filter((qual) => qual.id !== id));
+        setEditingQualification(null);
       },
       [onUpdate]
     );
@@ -132,6 +167,13 @@ export const TeacherPrivateQualificationCard = React.memo(
 
     const handleModalClose = React.useCallback(() => {
       setIsAddModalOpen(false);
+      setIsEditModalOpen(false);
+      setEditingQualification(null);
+    }, []);
+
+    const handleEditModalClose = React.useCallback(() => {
+      setIsEditModalOpen(false);
+      setEditingQualification(null);
     }, []);
 
     return (
@@ -153,6 +195,7 @@ export const TeacherPrivateQualificationCard = React.memo(
                 totalPages={totalPages}
                 showPagination={showPagination}
                 onPageChange={handlePageChange}
+                onRowClick={handleRowClick}
               />
             </div>
           )}
@@ -164,6 +207,18 @@ export const TeacherPrivateQualificationCard = React.memo(
           onSubmit={handleModalSubmit}
           title="Qualification"
           allowRate={true}
+          mode="add"
+        />
+
+        <AddQualificationModal
+          open={isEditModalOpen}
+          onClose={handleEditModalClose}
+          onSubmit={handleModalSubmit}
+          title="Qualification"
+          allowRate={true}
+          mode="edit"
+          initialData={editingQualification}
+          onDelete={handleDelete}
         />
       </>
     );

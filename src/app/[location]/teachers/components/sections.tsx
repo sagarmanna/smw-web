@@ -263,6 +263,7 @@ interface QualificationListProps {
   totalPages?: number;
   showPagination?: boolean;
   onPageChange?: (page: number) => void;
+  onRowClick?: (qualification: TeacherQualification) => void;
 }
 
 export function QualificationList({ 
@@ -272,6 +273,7 @@ export function QualificationList({
   totalPages = 1,
   showPagination = false,
   onPageChange,
+  onRowClick,
 }: QualificationListProps) {
   if (loading) {
     return (
@@ -307,9 +309,10 @@ export function QualificationList({
         {qualifications.map((qualification, index) => (
           <div
             key={qualification.id}
-            className={`grid grid-cols-2 gap-4 py-2 ${
+            onClick={() => onRowClick?.(qualification)}
+            className={`grid grid-cols-2 gap-4 py-2 cursor-pointer transition-colors ${
               index % 2 === 0 ? "bg-white dark:bg-black" : "bg-gray-50 dark:bg-gray-900"
-            }`}
+            } hover:bg-gray-100 dark:hover:bg-gray-800`}
           >
             <div className="text-left">
               <span>{qualification.name}</span>

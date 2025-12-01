@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
+import { TeacherQualification } from "../../types";
 
 // Common program options - can be moved to constants file if needed
 const PROGRAM_OPTIONS = [
@@ -36,6 +37,9 @@ interface AddQualificationModalProps {
   title?: string;
   allowRate?: boolean;
   availablePrograms?: string[];
+  initialData?: TeacherQualification | null;
+  onDelete?: (id: string) => void;
+  mode?: "add" | "edit";
 }
 
 export function AddQualificationModal({
@@ -45,29 +49,63 @@ export function AddQualificationModal({
   title = "Qualification",
   allowRate = true,
   availablePrograms = PROGRAM_OPTIONS,
+  initialData = null,
+  onDelete,
+  mode = "add",
 }: AddQualificationModalProps) {
+  const isEditMode = mode === "edit" && initialData !== null;
   const [selectedPrograms, setSelectedPrograms] = React.useState<string[]>([]);
+  const [selectedProgram, setSelectedProgram] = React.useState<string>("");
   const [rate, setRate] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [showRateChangeConfirm, setShowRateChangeConfirm] = React.useState(false);
+  const [pendingSubmitData, setPendingSubmitData] = React.useState<{ programs: string[]; rate?: number } | null>(null);
+  const originalRate = React.useRef<number | undefined>(undefined);
 
   React.useEffect(() => {
-    if (!open) {
+    if (open) {
+      if (isEditMode && initialData) {
+        setSelectedProgram(initialData.name);
+        setSelectedPrograms([initialData.name]);
+        setRate(initialData.rate?.toString() || "");
+        originalRate.current = initialData.rate;
+      } else {
+        setSelectedPrograms([]);
+        setSelectedProgram("");
+        setRate("");
+        originalRate.current = undefined;
+      }
+      setError(null);
+      setShowDeleteConfirm(false);
+      setShowRateChangeConfirm(false);
+      setPendingSubmitData(null);
+    } else {
       setSelectedPrograms([]);
+      setSelectedProgram("");
       setRate("");
       setError(null);
+      setShowDeleteConfirm(false);
+      setShowRateChangeConfirm(false);
+      setPendingSubmitData(null);
+      originalRate.current = undefined;
     }
-  }, [open]);
+  }, [open, isEditMode, initialData]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
-    if (selectedPrograms.length === 0) {
-      setError("Please select at least one program.");
+    const programsToSubmit = isEditMode 
+      ? (selectedProgram ? [selectedProgram] : [])
+      : selectedPrograms;
+    
+    if (programsToSubmit.length === 0) {
+      setError("Please select a program.");
       return;
     }
 
     const submitData: { programs: string[]; rate?: number } = {
-      programs: selectedPrograms,
+      programs: programsToSubmit,
     };
 
     if (allowRate && rate.trim()) {
@@ -79,12 +117,58 @@ export function AddQualificationModal({
       submitData.rate = rateValue;
     }
 
+    // Check if rate has changed in edit mode
+    if (isEditMode && allowRate) {
+      const newRate = submitData.rate;
+      const originalRateValue = originalRate.current;
+      // Compare rates - check if they're different (handling undefined/null)
+      const rateChanged = 
+        (originalRateValue ?? undefined) !== (newRate ?? undefined);
+      
+      if (rateChanged) {
+        setPendingSubmitData(submitData);
+        setShowRateChangeConfirm(true);
+        return;
+      }
+    }
+
     onSubmit(submitData);
     onClose();
   };
 
+  const handleRateChangeConfirm = () => {
+    if (pendingSubmitData) {
+      onSubmit(pendingSubmitData);
+      setShowRateChangeConfirm(false);
+      setPendingSubmitData(null);
+      onClose();
+    }
+  };
+
+  const handleRateChangeCancel = () => {
+    setShowRateChangeConfirm(false);
+    setPendingSubmitData(null);
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (isEditMode && initialData && onDelete) {
+      onDelete(initialData.id);
+      setShowDeleteConfirm(false);
+      onClose();
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+  };
+
   const resetForm = () => {
     setSelectedPrograms([]);
+    setSelectedProgram("");
     setRate("");
     setError(null);
   };
@@ -112,23 +196,33 @@ export function AddQualificationModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="programs">
-                Programs <span className="text-red-500">*</span>
+              <Label htmlFor="program">
+                Program Name <span className="text-red-500">*</span>
               </Label>
-              <MultiSelectCombobox
-                options={availablePrograms.map((program) => ({
-                  label: program,
-                  value: program,
-                }))}
-                value={selectedPrograms}
-                onValueChange={(values) => {
-                  setSelectedPrograms(values);
-                  setError("");
-                }}
-                placeholder="Select programs..."
-                searchPlaceholder="Search programs..."
-                emptyText="No programs found."
-              />
+              {isEditMode ? (
+                <Input
+                  id="program"
+                  value={selectedProgram}
+                  disabled
+                  className="w-full bg-gray-50 dark:bg-gray-800 cursor-not-allowed"
+                  readOnly
+                />
+              ) : (
+                <MultiSelectCombobox
+                  options={availablePrograms.map((program) => ({
+                    label: program,
+                    value: program,
+                  }))}
+                  value={selectedPrograms}
+                  onValueChange={(values) => {
+                    setSelectedPrograms(values);
+                    setError("");
+                  }}
+                  placeholder="Select programs..."
+                  searchPlaceholder="Search programs..."
+                  emptyText="No programs found."
+                />
+              )}
             </div>
 
             {allowRate && (
@@ -151,14 +245,70 @@ export function AddQualificationModal({
             )}
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit">Save</Button>
+          <DialogFooter className="flex items-center justify-between w-full">
+            <div className="flex-1">
+              {isEditMode && onDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDeleteClick}
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Are you sure you want to delete this?
+            </DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={handleDeleteCancel}>
+              Cancel
+            </Button>
+            <Button onClick={handleDeleteConfirm}>
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rate Change Confirmation Modal */}
+      <Dialog open={showRateChangeConfirm} onOpenChange={setShowRateChangeConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Rate Modification Warning
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground">
+              Modifying teacher&apos;s rate would affect all the future lesson teacher&apos;s cost. Do you want to continue?
+            </p>
+          </div>
+          <DialogFooter className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={handleRateChangeCancel}>
+              Cancel
+            </Button>
+            <Button onClick={handleRateChangeConfirm}>
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
