@@ -6,7 +6,8 @@ import type {
   TeacherBasicDetails, 
   TeacherEmail, 
   TeacherPhone, 
-  TeacherAddress
+  TeacherAddress,
+  TeacherQualification
 } from '../types';
 
 interface TeacherState {
@@ -58,22 +59,24 @@ function transformApiResponse(apiResponse: TeacherDetailsApiResponse): TeacherIn
       note: phone.note || undefined,
       isPrimary: phone.isPrimary,
     })),
-    addresses: body.addresses.map((address) => ({
-      id: address.id.toString(),
-      label: address.label,
-      address: address.address,
-      city: address.city,
-      provinceId: 0, // Not in API response, default to 0
-      countryId: 0, // Not in API response, default to 0
-      cityId: 0, // Not in API response, default to 0
-      postalCode: address.postalCode,
-      province: address.province || undefined,
-      country: address.country || undefined,
-      note: undefined, // Not in API response
-      isPrimary: address.isPrimary,
-    })),
-  };
-}
+      addresses: body.addresses.map((address) => ({
+        id: address.id.toString(),
+        label: address.label,
+        address: address.address,
+        city: address.city,
+        provinceId: 0, // Not in API response, default to 0
+        countryId: 0, // Not in API response, default to 0
+        cityId: 0, // Not in API response, default to 0
+        postalCode: address.postalCode,
+        province: address.province || undefined,
+        country: address.country || undefined,
+        note: undefined, // Not in API response
+        isPrimary: address.isPrimary,
+      })),
+      privateQualifications: [], // Will be fetched separately
+      groupQualifications: [], // Will be fetched separately
+    };
+  }
 
 // Async thunk for fetching teacher info with caching
 export const fetchTeacher = createAsyncThunk(
@@ -164,6 +167,18 @@ const teacherSlice = createSlice({
         state.teacherInfo.addresses = action.payload;
       }
     },
+    // Update private qualifications in local state
+    updatePrivateQualifications: (state, action: PayloadAction<TeacherQualification[]>) => {
+      if (state.teacherInfo) {
+        state.teacherInfo.privateQualifications = action.payload;
+      }
+    },
+    // Update group qualifications in local state
+    updateGroupQualifications: (state, action: PayloadAction<TeacherQualification[]>) => {
+      if (state.teacherInfo) {
+        state.teacherInfo.groupQualifications = action.payload;
+      }
+    },
     // Update profile details in local state
     updateProfile: (state, action: PayloadAction<Partial<TeacherBasicDetails>>) => {
       if (state.teacherInfo) {
@@ -232,6 +247,6 @@ const teacherSlice = createSlice({
   },
 });
 
-export const { clearTeacher, clearError, updateEmails, updatePhones, updateAddresses, updateProfile } = teacherSlice.actions;
+export const { clearTeacher, clearError, updateEmails, updatePhones, updateAddresses, updateProfile, updatePrivateQualifications, updateGroupQualifications } = teacherSlice.actions;
 export default teacherSlice.reducer;
 

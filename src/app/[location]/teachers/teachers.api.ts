@@ -224,3 +224,112 @@ export async function getTeacherInfo(
   }
 }
 
+// Qualification interfaces
+export interface Qualification {
+  id: number;
+  name: string;
+  rate?: number;
+  description?: string;
+  dateObtained?: string;
+}
+
+export interface QualificationsResponse {
+  success: boolean;
+  data: Qualification[];
+}
+
+// Get teacher's private qualifications
+export async function getTeacherPrivateQualifications(
+  location: string,
+  id: number
+): Promise<QualificationsResponse | null> {
+  try {
+    const response = await apiClient.get<QualificationsResponse>(
+      `/admin/v2/${location}/teachers/${id}/qualifications/private`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching private qualifications:', error);
+    return null;
+  }
+}
+
+// Get teacher's group qualifications
+export async function getTeacherGroupQualifications(
+  location: string,
+  id: number
+): Promise<QualificationsResponse | null> {
+  try {
+    const response = await apiClient.get<QualificationsResponse>(
+      `/admin/v2/${location}/teachers/${id}/qualifications/group`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching group qualifications:', error);
+    return null;
+  }
+}
+
+// Add private qualifications
+export interface AddPrivateQualificationsData {
+  programs: string[];
+  rate?: number;
+}
+
+export interface AddPrivateQualificationsResponse {
+  status: boolean;
+  message?: string;
+  errors?: string[];
+}
+
+export async function addPrivateQualifications(
+  location: string,
+  teacherId: number,
+  data: AddPrivateQualificationsData
+): Promise<AddPrivateQualificationsResponse> {
+  try {
+    const response = await apiClient.post<AddPrivateQualificationsResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/qualifications/private`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error adding private qualifications:', error);
+    return {
+      status: false,
+      message: 'Failed to add private qualifications',
+    };
+  }
+}
+
+// Add group qualifications
+export interface AddGroupQualificationsData {
+  programs: string[];
+}
+
+export interface AddGroupQualificationsResponse {
+  status: boolean;
+  message?: string;
+  errors?: string[];
+}
+
+export async function addGroupQualifications(
+  location: string,
+  teacherId: number,
+  data: AddGroupQualificationsData
+): Promise<AddGroupQualificationsResponse> {
+  try {
+    const response = await apiClient.post<AddGroupQualificationsResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/qualifications/group`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error adding group qualifications:', error);
+    return {
+      status: false,
+      message: 'Failed to add group qualifications',
+    };
+  }
+}
+

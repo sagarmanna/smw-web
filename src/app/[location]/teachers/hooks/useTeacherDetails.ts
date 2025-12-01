@@ -8,6 +8,8 @@ import {
   updatePhones, 
   updateAddresses, 
   updateProfile,
+  updatePrivateQualifications,
+  updateGroupQualifications,
   fetchTeacher 
 } from "../[id]/teachers.slice";
 import {
@@ -15,7 +17,12 @@ import {
   TeacherBasicDetails,
   TeacherEmail,
   TeacherPhone,
+  TeacherQualification,
 } from "../types";
+import {
+  getTeacherPrivateQualifications,
+  getTeacherGroupQualifications,
+} from "../teachers.api";
 
 type TeacherDetailsHookReturn = {
   loading: boolean;
@@ -24,11 +31,15 @@ type TeacherDetailsHookReturn = {
   emails: TeacherEmail[];
   phones: TeacherPhone[];
   addresses: TeacherAddress[];
+  privateQualifications: TeacherQualification[];
+  groupQualifications: TeacherQualification[];
   refresh: () => Promise<void>;
   saveDetails: (next: TeacherBasicDetails) => Promise<boolean>;
   updateEmails: React.Dispatch<React.SetStateAction<TeacherEmail[]>>;
   updatePhones: React.Dispatch<React.SetStateAction<TeacherPhone[]>>;
   updateAddresses: React.Dispatch<React.SetStateAction<TeacherAddress[]>>;
+  updatePrivateQualifications: React.Dispatch<React.SetStateAction<TeacherQualification[]>>;
+  updateGroupQualifications: React.Dispatch<React.SetStateAction<TeacherQualification[]>>;
   updatePassword: (password: string) => Promise<boolean>;
   savingDetails: boolean;
 };
@@ -67,6 +78,41 @@ export function useTeacherDetails(
   const emails = React.useMemo(() => teacherInfo?.email || [], [teacherInfo?.email]);
   const phones = React.useMemo(() => teacherInfo?.phone || [], [teacherInfo?.phone]);
   const addresses = React.useMemo(() => teacherInfo?.addresses || [], [teacherInfo?.addresses]);
+  const privateQualifications = React.useMemo(() => teacherInfo?.privateQualifications || [], [teacherInfo?.privateQualifications]);
+  const groupQualifications = React.useMemo(() => teacherInfo?.groupQualifications || [], [teacherInfo?.groupQualifications]);
+
+  // Fetch qualifications on mount and when teacherId changes
+  React.useEffect(() => {
+    if (teacherId && !loading) {
+      // Fetch private qualifications
+      getTeacherPrivateQualifications(location, teacherId).then((response) => {
+        if (response?.success && response.data) {
+          const transformed: TeacherQualification[] = response.data.map((q) => ({
+            id: q.id.toString(),
+            name: q.name,
+            rate: q.rate,
+            description: q.description,
+            dateObtained: q.dateObtained,
+          }));
+          dispatch(updatePrivateQualifications(transformed));
+        }
+      });
+
+      // Fetch group qualifications
+      getTeacherGroupQualifications(location, teacherId).then((response) => {
+        if (response?.success && response.data) {
+          const transformed: TeacherQualification[] = response.data.map((q) => ({
+            id: q.id.toString(),
+            name: q.name,
+            rate: q.rate,
+            description: q.description,
+            dateObtained: q.dateObtained,
+          }));
+          dispatch(updateGroupQualifications(transformed));
+        }
+      });
+    }
+  }, [teacherId, location, loading, dispatch]);
 
   const refresh = React.useCallback(async () => {
     dispatch(fetchTeacher({ location, teacherId }));
@@ -128,6 +174,26 @@ export function useTeacherDetails(
     [dispatch, teacherInfo]
   );
 
+  const handleUpdatePrivateQualifications = React.useCallback(
+    (qualifications: TeacherQualification[] | ((prev: TeacherQualification[]) => TeacherQualification[])) => {
+      const newQualifications = typeof qualifications === 'function'
+        ? qualifications(teacherInfo?.privateQualifications || [])
+        : qualifications;
+      dispatch(updatePrivateQualifications(newQualifications));
+    },
+    [dispatch, teacherInfo]
+  );
+
+  const handleUpdateGroupQualifications = React.useCallback(
+    (qualifications: TeacherQualification[] | ((prev: TeacherQualification[]) => TeacherQualification[])) => {
+      const newQualifications = typeof qualifications === 'function'
+        ? qualifications(teacherInfo?.groupQualifications || [])
+        : qualifications;
+      dispatch(updateGroupQualifications(newQualifications));
+    },
+    [dispatch, teacherInfo]
+  );
+
   const updatePassword = React.useCallback(async (_password: string) => {
     try {
       await simulateRequest(true);
@@ -145,11 +211,15 @@ export function useTeacherDetails(
     emails,
     phones,
     addresses,
+    privateQualifications,
+    groupQualifications,
     refresh,
     saveDetails,
     updateEmails: handleUpdateEmails,
     updatePhones: handleUpdatePhones,
     updateAddresses: handleUpdateAddresses,
+    updatePrivateQualifications: handleUpdatePrivateQualifications,
+    updateGroupQualifications: handleUpdateGroupQualifications,
     updatePassword,
     savingDetails,
   };
