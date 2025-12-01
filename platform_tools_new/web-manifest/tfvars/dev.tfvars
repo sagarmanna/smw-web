@@ -1,5 +1,5 @@
 # Development Environment Configuration for Web
-env = "dev"
+env        = "dev"
 enviroment = "development"
 
 # Web Domain
@@ -25,4 +25,8 @@ web_resource_config = {
     cpu    = "1000m"
     memory = "2Gi"
   }
-} 
+}
+
+#Open replay
+openreplay_project_key  = "ynaB5AYYp4ypy8aRX6NU"
+openreplay_ingest_point = "https://openreplay.studiomanagerweb.com/ingest"
