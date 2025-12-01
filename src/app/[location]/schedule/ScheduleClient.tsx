@@ -109,6 +109,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
 
   // Ensure selectedDate is always valid
   const safeSelectedDate = useMemo(() => {
+    setIsPageInitialLoading(true);
     return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
   }, [selectedDate]);
 
