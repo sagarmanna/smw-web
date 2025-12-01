@@ -129,7 +129,8 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
         serverSideFilterOptions={[
-          { key: "inactive", label: "Show Inactive Teachers" },
+          { key: "active", label: "Active" },
+          { key: "inactive", label: "Inactive" },
         ]}
         activeServerSideFilter={activeFilter}
         onServerSideFilterChange={handleServerSideFilterChange}

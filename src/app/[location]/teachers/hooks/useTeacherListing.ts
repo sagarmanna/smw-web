@@ -40,6 +40,13 @@ export function useTeacherListing(location: string) {
   const debounceTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = React.useCallback(async () => {
+    // Map active filter to API parameters:
+    // all (undefined): showActive=true, showInActive=true
+    // active: showActive=true, showInActive=false
+    // inactive: showActive=false, showInActive=true
+    const showActive = activeFilter === 'inactive' ? false : true;
+    const showInActive = activeFilter === 'active' ? false : true;
+
     const query: TeachersQuery = {
       page,
       limit: pageSize,
@@ -47,8 +54,8 @@ export function useTeacherListing(location: string) {
       lastName: columnFilters.lastName as string | undefined,
       email: columnFilters.email as string | undefined,
       phone: columnFilters.phoneNumber as string | undefined,
-      showActive: activeFilter === "inactive" ? false : undefined,
-      showInActive: activeFilter === "inactive" ? true : undefined,
+      showActive,
+      showInActive,
       sort: sortBy,
       order: sortDir,
     };
@@ -125,6 +132,13 @@ export function useTeacherListing(location: string) {
 
   const handleColumnFilterEnter = React.useCallback(() => {
     // Immediately fetch when Enter is pressed, bypassing debounce
+    // Map active filter to API parameters:
+    // all (undefined): showActive=true, showInActive=true
+    // active: showActive=true, showInActive=false
+    // inactive: showActive=false, showInActive=true
+    const showActive = activeFilter === 'inactive' ? false : true;
+    const showInActive = activeFilter === 'active' ? false : true;
+
     const query: TeachersQuery = {
       page: 1, // Reset to first page when filtering
       limit: pageSize,
@@ -132,8 +146,8 @@ export function useTeacherListing(location: string) {
       lastName: columnFilters.lastName as string | undefined,
       email: columnFilters.email as string | undefined,
       phone: columnFilters.phoneNumber as string | undefined,
-      showActive: activeFilter === "inactive" ? false : undefined,
-      showInActive: activeFilter === "inactive" ? true : undefined,
+      showActive,
+      showInActive,
       sort: sortBy,
       order: sortDir,
     };

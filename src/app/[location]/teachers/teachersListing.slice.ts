@@ -30,7 +30,7 @@ const initialState: TeachersListingState = {
   sortBy: undefined,
   sortDir: 'asc',
   columnFilters: {},
-  activeFilter: undefined,
+  activeFilter: 'active', // Default to showing only active teachers
 };
 
 // Async thunk for fetching teachers list
