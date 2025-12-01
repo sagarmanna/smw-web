@@ -11,12 +11,18 @@ interface TeacherAddressCardProps {
   addresses: TeacherAddress[];
   onUpdate: React.Dispatch<React.SetStateAction<TeacherAddress[]>>;
   loading?: boolean;
+  location: string;
+  teacherId: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export const TeacherAddressCard = React.memo(function TeacherAddressCard({
   addresses,
   onUpdate,
   loading = false,
+  location,
+  teacherId,
+  onRefresh,
 }: TeacherAddressCardProps) {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   
@@ -29,6 +35,9 @@ export const TeacherAddressCard = React.memo(function TeacherAddressCard({
   } = useAddressHandlers({
     addresses,
     updateAddresses: onUpdate,
+    location,
+    teacherId,
+    onRefresh,
   });
 
   const handleAddClick = React.useCallback(() => {
@@ -89,6 +98,10 @@ export const TeacherAddressCard = React.memo(function TeacherAddressCard({
         onClose={handleModalClose}
         onSubmit={handleModalSubmit}
         editingAddress={editingAddress}
+        location={location}
+        teacherId={teacherId}
+        onUpdateAddresses={onUpdate}
+        onRefresh={onRefresh}
       />
     </>
   );

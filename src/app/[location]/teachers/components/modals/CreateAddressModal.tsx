@@ -20,12 +20,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TeacherAddress } from "../../types";
+import type { GeoData } from "../../../customers/components/AddressCard/address-card.api";
+import { getGeoData } from "../../../customers/components/AddressCard/address-card.api";
+import {
+  addTeacherAddress,
+  updateTeacherAddress,
+} from "../../[id]/teachers-details.api";
+import { toast } from "sonner";
 
 interface CreateAddressModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (address: TeacherAddress) => void;
+  onSubmit?: (address: TeacherAddress) => void;
   editingAddress?: TeacherAddress | null;
+  location: string;
+  teacherId: number;
+  onUpdateAddresses?: (addresses: TeacherAddress[]) => void;
+  onRefresh?: () => Promise<void>;
 }
 
 export function CreateAddressModal({
@@ -33,6 +44,10 @@ export function CreateAddressModal({
   onClose,
   onSubmit,
   editingAddress = null,
+  location,
+  teacherId,
+  onUpdateAddresses,
+  onRefresh,
 }: CreateAddressModalProps) {
   const [label, setLabel] = React.useState("Home");
   const [address, setAddress] = React.useState("");
@@ -42,7 +57,34 @@ export function CreateAddressModal({
   const [countryId, setCountryId] = React.useState(1);
   const [postalCode, setPostalCode] = React.useState("");
   const [note, setNote] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
+  const [errors, setErrors] = React.useState({
+    address: "",
+    postalCode: "",
+    city: "",
+  });
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [geoData, setGeoData] = React.useState<GeoData>({
+    city: [],
+    province: [],
+    country: [],
+  });
+  const [loadingGeoData, setLoadingGeoData] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchGeo = async () => {
+      setLoadingGeoData(true);
+      try {
+        const data = await getGeoData("all");
+        if (data) {
+          setGeoData(data);
+        }
+      } finally {
+        setLoadingGeoData(false);
+      }
+    };
+
+    fetchGeo();
+  }, []);
 
   React.useEffect(() => {
     if (editingAddress) {
@@ -64,7 +106,7 @@ export function CreateAddressModal({
       setPostalCode("");
       setNote("");
     }
-    setError(null);
+    setErrors({ address: "", postalCode: "", city: "" });
   }, [editingAddress, open]);
 
   const resetForm = () => {
@@ -76,42 +118,197 @@ export function CreateAddressModal({
     setCountryId(1);
     setPostalCode("");
     setNote("");
-    setError(null);
+    setErrors({ address: "", postalCode: "", city: "" });
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const validateForm = () => {
+    const newErrors = {
+      address: "",
+      postalCode: "",
+      city: "",
+    };
 
     if (!address.trim()) {
-      setError("Address is required.");
-      return;
-    }
-
-    if (!city.trim()) {
-      setError("City is required.");
-      return;
+      newErrors.address = "Address cannot be blank.";
     }
 
     if (!postalCode.trim()) {
-      setError("Postal code is required.");
-      return;
+      newErrors.postalCode = "Postal code cannot be blank.";
     }
 
-    const newAddress: TeacherAddress = {
-      id: editingAddress?.id || crypto.randomUUID(),
-      label: label.trim() || "Home",
-      address: address.trim(),
-      city: city.trim(),
-      cityId: cityId || 0,
-      provinceId: provinceId || 1,
-      countryId: countryId || 1,
-      postalCode: postalCode.trim(),
-      note: note.trim() || undefined,
-    };
+    // Check if cityId is valid OR if we're editing and city name exists
+    const cityExists = geoData.city.some((c) => c.id === cityId);
+    const hasValidCityName = city && city.trim() !== "";
 
-    onSubmit(newAddress);
-    resetForm();
-    onClose();
+    if (!cityId || cityId === 0) {
+      // If editing and has a valid city name, try to find and set the cityId
+      if (editingAddress && hasValidCityName) {
+        const foundCity = geoData.city.find(
+          (c) => c.name.toLowerCase() === city.toLowerCase()
+        );
+        if (foundCity) {
+          // Auto-fix the cityId if we found a match
+          setCityId(foundCity.id);
+        } else {
+          newErrors.city = "Please select a city.";
+        }
+      } else {
+        newErrors.city = "Please select a city.";
+      }
+    } else if (!cityExists) {
+      newErrors.city = "Please select a valid city.";
+    }
+
+    setErrors(newErrors);
+    return !newErrors.address && !newErrors.postalCode && !newErrors.city;
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!validateForm()) return;
+
+    setIsSaving(true);
+
+    try {
+      const selectedCity =
+        geoData.city.find((c) => c.id === cityId)?.name || city.trim();
+
+      const addressData = {
+        address: address.trim(),
+        postalCode: postalCode.trim(),
+        city: selectedCity,
+        cityId: cityId || 0,
+        provinceId: provinceId || 1,
+        countryId: countryId || 1,
+        note: note.trim() || undefined,
+        label: label.trim() || "Home",
+        isPrimary: false,
+      };
+
+      const result = editingAddress
+        ? await updateTeacherAddress(
+            location,
+            teacherId,
+            Number(editingAddress.id),
+            addressData
+          )
+        : await addTeacherAddress(location, teacherId, addressData);
+
+      if (result?.success && result.data && Array.isArray(result.data)) {
+        toast.success(
+          editingAddress
+            ? "Address updated successfully"
+            : "Address added successfully"
+        );
+
+        // Transform API response - handle nested structure from API
+        const transformedAddresses: TeacherAddress[] = result.data.map((item: {
+          id: number;
+          address: string;
+          city: string | { name?: string };
+          cityId?: number;
+          provinceId?: number;
+          countryId?: number;
+          postalCode: string;
+          province?: string | { name?: string };
+          country?: string | { name?: string };
+          note?: string;
+          label?: string;
+          isPrimary?: boolean;
+          userContact?: {
+            label?: string;
+            labelId?: number;
+            isPrimary?: boolean | number;
+          };
+          contact?: {
+            label?: string;
+            labelId?: number;
+            isPrimary?: boolean | number;
+          };
+        }) => {
+          // API response has nested structure: item.userContact.label, item.userContact.isPrimary
+          const userContact = item.userContact || item.contact || {};
+          const labelMap: Record<number, string> = {
+            1: "Home",
+            2: "Work",
+            3: "Other",
+          };
+
+          // City/province/country may come back as nested objects; normalise to strings
+          const rawCity = item.city;
+          const normalisedCity =
+            typeof rawCity === "string"
+              ? rawCity
+              : rawCity?.name || addressData.city || city || "";
+
+          const rawProvince = item.province;
+          const normalisedProvince =
+            typeof rawProvince === "string"
+              ? rawProvince
+              : rawProvince?.name || undefined;
+
+          const rawCountry = item.country;
+          const normalisedCountry =
+            typeof rawCountry === "string"
+              ? rawCountry
+              : rawCountry?.name || undefined;
+
+          return {
+            id: item.id?.toString() || String(item.id),
+            label:
+              userContact.label ||
+              labelMap[userContact.labelId as number] ||
+              item.label ||
+              "Home",
+            address: item.address || addressData.address,
+            city: normalisedCity,
+            cityId: item.cityId || cityId || addressData.cityId || 0,
+            provinceId: item.provinceId || provinceId || addressData.provinceId || 1,
+            countryId: item.countryId || countryId || addressData.countryId || 1,
+            postalCode: item.postalCode || addressData.postalCode,
+            province: normalisedProvince,
+            country: normalisedCountry,
+            note:
+              item.note && typeof item.note === "string" && item.note.trim() !== ""
+                ? item.note
+                : addressData.note,
+            isPrimary:
+              userContact.isPrimary === 1 ||
+              userContact.isPrimary === true ||
+              item.isPrimary === true,
+          };
+        });
+
+        if (onUpdateAddresses) {
+          onUpdateAddresses(transformedAddresses);
+        }
+
+        if (onSubmit && transformedAddresses.length > 0) {
+          const latest = transformedAddresses.find(
+            (a) => a.address === addressData.address
+          );
+          if (latest) {
+            onSubmit(latest);
+          }
+        }
+
+        resetForm();
+        onClose();
+
+        // Ensure latest data is reflected from server
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        toast.error(result?.message || "Failed to save address");
+      }
+    } catch (error) {
+      console.error("Error saving address:", error);
+      toast.error("Failed to save address. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -129,15 +326,9 @@ export function CreateAddressModal({
           <DialogTitle>Address</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="address-label">Label</Label>
-            <Select value={label} onValueChange={setLabel}>
+            <Select value={label} onValueChange={setLabel} disabled={isSaving}>
               <SelectTrigger id="address-label">
                 <SelectValue />
               </SelectTrigger>
@@ -156,10 +347,17 @@ export function CreateAddressModal({
             <Input
               id="address-line"
               value={address}
-              onChange={(event) => setAddress(event.target.value)}
+              onChange={(event) => {
+                setAddress(event.target.value);
+                if (errors.address) setErrors({ ...errors, address: "" });
+              }}
               placeholder="Enter street address"
-              required
+              className={errors.address ? "border-red-500" : ""}
+              disabled={isSaving}
             />
+            {errors.address && (
+              <p className="text-sm text-red-500">{errors.address}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -171,28 +369,41 @@ export function CreateAddressModal({
               onValueChange={(value) => {
                 const id = parseInt(value);
                 setCityId(id);
-                // Map city ID to city name
-                const cityMap: Record<string, string> = {
-                  "1": "Toronto",
-                  "2": "Vancouver",
-                  "3": "Montreal",
-                  "4": "Calgary",
-                  "5": "Ottawa",
-                };
-                setCity(cityMap[value] || value);
+                const selected = geoData.city.find((c) => c.id === id);
+                setCity(selected?.name || "");
+                if (errors.city) setErrors({ ...errors, city: "" });
               }}
+              disabled={loadingGeoData || isSaving}
             >
-              <SelectTrigger id="address-city">
-                <SelectValue placeholder="Select city" />
+              <SelectTrigger
+                id="address-city"
+                className={errors.city ? "border-red-500" : ""}
+              >
+                <SelectValue
+                  placeholder={
+                    loadingGeoData
+                      ? "Loading cities..."
+                      : city || "Select city"
+                  }
+                />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Toronto</SelectItem>
-                <SelectItem value="2">Vancouver</SelectItem>
-                <SelectItem value="3">Montreal</SelectItem>
-                <SelectItem value="4">Calgary</SelectItem>
-                <SelectItem value="5">Ottawa</SelectItem>
+              <SelectContent className="max-h-[200px]">
+                {geoData.city.length > 0 ? (
+                  geoData.city.map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="0" disabled>
+                    {loadingGeoData ? "Loading..." : "No cities available"}
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
+            {errors.city && (
+              <p className="text-sm text-red-500">{errors.city}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -201,13 +412,28 @@ export function CreateAddressModal({
               <Select
                 value={countryId.toString()}
                 onValueChange={(value) => setCountryId(parseInt(value))}
+                disabled={loadingGeoData || isSaving}
               >
                 <SelectTrigger id="address-country">
-                  <SelectValue />
+                  <SelectValue
+                    placeholder={
+                      loadingGeoData ? "Loading..." : "Select country"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Canada</SelectItem>
-                  <SelectItem value="2">United States</SelectItem>
+                  {geoData.country.length > 0 ? (
+                    geoData.country.map((country) => (
+                      <SelectItem
+                        key={country.id}
+                        value={country.id.toString()}
+                      >
+                        {country.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="1">Canada</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -216,15 +442,28 @@ export function CreateAddressModal({
               <Select
                 value={provinceId.toString()}
                 onValueChange={(value) => setProvinceId(parseInt(value))}
+                disabled={loadingGeoData || isSaving}
               >
                 <SelectTrigger id="address-province">
-                  <SelectValue />
+                  <SelectValue
+                    placeholder={
+                      loadingGeoData ? "Loading..." : "Select province"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Ontario</SelectItem>
-                  <SelectItem value="2">British Columbia</SelectItem>
-                  <SelectItem value="3">Quebec</SelectItem>
-                  <SelectItem value="4">Alberta</SelectItem>
+                  {geoData.province.length > 0 ? (
+                    geoData.province.map((province) => (
+                      <SelectItem
+                        key={province.id}
+                        value={province.id.toString()}
+                      >
+                        {province.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="1">Ontario</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -237,10 +476,18 @@ export function CreateAddressModal({
             <Input
               id="address-postal"
               value={postalCode}
-              onChange={(event) => setPostalCode(event.target.value)}
+              onChange={(event) => {
+                setPostalCode(event.target.value);
+                if (errors.postalCode)
+                  setErrors({ ...errors, postalCode: "" });
+              }}
               placeholder="Enter postal code"
-              required
+              className={errors.postalCode ? "border-red-500" : ""}
+              disabled={isSaving}
             />
+            {errors.postalCode && (
+              <p className="text-sm text-red-500">{errors.postalCode}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -251,14 +498,22 @@ export function CreateAddressModal({
               onChange={(event) => setNote(event.target.value)}
               placeholder="Enter note"
               rows={3}
+              disabled={isSaving}
             />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSaving}
+            >
               Cancel
             </Button>
-            <Button type="submit">Save</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

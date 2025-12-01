@@ -72,45 +72,6 @@ export interface TeachersQuery {
   order?: "asc" | "desc";
 }
 
-// Teacher Info Data Interfaces
-export interface TeacherInfoData {
-  success: boolean;
-  data: {
-    profile: {
-      name: string;
-      role: string;
-      birthDate?: string;
-      picture?: string;
-    };
-    email: Array<{
-      id: number;
-      label: string;
-      email: string;
-      note?: string;
-      isPrimary?: boolean;
-    }>;
-    phone: Array<{
-      id: number;
-      label: string;
-      number: string;
-      extension?: string;
-      note?: string;
-    }>;
-    addresses: Array<{
-      id: number;
-      label: string;
-      address: string;
-      city: string;
-      cityId: number;
-      provinceId: number;
-      countryId: number;
-      postalCode: string;
-      note?: string;
-      isPrimary?: boolean;
-    }>;
-  };
-}
-
 // Constants for default pagination
 const DEFAULT_PAGINATION = {
   page: 1,
@@ -207,20 +168,3 @@ export async function getTeacherById(
     return null;
   }
 }
-
-// Get detailed teacher information
-export async function getTeacherInfo(
-  location: string,
-  id: number
-): Promise<TeacherInfoData | null> {
-  try {
-    const response = await apiClient.get<TeacherInfoData>(
-      `/admin/v2/${location}/teachers/${id}/info`
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching teacher info:', error);
-    return null;
-  }
-}
-

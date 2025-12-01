@@ -8,7 +8,8 @@ import {
   updatePhones, 
   updateAddresses, 
   updateProfile,
-  fetchTeacher 
+  fetchTeacher,
+  clearCache
 } from "../[id]/teachers.slice";
 import {
   TeacherAddress,
@@ -25,6 +26,7 @@ type TeacherDetailsHookReturn = {
   phones: TeacherPhone[];
   addresses: TeacherAddress[];
   refresh: () => Promise<void>;
+  forceRefresh: () => Promise<void>;
   saveDetails: (next: TeacherBasicDetails) => Promise<boolean>;
   updateEmails: React.Dispatch<React.SetStateAction<TeacherEmail[]>>;
   updatePhones: React.Dispatch<React.SetStateAction<TeacherPhone[]>>;
@@ -72,6 +74,12 @@ export function useTeacherDetails(
     dispatch(fetchTeacher({ location, teacherId }));
   }, [dispatch, location, teacherId]);
 
+  // Force refresh by clearing cache first
+  const forceRefresh = React.useCallback(async () => {
+    dispatch(clearCache());
+    dispatch(fetchTeacher({ location, teacherId }));
+  }, [dispatch, location, teacherId]);
+
   const saveDetails = React.useCallback(
     async (next: TeacherBasicDetails) => {
       try {
@@ -89,13 +97,17 @@ export function useTeacherDetails(
 
         // Update local Redux state with the new profile data
         dispatch(updateProfile(next));
+        
+        // Refresh data from server to ensure consistency
+        await refresh();
+        
         return true;
       } catch (err) {
         console.error("Failed to save teacher details:", err);
         return false;
       }
     },
-    [dispatch, location, teacherId]
+    [dispatch, location, teacherId, refresh]
   );
 
   const handleUpdateEmails = React.useCallback(
@@ -146,6 +158,7 @@ export function useTeacherDetails(
     phones,
     addresses,
     refresh,
+    forceRefresh,
     saveDetails,
     updateEmails: handleUpdateEmails,
     updatePhones: handleUpdatePhones,
