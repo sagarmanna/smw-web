@@ -41,6 +41,7 @@ interface CalendarEvent {
 }
 
 export function ScheduleClient({ location }: ScheduleClientProps) {
+  const [isPageInitialLoading, setIsPageInitialLoading] = useState<boolean>(true);
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
@@ -274,7 +275,7 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
   useEffect(() => {
     const fetchTeacherViewEvents = async () => {
       try {
-        setIsLoading(true);
+        setIsLoading(isPageInitialLoading);
         setTeacherViewEventsError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         
@@ -296,9 +297,10 @@ export function ScheduleClient({ location }: ScheduleClientProps) {
       } catch (error) {
         setTeacherViewEventsError(error instanceof Error ? error.message : 'Failed to fetch teacher view events');
       } finally {
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 500);
+        setIsLoading(false);
+        setIsPageInitialLoading(false);
+        // setTimeout(() => {
+        // }, 500);
       }
     };
 
