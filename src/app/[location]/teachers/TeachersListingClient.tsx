@@ -8,7 +8,6 @@ import { TeacherRow } from "./teachers.api";
 import { teacherColumns } from "./tableConfigs";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
-import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -162,6 +161,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
           // Refresh the data after successful teacher creation
           fetchData();
         }}
+        location={location}
       />
     </ReportPageLayout>
   );
