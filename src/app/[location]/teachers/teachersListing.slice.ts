@@ -27,7 +27,7 @@ const initialState: TeachersListingState = {
   error: null,
   page: 1,
   pageSize: 20,
-  sortBy: undefined,
+  sortBy: 'lastName',
   sortDir: 'asc',
   columnFilters: {},
   activeFilter: 'active', // Default to showing only active teachers
