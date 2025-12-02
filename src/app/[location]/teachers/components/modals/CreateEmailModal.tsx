@@ -77,10 +77,12 @@ export function CreateEmailModal({
       setLabel("Home");
       setEmail("");
       setNote("");
-      setIsPrimary(false);
+      // Business rule: if this teacher has no emails yet,
+      // the very first email created should be primary by default.
+      setIsPrimary((currentEmails ?? []).length === 0);
     }
     setErrors({ email: "" });
-  }, [editingEmail, open]);
+  }, [editingEmail, open, currentEmails]);
 
   const resetForm = () => {
     setLabel("Home");
@@ -198,11 +200,16 @@ export function CreateEmailModal({
     setErrors({ email: "" });
 
     try {
+      // If this is a create (not edit) and there are no existing emails,
+      // force isPrimary true for the first email.
+      const effectiveIsPrimary =
+        !editingEmail && (currentEmails ?? []).length === 0 ? true : isPrimary;
+
       const baseData = {
         email: email.trim(),
         note: note.trim() || undefined,
         label: label.trim() || "Home",
-        isPrimary,
+        isPrimary: effectiveIsPrimary,
       };
 
       const result = editingEmail

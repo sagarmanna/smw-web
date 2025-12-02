@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { InfoCard } from "@/components/InfoCard";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { TeacherPhone } from "../../types";
 import { CreatePhoneModal } from "../modals/CreatePhoneModal";
 import { usePhoneHandlers } from "../../hooks/useTeacherItemHandlers";
@@ -31,7 +32,11 @@ export const TeacherPhoneCard = React.memo(function TeacherPhoneCard({
     setEditingPhone,
     handleCreate,
     handleEdit,
-    handleDelete,
+    requestDelete,
+    phoneToDelete,
+    setPhoneToDelete,
+    handleDeleteConfirm,
+    isDeleting,
   } = usePhoneHandlers({
     phones,
     updatePhones: onUpdate,
@@ -57,9 +62,9 @@ export const TeacherPhoneCard = React.memo(function TeacherPhoneCard({
   const handleDeleteClick = React.useCallback(
     (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
-      handleDelete(id);
+      requestDelete(id);
     },
-    [handleDelete]
+    [requestDelete]
   );
 
   const handleModalSubmit = React.useCallback(
@@ -102,6 +107,19 @@ export const TeacherPhoneCard = React.memo(function TeacherPhoneCard({
         teacherId={teacherId}
         onUpdatePhones={onUpdate}
         onRefresh={onRefresh}
+      />
+
+      <DeleteConfirmationModal
+        open={!!phoneToDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPhoneToDelete(null);
+          }
+        }}
+        title="Delete phone"
+        itemLabel={phoneToDelete ? phoneToDelete.number : undefined}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
       />
     </>
   );

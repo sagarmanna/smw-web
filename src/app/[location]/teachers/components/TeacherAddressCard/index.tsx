@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { InfoCard } from "@/components/InfoCard";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { TeacherAddress } from "../../types";
 import { CreateAddressModal } from "../modals/CreateAddressModal";
 import { useAddressHandlers } from "../../hooks/useTeacherItemHandlers";
@@ -31,7 +32,11 @@ export const TeacherAddressCard = React.memo(function TeacherAddressCard({
     setEditingAddress,
     handleCreate,
     handleEdit,
-    handleDelete,
+    requestDelete,
+    addressToDelete,
+    setAddressToDelete,
+    handleDeleteConfirm,
+    isDeleting,
   } = useAddressHandlers({
     addresses,
     updateAddresses: onUpdate,
@@ -57,9 +62,9 @@ export const TeacherAddressCard = React.memo(function TeacherAddressCard({
   const handleDeleteClick = React.useCallback(
     (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
-      handleDelete(id);
+      requestDelete(id);
     },
-    [handleDelete]
+    [requestDelete]
   );
 
   const handleModalSubmit = React.useCallback(
@@ -102,6 +107,19 @@ export const TeacherAddressCard = React.memo(function TeacherAddressCard({
         teacherId={teacherId}
         onUpdateAddresses={onUpdate}
         onRefresh={onRefresh}
+      />
+
+      <DeleteConfirmationModal
+        open={!!addressToDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAddressToDelete(null);
+          }
+        }}
+        title="Delete address"
+        itemLabel={addressToDelete ? addressToDelete.address : undefined}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
       />
     </>
   );

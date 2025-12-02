@@ -62,8 +62,9 @@ export function CreatePhoneModal({
   const [number, setNumber] = React.useState("");
   const [extension, setExtension] = React.useState("");
   const [note, setNote] = React.useState("");
-  const [errors, setErrors] = React.useState<{ number: string }>({
+  const [errors, setErrors] = React.useState<{ number: string; extension: string }>({
     number: "",
+    extension: "",
   });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -79,7 +80,7 @@ export function CreatePhoneModal({
       setExtension("");
       setNote("");
     }
-    setErrors({ number: "" });
+    setErrors({ number: "", extension: "" });
   }, [editingPhone, open]);
 
   const resetForm = () => {
@@ -87,22 +88,56 @@ export function CreatePhoneModal({
     setNumber("");
     setExtension("");
     setNote("");
-    setErrors({ number: "" });
+    setErrors({ number: "", extension: "" });
   };
 
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setNumber(formatted);
-    if (errors.number) {
-      setErrors({ number: "" });
+    if (errors.number || errors.extension) {
+      setErrors((prev) => ({ ...prev, number: "" }));
+    }
+  };
+
+  const handleExtensionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow only integer digits in extension
+    const raw = event.target.value;
+    const digitsOnly = raw.replace(/\D/g, "");
+    setExtension(digitsOnly);
+
+    // Live UI feedback: if user types non-digits, show an error
+    if (raw && raw !== digitsOnly) {
+      setErrors((prev) => ({
+        ...prev,
+        extension: "Extension must be an integer.",
+      }));
+    } else {
+      setErrors((prev) => ({
+        ...prev,
+        extension: "",
+      }));
     }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!number.trim()) {
-      setErrors({ number: "Number cannot be blank." });
+    const trimmedNumber = number.trim();
+    const trimmedExtension = extension.trim();
+
+    const newErrors: { number: string; extension: string } = { number: "", extension: "" };
+
+    if (!trimmedNumber) {
+      newErrors.number = "Number cannot be blank.";
+    }
+
+    // Extension is optional, but when provided it must be an integer
+    if (trimmedExtension && !/^\d+$/.test(trimmedExtension)) {
+      newErrors.extension = "Extension must be an integer.";
+    }
+
+    if (newErrors.number || newErrors.extension) {
+      setErrors(newErrors);
       return;
     }
 
@@ -110,8 +145,8 @@ export function CreatePhoneModal({
 
     try {
       const phoneData = {
-        number: number.trim(),
-        extension: extension.trim() ? parseInt(extension.trim()) : undefined,
+        number: trimmedNumber,
+        extension: trimmedExtension ? parseInt(trimmedExtension, 10) : undefined,
         note: note.trim() || undefined,
         label: label.trim() || "Home",
         isPrimary: false,
@@ -264,10 +299,13 @@ export function CreatePhoneModal({
               id="phone-extension"
               type="text"
               value={extension}
-              onChange={(event) => setExtension(event.target.value)}
+              onChange={handleExtensionChange}
               placeholder="Enter extension"
               disabled={isSubmitting}
             />
+            {errors.extension && (
+              <p className="text-sm text-red-500">{errors.extension}</p>
+            )}
           </div>
 
           <div className="space-y-2">
