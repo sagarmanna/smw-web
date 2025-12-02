@@ -6,65 +6,6 @@ import { TeacherQualification } from "../../types";
 import { AddQualificationModal } from "../modals/AddQualificationModal";
 import { QualificationList } from "../sections";
 
-// Mock data for private qualifications - matching the image
-const MOCK_PRIVATE_QUALIFICATIONS: TeacherQualification[] = [
-  {
-    id: "1",
-    name: "Test65",
-    rate: 10.00,
-  },
-  {
-    id: "2",
-    name: "test72.5",
-    rate: 10.00,
-  },
-  {
-    id: "3",
-    name: "Instrument",
-    rate: 20.00,
-  },
-  {
-    id: "4",
-    name: "xClarinet",
-    rate: 36.00,
-  },
-  {
-    id: "5",
-    name: "xPiano Contemporary",
-    rate: 10.00,
-  },
-  {
-    id: "6",
-    name: "xGuitar Core",
-    rate: 10.00,
-  },
-  {
-    id: "7",
-    name: "xGuitar Contemporary",
-    rate: 10.00,
-  },
-  {
-    id: "8",
-    name: "xGuitar Hybrid",
-    rate: 10.00,
-  },
-  {
-    id: "9",
-    name: "xPiano Hybrid",
-    rate: undefined,
-  },
-  {
-    id: "10",
-    name: "40th Anniversary Vocal",
-    rate: 25.00,
-  },
-  {
-    id: "11",
-    name: "Rami Test Program",
-    rate: 30.00,
-  },
-];
-
 interface TeacherPrivateQualificationCardProps {
   qualifications: TeacherQualification[];
   onUpdate: React.Dispatch<React.SetStateAction<TeacherQualification[]>>;
@@ -84,9 +25,9 @@ export const TeacherPrivateQualificationCard = React.memo(
     const [currentPage, setCurrentPage] = React.useState(1);
     const itemsPerPage = 10;
     
-    // Use mock data if no qualifications provided
+    // Use qualifications from props (fetched from API)
     const qualifications = React.useMemo(() => {
-      return propsQualifications.length > 0 ? propsQualifications : MOCK_PRIVATE_QUALIFICATIONS;
+      return propsQualifications;
     }, [propsQualifications]);
 
     const handleAddClick = React.useCallback(() => {

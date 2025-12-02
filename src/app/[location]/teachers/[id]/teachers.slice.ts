@@ -1,6 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { updateTeacherDetails, UpdateTeacherDetailsData } from '../teachers.api';
-import { getTeacherDetails, TeacherDetailsApiResponse } from './teachers-details.api';
+import { 
+  getTeacherDetails, 
+  TeacherDetailsApiResponse,
+  getTeacherQualifications,
+  TeacherQualificationsApiResponse,
+  TeacherQualificationResponse
+} from './teachers-details.api';
 import type { TeacherInfo } from './teachers-details.interface';
 import type { 
   TeacherBasicDetails, 
@@ -78,6 +84,38 @@ function transformApiResponse(apiResponse: TeacherDetailsApiResponse): TeacherIn
     };
   }
 
+/**
+ * Transforms API qualifications response to match the TeacherQualification interface
+ * Parses rate string (e.g., "$25.00") to number
+ */
+function transformQualificationsResponse(
+  apiResponse: TeacherQualificationsApiResponse
+): TeacherQualification[] {
+  // Extract qualifications from API response
+  const qualifications = apiResponse.data?.body || [];
+  
+  return qualifications.map((qual) => {
+    // Parse rate string (e.g., "$25.00" -> 25.00)
+    let rateValue: number | undefined = undefined;
+    if (qual.rate) {
+      // Remove "$" and any whitespace, then parse
+      const cleanedRate = qual.rate.replace(/[$,\s]/g, '');
+      const parsed = parseFloat(cleanedRate);
+      if (!isNaN(parsed)) {
+        rateValue = parsed;
+      }
+    }
+
+    return {
+      id: qual.id.toString(),
+      name: qual.programName, // Use programName from API
+      rate: rateValue,
+      description: undefined, // Not in API response
+      dateObtained: undefined, // Not in API response
+    };
+  });
+}
+
 // Async thunk for fetching teacher info with caching
 export const fetchTeacher = createAsyncThunk(
   'teacher/fetchTeacher',
@@ -108,6 +146,37 @@ export const fetchTeacher = createAsyncThunk(
       }
 
       const transformedData = transformApiResponse(result);
+
+      // Fetch private and group qualifications separately (non-blocking - don't fail if these fail)
+      const [privateQualificationsResult, groupQualificationsResult] = await Promise.all([
+        getTeacherQualifications(location, teacherId, "private"),
+        getTeacherQualifications(location, teacherId, "group"),
+      ]);
+      
+      // Process private qualifications
+      if (privateQualificationsResult) {
+        try {
+          transformedData.privateQualifications = transformQualificationsResponse(privateQualificationsResult);
+        } catch (transformError) {
+          console.warn('Failed to transform private qualifications:', transformError);
+          transformedData.privateQualifications = [];
+        }
+      } else {
+        transformedData.privateQualifications = [];
+      }
+
+      // Process group qualifications
+      if (groupQualificationsResult) {
+        try {
+          transformedData.groupQualifications = transformQualificationsResponse(groupQualificationsResult);
+        } catch (transformError) {
+          console.warn('Failed to transform group qualifications:', transformError);
+          transformedData.groupQualifications = [];
+        }
+      } else {
+        transformedData.groupQualifications = [];
+      }
+
       return { data: transformedData, fromCache: false };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch teacher info');

@@ -248,7 +248,12 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
 export function formatQualificationDisplay(qualification: TeacherQualification): string {
   const parts: string[] = [qualification.name];
   if (qualification.rate !== undefined && qualification.rate !== null) {
-    parts.push(`$${qualification.rate.toFixed(2)}/hr`);
+    const rateValue = typeof qualification.rate === 'number' 
+      ? qualification.rate 
+      : parseFloat(String(qualification.rate));
+    if (!isNaN(rateValue)) {
+      parts.push(`$${rateValue.toFixed(2)}/hr`);
+    }
   }
   if (qualification.dateObtained) {
     parts.push(`Obtained: ${qualification.dateObtained}`);
@@ -319,7 +324,12 @@ export function QualificationList({
             </div>
             <div className="text-right">
               {qualification.rate !== undefined && qualification.rate !== null
-                ? `$${qualification.rate.toFixed(2)}`
+                ? (() => {
+                    const rateValue = typeof qualification.rate === 'number' 
+                      ? qualification.rate 
+                      : parseFloat(String(qualification.rate));
+                    return !isNaN(rateValue) ? `$${rateValue.toFixed(2)}` : "";
+                  })()
                 : ""}
             </div>
           </div>
