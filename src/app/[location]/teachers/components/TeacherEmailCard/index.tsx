@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { InfoCard } from "@/components/InfoCard";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { TeacherEmail } from "../../types";
 import { CreateEmailModal } from "../modals/CreateEmailModal";
 import { useEmailHandlers } from "../../hooks/useTeacherItemHandlers";
@@ -31,7 +32,11 @@ export const TeacherEmailCard = React.memo(function TeacherEmailCard({
     setEditingEmail,
     handleCreate,
     handleEdit,
-    handleDelete,
+    requestDelete,
+    emailToDelete,
+    setEmailToDelete,
+    handleDeleteConfirm,
+    isDeleting,
   } = useEmailHandlers({
     emails,
     updateEmails: onUpdate,
@@ -57,9 +62,9 @@ export const TeacherEmailCard = React.memo(function TeacherEmailCard({
   const handleDeleteClick = React.useCallback(
     (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
-      handleDelete(id);
+      requestDelete(id);
     },
-    [handleDelete]
+    [requestDelete]
   );
 
   const handleModalSubmit = React.useCallback(
@@ -102,6 +107,19 @@ export const TeacherEmailCard = React.memo(function TeacherEmailCard({
         teacherId={teacherId}
         onUpdateEmails={onUpdate}
         currentEmails={emails}
+      />
+
+      <DeleteConfirmationModal
+        open={!!emailToDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEmailToDelete(null);
+          }
+        }}
+        title="Delete email"
+        itemLabel={emailToDelete ? emailToDelete.email : undefined}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
       />
     </>
   );

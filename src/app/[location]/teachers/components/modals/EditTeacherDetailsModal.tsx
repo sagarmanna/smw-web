@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TeacherBasicDetails } from "../../types";
+import { formatDisplayDate } from "../../utils/dateUtils";
 import { toast } from "sonner";
 
 interface EditTeacherDetailsModalProps {
@@ -31,7 +32,15 @@ export function EditTeacherDetailsModal({
 }: EditTeacherDetailsModalProps) {
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
+  // Raw date value we send to API (ISO-like, e.g. 2019-01-16)
   const [birthDate, setBirthDate] = React.useState("");
+  // Display value shown in the input (e.g. "Jan 16, 2019")
+  const [birthDateDisplay, setBirthDateDisplay] = React.useState("");
+  // Ref for native date input to imperatively open the picker
+  type DateInputElement = HTMLInputElement & {
+    showPicker?: () => void;
+  };
+  const dateInputRef = React.useRef<DateInputElement | null>(null);
   
   // Field-level validation states
   const [firstNameTouched, setFirstNameTouched] = React.useState(false);
@@ -42,7 +51,16 @@ export function EditTeacherDetailsModal({
     if (details) {
       setFirstName(details.firstName ?? "");
       setLastName(details.lastName ?? "");
-      setBirthDate(details.birthDate ?? "");
+      // Keep raw date for API and formatted string for display
+      const raw = details.birthDate ?? "";
+      setBirthDate(raw);
+      setBirthDateDisplay(raw ? formatDisplayDate(raw) : "");
+    } else {
+      // Reset form when details are cleared
+      setFirstName("");
+      setLastName("");
+      setBirthDate("");
+      setBirthDateDisplay("");
     }
     // Reset validation states when modal opens/closes
     if (open) {
@@ -144,12 +162,40 @@ export function EditTeacherDetailsModal({
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="teacher-birthdate">Birth Date</Label>
-              <Input
-                id="teacher-birthdate"
-                type="date"
-                value={birthDate ?? ""}
-                onChange={(event) => setBirthDate(event.target.value)}
-              />
+              <div
+                className="relative"
+                onClick={() => {
+                  // Try to programmatically open the native date picker
+                  const inputEl = dateInputRef.current;
+                  if (inputEl?.showPicker) {
+                    inputEl.showPicker();
+                  } else {
+                    inputEl?.focus();
+                  }
+                }}
+              >
+                {/* Visible formatted field */}
+                <Input
+                  id="teacher-birthdate-display"
+                  type="text"
+                  placeholder="Select Date"
+                  value={birthDateDisplay}
+                  readOnly
+                />
+                {/* Native date input to provide calendar picker */}
+                <input
+                  id="teacher-birthdate"
+                  type="date"
+                  ref={dateInputRef}
+                  className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+                  value={birthDate}
+                  onChange={(event) => {
+                    const value = event.target.value; // yyyy-mm-dd
+                    setBirthDate(value);
+                    setBirthDateDisplay(value ? formatDisplayDate(value) : "");
+                  }}
+                />
+              </div>
             </div>
           </div>
 
