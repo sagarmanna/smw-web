@@ -289,6 +289,14 @@ const normalizeDate = (date: Date): Date =>
 const getEndOfMonth = (date: Date): Date =>
   new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
+// Calculate minimum return date for ongoing rentals (start date + 30 days)
+const getMinimumReturnDate = (startDate: Date): Date => {
+  const normalizedStart = normalizeDate(startDate);
+  const minimumDate = new Date(normalizedStart);
+  minimumDate.setDate(minimumDate.getDate() + 30);
+  return normalizeDate(minimumDate);
+};
+
 const getOngoingBillingDetails = (startDate: Date) => {
   const normalizedStart = normalizeDate(startDate);
   const dayOfMonth = normalizedStart.getDate();
@@ -1511,6 +1519,17 @@ export function EquipmentRentalsModal({
       return;
     }
 
+    // Validate minimum 30 days from start date (matching backend validation)
+    if (formData.rentalStartDate) {
+      const minimumDate = getMinimumReturnDate(formData.rentalStartDate);
+      const selectedDate = normalizeDate(formData.returnDate);
+      
+      if (selectedDate < minimumDate) {
+        toast.error("Minimum duration should be 30 days from the start date.");
+        return;
+      }
+    }
+
     try {
       setUpdating(true);
 
@@ -1583,8 +1602,15 @@ export function EquipmentRentalsModal({
           });
         }
       } else {
-        const errorMessage =
-          response.errors?.join(", ") || "Failed to update return date";
+        // Handle both string and array error formats
+        let errorMessage = "Failed to update return date";
+        if (response.errors) {
+          if (typeof response.errors === "string") {
+            errorMessage = response.errors;
+          } else if (Array.isArray(response.errors)) {
+            errorMessage = response.errors.join(", ");
+          }
+        }
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -2330,6 +2356,17 @@ export function EquipmentRentalsModal({
                       selected={formData.returnDate}
                       onSelect={(date) => {
                         if (date) {
+                          // Validate minimum 30 days from start date
+                          if (formData.rentalStartDate) {
+                            const minimumDate = getMinimumReturnDate(formData.rentalStartDate);
+                            const selectedDate = normalizeDate(date);
+                            
+                            if (selectedDate < minimumDate) {
+                              toast.error("Minimum duration should be 30 days from the start date.");
+                              setIsReturnDateOpen(false);
+                              return;
+                            }
+                          }
                           handleInputChange("returnDate", date);
                         } else {
                           // Clear return date
@@ -2339,6 +2376,15 @@ export function EquipmentRentalsModal({
                           }));
                         }
                         setIsReturnDateOpen(false);
+                      }}
+                      disabled={(date) => {
+                        // Disable dates that are less than 30 days from start date
+                        if (!formData.rentalStartDate) {
+                          return false;
+                        }
+                        const minimumDate = getMinimumReturnDate(formData.rentalStartDate);
+                        const checkDate = normalizeDate(date);
+                        return checkDate < minimumDate;
                       }}
                       initialFocus
                     />
