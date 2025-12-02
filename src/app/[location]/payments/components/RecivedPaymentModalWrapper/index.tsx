@@ -11,6 +11,8 @@ import EmailStatementModal, {
 } from "@/app/[location]/customers/components/EmailStatementModal/index";
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { getPaymentReceiptData } from "@/app/[location]/customers/components/ReceiptPaymentModal/receipt-payment.api";
+import { getCustomerPayments } from "@/app/[location]/customers/customers.api";
 
 interface PaymentsReceivePaymentModalProps {
   open: boolean;
@@ -29,6 +31,42 @@ export function PaymentsReceivePaymentModal({
 }: PaymentsReceivePaymentModalProps) {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
   const [receiptPaymentData, setReceiptPaymentData] = React.useState<ReceivePaymentData | null>(null);
+  const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<{
+    date: string;
+    paymentMethod: string;
+    reference: string;
+    amount: number;
+    lessons?: Array<{
+      date: string;
+      student: string;
+      program: string;
+      teacher: string;
+      amount: string;
+      payment: string;
+      balance: string;
+    }>;
+    groupLessons?: Array<{
+      date: string;
+      student: string;
+      program: string;
+      amount: string;
+      balance: string;
+    }>;
+    invoices?: Array<{
+      date: string;
+      number: string;
+      amount: string;
+      payment: string;
+      balance: string;
+    }>;
+    credits?: Array<{
+      type: string;
+      reference: string;
+      paymentMethod?: string;
+      amount: string;
+      amountUsed: string;
+    }>;
+  } | null>(null);
   const [customerName, setCustomerName] = React.useState<string>("");
   const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
   const [emailModalOverrides, setEmailModalOverrides] = React.useState<{
@@ -136,8 +174,10 @@ export function PaymentsReceivePaymentModal({
           canUseInvoiceCredits: invoiceCreditsArray.length > 0 ? 1 : 0,
           prId: paymentId || "",
         };
-        const response = await receivePayment(location, legacyPaymentData);
 
+        // Call API to save payment
+        const response = await receivePayment(location, legacyPaymentData);
+        
         if (!response.status) {
           toast.error(
             response.message ||
@@ -146,16 +186,134 @@ export function PaymentsReceivePaymentModal({
           );
           return;
         }
-
+        
         toast.success("Payment saved successfully");
 
-        // Store payment data and open receipt modal
+        // Store payment data
         setReceiptPaymentData(paymentData);
         // TODO: Fetch customer name from customerId - for now using placeholder
         setCustomerName(`Customer ${customerIdNum}`);
         onOpenChange(false);
-        setIsReceiptModalOpen(true);
-        onSaveSuccess?.();
+
+        // Fetch receipt data from API after saving (similar to CustomerDetailClient)
+        try {
+          // Refresh payments list to get the latest payment
+          const paymentsResponse = await getCustomerPayments(
+            location,
+            customerIdNum,
+            1,
+            1
+          );
+          
+          if (paymentsResponse.data && paymentsResponse.data.length > 0) {
+            const latestPayment = paymentsResponse.data[0];
+            
+            // Small delay to ensure payment is fully saved in database
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Fetch payment receipt data which includes lessons
+            const receiptData = await getPaymentReceiptData(location, latestPayment.id);
+            
+            // Use payment method name from paymentData if available, otherwise use from receiptData
+            let paymentMethodName = paymentData.paymentMethodName;
+            if (!paymentMethodName) {
+              paymentMethodName = receiptData.info?.paymentMethod || paymentData.paymentMethod;
+            }
+            
+            // Build credits data for Payments Used table
+            const credits: Array<{
+              type: string;
+              reference: string;
+              paymentMethod?: string;
+              amount: string;
+              amountUsed: string;
+            }> = [];
+            
+            // Get credit details if available
+            const creditDetailsMap = new Map<string, { id: string; reference: string; payment: string; type: string }>();
+            if (paymentData.creditDetails && Array.isArray(paymentData.creditDetails)) {
+              paymentData.creditDetails.forEach((credit) => {
+                creditDetailsMap.set(credit.id, credit);
+              });
+            }
+            
+            // Add invoice credits first
+            if (paymentData.invoiceCredits && Object.keys(paymentData.invoiceCredits).length > 0) {
+              Object.entries(paymentData.invoiceCredits).forEach(([id, amount]) => {
+                const creditDetail = creditDetailsMap.get(id);
+                const invoiceRef = creditDetail?.reference || (id.startsWith("I-") ? id : `I-${id}`);
+                credits.push({
+                  type: "Invoice Credit",
+                  reference: invoiceRef,
+                  paymentMethod: "",
+                  amount: "$0.00",
+                  amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount),
+                });
+              });
+            }
+            
+            // Add payment credits
+            if (paymentData.paymentCredits && Object.keys(paymentData.paymentCredits).length > 0) {
+              Object.entries(paymentData.paymentCredits).forEach(([id, amount]) => {
+                const creditDetail = creditDetailsMap.get(id);
+                credits.push({
+                  type: "Payment Credit",
+                  reference: "",
+                  paymentMethod: paymentData.paymentMethodName || "Visa",
+                  amount: formatCurrency(amount),
+                  amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount),
+                });
+              });
+            }
+            
+            // Build directPaymentData from receipt data
+            const directData = {
+              date: receiptData.info?.date || paymentData.date,
+              paymentMethod: paymentMethodName,
+              reference: receiptData.info?.reference || paymentData.reference || "",
+              amount: receiptData.info?.amount || paymentData.amountReceived,
+              lessons: receiptData.lessons.data.map(lesson => ({
+                date: lesson.date,
+                student: lesson.student,
+                program: lesson.program,
+                teacher: lesson.teacher,
+                amount: lesson.amount,
+                payment: lesson.payment,
+                balance: "$0.00",
+              })),
+              groupLessons: receiptData.groupLessons.data.map(gl => ({
+                date: gl.date,
+                student: gl.student,
+                program: gl.program,
+                amount: gl.amount,
+                balance: "$0.00",
+              })),
+              invoices: receiptData.invoices.data.map(inv => ({
+                date: inv.date,
+                number: inv.number,
+                amount: inv.amount,
+                payment: inv.payment,
+                balance: "$0.00",
+              })),
+              credits: credits.length > 0 ? credits : undefined,
+            };
+            
+            // Store the API receipt data directly (similar to CustomerDetailClient)
+            setDirectPaymentReceiptData(directData);
+            setIsReceiptModalOpen(true);
+          } else {
+            // If we can't get the payment, still show receipt with paymentData
+            setIsReceiptModalOpen(true);
+          }
+          
+          // Refresh payments list
+          onSaveSuccess?.();
+        } catch (error) {
+          console.error("Error fetching payment receipt data:", error);
+          // Still show receipt modal with paymentData details as fallback
+          setIsReceiptModalOpen(true);
+          onSaveSuccess?.();
+        }
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Failed to save payment"
@@ -207,44 +365,124 @@ export function PaymentsReceivePaymentModal({
       "7": "Gift Card",
       "8": "Account Entry",
     };
-    const paymentMethodName = paymentMethodNames[receiptPaymentData.paymentMethod] || "Cash";
+    const paymentMethodName = receiptPaymentData.paymentMethodName || 
+                              paymentMethodNames[receiptPaymentData.paymentMethod] || 
+                              "Cash";
 
-    // Transform lessons (simplified - in real scenario, you'd have full lesson data)
-    const lessons = Object.entries(receiptPaymentData.lessonPayments || {})
-      .filter(([_, amount]) => amount > 0)
-      .map(([id, amount]) => ({
-        date: receiptPaymentData.date, // Use payment date as placeholder
-        student: "Student", // Placeholder - would come from actual lesson data
-        program: "Program", // Placeholder
-        teacher: "Teacher", // Placeholder
-        amount: formatCurrency(amount),
-        payment: formatCurrency(amount),
-        balance: "$0.00",
-      }));
+    // Helper function to format currency
+    const formatCurrencyAmount = (amount: number): string => {
+      return formatCurrency(amount);
+    };
 
-    // Transform group lessons
-    const groupLessons = Object.entries(receiptPaymentData.groupLessonPayments || {})
-      .filter(([_, amount]) => amount > 0)
-      .map(([id, amount]) => ({
-        date: receiptPaymentData.date,
-        student: "Student",
-        program: "Program",
-        amount: formatCurrency(amount),
-        balance: "$0.00",
-      }));
+    // Build credits data for Payments Used table
+    const credits: Array<{
+      type: string;
+      reference: string;
+      paymentMethod?: string;
+      amount: string;
+      amountUsed: string;
+    }> = [];
+    
+    // Get credit details if available
+    const creditDetailsMap = new Map<string, { id: string; reference: string; payment: string; type: string }>();
+    if (receiptPaymentData.creditDetails && Array.isArray(receiptPaymentData.creditDetails)) {
+      receiptPaymentData.creditDetails.forEach((credit) => {
+        creditDetailsMap.set(credit.id, credit);
+      });
+    }
+    
+    // Add invoice credits first (they should appear first in the table)
+    if (receiptPaymentData.invoiceCredits && Object.keys(receiptPaymentData.invoiceCredits).length > 0) {
+      Object.entries(receiptPaymentData.invoiceCredits).forEach(([id, amount]) => {
+        const creditDetail = creditDetailsMap.get(id);
+        // For invoice credits, reference should be the invoice number (like "I-94673")
+        const invoiceRef = creditDetail?.reference || (id.startsWith("I-") ? id : `I-${id}`);
+        credits.push({
+          type: "Invoice Credit",
+          reference: invoiceRef,
+          paymentMethod: "", // Empty for invoice credit
+          amount: "$0.00", // Always $0.00 for invoice credit
+          amountUsed: creditDetail ? formatCurrencyAmount(parseFloat(creditDetail.payment)) : formatCurrencyAmount(amount),
+        });
+      });
+    }
+    
+    // Add payment credits
+    if (receiptPaymentData.paymentCredits && Object.keys(receiptPaymentData.paymentCredits).length > 0) {
+      Object.entries(receiptPaymentData.paymentCredits).forEach(([id, amount]) => {
+        const creditDetail = creditDetailsMap.get(id);
+        credits.push({
+          type: "Payment Credit",
+          reference: "", // Empty for payment credit
+          paymentMethod: receiptPaymentData.paymentMethodName || "Visa", // Use payment method name if available
+          amount: formatCurrencyAmount(amount), // Amount to apply
+          amountUsed: creditDetail ? formatCurrencyAmount(parseFloat(creditDetail.payment)) : formatCurrencyAmount(amount),
+        });
+      });
+    }
 
-    // Transform invoices
-    const invoices = Object.entries(receiptPaymentData.invoicePayments || {})
-      .filter(([_, amount]) => amount > 0)
-      .map(([id, amount]) => ({
-        date: receiptPaymentData.date,
-        number: id,
-        amount: formatCurrency(amount),
-        payment: formatCurrency(amount),
-        balance: "$0.00",
-      }));
+    // Transform lessons using actual lesson details if available
+    const lessons = receiptPaymentData.lessonDetails && receiptPaymentData.lessonDetails.length > 0
+      ? receiptPaymentData.lessonDetails.map((lesson) => ({
+          date: lesson.date,
+          student: lesson.student,
+          program: lesson.program,
+          teacher: lesson.teacher,
+          amount: formatCurrencyAmount(lesson.amount),
+          payment: formatCurrencyAmount(parseFloat(lesson.payment)),
+          balance: "$0.00",
+        }))
+      : Object.entries(receiptPaymentData.lessonPayments || {})
+          .filter(([_, amount]) => amount > 0)
+          .map(([id, amount]) => ({
+            date: receiptPaymentData.date,
+            student: "Student", // Fallback placeholder if no details
+            program: "Program",
+            teacher: "Teacher",
+            amount: formatCurrencyAmount(amount),
+            payment: formatCurrencyAmount(amount),
+            balance: "$0.00",
+          }));
 
-    return {
+    // Transform group lessons using actual group lesson details if available
+    const groupLessons = receiptPaymentData.groupLessonDetails && receiptPaymentData.groupLessonDetails.length > 0
+      ? receiptPaymentData.groupLessonDetails.map((gl) => ({
+          date: gl.date,
+          student: gl.student,
+          program: gl.program,
+          amount: formatCurrencyAmount(gl.amount),
+          balance: "$0.00",
+        }))
+      : Object.entries(receiptPaymentData.groupLessonPayments || {})
+          .filter(([_, amount]) => amount > 0)
+          .map(([id, amount]) => ({
+            date: receiptPaymentData.date,
+            student: "Student", // Fallback placeholder if no details
+            program: "Program",
+            amount: formatCurrencyAmount(amount),
+            balance: "$0.00",
+          }));
+
+    // Transform invoices using actual invoice details if available
+    const invoices = receiptPaymentData.invoiceDetails && receiptPaymentData.invoiceDetails.length > 0
+      ? receiptPaymentData.invoiceDetails.map((inv) => ({
+          date: inv.date,
+          number: inv.number,
+          amount: formatCurrencyAmount(inv.amount),
+          payment: formatCurrencyAmount(parseFloat(inv.payment)),
+          balance: "$0.00",
+        }))
+      : Object.entries(receiptPaymentData.invoicePayments || {})
+          .filter(([_, amount]) => amount > 0)
+          .map(([id, amount]) => ({
+            date: receiptPaymentData.date,
+            number: id,
+            amount: formatCurrencyAmount(amount),
+            payment: formatCurrencyAmount(amount),
+            balance: "$0.00",
+          }));
+
+    const transformedData = {
       date: receiptPaymentData.date,
       paymentMethod: paymentMethodName,
       reference: receiptPaymentData.reference || "",
@@ -252,7 +490,10 @@ export function PaymentsReceivePaymentModal({
       lessons: lessons.length > 0 ? lessons : undefined,
       groupLessons: groupLessons.length > 0 ? groupLessons : undefined,
       invoices: invoices.length > 0 ? invoices : undefined,
+      credits: credits.length > 0 ? credits : undefined,
     };
+
+    return transformedData;
   }, [receiptPaymentData]);
 
   return (
@@ -266,15 +507,20 @@ export function PaymentsReceivePaymentModal({
     />
 
       {/* Payment Receipt Modal */}
-      {transformedReceiptData && (
+      {(directPaymentReceiptData || transformedReceiptData) && (
         <PaymentReceiptModalContainer
           open={isReceiptModalOpen}
-          onOpenChange={setIsReceiptModalOpen}
+          onOpenChange={(open) => {
+            setIsReceiptModalOpen(open);
+            if (!open) {
+              setDirectPaymentReceiptData(null);
+            }
+          }}
           location={location}
           customerId={Number(receiptPaymentData?.customer) || undefined}
           customerName={customerName}
           mode="new"
-          directPaymentData={transformedReceiptData}
+          directPaymentData={directPaymentReceiptData || transformedReceiptData}
           onEmail={handleEmail}
         />
       )}
