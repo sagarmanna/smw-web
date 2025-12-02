@@ -1,12 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { updateTeacherDetails, UpdateTeacherDetailsData } from '../teachers.api';
 import { 
-  updateTeacherDetails, 
-  UpdateTeacherDetailsData, 
-  getTeacherQualifications, 
+  getTeacherDetails, 
+  TeacherDetailsApiResponse,
+  getTeacherQualifications,
   TeacherQualificationsApiResponse,
   TeacherQualificationResponse
-} from '../teachers.api';
-import { getTeacherDetails, TeacherDetailsApiResponse } from './teachers-details.api';
+} from './teachers-details.api';
 import type { TeacherInfo } from './teachers-details.interface';
 import type { 
   TeacherBasicDetails, 
