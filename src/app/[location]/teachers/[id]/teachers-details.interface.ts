@@ -3,6 +3,7 @@ import {
   TeacherEmail,
   TeacherPhone,
   TeacherAddress,
+  TeacherQualification,
 } from '../types';
 
 export interface TeacherProfile {
@@ -17,5 +18,7 @@ export interface TeacherInfo {
   email: TeacherEmail[];
   phone: TeacherPhone[];
   addresses: TeacherAddress[];
+  privateQualifications: TeacherQualification[];
+  groupQualifications: TeacherQualification[];
 }
 

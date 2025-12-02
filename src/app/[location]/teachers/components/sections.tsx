@@ -3,12 +3,14 @@
 import * as React from "react";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import {
   TeacherAddress,
   TeacherEmail,
   TeacherPhone,
+  TeacherQualification,
 } from "../types";
 
 // Reusable skeleton loader component
@@ -278,5 +280,129 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
         );
       })}
     </>
+  );
+}
+
+// Qualification-specific formatting and list component
+export function formatQualificationDisplay(qualification: TeacherQualification): string {
+  const parts: string[] = [qualification.name];
+  if (qualification.rate !== undefined && qualification.rate !== null) {
+    const rateValue = typeof qualification.rate === 'number' 
+      ? qualification.rate 
+      : parseFloat(String(qualification.rate));
+    if (!isNaN(rateValue)) {
+      parts.push(`$${rateValue.toFixed(2)}/hr`);
+    }
+  }
+  if (qualification.dateObtained) {
+    parts.push(`Obtained: ${qualification.dateObtained}`);
+  }
+  return parts.join(" • ");
+}
+
+interface QualificationListProps {
+  qualifications: TeacherQualification[];
+  loading?: boolean;
+  currentPage?: number;
+  totalPages?: number;
+  showPagination?: boolean;
+  onPageChange?: (page: number) => void;
+  onRowClick?: (qualification: TeacherQualification) => void;
+}
+
+export function QualificationList({ 
+  qualifications, 
+  loading = false,
+  currentPage = 1,
+  totalPages = 1,
+  showPagination = false,
+  onPageChange,
+  onRowClick,
+}: QualificationListProps) {
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-4 pb-2 border-b">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24 ml-auto" />
+        </div>
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="grid grid-cols-2 gap-4 py-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-20 ml-auto" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (qualifications.length === 0) {
+    return <EmptyState message="No qualifications added" />;
+  }
+
+  return (
+    <div className="w-full">
+      {/* Table Header */}
+      <div className="grid grid-cols-2 gap-4 pb-2 border-b font-semibold text-sm">
+        <div className="text-left">Name</div>
+        <div className="text-right">Rate ($/hr)</div>
+      </div>
+      
+      {/* Table Rows */}
+      <div className="divide-y">
+        {qualifications.map((qualification, index) => (
+          <div
+            key={qualification.id}
+            onClick={() => onRowClick?.(qualification)}
+            className={`grid grid-cols-2 gap-4 py-2 cursor-pointer transition-colors ${
+              index % 2 === 0 ? "bg-white dark:bg-black" : "bg-gray-50 dark:bg-gray-900"
+            } hover:bg-gray-100 dark:hover:bg-gray-800`}
+          >
+            <div className="text-left">
+              <span>{qualification.name}</span>
+            </div>
+            <div className="text-right">
+              {qualification.rate !== undefined && qualification.rate !== null
+                ? (() => {
+                    const rateValue = typeof qualification.rate === 'number' 
+                      ? qualification.rate 
+                      : parseFloat(String(qualification.rate));
+                    return !isNaN(rateValue) ? `$${rateValue.toFixed(2)}` : "";
+                  })()
+                : ""}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination Controls */}
+      {showPagination && totalPages > 1 && onPageChange && (
+        <div className="flex items-center justify-between pt-3 mt-3 border-t">
+          <div className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
