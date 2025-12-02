@@ -58,7 +58,7 @@ export function DetailHeader({
   currentPageTitle,
   loading = false,
   actionMenuGroups = [],
-  actionButtonAriaLabel = "Actions",
+  actionButtonAriaLabel = "Action",
   showActions = true,
   rightContent,
   className = "",

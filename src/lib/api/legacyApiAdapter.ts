@@ -1091,3 +1091,33 @@ export async function receivePayment(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+/**
+ * Delete a payment using the legacy API
+ */
+export async function deletePayment(
+  location: string,
+  paymentId: string | number
+): Promise<LegacyApiResponse> {
+  const url = `/admin/${location}/payment/delete?id=${paymentId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
