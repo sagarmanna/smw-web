@@ -1762,7 +1762,7 @@ export function CustomerDetailClient({
   // Define action menu groups
   const customerActionMenuGroups: ActionMenuGroup[] = [
     {
-      label: "Actions",
+      label: "Action",
       items: [
         {
           label: "Receive Payment",
