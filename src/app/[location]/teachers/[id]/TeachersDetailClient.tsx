@@ -46,6 +46,7 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
     updateAddresses,
     updatePrivateQualifications,
     updateGroupQualifications,
+    refresh,
   } = useTeacherDetails(location, teacherId);
 
   // All hooks must be called before any early returns
@@ -131,26 +132,60 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               onUpdate={updateGroupQualifications}
               loading={isLoading}
             />
+            {/* Mobile Email and Phone Cards - Only on Mobile */}
+            <div className="lg:hidden space-y-3 sm:space-y-4">
+              <TeacherEmailCard
+                emails={emails}
+                onUpdate={updateEmails}
+                loading={isLoading}
+                location={location}
+                teacherId={teacherId}
+                onRefresh={refresh}
+              />
+
+              <TeacherPhoneCard
+                phones={phones}
+                onUpdate={updatePhones}
+                loading={isLoading}
+                location={location}
+                teacherId={teacherId}
+                onRefresh={refresh}
+              />
+            </div>
           </div>
 
           {/* Right Column */}
           <div className="space-y-3 sm:space-y-4">
-            <TeacherEmailCard
-              emails={emails}
-              onUpdate={updateEmails}
-              loading={isLoading}
-            />
+            {/* Desktop Email and Phone Cards */}
+            <div className="hidden lg:block">
+              <TeacherEmailCard
+                emails={emails}
+                onUpdate={updateEmails}
+                loading={isLoading}
+                location={location}
+                teacherId={teacherId}
+                onRefresh={refresh}
+              />
+            </div>
 
-            <TeacherPhoneCard
-              phones={phones}
-              onUpdate={updatePhones}
-              loading={isLoading}
-            />
+            <div className="hidden lg:block">
+              <TeacherPhoneCard
+                phones={phones}
+                onUpdate={updatePhones}
+                loading={isLoading}
+                location={location}
+                teacherId={teacherId}
+                onRefresh={refresh}
+              />
+            </div>
 
             <TeacherAddressCard
               addresses={addresses}
               onUpdate={updateAddresses}
               loading={isLoading}
+              location={location}
+              teacherId={teacherId}
+              onRefresh={refresh}
             />
           </div>
         </div>

@@ -2,18 +2,27 @@
 
 import * as React from "react";
 import { TeacherEmail, TeacherPhone, TeacherAddress, TeacherQualification } from "../types";
+import { deleteTeacherEmail, deleteTeacherPhone, deleteTeacherAddress } from "../[id]/teachers-details.api";
+import { toast } from "sonner";
 
 interface UseEmailHandlersProps {
   emails: TeacherEmail[];
   updateEmails: React.Dispatch<React.SetStateAction<TeacherEmail[]>>;
+  location: string;
+  teacherId: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export function useEmailHandlers({
   emails,
   updateEmails,
+  location,
+  teacherId,
+  onRefresh,
 }: UseEmailHandlersProps) {
   const [editingEmail, setEditingEmail] = React.useState<TeacherEmail | null>(null);
   const [emailToDelete, setEmailToDelete] = React.useState<TeacherEmail | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCreate = React.useCallback(
     (newEmail: TeacherEmail) => {
@@ -42,21 +51,44 @@ export function useEmailHandlers({
   }, []);
 
   const handleDelete = React.useCallback(
-    (id: string) => {
+    async (id: string) => {
       const email = emails.find((e) => e.id === id);
-      if (email) {
-        setEmailToDelete(email);
+      if (!email) return;
+
+      setIsDeleting(true);
+      
+      try {
+        const result = await deleteTeacherEmail(location, teacherId, id);
+        
+        if (result?.success) {
+          toast.success("Email deleted successfully");
+          
+          // Update local state
+          updateEmails((prev) => prev.filter((email) => email.id !== id));
+          
+          // Refresh from server to get latest data
+          if (onRefresh) {
+            await onRefresh();
+          }
+        } else {
+          toast.error(result?.message || "Failed to delete email");
+        }
+      } catch (error) {
+        console.error("Error deleting email:", error);
+        toast.error("Failed to delete email");
+      } finally {
+        setIsDeleting(false);
+        setEmailToDelete(null);
       }
     },
-    [emails]
+    [emails, location, teacherId, updateEmails, onRefresh]
   );
 
   const handleDeleteConfirm = React.useCallback(() => {
     if (emailToDelete) {
-      updateEmails((prev) => prev.filter((email) => email.id !== emailToDelete.id));
-      setEmailToDelete(null);
+      handleDelete(emailToDelete.id);
     }
-  }, [emailToDelete, updateEmails]);
+  }, [emailToDelete, handleDelete]);
 
   return {
     editingEmail,
@@ -67,20 +99,28 @@ export function useEmailHandlers({
     handleEdit,
     handleDelete,
     handleDeleteConfirm,
+    isDeleting,
   };
 }
 
 interface UsePhoneHandlersProps {
   phones: TeacherPhone[];
   updatePhones: React.Dispatch<React.SetStateAction<TeacherPhone[]>>;
+  location: string;
+  teacherId: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export function usePhoneHandlers({
   phones,
   updatePhones,
+  location,
+  teacherId,
+  onRefresh,
 }: UsePhoneHandlersProps) {
   const [editingPhone, setEditingPhone] = React.useState<TeacherPhone | null>(null);
   const [phoneToDelete, setPhoneToDelete] = React.useState<TeacherPhone | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCreate = React.useCallback(
     (newPhone: TeacherPhone) => {
@@ -103,21 +143,44 @@ export function usePhoneHandlers({
   }, []);
 
   const handleDelete = React.useCallback(
-    (id: string) => {
+    async (id: string) => {
       const phone = phones.find((p) => p.id === id);
-      if (phone) {
-        setPhoneToDelete(phone);
+      if (!phone) return;
+
+      setIsDeleting(true);
+
+      try {
+        const result = await deleteTeacherPhone(location, teacherId, id);
+
+        if (result?.success) {
+          toast.success("Phone deleted successfully");
+
+          // Update local state
+          updatePhones((prev) => prev.filter((phoneItem) => phoneItem.id !== id));
+
+          // Refresh from server to get latest data
+          if (onRefresh) {
+            await onRefresh();
+          }
+        } else {
+          toast.error(result?.message || "Failed to delete phone");
+        }
+      } catch (error) {
+        console.error("Error deleting phone:", error);
+        toast.error("Failed to delete phone");
+      } finally {
+        setIsDeleting(false);
+        setPhoneToDelete(null);
       }
     },
-    [phones]
+    [phones, location, teacherId, updatePhones, onRefresh]
   );
 
   const handleDeleteConfirm = React.useCallback(() => {
     if (phoneToDelete) {
-      updatePhones((prev) => prev.filter((phone) => phone.id !== phoneToDelete.id));
-      setPhoneToDelete(null);
+      handleDelete(phoneToDelete.id);
     }
-  }, [phoneToDelete, updatePhones]);
+  }, [phoneToDelete, handleDelete]);
 
   return {
     editingPhone,
@@ -128,20 +191,28 @@ export function usePhoneHandlers({
     handleEdit,
     handleDelete,
     handleDeleteConfirm,
+    isDeleting,
   };
 }
 
 interface UseAddressHandlersProps {
   addresses: TeacherAddress[];
   updateAddresses: React.Dispatch<React.SetStateAction<TeacherAddress[]>>;
+  location: string;
+  teacherId: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export function useAddressHandlers({
   addresses,
   updateAddresses,
+  location,
+  teacherId,
+  onRefresh,
 }: UseAddressHandlersProps) {
   const [editingAddress, setEditingAddress] = React.useState<TeacherAddress | null>(null);
   const [addressToDelete, setAddressToDelete] = React.useState<TeacherAddress | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCreate = React.useCallback(
     (newAddress: TeacherAddress) => {
@@ -164,21 +235,44 @@ export function useAddressHandlers({
   }, []);
 
   const handleDelete = React.useCallback(
-    (id: string) => {
+    async (id: string) => {
       const address = addresses.find((a) => a.id === id);
-      if (address) {
-        setAddressToDelete(address);
+      if (!address) return;
+
+      setIsDeleting(true);
+      
+      try {
+        const result = await deleteTeacherAddress(location, teacherId, id);
+        
+        if (result?.success) {
+          toast.success("Address deleted successfully");
+          
+          // Update local state
+          updateAddresses((prev) => prev.filter((address) => address.id !== id));
+          
+          // Refresh from server to get latest data
+          if (onRefresh) {
+            await onRefresh();
+          }
+        } else {
+          toast.error(result?.message || "Failed to delete address");
+        }
+      } catch (error) {
+        console.error("Error deleting address:", error);
+        toast.error("Failed to delete address");
+      } finally {
+        setIsDeleting(false);
+        setAddressToDelete(null);
       }
     },
-    [addresses]
+    [addresses, location, teacherId, updateAddresses, onRefresh]
   );
 
   const handleDeleteConfirm = React.useCallback(() => {
     if (addressToDelete) {
-      updateAddresses((prev) => prev.filter((address) => address.id !== addressToDelete.id));
-      setAddressToDelete(null);
+      handleDelete(addressToDelete.id);
     }
-  }, [addressToDelete, updateAddresses]);
+  }, [addressToDelete, handleDelete]);
 
   return {
     editingAddress,
@@ -189,6 +283,7 @@ export function useAddressHandlers({
     handleEdit,
     handleDelete,
     handleDeleteConfirm,
+    isDeleting,
   };
 }
 

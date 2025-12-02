@@ -333,7 +333,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       id: 'teachers',
       title: 'Teachers',
       icon: <GraduationCap className="h-4 w-4" />,
-      url: '/user/index?UserSearch[role_name]=teacher',
+      url: getMenuSource(locationFlags, 'teachers') === 'legacy' ? '/user/index?UserSearch[role_name]=teacher' : '/teachers',
       source: getMenuSource(locationFlags, 'teachers') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'teachers') ? ('no' as const) : ('yes' as const),

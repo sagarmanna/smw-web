@@ -36,59 +36,96 @@ export function useTeacherListing(location: string) {
     return [{ id: sortBy, desc: sortDir === 'desc' }];
   }, [sortBy, sortDir]);
 
-  // Create a ref to store the debounce timeout
-  const debounceTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  // Track if initial fetch has been done to prevent duplicate calls
+  const hasInitialFetchedRef = React.useRef(false);
+  // Track last location to detect location changes
+  const lastLocationRef = React.useRef<string | null>(null);
+  // Store latest columnFilters in ref to avoid dependency in callbacks
+  const columnFiltersRef = React.useRef(columnFilters);
+  // Track previous values to detect changes
+  const prevParamsRef = React.useRef<{
+    location: string;
+    page: number;
+    pageSize: number;
+    activeFilter: string | undefined;
+    sortBy: SortField | undefined;
+    sortDir: 'asc' | 'desc';
+  } | null>(null);
 
+  // Build query function - not memoized to avoid unnecessary recreations
+  const buildQuery = React.useCallback((
+    currentPage: number,
+    currentPageSize: number,
+    currentColumnFilters: Record<string, unknown>,
+    currentActiveFilter: string | undefined,
+    currentSortBy: SortField | undefined,
+    currentSortDir: 'asc' | 'desc'
+  ): TeachersQuery => {
+    const showActive = currentActiveFilter === 'inactive' ? false : true;
+    const showInActive = currentActiveFilter === 'active' ? false : true;
+
+    return {
+      page: currentPage,
+      limit: currentPageSize,
+      firstName: currentColumnFilters.firstName as string | undefined,
+      lastName: currentColumnFilters.lastName as string | undefined,
+      email: currentColumnFilters.email as string | undefined,
+      phone: currentColumnFilters.phoneNumber as string | undefined,
+      showActive,
+      showInActive,
+      sort: currentSortBy,
+      order: currentSortDir,
+    };
+  }, []);
+
+  // Fetch data function - stable reference, reads latest values from refs/state
   const fetchData = React.useCallback(async () => {
-    const query: TeachersQuery = {
-      page,
-      limit: pageSize,
-      firstName: columnFilters.firstName as string | undefined,
-      lastName: columnFilters.lastName as string | undefined,
-      email: columnFilters.email as string | undefined,
-      phone: columnFilters.phoneNumber as string | undefined,
-      showActive: activeFilter === "inactive" ? false : undefined,
-      showInActive: activeFilter === "inactive" ? true : undefined,
-      sort: sortBy,
-      order: sortDir,
-    };
-
+    const query = buildQuery(page, pageSize, columnFilters, activeFilter, sortBy, sortDir);
     await dispatch(fetchTeachers({ location, query }));
-  }, [dispatch, location, page, pageSize, columnFilters, activeFilter, sortBy, sortDir]);
+  }, [dispatch, location, page, pageSize, columnFilters, activeFilter, sortBy, sortDir, buildQuery]);
 
-  // Fetch data immediately for non-filter changes (pagination, sorting, etc.)
-  // Exclude columnFilters from dependencies to avoid immediate fetch on filter change
+  // Keep columnFilters ref in sync
   React.useEffect(() => {
-    // Clear any pending debounce when other params change
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-      debounceTimeoutRef.current = null;
-    }
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, location, page, pageSize, activeFilter, sortBy, sortDir]);
-
-  // Debounced effect for column filters to avoid excessive API calls while typing
-  React.useEffect(() => {
-    // Clear previous timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    // Set new timeout
-    debounceTimeoutRef.current = setTimeout(() => {
-      fetchData();
-    }, 500);
-
-    // Cleanup function
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-        debounceTimeoutRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    columnFiltersRef.current = columnFilters;
   }, [columnFilters]);
+
+  // Single effect for initial load and non-filter changes (pagination, sorting, etc.)
+  // NOTE: columnFilters is NOT in dependencies - API only called on Enter key press via handleColumnFilterEnter
+  React.useEffect(() => {
+    // Check if location changed
+    const locationChanged = lastLocationRef.current !== null && lastLocationRef.current !== location;
+    if (locationChanged) {
+      hasInitialFetchedRef.current = false;
+      prevParamsRef.current = null; // Reset prev params on location change
+    }
+    lastLocationRef.current = location;
+
+    // Check if any param changed (except columnFilters which is handled separately)
+    const paramsChanged = prevParamsRef.current === null || 
+      prevParamsRef.current.location !== location ||
+      prevParamsRef.current.page !== page ||
+      prevParamsRef.current.pageSize !== pageSize ||
+      prevParamsRef.current.activeFilter !== activeFilter ||
+      prevParamsRef.current.sortBy !== sortBy ||
+      prevParamsRef.current.sortDir !== sortDir;
+
+    // Update previous params
+    prevParamsRef.current = {
+      location,
+      page,
+      pageSize,
+      activeFilter,
+      sortBy,
+      sortDir,
+    };
+
+    // Fetch if initial load OR if any param changed
+    if (!hasInitialFetchedRef.current || paramsChanged) {
+      hasInitialFetchedRef.current = true;
+      const query = buildQuery(page, pageSize, columnFiltersRef.current, activeFilter, sortBy, sortDir);
+      dispatch(fetchTeachers({ location, query }));
+    }
+  }, [location, page, pageSize, activeFilter, sortBy, sortDir, dispatch, buildQuery]);
 
   const handleSetSorting = React.useCallback(
     (newSorting: SortingState) => {
@@ -115,16 +152,37 @@ export function useTeacherListing(location: string) {
 
   const handleColumnFilterChange = React.useCallback(
     (columnKey: string, filterValue: unknown) => {
-      dispatch(setColumnFilters({
-        ...columnFilters,
+      // Use ref to get latest value without dependency
+      const newFilters = {
+        ...columnFiltersRef.current,
         [columnKey]: filterValue,
-      }));
+      };
+      dispatch(setColumnFilters(newFilters));
+      
+      // If filter is being cleared (null, empty string, or undefined), trigger API call immediately
+      const isClearing = filterValue === null || filterValue === '' || filterValue === undefined;
+      if (isClearing) {
+        // Update ref immediately for the API call
+        columnFiltersRef.current = newFilters;
+        // Trigger API call with cleared filter
+        const query = buildQuery(1, pageSize, newFilters, activeFilter, sortBy, sortDir);
+        dispatch(fetchTeachers({ location, query }));
+        // Also reset page to 1 when clearing filter
+        dispatch(setPage(1));
+      }
     },
-    [dispatch, columnFilters]
+    [dispatch, location, pageSize, activeFilter, sortBy, sortDir, buildQuery]
   );
 
   const handleColumnFilterEnter = React.useCallback(() => {
     // Immediately fetch when Enter is pressed, bypassing debounce
+    // Map active filter to API parameters:
+    // all (undefined): showActive=true, showInActive=true
+    // active: showActive=true, showInActive=false
+    // inactive: showActive=false, showInActive=true
+    const showActive = activeFilter === 'inactive' ? false : true;
+    const showInActive = activeFilter === 'active' ? false : true;
+
     const query: TeachersQuery = {
       page: 1, // Reset to first page when filtering
       limit: pageSize,
@@ -132,8 +190,8 @@ export function useTeacherListing(location: string) {
       lastName: columnFilters.lastName as string | undefined,
       email: columnFilters.email as string | undefined,
       phone: columnFilters.phoneNumber as string | undefined,
-      showActive: activeFilter === "inactive" ? false : undefined,
-      showInActive: activeFilter === "inactive" ? true : undefined,
+      showActive,
+      showInActive,
       sort: sortBy,
       order: sortDir,
     };

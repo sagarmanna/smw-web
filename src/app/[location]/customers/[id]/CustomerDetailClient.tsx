@@ -829,13 +829,62 @@ export function CustomerDetailClient({
         // Success - close receive payment modal
         setIsReceivePaymentModalOpen(false);
 
-        // Store receipt HTML if available
-        if (response.data) {
-          setPaymentReceiptHtml(response.data);
-          setIsPaymentReceiptModalOpen(true);
-        } else {
-          // Fallback: Refresh payments list and related data to get the latest payment
-          try {
+        // Helper function to format currency
+        const formatCurrency = (amount: number): string => {
+          return `$${amount.toFixed(2)}`;
+        };
+
+        // Build credits data for Payments Used table from paymentData
+        const credits: Array<{
+          type: string;
+          reference: string;
+          paymentMethod?: string;
+          amount: string;
+          amountUsed: string;
+        }> = [];
+        
+        // Get credit details if available
+        const creditDetailsMap = new Map<string, { id: string; reference: string; payment: string; type: string }>();
+        if (paymentData.creditDetails && Array.isArray(paymentData.creditDetails)) {
+          paymentData.creditDetails.forEach((credit) => {
+            creditDetailsMap.set(credit.id, credit);
+          });
+        }
+        
+        // Add invoice credits first (they should appear first in the table)
+        if (paymentData.invoiceCredits && Object.keys(paymentData.invoiceCredits).length > 0) {
+          Object.entries(paymentData.invoiceCredits).forEach(([id, amount]) => {
+            const creditDetail = creditDetailsMap.get(id);
+            // For invoice credits, reference should be the invoice number (like "I-94673")
+            // Use creditDetail.reference if available, otherwise format the id
+            const invoiceRef = creditDetail?.reference || (id.startsWith("I-") ? id : `I-${id}`);
+            credits.push({
+              type: "Invoice Credit",
+              reference: invoiceRef,
+              paymentMethod: "", // Empty for invoice credit
+              amount: "$0.00", // Always $0.00 for invoice credit
+              amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount), // Payment column value from credit table
+            });
+          });
+        }
+        
+        // Add payment credits
+        if (paymentData.paymentCredits && Object.keys(paymentData.paymentCredits).length > 0) {
+          Object.entries(paymentData.paymentCredits).forEach(([id, amount]) => {
+            const creditDetail = creditDetailsMap.get(id);
+            credits.push({
+              type: "Payment Credit",
+              reference: "", // Empty for payment credit
+              paymentMethod: paymentData.paymentMethodName || "Visa", // Use payment method name if available
+              amount: formatCurrency(amount), // Amount to apply
+              amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount), // Payment column value from credit table
+            });
+          });
+        }
+
+        // Always fetch receipt data to build directPaymentReceiptData for new UI
+        // Refresh payments list to get the latest payment
+        try {
           // Refresh payments list to get the latest payment
           const paymentsResponse = await getCustomerPayments(
             location,
@@ -855,59 +904,6 @@ export function CustomerDetailClient({
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
                 const receiptData = await getPaymentReceiptData(location, latestPayment.id);
-                
-                // Helper function to format currency
-                const formatCurrency = (amount: number): string => {
-                  return `$${amount.toFixed(2)}`;
-                };
-                
-                // Build credits data for Payments Used table from paymentData
-                const credits: Array<{
-                  type: string;
-                  reference: string;
-                  paymentMethod?: string;
-                  amount: string;
-                  amountUsed: string;
-                }> = [];
-                
-                // Get credit details if available
-                const creditDetailsMap = new Map<string, { id: string; reference: string; payment: string; type: string }>();
-                if (paymentData.creditDetails && Array.isArray(paymentData.creditDetails)) {
-                  paymentData.creditDetails.forEach((credit) => {
-                    creditDetailsMap.set(credit.id, credit);
-                  });
-                }
-                
-                // Add invoice credits first (they should appear first in the table)
-                if (paymentData.invoiceCredits && Object.keys(paymentData.invoiceCredits).length > 0) {
-                  Object.entries(paymentData.invoiceCredits).forEach(([id, amount]) => {
-                    const creditDetail = creditDetailsMap.get(id);
-                    // For invoice credits, reference should be the invoice number (like "I-94673")
-                    // Use creditDetail.reference if available, otherwise format the id
-                    const invoiceRef = creditDetail?.reference || (id.startsWith("I-") ? id : `I-${id}`);
-                    credits.push({
-                      type: "Invoice Credit",
-                      reference: invoiceRef,
-                      paymentMethod: "", // Empty for invoice credit
-                      amount: "$0.00", // Always $0.00 for invoice credit
-                      amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount), // Payment column value from credit table
-                    });
-                  });
-                }
-                
-                // Add payment credits
-                if (paymentData.paymentCredits && Object.keys(paymentData.paymentCredits).length > 0) {
-                  Object.entries(paymentData.paymentCredits).forEach(([id, amount]) => {
-                    const creditDetail = creditDetailsMap.get(id);
-                    credits.push({
-                      type: "Payment Credit",
-                      reference: "", // Empty for payment credit
-                      paymentMethod: "Visa", // Always "Visa" for payment credit
-                      amount: formatCurrency(amount), // Amount to apply
-                      amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount), // Payment column value from credit table
-                    });
-                  });
-                }
                 
                 // Use payment method name from paymentData if available, otherwise use from receiptData
                 let paymentMethodName = paymentData.paymentMethodName;
@@ -1001,13 +997,33 @@ export function CustomerDetailClient({
 
               // Open payment receipt modal
             setIsPaymentReceiptModalOpen(true);
+            
+            // Refresh payment data after successful save
+            try {
+              await refreshPaymentData();
+            } catch (error) {
+              console.error("Error refreshing payment data:", error);
+            }
           } else {
             // If we can't get the payment, still show success
             toast.success("Payment saved successfully");
+            
+            // Refresh payment data even if we can't get the payment
+            try {
+              await refreshPaymentData();
+            } catch (error) {
+              console.error("Error refreshing payment data:", error);
+            }
           }
         } catch (error) {
           console.error("Error fetching payment details:", error);
           toast.success("Payment saved successfully");
+          
+          // Refresh payment data even if there was an error fetching details
+          try {
+            await refreshPaymentData();
+          } catch (refreshError) {
+            console.error("Error refreshing payment data:", refreshError);
           }
         }
       } else {

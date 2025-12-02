@@ -33,7 +33,6 @@ export interface TeacherAddress {
   postalCode: string;
   province?: string;
   country?: string;
-  note?: string;
   isPrimary?: boolean;
 }
 

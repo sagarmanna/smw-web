@@ -150,11 +150,11 @@ export function EmailList({ emails, loading = false, onEdit, onDelete }: EmailLi
 // Phone-specific formatting and list component
 export function formatPhoneDisplay(phone: TeacherPhone): string {
   let display = phone.number;
+  if (phone.note && phone.note.trim() !== "") {
+    display += ` - (${phone.note})`;
+  }
   if (phone.extension) {
     display += ` Ext: ${phone.extension}`;
-  }
-  if (phone.note && phone.note.trim() !== "") {
-    display += ` - ${phone.note}`;
   }
   return display;
 }
@@ -195,18 +195,18 @@ export function PhoneList({ phones, loading = false, onEdit, onDelete }: PhoneLi
 }
 
 // Address-specific formatting and list component
-export function formatAddressDisplay(address: TeacherAddress): string {
-  const parts = [address.address];
-  if (address.city) {
-    const cityPart = address.province
-      ? `${address.city},${address.province}`
-      : address.city;
-    parts.push(cityPart);
-  }
-  if (address.country) {
-    parts.push(address.country);
-  }
-  return parts.join(" / ");
+export function formatAddressDisplay(
+  address: TeacherAddress,
+  geoData?: { city: Array<{ id: number; name: string }>; province: Array<{ id: number; name: string }>; country: Array<{ id: number; name: string }> }
+): string {
+  // Get province and country names from geoData if available
+  const province = geoData?.province.find(p => p.id === address.provinceId)?.name || address.province || 'Ontario';
+  const country = geoData?.country.find(c => c.id === address.countryId)?.name || address.country || 'Canada';
+  
+  // Build the full address value with line breaks (same format as customer AddressCard)
+  const addressValue = `${address.address}\n${address.city}, ${province}\n${country} - ${address.postalCode}`;
+  
+  return addressValue;
 }
 
 interface AddressListProps {
@@ -217,6 +217,35 @@ interface AddressListProps {
 }
 
 export function AddressList({ addresses, loading = false, onEdit, onDelete }: AddressListProps) {
+  const [geoData, setGeoData] = React.useState<{
+    city: Array<{ id: number; name: string }>;
+    province: Array<{ id: number; name: string }>;
+    country: Array<{ id: number; name: string }>;
+  } | null>(null);
+  const [loadingGeoData, setLoadingGeoData] = React.useState(false);
+
+  // Fetch geodata once when component mounts
+  React.useEffect(() => {
+    const fetchGeoData = async () => {
+      setLoadingGeoData(true);
+      try {
+        // Import getGeoData dynamically to avoid circular dependencies
+        const { getGeoData } = await import('@/app/[location]/customers/components/AddressCard/address-card.api');
+        const data = await getGeoData('all');
+        
+        if (data) {
+          setGeoData(data);
+        }
+      } catch (error) {
+        console.error('Error fetching geodata:', error);
+      } finally {
+        setLoadingGeoData(false);
+      }
+    };
+
+    fetchGeoData();
+  }, []);
+
   if (loading) {
     return <ItemListSkeleton />;
   }
@@ -227,19 +256,29 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
 
   return (
     <>
-      {addresses.map((address) => (
-        <ItemRow
-          key={address.id}
-          item={address}
-          label={address.label}
-          value={formatAddressDisplay(address)}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          getItemId={(item) => item.id}
-          editAriaLabel="Edit address"
-          deleteAriaLabel="Delete address"
-        />
-      ))}
+      {addresses.map((address) => {
+        // Build the full address value with line breaks (same format as customer AddressCard)
+        const addressValue = formatAddressDisplay(address, geoData || undefined);
+        
+        // Render address value with line breaks (convert \n to <br />)
+        const addressDisplay = (
+          <span className="whitespace-pre-line">{addressValue}</span>
+        );
+        
+        return (
+          <ItemRow
+            key={address.id}
+            item={address}
+            label={address.label}
+            value={addressDisplay}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            getItemId={(item) => item.id}
+            editAriaLabel="Edit address"
+            deleteAriaLabel="Delete address"
+          />
+        );
+      })}
     </>
   );
 }

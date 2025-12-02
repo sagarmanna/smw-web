@@ -27,10 +27,10 @@ const initialState: TeachersListingState = {
   error: null,
   page: 1,
   pageSize: 20,
-  sortBy: undefined,
+  sortBy: 'lastName',
   sortDir: 'asc',
   columnFilters: {},
-  activeFilter: undefined,
+  activeFilter: 'active', // Default to showing only active teachers
 };
 
 // Async thunk for fetching teachers list
