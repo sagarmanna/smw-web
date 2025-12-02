@@ -43,6 +43,7 @@ import {
   createEquipmentRental,
   equipmentReturned,
   deleteEquipmentRental,
+  updateEquipmentRental,
 } from "@/lib/api/legacyApiAdapter";
 
 interface InstrumentData {
@@ -288,6 +289,14 @@ const normalizeDate = (date: Date): Date =>
 const getEndOfMonth = (date: Date): Date =>
   new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
+// Calculate minimum return date for ongoing rentals (start date + 30 days)
+const getMinimumReturnDate = (startDate: Date): Date => {
+  const normalizedStart = normalizeDate(startDate);
+  const minimumDate = new Date(normalizedStart);
+  minimumDate.setDate(minimumDate.getDate() + 30);
+  return normalizeDate(minimumDate);
+};
+
 const getOngoingBillingDetails = (startDate: Date) => {
   const normalizedStart = normalizeDate(startDate);
   const dayOfMonth = normalizedStart.getDate();
@@ -336,6 +345,7 @@ export function EquipmentRentalsModal({
   const [saving, setSaving] = useState(false);
   const [returning, setReturning] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   interface CreatedRentalData {
@@ -1503,24 +1513,115 @@ export function EquipmentRentalsModal({
     }
   };
 
-  const handleUpdateReturnDate = () => {
-    if (!formData.returnDate) {
+  const handleUpdateReturnDate = async () => {
+    if (!formData.returnDate || !rentalId) {
       toast.error("Please select a return date");
       return;
     }
 
-    // Just update local state and notify parent component
-    // No API call - parent component will handle the save
-    const filledInstruments = instruments.filter(
-      (inst) => inst.instrumentId > 0
-    );
+    // Validate minimum 30 days from start date (matching backend validation)
+    if (formData.rentalStartDate) {
+      const minimumDate = getMinimumReturnDate(formData.rentalStartDate);
+      const selectedDate = normalizeDate(formData.returnDate);
+      
+      if (selectedDate < minimumDate) {
+        toast.error("Minimum duration should be 30 days from the start date.");
+        return;
+      }
+    }
 
-    if (onSave) {
-      onSave({
-        ...formData,
-        instruments: filledInstruments,
-      });
-      toast.success("Return date updated");
+    try {
+      setUpdating(true);
+
+      const selectedStudent = availableStudents.find(
+        (s) => s.id.toString() === formData.studentId
+      );
+      const studentName = selectedStudent?.fullName || "";
+
+      if (!studentName) {
+        toast.error("Student information not found");
+        return;
+      }
+
+      const returnDateFormatted = format(formData.returnDate, "MMM dd, yyyy");
+
+      const filledInstruments = instruments.filter(
+        (inst) => inst.instrumentId > 0
+      );
+
+      const mappedInstruments =
+        filledInstruments.length > 0
+          ? filledInstruments.map((instrument) => {
+              const instrumentTotal = parseFloat(instrument.total || "0");
+              // Use taxRate from each instrument instead of hardcoded TAX_RATE
+              const instrumentTax = ((instrumentTotal * instrument.taxRate) / 100).toFixed(2);
+              return {
+                value: "",
+                asset: "",
+                price: instrument.monthlyRate || "0",
+                duration: "", // Empty string as per API requirement
+                total: instrument.total || "0.00",
+                tax: instrumentTax,
+              };
+            })
+          : [
+              {
+                value: "",
+                asset: "",
+                price: "0",
+                duration: "",
+                total: "0.00",
+                tax: "0.00",
+              },
+            ];
+
+      const response = await updateEquipmentRental(
+        location,
+        rentalId,
+        returnDateFormatted,
+        {
+          userId: customerId,
+          customerName: formData.customer,
+          studentName: studentName,
+          returnDate: returnDateFormatted,
+          securityDeposit: "",
+          tenderType: "",
+          depositAmount: formData.depositAmount || "0.00",
+          instruments: mappedInstruments,
+        }
+      );
+
+      if (response.status) {
+        toast.success("Return date updated successfully");
+        // Refresh the data to get updated return date
+        await fetchEquipmentRentalsData();
+        if (onSave) {
+          onSave({
+            ...formData,
+            instruments: filledInstruments,
+          });
+        }
+      } else {
+        // Handle both string and array error formats
+        let errorMessage = "Failed to update return date";
+        if (response.errors) {
+          if (typeof response.errors === "string") {
+            errorMessage = response.errors;
+          } else if (Array.isArray(response.errors)) {
+            errorMessage = response.errors.join(", ");
+          }
+        }
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to update return date";
+      toast.error(errorMessage);
+      console.error("Error updating return date:", error);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -2255,6 +2356,17 @@ export function EquipmentRentalsModal({
                       selected={formData.returnDate}
                       onSelect={(date) => {
                         if (date) {
+                          // Validate minimum 30 days from start date
+                          if (formData.rentalStartDate) {
+                            const minimumDate = getMinimumReturnDate(formData.rentalStartDate);
+                            const selectedDate = normalizeDate(date);
+                            
+                            if (selectedDate < minimumDate) {
+                              toast.error("Minimum duration should be 30 days from the start date.");
+                              setIsReturnDateOpen(false);
+                              return;
+                            }
+                          }
                           handleInputChange("returnDate", date);
                         } else {
                           // Clear return date
@@ -2264,6 +2376,15 @@ export function EquipmentRentalsModal({
                           }));
                         }
                         setIsReturnDateOpen(false);
+                      }}
+                      disabled={(date) => {
+                        // Disable dates that are less than 30 days from start date
+                        if (!formData.rentalStartDate) {
+                          return false;
+                        }
+                        const minimumDate = getMinimumReturnDate(formData.rentalStartDate);
+                        const checkDate = normalizeDate(date);
+                        return checkDate < minimumDate;
                       }}
                       initialFocus
                     />
@@ -2484,9 +2605,9 @@ export function EquipmentRentalsModal({
             {isEditMode && formData.onGoing && (
               <Button
                 onClick={handleUpdateReturnDate}
-                disabled={!formData.returnDate}
+                disabled={!formData.returnDate || updating}
               >
-                Edit
+                {updating ? "Updating..." : "Edit"}
               </Button>
             )}
             <Button variant="outline" onClick={handleCancel}>
