@@ -5,20 +5,16 @@ import { InfoCard } from "@/components/InfoCard";
 import { TeacherQualification } from "../../types";
 import { AddQualificationModal } from "../modals/AddQualificationModal";
 import { QualificationList } from "../sections";
-
-// Mock data for group qualifications - matching the image
-const MOCK_GROUP_QUALIFICATIONS: TeacherQualification[] = [
-  {
-    id: "1",
-    name: "Rami Group Program",
-    rate: 20.00,
-  },
-];
+import { createQualification } from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 interface TeacherGroupQualificationCardProps {
   qualifications: TeacherQualification[];
   onUpdate: React.Dispatch<React.SetStateAction<TeacherQualification[]>>;
   loading?: boolean;
+  location: string;
+  teacherId: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export const TeacherGroupQualificationCard = React.memo(
@@ -26,6 +22,9 @@ export const TeacherGroupQualificationCard = React.memo(
     qualifications: propsQualifications,
     onUpdate,
     loading = false,
+    location,
+    teacherId,
+    onRefresh,
   }: TeacherGroupQualificationCardProps) {
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
@@ -34,9 +33,9 @@ export const TeacherGroupQualificationCard = React.memo(
     const [currentPage, setCurrentPage] = React.useState(1);
     const itemsPerPage = 10;
     
-    // Use mock data if no qualifications provided
+    // Use qualifications from props (fetched from API)
     const qualifications = React.useMemo(() => {
-      return propsQualifications.length > 0 ? propsQualifications : MOCK_GROUP_QUALIFICATIONS;
+      return propsQualifications;
     }, [propsQualifications]);
 
     const handleAddClick = React.useCallback(() => {
@@ -60,15 +59,15 @@ export const TeacherGroupQualificationCard = React.memo(
     }, [qualifications.length]);
 
     const handleModalSubmit = React.useCallback(
-      (data: { programs: string[]; rate?: number }) => {
+      async (data: { programs: number[]; rate?: number }) => {
         if (editingQualification) {
-          // Update existing qualification
+          // TODO: Implement update functionality when needed
+          // For now, just update local state
           onUpdate((prev) =>
             prev.map((qual) =>
               qual.id === editingQualification.id
                 ? {
                     ...qual,
-                    name: data.programs[0] || qual.name,
                     rate: data.rate,
                   }
                 : qual
@@ -77,22 +76,46 @@ export const TeacherGroupQualificationCard = React.memo(
           setIsEditModalOpen(false);
           setEditingQualification(null);
         } else {
-          // Transform programs to qualifications and add to the list
-          const newQualifications: TeacherQualification[] = data.programs.map(
-            (program) => ({
-              id: crypto.randomUUID(),
-              name: program,
-              rate: data.rate,
-            })
-          );
+          // Create new qualifications via legacy API
+          if (!data.rate) {
+            toast.error("Rate is required");
+            return;
+          }
 
-          // Add all new qualifications to the list
-          onUpdate((prev) => [...prev, ...newQualifications]);
-          
-          setIsAddModalOpen(false);
+          try {
+            const response = await createQualification(
+              location,
+              teacherId,
+              2, // type 2 = group qualification
+              {
+                programs: data.programs,
+                rate: data.rate,
+              }
+            );
+
+            if (response.status) {
+              toast.success("Qualification added successfully");
+              setIsAddModalOpen(false);
+              // Refresh data from server
+              if (onRefresh) {
+                await onRefresh();
+              }
+            } else {
+              const errorMessage =
+                response.message ||
+                response.errors?.join(", ") ||
+                "Failed to create qualification";
+              toast.error(errorMessage);
+            }
+          } catch (error) {
+            console.error("Error creating qualification:", error);
+            const errorMessage =
+              error instanceof Error ? error.message : "Failed to create qualification";
+            toast.error(errorMessage);
+          }
         }
       },
-      [onUpdate, editingQualification]
+      [onUpdate, editingQualification, location, teacherId, onRefresh]
     );
 
     const handleRowClick = React.useCallback(
@@ -158,6 +181,7 @@ export const TeacherGroupQualificationCard = React.memo(
           title="Qualification"
           allowRate={true}
           mode="add"
+          programType="group"
         />
 
         <AddQualificationModal
@@ -169,6 +193,7 @@ export const TeacherGroupQualificationCard = React.memo(
           mode="edit"
           initialData={editingQualification}
           onDelete={handleDelete}
+          programType="group"
         />
       </>
     );
