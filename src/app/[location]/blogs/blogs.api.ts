@@ -111,3 +111,60 @@ export async function getBlogs(
   }
 }
 
+/**
+ * Request payload for creating a new blog
+ */
+export interface CreateBlogRequest {
+  title: string;
+  content: string;
+}
+
+/**
+ * Response structure from the create blog API endpoint
+ */
+export interface CreateBlogResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    id: number;
+    title: string;
+    content: string;
+    date: string;
+  };
+}
+
+/**
+ * Creates a new blog post
+ * 
+ * @param location - Location parameter (currently unused but kept for consistency)
+ * @param data - Blog data (title and content)
+ * @returns Promise resolving to create blog response
+ * 
+ * @example
+ * ```typescript
+ * const blog = await createBlog('location1', { 
+ *   title: 'My Blog Post', 
+ *   content: '<p>Blog content</p>' 
+ * });
+ * ```
+ */
+export async function createBlog(
+  location: string,
+  data: CreateBlogRequest
+): Promise<CreateBlogResponse> {
+  try {
+    const response = await apiClient.post<CreateBlogResponse>(
+      `/admin/v2/blogs`,
+      data
+    );
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: CreateBlogResponse } };
+    console.error("Error creating blog:", error);
+    throw {
+      message: apiError.response?.data?.message || "Failed to create blog",
+      errorCode: apiError.response?.data?.success === false ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+    };
+  }
+}
+
