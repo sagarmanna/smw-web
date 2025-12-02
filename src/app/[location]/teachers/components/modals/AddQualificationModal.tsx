@@ -102,29 +102,48 @@ export function AddQualificationModal({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
-    const programsToSubmit = isEditMode 
-      ? (selectedProgram ? [selectedProgram] : [])
-      : selectedProgramIds;
-    
-    if (programsToSubmit.length === 0) {
+    // For edit mode, we only need the rate (program cannot be changed)
+    if (isEditMode) {
+      if (!allowRate || !rate.trim()) {
+        setError("Rate is required.");
+        return;
+      }
+
+      const rateValue = parseFloat(rate);
+      if (isNaN(rateValue) || rateValue < 0) {
+        setError("Please enter a valid rate.");
+        return;
+      }
+
+      const submitData: { programs: number[]; rate?: number } = {
+        programs: [], // Empty array for edit mode - programs are not sent in update API
+        rate: rateValue,
+      };
+
+      // Check if rate has changed in edit mode
+      const originalRateValue = originalRate.current;
+      const rateChanged = 
+        (originalRateValue ?? undefined) !== (rateValue ?? undefined);
+      
+      if (rateChanged) {
+        setPendingSubmitData(submitData);
+        setShowRateChangeConfirm(true);
+        return;
+      }
+
+      onSubmit(submitData);
+      onClose();
+      return;
+    }
+
+    // For add mode, validate programs are selected
+    if (selectedProgramIds.length === 0) {
       setError("Please select a program.");
       return;
     }
 
-    // For edit mode, we need to get the program ID from the name
-    // For add mode, we already have the IDs
-    let programIds: number[];
-    if (isEditMode) {
-      // In edit mode, we can't change the program, so we skip this
-      // This should not happen in practice, but handle it gracefully
-      setError("Cannot submit edit mode without program ID.");
-      return;
-    } else {
-      programIds = selectedProgramIds;
-    }
-
     const submitData: { programs: number[]; rate?: number } = {
-      programs: programIds,
+      programs: selectedProgramIds,
     };
 
     if (allowRate && rate.trim()) {
@@ -136,19 +155,10 @@ export function AddQualificationModal({
       submitData.rate = rateValue;
     }
 
-    // Check if rate has changed in edit mode
-    if (isEditMode && allowRate) {
-      const newRate = submitData.rate;
-      const originalRateValue = originalRate.current;
-      // Compare rates - check if they're different (handling undefined/null)
-      const rateChanged = 
-        (originalRateValue ?? undefined) !== (newRate ?? undefined);
-      
-      if (rateChanged) {
-        setPendingSubmitData(submitData);
-        setShowRateChangeConfirm(true);
-        return;
-      }
+    // Validate rate is provided for add mode
+    if (!submitData.rate) {
+      setError("Rate is required.");
+      return;
     }
 
     onSubmit(submitData);
@@ -217,7 +227,8 @@ export function AddQualificationModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="program">
-                Program Name <span className="text-red-500">*</span>
+                Programs <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-1">(Select one or more)</span>
               </Label>
               {isEditMode ? (
                 <Input
