@@ -123,7 +123,12 @@ export const TeacherGroupQualificationCard = React.memo(
             );
 
             if (response.status) {
-              toast.success("Qualification added successfully");
+              const programCount = data.programs.length;
+              toast.success(
+                programCount > 1
+                  ? `${programCount} qualifications added successfully`
+                  : "Qualification added successfully"
+              );
               setIsAddModalOpen(false);
               // Refresh data from server
               if (onRefresh) {
