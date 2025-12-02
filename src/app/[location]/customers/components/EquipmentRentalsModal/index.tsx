@@ -1435,9 +1435,12 @@ export function EquipmentRentalsModal({
         return;
       }
 
-      // Today's date for Equipment Returned Date (URL parameter)
-      // This is the date when the user clicks the "Equipment Returned" button
-      const equipmentReturnedDate = new Date();
+      // Use the actual return date from formData if available, otherwise use today's date
+      // For ongoing rentals, if user has set a return date via Edit button, use that
+      // Otherwise, use today's date as the equipment returned date
+      const equipmentReturnedDate = formData.returnDate && formData.returnDate instanceof Date
+        ? formData.returnDate
+        : new Date();
       const returnDateFormatted = format(equipmentReturnedDate, "MMM dd, yyyy");
       
       // NOTE: We do NOT send returnDate in FormData to preserve the original return date
@@ -1477,7 +1480,7 @@ export function EquipmentRentalsModal({
       const response = await equipmentReturned(
         location,
         rentalId,
-        returnDateFormatted, // This sets the equipment returned date (today's date)
+        returnDateFormatted, // This sets the equipment returned date (uses formData.returnDate if set, otherwise today's date)
         {
           userId: customerId,
           customerName: formData.customer,
