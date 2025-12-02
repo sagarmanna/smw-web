@@ -12,6 +12,8 @@ import { TeachersDetailCard } from "../components/TeachersDetailCard";
 import { TeacherEmailCard } from "../components/TeacherEmailCard";
 import { TeacherPhoneCard } from "../components/TeacherPhoneCard";
 import { TeacherAddressCard } from "../components/TeacherAddressCard";
+import { TeacherPrivateQualificationCard } from "../components/TeacherPrivateQualificationCard";
+import { TeacherGroupQualificationCard } from "../components/TeacherGroupQualificationCard";
 import { formatFullName } from "../utils/nameUtils";
 
 interface TeachersDetailClientProps {
@@ -34,12 +36,16 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
     emails,
     phones,
     addresses,
+    privateQualifications,
+    groupQualifications,
     saveDetails,
     updatePassword,
     savingDetails,
     updateEmails,
     updatePhones,
     updateAddresses,
+    updatePrivateQualifications,
+    updateGroupQualifications,
   } = useTeacherDetails(location, teacherId);
 
   // All hooks must be called before any early returns
@@ -103,10 +109,9 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
         />
 
         {/* Main Content Grid - All cards share the same cached data from Redux */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4 lg:items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
           {/* Left Column */}
           <div className="space-y-3 sm:space-y-4">
-            {/* Details Card */}
             <TeachersDetailCard
               details={details}
               onSaveDetails={saveDetails}
@@ -115,40 +120,32 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               isLoading={isLoading}
             />
 
-            {/* Mobile Email and Phone Cards - Only on Mobile */}
-            <div className="lg:hidden space-y-3 sm:space-y-4">
-              <TeacherEmailCard
-                emails={emails}
-                onUpdate={updateEmails}
-                loading={isLoading}
-              />
+            <TeacherPrivateQualificationCard
+              qualifications={privateQualifications}
+              onUpdate={updatePrivateQualifications}
+              loading={isLoading}
+            />
 
-              <TeacherPhoneCard
-                phones={phones}
-                onUpdate={updatePhones}
-                loading={isLoading}
-              />
-            </div>
+            <TeacherGroupQualificationCard
+              qualifications={groupQualifications}
+              onUpdate={updateGroupQualifications}
+              loading={isLoading}
+            />
           </div>
 
-          {/* Right Column - Info Cards */}
+          {/* Right Column */}
           <div className="space-y-3 sm:space-y-4">
-            {/* Desktop Email and Phone Cards */}
-            <div className="hidden lg:block">
-              <TeacherEmailCard
-                emails={emails}
-                onUpdate={updateEmails}
-                loading={isLoading}
-              />
-            </div>
+            <TeacherEmailCard
+              emails={emails}
+              onUpdate={updateEmails}
+              loading={isLoading}
+            />
 
-            <div className="hidden lg:block">
-              <TeacherPhoneCard
-                phones={phones}
-                onUpdate={updatePhones}
-                loading={isLoading}
-              />
-            </div>
+            <TeacherPhoneCard
+              phones={phones}
+              onUpdate={updatePhones}
+              loading={isLoading}
+            />
 
             <TeacherAddressCard
               addresses={addresses}

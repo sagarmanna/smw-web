@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { TeacherEmail, TeacherPhone, TeacherAddress } from "../types";
+import { TeacherEmail, TeacherPhone, TeacherAddress, TeacherQualification } from "../types";
 
 interface UseEmailHandlersProps {
   emails: TeacherEmail[];
@@ -185,6 +185,67 @@ export function useAddressHandlers({
     addressToDelete,
     setEditingAddress,
     setAddressToDelete,
+    handleCreate,
+    handleEdit,
+    handleDelete,
+    handleDeleteConfirm,
+  };
+}
+
+interface UseQualificationHandlersProps {
+  qualifications: TeacherQualification[];
+  updateQualifications: React.Dispatch<React.SetStateAction<TeacherQualification[]>>;
+}
+
+export function useQualificationHandlers({
+  qualifications,
+  updateQualifications,
+}: UseQualificationHandlersProps) {
+  const [editingQualification, setEditingQualification] = React.useState<TeacherQualification | null>(null);
+  const [qualificationToDelete, setQualificationToDelete] = React.useState<TeacherQualification | null>(null);
+
+  const handleCreate = React.useCallback(
+    (newQualification: TeacherQualification) => {
+      updateQualifications((prev) => {
+        if (editingQualification) {
+          return prev.map((qualification) =>
+            qualification.id === editingQualification.id ? newQualification : qualification
+          );
+        } else {
+          return [...prev, newQualification];
+        }
+      });
+      setEditingQualification(null);
+    },
+    [updateQualifications, editingQualification]
+  );
+
+  const handleEdit = React.useCallback((qualification: TeacherQualification) => {
+    setEditingQualification(qualification);
+  }, []);
+
+  const handleDelete = React.useCallback(
+    (id: string) => {
+      const qualification = qualifications.find((q) => q.id === id);
+      if (qualification) {
+        setQualificationToDelete(qualification);
+      }
+    },
+    [qualifications]
+  );
+
+  const handleDeleteConfirm = React.useCallback(() => {
+    if (qualificationToDelete) {
+      updateQualifications((prev) => prev.filter((qualification) => qualification.id !== qualificationToDelete.id));
+      setQualificationToDelete(null);
+    }
+  }, [qualificationToDelete, updateQualifications]);
+
+  return {
+    editingQualification,
+    qualificationToDelete,
+    setEditingQualification,
+    setQualificationToDelete,
     handleCreate,
     handleEdit,
     handleDelete,
