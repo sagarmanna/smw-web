@@ -148,11 +148,11 @@ export function EmailList({ emails, loading = false, onEdit, onDelete }: EmailLi
 // Phone-specific formatting and list component
 export function formatPhoneDisplay(phone: TeacherPhone): string {
   let display = phone.number;
+  if (phone.note && phone.note.trim() !== "") {
+    display += ` - (${phone.note})`;
+  }
   if (phone.extension) {
     display += ` Ext: ${phone.extension}`;
-  }
-  if (phone.note && phone.note.trim() !== "") {
-    display += ` - ${phone.note}`;
   }
   return display;
 }
@@ -202,9 +202,7 @@ export function formatAddressDisplay(
   const country = geoData?.country.find(c => c.id === address.countryId)?.name || address.country || 'Canada';
   
   // Build the full address value with line breaks (same format as customer AddressCard)
-  const addressValue = `${address.address}\n${address.city}, ${province}\n${country} - ${address.postalCode}${
-    address.note ? `\n${address.note}` : ""
-  }`;
+  const addressValue = `${address.address}\n${address.city}, ${province}\n${country} - ${address.postalCode}`;
   
   return addressValue;
 }
