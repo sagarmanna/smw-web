@@ -5,11 +5,16 @@ import { InfoCard } from "@/components/InfoCard";
 import { TeacherQualification } from "../../types";
 import { AddQualificationModal } from "../modals/AddQualificationModal";
 import { QualificationList } from "../sections";
+import { createQualification, updateQualification, deleteQualification } from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 interface TeacherPrivateQualificationCardProps {
   qualifications: TeacherQualification[];
   onUpdate: React.Dispatch<React.SetStateAction<TeacherQualification[]>>;
   loading?: boolean;
+  location: string;
+  teacherId: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export const TeacherPrivateQualificationCard = React.memo(
@@ -17,6 +22,9 @@ export const TeacherPrivateQualificationCard = React.memo(
     qualifications: propsQualifications,
     onUpdate,
     loading = false,
+    location,
+    teacherId,
+    onRefresh,
   }: TeacherPrivateQualificationCardProps) {
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
@@ -51,39 +59,92 @@ export const TeacherPrivateQualificationCard = React.memo(
     }, [qualifications.length]);
 
     const handleModalSubmit = React.useCallback(
-      (data: { programs: string[]; rate?: number }) => {
+      async (data: { programs: number[]; rate?: number }) => {
         if (editingQualification) {
-          // Update existing qualification
-          onUpdate((prev) =>
-            prev.map((qual) =>
-              qual.id === editingQualification.id
-                ? {
-                    ...qual,
-                    name: data.programs[0] || qual.name,
-                    rate: data.rate,
-                  }
-                : qual
-            )
-          );
-          setIsEditModalOpen(false);
-          setEditingQualification(null);
-        } else {
-          // Transform programs to qualifications and add to the list
-          const newQualifications: TeacherQualification[] = data.programs.map(
-            (program) => ({
-              id: crypto.randomUUID(),
-              name: program,
-              rate: data.rate,
-            })
-          );
+          // Update existing qualification via legacy API
+          if (!data.rate) {
+            toast.error("Rate is required");
+            return;
+          }
 
-          // Add all new qualifications to the list
-          onUpdate((prev) => [...prev, ...newQualifications]);
-          
-          setIsAddModalOpen(false);
+          try {
+            // Convert qualification ID from string to number for API
+            const qualificationId = Number(editingQualification.id);
+            if (isNaN(qualificationId)) {
+              toast.error("Invalid qualification ID");
+              return;
+            }
+
+            const response = await updateQualification(
+              location,
+              qualificationId,
+              {
+                rate: data.rate,
+              }
+            );
+
+            if (response.status) {
+              toast.success("Qualification updated successfully");
+              setIsEditModalOpen(false);
+              setEditingQualification(null);
+              // Refresh data from server
+              if (onRefresh) {
+                await onRefresh();
+              }
+            } else {
+              const errorMessage =
+                response.message ||
+                response.errors?.join(", ") ||
+                "Failed to update qualification";
+              toast.error(errorMessage);
+            }
+          } catch (error) {
+            console.error("Error updating qualification:", error);
+            const errorMessage =
+              error instanceof Error ? error.message : "Failed to update qualification";
+            toast.error(errorMessage);
+          }
+        } else {
+          // Create new qualifications via legacy API
+          if (!data.rate) {
+            toast.error("Rate is required");
+            return;
+          }
+
+          try {
+            const response = await createQualification(
+              location,
+              teacherId,
+              1, // type 1 = private qualification
+              {
+                programs: data.programs,
+                rate: data.rate,
+              }
+            );
+
+            if (response.status) {
+              toast.success("Qualification added successfully");
+              setIsAddModalOpen(false);
+              // Refresh data from server
+              if (onRefresh) {
+                await onRefresh();
+              }
+            } else {
+              const errorMessage =
+                response.message ||
+                response.errors?.join(", ") ||
+                "Failed to create qualification";
+              toast.error(errorMessage);
+            }
+          } catch (error) {
+            console.error("Error creating qualification:", error);
+            const errorMessage =
+              error instanceof Error ? error.message : "Failed to create qualification";
+            toast.error(errorMessage);
+          }
         }
       },
-      [onUpdate, editingQualification]
+      [onUpdate, editingQualification, location, teacherId, onRefresh]
     );
 
     const handleRowClick = React.useCallback(
@@ -95,11 +156,59 @@ export const TeacherPrivateQualificationCard = React.memo(
     );
 
     const handleDelete = React.useCallback(
-      (id: string) => {
-        onUpdate((prev) => prev.filter((qual) => qual.id !== id));
-        setEditingQualification(null);
+      async (id: string) => {
+        // Find the qualification to get its rate
+        const qualificationToDelete = qualifications.find((qual) => qual.id === id);
+        if (!qualificationToDelete) {
+          toast.error("Qualification not found");
+          return;
+        }
+
+        // Rate is required for delete API
+        if (!qualificationToDelete.rate) {
+          toast.error("Rate is required for deletion");
+          return;
+        }
+
+        try {
+          // Convert qualification ID from string to number for API
+          const qualificationId = Number(id);
+          if (isNaN(qualificationId)) {
+            toast.error("Invalid qualification ID");
+            return;
+          }
+
+          const response = await deleteQualification(
+            location,
+            qualificationId,
+            {
+              rate: qualificationToDelete.rate,
+            }
+          );
+
+          if (response.status) {
+            toast.success("Qualification deleted successfully");
+            setEditingQualification(null);
+            setIsEditModalOpen(false);
+            // Refresh data from server
+            if (onRefresh) {
+              await onRefresh();
+            }
+          } else {
+            const errorMessage =
+              response.message ||
+              response.errors?.join(", ") ||
+              "Failed to delete qualification";
+            toast.error(errorMessage);
+          }
+        } catch (error) {
+          console.error("Error deleting qualification:", error);
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to delete qualification";
+          toast.error(errorMessage);
+        }
       },
-      [onUpdate]
+      [onUpdate, qualifications, location, onRefresh]
     );
 
     const handleViewToggle = React.useCallback(() => {
@@ -149,6 +258,7 @@ export const TeacherPrivateQualificationCard = React.memo(
           title="Qualification"
           allowRate={true}
           mode="add"
+          programType="private"
         />
 
         <AddQualificationModal
@@ -160,6 +270,7 @@ export const TeacherPrivateQualificationCard = React.memo(
           mode="edit"
           initialData={editingQualification}
           onDelete={handleDelete}
+          programType="private"
         />
       </>
     );

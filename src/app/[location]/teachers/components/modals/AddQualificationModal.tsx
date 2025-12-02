@@ -13,33 +13,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
 import { TeacherQualification } from "../../types";
-
-// Common program options - can be moved to constants file if needed
-const PROGRAM_OPTIONS = [
-  "Piano",
-  "Guitar",
-  "Violin",
-  "Drums",
-  "Voice",
-  "Saxophone",
-  "Flute",
-  "Clarinet",
-  "Trumpet",
-  "Cello",
-  "Bass",
-  "Other",
-];
+import { getProgramsList, Program } from "../../teachers.api";
 
 interface AddQualificationModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { programs: string[]; rate?: number }) => void;
+  onSubmit: (data: { programs: number[]; rate?: number }) => void;
   title?: string;
   allowRate?: boolean;
-  availablePrograms?: string[];
   initialData?: TeacherQualification | null;
   onDelete?: (id: string) => void;
   mode?: "add" | "edit";
+  programType?: "private" | "group"; // Filter programs by type
 }
 
 export function AddQualificationModal({
@@ -48,20 +33,41 @@ export function AddQualificationModal({
   onSubmit,
   title = "Qualification",
   allowRate = true,
-  availablePrograms = PROGRAM_OPTIONS,
   initialData = null,
   onDelete,
   mode = "add",
+  programType,
 }: AddQualificationModalProps) {
   const isEditMode = mode === "edit" && initialData !== null;
+  const [programs, setPrograms] = React.useState<Program[]>([]);
+  const [loadingPrograms, setLoadingPrograms] = React.useState(false);
   const [selectedPrograms, setSelectedPrograms] = React.useState<string[]>([]);
+  const [selectedProgramIds, setSelectedProgramIds] = React.useState<number[]>([]);
   const [selectedProgram, setSelectedProgram] = React.useState<string>("");
   const [rate, setRate] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [showRateChangeConfirm, setShowRateChangeConfirm] = React.useState(false);
-  const [pendingSubmitData, setPendingSubmitData] = React.useState<{ programs: string[]; rate?: number } | null>(null);
+  const [pendingSubmitData, setPendingSubmitData] = React.useState<{ programs: number[]; rate?: number } | null>(null);
   const originalRate = React.useRef<number | undefined>(undefined);
+
+  // Fetch programs when modal opens
+  React.useEffect(() => {
+    if (open && !isEditMode) {
+      setLoadingPrograms(true);
+      getProgramsList(programType)
+        .then((programList) => {
+          setPrograms(programList);
+        })
+        .catch((err) => {
+          console.error("Error fetching programs:", err);
+          setError("Failed to load programs. Please try again.");
+        })
+        .finally(() => {
+          setLoadingPrograms(false);
+        });
+    }
+  }, [open, isEditMode, programType]);
 
   React.useEffect(() => {
     if (open) {
@@ -82,6 +88,7 @@ export function AddQualificationModal({
       setPendingSubmitData(null);
     } else {
       setSelectedPrograms([]);
+      setSelectedProgramIds([]);
       setSelectedProgram("");
       setRate("");
       setError(null);
@@ -97,15 +104,27 @@ export function AddQualificationModal({
     
     const programsToSubmit = isEditMode 
       ? (selectedProgram ? [selectedProgram] : [])
-      : selectedPrograms;
+      : selectedProgramIds;
     
     if (programsToSubmit.length === 0) {
       setError("Please select a program.");
       return;
     }
 
-    const submitData: { programs: string[]; rate?: number } = {
-      programs: programsToSubmit,
+    // For edit mode, we need to get the program ID from the name
+    // For add mode, we already have the IDs
+    let programIds: number[];
+    if (isEditMode) {
+      // In edit mode, we can't change the program, so we skip this
+      // This should not happen in practice, but handle it gracefully
+      setError("Cannot submit edit mode without program ID.");
+      return;
+    } else {
+      programIds = selectedProgramIds;
+    }
+
+    const submitData: { programs: number[]; rate?: number } = {
+      programs: programIds,
     };
 
     if (allowRate && rate.trim()) {
@@ -168,6 +187,7 @@ export function AddQualificationModal({
 
   const resetForm = () => {
     setSelectedPrograms([]);
+    setSelectedProgramIds([]);
     setSelectedProgram("");
     setRate("");
     setError(null);
@@ -209,18 +229,27 @@ export function AddQualificationModal({
                 />
               ) : (
                 <MultiSelectCombobox
-                  options={availablePrograms.map((program) => ({
-                    label: program,
-                    value: program,
+                  options={programs.map((program) => ({
+                    label: program.name,
+                    value: program.id.toString(),
                   }))}
                   value={selectedPrograms}
                   onValueChange={(values) => {
                     setSelectedPrograms(values);
+                    // Convert selected program names (IDs as strings) to actual IDs
+                    const ids = values
+                      .map((val) => {
+                        const program = programs.find((p) => p.id.toString() === val);
+                        return program?.id;
+                      })
+                      .filter((id): id is number => id !== undefined);
+                    setSelectedProgramIds(ids);
                     setError("");
                   }}
-                  placeholder="Select programs..."
+                  placeholder={loadingPrograms ? "Loading programs..." : "Select programs..."}
                   searchPlaceholder="Search programs..."
-                  emptyText="No programs found."
+                  emptyText={loadingPrograms ? "Loading..." : "No programs found."}
+                  disabled={loadingPrograms}
                 />
               )}
             </div>

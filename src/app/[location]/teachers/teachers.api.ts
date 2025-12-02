@@ -168,3 +168,28 @@ export async function getTeacherById(
     return null;
   }
 }
+
+export interface Program {
+  id: number;
+  name: string;
+}
+
+export interface ProgramsListResponse {
+  success: boolean;
+  message: string;
+  data: Program[];
+}
+
+export async function getProgramsList(type?: 'private' | 'group'): Promise<Program[]> {
+  try {
+    const params = type ? { type } : {};
+    const response = await apiClient.get<ProgramsListResponse>(
+      `/admin/v2/programs/list`,
+      { params }
+    );
+    return response.data.success ? response.data.data : [];
+  } catch (error: unknown) {
+    console.error("Error fetching programs list:", error);
+    return [];
+  }
+}
