@@ -38,6 +38,14 @@ export interface QualificationCreateData {
   rate: number;
 }
 
+export interface QualificationUpdateData {
+  rate: number;
+}
+
+export interface QualificationDeleteData {
+  rate: number;
+}
+
 /**
  * Delete a user using the legacy API
  */
@@ -1150,6 +1158,84 @@ export async function createQualification(
   formData.append('Qualification[rate]', qualificationData.rate.toString());
 
   const url = `/admin/${location}/qualification/create?id=${teacherId}&type=${type}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Update a qualification (private or group) using the legacy API
+ * @param location - The location string
+ * @param qualificationId - The qualification ID
+ * @param qualificationData - The qualification data with rate
+ */
+export async function updateQualification(
+  location: string,
+  qualificationId: string | number,
+  qualificationData: QualificationUpdateData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  
+  formData.append('Qualification[rate]', qualificationData.rate.toString());
+
+  const url = `/admin/${location}/qualification/update?id=${qualificationId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Delete a qualification (private or group) using the legacy API
+ * @param location - The location string
+ * @param qualificationId - The qualification ID
+ * @param qualificationData - The qualification data with rate
+ */
+export async function deleteQualification(
+  location: string,
+  qualificationId: string | number,
+  qualificationData: QualificationDeleteData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  
+  formData.append('Qualification[rate]', qualificationData.rate.toString());
+
+  const url = `/admin/${location}/qualification/delete?id=${qualificationId}`;
 
   try {
     const response = await fetch(url, {

@@ -5,7 +5,7 @@ import { InfoCard } from "@/components/InfoCard";
 import { TeacherQualification } from "../../types";
 import { AddQualificationModal } from "../modals/AddQualificationModal";
 import { QualificationList } from "../sections";
-import { createQualification } from "@/lib/api/legacyApiAdapter";
+import { createQualification, updateQualification, deleteQualification } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 
 interface TeacherGroupQualificationCardProps {
@@ -61,20 +61,49 @@ export const TeacherGroupQualificationCard = React.memo(
     const handleModalSubmit = React.useCallback(
       async (data: { programs: number[]; rate?: number }) => {
         if (editingQualification) {
-          // TODO: Implement update functionality when needed
-          // For now, just update local state
-          onUpdate((prev) =>
-            prev.map((qual) =>
-              qual.id === editingQualification.id
-                ? {
-                    ...qual,
-                    rate: data.rate,
-                  }
-                : qual
-            )
-          );
-          setIsEditModalOpen(false);
-          setEditingQualification(null);
+          // Update existing qualification via legacy API
+          if (!data.rate) {
+            toast.error("Rate is required");
+            return;
+          }
+
+          try {
+            // Convert qualification ID from string to number for API
+            const qualificationId = Number(editingQualification.id);
+            if (isNaN(qualificationId)) {
+              toast.error("Invalid qualification ID");
+              return;
+            }
+
+            const response = await updateQualification(
+              location,
+              qualificationId,
+              {
+                rate: data.rate,
+              }
+            );
+
+            if (response.status) {
+              toast.success("Qualification updated successfully");
+              setIsEditModalOpen(false);
+              setEditingQualification(null);
+              // Refresh data from server
+              if (onRefresh) {
+                await onRefresh();
+              }
+            } else {
+              const errorMessage =
+                response.message ||
+                response.errors?.join(", ") ||
+                "Failed to update qualification";
+              toast.error(errorMessage);
+            }
+          } catch (error) {
+            console.error("Error updating qualification:", error);
+            const errorMessage =
+              error instanceof Error ? error.message : "Failed to update qualification";
+            toast.error(errorMessage);
+          }
         } else {
           // Create new qualifications via legacy API
           if (!data.rate) {
@@ -127,11 +156,59 @@ export const TeacherGroupQualificationCard = React.memo(
     );
 
     const handleDelete = React.useCallback(
-      (id: string) => {
-        onUpdate((prev) => prev.filter((qual) => qual.id !== id));
-        setEditingQualification(null);
+      async (id: string) => {
+        // Find the qualification to get its rate
+        const qualificationToDelete = qualifications.find((qual) => qual.id === id);
+        if (!qualificationToDelete) {
+          toast.error("Qualification not found");
+          return;
+        }
+
+        // Rate is required for delete API
+        if (!qualificationToDelete.rate) {
+          toast.error("Rate is required for deletion");
+          return;
+        }
+
+        try {
+          // Convert qualification ID from string to number for API
+          const qualificationId = Number(id);
+          if (isNaN(qualificationId)) {
+            toast.error("Invalid qualification ID");
+            return;
+          }
+
+          const response = await deleteQualification(
+            location,
+            qualificationId,
+            {
+              rate: qualificationToDelete.rate,
+            }
+          );
+
+          if (response.status) {
+            toast.success("Qualification deleted successfully");
+            setEditingQualification(null);
+            setIsEditModalOpen(false);
+            // Refresh data from server
+            if (onRefresh) {
+              await onRefresh();
+            }
+          } else {
+            const errorMessage =
+              response.message ||
+              response.errors?.join(", ") ||
+              "Failed to delete qualification";
+            toast.error(errorMessage);
+          }
+        } catch (error) {
+          console.error("Error deleting qualification:", error);
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to delete qualification";
+          toast.error(errorMessage);
+        }
       },
-      [onUpdate]
+      [onUpdate, qualifications, location, onRefresh]
     );
 
     const handleViewToggle = React.useCallback(() => {
