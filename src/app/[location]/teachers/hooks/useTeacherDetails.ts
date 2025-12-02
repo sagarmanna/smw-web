@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { setUserPassword } from "@/lib/api/legacyApiAdapter";
 import { 
   updateTeacher, 
   updateEmails, 
@@ -38,7 +39,7 @@ type TeacherDetailsHookReturn = {
   updateAddresses: React.Dispatch<React.SetStateAction<TeacherAddress[]>>;
   updatePrivateQualifications: React.Dispatch<React.SetStateAction<TeacherQualification[]>>;
   updateGroupQualifications: React.Dispatch<React.SetStateAction<TeacherQualification[]>>;
-  updatePassword: (password: string) => Promise<boolean>;
+  updatePassword: (password: string, confirmPassword: string) => Promise<boolean>;
   savingDetails: boolean;
 };
 
@@ -169,15 +170,27 @@ export function useTeacherDetails(
     [dispatch, teacherInfo]
   );
 
-  const updatePassword = React.useCallback(async (_password: string) => {
+  const updatePassword = React.useCallback(async (password: string, confirmPassword: string) => {
     try {
-      await simulateRequest(true);
-      return true;
+      // Call legacy API to set password
+      const response = await setUserPassword(
+        location,
+        teacherId,
+        password,
+        confirmPassword
+      );
+
+      if (response.status) {
+        return true;
+      } else {
+        console.error("Failed to update password:", response.message || response.errors);
+        return false;
+      }
     } catch (err) {
       console.error("Failed to update password:", err);
       return false;
     }
-  }, []);
+  }, [location, teacherId]);
 
   return {
     loading,

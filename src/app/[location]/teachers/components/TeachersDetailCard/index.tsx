@@ -16,7 +16,7 @@ import { formatFullName } from "../../utils/nameUtils";
 interface TeachersDetailCardProps {
   details: TeacherBasicDetails | null;
   onSaveDetails: (details: TeacherBasicDetails) => Promise<boolean>;
-  onUpdatePassword: (password: string) => Promise<boolean>;
+  onUpdatePassword: (password: string, confirmPassword: string) => Promise<boolean>;
   savingDetails?: boolean;
   isLoading?: boolean;
   formatDisplayDate?: (value?: string) => string;
@@ -65,8 +65,8 @@ export const TeachersDetailCard = React.memo(function TeachersDetailCard({
   }, [details, formatDate]);
 
   const handlePasswordSave = React.useCallback(
-    async (password: string): Promise<boolean> => {
-      const success = await onUpdatePassword(password);
+    async (password: string, confirmPassword: string): Promise<boolean> => {
+      const success = await onUpdatePassword(password, confirmPassword);
       if (success) {
         setIsPasswordModalOpen(false);
       }

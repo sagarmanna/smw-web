@@ -16,7 +16,7 @@ import { toast } from "sonner";
 interface SetTeacherPasswordModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (password: string) => Promise<boolean>;
+  onSubmit: (password: string, confirmPassword: string) => Promise<boolean>;
 }
 
 export function SetTeacherPasswordModal({
@@ -61,7 +61,7 @@ export function SetTeacherPasswordModal({
 
     setIsSubmitting(true);
     setError(null);
-    const success = await onSubmit(password);
+    const success = await onSubmit(password, confirmPassword);
     setIsSubmitting(false);
 
     if (success) {
