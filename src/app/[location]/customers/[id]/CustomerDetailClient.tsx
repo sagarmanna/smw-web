@@ -34,13 +34,11 @@ import {
 } from "../customers.api";
 import { getPaymentReceiptData } from "../components/ReceiptPaymentModal/receipt-payment.api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InfoCardWithAction } from "@/components/InfoCardWithAction";
 import { TableCard } from "@/components/TableCard";
 import { TabContent } from "@/components/TabContent";
 import { AddressCard } from "../components/AddressCard";
 import { EmailCard } from "../components/EmailCard";
 import { DiscountCard } from "../components/DiscountCard";
-import { OpeningBalanceCard } from "../components/OpeningBalanceCard";
 import { PhoneCard } from "../components/PhoneCard";
 import { RecurringPaymentModal } from "../components/RecurringPaymentModal";
 import { EquipmentRentalsModal } from "../components/EquipmentRentalsModal";
@@ -1178,12 +1176,6 @@ export function CustomerDetailClient({
   const [emails, setEmails] = React.useState<Email[]>([]);
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [discount, setDiscount] = React.useState<number>(0);
-  const [openingBalance, setOpeningBalance] = React.useState<number>(0);
-  const [openingBalanceId, setOpeningBalanceId] = React.useState<number | null>(
-    null
-  );
-  const [hasOpeningBalance, setHasOpeningBalance] =
-    React.useState<boolean>(false);
 
   // Private lesson due server-side pagination and footer
   const [privateLessonDuePagination, setPrivateLessonDuePagination] =
@@ -1445,14 +1437,6 @@ export function CustomerDetailClient({
             setDiscount(infoResponse.data.discount.value || 0);
           }
 
-          // FIXED: Opening balance handling
-          if (infoResponse.data.openingBalance) {
-            const amount = infoResponse.data.openingBalance.amount || 0;
-            const id = infoResponse.data.openingBalance.id;
-            setOpeningBalance(amount);
-            setOpeningBalanceId(id);
-            setHasOpeningBalance(true);
-          }
         }
 
         const summary = await getCustomerSummary(location, Number(id));
@@ -2008,37 +1992,6 @@ export function CustomerDetailClient({
             customerId={Number(id)}
           />
 
-          <OpeningBalanceCard
-            amount={openingBalance}
-            hasBalance={hasOpeningBalance}
-            customerId={id}
-            openingBalanceId={openingBalanceId ?? undefined}
-            location={location}
-            onSave={async (amount, balanceType, invoiceId) => {
-              // UPDATE: Add invoiceId parameter
-              const savedAmount = balanceType === "credit" ? -amount : amount;
-              setOpeningBalance(savedAmount);
-              setOpeningBalanceId(invoiceId);
-              setHasOpeningBalance(true);
-
-              // Refresh summary data to update credits & outstanding invoice
-              try {
-                const summary = await getCustomerSummary(location, Number(id));
-                if (summary?.success && summary.data) {
-                  setSummaryData(summary.data);
-                }
-              } catch (error) {
-                console.error("Error refreshing summary data:", error);
-              }
-            }}
-            loading={loading}
-          />
-
-          <InfoCardWithAction title="Payment Preference" showAddButton={false}>
-            <div className="space-y-2">
-              <div className="text-sm text-gray-500">Payment Preference</div>
-            </div>
-          </InfoCardWithAction>
         </div>
       </div>
 
