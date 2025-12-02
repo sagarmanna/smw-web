@@ -29,6 +29,7 @@ const ALLOWED_PATHS = [
   '/release-notes',
   '/items',
   '/timeline',
+  '/blogs',
   '/menu-flags', 
   '/staffmembers/[id]',
   '/[location]/report/account-receivable/[id]',

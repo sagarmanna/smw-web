@@ -7,6 +7,7 @@ import staffMemberReducer from '../app/[location]/staffmembers/[id]/staffmembers
 import dashboardReducer from '../app/[location]/dashboard/dashboard.slice';
 import teacherReducer from '../app/[location]/teachers/[id]/teachers.slice';
 import teachersListingReducer from '../app/[location]/teachers/teachersListing.slice';
+import blogsListingReducer from '../app/[location]/blogs/blogsListing.slice';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     dashboard: dashboardReducer,
     teacher: teacherReducer,
     teachersListing: teachersListingReducer,
+    blogsListing: blogsListingReducer,
   },
 });
 
