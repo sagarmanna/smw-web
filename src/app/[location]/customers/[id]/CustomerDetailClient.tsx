@@ -59,6 +59,7 @@ import {
   createStudent,
   createNote,
   sendEmail,
+  deletePayment,
 } from "@/lib/api/legacyApiAdapter";
 import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
@@ -2910,12 +2911,36 @@ export function CustomerDetailClient({
           }
         }}
         onDelete={async () => {
+          if (!selectedPaymentId) {
+            toast.error("Payment ID not found");
+            return;
+          }
+
           try {
-            await refreshPaymentData();
-            toast.success("Payment deleted successfully");
+            // Call legacy API to delete payment
+            const response = await deletePayment(location, selectedPaymentId);
+
+            if (response.status) {
+              // Close the modal
+              setIsPaymentReceiptModalOpen(false);
+              setSelectedPaymentId(null);
+              setDirectPaymentReceiptData(null);
+
+              // Refresh payment data
+              await refreshPaymentData();
+              toast.success(response.message || "Payment deleted successfully");
+            } else {
+              const errorMessage =
+                response.message ||
+                response.errors?.join(", ") ||
+                "Failed to delete payment";
+              toast.error(errorMessage);
+            }
           } catch (error) {
-            console.error("Error refreshing data after payment delete:", error);
-            toast.error("Payment deleted but failed to refresh data");
+            console.error("Error deleting payment:", error);
+            const errorMessage =
+              error instanceof Error ? error.message : "Failed to delete payment";
+            toast.error(errorMessage);
           }
         }}
         onEmail={({ subject, content }) => {
