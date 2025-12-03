@@ -1,5 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { formatISOToDisplay } from "./utils/dateUtils";
 
 // Data interfaces
 export interface UnavailabilityData {
@@ -60,16 +61,22 @@ export const unavailabilityColumns: ColumnDef<UnavailabilityData>[] = [
   {
     accessorKey: "fromDateTime",
     header: "From Date Time",
-    cell: ({ row }) => (
-      <span className="font-medium">{row.getValue("fromDateTime")}</span>
-    ),
+    cell: ({ row }) => {
+      const isoString = row.getValue("fromDateTime") as string;
+      // Convert ISO string directly to display format (no parsing needed)
+      const displayFormat = formatISOToDisplay(isoString);
+      return <span className="font-medium">{displayFormat}</span>;
+    },
   },
   {
     accessorKey: "toDateTime",
     header: "To Date Time",
-    cell: ({ row }) => (
-      <span className="font-medium">{row.getValue("toDateTime")}</span>
-    ),
+    cell: ({ row }) => {
+      const isoString = row.getValue("toDateTime") as string;
+      // Convert ISO string directly to display format (no parsing needed)
+      const displayFormat = formatISOToDisplay(isoString);
+      return <span className="font-medium">{displayFormat}</span>;
+    },
   },
   {
     accessorKey: "reason",
