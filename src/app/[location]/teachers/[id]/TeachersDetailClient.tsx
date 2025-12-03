@@ -14,6 +14,7 @@ import { TeacherPhoneCard } from "../components/TeacherPhoneCard";
 import { TeacherAddressCard } from "../components/TeacherAddressCard";
 import { TeacherPrivateQualificationCard } from "../components/TeacherPrivateQualificationCard";
 import { TeacherGroupQualificationCard } from "../components/TeacherGroupQualificationCard";
+import { TeacherTabsSection } from "../components/TeacherTabsSection";
 import { formatFullName } from "../utils/nameUtils";
 
 interface TeachersDetailClientProps {
@@ -195,6 +196,9 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
             />
           </div>
         </div>
+
+        {/* Tabs Section */}
+        <TeacherTabsSection location={location} teacherId={teacherId} />
       </div>
     </>
   );
