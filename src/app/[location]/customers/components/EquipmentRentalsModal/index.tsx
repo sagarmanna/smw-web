@@ -3038,7 +3038,7 @@ export function EquipmentRentalsModal({
 
               <div className="border-t-2 border-gray-300 dark:border-gray-700 pt-6">
                 <h3 className="font-bold text-lg mb-3 text-gray-800 dark:text-gray-100">
-                  Rental Agreement:
+                  Contract:
                 </h3>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                   <p className="text-sm text-justify leading-relaxed text-gray-700 dark:text-gray-300">
@@ -3088,13 +3088,13 @@ export function EquipmentRentalsModal({
                   <div className="flex justify-between items-end">
                     <div className="w-1/2">
                       <p className="text-sm font-semibold mb-2 dark:text-gray-100">
-                        Customer Signature:
+                        SALES REPRESENTATIVE
                       </p>
                       <div className="border-b-2 border-gray-400 dark:border-gray-600 h-12"></div>
                     </div>
                     <div className="w-1/3">
                       <p className="text-sm font-semibold mb-2 dark:text-gray-100">
-                        Date:
+                      CUSTOMER SIGNATURE
                       </p>
                       <div className="border-b-2 border-gray-400 dark:border-gray-600 h-12"></div>
                     </div>
