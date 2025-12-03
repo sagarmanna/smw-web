@@ -9,8 +9,9 @@ import {
   HistoryData,
 } from '../teacherTabConfigs';
 import { mockTeacherTabData } from '../mockData/teacherMockData';
-import { getTeacherUnavailability } from './teachers-details-tabs.api';
+import { getTeacherUnavailability, getTeacherTimeVoucher, TimeVoucherQueryParams } from './teachers-details-tabs.api';
 import { parseApiDateTimeToISO } from '../utils/dateUtils';
+import { format } from 'date-fns';
 
 export interface TeacherTabsState {
   unavailabilityData: UnavailabilityData[];
@@ -24,6 +25,11 @@ export interface TeacherTabsState {
   error: string | null;
   lastFetched: number | null;
   currentTeacherId: number | null;
+  // Time voucher specific state
+  timeVoucherLoading: boolean;
+  timeVoucherError: string | null;
+  timeVoucherLastFetched: number | null;
+  timeVoucherCacheKey: string | null; // Cache key based on params
 }
 
 // Cache configuration - data is considered fresh for 5 minutes (300000ms)
@@ -41,6 +47,10 @@ const initialState: TeacherTabsState = {
   error: null,
   lastFetched: null,
   currentTeacherId: null,
+  timeVoucherLoading: false,
+  timeVoucherError: null,
+  timeVoucherLastFetched: null,
+  timeVoucherCacheKey: null,
 };
 
 // Async thunk for fetching teacher tabs data with caching
@@ -99,12 +109,13 @@ export const fetchTeacherTabsData = createAsyncThunk(
       
       // TODO: Replace other mock data with actual API calls
       // For now, using mock data for other tabs
+      // Note: timeVoucherData is now fetched separately when the tab is opened
       const data = {
         unavailabilityData,
         studentData: mockTeacherTabData.studentData,
         invoicedLessonData: mockTeacherTabData.invoicedLessonData,
         unscheduledLessonData: mockTeacherTabData.unscheduledLessonData,
-        timeVoucherData: mockTeacherTabData.timeVoucherData,
+        timeVoucherData: [], // Will be fetched separately when tab is opened
         commentData: mockTeacherTabData.commentData,
         historyData: mockTeacherTabData.historyData,
       };
@@ -113,6 +124,117 @@ export const fetchTeacherTabsData = createAsyncThunk(
     } catch (error) {
       console.error('Error in fetchTeacherTabsData:', error);
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch teacher tabs data');
+    }
+  }
+);
+
+// Helper function to create cache key for time voucher - DRY principle
+const createTimeVoucherCacheKey = (
+  location: string,
+  teacherId: number,
+  params: TimeVoucherQueryParams
+): string => {
+  return `${location}-${teacherId}-${params.startDate}-${params.endDate}-${params.summaryOnly}`;
+};
+
+// Async thunk for fetching time voucher data with caching - only triggers when tab is opened
+export const fetchTimeVoucherData = createAsyncThunk(
+  'teacherTabs/fetchTimeVoucherData',
+  async (
+    {
+      location,
+      teacherId,
+      params,
+    }: { location: string; teacherId: number; params: TimeVoucherQueryParams },
+    { getState, rejectWithValue }
+  ) => {
+    try {
+      // Check if we have fresh cached data for these specific params
+      const state = getState() as { teacherTabs: TeacherTabsState };
+      const tabsState = state.teacherTabs;
+      const cacheKey = createTimeVoucherCacheKey(location, teacherId, params);
+      
+      if (
+        tabsState.timeVoucherCacheKey === cacheKey &&
+        tabsState.timeVoucherLastFetched &&
+        Date.now() - tabsState.timeVoucherLastFetched < STALE_TIME_MS &&
+        tabsState.timeVoucherData.length > 0
+      ) {
+        // Return cached data - no API call needed
+        return {
+          data: tabsState.timeVoucherData,
+          fromCache: true,
+          cacheKey,
+        };
+      }
+
+      // Fetch time voucher data from API
+      const apiResult = await getTeacherTimeVoucher(location, teacherId, params);
+      
+      if (!apiResult || !apiResult.success || !apiResult.data?.body) {
+        return {
+          data: [],
+          fromCache: false,
+          cacheKey,
+        };
+      }
+
+      // Transform API response to match TimeVoucherData structure
+      const transformedData: TimeVoucherData[] = [];
+      const baseTimestamp = Date.now();
+
+      if (params.summaryOnly) {
+        // Summary mode: body contains { date, duration }[]
+        const summaryItems = apiResult.data.body as Array<{ date: string; duration: number }>;
+        summaryItems.forEach((item, index) => {
+          // For summary mode, we still need to create TimeVoucherData format
+          // We'll use the date as the time field and duration as string
+          transformedData.push({
+            id: `time-voucher-summary-${baseTimestamp}-${index}`,
+            time: item.date,
+            program: '',
+            student: '',
+            duration: item.duration.toString(),
+          });
+        });
+      } else {
+        // Detail mode: body contains { date, lessons: [{ id, time, program, student, duration }] }[]
+        const detailItems = apiResult.data.body as Array<{
+          date: string;
+          lessons: Array<{
+            id: number;
+            time: string;
+            program: string;
+            student: string;
+            duration: number;
+          }>;
+        }>;
+        
+        detailItems.forEach((item) => {
+          item.lessons.forEach((lesson, lessonIndex) => {
+            // Combine date and time for the time field
+            const fullTime = `${item.date} ${lesson.time}`;
+            transformedData.push({
+              id: `time-voucher-${lesson.id}-${baseTimestamp}-${lessonIndex}`,
+              time: fullTime,
+              program: lesson.program,
+              student: lesson.student,
+              duration: lesson.duration.toString(),
+            });
+          });
+        });
+      }
+
+      return {
+        data: transformedData,
+        fromCache: false,
+        cacheKey,
+      };
+    } catch (error) {
+      console.error('Error in fetchTimeVoucherData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch time voucher data'
+      );
     }
   }
 );
@@ -162,6 +284,13 @@ const teacherTabsSlice = createSlice({
         (item) => item.id !== action.payload
       );
     },
+    // Clear time voucher data
+    clearTimeVoucherData: (state) => {
+      state.timeVoucherData = [];
+      state.timeVoucherError = null;
+      state.timeVoucherLastFetched = null;
+      state.timeVoucherCacheKey = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -178,6 +307,11 @@ const teacherTabsSlice = createSlice({
           state.commentData = [];
           state.historyData = [];
           state.lastFetched = null;
+          // Clear time voucher specific state
+          state.timeVoucherLoading = false;
+          state.timeVoucherError = null;
+          state.timeVoucherLastFetched = null;
+          state.timeVoucherCacheKey = null;
         }
         
         state.currentTeacherId = teacherId;
@@ -202,6 +336,25 @@ const teacherTabsSlice = createSlice({
       .addCase(fetchTeacherTabsData.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+      })
+      // Time voucher thunk handlers
+      .addCase(fetchTimeVoucherData.pending, (state) => {
+        state.timeVoucherLoading = true;
+        state.timeVoucherError = null;
+      })
+      .addCase(fetchTimeVoucherData.fulfilled, (state, action) => {
+        state.timeVoucherLoading = false;
+        state.timeVoucherData = action.payload.data;
+        state.timeVoucherError = null;
+        // Only update timestamp and cache key if data came from API, not cache
+        if (!action.payload.fromCache) {
+          state.timeVoucherLastFetched = Date.now();
+          state.timeVoucherCacheKey = action.payload.cacheKey;
+        }
+      })
+      .addCase(fetchTimeVoucherData.rejected, (state, action) => {
+        state.timeVoucherLoading = false;
+        state.timeVoucherError = action.payload as string;
       });
   },
 });
@@ -214,6 +367,7 @@ export const {
   addUnavailability,
   updateUnavailability,
   deleteUnavailability,
+  clearTimeVoucherData,
 } = teacherTabsSlice.actions;
 export default teacherTabsSlice.reducer;
 
