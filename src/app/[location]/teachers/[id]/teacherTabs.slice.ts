@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { parse } from 'date-fns';
 import {
   UnavailabilityData,
   TeacherStudentData,
@@ -9,6 +10,31 @@ import {
   HistoryData,
 } from '../teacherTabConfigs';
 import { mockTeacherTabData } from '../mockData/teacherMockData';
+import { getTeacherUnavailability } from './teachers-details-tabs.api';
+
+/**
+ * Parses API date format "Apr 14, 2018 at 12:00 AM" to ISO string
+ * Used to transform API data - stores as ISO for easy Date conversion
+ */
+function parseApiDateTimeToISO(dateTimeStr: string): string {
+  try {
+    // Try parsing with double-digit day format: "Apr 14, 2018 at 12:00 AM"
+    let parsedDate = parse(dateTimeStr, "MMM dd, yyyy 'at' h:mm a", new Date());
+    if (isNaN(parsedDate.getTime())) {
+      // Try parsing with single-digit day format: "Apr 4, 2018 at 12:00 AM"
+      parsedDate = parse(dateTimeStr, "MMM d, yyyy 'at' h:mm a", new Date());
+    }
+    
+    if (!isNaN(parsedDate.getTime())) {
+      // Return ISO string - can be directly converted to Date: new Date(isoString)
+      return parsedDate.toISOString();
+    }
+  } catch (error) {
+    console.warn("Failed to parse API date:", dateTimeStr, error);
+  }
+  // Return original if parsing fails
+  return dateTimeStr;
+}
 
 export interface TeacherTabsState {
   unavailabilityData: UnavailabilityData[];
@@ -74,12 +100,31 @@ export const fetchTeacherTabsData = createAsyncThunk(
         };
       }
 
-      // TODO: Replace with actual API calls
-      // For now, using mock data
-      await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
+      // Fetch unavailability data from API and transform it
+      let unavailabilityData: UnavailabilityData[] = [];
+      try {
+        const apiResult = await getTeacherUnavailability(location, teacherId);
+        if (apiResult && apiResult.length > 0) {
+          // Parse API data once - store as ISO strings for direct Date conversion in UI
+          const baseTimestamp = Date.now();
+          unavailabilityData = apiResult.map((item, index) => ({
+            id: `unavailability-${baseTimestamp}-${index}`,
+            fromDateTime: parseApiDateTimeToISO(item.start),
+            toDateTime: parseApiDateTimeToISO(item.end),
+            reason: item.reason || "",
+          }));
+          console.log('Transformed unavailability data:', unavailabilityData);
+        }
+      } catch (unavailabilityError) {
+        console.error('Error fetching unavailability data:', unavailabilityError);
+        // Continue with empty array if unavailability fetch fails
+        unavailabilityData = [];
+      }
       
+      // TODO: Replace other mock data with actual API calls
+      // For now, using mock data for other tabs
       const data = {
-        unavailabilityData: [],
+        unavailabilityData,
         studentData: mockTeacherTabData.studentData,
         invoicedLessonData: mockTeacherTabData.invoicedLessonData,
         unscheduledLessonData: mockTeacherTabData.unscheduledLessonData,
@@ -90,6 +135,7 @@ export const fetchTeacherTabsData = createAsyncThunk(
 
       return { data, fromCache: false };
     } catch (error) {
+      console.error('Error in fetchTeacherTabsData:', error);
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch teacher tabs data');
     }
   }
@@ -124,6 +170,21 @@ const teacherTabsSlice = createSlice({
     // Add unavailability
     addUnavailability: (state, action: PayloadAction<UnavailabilityData>) => {
       state.unavailabilityData.push(action.payload);
+    },
+    // Update unavailability
+    updateUnavailability: (state, action: PayloadAction<UnavailabilityData>) => {
+      const index = state.unavailabilityData.findIndex(
+        (item) => item.id === action.payload.id
+      );
+      if (index !== -1) {
+        state.unavailabilityData[index] = action.payload;
+      }
+    },
+    // Delete unavailability
+    deleteUnavailability: (state, action: PayloadAction<string>) => {
+      state.unavailabilityData = state.unavailabilityData.filter(
+        (item) => item.id !== action.payload
+      );
     },
   },
   extraReducers: (builder) => {
@@ -175,6 +236,8 @@ export const {
   clearCache,
   addComment,
   addUnavailability,
+  updateUnavailability,
+  deleteUnavailability,
 } = teacherTabsSlice.actions;
 export default teacherTabsSlice.reducer;
 
