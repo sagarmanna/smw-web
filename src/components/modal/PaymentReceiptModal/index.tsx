@@ -24,6 +24,105 @@ import type {
   ReceiptRow,
 } from "./types";
 
+/**
+ * Payment Input Component for Lessons - uses local state to prevent focus loss
+ */
+const LessonAllocationInput: React.FC<{
+  row: { original: EditLessonRow; index: number };
+  onLessonAllocationChange: (index: number, value: number) => void;
+}> = ({ row, onLessonAllocationChange }) => {
+  const [localValue, setLocalValue] = React.useState(row.original.allocation.toString());
+  
+  React.useEffect(() => {
+    setLocalValue(row.original.allocation.toString());
+  }, [row.original.allocation]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+  };
+  
+  const handleBlur = () => {
+    const numericValue = parseFloat(localValue) || 0;
+    onLessonAllocationChange(row.index, numericValue);
+  };
+  
+  return (
+    <Input
+      type="number"
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className="h-8 text-right"
+    />
+  );
+};
+
+/**
+ * Payment Input Component for Group Lessons - uses local state to prevent focus loss
+ */
+const GroupLessonAllocationInput: React.FC<{
+  row: { original: GroupLessonEditRow; index: number };
+  onGroupLessonAllocationChange: (index: number, value: number) => void;
+}> = ({ row, onGroupLessonAllocationChange }) => {
+  const [localValue, setLocalValue] = React.useState(row.original.allocation.toString());
+  
+  React.useEffect(() => {
+    setLocalValue(row.original.allocation.toString());
+  }, [row.original.allocation]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+  };
+  
+  const handleBlur = () => {
+    const numericValue = parseFloat(localValue) || 0;
+    onGroupLessonAllocationChange(row.index, numericValue);
+  };
+  
+  return (
+    <Input
+      type="number"
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className="h-8 text-right"
+    />
+  );
+};
+
+/**
+ * Payment Input Component for Invoices - uses local state to prevent focus loss
+ */
+const InvoiceAllocationInput: React.FC<{
+  row: { original: InvoiceEditRow; index: number };
+  onInvoiceAllocationChange: (index: number, value: number) => void;
+}> = ({ row, onInvoiceAllocationChange }) => {
+  const [localValue, setLocalValue] = React.useState(row.original.allocation.toString());
+  
+  React.useEffect(() => {
+    setLocalValue(row.original.allocation.toString());
+  }, [row.original.allocation]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalValue(e.target.value);
+  };
+  
+  const handleBlur = () => {
+    const numericValue = parseFloat(localValue) || 0;
+    onInvoiceAllocationChange(row.index, numericValue);
+  };
+  
+  return (
+    <Input
+      type="number"
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className="h-8 text-right"
+    />
+  );
+};
+
 // Column definitions - base columns without Original Date
 const allocationColumnsBase: ColumnDef<AllocationRow>[] = [
   {
@@ -389,21 +488,12 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                                 {
                                   id: "paymentInput",
                                   header: "Payment",
-                                  cell: ({ row }) => {
-                                    const lessonRow = row.original as EditLessonRow;
-                                    const current = lessonRow.allocation;
-                                    return (
-                                      <Input
-                                        type="number"
-                                        value={Number(current).toString()}
-                                        onChange={(e) => {
-                                          const v = parseFloat(e.target.value || "0");
-                                          onLessonAllocationChange(row.index, v);
-                                        }}
-                                        className="h-8 text-right"
-                                      />
-                                    );
-                                  },
+                                  cell: ({ row }) => (
+                                    <LessonAllocationInput
+                                      row={row as unknown as { original: EditLessonRow; index: number }}
+                                      onLessonAllocationChange={onLessonAllocationChange}
+                                    />
+                                  ),
                                 },
                               ]}
                               size="compact"
@@ -429,14 +519,9 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                                   id: "glPayment",
                                   header: "Payment",
                                   cell: ({ row }) => (
-                                    <Input
-                                      type="number"
-                                      value={(row.original as GroupLessonEditRow).allocation.toString()}
-                                      onChange={(e) => {
-                                        const v = parseFloat(e.target.value || "0");
-                                        onGroupLessonAllocationChange(row.index, v);
-                                      }}
-                                      className="h-8 text-right"
+                                    <GroupLessonAllocationInput
+                                      row={row as unknown as { original: GroupLessonEditRow; index: number }}
+                                      onGroupLessonAllocationChange={onGroupLessonAllocationChange}
                                     />
                                   ),
                                 },
@@ -464,14 +549,9 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
                                   id: "invPayment",
                                   header: "Payment",
                                   cell: ({ row }) => (
-                                    <Input
-                                      type="number"
-                                      value={(row.original as InvoiceEditRow).allocation.toString()}
-                                      onChange={(e) => {
-                                        const v = parseFloat(e.target.value || "0");
-                                        onInvoiceAllocationChange(row.index, v);
-                                      }}
-                                      className="h-8 text-right"
+                                    <InvoiceAllocationInput
+                                      row={row as unknown as { original: InvoiceEditRow; index: number }}
+                                      onInvoiceAllocationChange={onInvoiceAllocationChange}
                                     />
                                   ),
                                 },
