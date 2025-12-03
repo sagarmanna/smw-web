@@ -22,6 +22,7 @@ export interface PaymentReceiptInfoResponse {
   message: string;
   data: {
     body: [{
+      userId: number;
       reference: string;
       date: string;
       paymentMethod: string;
@@ -222,6 +223,7 @@ export async function getPaymentReceiptInfo(
   location: string,
   paymentId: number | string
 ): Promise<{
+  userId: number;
   reference: string;
   date: string;
   paymentMethod: string;
@@ -238,6 +240,7 @@ export async function getPaymentReceiptInfo(
     if (response.data.success && response.data.data.body && response.data.data.body.length > 0) {
       const body = response.data.data.body[0];
       return {
+        userId: body.userId,
         reference: body.reference,
         date: body.date,
         paymentMethod: body.paymentMethod,

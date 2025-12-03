@@ -651,10 +651,12 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
             </DialogTitle>
           </DialogHeader>
           <DialogFooter className="flex items-center justify-end gap-2">
-            <Button variant="secondary" onClick={onDeleteCancel}>
+            <Button variant="secondary" onClick={onDeleteCancel} disabled={isSaving}>
               Cancel
             </Button>
-            <Button onClick={onDeleteConfirm}>OK</Button>
+            <Button onClick={onDeleteConfirm} disabled={isSaving}>
+              {isSaving ? "Deleting..." : "OK"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
