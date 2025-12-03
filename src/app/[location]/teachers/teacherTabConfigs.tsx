@@ -1,6 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { formatISOToDisplay } from "./utils/dateUtils";
+import { formatISOToDisplay } from "@/utils/dateUtils";
 
 // Data interfaces
 export interface UnavailabilityData {

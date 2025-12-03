@@ -10,7 +10,7 @@ import {
 } from '../teacherTabConfigs';
 import { mockTeacherTabData } from '../mockData/teacherMockData';
 import { getTeacherUnavailability } from './teachers-details-tabs.api';
-import { parseApiDateTimeToISO } from '../utils/dateUtils';
+import { parseApiDateTimeToISO } from '@/utils/dateUtils';
 
 export interface TeacherTabsState {
   unavailabilityData: UnavailabilityData[];
@@ -96,12 +96,16 @@ export const fetchTeacherTabsData = createAsyncThunk(
         // Continue with empty array if unavailability fetch fails
         unavailabilityData = [];
       }
+
+      // Note: Students data is fetched lazily when StudentsTab is clicked
+      // This avoids loading all tab data upfront and improves initial load time
+      const studentData: TeacherStudentData[] = [];
       
       // TODO: Replace other mock data with actual API calls
       // For now, using mock data for other tabs
       const data = {
         unavailabilityData,
-        studentData: mockTeacherTabData.studentData,
+        studentData,
         invoicedLessonData: mockTeacherTabData.invoicedLessonData,
         unscheduledLessonData: mockTeacherTabData.unscheduledLessonData,
         timeVoucherData: mockTeacherTabData.timeVoucherData,

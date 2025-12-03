@@ -10,7 +10,7 @@ import { SectionCardDataRow, DropdownOption } from "@/components/SectionCard/typ
 import { EditTeacherDetailsModal } from "../modals/EditTeacherDetailsModal";
 import { SetTeacherPasswordModal } from "../modals/SetTeacherPasswordModal";
 import { TeacherBasicDetails } from "../../types";
-import { formatDisplayDate } from "../../utils/dateUtils";
+import { formatDisplayDate } from "@/utils/dateUtils";
 import { formatFullName } from "../../utils/nameUtils";
 
 interface TeachersDetailCardProps {
