@@ -9,9 +9,10 @@ import {
   HistoryData,
 } from '../teacherTabConfigs';
 import { mockTeacherTabData } from '../mockData/teacherMockData';
-import { getTeacherUnavailability, getTeacherTimeVoucher, TimeVoucherQueryParams } from './teachers-details-tabs.api';
-import { parseApiDateTimeToISO } from '../utils/dateUtils';
-import { format } from 'date-fns';
+import { getTeacherTimeVoucher, TimeVoucherQueryParams } from './teachers-details-tabs.api';
+import { isCacheFresh, createTimeVoucherCacheKey, STALE_TIME_MS } from '../utils/cacheUtils';
+import { transformTimeVoucherData } from '../utils/tabTransformers';
+import { fetchUnavailabilityData } from '../utils/teacherTabsData';
 
 export interface TeacherTabsState {
   unavailabilityData: UnavailabilityData[];
@@ -31,9 +32,6 @@ export interface TeacherTabsState {
   timeVoucherLastFetched: number | null;
   timeVoucherCacheKey: string | null; // Cache key based on params
 }
-
-// Cache configuration - data is considered fresh for 5 minutes (300000ms)
-const STALE_TIME_MS = 5 * 60 * 1000;
 
 const initialState: TeacherTabsState = {
   unavailabilityData: [],
@@ -67,8 +65,7 @@ export const fetchTeacherTabsData = createAsyncThunk(
       
       if (
         tabsState.currentTeacherId === teacherId &&
-        tabsState.lastFetched &&
-        Date.now() - tabsState.lastFetched < STALE_TIME_MS &&
+        isCacheFresh(tabsState.lastFetched, STALE_TIME_MS) &&
         tabsState.studentData.length > 0 // Check if we have data
       ) {
         // Return cached data - no API call needed
@@ -86,26 +83,8 @@ export const fetchTeacherTabsData = createAsyncThunk(
         };
       }
 
-      // Fetch unavailability data from API and transform it
-      let unavailabilityData: UnavailabilityData[] = [];
-      try {
-        const apiResult = await getTeacherUnavailability(location, teacherId);
-        if (apiResult && apiResult.length > 0) {
-          // Parse API data once - store as ISO strings for direct Date conversion in UI
-          const baseTimestamp = Date.now();
-          unavailabilityData = apiResult.map((item, index) => ({
-            id: `unavailability-${baseTimestamp}-${index}`,
-            fromDateTime: parseApiDateTimeToISO(item.start),
-            toDateTime: parseApiDateTimeToISO(item.end),
-            reason: item.reason || "",
-          }));
-          console.log('Transformed unavailability data:', unavailabilityData);
-        }
-      } catch (unavailabilityError) {
-        console.error('Error fetching unavailability data:', unavailabilityError);
-        // Continue with empty array if unavailability fetch fails
-        unavailabilityData = [];
-      }
+      // Fetch unavailability data (handles all business logic)
+      const unavailabilityData = await fetchUnavailabilityData(location, teacherId);
       
       // TODO: Replace other mock data with actual API calls
       // For now, using mock data for other tabs
@@ -128,15 +107,6 @@ export const fetchTeacherTabsData = createAsyncThunk(
   }
 );
 
-// Helper function to create cache key for time voucher - DRY principle
-const createTimeVoucherCacheKey = (
-  location: string,
-  teacherId: number,
-  params: TimeVoucherQueryParams
-): string => {
-  return `${location}-${teacherId}-${params.startDate}-${params.endDate}-${params.summaryOnly}`;
-};
-
 // Async thunk for fetching time voucher data with caching - only triggers when tab is opened
 export const fetchTimeVoucherData = createAsyncThunk(
   'teacherTabs/fetchTimeVoucherData',
@@ -152,12 +122,17 @@ export const fetchTimeVoucherData = createAsyncThunk(
       // Check if we have fresh cached data for these specific params
       const state = getState() as { teacherTabs: TeacherTabsState };
       const tabsState = state.teacherTabs;
-      const cacheKey = createTimeVoucherCacheKey(location, teacherId, params);
+      const cacheKey = createTimeVoucherCacheKey(
+        location,
+        teacherId,
+        params.startDate,
+        params.endDate,
+        params.summaryOnly
+      );
       
       if (
         tabsState.timeVoucherCacheKey === cacheKey &&
-        tabsState.timeVoucherLastFetched &&
-        Date.now() - tabsState.timeVoucherLastFetched < STALE_TIME_MS &&
+        isCacheFresh(tabsState.timeVoucherLastFetched, STALE_TIME_MS) &&
         tabsState.timeVoucherData.length > 0
       ) {
         // Return cached data - no API call needed
@@ -171,59 +146,8 @@ export const fetchTimeVoucherData = createAsyncThunk(
       // Fetch time voucher data from API
       const apiResult = await getTeacherTimeVoucher(location, teacherId, params);
       
-      if (!apiResult || !apiResult.success || !apiResult.data?.body) {
-        return {
-          data: [],
-          fromCache: false,
-          cacheKey,
-        };
-      }
-
-      // Transform API response to match TimeVoucherData structure
-      const transformedData: TimeVoucherData[] = [];
-      const baseTimestamp = Date.now();
-
-      if (params.summaryOnly) {
-        // Summary mode: body contains { date, duration }[]
-        const summaryItems = apiResult.data.body as Array<{ date: string; duration: number }>;
-        summaryItems.forEach((item, index) => {
-          // For summary mode, we still need to create TimeVoucherData format
-          // We'll use the date as the time field and duration as string
-          transformedData.push({
-            id: `time-voucher-summary-${baseTimestamp}-${index}`,
-            time: item.date,
-            program: '',
-            student: '',
-            duration: item.duration.toString(),
-          });
-        });
-      } else {
-        // Detail mode: body contains { date, lessons: [{ id, time, program, student, duration }] }[]
-        const detailItems = apiResult.data.body as Array<{
-          date: string;
-          lessons: Array<{
-            id: number;
-            time: string;
-            program: string;
-            student: string;
-            duration: number;
-          }>;
-        }>;
-        
-        detailItems.forEach((item) => {
-          item.lessons.forEach((lesson, lessonIndex) => {
-            // Combine date and time for the time field
-            const fullTime = `${item.date} ${lesson.time}`;
-            transformedData.push({
-              id: `time-voucher-${lesson.id}-${baseTimestamp}-${lessonIndex}`,
-              time: fullTime,
-              program: lesson.program,
-              student: lesson.student,
-              duration: lesson.duration.toString(),
-            });
-          });
-        });
-      }
+      // Transform API response (handles all business logic)
+      const transformedData = transformTimeVoucherData(apiResult, params);
 
       return {
         data: transformedData,
