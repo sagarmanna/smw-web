@@ -74,12 +74,12 @@ export function AddQualificationModal({
       if (isEditMode && initialData) {
         setSelectedProgram(initialData.name);
         setSelectedPrograms([initialData.name]);
-        setRate(initialData.rate?.toString() || "");
+        setRate(initialData.rate?.toString() || "0");
         originalRate.current = initialData.rate;
       } else {
         setSelectedPrograms([]);
         setSelectedProgram("");
-        setRate("");
+        setRate("0");
         originalRate.current = undefined;
       }
       setError(null);
@@ -90,7 +90,7 @@ export function AddQualificationModal({
       setSelectedPrograms([]);
       setSelectedProgramIds([]);
       setSelectedProgram("");
-      setRate("");
+      setRate("0");
       setError(null);
       setShowDeleteConfirm(false);
       setShowRateChangeConfirm(false);
@@ -104,7 +104,12 @@ export function AddQualificationModal({
     
     // For edit mode, we only need the rate (program cannot be changed)
     if (isEditMode) {
-      if (!allowRate || !rate.trim()) {
+      if (!allowRate) {
+        setError("Rate is required.");
+        return;
+      }
+
+      if (!rate.trim()) {
         setError("Rate is required.");
         return;
       }
@@ -146,19 +151,19 @@ export function AddQualificationModal({
       programs: selectedProgramIds,
     };
 
-    if (allowRate && rate.trim()) {
+    if (allowRate) {
+      // Check if rate field has a value (including "0")
+      if (rate.trim() === "") {
+        setError("Rate is required.");
+        return;
+      }
+      
       const rateValue = parseFloat(rate);
       if (isNaN(rateValue) || rateValue < 0) {
         setError("Please enter a valid rate.");
         return;
       }
       submitData.rate = rateValue;
-    }
-
-    // Validate rate is provided for add mode
-    if (!submitData.rate) {
-      setError("Rate is required.");
-      return;
     }
 
     onSubmit(submitData);
@@ -199,7 +204,7 @@ export function AddQualificationModal({
     setSelectedPrograms([]);
     setSelectedProgramIds([]);
     setSelectedProgram("");
-    setRate("");
+    setRate("0");
     setError(null);
   };
 

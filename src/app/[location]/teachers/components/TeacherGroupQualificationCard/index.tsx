@@ -62,7 +62,7 @@ export const TeacherGroupQualificationCard = React.memo(
       async (data: { programs: number[]; rate?: number }) => {
         if (editingQualification) {
           // Update existing qualification via legacy API
-          if (!data.rate) {
+          if (data.rate === undefined || data.rate === null) {
             toast.error("Rate is required");
             return;
           }
@@ -106,7 +106,7 @@ export const TeacherGroupQualificationCard = React.memo(
           }
         } else {
           // Create new qualifications via legacy API
-          if (!data.rate) {
+          if (data.rate === undefined || data.rate === null) {
             toast.error("Rate is required");
             return;
           }
@@ -170,7 +170,7 @@ export const TeacherGroupQualificationCard = React.memo(
         }
 
         // Rate is required for delete API
-        if (!qualificationToDelete.rate) {
+        if (qualificationToDelete.rate === undefined || qualificationToDelete.rate === null) {
           toast.error("Rate is required for deletion");
           return;
         }
