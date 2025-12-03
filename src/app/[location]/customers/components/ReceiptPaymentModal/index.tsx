@@ -11,7 +11,7 @@ import {
   PaymentInvoice,
   LocationDetails,
 } from "./receipt-payment.api";
-import { receivePayment, PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
+import { receivePayment, PaymentReceiveData, deletePayment } from "@/lib/api/legacyApiAdapter";
 import {
   normalizeAmount,
   calculateTotalAllocations,
@@ -106,6 +106,7 @@ interface PaymentReceiptModalContainerProps {
 }
 
 interface PaymentInfo {
+  userId: number;
   reference: string;
   date: string;
   paymentMethod: string;
@@ -296,6 +297,7 @@ export function PaymentReceiptModalContainer(
   const [isEditing, setIsEditing] = React.useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Data state
   const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>([]);
@@ -326,6 +328,7 @@ export function PaymentReceiptModalContainer(
       try {
         // Transform directPaymentData to match expected format
         const paymentInfo: PaymentInfo = {
+          userId: customerId || 0,
           reference: directPaymentData.reference || "",
           date: directPaymentData.date,
           paymentMethod: directPaymentData.paymentMethod,
@@ -594,7 +597,10 @@ export function PaymentReceiptModalContainer(
   }, []);
 
   const handleSave = React.useCallback(async () => {
-    if (!location || !customerId) {
+    // Get customerId from paymentInfo if not provided as prop
+    const effectiveCustomerId = customerId || paymentInfo?.userId;
+    
+    if (!location || !effectiveCustomerId) {
       toast.error("Location and customer ID are required");
       return;
     }
@@ -632,7 +638,7 @@ export function PaymentReceiptModalContainer(
 
       // Prepare payment data and call API
       const paymentData: PaymentReceiveData = {
-        userId: customerId,
+        userId: effectiveCustomerId,
         date: formattedDate,
         paymentMethodId: paymentMethodId,
         reference: editForm.reference || "",
@@ -679,6 +685,7 @@ export function PaymentReceiptModalContainer(
   }, [
     location,
     customerId,
+    paymentInfo?.userId,
     lessonEditRows,
     groupLessonEditRows,
     invoiceEditRows,
@@ -714,11 +721,40 @@ export function PaymentReceiptModalContainer(
     setShowDeleteConfirm(true);
   }, []);
 
-  const handleDeleteConfirm = React.useCallback(() => {
-    onDelete?.();
-    setShowDeleteConfirm(false);
-    onOpenChange(false);
-  }, [onDelete, onOpenChange]);
+  const handleDeleteConfirm = React.useCallback(async () => {
+    if (!location || !paymentId) {
+      toast.error("Location and payment ID are required");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await deletePayment(location, paymentId);
+      
+      if (response.status) {
+        toast.success(response.message || "Payment deleted successfully");
+        setShowDeleteConfirm(false);
+        onOpenChange(false);
+        onDelete?.();
+      } else {
+        const errorMessage =
+          response.message ||
+          (response.errors && Array.isArray(response.errors) 
+            ? response.errors.join(", ")
+            : typeof response.errors === 'object'
+            ? Object.values(response.errors).flat().join(", ")
+            : "Failed to delete payment");
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete payment";
+      toast.error(errorMessage);
+      console.error("Error deleting payment:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [location, paymentId, onDelete, onOpenChange]);
 
   const handleDeleteCancel = React.useCallback(() => {
     setShowDeleteConfirm(false);
@@ -746,7 +782,7 @@ export function PaymentReceiptModalContainer(
       onOpenChange={onOpenChange}
       isEditing={isEditing}
       showDeleteConfirm={showDeleteConfirm}
-      isSaving={isSaving}
+      isSaving={isSaving || isDeleting}
       isLoading={isLoading}
       isLoadingPaymentMethods={isLoading}
       headerAmount={isLoading ? "$0.00" : headerAmount}
