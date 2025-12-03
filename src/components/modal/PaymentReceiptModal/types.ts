@@ -20,6 +20,7 @@ export interface AllocationRow {
 
 export interface EditLessonRow extends AllocationRow {
   allocation: number;
+  id?: number; // Lesson ID for update operations
 }
 
 export interface GroupLessonRow {
@@ -33,6 +34,7 @@ export interface GroupLessonRow {
 
 export interface GroupLessonEditRow extends GroupLessonRow {
   allocation: number;
+  id?: number; // Group lesson ID for update operations
 }
 
 export interface InvoiceRow {
@@ -45,6 +47,7 @@ export interface InvoiceRow {
 
 export interface InvoiceEditRow extends InvoiceRow {
   allocation: number;
+  id?: number; // Invoice ID for update operations
 }
 
 export interface ReceiptRow {

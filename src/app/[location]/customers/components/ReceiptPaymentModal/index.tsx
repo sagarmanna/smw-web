@@ -11,7 +11,7 @@ import {
   PaymentInvoice,
   LocationDetails,
 } from "./receipt-payment.api";
-import { receivePayment, PaymentReceiveData, deletePayment } from "@/lib/api/legacyApiAdapter";
+import { receivePayment, PaymentReceiveData, deletePayment, updatePayment, PaymentUpdateData } from "@/lib/api/legacyApiAdapter";
 import {
   normalizeAmount,
   calculateTotalAllocations,
@@ -159,6 +159,7 @@ const transformLessonsToEditRows = (
   lessons: PaymentUsedLesson[]
 ): EditLessonRow[] => {
   return lessons.map((lesson) => ({
+    id: lesson.id,
     originalDate: lesson.originalDate,
     date: lesson.date,
     student: lesson.student,
@@ -185,10 +186,12 @@ const transformGroupLessonsToRows = (
 };
 
 const transformGroupLessonsToEditRows = (
-  groupLessons: GroupLessonRow[]
+  groupLessons: GroupLessonRow[],
+  originalGroupLessons?: PaymentGroupLesson[]
 ): GroupLessonEditRow[] => {
-  return groupLessons.map((r) => ({
+  return groupLessons.map((r, index) => ({
     ...r,
+    id: originalGroupLessons?.[index]?.id,
     allocation: normalizeAmount(r.amount),
   }));
 };
@@ -204,12 +207,22 @@ const transformInvoicesToRows = (invoices: PaymentInvoice[]): InvoiceRow[] => {
 };
 
 const transformInvoicesToEditRows = (
-  invoices: InvoiceRow[]
+  invoices: InvoiceRow[],
+  originalInvoices?: PaymentInvoice[]
 ): InvoiceEditRow[] => {
-  return invoices.map((r) => ({
-    ...r,
-    allocation: normalizeAmount(r.amount),
-  }));
+  // Create a map of invoice number to ID for better matching
+  const invoiceIdMap = new Map(originalInvoices?.map(inv => [inv.number, inv.id]) || []);
+  
+  return invoices.map((r) => {
+    // Look up ID by invoice number
+    const id = invoiceIdMap.get(r.number);
+    
+    return {
+      ...r,
+      id,
+      allocation: normalizeAmount(r.amount),
+    };
+  });
 };
 
 const createReceiptRow = (
@@ -442,7 +455,7 @@ export function PaymentReceiptModalContainer(
     } finally {
       setIsLoading(false);
     }
-  }, [location, paymentId, mode, directPaymentData, customerName]);
+  }, [location, paymentId, mode, directPaymentData, customerName, customerId]);
 
   // Reset editing state when modal closes or paymentId changes
   React.useEffect(() => {
@@ -547,8 +560,8 @@ export function PaymentReceiptModalContainer(
   React.useEffect(() => {
     if (isEditing) {
       setLessonEditRows(transformLessonsToEditRows(lessons));
-      setGroupLessonEditRows(transformGroupLessonsToEditRows(groupLessonRows));
-      setInvoiceEditRows(transformInvoicesToEditRows(invoiceRows));
+      setGroupLessonEditRows(transformGroupLessonsToEditRows(groupLessonRows, groupLessons));
+      setInvoiceEditRows(transformInvoicesToEditRows(invoiceRows, invoices));
       
       // Set edit date from API if available
       if (paymentInfo?.date) {
@@ -572,7 +585,7 @@ export function PaymentReceiptModalContainer(
       setGroupLessonEditRows([]);
       setInvoiceEditRows([]);
     }
-  }, [isEditing, lessons, groupLessonRows, invoiceRows, paymentInfo]);
+  }, [isEditing, lessons, groupLessonRows, invoiceRows, paymentInfo, groupLessons, invoices]);
 
   // Calculate amounts
   const amountToApply = React.useMemo(() => {
@@ -627,54 +640,116 @@ export function PaymentReceiptModalContainer(
       const formattedDate = formatDateForLegacy(editDate);
       const paymentMethodId = Number(editForm.method) || 1;
 
-      // Prepare invoice payments
-      const invoicePayments = invAllocations
-        .filter((inv) => inv.amount > 0)
-        .map((inv) => ({
-          id: cleanInvoiceId(inv.id),
-          value: inv.amount,
-        }))
-        .filter((inv) => inv.id > 0);
+      // Check if we're editing an existing payment (has paymentId)
+      if (paymentId && mode === "view") {
+        // Use update API for existing payments
+        // Prepare lesson payments with IDs
+        const lessonPayments = lessonEditRows
+          .filter((r) => r.allocation > 0 && r.id)
+          .map((r) => ({
+            id: r.id!,
+            value: r.allocation,
+          }));
 
-      // Prepare payment data and call API
-      const paymentData: PaymentReceiveData = {
-        userId: effectiveCustomerId,
-        date: formattedDate,
-        paymentMethodId: paymentMethodId,
-        reference: editForm.reference || "",
-        amount: amountReceived,
-        amountNeeded: amountToApply,
-        selectedCreditValue: 0.0,
-        amountToDistribute: amountToApply,
-        notes: editForm.reference || "",
-        invoicePayments: invoicePayments.length > 0 ? invoicePayments : undefined,
-        canUsePaymentCredits: 0,
-        canUseInvoiceCredits: 0,
-        prId: "",
-      };
+        // Prepare group lesson payments with IDs
+        const groupLessonPayments = groupLessonEditRows
+          .filter((r) => r.allocation > 0 && r.id)
+          .map((r) => ({
+            id: r.id!,
+            value: r.allocation,
+          }));
 
-      const response = await receivePayment(location, paymentData);
-      if (!response.status) {
-        const errorMessage =
-          response.message ||
-          response.errors?.join(", ") ||
-          "Failed to save payment";
-        toast.error(errorMessage);
-        return;
+        // Prepare invoice payments with IDs
+        const invoicePayments = invoiceEditRows
+          .filter((r) => r.allocation > 0 && r.id)
+          .map((r) => ({
+            id: r.id!,
+            value: r.allocation,
+          }));
+
+        const updateData: PaymentUpdateData = {
+          date: formattedDate,
+          paymentMethodId: paymentMethodId,
+          reference: editForm.reference || "",
+          amount: amountReceived,
+          amountToDistribute: amountToApply,
+          lessonPayments: lessonPayments.length > 0 ? lessonPayments : undefined,
+          groupLessonPayments: groupLessonPayments.length > 0 ? groupLessonPayments : undefined,
+          invoicePayments: invoicePayments.length > 0 ? invoicePayments : undefined,
+        };
+
+        const response = await updatePayment(location, paymentId, updateData);
+        if (!response.status) {
+          const errorMessage =
+            response.message ||
+            response.errors?.join(", ") ||
+            "Failed to update payment";
+          toast.error(errorMessage);
+          return;
+        }
+
+        toast.success("Payment updated successfully");
+        onEdit?.({
+          date: formattedDate,
+          method: editForm.method,
+          reference: editForm.reference,
+          amountReceived: amountReceived,
+          allocations,
+          groupLessonAllocations: glAllocations,
+          invoiceAllocations: invAllocations,
+        });
+        setIsEditing(false);
+        fetchPaymentReceiptData();
+      } else {
+        // Use receive API for new payments
+        // Prepare invoice payments
+        const invoicePayments = invAllocations
+          .filter((inv) => inv.amount > 0)
+          .map((inv) => ({
+            id: cleanInvoiceId(inv.id),
+            value: inv.amount,
+          }))
+          .filter((inv) => inv.id > 0);
+
+        const paymentData: PaymentReceiveData = {
+          userId: effectiveCustomerId,
+          date: formattedDate,
+          paymentMethodId: paymentMethodId,
+          reference: editForm.reference || "",
+          amount: amountReceived,
+          amountNeeded: amountToApply,
+          selectedCreditValue: 0.0,
+          amountToDistribute: amountToApply,
+          notes: editForm.reference || "",
+          invoicePayments: invoicePayments.length > 0 ? invoicePayments : undefined,
+          canUsePaymentCredits: 0,
+          canUseInvoiceCredits: 0,
+          prId: "",
+        };
+
+        const response = await receivePayment(location, paymentData);
+        if (!response.status) {
+          const errorMessage =
+            response.message ||
+            response.errors?.join(", ") ||
+            "Failed to save payment";
+          toast.error(errorMessage);
+          return;
+        }
+
+        toast.success("Payment saved successfully");
+        onEdit?.({
+          date: formattedDate,
+          method: editForm.method,
+          reference: editForm.reference,
+          amountReceived: amountReceived,
+          allocations,
+          groupLessonAllocations: glAllocations,
+          invoiceAllocations: invAllocations,
+        });
+        setIsEditing(false);
+        fetchPaymentReceiptData();
       }
-
-      toast.success("Payment saved successfully");
-      onEdit?.({
-        date: formattedDate,
-        method: editForm.method,
-        reference: editForm.reference,
-        amountReceived: amountReceived,
-        allocations,
-        groupLessonAllocations: glAllocations,
-        invoiceAllocations: invAllocations,
-      });
-      setIsEditing(false);
-      fetchPaymentReceiptData();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to save payment";
@@ -686,6 +761,8 @@ export function PaymentReceiptModalContainer(
     location,
     customerId,
     paymentInfo?.userId,
+    paymentId,
+    mode,
     lessonEditRows,
     groupLessonEditRows,
     invoiceEditRows,

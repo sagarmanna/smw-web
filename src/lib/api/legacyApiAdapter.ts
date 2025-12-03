@@ -1105,6 +1105,95 @@ export async function receivePayment(
   }
 }
 
+export interface PaymentUpdateData {
+  date: string; // Format: "MMM dd, yyyy" (e.g., "Dec 02, 2025")
+  paymentMethodId: number;
+  reference: string;
+  amount: number;
+  amountToDistribute: number;
+  lessonPayments?: Array<{
+    id: number;
+    value: number;
+  }>;
+  groupLessonPayments?: Array<{
+    id: number;
+    value: number;
+  }>;
+  invoicePayments?: Array<{
+    id: number;
+    value: number;
+  }>;
+}
+
+/**
+ * Update a payment using the legacy API
+ */
+export async function updatePayment(
+  location: string,
+  paymentId: string | number,
+  paymentData: PaymentUpdateData
+): Promise<LegacyApiResponse> {
+  const formData = new FormData();
+  
+  // Helper function to format numbers to 2 decimal places as string
+  const formatDecimal = (value: number): string => {
+    return value.toFixed(2);
+  };
+  
+  formData.append('Payment[date]', paymentData.date);
+  formData.append('Payment[payment_method_id]', paymentData.paymentMethodId.toString());
+  formData.append('Payment[reference]', paymentData.reference || '');
+  formData.append('PaymentEditForm[amount]', formatDecimal(paymentData.amount));
+  formData.append('PaymentEditForm[amountToDistribute]', formatDecimal(paymentData.amountToDistribute));
+  
+  // Add lesson payments if provided
+  if (paymentData.lessonPayments && paymentData.lessonPayments.length > 0) {
+    paymentData.lessonPayments.forEach((lessonPayment, index) => {
+      formData.append(`PaymentEditForm[lessonPayments][${index}][id]`, lessonPayment.id.toString());
+      formData.append(`PaymentEditForm[lessonPayments][${index}][value]`, formatDecimal(lessonPayment.value));
+    });
+  }
+  
+  // Add group lesson payments if provided
+  if (paymentData.groupLessonPayments && paymentData.groupLessonPayments.length > 0) {
+    paymentData.groupLessonPayments.forEach((groupLessonPayment, index) => {
+      formData.append(`PaymentEditForm[groupLessonPayments][${index}][id]`, groupLessonPayment.id.toString());
+      formData.append(`PaymentEditForm[groupLessonPayments][${index}][value]`, formatDecimal(groupLessonPayment.value));
+    });
+  }
+  
+  // Add invoice payments if provided
+  if (paymentData.invoicePayments && paymentData.invoicePayments.length > 0) {
+    paymentData.invoicePayments.forEach((invoicePayment, index) => {
+      formData.append(`PaymentEditForm[invoicePayments][${index}][id]`, invoicePayment.id.toString());
+      formData.append(`PaymentEditForm[invoicePayments][${index}][value]`, formatDecimal(invoicePayment.value));
+    });
+  }
+
+  const url = `/admin/${location}/payment/update?id=${paymentId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
 /**
  * Delete a payment using the legacy API
  */
