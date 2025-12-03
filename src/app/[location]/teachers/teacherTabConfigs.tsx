@@ -1,22 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { format } from "date-fns";
 import { formatCurrency } from "@/utils/formatCurrency";
-
-/**
- * Formats ISO string to display format "MMM dd, yyyy h:mm a"
- * Used in table columns for display
- */
-function formatISOToDisplay(isoString: string): string {
-  try {
-    const date = new Date(isoString);
-    if (!isNaN(date.getTime())) {
-      return format(date, "MMM dd, yyyy h:mm a");
-    }
-  } catch (error) {
-    console.warn("Failed to format ISO date:", isoString, error);
-  }
-  return isoString;
-}
+import { formatISOToDisplay } from "./utils/dateUtils";
 
 // Data interfaces
 export interface UnavailabilityData {

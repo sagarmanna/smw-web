@@ -1,5 +1,4 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { parse } from 'date-fns';
 import {
   UnavailabilityData,
   TeacherStudentData,
@@ -11,30 +10,7 @@ import {
 } from '../teacherTabConfigs';
 import { mockTeacherTabData } from '../mockData/teacherMockData';
 import { getTeacherUnavailability } from './teachers-details-tabs.api';
-
-/**
- * Parses API date format "Apr 14, 2018 at 12:00 AM" to ISO string
- * Used to transform API data - stores as ISO for easy Date conversion
- */
-function parseApiDateTimeToISO(dateTimeStr: string): string {
-  try {
-    // Try parsing with double-digit day format: "Apr 14, 2018 at 12:00 AM"
-    let parsedDate = parse(dateTimeStr, "MMM dd, yyyy 'at' h:mm a", new Date());
-    if (isNaN(parsedDate.getTime())) {
-      // Try parsing with single-digit day format: "Apr 4, 2018 at 12:00 AM"
-      parsedDate = parse(dateTimeStr, "MMM d, yyyy 'at' h:mm a", new Date());
-    }
-    
-    if (!isNaN(parsedDate.getTime())) {
-      // Return ISO string - can be directly converted to Date: new Date(isoString)
-      return parsedDate.toISOString();
-    }
-  } catch (error) {
-    console.warn("Failed to parse API date:", dateTimeStr, error);
-  }
-  // Return original if parsing fails
-  return dateTimeStr;
-}
+import { parseApiDateTimeToISO } from '../utils/dateUtils';
 
 export interface TeacherTabsState {
   unavailabilityData: UnavailabilityData[];

@@ -19,22 +19,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { UnavailabilityData } from "../../teacherTabConfigs";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-
-/**
- * Converts ISO string to Date object
- * Used in Modal to populate form fields - no parsing needed, direct conversion
- */
-function isoStringToDate(isoString: string): Date | null {
-  try {
-    const date = new Date(isoString);
-    if (!isNaN(date.getTime())) {
-      return date;
-    }
-  } catch (error) {
-    console.warn("Failed to convert ISO string to Date:", isoString, error);
-  }
-  return null;
-}
+import { isoStringToDate } from "../../utils/dateUtils";
 
 interface AddUnavailabilityModalProps {
   open: boolean;
@@ -47,6 +32,7 @@ interface AddUnavailabilityModalProps {
   mode?: "add" | "edit";
 }
 
+// Generate time options (15-minute intervals)
 function generateTimeOptions(): string[] {
   const times: string[] = [];
   for (let hour = 0; hour < 24; hour++) {
@@ -66,42 +52,15 @@ function parseTimeOption(timeOption: string): { hour: number; minute: number } {
   return { hour, minute };
 }
 
-function formatDateTime(date: Date, timeOption: string): string {
+function formatDateTimeToISO(date: Date, timeOption: string): string {
   const { hour, minute } = parseTimeOption(timeOption);
   const dateTime = new Date(date);
   dateTime.setHours(hour, minute, 0, 0);
-  return format(dateTime, "MMM dd, yyyy h:mm a");
-}
-
-// Convert ISO string directly to Date (no parsing needed)
-const parseDateTime = isoStringToDate;
-
-function checkOverlap(
-  fromDateTime: Date,
-  toDateTime: Date,
-  existingUnavailabilities: UnavailabilityData[],
-  excludeId?: string
-): boolean {
-  for (const existing of existingUnavailabilities) {
-    // Skip the current item being edited
-    if (excludeId && existing.id === excludeId) continue;
-    
-    const existingFrom = parseDateTime(existing.fromDateTime);
-    const existingTo = parseDateTime(existing.toDateTime);
-    
-    if (!existingFrom || !existingTo) continue;
-    
-    // Check if the new range overlaps with existing range
-    // Overlap occurs if: newStart < existingEnd && newEnd > existingStart
-    if (fromDateTime < existingTo && toDateTime > existingFrom) {
-      return true;
-    }
-  }
-  return false;
+  return dateTime.toISOString();
 }
 
 function parseDateTimeToDateAndTime(dateTimeStr: string): { date: Date; timeOption: string } | null {
-  const parsedDate = parseDateTime(dateTimeStr);
+  const parsedDate = isoStringToDate(dateTimeStr);
   if (!parsedDate) return null;
   
   const hour = parsedDate.getHours();
@@ -110,10 +69,28 @@ function parseDateTimeToDateAndTime(dateTimeStr: string): { date: Date; timeOpti
   const time12h = format(parsedDate, "h:mm a");
   const timeOption = `${timeStr} - ${time12h}`;
   
-  return {
-    date: parsedDate,
-    timeOption,
-  };
+  return { date: parsedDate, timeOption };
+}
+
+function checkOverlap(
+  fromDateTime: Date,
+  toDateTime: Date,
+  existingUnavailabilities: UnavailabilityData[],
+  excludeId?: string
+): boolean {
+  for (const existing of existingUnavailabilities) {
+    if (excludeId && existing.id === excludeId) continue;
+    
+    const existingFrom = isoStringToDate(existing.fromDateTime);
+    const existingTo = isoStringToDate(existing.toDateTime);
+    
+    if (!existingFrom || !existingTo) continue;
+    
+    if (fromDateTime < existingTo && toDateTime > existingFrom) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function AddUnavailabilityModal({
@@ -141,13 +118,11 @@ export function AddUnavailabilityModal({
   React.useEffect(() => {
     if (open) {
       if (isEditMode && initialData) {
-        // Populate form with existing data
         const fromData = parseDateTimeToDateAndTime(initialData.fromDateTime);
         const toData = parseDateTimeToDateAndTime(initialData.toDateTime);
         
         if (fromData) {
           setFromDate(fromData.date);
-          // Find matching time option
           const matchingTime = timeOptions.find((opt) => opt === fromData.timeOption);
           setFromTime(matchingTime || timeOptions[0]);
         }
@@ -160,17 +135,14 @@ export function AddUnavailabilityModal({
         
         setReason(initialData.reason || "");
       } else {
-        // Set default values for add mode
         const now = new Date();
         setFromDate(now);
         setToDate(now);
-        // Set default times (current time rounded to nearest 15 minutes)
         const currentHour = now.getHours();
         const currentMinute = Math.round(now.getMinutes() / 15) * 15;
         const defaultTime = `${currentHour.toString().padStart(2, "0")}:${currentMinute.toString().padStart(2, "0")}`;
         const defaultTimeOption = timeOptions.find((opt) => opt.startsWith(defaultTime)) || timeOptions[0];
         setFromTime(defaultTimeOption);
-        // Set to time 1 hour later
         const toHour = currentMinute === 45 ? (currentHour + 1) % 24 : currentHour;
         const toMinute = currentMinute === 45 ? 0 : currentMinute + 15;
         const toTimeStr = `${toHour.toString().padStart(2, "0")}:${toMinute.toString().padStart(2, "0")}`;
@@ -184,7 +156,6 @@ export function AddUnavailabilityModal({
     }
   }, [open, timeOptions, isEditMode, initialData]);
 
-  // Check for overlap whenever dates/times change
   React.useEffect(() => {
     if (fromDate && fromTime && toDate && toTime && existingUnavailabilities.length > 0) {
       const fromDateTime = new Date(fromDate);
@@ -196,14 +167,9 @@ export function AddUnavailabilityModal({
       toDateTime.setHours(toHour, toMinute, 0, 0);
 
       if (toDateTime > fromDateTime) {
-        // Exclude current item when editing
         const excludeId = isEditMode && initialData ? initialData.id : undefined;
         const hasOverlap = checkOverlap(fromDateTime, toDateTime, existingUnavailabilities, excludeId);
-        if (hasOverlap) {
-          setOverlapError("Teacher unavailability is overlapped");
-        } else {
-          setOverlapError(null);
-        }
+        setOverlapError(hasOverlap ? "Teacher unavailability is overlapped" : null);
       } else {
         setOverlapError(null);
       }
@@ -239,7 +205,6 @@ export function AddUnavailabilityModal({
       return;
     }
 
-    // Check for overlap before submitting
     if (existingUnavailabilities.length > 0) {
       const excludeId = isEditMode && initialData ? initialData.id : undefined;
       const hasOverlap = checkOverlap(fromDateTime, toDateTime, existingUnavailabilities, excludeId);
@@ -250,19 +215,17 @@ export function AddUnavailabilityModal({
     }
 
     if (isEditMode && initialData && onUpdate) {
-      // Update existing unavailability
       const updateData: UnavailabilityData = {
         id: initialData.id,
-        fromDateTime: formatDateTime(fromDate, fromTime),
-        toDateTime: formatDateTime(toDate, toTime),
+        fromDateTime: formatDateTimeToISO(fromDate, fromTime),
+        toDateTime: formatDateTimeToISO(toDate, toTime),
         reason: reason.trim(),
       };
       onUpdate(updateData);
     } else {
-      // Add new unavailability
       const submitData: Omit<UnavailabilityData, "id"> = {
-        fromDateTime: formatDateTime(fromDate, fromTime),
-        toDateTime: formatDateTime(toDate, toTime),
+        fromDateTime: formatDateTimeToISO(fromDate, fromTime),
+        toDateTime: formatDateTimeToISO(toDate, toTime),
         reason: reason.trim(),
       };
       onSubmit(submitData);
@@ -453,4 +416,3 @@ export function AddUnavailabilityModal({
     </Dialog>
   );
 }
-
