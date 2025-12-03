@@ -198,6 +198,7 @@ const InstrumentFormRow = React.memo(
             onBlur={onInputBlur}
             placeholder="0"
             className="w-full"
+            disabled
           />
         </td>
         <td className="p-2">
@@ -213,7 +214,7 @@ const InstrumentFormRow = React.memo(
             onFocus={onInputFocus}
             onBlur={onInputBlur}
             className="w-full"
-            readOnly
+            disabled
           />
         </td>
         <td className="p-2">
@@ -223,6 +224,7 @@ const InstrumentFormRow = React.memo(
               readOnly
               placeholder="0.00"
               className="w-full bg-gray-50 dark:bg-gray-800"
+              disabled
             />
             {showDelete && (
               <Button
@@ -407,7 +409,7 @@ export function EquipmentRentalsModal({
       monthlyRate: "0",
       numberOfMonths: "1",
       total: "0.00",
-      taxRate: 13, // Default tax rate, will be updated from API when instrument is selected
+      taxRate: 0, // Default tax rate, will be updated from API when instrument is selected
     },
   ]);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
@@ -596,7 +598,7 @@ export function EquipmentRentalsModal({
               const availableInstrument = instrumentRentals.find(
                 (ai) => ai.id === inst.instrumentId
               );
-              const taxRate = availableInstrument?.taxRate || 13; // Default to 13 if not found
+              const taxRate = availableInstrument?.taxRate ?? 0; // Use instrument's taxRate or 0 if not found
               const {instrumentId, instrumentCode, instrument, retailValue, assetTag, monthlyRate, numberOfMonths, total} = inst;
               return {
                 id: `rented-${instrumentId}-${index}`,
@@ -616,8 +618,8 @@ export function EquipmentRentalsModal({
         } else if (rentalId) {
           setInstruments([]);
         } else {
-          // Get default taxRate from first available instrument or use 13 as fallback
-          const defaultTaxRate = instrumentRentals.length > 0 ? instrumentRentals[0].taxRate : 13;
+          // Get default taxRate from first available instrument or use 0 as fallback
+          const defaultTaxRate = instrumentRentals.length > 0 ? instrumentRentals[0].taxRate : 0;
           setInstruments([
             {
               id: "initial",
@@ -1102,7 +1104,7 @@ export function EquipmentRentalsModal({
 
         const updated = {
           ...inst,
-          [field]: field === "taxRate" ? parseFloat(value) || 13 : value,
+          [field]: field === "taxRate" ? (isNaN(parseFloat(value)) ? 0 : parseFloat(value)) : value,
         };
 
         // When instrument is selected, set numberOfMonths from duration
@@ -1183,8 +1185,8 @@ export function EquipmentRentalsModal({
       }
     }
 
-    // Get default taxRate from first available instrument or use 13 as fallback
-    const defaultTaxRate = availableInstruments.length > 0 ? availableInstruments[0].taxRate : 13;
+    // Get default taxRate from first available instrument or use 0 as fallback
+    const defaultTaxRate = availableInstruments.length > 0 ? availableInstruments[0].taxRate : 0;
 
     const newInstrument: InstrumentData = {
       id: Date.now().toString(),
@@ -1214,8 +1216,8 @@ export function EquipmentRentalsModal({
             numberOfMonths = durationMatch[1];
           }
         }
-        // Get default taxRate from first available instrument or use 13 as fallback
-        const defaultTaxRate = availableInstruments.length > 0 ? availableInstruments[0].taxRate : 13;
+        // Get default taxRate from first available instrument or use 0 as fallback
+        const defaultTaxRate = availableInstruments.length > 0 ? availableInstruments[0].taxRate : 0;
         return [
           {
             id: Date.now().toString(),
@@ -2974,7 +2976,7 @@ export function EquipmentRentalsModal({
                   </div>
                   <div className="flex justify-between mb-2 pb-2">
                     <span className="font-semibold text-gray-700 dark:text-gray-300">
-                      TAX (13%):
+                      TAX:
                     </span>
                     <span className="font-medium dark:text-gray-100">
                       ${createdRentalData.hst.toFixed(2)}
