@@ -151,7 +151,7 @@ const transformLessonsToAllocationRows = (
     teacher: lesson.teacher,
     amount: lesson.amount,
     payment: lesson.payment,
-    balance: "$0.00", // Always show $0.00 for balance in new payment receipt
+    balance: lesson.balance || "$0.00", // Use actual balance from API, fallback to $0.00 for new payments
   }));
 };
 
