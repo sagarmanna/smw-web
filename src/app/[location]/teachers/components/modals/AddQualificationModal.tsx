@@ -218,22 +218,22 @@ export function AddQualificationModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="text-xl">{title}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 space-y-4 overflow-hidden">
           {error && (
-            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 flex-shrink-0">
             <div className="space-y-2">
-              <Label htmlFor="program">
+              <Label htmlFor="program" className="text-sm font-medium">
                 Programs <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-500 ml-1">(Select one or more)</span>
+                <span className="text-xs text-muted-foreground ml-1 font-normal">(Select one or more)</span>
               </Label>
               {isEditMode ? (
                 <Input
@@ -272,7 +272,9 @@ export function AddQualificationModal({
 
             {allowRate && (
               <div className="space-y-2">
-                <Label htmlFor="rate">Rate ($/hr)</Label>
+                <Label htmlFor="rate" className="text-sm font-medium">
+                  Rate ($/hr)
+                </Label>
                 <Input
                   id="rate"
                   type="number"
@@ -290,7 +292,7 @@ export function AddQualificationModal({
             )}
           </div>
 
-          <DialogFooter className="flex items-center justify-between w-full">
+          <DialogFooter className="flex items-center justify-between w-full mt-6 pt-4 border-t flex-shrink-0">
             <div className="flex-1">
               {isEditMode && onDelete && (
                 <Button
