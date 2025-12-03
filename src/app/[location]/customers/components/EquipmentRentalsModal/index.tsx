@@ -45,6 +45,7 @@ import {
   deleteEquipmentRental,
   updateEquipmentRental,
 } from "@/lib/api/legacyApiAdapter";
+import { apiClient } from "@/lib/api/client";
 
 interface InstrumentData {
   id: string;
@@ -378,6 +379,12 @@ export function EquipmentRentalsModal({
   >([]);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
   const [rentalCreatedOn, setRentalCreatedOn] = useState<Date | null>(null);
+  const [locationDetails, setLocationDetails] = useState<{
+    address: string;
+    city: string;
+    province: string;
+    phoneNumber: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState<EquipmentRentalFormData>({
     customer: "",
@@ -447,6 +454,41 @@ export function EquipmentRentalsModal({
     },
     []
   );
+
+  const fetchLocationDetails = useCallback(async () => {
+    try {
+      const response = await apiClient.get<{
+        success: boolean;
+        data: {
+          id: number;
+          name: string;
+          address: string;
+          phoneNumber: string;
+          city: string;
+          province: string;
+          postalCode: string;
+        };
+      }>(`/admin/v2/locations/${location}/details`);
+
+      if (response.data.success && response.data.data) {
+        setLocationDetails({
+          address: response.data.data.address,
+          city: response.data.data.city,
+          province: response.data.data.province,
+          phoneNumber: response.data.data.phoneNumber,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching location details:", error);
+      // Set default values if API fails
+      setLocationDetails({
+        address: "205 Marycroft Ave., Unit 6",
+        city: location,
+        province: "Ontario",
+        phoneNumber: "(905) 254-3424",
+      });
+    }
+  }, [location]);
 
   const fetchEquipmentRentalsData = useCallback(async () => {
     setLoading(true);
@@ -651,8 +693,9 @@ export function EquipmentRentalsModal({
   useEffect(() => {
     if (open) {
       fetchEquipmentRentalsData();
+      fetchLocationDetails();
     }
-  }, [open, fetchEquipmentRentalsData]);
+  }, [open, fetchEquipmentRentalsData, fetchLocationDetails]);
 
   useEffect(() => {
     if (
@@ -1828,9 +1871,9 @@ export function EquipmentRentalsModal({
                   </table>
                 </td>
                 <td style="vertical-align: top; text-align: left; font-size: 14px; color: #6b7280;">
-                  <p style="font-weight: 500; margin: 0; padding: 0; text-align: left;">205 Marycroft Ave., Unit 6</p>
-                  <p style="font-weight: 500; margin: 4px 0; padding: 0; text-align: left;">${location}, Ontario</p>
-                  <p style="font-weight: 500; margin: 4px 0; padding: 0; text-align: left;">Tel: (905) 254-3424</p>
+                  <p style="font-weight: 500; margin: 0; padding: 0; text-align: left;">${locationDetails?.address || "205 Marycroft Ave., Unit 6"}</p>
+                  <p style="font-weight: 500; margin: 4px 0; padding: 0; text-align: left;">${locationDetails?.city || location}, ${locationDetails?.province || "Ontario"}</p>
+                  <p style="font-weight: 500; margin: 4px 0; padding: 0; text-align: left;">Tel: ${locationDetails?.phoneNumber || "(905) 254-3424"}</p>
                 </td>
               </tr>
             </table>
@@ -2762,11 +2805,11 @@ export function EquipmentRentalsModal({
                   </div>
                 </div>
                 <div className="text-right text-sm text-gray-600 dark:text-gray-300">
-                  <p className="font-medium">205 Marycroft Ave., Unit 6</p>
+                  <p className="font-medium">{locationDetails?.address || "205 Marycroft Ave., Unit 6"}</p>
                   <p className="font-medium">
-                    {createdRentalData.location}, Ontario
+                    {locationDetails?.city || createdRentalData.location}, {locationDetails?.province || "Ontario"}
                   </p>
-                  <p className="font-medium">Tel: (905) 254-3424</p>
+                  <p className="font-medium">Tel: {locationDetails?.phoneNumber || "(905) 254-3424"}</p>
                 </div>
               </div>
 
