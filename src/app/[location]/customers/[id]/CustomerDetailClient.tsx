@@ -2904,7 +2904,7 @@ export function CustomerDetailClient({
         onEdit={async () => {
           try {
             await refreshPaymentData();
-            toast.success("Payment updated successfully");
+            // Toast is already shown by the modal component
           } catch (error) {
             console.error("Error refreshing data after payment edit:", error);
             toast.error("Payment updated but failed to refresh data");
