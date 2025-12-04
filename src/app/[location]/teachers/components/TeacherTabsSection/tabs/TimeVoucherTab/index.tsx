@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker } from "@/components/DateRangePicker";
-import { subDays, parse, isValid, startOfDay, endOfDay, format } from "date-fns";
+import { parse, isValid, startOfDay, endOfDay, format } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { TimeVoucherData } from "../../../../teacherTabConfigs";
 import { fetchTimeVoucherData } from "../../../../[id]/teacherTabs.slice";
@@ -56,22 +56,26 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
   const timeVoucherError = useAppSelector((state) => state.teacherTabs.timeVoucherError);
   const timeVoucherParams = useAppSelector((state) => state.teacherTabs.timeVoucherParams);
   
-  const initialDateRange = {
-    from: subDays(new Date(), 30),
-    to: new Date(),
-  };
-  const [dateRange, setDateRange] = useState(initialDateRange);
+  const [dateRange, setDateRange] = useState(() => {
+    const now = new Date();
+    const from = now;
+    const to = now;
+    return { from, to };
+  });
   const [appliedDateRange, setAppliedDateRange] = useState<{
     from: Date;
     to: Date;
-  }>(() => ({
-    from: startOfDay(initialDateRange.from),
-    to: endOfDay(initialDateRange.to),
-  }));
+  }>(() => {
+    const now = new Date();
+    return {
+      from: startOfDay(now),
+      to: endOfDay(now),
+    };
+  });
   const [summariseReport, setSummariseReport] = useState(false);
 
   // Fetch data when tab is opened and when params change
-  // Only trigger API if Redux doesn't have data or params have changed
+  // Only trigger API if Redux doesn't have data for these params (even if empty)
   useEffect(() => {
     if (!location || !teacherId) return;
     
@@ -81,18 +85,17 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
       summaryOnly: summariseReport,
     };
     
-    // Check if Redux already has data for these exact params
-    const hasMatchingData = timeVoucherParams &&
+    // Check if we've already fetched for these exact params (regardless of whether data exists)
+    const hasFetchedForParams = timeVoucherParams &&
       timeVoucherParams.startDate === params.startDate &&
       timeVoucherParams.endDate === params.endDate &&
-      timeVoucherParams.summaryOnly === params.summaryOnly &&
-      data.length > 0;
+      timeVoucherParams.summaryOnly === params.summaryOnly;
     
-    // Only fetch if we don't have matching data in Redux
-    if (!hasMatchingData) {
+    // Only fetch if we haven't fetched for these params yet
+    if (!hasFetchedForParams) {
       dispatch(fetchTimeVoucherData({ location, teacherId, params }));
     }
-  }, [location, teacherId, appliedDateRange.from, appliedDateRange.to, summariseReport, dispatch, timeVoucherParams, data.length]);
+  }, [location, teacherId, appliedDateRange.from, appliedDateRange.to, summariseReport, dispatch, timeVoucherParams]);
 
   // Handle date range change - apply filter and refetch data
   const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
@@ -454,6 +457,14 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
             enablePrint={true}
             onPrint={handlePrintClick}
             isLoading={timeVoucherLoading}
+            customEmptyState={
+              !timeVoucherLoading && (!summarizedData || summarizedData.length === 0) ? (
+                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
+                  <div className="text-4xl">📋</div>
+                  <span className="text-sm font-medium">No time voucher data found for the selected date range</span>
+                </div>
+              ) : undefined
+            }
           />
         ) : (
           <CustomTable
@@ -463,6 +474,14 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
             enablePrint={true}
             onPrint={handlePrintClick}
             isLoading={timeVoucherLoading}
+            customEmptyState={
+              !timeVoucherLoading && groupedDataWithHeaders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
+                  <div className="text-4xl">📋</div>
+                  <span className="text-sm font-medium">No time voucher data found for the selected date range</span>
+                </div>
+              ) : undefined
+            }
           />
         )}
       </CardContent>
