@@ -7,6 +7,7 @@ import { unscheduledLessonColumns } from "../../../../teacherTabConfigs";
 import { getTeacherUnscheduledLessons } from "../../../../[id]/teachers-details-tabs.api";
 import { transformUnscheduledLessonData } from "../../../../utils/tabTransformers";
 import type { UnscheduledLessonData } from "../../../../teacherTabConfigs";
+import { useServerPagination } from "@/hooks/useServerPagination";
 
 interface UnscheduledLessonTabProps {
   location: string;
@@ -18,12 +19,15 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [showAll, setShowAll] = useState<boolean>(false);
-  const [pagination, setPagination] = React.useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+
+  const {
+    pagination,
+    showPagination,
+    createPageChangeHandlers,
+    convertLimitForApi,
+    updatePaginationFromApiResponse,
+    resetPaginationTotals,
+  } = useServerPagination({ initialLimit: 10, minTotalForPagination: 10 });
 
   // Fetch unscheduled lessons data with pagination
   const fetchUnscheduledLessons = React.useCallback(
@@ -31,33 +35,26 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
       setLoading(true);
       setError(null);
       try {
-        const result = await getTeacherUnscheduledLessons(location, teacherId, page, limit);
+        const apiLimit = convertLimitForApi(limit);
+        const result = await getTeacherUnscheduledLessons(location, teacherId, page, apiLimit);
         if (result) {
           const transformedData = transformUnscheduledLessonData(result.unscheduledLessons);
           setData(transformedData);
-          setPagination(result.pagination);
+          updatePaginationFromApiResponse(page, limit, result.pagination);
         } else {
           setData([]);
-          setPagination((prev) => ({
-            ...prev,
-            total: 0,
-            totalPages: 0,
-          }));
+          resetPaginationTotals(page, limit);
         }
       } catch (err) {
         console.error("Error fetching unscheduled lessons:", err);
         setError("Failed to load unscheduled lessons data");
         setData([]);
-        setPagination((prev) => ({
-          ...prev,
-          total: 0,
-          totalPages: 0,
-        }));
+        resetPaginationTotals(page, limit);
       } finally {
         setLoading(false);
       }
     },
-    [location, teacherId]
+    [location, teacherId, convertLimitForApi, updatePaginationFromApiResponse, resetPaginationTotals]
   );
 
   // Lazy load: Only fetch when Unscheduled Lesson tab is clicked/rendered
@@ -66,24 +63,11 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
     fetchUnscheduledLessons(1, 10);
   }, [fetchUnscheduledLessons]);
 
-  // Handle page change
-  const handlePageChange = React.useCallback(
-    (page: number) => {
-      fetchUnscheduledLessons(page, pagination.limit);
-    },
-    [fetchUnscheduledLessons, pagination.limit]
+  // Shared pagination handlers wired to the fetch function
+  const { handlePageChange, handleRowsPerPageChange } = React.useMemo(
+    () => createPageChangeHandlers(fetchUnscheduledLessons),
+    [createPageChangeHandlers, fetchUnscheduledLessons]
   );
-
-  // Handle rows per page change
-  const handleRowsPerPageChange = React.useCallback(
-    (rowsPerPage: number) => {
-      fetchUnscheduledLessons(1, rowsPerPage);
-    },
-    [fetchUnscheduledLessons]
-  );
-
-  // Only show pagination if total > 10
-  const showPagination = pagination.total > 10;
 
   return (
     <TabContent
