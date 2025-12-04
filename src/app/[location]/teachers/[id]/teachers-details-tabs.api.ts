@@ -131,6 +131,12 @@ export async function getTeacherStudents(
     console.error(
       "API Error:",
       apiError.response?.data?.message || "Failed to fetch teacher students"
+    );
+    return null;
+  }
+}
+
+// ---------------------------------------------
 // Time Voucher API Response Types
 // ---------------------------------------------
 
