@@ -2,10 +2,11 @@
  * Transformation functions for teacher tab data
  */
 
-import type { UnavailabilityData, TimeVoucherData, InvoicedLessonData } from '../teacherTabConfigs';
+import type { UnavailabilityData, TimeVoucherData, InvoicedLessonData, HistoryData, CommentData } from '../teacherTabConfigs';
 import type { UnavailableHour } from '../[id]/teachers-details-tabs.api';
 import type { TimeVoucherApiResponse, TimeVoucherQueryParams } from '../[id]/teachers-details-tabs.api';
 import type { InvoicedLessonApiResponse, InvoicedLessonQueryParams } from '../[id]/teachers-details-tabs.api';
+import type { HistoryApiResponse, CommentsApiResponse } from '../[id]/teachers-details-tabs.api';
 import { parseApiDateTimeToISO } from '@/utils/dateUtils';
 
 /**
@@ -150,4 +151,39 @@ export function transformInvoicedLessonData(
   return transformedData;
 }
 
+/**
+ * Transforms history API response to HistoryData format
+ */
+export function transformHistoryData(
+  apiResult: HistoryApiResponse | null
+): HistoryData[] {
+  if (!apiResult || !apiResult.success || !apiResult.data?.body) {
+    return [];
+  }
 
+  const baseTimestamp = Date.now();
+  return apiResult.data.body.map((item, index) => ({
+    id: `history-${item.id}-${baseTimestamp}-${index}`,
+    message: item.message,
+    createdOn: item.createdOn,
+  }));
+}
+
+/**
+ * Transforms comments API response to CommentData format
+ */
+export function transformCommentsData(
+  apiResult: CommentsApiResponse | null
+): CommentData[] {
+  if (!apiResult || !apiResult.success || !apiResult.data?.body) {
+    return [];
+  }
+
+  const baseTimestamp = Date.now();
+  return apiResult.data.body.map((item, index) => ({
+    id: `comment-${item.id}-${baseTimestamp}-${index}`,
+    content: item.content,
+    createdUser: item.createdUser,
+    createdOn: item.createdOn,
+  }));
+}
