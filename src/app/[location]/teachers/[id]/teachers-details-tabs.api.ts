@@ -250,6 +250,43 @@ export interface UnscheduledLessonApiResponse {
 }
 
 // ---------------------------------------------
+// Invoiced Lessons API Response Types
+// ---------------------------------------------
+
+export interface InvoicedLesson {
+  invoiceDate: string;
+  time: string;
+  program: string;
+  student: string;
+  duration: number;
+  rate: string;
+  cost: string;
+}
+
+export interface InvoicedLessonDetailItem {
+  invoiceDate: string;
+  lessons: InvoicedLesson[];
+  totalDuration?: number; // Total duration for this invoice date group (provided by API)
+  totalCost?: string; // Total cost for this invoice date group (provided by API)
+}
+
+export interface InvoicedLessonSummaryItem {
+  date: string;
+  duration: number;
+  cost: string;
+}
+
+export interface InvoicedLessonApiResponse {
+  success: boolean;
+  data: {
+    body: InvoicedLessonDetailItem[] | InvoicedLessonSummaryItem[];
+    totalCost?: string; // Overall total cost (directly in data, not in footer)
+    totalDuration?: number; // Overall total duration (directly in data, not in footer)
+  };
+  message?: string;
+}
+
+// ---------------------------------------------
 // Unscheduled Lessons API
 // ---------------------------------------------
 
@@ -298,6 +335,55 @@ export async function getTeacherUnscheduledLessons(
     console.error(
       "API Error:",
       apiError.response?.data?.message || "Failed to fetch teacher unscheduled lessons"
+    );
+    return null;
+  }
+}
+
+export interface InvoicedLessonQueryParams {
+  startDate: string; // Format: YYYY-MM-DD
+  endDate: string; // Format: YYYY-MM-DD
+  summaryOnly: boolean;
+}
+
+// ---------------------------------------------
+// Invoiced Lessons API
+// ---------------------------------------------
+
+/**
+ * Fetches invoiced lessons data for a teacher
+ * Endpoint: GET /admin/v2/{location}/teachers/{teacherId}/invoiced-lessons
+ * @param location - The location identifier (e.g., "burlington")
+ * @param teacherId - The teacher ID
+ * @param params - Query parameters for filtering and summary mode
+ * @returns Promise resolving to raw API response data or null on error
+ */
+export async function getTeacherInvoicedLessons(
+  location: string,
+  teacherId: number,
+  params: InvoicedLessonQueryParams
+): Promise<InvoicedLessonApiResponse | null> {
+  try {
+    const url = `/admin/v2/${location}/teachers/${teacherId}/invoiced-lessons`;
+    const response = await apiClient.get<InvoicedLessonApiResponse>(url, {
+      params: {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        summaryOnly: params.summaryOnly,
+      },
+    });
+
+    if (response.data.success) {
+      return response.data;
+    }
+
+    return null;
+  } catch (error: unknown) {
+    console.error("Error fetching teacher invoiced lessons:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch teacher invoiced lessons"
     );
     return null;
   }

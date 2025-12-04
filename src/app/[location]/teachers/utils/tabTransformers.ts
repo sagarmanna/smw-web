@@ -2,9 +2,9 @@
  * Transformation functions for teacher tab data
  */
 
-import type { UnavailabilityData, TimeVoucherData, UnscheduledLessonData } from '../teacherTabConfigs';
+import type { UnavailabilityData, TimeVoucherData, UnscheduledLessonData, InvoicedLessonData } from '../teacherTabConfigs';
 import type { UnavailableHour } from '../[id]/teachers-details-tabs.api';
-import type { TimeVoucherApiResponse, TimeVoucherQueryParams } from '../[id]/teachers-details-tabs.api';
+import type { TimeVoucherApiResponse, TimeVoucherQueryParams, InvoicedLessonApiResponse, InvoicedLessonQueryParams } from '../[id]/teachers-details-tabs.api';
 import { parseApiDateTimeToISO } from '@/utils/dateUtils';
 
 /**
@@ -103,6 +103,72 @@ export function transformUnscheduledLessonData(
     originalDate: item.originalDate || "",
     expiryDate: item.expiryDate || "",
   }));
+}
+
+/**
+ * Transforms invoiced lessons API response to InvoicedLessonData format
+ */
+export function transformInvoicedLessonData(
+  apiResult: InvoicedLessonApiResponse | null,
+  params: InvoicedLessonQueryParams
+): InvoicedLessonData[] {
+  if (!apiResult || !apiResult.success || !apiResult.data?.body) {
+    return [];
+  }
+
+  const transformedData: InvoicedLessonData[] = [];
+  const baseTimestamp = Date.now();
+
+  if (params.summaryOnly) {
+    // Summary mode: body contains { date, duration, cost }[]
+    // Filter out rows with empty date (these are footer rows that we'll handle separately)
+    const summaryItems = apiResult.data.body as Array<{ date: string; duration: number; cost: string }>;
+    summaryItems
+      .filter((item) => item.date && item.date.trim() !== '') // Exclude empty date rows (footer rows from API)
+      .forEach((item, index) => {
+        transformedData.push({
+          id: `invoiced-lesson-summary-${baseTimestamp}-${index}`,
+          time: item.date,
+          program: '',
+          student: '',
+          duration: item.duration.toString(),
+          ratePerHour: 0, // Not available in summary
+          cost: parseFloat(item.cost.replace(/[^0-9.-]+/g, '')) || 0, // Extract numeric value from "$36.00"
+        });
+      });
+  } else {
+    // Detail mode: body contains { invoiceDate, lessons: [{ invoiceDate, time, program, student, duration, rate, cost }] }[]
+    const detailItems = apiResult.data.body as Array<{
+      invoiceDate: string;
+      lessons: Array<{
+        invoiceDate: string;
+        time: string;
+        program: string;
+        student: string;
+        duration: number;
+        rate: string;
+        cost: string;
+      }>;
+    }>;
+    
+    detailItems.forEach((item) => {
+      item.lessons.forEach((lesson, lessonIndex) => {
+        // Combine invoice date and time for the time field
+        const fullTime = `${item.invoiceDate} ${lesson.time}`;
+        transformedData.push({
+          id: `invoiced-lesson-${baseTimestamp}-${lessonIndex}`,
+          time: fullTime,
+          program: lesson.program,
+          student: lesson.student,
+          duration: lesson.duration.toString(),
+          ratePerHour: parseFloat(lesson.rate.replace(/[^0-9.-]+/g, '')) || 0, // Extract numeric value from "$36.00"
+          cost: parseFloat(lesson.cost.replace(/[^0-9.-]+/g, '')) || 0, // Extract numeric value from "$18.00"
+        });
+      });
+    });
+  }
+
+  return transformedData;
 }
 
 

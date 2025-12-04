@@ -1,6 +1,5 @@
 import {
   TeacherStudentData,
-  InvoicedLessonData,
   UnscheduledLessonData,
   TimeVoucherData,
   CommentData,
@@ -27,36 +26,6 @@ export const mockTeacherTabData = {
       studentName: "Sarika test",
     },
   ] as TeacherStudentData[],
-
-  invoicedLessonData: [
-    {
-      id: "1",
-      time: "Thursday, November 27th, 2025 01:00 PM",
-      program: "xUkulele",
-      student: "Sarika test",
-      duration: "0.5",
-      ratePerHour: 17.0,
-      cost: 8.5,
-    },
-    {
-      id: "2",
-      time: "Friday, November 28th, 2025 02:00 PM",
-      program: "xLevel 9 Harmony",
-      student: "hhhh hhh",
-      duration: "0.5",
-      ratePerHour: 17.0,
-      cost: 8.5,
-    },
-    {
-      id: "3",
-      time: "Saturday, November 29th, 2025 10:00 AM",
-      program: "xPiano Contemporary",
-      student: "TJ Lab",
-      duration: "1.0",
-      ratePerHour: 20.0,
-      cost: 20.0,
-    },
-  ] as InvoicedLessonData[],
 
   unscheduledLessonData: [
     {
