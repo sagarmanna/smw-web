@@ -68,7 +68,10 @@ export function CreateAddressModal({
   });
   const [loadingGeoData, setLoadingGeoData] = React.useState(false);
 
+  // Only fetch geo data when the modal is opened
   React.useEffect(() => {
+    if (!open) return;
+
     const fetchGeo = async () => {
       setLoadingGeoData(true);
       try {
@@ -82,7 +85,7 @@ export function CreateAddressModal({
     };
 
     fetchGeo();
-  }, []);
+  }, [open]);
 
   React.useEffect(() => {
     if (editingAddress) {
