@@ -305,3 +305,137 @@ export async function getTeacherInvoicedLessons(
   }
 }
 
+// ---------------------------------------------
+// History API Response Types
+// ---------------------------------------------
+
+export interface HistoryItem {
+  id: number;
+  message: string;
+  createdOn: string;
+}
+
+export interface HistoryApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface HistoryApiResponse {
+  success: boolean;
+  data: {
+    body: HistoryItem[];
+    pagination: HistoryApiResponsePagination;
+  };
+  message?: string;
+}
+
+// ---------------------------------------------
+// Comments API Response Types
+// ---------------------------------------------
+
+export interface CommentItem {
+  id: number;
+  content: string;
+  createdUser: string;
+  avatar: string;
+  createdOn: string;
+}
+
+export interface CommentsApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface CommentsApiResponse {
+  success: boolean;
+  data: {
+    body: CommentItem[];
+    pagination: CommentsApiResponsePagination;
+  };
+  message?: string;
+}
+
+// ---------------------------------------------
+// History API
+// ---------------------------------------------
+
+/**
+ * Fetches history data for a teacher
+ * Endpoint: GET /admin/v2/{location}/history
+ * @param location - The location identifier (e.g., "burlington")
+ * @param teacherId - The teacher ID (passed as id param with type=user)
+ * @returns Promise resolving to raw API response data or null on error
+ */
+export async function getTeacherHistory(
+  location: string,
+  teacherId: number
+): Promise<HistoryApiResponse | null> {
+  try {
+    const url = `/admin/v2/${location}/history`;
+    const response = await apiClient.get<HistoryApiResponse>(url, {
+      params: {
+        type: 'user',
+        id: teacherId.toString(),
+      },
+    });
+
+    if (response.data.success) {
+      return response.data;
+    }
+
+    return null;
+  } catch (error: unknown) {
+    console.error("Error fetching teacher history:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch teacher history"
+    );
+    return null;
+  }
+}
+
+// ---------------------------------------------
+// Comments API
+// ---------------------------------------------
+
+/**
+ * Fetches comments data for a teacher
+ * Endpoint: GET /admin/v2/{location}/comments
+ * @param location - The location identifier (e.g., "burlington")
+ * @param teacherId - The teacher ID (passed as id param with type=user)
+ * @returns Promise resolving to raw API response data or null on error
+ */
+export async function getTeacherComments(
+  location: string,
+  teacherId: number
+): Promise<CommentsApiResponse | null> {
+  try {
+    const url = `/admin/v2/${location}/comments`;
+    const response = await apiClient.get<CommentsApiResponse>(url, {
+      params: {
+        type: 'user',
+        id: teacherId.toString(),
+      },
+    });
+
+    if (response.data.success) {
+      return response.data;
+    }
+
+    return null;
+  } catch (error: unknown) {
+    console.error("Error fetching teacher comments:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch teacher comments"
+    );
+    return null;
+  }
+}
+

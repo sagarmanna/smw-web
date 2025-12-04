@@ -8,10 +8,10 @@ import {
   CommentData,
   HistoryData,
 } from '../teacherTabConfigs';
-import { mockTeacherTabData } from '../mockData/teacherMockData';
 import { getTeacherTimeVoucher, TimeVoucherQueryParams } from './teachers-details-tabs.api';
 import { getTeacherInvoicedLessons, InvoicedLessonQueryParams } from './teachers-details-tabs.api';
-import { transformTimeVoucherData, transformInvoicedLessonData } from '../utils/tabTransformers';
+import { getTeacherHistory, getTeacherComments } from './teachers-details-tabs.api';
+import { transformTimeVoucherData, transformInvoicedLessonData, transformHistoryData, transformCommentsData } from '../utils/tabTransformers';
 import { fetchUnavailabilityData } from '../utils/teacherTabsData';
 
 export interface TeacherTabsState {
@@ -38,6 +38,14 @@ export interface TeacherTabsState {
   invoicedLessonDateTotals: Record<string, { cost: string; duration: number }>; // Date totals from API
   timeVoucherTotalDuration: number | null; // Total duration from API footer
   timeVoucherDateTotals: Record<string, number>; // Date totals from API: { [date]: totalDuration }
+  // History specific state
+  historyLoading: boolean;
+  historyError: string | null;
+  historyTeacherId: number | null; // Track teacher ID for current history data
+  // Comments specific state
+  commentsLoading: boolean;
+  commentsError: string | null;
+  commentsTeacherId: number | null; // Track teacher ID for current comments data
 }
 
 const initialState: TeacherTabsState = {
@@ -62,6 +70,12 @@ const initialState: TeacherTabsState = {
   invoicedLessonDateTotals: {},
   timeVoucherTotalDuration: null,
   timeVoucherDateTotals: {},
+  historyLoading: false,
+  historyError: null,
+  historyTeacherId: null,
+  commentsLoading: false,
+  commentsError: null,
+  commentsTeacherId: null,
 };
 
 // Async thunk for fetching teacher tabs data - stores in Redux
@@ -78,17 +92,15 @@ export const fetchTeacherTabsData = createAsyncThunk(
       // Fetch unavailability data (handles all business logic)
       const unavailabilityData = await fetchUnavailabilityData(location, teacherId);
       
-      // TODO: Replace other mock data with actual API calls
-      // For now, using mock data for other tabs
-      // Note: timeVoucherData and invoicedLessonData are now fetched separately when the tab is opened
+      // Note: timeVoucherData, invoicedLessonData, historyData, and commentData are now fetched separately when their tabs are opened
       const data = {
         unavailabilityData,
         studentData,
         invoicedLessonData: [], // Will be fetched separately when tab is opened
-        unscheduledLessonData: mockTeacherTabData.unscheduledLessonData,
+        unscheduledLessonData: [], // TODO: Will be fetched separately when tab is opened
         timeVoucherData: [], // Will be fetched separately when tab is opened
-        commentData: mockTeacherTabData.commentData,
-        historyData: mockTeacherTabData.historyData,
+        commentData: [], // Will be fetched separately when tab is opened
+        historyData: [], // Will be fetched separately when tab is opened
       };
 
       return { data };
@@ -205,6 +217,54 @@ export const fetchInvoicedLessonData = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching history data - stores in Redux
+export const fetchHistoryData = createAsyncThunk(
+  'teacherTabs/fetchHistoryData',
+  async (
+    { location, teacherId }: { location: string; teacherId: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getTeacherHistory(location, teacherId);
+      const transformedData = transformHistoryData(apiResult);
+
+      return {
+        data: transformedData,
+        teacherId,
+      };
+    } catch (error) {
+      console.error('Error in fetchHistoryData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch history data'
+      );
+    }
+  }
+);
+
+// Async thunk for fetching comments data - stores in Redux
+export const fetchCommentsData = createAsyncThunk(
+  'teacherTabs/fetchCommentsData',
+  async (
+    { location, teacherId }: { location: string; teacherId: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getTeacherComments(location, teacherId);
+      const transformedData = transformCommentsData(apiResult);
+
+      return {
+        data: transformedData,
+        teacherId,
+      };
+    } catch (error) {
+      console.error('Error in fetchCommentsData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch comments data'
+      );
+    }
+  }
+);
+
 const teacherTabsSlice = createSlice({
   name: 'teacherTabs',
   initialState,
@@ -263,6 +323,18 @@ const teacherTabsSlice = createSlice({
       state.invoicedLessonTotalDuration = null;
       state.invoicedLessonDateTotals = {};
     },
+    // Clear history data
+    clearHistoryData: (state) => {
+      state.historyData = [];
+      state.historyError = null;
+      state.historyTeacherId = null;
+    },
+    // Clear comments data
+    clearCommentsData: (state) => {
+      state.commentData = [];
+      state.commentsError = null;
+      state.commentsTeacherId = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -291,6 +363,13 @@ const teacherTabsSlice = createSlice({
           state.invoicedLessonDateTotals = {};
           state.timeVoucherTotalDuration = null;
           state.timeVoucherDateTotals = {};
+          // Clear history and comments specific state
+          state.historyLoading = false;
+          state.historyError = null;
+          state.historyTeacherId = null;
+          state.commentsLoading = false;
+          state.commentsError = null;
+          state.commentsTeacherId = null;
         }
         
         state.currentTeacherId = teacherId;
@@ -346,6 +425,36 @@ const teacherTabsSlice = createSlice({
       .addCase(fetchInvoicedLessonData.rejected, (state, action) => {
         state.invoicedLessonLoading = false;
         state.invoicedLessonError = action.payload as string;
+      })
+      // History thunk handlers
+      .addCase(fetchHistoryData.pending, (state) => {
+        state.historyLoading = true;
+        state.historyError = null;
+      })
+      .addCase(fetchHistoryData.fulfilled, (state, action) => {
+        state.historyLoading = false;
+        state.historyData = action.payload.data;
+        state.historyTeacherId = action.payload.teacherId;
+        state.historyError = null;
+      })
+      .addCase(fetchHistoryData.rejected, (state, action) => {
+        state.historyLoading = false;
+        state.historyError = action.payload as string;
+      })
+      // Comments thunk handlers
+      .addCase(fetchCommentsData.pending, (state) => {
+        state.commentsLoading = true;
+        state.commentsError = null;
+      })
+      .addCase(fetchCommentsData.fulfilled, (state, action) => {
+        state.commentsLoading = false;
+        state.commentData = action.payload.data;
+        state.commentsTeacherId = action.payload.teacherId;
+        state.commentsError = null;
+      })
+      .addCase(fetchCommentsData.rejected, (state, action) => {
+        state.commentsLoading = false;
+        state.commentsError = action.payload as string;
       });
   },
 });
@@ -359,6 +468,8 @@ export const {
   deleteUnavailability,
   clearTimeVoucherData,
   clearInvoicedLessonData,
+  clearHistoryData,
+  clearCommentsData,
 } = teacherTabsSlice.actions;
 export default teacherTabsSlice.reducer;
 

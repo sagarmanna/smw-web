@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { TabContent } from "@/components/TabContent";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, User } from "lucide-react";
 import { commentColumns, CommentData } from "../../../../teacherTabConfigs";
-import { addComment } from "../../../../[id]/teacherTabs.slice";
+import { addComment, fetchCommentsData } from "../../../../[id]/teacherTabs.slice";
 
 interface CommentsTabProps {
   location: string;
@@ -17,8 +17,18 @@ interface CommentsTabProps {
 export function CommentsTab({ location, teacherId }: CommentsTabProps) {
   const dispatch = useAppDispatch();
   const data = useAppSelector((state) => state.teacherTabs.commentData);
+  const loading = useAppSelector((state) => state.teacherTabs.commentsLoading);
+  const error = useAppSelector((state) => state.teacherTabs.commentsError);
+  const commentsTeacherId = useAppSelector((state) => state.teacherTabs.commentsTeacherId);
   const [commentInput, setCommentInput] = useState<string>("");
   const [commentLoading, setCommentLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Only fetch if we don't have data for this teacher yet
+    if (commentsTeacherId !== teacherId) {
+      dispatch(fetchCommentsData({ location, teacherId }));
+    }
+  }, [location, teacherId, dispatch, commentsTeacherId]);
 
   const handleAddComment = async () => {
     if (!commentInput.trim()) {
@@ -51,7 +61,11 @@ export function CommentsTab({ location, teacherId }: CommentsTabProps) {
 
   const commentsCustomContent = (
     <div className="space-y-4">
-      {data.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-8 text-muted-foreground">Loading comments...</div>
+      ) : error ? (
+        <div className="text-center py-8 text-red-500">Error: {error}</div>
+      ) : data.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           No results found.
         </div>
@@ -112,7 +126,8 @@ export function CommentsTab({ location, teacherId }: CommentsTabProps) {
       emptyState="No results found."
       customContent={commentsCustomContent}
       bottomContent={commentsBottomContent}
+      loading={loading}
+      error={error}
     />
   );
 }
-
