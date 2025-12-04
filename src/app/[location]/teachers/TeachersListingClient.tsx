@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AddTeacherModal } from "./components/modals/AddTeacherModal";
 import { useTeacherListing } from "./hooks/useTeacherListing";
+import { formatLocationName } from "@/utils/textUtils";
 
 interface TeachersClientProps {
   location: string;
@@ -45,7 +46,7 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
   } = useTeacherListing(location);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<TeacherRow>({
-    reportTitle: "Teachers List",
+    reportTitle: `Teacher list for ${formatLocationName(location)}`,
     columns,
     data: rows,
     location: location, // Pass location for PDF header
@@ -102,10 +103,9 @@ export function TeachersListingClient({ location }: TeachersClientProps) {
         enableRowsPerPage={true}
         enablePrint={true}
         onPrint={() => handlePrint({
-          reportTitle: 'Teachers Report',
+          reportTitle: `Teacher list for ${formatLocationName(location)}`,
           columns,
           data: rows,
-          location,
         })}
         enableColumnFilters={true}
         onColumnFilterChange={handleColumnFilterChange}
