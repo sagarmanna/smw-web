@@ -10,7 +10,6 @@ import {
 } from '../teacherTabConfigs';
 import { mockTeacherTabData } from '../mockData/teacherMockData';
 import { getTeacherTimeVoucher, TimeVoucherQueryParams } from './teachers-details-tabs.api';
-import { isCacheFresh, createTimeVoucherCacheKey, STALE_TIME_MS } from '../utils/cacheUtils';
 import { transformTimeVoucherData } from '../utils/tabTransformers';
 import { fetchUnavailabilityData } from '../utils/teacherTabsData';
 
@@ -24,13 +23,11 @@ export interface TeacherTabsState {
   historyData: HistoryData[];
   isLoading: boolean;
   error: string | null;
-  lastFetched: number | null;
   currentTeacherId: number | null;
   // Time voucher specific state
   timeVoucherLoading: boolean;
   timeVoucherError: string | null;
-  timeVoucherLastFetched: number | null;
-  timeVoucherCacheKey: string | null; // Cache key based on params
+  timeVoucherParams: TimeVoucherQueryParams | null; // Track params for current data
 }
 
 const initialState: TeacherTabsState = {
@@ -43,46 +40,20 @@ const initialState: TeacherTabsState = {
   historyData: [],
   isLoading: false,
   error: null,
-  lastFetched: null,
   currentTeacherId: null,
   timeVoucherLoading: false,
   timeVoucherError: null,
-  timeVoucherLastFetched: null,
-  timeVoucherCacheKey: null,
+  timeVoucherParams: null,
 };
 
-// Async thunk for fetching teacher tabs data with caching
+// Async thunk for fetching teacher tabs data - stores in Redux
 export const fetchTeacherTabsData = createAsyncThunk(
   'teacherTabs/fetchTeacherTabsData',
   async (
     { location, teacherId }: { location: string; teacherId: number },
-    { getState, rejectWithValue }
+    { rejectWithValue }
   ) => {
     try {
-      // Check if we have fresh cached data
-      const state = getState() as { teacherTabs: TeacherTabsState };
-      const tabsState = state.teacherTabs;
-      
-      if (
-        tabsState.currentTeacherId === teacherId &&
-        isCacheFresh(tabsState.lastFetched, STALE_TIME_MS) &&
-        tabsState.studentData.length > 0 // Check if we have data
-      ) {
-        // Return cached data - no API call needed
-        return { 
-          data: {
-            unavailabilityData: tabsState.unavailabilityData,
-            studentData: tabsState.studentData,
-            invoicedLessonData: tabsState.invoicedLessonData,
-            unscheduledLessonData: tabsState.unscheduledLessonData,
-            timeVoucherData: tabsState.timeVoucherData,
-            commentData: tabsState.commentData,
-            historyData: tabsState.historyData,
-          },
-          fromCache: true 
-        };
-      }
-
       // Fetch unavailability data (handles all business logic)
       const unavailabilityData = await fetchUnavailabilityData(location, teacherId);
       
@@ -99,7 +70,7 @@ export const fetchTeacherTabsData = createAsyncThunk(
         historyData: mockTeacherTabData.historyData,
       };
 
-      return { data, fromCache: false };
+      return { data };
     } catch (error) {
       console.error('Error in fetchTeacherTabsData:', error);
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch teacher tabs data');
@@ -107,7 +78,7 @@ export const fetchTeacherTabsData = createAsyncThunk(
   }
 );
 
-// Async thunk for fetching time voucher data with caching - only triggers when tab is opened
+// Async thunk for fetching time voucher data - stores in Redux
 export const fetchTimeVoucherData = createAsyncThunk(
   'teacherTabs/fetchTimeVoucherData',
   async (
@@ -116,33 +87,9 @@ export const fetchTimeVoucherData = createAsyncThunk(
       teacherId,
       params,
     }: { location: string; teacherId: number; params: TimeVoucherQueryParams },
-    { getState, rejectWithValue }
+    { rejectWithValue }
   ) => {
     try {
-      // Check if we have fresh cached data for these specific params
-      const state = getState() as { teacherTabs: TeacherTabsState };
-      const tabsState = state.teacherTabs;
-      const cacheKey = createTimeVoucherCacheKey(
-        location,
-        teacherId,
-        params.startDate,
-        params.endDate,
-        params.summaryOnly
-      );
-      
-      if (
-        tabsState.timeVoucherCacheKey === cacheKey &&
-        isCacheFresh(tabsState.timeVoucherLastFetched, STALE_TIME_MS) &&
-        tabsState.timeVoucherData.length > 0
-      ) {
-        // Return cached data - no API call needed
-        return {
-          data: tabsState.timeVoucherData,
-          fromCache: true,
-          cacheKey,
-        };
-      }
-
       // Fetch time voucher data from API
       const apiResult = await getTeacherTimeVoucher(location, teacherId, params);
       
@@ -151,8 +98,7 @@ export const fetchTimeVoucherData = createAsyncThunk(
 
       return {
         data: transformedData,
-        fromCache: false,
-        cacheKey,
+        params,
       };
     } catch (error) {
       console.error('Error in fetchTimeVoucherData:', error);
@@ -176,14 +122,10 @@ const teacherTabsSlice = createSlice({
       state.commentData = [];
       state.historyData = [];
       state.error = null;
-      state.lastFetched = null;
       state.currentTeacherId = null;
     },
     clearError: (state) => {
       state.error = null;
-    },
-    clearCache: (state) => {
-      state.lastFetched = null;
     },
     // Add comment
     addComment: (state, action: PayloadAction<CommentData>) => {
@@ -212,8 +154,7 @@ const teacherTabsSlice = createSlice({
     clearTimeVoucherData: (state) => {
       state.timeVoucherData = [];
       state.timeVoucherError = null;
-      state.timeVoucherLastFetched = null;
-      state.timeVoucherCacheKey = null;
+      state.timeVoucherParams = null;
     },
   },
   extraReducers: (builder) => {
@@ -230,12 +171,10 @@ const teacherTabsSlice = createSlice({
           state.timeVoucherData = [];
           state.commentData = [];
           state.historyData = [];
-          state.lastFetched = null;
           // Clear time voucher specific state
           state.timeVoucherLoading = false;
           state.timeVoucherError = null;
-          state.timeVoucherLastFetched = null;
-          state.timeVoucherCacheKey = null;
+          state.timeVoucherParams = null;
         }
         
         state.currentTeacherId = teacherId;
@@ -252,10 +191,6 @@ const teacherTabsSlice = createSlice({
         state.commentData = action.payload.data.commentData;
         state.historyData = action.payload.data.historyData;
         state.error = null;
-        // Only update timestamp if data came from API, not cache
-        if (!action.payload.fromCache) {
-          state.lastFetched = Date.now();
-        }
       })
       .addCase(fetchTeacherTabsData.rejected, (state, action) => {
         state.isLoading = false;
@@ -269,12 +204,8 @@ const teacherTabsSlice = createSlice({
       .addCase(fetchTimeVoucherData.fulfilled, (state, action) => {
         state.timeVoucherLoading = false;
         state.timeVoucherData = action.payload.data;
+        state.timeVoucherParams = action.payload.params;
         state.timeVoucherError = null;
-        // Only update timestamp and cache key if data came from API, not cache
-        if (!action.payload.fromCache) {
-          state.timeVoucherLastFetched = Date.now();
-          state.timeVoucherCacheKey = action.payload.cacheKey;
-        }
       })
       .addCase(fetchTimeVoucherData.rejected, (state, action) => {
         state.timeVoucherLoading = false;
@@ -285,8 +216,7 @@ const teacherTabsSlice = createSlice({
 
 export const { 
   clearTeacherTabs, 
-  clearError, 
-  clearCache,
+  clearError,
   addComment,
   addUnavailability,
   updateUnavailability,

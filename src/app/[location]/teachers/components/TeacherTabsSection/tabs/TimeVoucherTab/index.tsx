@@ -54,6 +54,7 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
   const data = useAppSelector((state) => state.teacherTabs.timeVoucherData);
   const timeVoucherLoading = useAppSelector((state) => state.teacherTabs.timeVoucherLoading);
   const timeVoucherError = useAppSelector((state) => state.teacherTabs.timeVoucherError);
+  const timeVoucherParams = useAppSelector((state) => state.teacherTabs.timeVoucherParams);
   
   const initialDateRange = {
     from: subDays(new Date(), 30),
@@ -70,6 +71,7 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
   const [summariseReport, setSummariseReport] = useState(false);
 
   // Fetch data when tab is opened and when params change
+  // Only trigger API if Redux doesn't have data or params have changed
   useEffect(() => {
     if (!location || !teacherId) return;
     
@@ -79,8 +81,18 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
       summaryOnly: summariseReport,
     };
     
-    dispatch(fetchTimeVoucherData({ location, teacherId, params }));
-  }, [location, teacherId, appliedDateRange.from, appliedDateRange.to, summariseReport, dispatch]);
+    // Check if Redux already has data for these exact params
+    const hasMatchingData = timeVoucherParams &&
+      timeVoucherParams.startDate === params.startDate &&
+      timeVoucherParams.endDate === params.endDate &&
+      timeVoucherParams.summaryOnly === params.summaryOnly &&
+      data.length > 0;
+    
+    // Only fetch if we don't have matching data in Redux
+    if (!hasMatchingData) {
+      dispatch(fetchTimeVoucherData({ location, teacherId, params }));
+    }
+  }, [location, teacherId, appliedDateRange.from, appliedDateRange.to, summariseReport, dispatch, timeVoucherParams, data.length]);
 
   // Handle date range change - apply filter and refetch data
   const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {

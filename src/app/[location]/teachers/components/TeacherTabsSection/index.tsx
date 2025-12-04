@@ -38,13 +38,18 @@ export function TeacherTabsSection({ location, teacherId }: TeacherTabsSectionPr
   const [activeTab, setActiveTab] = useState<string>(TEACHER_TAB_ORDER[0]);
   const isLoading = useAppSelector((state) => state.teacherTabs.isLoading);
   const error = useAppSelector((state) => state.teacherTabs.error);
+  const currentTeacherId = useAppSelector((state) => state.teacherTabs.currentTeacherId);
+  const hasData = useAppSelector((state) => state.teacherTabs.studentData.length > 0);
 
-  // Fetch tabs data when component mounts or teacherId changes
+  // Fetch tabs data only if we don't have data for this teacher in Redux
   useEffect(() => {
     if (location && teacherId) {
-      dispatch(fetchTeacherTabsData({ location, teacherId }));
+      // Only fetch if we don't have data or it's a different teacher
+      if (currentTeacherId !== teacherId || !hasData) {
+        dispatch(fetchTeacherTabsData({ location, teacherId }));
+      }
     }
-  }, [location, teacherId, dispatch]);
+  }, [location, teacherId, dispatch, currentTeacherId, hasData]);
 
   return (
     <div className="mt-8">
