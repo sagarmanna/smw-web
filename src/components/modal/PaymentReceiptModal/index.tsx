@@ -25,6 +25,94 @@ import type {
 } from "./types";
 
 /**
+ * Utility function to check if a date string is today or in the future
+ * Handles formats like "Dec 20, 2025 at 10:00 AM" or "Dec 20, 2025 @ 10:00 AM"
+ */
+const isDateTodayOrFuture = (dateString: string): boolean => {
+  if (!dateString || dateString.trim() === '') return true; // If no date, allow editing
+  
+  try {
+    // Extract date part (before " at " or " @ ")
+    const datePart = dateString.split(/ at | @ /i)[0].trim();
+    
+    if (!datePart) return true; // If no date part, allow editing
+    
+    // Parse the date (format: "Dec 20, 2025" or "December 20, 2025")
+    // Match format: "MMM DD, YYYY" or "MMMM DD, YYYY"
+    const dateMatch = datePart.match(/(\w+)\s+(\d+),\s+(\d+)/);
+    
+    if (!dateMatch) {
+      // If format doesn't match, try direct parsing
+      const date = new Date(datePart);
+      if (isNaN(date.getTime())) {
+        return true; // If invalid, allow editing
+      }
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const compareDate = new Date(date);
+      compareDate.setHours(0, 0, 0, 0);
+      return compareDate >= today;
+    }
+    
+    const [, monthName, day, year] = dateMatch;
+    const dayNum = parseInt(day, 10);
+    const yearNum = parseInt(year, 10);
+    
+    // Map month names to numbers
+    const monthMap: Record<string, number> = {
+      'jan': 0, 'january': 0,
+      'feb': 1, 'february': 1,
+      'mar': 2, 'march': 2,
+      'apr': 3, 'april': 3,
+      'may': 4,
+      'jun': 5, 'june': 5,
+      'jul': 6, 'july': 6,
+      'aug': 7, 'august': 7,
+      'sep': 8, 'september': 8,
+      'oct': 9, 'october': 9,
+      'nov': 10, 'november': 10,
+      'dec': 11, 'december': 11,
+    };
+    
+    const monthKey = monthName.toLowerCase();
+    const monthNum = monthMap[monthKey];
+    
+    if (monthNum === undefined || isNaN(dayNum) || isNaN(yearNum)) {
+      return true; // If can't parse, allow editing
+    }
+    
+    // Create date object explicitly
+    const date = new Date(yearNum, monthNum, dayNum);
+    
+    // Validate the date
+    if (date.getFullYear() !== yearNum || date.getMonth() !== monthNum || date.getDate() !== dayNum) {
+      return true; // Invalid date, allow editing
+    }
+    
+    // Get today's date at midnight for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    today.setMinutes(0);
+    today.setSeconds(0);
+    today.setMilliseconds(0);
+    
+    // Get the date from string at midnight for comparison
+    const compareDate = new Date(yearNum, monthNum, dayNum);
+    compareDate.setHours(0, 0, 0, 0);
+    compareDate.setMinutes(0);
+    compareDate.setSeconds(0);
+    compareDate.setMilliseconds(0);
+    
+    // Return true if date is today or in the future
+    return compareDate >= today;
+  } catch (error) {
+    // If parsing fails, allow editing to be safe
+    console.warn('Date parsing error:', error, 'Date string:', dateString);
+    return true;
+  }
+};
+
+/**
  * Payment Input Component for Lessons - uses local state to prevent focus loss
  */
 const LessonAllocationInput: React.FC<{
@@ -46,6 +134,11 @@ const LessonAllocationInput: React.FC<{
     onLessonAllocationChange(row.index, numericValue);
   };
   
+  // Check if original date is today or future
+  const isEditable = React.useMemo(() => {
+    return isDateTodayOrFuture(row.original.originalDate);
+  }, [row.original.originalDate]);
+  
   return (
     <Input
       type="number"
@@ -53,6 +146,7 @@ const LessonAllocationInput: React.FC<{
       onChange={handleChange}
       onBlur={handleBlur}
       className="h-8 text-right"
+      disabled={!isEditable}
     />
   );
 };
@@ -79,6 +173,11 @@ const GroupLessonAllocationInput: React.FC<{
     onGroupLessonAllocationChange(row.index, numericValue);
   };
   
+  // Check if date is today or future (group lessons use 'date' field, not 'originalDate')
+  const isEditable = React.useMemo(() => {
+    return isDateTodayOrFuture(row.original.date);
+  }, [row.original.date]);
+  
   return (
     <Input
       type="number"
@@ -86,6 +185,7 @@ const GroupLessonAllocationInput: React.FC<{
       onChange={handleChange}
       onBlur={handleBlur}
       className="h-8 text-right"
+      disabled={!isEditable}
     />
   );
 };
@@ -112,6 +212,11 @@ const InvoiceAllocationInput: React.FC<{
     onInvoiceAllocationChange(row.index, numericValue);
   };
   
+  // Check if date is today or future (invoices use 'date' field, not 'originalDate')
+  const isEditable = React.useMemo(() => {
+    return isDateTodayOrFuture(row.original.date);
+  }, [row.original.date]);
+  
   return (
     <Input
       type="number"
@@ -119,6 +224,7 @@ const InvoiceAllocationInput: React.FC<{
       onChange={handleChange}
       onBlur={handleBlur}
       className="h-8 text-right"
+      disabled={!isEditable}
     />
   );
 };
