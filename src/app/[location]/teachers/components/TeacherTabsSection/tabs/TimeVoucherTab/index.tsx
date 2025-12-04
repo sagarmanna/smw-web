@@ -55,6 +55,8 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
   const timeVoucherLoading = useAppSelector((state) => state.teacherTabs.timeVoucherLoading);
   const timeVoucherError = useAppSelector((state) => state.teacherTabs.timeVoucherError);
   const timeVoucherParams = useAppSelector((state) => state.teacherTabs.timeVoucherParams);
+  const timeVoucherTotalDuration = useAppSelector((state) => state.teacherTabs.timeVoucherTotalDuration);
+  const timeVoucherDateTotals = useAppSelector((state) => state.teacherTabs.timeVoucherDateTotals);
   
   const [dateRange, setDateRange] = useState(() => {
     const now = new Date();
@@ -162,11 +164,12 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
     sortedDates.forEach((dateKey) => {
       const lessons = grouped[dateKey];
       
-      // Calculate total duration for this date
-      const dateTotal = lessons.reduce((sum, lesson) => {
-        const duration = parseFloat(lesson.duration);
-        return sum + (isNaN(duration) ? 0 : duration);
-      }, 0);
+      // Use date total from API if available, otherwise calculate from lessons
+      const dateTotal = timeVoucherDateTotals[dateKey] ?? 
+        lessons.reduce((sum, lesson) => {
+          const duration = parseFloat(lesson.duration);
+          return sum + (isNaN(duration) ? 0 : duration);
+        }, 0);
       
       // Add date header row
       displayData.push({
@@ -189,13 +192,13 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
         });
       });
       
-      // Add date total row
+      // Add date total row - use API value if available
       displayData.push({
         id: `date-total-${dateKey}`,
         time: '',
         program: '',
         student: '',
-        duration: dateTotal.toFixed(2),
+        duration: dateTotal.toString(),
         isDateHeader: false,
         isDateTotal: true,
         dateLabel: '',
@@ -203,7 +206,7 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
     });
     
     return displayData;
-  }, [data]);
+  }, [data, timeVoucherDateTotals]);
 
   // Create columns with date header and total support
   const groupedColumns: ColumnDef<TimeVoucherData & { isDateHeader?: boolean; isDateTotal?: boolean; dateLabel?: string }>[] = useMemo(() => [
@@ -273,7 +276,7 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
         if (original.isDateTotal) {
           return (
             <div className="font-bold text-foreground text-right">
-              {parseFloat(original.duration).toFixed(2)}
+              {original.duration}
             </div>
           );
         }
@@ -311,37 +314,25 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
         const duration = (typeof getValue === 'function' 
           ? getValue() 
           : (row.original as SummarizedTimeVoucherData)?.duration ?? 0) as number;
-        // Format duration: show one decimal if it's a whole number, otherwise show as is
-        const formatted = duration % 1 === 0 ? duration.toFixed(1) : duration.toFixed(2);
-        return <div className="text-right">{formatted}</div>;
+        // Display duration as-is from API, preserving original precision
+        return <div className="text-right">{duration.toString()}</div>;
       },
     },
   ], []);
 
-  // Transform data for summarized view
+  // Transform data for summarized view - use API data directly, no recalculation
   const summarizedData = useMemo(() => {
     if (!summariseReport || !data || data.length === 0) return null;
 
+    // API already provides duration per date in summary mode, just map and sort
     const rawData = data as TimeVoucherData[];
-    const grouped = rawData.reduce((acc: Record<string, SummarizedTimeVoucherData>, item: TimeVoucherData) => {
-      // Extract date from time string (e.g., "Thursday, December 4th, 2025 01:00 PM" -> "Thursday, December 4th, 2025")
-      const timeStr = item.time;
-      const dateMatch = timeStr.match(/([A-Za-z]+,\s+[A-Za-z]+\s+\d+(?:st|nd|rd|th)?,\s+\d{4})/);
-      const dateKey = dateMatch ? dateMatch[1] : timeStr.split(' ').slice(0, -2).join(' ');
-
-      if (!acc[dateKey]) {
-        acc[dateKey] = {
-          date: dateKey,
-          duration: 0,
-        };
-      }
-
-      acc[dateKey].duration += parseFloat(item.duration) || 0;
-      return acc;
-    }, {} as Record<string, SummarizedTimeVoucherData>);
+    const mapped: SummarizedTimeVoucherData[] = rawData.map((item) => ({
+      date: item.time, // In summary mode, time field contains the date
+      duration: parseFloat(item.duration) || 0, // Use duration directly from API
+    }));
 
     // Sort by date chronologically
-    const sorted = Object.values(grouped).sort((a: SummarizedTimeVoucherData, b: SummarizedTimeVoucherData) => {
+    const sorted = mapped.sort((a: SummarizedTimeVoucherData, b: SummarizedTimeVoucherData) => {
       // Parse dates - try with time first, then without
       let dateA = parseTimeString(a.date);
       if (!dateA) {
@@ -368,23 +359,13 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
     return sorted;
   }, [data, summariseReport]);
 
-  // Calculate total duration for footer
+  // Use total duration from API footer - no recalculation
   const totalDuration = useMemo(() => {
-    if (summariseReport) {
-      if (!summarizedData || summarizedData.length === 0) return "0.00";
-      const total = summarizedData.reduce((sum: number, item: SummarizedTimeVoucherData) => sum + item.duration, 0);
-      return total.toFixed(2);
+    if (timeVoucherTotalDuration !== null) {
+      return timeVoucherTotalDuration.toString();
     }
-    
-    if (!data || data.length === 0) return "0.00";
-    const rawData = data as TimeVoucherData[];
-    const total = rawData.reduce((sum: number, item: TimeVoucherData) => {
-      const duration = parseFloat(item.duration);
-      return sum + (isNaN(duration) ? 0 : duration);
-    }, 0);
-    
-    return total.toFixed(2);
-  }, [data, summarizedData, summariseReport]);
+    return "0";
+  }, [timeVoucherTotalDuration]);
 
   // Create footer data objects that match the column structure
   const summarizedFooterRow: SummarizedTimeVoucherData = useMemo(() => ({

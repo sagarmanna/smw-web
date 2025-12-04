@@ -151,6 +151,7 @@ export interface TimeVoucherLesson {
 export interface TimeVoucherDetailItem {
   date: string;
   lessons: TimeVoucherLesson[];
+  totalDuration?: number; // Total duration for this date group (provided by API)
 }
 
 export interface TimeVoucherSummaryItem {
