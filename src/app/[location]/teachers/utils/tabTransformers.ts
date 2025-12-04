@@ -5,7 +5,7 @@
 import type { UnavailabilityData, TimeVoucherData } from '../teacherTabConfigs';
 import type { UnavailableHour } from '../[id]/teachers-details-tabs.api';
 import type { TimeVoucherApiResponse, TimeVoucherQueryParams } from '../[id]/teachers-details-tabs.api';
-import { parseApiDateTimeToISO } from './dateUtils';
+import { parseApiDateTimeToISO } from '@/utils/dateUtils';
 
 /**
  * Transforms unavailability API response to UnavailabilityData format
