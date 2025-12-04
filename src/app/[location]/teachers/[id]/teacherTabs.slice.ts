@@ -9,6 +9,8 @@ import {
   HistoryData,
 } from '../teacherTabConfigs';
 import { mockTeacherTabData } from '../mockData/teacherMockData';
+import { getTeacherUnavailability } from './teachers-details-tabs.api';
+import { parseApiDateTimeToISO } from '@/utils/dateUtils';
 import { getTeacherTimeVoucher, TimeVoucherQueryParams } from './teachers-details-tabs.api';
 import { transformTimeVoucherData } from '../utils/tabTransformers';
 import { fetchUnavailabilityData } from '../utils/teacherTabsData';
@@ -54,6 +56,55 @@ export const fetchTeacherTabsData = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
+      // Check if we have fresh cached data
+      const state = getState() as { teacherTabs: TeacherTabsState };
+      const tabsState = state.teacherTabs;
+      
+      if (
+        tabsState.currentTeacherId === teacherId &&
+        tabsState.lastFetched &&
+        Date.now() - tabsState.lastFetched < STALE_TIME_MS &&
+        tabsState.studentData.length > 0 // Check if we have data
+      ) {
+        // Return cached data - no API call needed
+        return { 
+          data: {
+            unavailabilityData: tabsState.unavailabilityData,
+            studentData: tabsState.studentData,
+            invoicedLessonData: tabsState.invoicedLessonData,
+            unscheduledLessonData: tabsState.unscheduledLessonData,
+            timeVoucherData: tabsState.timeVoucherData,
+            commentData: tabsState.commentData,
+            historyData: tabsState.historyData,
+          },
+          fromCache: true 
+        };
+      }
+
+      // Fetch unavailability data from API and transform it
+      let unavailabilityData: UnavailabilityData[] = [];
+      try {
+        const apiResult = await getTeacherUnavailability(location, teacherId);
+        if (apiResult && apiResult.length > 0) {
+          // Parse API data once - store as ISO strings for direct Date conversion in UI
+          const baseTimestamp = Date.now();
+          unavailabilityData = apiResult.map((item, index) => ({
+            id: `unavailability-${baseTimestamp}-${index}`,
+            fromDateTime: parseApiDateTimeToISO(item.start),
+            toDateTime: parseApiDateTimeToISO(item.end),
+            reason: item.reason || "",
+          }));
+          console.log('Transformed unavailability data:', unavailabilityData);
+        }
+      } catch (unavailabilityError) {
+        console.error('Error fetching unavailability data:', unavailabilityError);
+        // Continue with empty array if unavailability fetch fails
+        unavailabilityData = [];
+      }
+
+      // Note: Students data is fetched lazily when StudentsTab is clicked
+      // This avoids loading all tab data upfront and improves initial load time
+      const studentData: TeacherStudentData[] = [];
       // Fetch unavailability data (handles all business logic)
       const unavailabilityData = await fetchUnavailabilityData(location, teacherId);
       
@@ -62,7 +113,7 @@ export const fetchTeacherTabsData = createAsyncThunk(
       // Note: timeVoucherData is now fetched separately when the tab is opened
       const data = {
         unavailabilityData,
-        studentData: mockTeacherTabData.studentData,
+        studentData,
         invoicedLessonData: mockTeacherTabData.invoicedLessonData,
         unscheduledLessonData: mockTeacherTabData.unscheduledLessonData,
         timeVoucherData: [], // Will be fetched separately when tab is opened

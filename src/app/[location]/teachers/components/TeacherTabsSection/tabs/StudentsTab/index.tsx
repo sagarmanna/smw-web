@@ -1,8 +1,10 @@
 "use client";
 
-import { useAppSelector } from "@/redux/hooks";
+import * as React from "react";
 import { TabContent } from "@/components/TabContent";
 import { teacherStudentColumns } from "../../../../teacherTabConfigs";
+import { getTeacherStudents } from "../../../../[id]/teachers-details-tabs.api";
+import type { TeacherStudentData } from "../../../../teacherTabConfigs";
 
 interface StudentsTabProps {
   location: string;
@@ -10,17 +12,108 @@ interface StudentsTabProps {
 }
 
 export function StudentsTab({ location, teacherId }: StudentsTabProps) {
-  const data = useAppSelector((state) => state.teacherTabs.studentData);
+  const [studentData, setStudentData] = React.useState<TeacherStudentData[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [pagination, setPagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+
+  // Fetch students data with pagination
+  const fetchStudents = React.useCallback(
+    async (page: number, limit: number) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await getTeacherStudents(location, teacherId, page, limit);
+        if (result) {
+          // Transform API data: id (number) -> id (string), fullName -> studentName
+          const transformedData: TeacherStudentData[] = result.students.map((item) => ({
+            id: item.id.toString(),
+            studentName: item.fullName,
+          }));
+          setStudentData(transformedData);
+          setPagination(result.pagination);
+        } else {
+          setStudentData([]);
+          setPagination((prev) => ({
+            ...prev,
+            total: 0,
+            totalPages: 0,
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching students:", err);
+        setError("Failed to load students data");
+        setStudentData([]);
+        setPagination((prev) => ({
+          ...prev,
+          total: 0,
+          totalPages: 0,
+        }));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [location, teacherId]
+  );
+
+  // Lazy load: Only fetch when Students tab is clicked/rendered
+  // This component only mounts when the tab is active, so this effect runs on tab click
+  React.useEffect(() => {
+    fetchStudents(1, 10);
+  }, [fetchStudents]);
+
+  // Handle page change
+  const handlePageChange = React.useCallback(
+    (page: number) => {
+      fetchStudents(page, pagination.limit);
+    },
+    [fetchStudents, pagination.limit]
+  );
+
+  // Handle rows per page change
+  const handleRowsPerPageChange = React.useCallback(
+    (rowsPerPage: number) => {
+      fetchStudents(1, rowsPerPage);
+    },
+    [fetchStudents]
+  );
+
+  // Only show pagination if total > 10
+  const showPagination = pagination.total > 10;
+
+  // Handle row click - navigate to legacy student detail page
+  const handleRowClick = React.useCallback(
+    (row: TeacherStudentData) => {
+      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      const url = `${legacyBase}/${location}/student/view?id=${row.id}`;
+      window.location.href = url;
+    },
+    [location]
+  );
 
   return (
     <TabContent
       title="Students"
-      data={data}
+      data={studentData}
       columns={teacherStudentColumns}
       hasAddButton={false}
       hasTable={true}
       emptyState="No students found."
+      loading={loading}
+      error={error}
+      enablePagination={showPagination}
+      serverSidePagination={showPagination ? pagination : undefined}
+      onPageChange={showPagination ? handlePageChange : undefined}
+      onRowsPerPageChange={showPagination ? handleRowsPerPageChange : undefined}
+      rowsPerPage={pagination.limit}
+      rowsPerPageOptions={[10, 20, 50, 100]}
+      onRowClick={handleRowClick}
+      rowClassName="cursor-pointer"
     />
   );
 }
-

@@ -19,7 +19,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { UnavailabilityData } from "../../teacherTabConfigs";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-import { isoStringToDate } from "../../utils/dateUtils";
+import { isoStringToDate } from "@/utils/dateUtils";
 
 interface AddUnavailabilityModalProps {
   open: boolean;

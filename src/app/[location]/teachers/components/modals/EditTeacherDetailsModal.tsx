@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TeacherBasicDetails } from "../../types";
-import { formatDisplayDate } from "../../utils/dateUtils";
+import { formatDisplayDate } from "@/utils/dateUtils";
 import { toast } from "sonner";
 
 interface EditTeacherDetailsModalProps {

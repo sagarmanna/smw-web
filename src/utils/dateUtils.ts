@@ -1,11 +1,11 @@
 /**
- * Utility functions for date formatting in teacher components
+ * Utility functions for date formatting and conversion
  */
 
 import { parse, format } from "date-fns";
 
 /**
- * Formats a date string for teacher details card.
+ * Formats a date string for display.
  * Business requirement: display as `Feb 01, 2006` (MMM DD, YYYY).
  * @param value - Date string or undefined
  * @returns Formatted date string or "N/A" if invalid
