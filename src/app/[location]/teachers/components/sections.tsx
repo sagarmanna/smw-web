@@ -223,10 +223,19 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
     country: Array<{ id: number; name: string }>;
   } | null>(null);
   const [loadingGeoData, setLoadingGeoData] = React.useState(false);
+  // Track if we've already initiated a fetch to prevent duplicate calls
+  const hasFetchedRef = React.useRef(false);
 
-  // Fetch geodata once when component mounts
+  // Only fetch geodata when addresses exist and we haven't fetched yet
   React.useEffect(() => {
+    // Skip if loading, no addresses, or already fetched
+    if (loading || addresses.length === 0 || hasFetchedRef.current) {
+      return;
+    }
+
     const fetchGeoData = async () => {
+      // Mark as fetching to prevent duplicate calls
+      hasFetchedRef.current = true;
       setLoadingGeoData(true);
       try {
         // Import getGeoData dynamically to avoid circular dependencies
@@ -238,13 +247,15 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
         }
       } catch (error) {
         console.error('Error fetching geodata:', error);
+        // Reset ref on error so we can retry if needed
+        hasFetchedRef.current = false;
       } finally {
         setLoadingGeoData(false);
       }
     };
 
     fetchGeoData();
-  }, []);
+  }, [addresses.length, loading]);
 
   if (loading) {
     return <ItemListSkeleton />;

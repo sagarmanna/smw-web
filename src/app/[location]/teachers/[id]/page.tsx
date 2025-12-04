@@ -17,26 +17,39 @@ export default function TeacherDetailPage({ params }: TeacherDetailPageProps) {
   const dispatch = useAppDispatch();
   const teacherId = Number(id);
   
-  // Track previous teacherId to detect changes
-  const prevTeacherIdRef = useRef<number | null>(null);
+  // Track previous teacherId/location to detect changes and prevent duplicate fetches
+  const prevKeyRef = useRef<string | null>(null);
   
   useEffect(() => {
     // Only fetch if we have valid IDs
     if (!teacherId || !location) return;
     
-    // If teacherId changed, clear previous teacher data immediately
-    if (prevTeacherIdRef.current !== null && prevTeacherIdRef.current !== teacherId) {
-      dispatch(clearTeacher());
+    // Create a unique key for this teacher/location combination
+    const currentKey = `${location}-${teacherId}`;
+    
+    // Skip if we've already fetched for this exact combination (prevents duplicate calls during re-renders)
+    if (prevKeyRef.current === currentKey) {
+      return;
     }
     
-    // Update the ref
-    prevTeacherIdRef.current = teacherId;
+    // If teacherId changed, clear previous teacher data immediately
+    const prevKey = prevKeyRef.current;
+    if (prevKey && prevKey !== currentKey) {
+      const prevTeacherId = prevKey.split('-')[1];
+      if (prevTeacherId && Number(prevTeacherId) !== teacherId) {
+        dispatch(clearTeacher());
+      }
+    }
     
-    // Always fetch when teacherId changes - the thunk will handle caching
+    // Update the ref to track this fetch
+    prevKeyRef.current = currentKey;
+    
+    // Always fetch when teacherId/location changes - the thunk will handle caching
     // This ensures we get fresh data when switching between teachers
     dispatch(fetchTeacher({ location, teacherId }));
     
-  }, [location, teacherId, dispatch]); // Only depend on location, teacherId, and dispatch to prevent excessive re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, teacherId]); // dispatch is stable from Redux Toolkit, no need to include in deps
 
   // Render the client component that displays the details
   return <TeachersDetailClient location={location} id={id} />;

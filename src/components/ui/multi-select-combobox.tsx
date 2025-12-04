@@ -43,28 +43,6 @@ export function MultiSelectCombobox({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
 
-  const handleSelect = (optionValue: string) => {
-    const newValue = value.includes(optionValue)
-      ? value.filter((v) => v !== optionValue)
-      : [...value, optionValue]
-    onValueChange?.(newValue)
-  }
-
-  const handleSelectAll = () => {
-    if (value.length === options.length) {
-      onValueChange?.([])
-    } else {
-      onValueChange?.(options.map((opt) => opt.value))
-    }
-  }
-
-  const handleRemove = (optionValue: string, e: React.MouseEvent | React.KeyboardEvent) => {
-    e.stopPropagation()
-    onValueChange?.(value.filter((v) => v !== optionValue))
-  }
-
-  const selectedOptions = options.filter((opt) => value.includes(opt.value))
-
   // Filter options based on search query
   const filteredOptions = React.useMemo(() => {
     if (!searchQuery.trim()) {
@@ -75,6 +53,38 @@ export function MultiSelectCombobox({
       opt.label.toLowerCase().includes(query)
     )
   }, [options, searchQuery])
+
+  const handleSelect = (optionValue: string) => {
+    const newValue = value.includes(optionValue)
+      ? value.filter((v) => v !== optionValue)
+      : [...value, optionValue]
+    onValueChange?.(newValue)
+  }
+
+  const handleSelectAll = React.useCallback(() => {
+    // Get currently filtered option values
+    const filteredValues = filteredOptions.map((opt) => opt.value)
+    
+    // Check if all filtered options are selected
+    const allFilteredSelected = filteredValues.every((val) => value.includes(val))
+    
+    if (allFilteredSelected) {
+      // Deselect only the filtered options, keep others selected
+      const newValue = value.filter((val) => !filteredValues.includes(val))
+      onValueChange?.(newValue)
+    } else {
+      // Select all filtered options, merge with existing selections
+      const newValue = [...new Set([...value, ...filteredValues])]
+      onValueChange?.(newValue)
+    }
+  }, [filteredOptions, value, onValueChange])
+
+  const handleRemove = (optionValue: string, e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation()
+    onValueChange?.(value.filter((v) => v !== optionValue))
+  }
+
+  const selectedOptions = options.filter((opt) => value.includes(opt.value))
 
   // Reset search when popover closes
   React.useEffect(() => {
@@ -198,26 +208,32 @@ export function MultiSelectCombobox({
           >
             <div className="p-1">
               {/* Select All Option */}
-              <div
-                className="px-2 py-1.5 cursor-pointer hover:bg-accent transition-colors rounded-sm"
-                onClick={handleSelectAll}
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={cn(
-                      "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                      value.length === options.length
-                        ? "bg-primary text-primary-foreground"
-                        : "opacity-50"
-                    )}
-                  >
-                    {value.length === options.length && (
-                      <Check className="h-4 w-4" />
-                    )}
+              {filteredOptions.length > 0 && (
+                <div
+                  className="px-2 py-1.5 cursor-pointer hover:bg-accent transition-colors rounded-sm"
+                  onClick={handleSelectAll}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                        filteredOptions.every((opt) => value.includes(opt.value))
+                          ? "bg-primary text-primary-foreground"
+                          : "opacity-50"
+                      )}
+                    >
+                      {filteredOptions.every((opt) => value.includes(opt.value)) && (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </div>
+                    <span className="font-medium text-sm">
+                      {filteredOptions.every((opt) => value.includes(opt.value))
+                        ? `Deselect All (${filteredOptions.length})`
+                        : `Select All (${filteredOptions.length})`}
+                    </span>
                   </div>
-                  <span className="font-medium text-sm">{selectAllLabel}</span>
                 </div>
-              </div>
+              )}
               {filteredOptions.length === 0 ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">
                   {emptyText}
