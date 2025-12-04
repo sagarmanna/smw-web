@@ -2378,8 +2378,8 @@ export function EquipmentRentalsModal({
                 </SelectContent>
               </Select>
               <Label className="w-24 ml-6">Return Date</Label>
-              {isEditMode && formData.onGoing ? (
-                // In edit mode with ongoing rental, show date picker to allow setting return date
+              {isEditMode && formData.onGoing && !formData.returnDate ? (
+                // In edit mode with ongoing rental and no return date, show date picker to allow setting return date
                 <Popover
                   open={isReturnDateOpen}
                   onOpenChange={setIsReturnDateOpen}
@@ -2439,17 +2439,19 @@ export function EquipmentRentalsModal({
                   </PopoverContent>
                 </Popover>
               ) : (
-                // In create mode or non-ongoing, show read-only input
+                // In create mode, non-ongoing, or edit mode with ongoing rental that has return date, show read-only input
                 <Input
                   key={`return-date-${formData.onGoing ? "ongoing-empty" : formData.returnDate?.toISOString() || "empty"}-${formData.returnDate === undefined ? "undefined" : "defined"}`}
                   value={
-                    // Direct inline check - MUST be empty when onGoing is true
-                    formData.onGoing === true
-                      ? ""
-                      : returnDateInputValue
+                    // Show return date if it exists (even for ongoing rentals in edit mode)
+                    formData.returnDate && formData.returnDate instanceof Date && !isNaN(formData.returnDate.getTime())
+                      ? format(formData.returnDate, "MMM dd, yyyy")
+                      : formData.onGoing === true
+                        ? ""
+                        : returnDateInputValue
                   }
                   readOnly
-                  disabled={formData.onGoing || isEditMode}
+                  disabled={formData.onGoing || isEditMode || (isEditMode && formData.onGoing && formData.returnDate)}
                   className="bg-gray-50 dark:bg-gray-800 w-48"
                   placeholder=""
                 />
@@ -2650,7 +2652,7 @@ export function EquipmentRentalsModal({
             </div>
           )}
           <div className="flex items-center gap-2">
-            {isEditMode && formData.onGoing && (
+            {isEditMode && formData.onGoing && !formData.returnDate && (
               <Button
                 onClick={handleUpdateReturnDate}
                 disabled={!formData.returnDate || updating}
@@ -2709,8 +2711,14 @@ export function EquipmentRentalsModal({
                 // Determine if button should be enabled
                 let isEnabled: boolean;
                 if (formData.onGoing && formData.returnDate) {
-                  // For ongoing rentals with return date, only enable if return date >= 2 months
-                  isEnabled = isOngoingWithReturnDateAtLeastTwoMonths;
+                  // For ongoing rentals with return date in edit mode, enable Equipment Returned button
+                  // (user has set return date, allow them to mark as returned)
+                  if (isEditMode) {
+                    isEnabled = true;
+                  } else {
+                    // For non-edit mode, enable if return date >= 2 months
+                    isEnabled = isOngoingWithReturnDateAtLeastTwoMonths;
+                  }
                 } else {
                   // For non-ongoing rentals, enable if duration >= 2 months OR return date has been reached
                   isEnabled = durationMonths >= 2 || hasReachedReturnDate;
