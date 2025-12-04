@@ -219,3 +219,87 @@ export async function getTeacherTimeVoucher(
   }
 }
 
+// ---------------------------------------------
+// Unscheduled Lessons API Response Types
+// ---------------------------------------------
+
+export interface UnscheduledLessonApiItem {
+  id: number;
+  student: string;
+  phone: string;
+  program: string;
+  duration: string;
+  originalDate: string;
+  expiryDate: string;
+}
+
+interface UnscheduledLessonApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface UnscheduledLessonApiResponse {
+  success: boolean;
+  data: {
+    body: UnscheduledLessonApiItem[];
+    pagination: UnscheduledLessonApiResponsePagination;
+  };
+  message?: string;
+}
+
+// ---------------------------------------------
+// Unscheduled Lessons API
+// ---------------------------------------------
+
+/**
+ * Fetches unscheduled lessons data for a teacher with pagination
+ * Endpoint: GET /admin/v2/{location}/teachers/{teacherId}/unscheduled-lessons
+ * @param location - The location identifier (e.g., "burlington")
+ * @param teacherId - The teacher ID
+ * @param page - Page number (default: 1)
+ * @param limit - Number of items per page (default: 10)
+ * @returns Promise resolving to unscheduled lessons data with pagination or null on error
+ */
+export async function getTeacherUnscheduledLessons(
+  location: string,
+  teacherId: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<{ unscheduledLessons: UnscheduledLessonApiItem[]; pagination: UnscheduledLessonApiResponsePagination } | null> {
+  try {
+    const url = `/admin/v2/${location}/teachers/${teacherId}/unscheduled-lessons`;
+    const params: Record<string, string> = {};
+    if (page) params.page = page.toString();
+    if (limit) params.limit = limit.toString();
+    
+    const response = await apiClient.get<UnscheduledLessonApiResponse>(url, { params });
+
+    if (response.data.success && response.data.data?.body && Array.isArray(response.data.data.body)) {
+      return {
+        unscheduledLessons: response.data.data.body,
+        pagination: response.data.data.pagination,
+      };
+    }
+
+    return {
+      unscheduledLessons: [],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 1,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error fetching teacher unscheduled lessons:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch teacher unscheduled lessons"
+    );
+    return null;
+  }
+}
+
