@@ -8,7 +8,6 @@ import {
   CommentData,
   HistoryData,
 } from '../teacherTabConfigs';
-import { mockTeacherTabData } from '../mockData/teacherMockData';
 import { getTeacherTimeVoucher, TimeVoucherQueryParams } from './teachers-details-tabs.api';
 import { getTeacherInvoicedLessons, InvoicedLessonQueryParams } from './teachers-details-tabs.api';
 import { getTeacherHistory, getTeacherComments } from './teachers-details-tabs.api';
@@ -98,7 +97,7 @@ export const fetchTeacherTabsData = createAsyncThunk(
         unavailabilityData,
         studentData,
         invoicedLessonData: [], // Will be fetched separately when tab is opened
-        unscheduledLessonData: mockTeacherTabData.unscheduledLessonData,
+        unscheduledLessonData: [], // TODO: Will be fetched separately when tab is opened
         timeVoucherData: [], // Will be fetched separately when tab is opened
         commentData: [], // Will be fetched separately when tab is opened
         historyData: [], // Will be fetched separately when tab is opened
