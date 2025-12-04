@@ -1,6 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { formatISOToDisplay } from "@/utils/dateUtils";
+import { CalendarIcon } from "lucide-react";
 
 // Data interfaces
 export interface UnavailabilityData {
@@ -148,6 +149,16 @@ export const unscheduledLessonColumns: ColumnDef<UnscheduledLessonData>[] = [
   {
     accessorKey: "expiryDate",
     header: "Expiry Date",
+  },
+  {
+    id: "calendar",
+    header: "",
+    cell: () => (
+      <div className="flex justify-center">
+        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+      </div>
+    ),
+    enableSorting: false,
   },
 ];
 

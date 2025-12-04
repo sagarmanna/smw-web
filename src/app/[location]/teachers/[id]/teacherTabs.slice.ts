@@ -64,6 +64,10 @@ export const fetchTeacherTabsData = createAsyncThunk(
       // Fetch unavailability data (handles all business logic)
       const unavailabilityData = await fetchUnavailabilityData(location, teacherId);
       
+      // Note: Unscheduled lessons data is fetched lazily when UnscheduledLessonTab is clicked
+      // This avoids loading all tab data upfront and improves initial load time
+      const unscheduledLessonData: UnscheduledLessonData[] = [];
+      
       // TODO: Replace other mock data with actual API calls
       // For now, using mock data for other tabs
       // Note: timeVoucherData is now fetched separately when the tab is opened
@@ -71,7 +75,7 @@ export const fetchTeacherTabsData = createAsyncThunk(
         unavailabilityData,
         studentData,
         invoicedLessonData: mockTeacherTabData.invoicedLessonData,
-        unscheduledLessonData: mockTeacherTabData.unscheduledLessonData,
+        unscheduledLessonData,
         timeVoucherData: [], // Will be fetched separately when tab is opened
         commentData: mockTeacherTabData.commentData,
         historyData: mockTeacherTabData.historyData,
