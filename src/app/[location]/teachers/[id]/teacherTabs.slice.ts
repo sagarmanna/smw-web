@@ -28,6 +28,8 @@ export interface TeacherTabsState {
   timeVoucherLoading: boolean;
   timeVoucherError: string | null;
   timeVoucherParams: TimeVoucherQueryParams | null; // Track params for current data
+  timeVoucherTotalDuration: number | null; // Total duration from API footer
+  timeVoucherDateTotals: Record<string, number>; // Date totals from API: { [date]: totalDuration }
 }
 
 const initialState: TeacherTabsState = {
@@ -44,6 +46,8 @@ const initialState: TeacherTabsState = {
   timeVoucherLoading: false,
   timeVoucherError: null,
   timeVoucherParams: null,
+  timeVoucherTotalDuration: null,
+  timeVoucherDateTotals: {},
 };
 
 // Async thunk for fetching teacher tabs data - stores in Redux
@@ -98,10 +102,29 @@ export const fetchTimeVoucherData = createAsyncThunk(
       
       // Transform API response (handles all business logic)
       const transformedData = transformTimeVoucherData(apiResult, params);
+      
+      // Extract total duration from API footer
+      const totalDuration = apiResult?.data?.footer?.totalDuration ?? null;
+      
+      // Extract date totals from API (for detail mode)
+      const dateTotals: Record<string, number> = {};
+      if (!params.summaryOnly && apiResult?.data?.body) {
+        const detailItems = apiResult.data.body as Array<{
+          date: string;
+          totalDuration?: number;
+        }>;
+        detailItems.forEach((item) => {
+          if (item.totalDuration !== undefined) {
+            dateTotals[item.date] = item.totalDuration;
+          }
+        });
+      }
 
       return {
         data: transformedData,
         params,
+        totalDuration,
+        dateTotals,
       };
     } catch (error) {
       console.error('Error in fetchTimeVoucherData:', error);
@@ -158,6 +181,8 @@ const teacherTabsSlice = createSlice({
       state.timeVoucherData = [];
       state.timeVoucherError = null;
       state.timeVoucherParams = null;
+      state.timeVoucherTotalDuration = null;
+      state.timeVoucherDateTotals = {};
     },
   },
   extraReducers: (builder) => {
@@ -178,6 +203,8 @@ const teacherTabsSlice = createSlice({
           state.timeVoucherLoading = false;
           state.timeVoucherError = null;
           state.timeVoucherParams = null;
+          state.timeVoucherTotalDuration = null;
+          state.timeVoucherDateTotals = {};
         }
         
         state.currentTeacherId = teacherId;
@@ -208,6 +235,8 @@ const teacherTabsSlice = createSlice({
         state.timeVoucherLoading = false;
         state.timeVoucherData = action.payload.data;
         state.timeVoucherParams = action.payload.params;
+        state.timeVoucherTotalDuration = action.payload.totalDuration;
+        state.timeVoucherDateTotals = action.payload.dateTotals;
         state.timeVoucherError = null;
       })
       .addCase(fetchTimeVoucherData.rejected, (state, action) => {
