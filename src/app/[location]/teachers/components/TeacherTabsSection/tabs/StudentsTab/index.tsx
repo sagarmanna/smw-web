@@ -28,18 +28,18 @@ export function StudentsTab({ location, teacherId }: StudentsTabProps) {
 
   // Fetch students data with pagination
   const fetchStudents = React.useCallback(
-    async (page: number, limit: number) => {
+      async (page: number, limit: number) => {
       setLoading(true);
       setError(null);
       try {
         const apiLimit = convertLimitForApi(limit);
         const result = await getTeacherStudents(location, teacherId, page, apiLimit);
         if (result) {
-          // Transform API data: id (number) -> id (string), fullName -> studentName
+      // Transform API data: id (number) -> id (string), fullName -> studentName
           const transformedData: TeacherStudentData[] = result.students.map((item) => ({
-            id: item.id.toString(),
-            studentName: item.fullName,
-          }));
+        id: item.id.toString(),
+        studentName: item.fullName,
+      }));
           setStudentData(transformedData);
           updatePaginationFromApiResponse(page, limit, result.pagination);
         } else {
