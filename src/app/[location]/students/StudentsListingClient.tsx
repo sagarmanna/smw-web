@@ -9,9 +9,8 @@ import { studentColumns } from "./tableConfigs";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
 import { usePrintReport } from "@/hooks/usePrintReport";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { useStudentListing } from "./hooks/useStudentListing";
+import { formatLocationName } from "@/utils/textUtils";
 
 interface StudentsListingClientProps {
   location: string;
@@ -43,10 +42,10 @@ export function StudentsListingClient({ location }: StudentsListingClientProps) 
   } = useStudentListing(location);
 
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<StudentRow>({
-    reportTitle: "Students List",
+    reportTitle: `Student list for ${formatLocationName(location)}`,
     columns,
     data: rows,
-    location: location,
+    location: location, // Pass location for PDF header
   });
 
   const { handlePrint } = usePrintReport<StudentRow>();
@@ -72,18 +71,6 @@ export function StudentsListingClient({ location }: StudentsListingClientProps) 
       isLoading={isLoading}
       error={null}
       onRetry={fetchData}
-      actions={
-        <Button 
-          onClick={() => {
-            // TODO: Add student modal
-            console.log("Add student clicked");
-          }} 
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Student
-        </Button>
-      }
     >
       <CustomTable
         data={rows}
@@ -103,10 +90,9 @@ export function StudentsListingClient({ location }: StudentsListingClientProps) 
         enableRowsPerPage={true}
         enablePrint={true}
         onPrint={() => handlePrint({
-          reportTitle: 'Students Report',
+          reportTitle: `Student's list for ${formatLocationName(location)}`,
           columns,
           data: rows,
-          location,
         })}
         enableColumnFilters={true}
         onColumnFilterChange={handleColumnFilterChange}
