@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { getStudentsList, StudentRow, StudentsQuery } from './students.api';
+import { getStudentsList, StudentRow, StudentsQuery } from './studentsListing.api';
 import { SortField } from './utils/sortStudents';
 
 interface StudentsListingState {

@@ -1,6 +1,6 @@
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { StudentRow } from "./students.api";
+import { StudentRow } from "./studentsListing.api";
 
 // Column definitions for students table
 export const studentColumns: ColumnDef<StudentRow>[] = [

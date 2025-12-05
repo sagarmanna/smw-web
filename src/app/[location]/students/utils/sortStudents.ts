@@ -1,4 +1,4 @@
-import { StudentRow } from "../students.api";
+import { StudentRow } from "../studentsListing.api";
 
 export type SortField = "firstName" | "lastName" | "customer";
 export type SortDirection = "asc" | "desc";

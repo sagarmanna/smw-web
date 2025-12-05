@@ -11,7 +11,7 @@ import {
   setColumnFilters, 
   setActiveFilter 
 } from "../studentsListing.slice";
-import { StudentsQuery } from "../students.api";
+import { StudentsQuery } from "../studentsListing.api";
 import { SortField } from "../utils/sortStudents";
 
 export function useStudentListing(location: string) {
