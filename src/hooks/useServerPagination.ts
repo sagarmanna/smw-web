@@ -135,6 +135,12 @@ export function useServerPagination(
     totalPages: 0,
   });
 
+  // Use ref to always access current pagination limit without causing handler recreation
+  const paginationRef = React.useRef(pagination);
+  React.useEffect(() => {
+    paginationRef.current = pagination;
+  }, [pagination]);
+
   const showPagination = pagination.total > minTotalForPagination;
 
   /**
@@ -144,7 +150,8 @@ export function useServerPagination(
   const createPageChangeHandlers = React.useCallback(
     (fetchPage: (page: number, limit: number) => void | Promise<void>): PageChangeHandlers => {
       const handlePageChange = (page: number) => {
-        fetchPage(page, pagination.limit);
+        // Use current limit from ref to avoid stale closure
+        fetchPage(page, paginationRef.current.limit);
       };
 
       const handleRowsPerPageChange = (rowsPerPage: number) => {
@@ -153,7 +160,7 @@ export function useServerPagination(
 
       return { handlePageChange, handleRowsPerPageChange };
     },
-    [pagination.limit]
+    []
   );
 
   /**
