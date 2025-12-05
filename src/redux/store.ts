@@ -9,6 +9,9 @@ import teacherReducer from '../app/[location]/teachers/[id]/teachers.slice';
 import teacherTabsReducer from '../app/[location]/teachers/[id]/teacherTabs.slice';
 import teachersListingReducer from '../app/[location]/teachers/teachersListing.slice';
 import blogsListingReducer from '../app/[location]/blogs/blogsListing.slice';
+import studentReducer from '../app/[location]/students/[id]/students-details.slice';
+import studentTabsReducer from '../app/[location]/students/[id]/studentTabs.slice';
+import studentsListingReducer from '../app/[location]/students/studentsListing.slice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +25,9 @@ export const store = configureStore({
     teacherTabs: teacherTabsReducer,
     teachersListing: teachersListingReducer,
     blogsListing: blogsListingReducer,
+    student: studentReducer,
+    studentTabs: studentTabsReducer,
+    studentsListing: studentsListingReducer,
   },
 });
 

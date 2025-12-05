@@ -1,28 +1,41 @@
-// StudentCustomerCard.tsx - Reusable Customer Card Component
+"use client";
+
 import * as React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { InfoField } from "@/components/TablesInfoField";
+import {
+  SectionCard,
+} from "@/components/SectionCard";
+import { SectionCardDataRow } from "@/components/SectionCard/types";
 
 interface StudentCustomerCardProps {
   customer: string;
   phone: string;
+  isLoading?: boolean;
 }
 
-export function StudentCustomerCard({
+export const StudentCustomerCard = React.memo(function StudentCustomerCard({
   customer,
   phone,
+  isLoading = false,
 }: StudentCustomerCardProps) {
+  const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
+    return [
+      {
+        label: "Customer",
+        value: customer || "N/A",
+      },
+      {
+        label: "Phone",
+        value: phone || "N/A",
+      },
+    ];
+  }, [customer, phone]);
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-semibold">Customer</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <InfoField label="Customer" value={customer} />
-          <InfoField label="Phone" value={phone} />
-        </div>
-      </CardContent>
-    </Card>
+    <SectionCard
+      title="Customer"
+      data={detailRows}
+      isLoading={isLoading}
+    />
   );
-}
+});
+
