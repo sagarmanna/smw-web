@@ -2,11 +2,23 @@
  * Transformation functions for teacher tab data
  */
 
-import type { UnavailabilityData, TimeVoucherData, InvoicedLessonData, HistoryData, CommentData } from '../teacherTabConfigs';
-import type { UnavailableHour } from '../[id]/teachers-details-tabs.api';
-import type { TimeVoucherApiResponse, TimeVoucherQueryParams } from '../[id]/teachers-details-tabs.api';
-import type { InvoicedLessonApiResponse, InvoicedLessonQueryParams } from '../[id]/teachers-details-tabs.api';
-import type { HistoryApiResponse, CommentsApiResponse } from '../[id]/teachers-details-tabs.api';
+import type {
+  UnavailabilityData,
+  TimeVoucherData,
+  UnscheduledLessonData,
+  InvoicedLessonData,
+  HistoryData,
+  CommentData,
+} from '../teacherTabConfigs';
+import type {
+  UnavailableHour,
+  TimeVoucherApiResponse,
+  TimeVoucherQueryParams,
+  InvoicedLessonApiResponse,
+  InvoicedLessonQueryParams,
+  HistoryApiResponse,
+  CommentsApiResponse,
+} from '../[id]/teachers-details-tabs.api';
 import { parseApiDateTimeToISO } from '@/utils/dateUtils';
 
 /**
@@ -83,6 +95,28 @@ export function transformTimeVoucherData(
   }
 
   return transformedData;
+}
+
+/**
+ * Transforms unscheduled lessons API response to UnscheduledLessonData format
+ */
+export function transformUnscheduledLessonData(
+  apiItems: Array<{ id: number; student: string; phone: string; program: string; duration: string; originalDate: string; expiryDate: string }>
+): UnscheduledLessonData[] {
+  if (!apiItems || apiItems.length === 0) {
+    return [];
+  }
+
+  const baseTimestamp = Date.now();
+  return apiItems.map((item, index) => ({
+    id: `unscheduled-lesson-${item.id}-${baseTimestamp}-${index}`,
+    student: item.student || "",
+    phone: item.phone || "",
+    program: item.program || "",
+    duration: item.duration || "",
+    originalDate: item.originalDate || "",
+    expiryDate: item.expiryDate || "",
+  }));
 }
 
 /**

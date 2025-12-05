@@ -5,6 +5,7 @@ import { TabContent } from "@/components/TabContent";
 import { teacherStudentColumns } from "../../../../teacherTabConfigs";
 import { getTeacherStudents } from "../../../../[id]/teachers-details-tabs.api";
 import type { TeacherStudentData } from "../../../../teacherTabConfigs";
+import { useServerPagination } from "@/hooks/useServerPagination";
 
 interface StudentsTabProps {
   location: string;
@@ -15,12 +16,15 @@ export function StudentsTab({ location, teacherId }: StudentsTabProps) {
   const [studentData, setStudentData] = React.useState<TeacherStudentData[]>([]);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [pagination, setPagination] = React.useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+
+  const {
+    pagination,
+    showPagination,
+    createPageChangeHandlers,
+    convertLimitForApi,
+    updatePaginationFromApiResponse,
+    resetPaginationTotals,
+  } = useServerPagination({ initialLimit: 10, minTotalForPagination: 10 });
 
   // Fetch students data with pagination
   const fetchStudents = React.useCallback(
@@ -28,7 +32,8 @@ export function StudentsTab({ location, teacherId }: StudentsTabProps) {
       setLoading(true);
       setError(null);
       try {
-        const result = await getTeacherStudents(location, teacherId, page, limit);
+        const apiLimit = convertLimitForApi(limit);
+        const result = await getTeacherStudents(location, teacherId, page, apiLimit);
         if (result) {
           // Transform API data: id (number) -> id (string), fullName -> studentName
           const transformedData: TeacherStudentData[] = result.students.map((item) => ({
@@ -36,29 +41,21 @@ export function StudentsTab({ location, teacherId }: StudentsTabProps) {
             studentName: item.fullName,
           }));
           setStudentData(transformedData);
-          setPagination(result.pagination);
+          updatePaginationFromApiResponse(page, limit, result.pagination);
         } else {
           setStudentData([]);
-          setPagination((prev) => ({
-            ...prev,
-            total: 0,
-            totalPages: 0,
-          }));
+          resetPaginationTotals(page, limit);
         }
       } catch (err) {
         console.error("Error fetching students:", err);
         setError("Failed to load students data");
         setStudentData([]);
-        setPagination((prev) => ({
-          ...prev,
-          total: 0,
-          totalPages: 0,
-        }));
+        resetPaginationTotals(page, limit);
       } finally {
         setLoading(false);
       }
     },
-    [location, teacherId]
+    [location, teacherId, convertLimitForApi, updatePaginationFromApiResponse, resetPaginationTotals]
   );
 
   // Lazy load: Only fetch when Students tab is clicked/rendered
@@ -67,24 +64,11 @@ export function StudentsTab({ location, teacherId }: StudentsTabProps) {
     fetchStudents(1, 10);
   }, [fetchStudents]);
 
-  // Handle page change
-  const handlePageChange = React.useCallback(
-    (page: number) => {
-      fetchStudents(page, pagination.limit);
-    },
-    [fetchStudents, pagination.limit]
+  // Shared pagination handlers wired to the fetch function
+  const { handlePageChange, handleRowsPerPageChange } = React.useMemo(
+    () => createPageChangeHandlers(fetchStudents),
+    [createPageChangeHandlers, fetchStudents]
   );
-
-  // Handle rows per page change
-  const handleRowsPerPageChange = React.useCallback(
-    (rowsPerPage: number) => {
-      fetchStudents(1, rowsPerPage);
-    },
-    [fetchStudents]
-  );
-
-  // Only show pagination if total > 10
-  const showPagination = pagination.total > 10;
 
   // Handle row click - navigate to legacy student detail page
   const handleRowClick = React.useCallback(
