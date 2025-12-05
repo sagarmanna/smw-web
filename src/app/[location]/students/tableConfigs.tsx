@@ -28,7 +28,7 @@ export const studentColumns: ColumnDef<StudentRow>[] = [
     accessorKey: "customer",
     header: () => <span>Customer</span>,
     cell: ({ row }: { row: { original: StudentRow } }) => <span className="truncate block max-w-[260px]" title={row.original.customer}>{row.original.customer}</span>,
-    enableSorting: true,
+    enableSorting: false,
     filter: {
       type: "string"
     },
