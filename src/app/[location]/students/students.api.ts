@@ -12,80 +12,45 @@ export interface Student {
   notes?: string;
 }
 
-export interface StudentDetail extends Student {
-  enrolments: Enrolment[];
-  evaluations: Evaluation[];
-  privateLessons: PrivateLesson[];
-  groupLessons: GroupLesson[];
-  absentLessons: AbsentLesson[];
-  unscheduledLessons: UnscheduledLesson[];
-  comments: Comment[];
-  history: History[];
+// StudentRow interface for listing table
+export interface StudentRow {
+  userId: string; // Using string to match id field
+  isActive: boolean;
+  firstName: string;
+  lastName: string;
+  customer: string;
+  phoneNumber: string;
 }
 
-export interface Enrolment {
-  program: string;
-  teacher: string;
-  day: string;
-  fromTime: string;
-  duration: string;
-  startDate: string;
-  endDate: string;
+// StudentsQuery interface for API queries
+export interface StudentsQuery {
+  page?: number;
+  limit?: number;
+  firstName?: string;
+  lastName?: string;
+  customer?: string;
+  phone?: string;
+  showActive?: boolean;
+  showInActive?: boolean;
+  sort?: "firstName" | "lastName" | "customer";
+  order?: "asc" | "desc";
 }
 
-export interface Evaluation {
-  examDate: string;
-  mark: string;
-  level: string;
-  program: string;
-  type: string;
-  teacher: string;
+// StudentsListResponse interface
+export interface StudentsListResponse {
+  success: boolean;
+  message: string;
+  data: {
+    body: StudentRow[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
 }
 
-export interface PrivateLesson {
-  dueDate: string;
-  programName: string;
-  date: string;
-  duration: string;
-  status: string;
-  price: number;
-  owing: number;
-  online: string;
-}
-
-export interface GroupLesson {
-  program: string;
-  date: string;
-  duration: string;
-  status: string;
-  attendance: string;
-}
-
-export interface AbsentLesson {
-  program: string;
-  date: string;
-  reason: string;
-  notifiedDate: string;
-}
-
-export interface UnscheduledLesson {
-  program: string;
-  lessonsRemaining: number;
-  expiryDate: string;
-}
-
-export interface Comment {
-  date: string;
-  author: string;
-  comment: string;
-}
-
-export interface History {
-  date: string;
-  action: string;
-  details: string;
-  performedBy: string;
-}
 
 // Mock student list data
 const mockStudents: Student[] = [
@@ -106,72 +71,7 @@ const mockStudents: Student[] = [
   { id: "15", firstName: "abbanda", lastName: "banda", customer: "abbanda banda", phone: "(905) 555-5555", birthday: "Dec 01, 2016", age: "8yrs old", gender: "", status: "Inactive", notes: "Moved to different location" },
 ];
 
-// Helper function to generate mock detail data
-const generateMockDetails = (student: Student): StudentDetail => {
-  const programs = ["Piano Core", "Guitar Fundamentals", "Violin Basics", "Music Theory", "Drums Essential"];
-  const teachers = ["Art Tatum", "Jimi Hendrix", "Itzhak Perlman", "Johann Bach", "Buddy Rich"];
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  
-  const randomProgram = programs[Math.floor(Math.random() * programs.length)];
-  const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
-  
-  return {
-    ...student,
-    enrolments: [
-      {
-        program: randomProgram,
-        teacher: randomTeacher,
-        day: days[Math.floor(Math.random() * days.length)],
-        fromTime: ["09:00 AM", "10:30 AM", "02:00 PM", "03:30 PM", "05:00 PM"][Math.floor(Math.random() * 5)],
-        duration: "00:30",
-        startDate: "Jul 01, 2024",
-        endDate: "Jun 30, 2026"
-      }
-    ],
-    evaluations: [
-      { examDate: "Aug 15, 2025", mark: "85%", level: "Level 2", program: randomProgram, type: "Practical", teacher: randomTeacher },
-      { examDate: "May 20, 2025", mark: "78%", level: "Level 1", program: randomProgram, type: "Theory", teacher: randomTeacher },
-      { examDate: "Feb 10, 2025", mark: "92%", level: "Level 1", program: randomProgram, type: "Practical", teacher: randomTeacher },
-    ],
-    privateLessons: [
-      { dueDate: "Sep 15, 2025", programName: randomProgram, date: "Oct 11, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-      { dueDate: "Sep 15, 2025", programName: randomProgram, date: "Oct 18, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-      { dueDate: "Sep 15, 2025", programName: randomProgram, date: "Oct 25, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-      { dueDate: "Oct 15, 2025", programName: randomProgram, date: "Nov 01, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-      { dueDate: "Oct 15, 2025", programName: randomProgram, date: "Nov 08, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-      { dueDate: "Oct 15, 2025", programName: randomProgram, date: "Nov 15, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-      { dueDate: "Oct 15, 2025", programName: randomProgram, date: "Nov 22, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-      { dueDate: "Nov 15, 2025", programName: randomProgram, date: "Dec 06, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    ],
-    groupLessons: [
-      { program: `${randomProgram} Group A`, date: "Oct 12, 2025 @ 10:00 AM", duration: "01:00", status: "Completed", attendance: "Present" },
-      { program: `${randomProgram} Group A`, date: "Oct 19, 2025 @ 10:00 AM", duration: "01:00", status: "Completed", attendance: "Present" },
-      { program: `${randomProgram} Group A`, date: "Oct 26, 2025 @ 10:00 AM", duration: "01:00", status: "Scheduled", attendance: "-" },
-      { program: `${randomProgram} Group A`, date: "Nov 02, 2025 @ 10:00 AM", duration: "01:00", status: "Scheduled", attendance: "-" },
-    ],
-    absentLessons: [
-      { program: randomProgram, date: "Sep 28, 2025 @ 02:30 PM", reason: "Illness", notifiedDate: "Sep 27, 2025" },
-      { program: randomProgram, date: "Oct 05, 2025 @ 02:30 PM", reason: "Family Emergency", notifiedDate: "Oct 04, 2025" },
-    ],
-    unscheduledLessons: [
-      { program: randomProgram, lessonsRemaining: 4, expiryDate: "Dec 31, 2025" },
-      { program: "Music Theory", lessonsRemaining: 2, expiryDate: "Nov 30, 2025" },
-    ],
-    comments: [
-      { date: "Oct 08, 2025", author: randomTeacher, comment: `${student.firstName} is making excellent progress. Keep up the great work!` },
-      { date: "Sep 15, 2025", author: randomTeacher, comment: "Great performance in today's lesson. Very enthusiastic learner." },
-      { date: "Aug 22, 2025", author: "Admin", comment: "Parent requested to reschedule lessons for September." },
-    ],
-    history: [
-      { date: "Oct 10, 2025", action: "Lesson Scheduled", details: "Private lesson scheduled for Nov 01, 2025", performedBy: "System" },
-      { date: "Oct 08, 2025", action: "Comment Added", details: "Teacher added progress comment", performedBy: randomTeacher },
-      { date: "Oct 05, 2025", action: "Absence Recorded", details: "Student absent from lesson", performedBy: "Admin" },
-      { date: "Sep 27, 2025", action: "Profile Updated", details: "Phone number updated", performedBy: "Admin" },
-      { date: "Sep 15, 2025", action: "Payment Received", details: "Payment of $130.00 received", performedBy: "System" },
-    ]
-  };
-};
-
+// Legacy function - kept for backward compatibility
 export async function getStudents(
   location: string,
   page: number = 1,
@@ -202,28 +102,100 @@ export async function getStudents(
   };
 }
 
-export async function getStudentById(
+// New function matching teachers.api.ts pattern
+export async function getStudentsList(
   location: string,
-  studentId: string
-): Promise<{ success: boolean; data: StudentDetail | null; message?: string }> {
+  query: StudentsQuery
+): Promise<StudentsListResponse> {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
-  // Find the basic student data first
-  const basicStudent = mockStudents.find(s => s.id === studentId);
+  let filteredStudents = [...mockStudents];
 
-  if (!basicStudent) {
-    return {
-      success: false,
-      data: null,
-      message: "Student not found"
-    };
+  // Apply active/inactive filter
+  if (query.showActive === false && query.showInActive === false) {
+    filteredStudents = [];
+  } else if (query.showActive === false) {
+    filteredStudents = filteredStudents.filter(s => s.status === 'Inactive');
+  } else if (query.showInActive === false) {
+    filteredStudents = filteredStudents.filter(s => s.status === 'Active');
   }
 
-  // Generate full details for all students
-  const studentDetail = generateMockDetails(basicStudent);
+  // Apply column filters
+  if (query.firstName) {
+    filteredStudents = filteredStudents.filter(s =>
+      s.firstName.toLowerCase().includes(query.firstName!.toLowerCase())
+    );
+  }
+  if (query.lastName) {
+    filteredStudents = filteredStudents.filter(s =>
+      s.lastName.toLowerCase().includes(query.lastName!.toLowerCase())
+    );
+  }
+  if (query.customer) {
+    filteredStudents = filteredStudents.filter(s =>
+      s.customer.toLowerCase().includes(query.customer!.toLowerCase())
+    );
+  }
+  if (query.phone) {
+    filteredStudents = filteredStudents.filter(s =>
+      s.phone.includes(query.phone!)
+    );
+  }
+
+  // Apply sorting
+  if (query.sort) {
+    filteredStudents.sort((a, b) => {
+      let aValue: string;
+      let bValue: string;
+      
+      if (query.sort === 'firstName') {
+        aValue = a.firstName || '';
+        bValue = b.firstName || '';
+      } else if (query.sort === 'lastName') {
+        aValue = a.lastName || '';
+        bValue = b.lastName || '';
+      } else if (query.sort === 'customer') {
+        aValue = a.customer || '';
+        bValue = b.customer || '';
+      } else {
+        return 0;
+      }
+      
+      const comparison = aValue.localeCompare(bValue);
+      return query.order === 'desc' ? -comparison : comparison;
+    });
+  }
+
+  // Pagination
+  const page = query.page || 1;
+  const limit = query.limit || 20;
+  const total = filteredStudents.length;
+  const totalPages = Math.ceil(total / limit);
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedData = filteredStudents.slice(startIndex, endIndex);
+
+  // Convert Student[] to StudentRow[]
+  const studentRows: StudentRow[] = paginatedData.map(student => ({
+    userId: student.id,
+    isActive: student.status === 'Active',
+    firstName: student.firstName,
+    lastName: student.lastName,
+    customer: student.customer,
+    phoneNumber: student.phone,
+  }));
 
   return {
     success: true,
-    data: studentDetail
+    message: 'Students fetched successfully',
+    data: {
+      body: studentRows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    },
   };
 }

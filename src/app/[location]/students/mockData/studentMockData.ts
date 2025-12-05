@@ -6,7 +6,7 @@ import {
   UnscheduledLessonData, 
   CommentData, 
   HistoryData 
-} from "../studentTabConfigs";
+} from "../[id]/studentTabConfigs";
 
 export const mockStudentTabData = {
   enrolmentData: [

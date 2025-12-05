@@ -1,8 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
 
 // Data interfaces
 export interface EnrolmentData {
@@ -110,27 +107,23 @@ export const privateLessonColumns: ColumnDef<PrivateLessonData>[] = [
     header: "Status",
     size: 120,
     minSize: 100,
-    maxSize: 140,
+    maxSize: 150,
   },
-  {
-    accessorKey: "price",
+  { 
+    accessorKey: "price", 
     header: "Price",
     size: 100,
     minSize: 80,
     maxSize: 120,
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("price") as number)}</div>
-    ),
+    cell: ({ row }) => formatCurrency(row.original.price),
   },
-  {
-    accessorKey: "owing",
+  { 
+    accessorKey: "owing", 
     header: "Owing",
     size: 100,
     minSize: 80,
     maxSize: 120,
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("owing") as number)}</div>
-    ),
+    cell: ({ row }) => formatCurrency(row.original.owing),
   },
   { 
     accessorKey: "online", 
@@ -145,237 +138,69 @@ export const groupLessonColumns: ColumnDef<GroupLessonData>[] = [
   { 
     accessorKey: "dueDate", 
     header: "Due Date",
-    size: 120,
-    minSize: 100,
-    maxSize: 150,
   },
   { 
     accessorKey: "programName", 
     header: "Program Name",
-    size: 200,
-    minSize: 150,
-    maxSize: 300,
   },
   { 
     accessorKey: "date", 
     header: "Date",
-    size: 180,
-    minSize: 150,
-    maxSize: 220,
   },
   { 
     accessorKey: "duration", 
     header: "Duration",
-    size: 100,
-    minSize: 80,
-    maxSize: 120,
   },
   { 
     accessorKey: "status", 
     header: "Status",
-    size: 120,
-    minSize: 100,
-    maxSize: 140,
   },
-  {
-    accessorKey: "price",
+  { 
+    accessorKey: "price", 
     header: "Price",
-    size: 100,
-    minSize: 80,
-    maxSize: 120,
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("price") as number)}</div>
-    ),
+    cell: ({ row }) => formatCurrency(row.original.price),
   },
-  {
-    accessorKey: "owing",
+  { 
+    accessorKey: "owing", 
     header: "Owing",
-    size: 100,
-    minSize: 80,
-    maxSize: 120,
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("owing") as number)}</div>
-    ),
+    cell: ({ row }) => formatCurrency(row.original.owing),
   },
   { 
     accessorKey: "online", 
     header: "Online",
-    size: 80,
-    minSize: 60,
-    maxSize: 100,
   },
 ];
 
 export const absentLessonColumns: ColumnDef<AbsentLessonData>[] = [
-  { 
-    accessorKey: "date", 
-    header: "Date",
-    size: 120,
-    minSize: 100,
-    maxSize: 150,
-  },
-  { 
-    accessorKey: "program", 
-    header: "Program",
-    size: 200,
-    minSize: 150,
-    maxSize: 300,
-  },
-  { 
-    accessorKey: "teacher", 
-    header: "Teacher",
-    size: 180,
-    minSize: 150,
-    maxSize: 220,
-  },
-  { 
-    accessorKey: "duration", 
-    header: "Duration",
-    size: 100,
-    minSize: 80,
-    maxSize: 120,
-  },
-  { 
-    accessorKey: "invoiceId", 
-    header: "Invoice ID",
-    size: 120,
-    minSize: 100,
-    maxSize: 150,
-  },
-  { 
-    accessorKey: "online", 
-    header: "Online",
-    size: 80,
-    minSize: 60,
-    maxSize: 100,
-  },
+  { accessorKey: "date", header: "Date" },
+  { accessorKey: "program", header: "Program" },
+  { accessorKey: "teacher", header: "Teacher" },
+  { accessorKey: "duration", header: "Duration" },
+  { accessorKey: "invoiceId", header: "Invoice ID" },
+  { accessorKey: "online", header: "Online" },
 ];
 
 export const unscheduledLessonColumns: ColumnDef<UnscheduledLessonData>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected()}
-        onCheckedChange={(checked: boolean) => table.toggleAllPageRowsSelected(!!checked)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(checked: boolean) => row.toggleSelected(!!checked)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    size: 50,
-    minSize: 50,
-    maxSize: 50,
-  },
-  { 
-    accessorKey: "program", 
-    header: "Program",
-    size: 200,
-    minSize: 150,
-    maxSize: 300,
-  },
-  { 
-    accessorKey: "phone", 
-    header: "Phone",
-    size: 150,
-    minSize: 120,
-    maxSize: 180,
-  },
-  { 
-    accessorKey: "duration", 
-    header: "Duration",
-    size: 100,
-    minSize: 80,
-    maxSize: 120,
-  },
-  { 
-    accessorKey: "originalDate", 
-    header: "Original Date",
-    size: 150,
-    minSize: 120,
-    maxSize: 180,
-  },
-  { 
-    accessorKey: "expiryDate", 
-    header: "Expiry Date",
-    size: 150,
-    minSize: 120,
-    maxSize: 180,
-  },
-  { 
-    accessorKey: "online", 
-    header: "Online",
-    size: 80,
-    minSize: 60,
-    maxSize: 100,
-  },
-  {
-    id: "actions",
-    header: "",
-    cell: () => (
-      <Button variant="ghost" size="icon" className="h-6 w-6">
-        <ChevronDown className="h-4 w-4" />
-      </Button>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    size: 50,
-    minSize: 50,
-    maxSize: 50,
-  },
+  { accessorKey: "program", header: "Program" },
+  { accessorKey: "phone", header: "Phone" },
+  { accessorKey: "duration", header: "Duration" },
+  { accessorKey: "originalDate", header: "Original Date" },
+  { accessorKey: "expiryDate", header: "Expiry Date" },
+  { accessorKey: "online", header: "Online" },
 ];
 
 export const commentColumns: ColumnDef<CommentData>[] = [
-  { 
-    accessorKey: "date", 
-    header: "Date",
-    size: 120,
-    minSize: 100,
-    maxSize: 150,
-  },
-  { 
-    accessorKey: "author", 
-    header: "Author",
-    size: 120,
-    minSize: 100,
-    maxSize: 150,
-  },
-  { 
-    accessorKey: "comment", 
-    header: "Comment",
-    size: 300,
-    minSize: 200,
-    maxSize: 400,
-  },
+  { accessorKey: "date", header: "Date" },
+  { accessorKey: "author", header: "Author" },
+  { accessorKey: "comment", header: "Comment" },
 ];
 
 export const historyColumns: ColumnDef<HistoryData>[] = [
-  { 
-    accessorKey: "message", 
-    header: "Message",
-    cell: ({ row }) => (
-      <div className="text-sm">
-        {row.getValue("message") as string}
-      </div>
-    ),
-  },
+  { accessorKey: "message", header: "Message" },
 ];
 
-interface DropdownMenuItem {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}
-
-// Tab configuration
-export interface TabConfig<TData = unknown> {
+// Tab configuration interface
+export interface StudentTabConfig<TData = unknown> {
   id: string;
   title: string;
   hasAddButton: boolean;
@@ -385,11 +210,12 @@ export interface TabConfig<TData = unknown> {
   dataKey: string;
   showMoreButton?: boolean;
   showAllCheckbox?: boolean;
-  dropdownItems?: DropdownMenuItem[];
+  dropdownItems?: Array<{ label: string; onClick: () => void }>;
   dropdownLabel?: string;
 }
 
-export const STUDENT_TAB_CONFIGS: Record<string, TabConfig<unknown>> = {
+// Tab configurations
+export const STUDENT_TAB_CONFIGS: Record<string, StudentTabConfig<unknown>> = {
   "private-lessons": {
     id: "private-lessons",
     title: "Private Lessons",
@@ -459,3 +285,4 @@ export const STUDENT_TAB_ORDER = [
   "comments",
   "history",
 ];
+
