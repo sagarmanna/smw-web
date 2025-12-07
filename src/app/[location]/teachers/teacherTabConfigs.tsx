@@ -261,6 +261,15 @@ export interface TabConfig<TData = unknown> {
 }
 
 export const TEACHER_TAB_CONFIGS: Record<string, TabConfig<unknown>> = {
+  availability: {
+    id: "availability",
+    title: "Availability",
+    hasAddButton: false, // Calendar handles creation
+    hasTable: false,
+    isCalendarView: true, // Special flag for calendar rendering
+    emptyState: "No availability set. Click on the calendar to add availability.",
+    dataKey: "availabilityData",
+  },
   unavailabilities: {
     id: "unavailabilities",
     title: "Unavailabilities",
@@ -329,6 +338,7 @@ export const TEACHER_TAB_CONFIGS: Record<string, TabConfig<unknown>> = {
 
 // Tab order
 export const TEACHER_TAB_ORDER = [
+  "availability",
   "unavailabilities",
   "students",
   "invoiced-lessons",

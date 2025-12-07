@@ -1,3 +1,4 @@
+export { AvailabilityCalendarTab } from "./AvailabilityCalendarTab";
 export { UnavailabilitiesTab } from "./UnavailabilitiesTab";
 export { StudentsTab } from "./StudentsTab";
 export { InvoicedLessonsTab } from "./InvoicedLessonsTab";

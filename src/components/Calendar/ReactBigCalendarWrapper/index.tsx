@@ -48,6 +48,10 @@ export interface CalendarEvent {
     tooltip?: string;
     programId?: string;
     url?: string;
+    // Availability-specific props
+    availabilityId?: string;
+    classroomId?: number;
+    classroomName?: string;
   };
 }
 
@@ -75,6 +79,7 @@ interface ReactBigCalendarWrapperProps {
   onEventDrop?: (event: CalendarEvent) => void;
   onEventResize?: (event: CalendarEvent) => void;
   onClassroomChange?: (event: CalendarEvent, newClassroomId: string) => void;
+  onSelectSlot?: (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => void;
   editable?: boolean;
   showAll?: boolean;
   selectedProgram?: string;
@@ -82,7 +87,7 @@ interface ReactBigCalendarWrapperProps {
   minTime?: string; // Format: "HH:mm:ss"
   maxTime?: string; // Format: "HH:mm:ss"
   availability?: AvailabilityData[]; // Teacher availability data
-  viewType?: 'teacher' | 'classroom'; // Add view type to distinguish between teacher and classroom views
+  viewType?: 'teacher' | 'classroom' | 'availability'; // Add view type to distinguish between teacher, classroom, and availability views
   updatingEvents?: Set<string>; // Events currently being updated
   // Mobile editing props
   teachers?: Array<{ id: number; title: string }>; // For mobile teacher selection
@@ -127,6 +132,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   onEventDrop,
   onEventResize,
   onClassroomChange,
+  onSelectSlot,
   editable = true,
   selectedTeacher,
   minTime = "08:00:00",
@@ -325,6 +331,13 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
 
       // Pass the updated event with new times - no optimistic update
       onEventResize(updatedEvent);
+    }
+  };
+
+  // Handle slot selection (for creating new events)
+  const handleSelectSlot = (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
+    if (onSelectSlot) {
+      onSelectSlot(slotInfo);
     }
   };
 
@@ -747,6 +760,8 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             onEventDrop={editable ? handleEventDrop : undefined}
             onEventResize={editable ? handleEventResize : undefined}
             onSelectEvent={handleEventClick}
+            onSelectSlot={onSelectSlot ? handleSelectSlot : undefined}
+            selectable={!!onSelectSlot}
             resizable={editable}
             dragFromOutsideItem={undefined}
             components={{
@@ -797,16 +812,18 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
         </DialogContent>
       </Dialog>
 
-      {/* Mobile Edit Modal */}
-      <MobileEditModal
-        event={mobileEditEvent}
-        isOpen={showMobileEditModal}
-        onClose={() => setShowMobileEditModal(false)}
-        onSave={handleMobileEventSave}
-        teachers={teachers}
-        classrooms={classrooms}
-        viewType={viewType}
-      />
+      {/* Mobile Edit Modal - Only show for teacher/classroom views */}
+      {viewType !== 'availability' && (
+        <MobileEditModal
+          event={mobileEditEvent}
+          isOpen={showMobileEditModal}
+          onClose={() => setShowMobileEditModal(false)}
+          onSave={handleMobileEventSave}
+          teachers={teachers}
+          classrooms={classrooms}
+          viewType={viewType as 'teacher' | 'classroom'}
+        />
+      )}
     </div>
   );
 });
