@@ -288,6 +288,15 @@ export const TEACHER_TAB_CONFIGS: Record<string, TabConfig<unknown>> = {
     columns: teacherStudentColumns as ColumnDef<unknown>[],
     dataKey: "studentData",
   },
+  schedule: {
+    id: "schedule",
+    title: "Schedule",
+    hasAddButton: false,
+    hasTable: false,
+    isCalendarView: true,
+    emptyState: "No schedule events found.",
+    dataKey: "scheduleData",
+  },
   "invoiced-lessons": {
     id: "invoiced-lessons",
     title: "Invoiced Lessons",
@@ -341,6 +350,7 @@ export const TEACHER_TAB_ORDER = [
   "availability",
   "unavailabilities",
   "students",
+  "schedule",
   "invoiced-lessons",
   "unscheduled-lesson",
   "time-voucher",

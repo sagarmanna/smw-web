@@ -347,6 +347,100 @@ export interface InvoicedLessonQueryParams {
 }
 
 // ---------------------------------------------
+// Teacher Schedule API Response Types
+// ---------------------------------------------
+
+export interface TeacherScheduleLessonEvent {
+  lessonId: number;
+  isOwing: boolean | null;
+  isOwingRentalAgreement: boolean | null;
+  resourceId: number; // This is the teacherId in the API response
+  title: string;
+  start: string; // Format: "YYYY-MM-DD HH:mm:ss"
+  end: string; // Format: "YYYY-MM-DD HH:mm:ss"
+  url: string;
+  className: string;
+  backgroundColor: string;
+  isOnline: boolean | number; // Can be boolean or 1/0
+  programId: number | null;
+}
+
+export interface TeacherScheduleAvailabilityEvent {
+  resourceId: number; // This is the teacherId in the API response
+  start: string; // Format: "YYYY-MM-DD HH:mm:ss"
+  end: string; // Format: "YYYY-MM-DD HH:mm:ss"
+  rendering: string;
+  className: string;
+  backgroundColor: string;
+}
+
+export interface TeacherScheduleTimeRange {
+  from: string; // Format: "HH:mm:ss"
+  to: string; // Format: "HH:mm:ss"
+}
+
+export interface TeacherScheduleDateRange {
+  from: string; // Format: "YYYY-MM-DD"
+  to: string; // Format: "YYYY-MM-DD"
+}
+
+export interface TeacherScheduleData {
+  lessons: TeacherScheduleLessonEvent[];
+  availability: TeacherScheduleAvailabilityEvent[];
+  time: TeacherScheduleTimeRange;
+  date: TeacherScheduleDateRange;
+  totalEvents: number;
+  teacherId: number;
+}
+
+export interface TeacherScheduleApiResponse {
+  success: boolean;
+  data: {
+    body: TeacherScheduleData;
+  };
+  message?: string;
+}
+
+/**
+ * Fetches teacher schedule events
+ * Endpoint: GET /admin/v2/{location}/teachers/{teacherId}/schedule-events
+ * @param location - The location identifier (e.g., "burlington")
+ * @param teacherId - The teacher ID
+ * @param date - Optional date string (YYYY-MM-DD) to get schedule for that week
+ * @param showAll - Optional boolean to show all hours (location visibility)
+ * @returns Promise resolving to teacher schedule data or null on error
+ */
+export async function getTeacherScheduleEvents(
+  location: string,
+  teacherId: number,
+  date?: string,
+  showAll: boolean = false
+): Promise<TeacherScheduleData | null> {
+  try {
+    const url = `/admin/v2/${location}/teachers/${teacherId}/schedule-events`;
+    const params: Record<string, string> = {};
+    if (date) params.date = date;
+    if (showAll) params.showAll = showAll.toString();
+    
+    const response = await apiClient.get<TeacherScheduleApiResponse>(url, { params });
+
+    if (response.data.success && response.data.data?.body) {
+      return response.data.data.body;
+    }
+
+    return null;
+  } catch (error: unknown) {
+    console.error("Error fetching teacher schedule events:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch teacher schedule events"
+    );
+    return null;
+  }
+}
+
+// ---------------------------------------------
 // Invoiced Lessons API
 // ---------------------------------------------
 
