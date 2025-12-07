@@ -100,23 +100,68 @@ export interface CalendarWrapperRef {
 }
 
 // Custom resource header component
-const ResourceHeader = ({ resource }: ResourceHeaderProps<CalendarResource>) => (
-  <div
-    className="
-      box-border
-      px-2 font-bold
-      text-gray-800
-      whitespace-normal break-words
-      flex flex-col justify-center items-center
-      border-gray-200
-      h-auto min-h-[50px]
-      text-[13px] leading-[1.3]
-      select-none
-    "
-  >
-    {resource.title}
-  </div>
-);
+// For day-based resources (teacher schedule), show "Mon 12/1" format
+// For other resources, show the title as is
+const ResourceHeader = ({ resource, date }: ResourceHeaderProps<CalendarResource> & { date?: Date }) => {
+  // Check if this is a day-based resource (resource.id is 1-7 for Monday-Sunday)
+  const shortDayNames = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const isDayResource = resource.id >= 1 && resource.id <= 7;
+  
+  if (isDayResource && date) {
+    // Calculate Monday of the week
+    const monday = new Date(date);
+    const dayOfWeek = monday.getDay(); // 0-6 (Sunday-Saturday)
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    monday.setDate(monday.getDate() + daysToMonday);
+    monday.setHours(0, 0, 0, 0);
+    
+    // Calculate the date for this specific day (resource.id 1=Monday, 2=Tuesday, ..., 7=Sunday)
+    const dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + (resource.id - 1));
+    
+    // Format as "Mon 12/1"
+    const month = dayDate.getMonth() + 1; // 1-12
+    const day = dayDate.getDate(); // 1-31
+    const shortDayName = shortDayNames[resource.id];
+    
+    return (
+      <div
+        className="
+          box-border
+          px-2 font-bold
+          text-gray-800
+          whitespace-normal break-words
+          flex flex-col justify-center items-center
+          border-gray-200
+          h-auto min-h-[50px]
+          text-[13px] leading-[1.3]
+          select-none
+        "
+      >
+        {`${shortDayName} ${month}/${day}`}
+      </div>
+    );
+  }
+  
+  // For non-day resources, show title as is
+  return (
+    <div
+      className="
+        box-border
+        px-2 font-bold
+        text-gray-800
+        whitespace-normal break-words
+        flex flex-col justify-center items-center
+        border-gray-200
+        h-auto min-h-[50px]
+        text-[13px] leading-[1.3]
+        select-none
+      "
+    >
+      {resource.title}
+    </div>
+  );
+};
 
 const EmptyResourceHeader = () => (
   <div className='empty-resource-header'>
@@ -250,15 +295,29 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
       return false;
     }
     
-    // Filter by timeline visibility - only show events that start within visible time range
-    const eventStart = new Date(event.start);
-    const eventEnd = new Date(event.end);
+    // Check if this is a week view with day-based resources (teacher schedule tab)
+    const isDayBasedResources = viewType === 'teacher' && resources.length > 0 && resources[0]?.title === 'Monday';
     
-    // Only show events that start within the visible time range
-    // or events that overlap with the visible time range
-    return (eventStart >= minDate && eventStart < maxDate) || 
-           (eventStart < minDate && eventEnd > minDate);
+    if (isDayBasedResources) {
+      // For day-based resources, don't filter by time range
+      // React-big-calendar with Views.DAY and resources shows a week view
+      // and handles time range filtering automatically for each day column
+      // The min/max props set the visible time range for all columns
+      return true;
+    } else {
+      // For regular views (teacher view with teacher resources), use the calendar date's time range
+      const eventStart = new Date(event.start);
+      const eventEnd = new Date(event.end);
+      
+      // Only show events that start within the visible time range
+      // or events that overlap with the visible time range
+      const passesTimeFilter = (eventStart >= minDate && eventStart < maxDate) || 
+             (eventStart < minDate && eventEnd > minDate);
+      
+      return passesTimeFilter;
+    }
   });
+  
 
 
   const handleEventDrop = (args: EventInteractionArgs<CalendarEvent>) => {
@@ -766,7 +825,9 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             dragFromOutsideItem={undefined}
             components={{
               event: EventComponent,
-              resourceHeader: resources.length === 0 ? EmptyResourceHeader : ResourceHeader,
+              resourceHeader: resources.length === 0 
+                ? EmptyResourceHeader 
+                : (props: ResourceHeaderProps<CalendarResource>) => <ResourceHeader {...props} date={date} />,
               toolbar: () => null
             }}
             step={15} // 15-minute intervals

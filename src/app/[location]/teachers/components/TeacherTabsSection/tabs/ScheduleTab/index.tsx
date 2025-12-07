@@ -11,6 +11,11 @@ import {
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface ScheduleTabProps {
   location: string;
@@ -29,24 +34,37 @@ const DAY_RESOURCES = [
 ];
 
 /**
- * Get day of week (1-7, Monday-Sunday) from a date
- */
-function getDayOfWeek(date: Date): number {
-  const day = date.getDay(); // 0-6 (Sunday-Saturday)
-  return day === 0 ? 7 : day; // Convert to 1-7 (Monday-Sunday)
-}
-
-/**
  * Convert lesson events to calendar events format
- * Note: API returns resourceId as teacherId, but we need day of week (1-7) for the calendar
+ * Note: API now returns resourceId as day of week (1-7) for teacher schedule view
+ * Simple approach: Always set event date to Monday of the week, keep the time
+ * Events will show in correct column based on resourceId
  */
 function convertLessonsToCalendarEvents(
-  lessons: TeacherScheduleLessonEvent[]
+  lessons: TeacherScheduleLessonEvent[],
+  mondayDate: Date // Monday of the visible week
 ): CalendarEvent[] {
   return lessons.map((lesson) => {
-    const startDate = new Date(lesson.start);
-    const endDate = new Date(lesson.end);
-    const dayOfWeek = getDayOfWeek(startDate);
+    // Parse original date to extract time only
+    const originalStart = new Date(lesson.start);
+    const originalEnd = new Date(lesson.end);
+    
+    // Extract time components
+    const startHours = originalStart.getHours();
+    const startMinutes = originalStart.getMinutes();
+    const startSeconds = originalStart.getSeconds();
+    const endHours = originalEnd.getHours();
+    const endMinutes = originalEnd.getMinutes();
+    const endSeconds = originalEnd.getSeconds();
+    
+    // Always use Monday date, but keep the time
+    const eventStart = new Date(mondayDate);
+    eventStart.setHours(startHours, startMinutes, startSeconds, 0);
+    
+    const eventEnd = new Date(mondayDate);
+    eventEnd.setHours(endHours, endMinutes, endSeconds, 0);
+    
+    // API now returns resourceId as day of week (1-7), use it directly
+    const resourceId = lesson.resourceId; // Should be 1-7 (Monday-Sunday)
     
     // Convert isOnline from number to boolean if needed
     const isOnline = typeof lesson.isOnline === 'number' 
@@ -56,9 +74,9 @@ function convertLessonsToCalendarEvents(
     return {
       id: `lesson-${lesson.lessonId}`,
       title: lesson.title,
-      start: startDate,
-      end: endDate,
-      resourceId: dayOfWeek, // Use day of week (1-7) instead of teacherId
+      start: eventStart,
+      end: eventEnd,
+      resourceId, // Use resourceId directly from API (day of week 1-7)
       backgroundColor: lesson.backgroundColor,
       borderColor: lesson.backgroundColor,
       className: lesson.className,
@@ -75,40 +93,16 @@ function convertLessonsToCalendarEvents(
   });
 }
 
-/**
- * Convert availability events to calendar events format (background)
- * Note: API returns resourceId as teacherId, but we need day of week (1-7) for the calendar
- */
-function convertAvailabilityToCalendarEvents(
-  availability: TeacherScheduleAvailabilityEvent[]
-): CalendarEvent[] {
-  return availability.map((avail, index) => {
-    const startDate = new Date(avail.start);
-    const dayOfWeek = getDayOfWeek(startDate);
-    
-    return {
-      id: `availability-${dayOfWeek}-${index}`,
-      title: "",
-      start: startDate,
-      end: new Date(avail.end),
-      resourceId: dayOfWeek, // Use day of week (1-7) instead of teacherId
-      backgroundColor: avail.backgroundColor,
-      borderColor: avail.backgroundColor,
-      className: avail.className,
-      extendedProps: {
-        // Availability events are background only, no lesson-specific props needed
-      },
-    };
-  });
-}
 
 export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [datePickerDisplayDate, setDatePickerDisplayDate] = useState<Date>(new Date()); // Date to show in picker (user's actual selection)
   const [scheduleData, setScheduleData] = useState<TeacherScheduleData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState<boolean>(false);
   const [isSyncingDate, setIsSyncingDate] = useState<boolean>(false);
+  const [datePickerOpen, setDatePickerOpen] = useState<boolean>(false);
 
   // Load data on mount and when teacherId or date changes
   useEffect(() => {
@@ -123,28 +117,38 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
     setError(null);
 
     try {
-      const dateString = selectedDate.toISOString().split("T")[0];
+      // Format date as YYYY-MM-DD using local timezone (not UTC)
+      // This prevents timezone shifts that could change the date
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+      console.log('[ScheduleTab] Loading data with date:', dateString, 'from selectedDate:', selectedDate.toISOString());
       const data = await getTeacherScheduleEvents(location, teacherId, dateString, showAll);
       
       if (!data) {
         throw new Error("Failed to load schedule data");
       }
       
-      // Sync calendar date to the week from API response
-      // This ensures events are visible (react-big-calendar filters by visible week)
-      if (data.time?.from && !isSyncingDate) {
-        const apiWeekStart = new Date(data.time.from + 'T00:00:00');
+      // Sync calendar date to the Monday of the week from API response
+      // React-big-calendar with Views.DAY and resources shows a week view
+      // The date prop should be set to Monday of that week for events to be visible
+      if (data.date?.from && !isSyncingDate) {
+        // Parse the API week start date (should be Monday) - use new Date() like schedule page
+        const apiWeekStart = new Date(data.date.from + 'T00:00:00');
+        
         // Get Monday of current selectedDate's week
         const currentDate = new Date(selectedDate);
-        const currentDay = currentDate.getDay();
-        const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+        const currentDay = currentDate.getDay(); // 0-6 (Sunday-Saturday)
+        const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay; // Convert to Monday
         const currentWeekStart = new Date(currentDate);
         currentWeekStart.setDate(currentDate.getDate() + daysToMonday);
         currentWeekStart.setHours(0, 0, 0, 0);
         apiWeekStart.setHours(0, 0, 0, 0);
         
-        // If weeks don't match, update to API week
+        // If weeks don't match (more than 12 hours difference), update to API week Monday
         if (Math.abs(apiWeekStart.getTime() - currentWeekStart.getTime()) > 12 * 60 * 60 * 1000) {
+          console.log('[ScheduleTab] Syncing date to API week:', apiWeekStart.toISOString());
           setIsSyncingDate(true);
           setSelectedDate(apiWeekStart);
           // ScheduleData will be set on next load
@@ -153,6 +157,7 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
         }
       }
       
+      console.log('[ScheduleTab] Setting schedule data');
       setScheduleData(data);
       setIsSyncingDate(false);
     } catch (err) {
@@ -165,16 +170,34 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
     }
   };
 
+  // Calculate Monday of the week for the calendar date
+  // React-big-calendar with Views.DAY and resources shows a week view
+  // The date prop should always be Monday of that week
+  const calendarDate = useMemo(() => {
+    const date = new Date(selectedDate);
+    const dayOfWeek = date.getDay(); // 0-6 (Sunday-Saturday)
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Convert to Monday
+    const monday = new Date(date);
+    monday.setDate(date.getDate() + daysToMonday);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  }, [selectedDate]);
+
   // Convert schedule data to calendar events
+  // Note: Availability is passed separately as a prop, not mixed with events
   const calendarEvents = useMemo(() => {
-    if (!scheduleData) return [];
+    if (!scheduleData) {
+      return [];
+    }
 
-    const lessonEvents = convertLessonsToCalendarEvents(scheduleData.lessons);
-    const availabilityEvents = convertAvailabilityToCalendarEvents(scheduleData.availability);
+    // Always use Monday date for all events, keep the time
+    const lessonEvents = convertLessonsToCalendarEvents(scheduleData.lessons, calendarDate);
+    
+    // Availability is passed separately as a prop to ReactBigCalendarWrapper
+    // It's used by slotPropGetter to color time slots, not as events
 
-    // Combine availability events (background) first, then lesson events (on top)
-    return [...availabilityEvents, ...lessonEvents];
-  }, [scheduleData]);
+    return lessonEvents;
+  }, [scheduleData, calendarDate]);
 
   // Handle event click (navigate to lesson or show info)
   const handleEventClick = (event: CalendarEvent) => {
@@ -184,25 +207,9 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
 
     // If URL is available, navigate to lesson (similar to ScheduleClient)
     if (url) {
-      // For legacy URLs, we might need to handle them differently
-      // For now, show info and log the URL
-      console.log('Lesson URL:', url);
-      toast.info(`Opening lesson: ${title}`, {
-        duration: 2000,
-      });
       // Uncomment to enable navigation:
-      // window.open(url, '_self');
-    } else {
-      // Show lesson info if no URL
-      const info = [
-        `Lesson: ${title}`,
-        lessonId ? `ID: ${lessonId}` : '',
-      ].filter(Boolean).join(' | ');
-
-      toast.info(info, {
-        duration: 3000,
-      });
-    }
+      window.open(url, '_self');
+    } 
   };
 
   // Handle bulk reschedule (placeholder)
@@ -220,6 +227,36 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
       maxTime: scheduleData.time.to,
     };
   }, [scheduleData]);
+
+  // Format week range for display
+  const weekRangeDisplay = useMemo(() => {
+    if (!scheduleData?.date) return "";
+    const startDate = new Date(scheduleData.date.from);
+    const endDate = new Date(scheduleData.date.to);
+    const startFormatted = format(startDate, "dd-MMM-yyyy, EEEE");
+    const endFormatted = format(endDate, "dd-MMM-yyyy, EEEE");
+    return `${startFormatted} – ${endFormatted}`;
+  }, [scheduleData]);
+
+  // Handle date picker selection
+  const handleDateSelect = (newDate: Date) => {
+    // Reset syncing flag to allow API call
+    setIsSyncingDate(false);
+    
+    // Store the actual selected date for display in the picker
+    setDatePickerDisplayDate(newDate);
+    
+    // Set to Monday of the selected week for calendar display
+    const dayOfWeek = newDate.getDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(newDate);
+    monday.setDate(newDate.getDate() + daysToMonday);
+    monday.setHours(0, 0, 0, 0);
+    
+    // Update selected date (Monday) - this will trigger useEffect to call API
+    setSelectedDate(monday);
+    setDatePickerOpen(false);
+  };
 
   if (isLoading) {
     return (
@@ -247,11 +284,8 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
 
   return (
     <div className="w-full">
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          View teacher schedule with lessons and availability for the week. Click on lessons to view details.
-        </p>
-        <div className="flex items-center gap-4">
+      <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4 flex-1">
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -261,27 +295,100 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
             />
             <span>Show All Hours</span>
           </label>
+          {weekRangeDisplay && (
+            <p className="text-sm text-muted-foreground">
+              {weekRangeDisplay}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "w-[140px] justify-start text-left font-normal",
+                  !datePickerDisplayDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {datePickerDisplayDate ? format(datePickerDisplayDate, "MMM dd, yyyy") : "Go to Date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={datePickerDisplayDate}
+                defaultMonth={datePickerDisplayDate}
+                onSelect={(date) => {
+                  if (date) {
+                    handleDateSelect(date);
+                  }
+                }}
+                captionLayout="dropdown"
+                fromYear={2005}
+                toYear={2125}
+              />
+            </PopoverContent>
+          </Popover>
           <Button
             onClick={handleBulkReschedule}
             variant="default"
             size="sm"
-            className="ml-auto"
           >
             Bulk Reschedule
           </Button>
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <ReactBigCalendarWrapper
-          events={calendarEvents}
-          resources={DAY_RESOURCES}
-          date={selectedDate}
-          onNavigate={setSelectedDate}
+       <div className="border rounded-lg overflow-hidden">
+         <ReactBigCalendarWrapper
+           events={calendarEvents}
+           resources={DAY_RESOURCES}
+          date={calendarDate}
+          onNavigate={(newDate) => {
+            // When user navigates, ensure we set to Monday of that week
+            const dayOfWeek = newDate.getDay();
+            const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(newDate);
+            monday.setDate(newDate.getDate() + daysToMonday);
+            monday.setHours(0, 0, 0, 0);
+            setSelectedDate(monday);
+          }}
           onEventClick={handleEventClick}
           editable={false}
           minTime={timeRange.minTime}
           maxTime={timeRange.maxTime}
+           availability={scheduleData?.availability.map(avail => {
+             // Parse original availability time
+             const originalStart = new Date(avail.start);
+             const originalEnd = new Date(avail.end);
+             
+             // Extract time components
+             const startHours = originalStart.getHours();
+             const startMinutes = originalStart.getMinutes();
+             const startSeconds = originalStart.getSeconds();
+             const endHours = originalEnd.getHours();
+             const endMinutes = originalEnd.getMinutes();
+             const endSeconds = originalEnd.getSeconds();
+             
+             // Always use Monday date, but keep the time
+             const availStart = new Date(calendarDate);
+             availStart.setHours(startHours, startMinutes, startSeconds, 0);
+             
+             const availEnd = new Date(calendarDate);
+             availEnd.setHours(endHours, endMinutes, endSeconds, 0);
+             
+             return {
+               resourceId: avail.resourceId,
+               title: "", // Availability doesn't need title
+               start: availStart.toISOString(), // Convert to ISO string for slotPropGetter
+               end: availEnd.toISOString(), // Convert to ISO string for slotPropGetter
+               rendering: avail.rendering,
+               className: avail.className,
+             };
+           }) || []}
           viewType="teacher"
           height="600px"
         />
