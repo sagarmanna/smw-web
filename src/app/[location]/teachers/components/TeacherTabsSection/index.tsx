@@ -9,6 +9,7 @@ import {
   TEACHER_TAB_ORDER,
 } from "../../teacherTabConfigs";
 import {
+  AvailabilityCalendarTab,
   UnavailabilitiesTab,
   StudentsTab,
   InvoicedLessonsTab,
@@ -24,6 +25,7 @@ interface TeacherTabsSectionProps {
 }
 
 const TAB_COMPONENTS: Record<string, React.ComponentType<{ location: string; teacherId: number }>> = {
+  "availability": AvailabilityCalendarTab,
   "unavailabilities": UnavailabilitiesTab,
   "students": StudentsTab,
   "invoiced-lessons": InvoicedLessonsTab,
