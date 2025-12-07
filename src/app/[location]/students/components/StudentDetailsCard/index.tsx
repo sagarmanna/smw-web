@@ -9,14 +9,18 @@ import {
 import { SectionCardDataRow, DropdownOption } from "@/components/SectionCard/types";
 import { StudentBasicDetails } from "../../types";
 import { EditStudentDetailsModal } from "../modals/EditStudentDetailsModal";
+import { DeleteStudentModal } from "../modals/DeleteStudentModal";
+import { MergeStudentModal } from "../modals/MergeStudentModal";
 
 interface StudentDetailsCardProps {
   details: StudentBasicDetails | null;
   onSaveDetails: (details: StudentBasicDetails) => Promise<boolean>;
   savingDetails?: boolean;
   isLoading?: boolean;
-  onDelete?: () => void;
-  onMerge?: () => void;
+  location: string;
+  studentId: string;
+  onDeleteSuccess?: () => void;
+  onMergeSuccess?: () => void;
 }
 
 export const StudentDetailsCard = React.memo(function StudentDetailsCard({
@@ -24,31 +28,26 @@ export const StudentDetailsCard = React.memo(function StudentDetailsCard({
   onSaveDetails,
   savingDetails = false,
   isLoading = false,
-  onDelete,
-  onMerge,
+  location,
+  studentId,
+  onDeleteSuccess,
+  onMergeSuccess,
 }: StudentDetailsCardProps) {
   const [isEditDetailsOpen, setIsEditDetailsOpen] = React.useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = React.useState(false);
 
-  const dropdownOptions = React.useMemo<DropdownOption[]>(() => {
-    const options: DropdownOption[] = [];
-    
-    if (onDelete) {
-      options.push({
-        title: "Delete",
-        onClick: onDelete,
-        destructive: true,
-      });
-    }
-    
-    if (onMerge) {
-      options.push({
-        title: "Merge",
-        onClick: onMerge,
-      });
-    }
-    
-    return options;
-  }, [onDelete, onMerge]);
+  const dropdownOptions = React.useMemo<DropdownOption[]>(() => [
+    {
+      title: "Delete",
+      onClick: () => setIsDeleteModalOpen(true),
+      destructive: true,
+    },
+    {
+      title: "Merge",
+      onClick: () => setIsMergeModalOpen(true),
+    },
+  ], []);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
     const fullName = details ? `${details.firstName} ${details.lastName}`.trim() : "";
@@ -114,6 +113,24 @@ export const StudentDetailsCard = React.memo(function StudentDetailsCard({
         details={details}
         onSubmit={handleSave}
         saving={savingDetails}
+      />
+
+      <DeleteStudentModal
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        location={location}
+        studentId={studentId}
+        studentDetails={details}
+        onDeleteSuccess={onDeleteSuccess}
+      />
+
+      <MergeStudentModal
+        open={isMergeModalOpen}
+        onOpenChange={setIsMergeModalOpen}
+        location={location}
+        currentStudentId={studentId}
+        currentStudentDetails={details}
+        onMergeSuccess={onMergeSuccess}
       />
     </>
   );

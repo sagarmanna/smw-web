@@ -66,25 +66,12 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
   );
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
-    () => [
-      {
-        label: "Actions",
-        items: [
-          {
-            label: "Delete",
-            onClick: () => setIsDeleteModalOpen(true),
-            variant: "destructive",
-          },
-        ],
-      },
-    ],
+    () => [],
     []
   );
 
   // Modal states
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = React.useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
-  const [isMergeModalOpen, setIsMergeModalOpen] = React.useState(false);
 
   // Form states
   const [evaluationForm, setEvaluationForm] = React.useState<EvaluationFormData>({
@@ -109,16 +96,6 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
     });
   };
 
-  const handleDeleteStudent = () => {
-    // TODO: Implement delete student API call
-    setIsDeleteModalOpen(false);
-    router.push(`/${location}/students`);
-  };
-
-  const handleMergeStudent = () => {
-    // TODO: Implement merge student functionality
-    setIsMergeModalOpen(false);
-  };
 
   const handlePrintEvaluations = () => {
     const printWindow = window.open('', '_blank');
@@ -234,8 +211,8 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
               onSaveDetails={saveDetails}
               savingDetails={savingDetails}
               isLoading={isLoading}
-              onDelete={() => setIsDeleteModalOpen(true)}
-              onMerge={() => setIsMergeModalOpen(true)}
+              location={location}
+              studentId={studentId}
             />
 
             <StudentCustomerCard
@@ -352,71 +329,6 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
         </div>
       </ReusableModal>
 
-      {/* Delete Confirmation Modal */}
-      <ReusableModal
-        open={isDeleteModalOpen}
-        onOpenChange={setIsDeleteModalOpen}
-        title="Delete Student"
-        description="Are you sure you want to delete this student? This action cannot be undone."
-        size="sm"
-        actions={[
-          { 
-            label: 'Cancel', 
-            onClick: () => setIsDeleteModalOpen(false), 
-            variant: 'outline' 
-          },
-          { 
-            label: 'Delete', 
-            onClick: handleDeleteStudent, 
-            variant: 'destructive' 
-          },
-        ]}
-      >
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            You are about to delete:
-          </p>
-          <div className="bg-muted p-3 rounded-md">
-            <p className="font-semibold">{details?.firstName} {details?.lastName}</p>
-            <p className="text-sm text-muted-foreground">ID: {details?.id}</p>
-          </div>
-        </div>
-      </ReusableModal>
-
-      {/* Merge Confirmation Modal */}
-      <ReusableModal
-        open={isMergeModalOpen}
-        onOpenChange={setIsMergeModalOpen}
-        title="Merge Student"
-        description="Select the student to merge with"
-        size="lg"
-        actions={[
-          { 
-            label: 'Cancel', 
-            onClick: () => setIsMergeModalOpen(false), 
-            variant: 'outline' 
-          },
-          { 
-            label: 'Merge', 
-            onClick: handleMergeStudent, 
-            variant: 'default' 
-          },
-        ]}
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Select a student to merge with {details?.firstName} {details?.lastName}
-          </p>
-          <div className="space-y-2">
-            <Label htmlFor="mergeStudent">Search Student</Label>
-            <Input
-              id="mergeStudent"
-              type="text"
-              placeholder="Search by name or ID"
-            />
-          </div>
-        </div>
-      </ReusableModal>
     </>
   );
 }
