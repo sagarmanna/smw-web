@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 import type { UnavailabilityData } from "../../teacherTabConfigs";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { isoStringToDate } from "@/utils/dateUtils";
+import { validateTeacherUnavailability, createTeacherUnavailability, updateTeacherUnavailability, deleteTeacherUnavailability } from "@/lib/api/legacyApiAdapter";
+import { toast } from "sonner";
 
 interface AddUnavailabilityModalProps {
   open: boolean;
@@ -30,12 +32,15 @@ interface AddUnavailabilityModalProps {
   existingUnavailabilities?: UnavailabilityData[];
   initialData?: UnavailabilityData | null;
   mode?: "add" | "edit";
+  location?: string;
+  teacherId?: number;
+  onSuccess?: () => void;
 }
 
 function generateTimeOptions(): string[] {
   const times: string[] = [];
   for (let hour = 0; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += 15) {
+    for (let minute = 0; minute < 60; minute += 5) {
       const h = hour.toString().padStart(2, "0");
       const m = minute.toString().padStart(2, "0");
       times.push(`${h}:${m} - ${format(new Date(2000, 0, 1, hour, minute), "h:mm a")}`);
@@ -62,8 +67,20 @@ function parseDateTimeToDateAndTime(dateTimeStr: string): { date: Date; timeOpti
   if (!parsedDate) return null;
   const hour = parsedDate.getHours();
   const minute = parsedDate.getMinutes();
-  const timeStr = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-  return { date: parsedDate, timeOption: `${timeStr} - ${format(parsedDate, "h:mm a")}` };
+  // Round minutes to nearest 5-minute interval to match timeOptions
+  let roundedMinute = Math.round(minute / 5) * 5;
+  let adjustedHour = hour;
+  // Handle rollover if rounded to 60 minutes
+  if (roundedMinute === 60) {
+    roundedMinute = 0;
+    adjustedHour = (hour + 1) % 24;
+  }
+  // Create adjusted date for formatting (using year 2000 like timeOptions generation)
+  const adjustedDate = new Date(2000, 0, 1, adjustedHour, roundedMinute);
+  const timeStr = `${adjustedHour.toString().padStart(2, "0")}:${roundedMinute.toString().padStart(2, "0")}`;
+  // Format to match timeOptions format: "HH:mm - h:mm a"
+  const formattedTime = format(adjustedDate, "h:mm a");
+  return { date: parsedDate, timeOption: `${timeStr} - ${formattedTime}` };
 }
 
 function checkOverlap(fromDateTime: Date, toDateTime: Date, existingUnavailabilities: UnavailabilityData[], excludeId?: string): boolean {
@@ -83,6 +100,14 @@ function createDateTime(date: Date, timeOption: string): Date {
   return dateTime;
 }
 
+function formatDateTimeForValidation(date: Date, timeOption: string): string {
+  const { hour, minute } = parseTimeOption(timeOption);
+  const dateTime = new Date(date);
+  dateTime.setHours(hour, minute, 0, 0);
+  // Format as "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 11:55")
+  return format(dateTime, "MMM dd, yyyy HH:mm");
+}
+
 interface DateTimePickerProps {
   date: Date | undefined;
   time: string;
@@ -95,44 +120,71 @@ interface DateTimePickerProps {
   timeSelectRef?: React.RefObject<HTMLButtonElement | null>;
   showError?: boolean;
   label: string;
+  popoverOpen?: boolean;
+  onPopoverOpenChange?: (open: boolean) => void;
 }
 
 const DateTimePicker = React.memo<DateTimePickerProps>(({
   date, time, timeOptions, onDateChange, onTimeChange, onCalendarOpenChange, onTimeSelectOpenChange,
-  dateButtonRef, timeSelectRef, showError = false, label,
-}) => (
-  <div className="space-y-2">
-    <Label className={cn("font-bold", showError && "text-red-600 dark:text-red-400")}>{label}</Label>
-    <div className="grid grid-cols-2 gap-2">
-      <Popover onOpenChange={onCalendarOpenChange}>
-        <PopoverTrigger asChild>
-          <Button ref={dateButtonRef} variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground", showError && "border-red-500 focus-visible:ring-red-500")}>
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date ? format(date, "MMM dd, yyyy") : "Pick a date"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={date} onSelect={onDateChange} initialFocus />
-        </PopoverContent>
-      </Popover>
-      <Select value={time} onValueChange={onTimeChange} onOpenChange={onTimeSelectOpenChange}>
-        <SelectTrigger ref={timeSelectRef} className={cn(showError && "border-red-500 focus:ring-red-500")}>
-          <SelectValue placeholder="Select time">{time ? time.split(" - ")[1] : "Select time"}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {timeOptions.map((timeOption) => (
-            <SelectItem key={timeOption} value={timeOption}>{timeOption.split(" - ")[1]}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+  dateButtonRef, timeSelectRef, showError = false, label, popoverOpen, onPopoverOpenChange,
+}) => {
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    onDateChange(selectedDate);
+    if (selectedDate && onPopoverOpenChange) {
+      onPopoverOpenChange(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className={cn("font-bold", showError && "text-red-600 dark:text-red-400")}>{label}</Label>
+      <div className="grid grid-cols-2 gap-2">
+        <Popover 
+          open={popoverOpen} 
+          onOpenChange={(open) => {
+            if (onPopoverOpenChange) {
+              onPopoverOpenChange(open);
+            }
+            onCalendarOpenChange(open);
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button ref={dateButtonRef} variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground", showError && "border-red-500 focus-visible:ring-red-500")}>
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {date ? format(date, "MMM dd, yyyy") : "Pick a date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar 
+              mode="single" 
+              selected={date} 
+              onSelect={handleDateSelect} 
+              initialFocus
+              captionLayout="dropdown"
+              fromYear={2005}
+              toYear={2125}
+            />
+          </PopoverContent>
+        </Popover>
+        <Select value={time} onValueChange={onTimeChange} onOpenChange={onTimeSelectOpenChange}>
+          <SelectTrigger ref={timeSelectRef} className={cn(showError && "border-red-500 focus:ring-red-500")}>
+            <SelectValue placeholder="Select time">{time ? time.split(" - ")[1] : "Select time"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {timeOptions.map((timeOption) => (
+              <SelectItem key={timeOption} value={timeOption}>{timeOption.split(" - ")[1]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
-  </div>
-));
+  );
+});
 
 DateTimePicker.displayName = "DateTimePicker";
 
 export function AddUnavailabilityModal({
-  open, onClose, onSubmit, onUpdate, onDelete, existingUnavailabilities = [], initialData = null, mode = "add",
+  open, onClose, onSubmit, onUpdate, onDelete, existingUnavailabilities = [], initialData = null, mode = "add", location, teacherId, onSuccess,
 }: AddUnavailabilityModalProps) {
   const isEditMode = mode === "edit" && initialData !== null;
   const [fromDate, setFromDate] = React.useState<Date | undefined>(undefined);
@@ -143,6 +195,12 @@ export function AddUnavailabilityModal({
   const [overlapError, setOverlapError] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [fromDatePopoverOpen, setFromDatePopoverOpen] = React.useState(false);
+  const [toDatePopoverOpen, setToDatePopoverOpen] = React.useState(false);
+  const [validationErrors, setValidationErrors] = React.useState<{ [key: string]: string[] }>({});
+  const [isValidating, setIsValidating] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const fromTimeSelectRef = React.useRef<HTMLButtonElement>(null);
   const toDateButtonRef = React.useRef<HTMLButtonElement>(null);
@@ -166,6 +224,9 @@ export function AddUnavailabilityModal({
     setError(null);
     setOverlapError(null);
     setShowDeleteConfirm(false);
+    setFromDatePopoverOpen(false);
+    setToDatePopoverOpen(false);
+    setValidationErrors({});
   }, []);
 
   const handleFromDateCalendarOpen = React.useCallback((open: boolean) => { if (open && !fromDate) setFromDate(new Date()); }, [fromDate]);
@@ -206,30 +267,182 @@ export function AddUnavailabilityModal({
     setOverlapError(toDateTime > fromDateTime && checkOverlap(fromDateTime, toDateTime, existingUnavailabilities, excludeId) ? "Teacher unavailability is overlapped" : null);
   }, [fromDate, fromTime, toDate, toTime, existingUnavailabilities, excludeId]);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setValidationErrors({});
+    setOverlapError(null);
+
     if (!fromDate || !fromTime || !toDate || !toTime) {
       setError(!fromDate || !fromTime ? "Please select From Date Time." : "Please select To Date Time.");
       return;
     }
+
     const fromDateTime = createDateTime(fromDate, fromTime);
     const toDateTime = createDateTime(toDate, toTime);
     if (toDateTime <= fromDateTime) {
       setError("To Date Time must be after From Date Time.");
       return;
     }
-    if (existingUnavailabilities.length > 0 && checkOverlap(fromDateTime, toDateTime, existingUnavailabilities, excludeId)) {
-      setOverlapError("Teacher unavailability is overlapped");
-      return;
-    }
-    const data = { fromDateTime: formatDateTimeToISO(fromDate, fromTime), toDateTime: formatDateTimeToISO(toDate, toTime), reason: reason.trim() };
-    if (isEditMode && initialData && onUpdate) {
-      onUpdate({ ...data, id: initialData.id });
+
+    // Validate using API if location and teacherId are provided
+    if (location && teacherId) {
+      setIsValidating(true);
+      try {
+        const fromDateTimeStr = formatDateTimeForValidation(fromDate, fromTime);
+        const toDateTimeStr = formatDateTimeForValidation(toDate, toTime);
+        
+        const validationResponse = await validateTeacherUnavailability(
+          location,
+          teacherId,
+          fromDateTimeStr,
+          toDateTimeStr,
+          reason.trim()
+        );
+
+        // Check if there are validation errors
+        const hasErrors = Object.keys(validationResponse).length > 0;
+        if (hasErrors) {
+          setValidationErrors(validationResponse);
+          
+          // Extract and display error messages
+          const errorMessages: string[] = [];
+          Object.values(validationResponse).forEach((messages) => {
+            if (Array.isArray(messages)) {
+              errorMessages.push(...messages);
+            }
+          });
+          
+          if (validationResponse['teacherunavailability-fromdatetime']) {
+            setOverlapError(validationResponse['teacherunavailability-fromdatetime'][0]);
+          }
+          
+          if (validationResponse['teacherunavailability-todatetime']) {
+            setError(validationResponse['teacherunavailability-todatetime'][0]);
+          } else if (errorMessages.length > 0) {
+            setError(errorMessages[0]);
+          }
+          
+          setIsValidating(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Validation error:", err);
+        const errorMessage = err instanceof Error ? err.message : "Validation failed";
+        toast.error(errorMessage);
+        setIsValidating(false);
+        return;
+      } finally {
+        setIsValidating(false);
+      }
     } else {
-      onSubmit(data);
+      // Fallback to client-side validation if API not available
+      if (existingUnavailabilities.length > 0 && checkOverlap(fromDateTime, toDateTime, existingUnavailabilities, excludeId)) {
+        setOverlapError("Teacher unavailability is overlapped");
+        return;
+      }
     }
-    onClose();
+
+    // Create using API if location and teacherId are provided and it's add mode
+    if (!isEditMode && location && teacherId) {
+      setIsSubmitting(true);
+      try {
+        const fromDateTimeStr = formatDateTimeForValidation(fromDate, fromTime);
+        const toDateTimeStr = formatDateTimeForValidation(toDate, toTime);
+        
+        const response = await createTeacherUnavailability(
+          location,
+          teacherId,
+          fromDateTimeStr,
+          toDateTimeStr,
+          reason.trim()
+        );
+
+        if (response.status) {
+          toast.success("Unavailability created successfully");
+          // Call success callback to refresh data
+          if (onSuccess) {
+            onSuccess();
+          }
+          // Also call onSubmit for Redux update if needed
+          const data = { fromDateTime: formatDateTimeToISO(fromDate, fromTime), toDateTime: formatDateTimeToISO(toDate, toTime), reason: reason.trim() };
+          onSubmit(data);
+          onClose();
+        } else {
+          toast.error(response.message || "Failed to create unavailability");
+        }
+      } catch (err) {
+        console.error("Create error:", err);
+        const errorMessage = err instanceof Error ? err.message : "Failed to create unavailability";
+        toast.error(errorMessage);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else if (isEditMode && location && initialData) {
+      // Update using API if location is provided and it's edit mode
+      setIsSubmitting(true);
+      try {
+        const fromDateTimeStr = formatDateTimeForValidation(fromDate, fromTime);
+        const toDateTimeStr = formatDateTimeForValidation(toDate, toTime);
+        
+        const response = await updateTeacherUnavailability(
+          location,
+          initialData.id,
+          fromDateTimeStr,
+          toDateTimeStr,
+          reason.trim()
+        );
+
+        if (response.status) {
+          toast.success("Unavailability updated successfully");
+          // Call success callback to refresh data
+          if (onSuccess) {
+            onSuccess();
+          }
+          // Also call onUpdate for Redux update if needed
+          const data = { fromDateTime: formatDateTimeToISO(fromDate, fromTime), toDateTime: formatDateTimeToISO(toDate, toTime), reason: reason.trim() };
+          if (onUpdate) {
+            onUpdate({ ...data, id: initialData.id });
+          }
+          onClose();
+        } else {
+          // Handle validation errors from update API
+          if (response.errors) {
+            setValidationErrors({
+              'teacherunavailability-fromdatetime': response.errors.fromDateTime || [],
+              'teacherunavailability-todatetime': response.errors.toDateTime || [],
+            });
+            
+            if (response.errors.fromDateTime && response.errors.fromDateTime.length > 0) {
+              setOverlapError(response.errors.fromDateTime[0]);
+            }
+            
+            if (response.errors.toDateTime && response.errors.toDateTime.length > 0) {
+              setError(response.errors.toDateTime[0]);
+            } else if (response.errors.fromDateTime && response.errors.fromDateTime.length > 0) {
+              setError(response.errors.fromDateTime[0]);
+            }
+          } else {
+            toast.error(response.message || "Failed to update unavailability");
+          }
+        }
+      } catch (err) {
+        console.error("Update error:", err);
+        const errorMessage = err instanceof Error ? err.message : "Failed to update unavailability";
+        toast.error(errorMessage);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // Fallback to local state management when API not available
+      const data = { fromDateTime: formatDateTimeToISO(fromDate, fromTime), toDateTime: formatDateTimeToISO(toDate, toTime), reason: reason.trim() };
+      if (isEditMode && initialData && onUpdate) {
+        onUpdate({ ...data, id: initialData.id });
+      } else {
+        onSubmit(data);
+      }
+      onClose();
+    }
   };
 
   return (
@@ -244,15 +457,30 @@ export function AddUnavailabilityModal({
             date={fromDate} time={fromTime} timeOptions={timeOptions}
             onDateChange={handleFromDateSelect} onTimeChange={handleFromTimeChange}
             onCalendarOpenChange={handleFromDateCalendarOpen} onTimeSelectOpenChange={handleFromTimeSelectOpen}
-            timeSelectRef={fromTimeSelectRef} showError={!!overlapError} label="From Date Time"
+            timeSelectRef={fromTimeSelectRef} showError={!!overlapError || !!validationErrors['teacherunavailability-fromdatetime']} label="From Date Time"
+            popoverOpen={fromDatePopoverOpen}
+            onPopoverOpenChange={setFromDatePopoverOpen}
           />
           {overlapError && <p className="text-sm text-red-600 dark:text-red-400">{overlapError}</p>}
+          {validationErrors['teacherunavailability-fromdatetime'] && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {validationErrors['teacherunavailability-fromdatetime'][0]}
+            </p>
+          )}
           <DateTimePicker
             date={toDate} time={toTime} timeOptions={timeOptions}
             onDateChange={handleToDateSelect} onTimeChange={handleToTimeChange}
             onCalendarOpenChange={handleToDateCalendarOpen} onTimeSelectOpenChange={handleToTimeSelectOpen}
             dateButtonRef={toDateButtonRef} timeSelectRef={toTimeSelectRef} label="To Date Time"
+            popoverOpen={toDatePopoverOpen}
+            onPopoverOpenChange={setToDatePopoverOpen}
+            showError={!!validationErrors['teacherunavailability-todatetime']}
           />
+          {validationErrors['teacherunavailability-todatetime'] && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {validationErrors['teacherunavailability-todatetime'][0]}
+            </p>
+          )}
           <div className="space-y-2">
             <Label htmlFor="reason">Reason</Label>
             <Textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Enter reason for unavailability" rows={4} className="resize-none" />
@@ -262,8 +490,14 @@ export function AddUnavailabilityModal({
               {isEditMode && onDelete && <Button type="button" variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete</Button>}
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-              <Button type="submit">Save</Button>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isValidating || isSubmitting}>Cancel</Button>
+              <Button type="submit" disabled={isValidating || isSubmitting}>
+                {isSubmitting 
+                  ? (isEditMode ? "Updating..." : "Creating...") 
+                  : isValidating 
+                    ? "Validating..." 
+                    : "Save"}
+              </Button>
             </div>
           </DialogFooter>
         </form>
@@ -272,7 +506,52 @@ export function AddUnavailabilityModal({
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
         title="Are you sure you want to delete this?"
-        onConfirm={() => { if (isEditMode && initialData && onDelete) { onDelete(initialData.id); setShowDeleteConfirm(false); onClose(); } }}
+        isDeleting={isDeleting}
+        onConfirm={async () => {
+          if (!isEditMode || !initialData || !onDelete) return;
+          
+          // Delete using API if location is provided
+          if (location && fromDate && fromTime && toDate && toTime) {
+            setIsDeleting(true);
+            try {
+              const fromDateTimeStr = formatDateTimeForValidation(fromDate, fromTime);
+              const toDateTimeStr = formatDateTimeForValidation(toDate, toTime);
+              
+              const response = await deleteTeacherUnavailability(
+                location,
+                initialData.id,
+                fromDateTimeStr,
+                toDateTimeStr,
+                reason.trim()
+              );
+
+              if (response.status) {
+                toast.success("Unavailability deleted successfully");
+                // Call success callback to refresh data
+                if (onSuccess) {
+                  onSuccess();
+                }
+                // Also call onDelete for Redux update if needed
+                onDelete(initialData.id);
+                setShowDeleteConfirm(false);
+                onClose();
+              } else {
+                toast.error(response.message || "Failed to delete unavailability");
+              }
+            } catch (err) {
+              console.error("Delete error:", err);
+              const errorMessage = err instanceof Error ? err.message : "Failed to delete unavailability";
+              toast.error(errorMessage);
+            } finally {
+              setIsDeleting(false);
+            }
+          } else {
+            // Fallback to local state management when API not available
+            onDelete(initialData.id);
+            setShowDeleteConfirm(false);
+            onClose();
+          }
+        }}
       />
     </Dialog>
   );

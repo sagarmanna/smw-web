@@ -1395,3 +1395,207 @@ export async function submitTeacherBulkReschedule(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+export interface TeacherUnavailabilityValidationResponse {
+  [key: string]: string[];
+}
+
+export interface TeacherUnavailabilityCreateResponse {
+  status: boolean;
+  message?: string;
+}
+
+export interface TeacherUnavailabilityUpdateResponse {
+  status: boolean;
+  message?: string;
+  errors?: {
+    fromDateTime?: string[];
+    toDateTime?: string[];
+    reason?: string[];
+  };
+}
+
+export interface TeacherUnavailabilityDeleteResponse {
+  status: boolean;
+  message?: string;
+}
+
+/**
+ * Validate teacher unavailability using the legacy API
+ * @param location - Location slug
+ * @param teacherId - Teacher ID
+ * @param fromDateTime - From date time in format "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 11:55")
+ * @param toDateTime - To date time in format "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 04:25")
+ * @param reason - Reason for unavailability
+ * @returns Validation errors object with field names as keys and error messages as arrays
+ */
+export async function validateTeacherUnavailability(
+  location: string,
+  teacherId: number,
+  fromDateTime: string,
+  toDateTime: string,
+  reason: string
+): Promise<TeacherUnavailabilityValidationResponse> {
+  const formData = new FormData();
+  formData.append('TeacherUnavailability[fromDateTime]', fromDateTime);
+  formData.append('TeacherUnavailability[toDateTime]', toDateTime);
+  formData.append('TeacherUnavailability[reason]', reason);
+
+  const url = `/admin/${location}/teacher-unavailability/validate?teacherId=${teacherId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Create teacher unavailability using the legacy API
+ * @param location - Location slug
+ * @param teacherId - Teacher ID
+ * @param fromDateTime - From date time in format "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 11:55")
+ * @param toDateTime - To date time in format "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 14:00")
+ * @param reason - Reason for unavailability
+ * @returns API response with status
+ */
+export async function createTeacherUnavailability(
+  location: string,
+  teacherId: number,
+  fromDateTime: string,
+  toDateTime: string,
+  reason: string
+): Promise<TeacherUnavailabilityCreateResponse> {
+  const formData = new FormData();
+  formData.append('TeacherUnavailability[fromDateTime]', fromDateTime);
+  formData.append('TeacherUnavailability[toDateTime]', toDateTime);
+  formData.append('TeacherUnavailability[reason]', reason);
+
+  const url = `/admin/${location}/teacher-unavailability/create?id=${teacherId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Update teacher unavailability using the legacy API
+ * @param location - Location slug
+ * @param unavailabilityId - Unavailability ID
+ * @param fromDateTime - From date time in format "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 10:50")
+ * @param toDateTime - To date time in format "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 11:50")
+ * @param reason - Reason for unavailability
+ * @returns API response with status and optional errors
+ */
+export async function updateTeacherUnavailability(
+  location: string,
+  unavailabilityId: number | string,
+  fromDateTime: string,
+  toDateTime: string,
+  reason: string
+): Promise<TeacherUnavailabilityUpdateResponse> {
+  const formData = new FormData();
+  formData.append('TeacherUnavailability[fromDateTime]', fromDateTime);
+  formData.append('TeacherUnavailability[toDateTime]', toDateTime);
+  formData.append('TeacherUnavailability[reason]', reason);
+
+  const url = `/admin/${location}/teacher-unavailability/update?id=${unavailabilityId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+/**
+ * Delete teacher unavailability using the legacy API
+ * @param location - Location slug
+ * @param unavailabilityId - Unavailability ID
+ * @param fromDateTime - From date time in format "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 10:55")
+ * @param toDateTime - To date time in format "MMM dd, yyyy HH:mm" (e.g., "Dec 22, 2025 11:55")
+ * @param reason - Reason for unavailability
+ * @returns API response with status
+ */
+export async function deleteTeacherUnavailability(
+  location: string,
+  unavailabilityId: number | string,
+  fromDateTime: string,
+  toDateTime: string,
+  reason: string
+): Promise<TeacherUnavailabilityDeleteResponse> {
+  const formData = new FormData();
+  formData.append('TeacherUnavailability[fromDateTime]', fromDateTime);
+  formData.append('TeacherUnavailability[toDateTime]', toDateTime);
+  formData.append('TeacherUnavailability[reason]', reason);
+
+  const url = `/admin/${location}/teacher-unavailability/delete?id=${unavailabilityId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}

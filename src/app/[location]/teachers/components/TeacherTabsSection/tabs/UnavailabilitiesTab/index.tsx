@@ -4,7 +4,7 @@ import * as React from "react";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { TabContent } from "@/components/TabContent";
 import { unavailabilityColumns } from "../../../../teacherTabConfigs";
-import { addUnavailability, updateUnavailability, deleteUnavailability } from "../../../../[id]/teacherTabs.slice";
+import { addUnavailability, updateUnavailability, deleteUnavailability, fetchTeacherTabsData } from "../../../../[id]/teacherTabs.slice";
 import type { UnavailabilityData } from "../../../../teacherTabConfigs";
 import { AddUnavailabilityModal } from "../../../modals/AddUnavailabilityModal";
 
@@ -35,6 +35,8 @@ export function UnavailabilitiesTab({ location, teacherId }: UnavailabilitiesTab
   };
 
   const handleSubmitUnavailability = (unavailabilityData: Omit<UnavailabilityData, "id">) => {
+    // Note: If API creation is successful, data will be refreshed via onSuccess callback
+    // This is a fallback for when API is not used
     const newUnavailability: UnavailabilityData = {
       id: Date.now().toString(),
       ...unavailabilityData,
@@ -43,6 +45,11 @@ export function UnavailabilitiesTab({ location, teacherId }: UnavailabilitiesTab
     setIsModalOpen(false);
     setEditingData(null);
   };
+
+  const handleSuccess = React.useCallback(() => {
+    // Refresh unavailability data from server
+    dispatch(fetchTeacherTabsData({ location, teacherId }));
+  }, [dispatch, location, teacherId]);
 
   const handleUpdateUnavailability = (unavailabilityData: UnavailabilityData) => {
     dispatch(updateUnavailability(unavailabilityData));
@@ -78,6 +85,9 @@ export function UnavailabilitiesTab({ location, teacherId }: UnavailabilitiesTab
         existingUnavailabilities={data}
         initialData={editingData}
         mode={editingData ? "edit" : "add"}
+        location={location}
+        teacherId={teacherId}
+        onSuccess={handleSuccess}
       />
     </>
   );

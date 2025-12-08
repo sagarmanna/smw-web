@@ -31,9 +31,8 @@ export function transformUnavailabilityData(
     return [];
   }
 
-  const baseTimestamp = Date.now();
-  return apiResult.map((item, index) => ({
-    id: `unavailability-${baseTimestamp}-${index}`,
+  return apiResult.map((item) => ({
+    id: item.id.toString(),
     fromDateTime: parseApiDateTimeToISO(item.start),
     toDateTime: parseApiDateTimeToISO(item.end),
     reason: item.reason || "",

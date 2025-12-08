@@ -38,6 +38,8 @@ export function BulkRescheduleModal({
   const [destinationDate, setDestinationDate] = useState<Date | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourceDatePopoverOpen, setSourceDatePopoverOpen] = useState(false);
+  const [destinationDatePopoverOpen, setDestinationDatePopoverOpen] = useState(false);
 
   const handleSubmit = async () => {
     // Reset error
@@ -110,7 +112,23 @@ export function BulkRescheduleModal({
       setSourceDate(undefined);
       setDestinationDate(undefined);
       setError(null);
+      setSourceDatePopoverOpen(false);
+      setDestinationDatePopoverOpen(false);
       onOpenChange(false);
+    }
+  };
+
+  const handleSourceDateSelect = (date: Date | undefined) => {
+    setSourceDate(date);
+    if (date) {
+      setSourceDatePopoverOpen(false);
+    }
+  };
+
+  const handleDestinationDateSelect = (date: Date | undefined) => {
+    setDestinationDate(date);
+    if (date) {
+      setDestinationDatePopoverOpen(false);
     }
   };
 
@@ -133,7 +151,7 @@ export function BulkRescheduleModal({
 
           <div className="grid gap-2">
             <Label htmlFor="source-date">Source Date</Label>
-            <Popover>
+            <Popover open={sourceDatePopoverOpen} onOpenChange={setSourceDatePopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -151,7 +169,7 @@ export function BulkRescheduleModal({
                 <Calendar
                   mode="single"
                   selected={sourceDate}
-                  onSelect={setSourceDate}
+                  onSelect={handleSourceDateSelect}
                   disabled={isSubmitting}
                   captionLayout="dropdown"
                   fromYear={2005}
@@ -163,7 +181,7 @@ export function BulkRescheduleModal({
 
           <div className="grid gap-2">
             <Label htmlFor="destination-date">Destination Date</Label>
-            <Popover>
+            <Popover open={destinationDatePopoverOpen} onOpenChange={setDestinationDatePopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -183,7 +201,7 @@ export function BulkRescheduleModal({
                 <Calendar
                   mode="single"
                   selected={destinationDate}
-                  onSelect={setDestinationDate}
+                  onSelect={handleDestinationDateSelect}
                   disabled={isSubmitting}
                   captionLayout="dropdown"
                   fromYear={2005}
