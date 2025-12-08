@@ -83,12 +83,12 @@ export function AddQualificationModal({
       if (isEditMode && initialData) {
         setSelectedProgram(initialData.name);
         setSelectedPrograms([initialData.name]);
-        setRate(initialData.rate?.toString() || "0");
+        setRate(initialData.rate?.toString() || "");
         originalRate.current = initialData.rate;
       } else {
         setSelectedPrograms([]);
         setSelectedProgram("");
-        setRate("0");
+        setRate("");
         originalRate.current = undefined;
       }
       setError(null);
@@ -99,7 +99,7 @@ export function AddQualificationModal({
       setSelectedPrograms([]);
       setSelectedProgramIds([]);
       setSelectedProgram("");
-      setRate("0");
+      setRate("");
       setError(null);
       setShowDeleteConfirm(false);
       setShowRateChangeConfirm(false);
@@ -124,8 +124,8 @@ export function AddQualificationModal({
       }
 
       const rateValue = parseFloat(rate);
-      if (isNaN(rateValue) || rateValue < 0) {
-        setError("Please enter a valid rate.");
+      if (isNaN(rateValue) || rateValue < 1) {
+        setError("Rate ($/hr) must be no less than 1.");
         return;
       }
 
@@ -168,8 +168,8 @@ export function AddQualificationModal({
       }
       
       const rateValue = parseFloat(rate);
-      if (isNaN(rateValue) || rateValue < 0) {
-        setError("Please enter a valid rate.");
+      if (isNaN(rateValue) || rateValue < 1) {
+        setError("Rate ($/hr) must be no less than 1.");
         return;
       }
       submitData.rate = rateValue;
@@ -213,7 +213,7 @@ export function AddQualificationModal({
     setSelectedPrograms([]);
     setSelectedProgramIds([]);
     setSelectedProgram("");
-    setRate("0");
+    setRate("1");
     setError(null);
   };
 
@@ -288,13 +288,12 @@ export function AddQualificationModal({
                   id="rate"
                   type="number"
                   step="0.01"
-                  min="0"
+                  min="1"
                   value={rate}
                   onChange={(event) => {
                     setRate(event.target.value);
                     setError("");
                   }}
-                  placeholder="0.00"
                   className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>

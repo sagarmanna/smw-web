@@ -43,7 +43,7 @@ export interface QualificationUpdateData {
 }
 
 export interface QualificationDeleteData {
-  rate: number;
+  rate: number | string; // Can be number or empty string for delete
 }
 
 /**
@@ -1322,7 +1322,11 @@ export async function deleteQualification(
 ): Promise<LegacyApiResponse> {
   const formData = new FormData();
   
-  formData.append('Qualification[rate]', qualificationData.rate.toString());
+  // Handle empty string or number for rate
+  const rateValue = typeof qualificationData.rate === 'string' 
+    ? qualificationData.rate 
+    : qualificationData.rate.toString();
+  formData.append('Qualification[rate]', rateValue);
 
   const url = `/admin/${location}/qualification/delete?id=${qualificationId}`;
 
