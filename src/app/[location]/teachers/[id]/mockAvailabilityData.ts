@@ -64,37 +64,37 @@ const defaultLocationHours: LocationHours = {
  */
 export const generateSampleAvailability = (teacherId: number): AvailabilityEvent[] => {
   return [
-    {
-      id: `${teacherId}-1`,
-      day: 1, // Monday
-      fromTime: "09:00:00",
-      toTime: "12:00:00",
-      classroomId: 1,
-      classroomName: "Room A",
-    },
-    {
-      id: `${teacherId}-2`,
-      day: 1, // Monday
-      fromTime: "13:00:00",
-      toTime: "17:00:00",
-      classroomId: 2,
-      classroomName: "Room B",
-    },
-    {
-      id: `${teacherId}-3`,
-      day: 3, // Wednesday
-      fromTime: "10:00:00",
-      toTime: "15:00:00",
-      classroomId: 3,
-      classroomName: "Room C",
-    },
-    {
-      id: `${teacherId}-4`,
-      day: 5, // Friday
-      fromTime: "14:00:00",
-      toTime: "18:00:00",
-      // No classroom assigned
-    },
+    // {
+    //   id: `${teacherId}-1`,
+    //   day: 1, // Monday
+    //   fromTime: "09:00:00",
+    //   toTime: "12:00:00",
+    //   classroomId: 1,
+    //   classroomName: "Room A",
+    // },
+    // {
+    //   id: `${teacherId}-2`,
+    //   day: 1, // Monday
+    //   fromTime: "13:00:00",
+    //   toTime: "17:00:00",
+    //   classroomId: 2,
+    //   classroomName: "Room B",
+    // },
+    // {
+    //   id: `${teacherId}-3`,
+    //   day: 3, // Wednesday
+    //   fromTime: "10:00:00",
+    //   toTime: "15:00:00",
+    //   classroomId: 3,
+    //   classroomName: "Room C",
+    // },
+    // {
+    //   id: `${teacherId}-4`,
+    //   day: 5, // Friday
+    //   fromTime: "14:00:00",
+    //   toTime: "18:00:00",
+    //   // No classroom assigned
+    // },
   ];
 };
 
