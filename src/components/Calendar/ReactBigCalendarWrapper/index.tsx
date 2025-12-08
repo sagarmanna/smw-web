@@ -100,30 +100,78 @@ export interface CalendarWrapperRef {
 }
 
 // Custom resource header component
-// For day-based resources (teacher schedule), show "Mon 12/1" format
+// For availability tab: show full day name like "Monday"
+// For schedule tab (teacher view): show "Mon 12/1" format
 // For other resources, show the title as is
-const ResourceHeader = ({ resource, date }: ResourceHeaderProps<CalendarResource> & { date?: Date }) => {
+const ResourceHeader = ({ resource, date, viewType }: ResourceHeaderProps<CalendarResource> & { date?: Date; viewType?: 'teacher' | 'classroom' | 'availability' }) => {
   // Check if this is a day-based resource (resource.id is 1-7 for Monday-Sunday)
   const shortDayNames = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const fullDayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const isDayResource = resource.id >= 1 && resource.id <= 7;
   
   if (isDayResource && date) {
-    // Calculate Monday of the week
-    const monday = new Date(date);
-    const dayOfWeek = monday.getDay(); // 0-6 (Sunday-Saturday)
-    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    monday.setDate(monday.getDate() + daysToMonday);
-    monday.setHours(0, 0, 0, 0);
+    // For availability tab, show only full day name
+    if (viewType === 'availability') {
+      const dayName = resource.title || fullDayNames[resource.id] || 'Unknown';
+      
+      return (
+        <div
+          className="
+            box-border
+            px-2 font-bold
+            text-gray-800
+            whitespace-normal break-words
+            flex flex-col justify-center items-center
+            border-gray-200
+            h-auto min-h-[50px]
+            text-[13px] leading-[1.3]
+            select-none
+          "
+        >
+          {dayName}
+        </div>
+      );
+    }
     
-    // Calculate the date for this specific day (resource.id 1=Monday, 2=Tuesday, ..., 7=Sunday)
-    const dayDate = new Date(monday);
-    dayDate.setDate(monday.getDate() + (resource.id - 1));
+    // For schedule tab (teacher view), show "Mon 12/1" format
+    if (viewType === 'teacher') {
+      // Calculate Monday of the week
+      const monday = new Date(date);
+      const dayOfWeek = monday.getDay(); // 0-6 (Sunday-Saturday)
+      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      monday.setDate(monday.getDate() + daysToMonday);
+      monday.setHours(0, 0, 0, 0);
+      
+      // Calculate the date for this specific day (resource.id 1=Monday, 2=Tuesday, ..., 7=Sunday)
+      const dayDate = new Date(monday);
+      dayDate.setDate(monday.getDate() + (resource.id - 1));
+      
+      // Format as "Mon 12/1"
+      const month = dayDate.getMonth() + 1; // 1-12
+      const day = dayDate.getDate(); // 1-31
+      const shortDayName = shortDayNames[resource.id];
+      
+      return (
+        <div
+          className="
+            box-border
+            px-2 font-bold
+            text-gray-800
+            whitespace-normal break-words
+            flex flex-col justify-center items-center
+            border-gray-200
+            h-auto min-h-[50px]
+            text-[13px] leading-[1.3]
+            select-none
+          "
+        >
+          {`${shortDayName} ${month}/${day}`}
+        </div>
+      );
+    }
     
-    // Format as "Mon 12/1"
-    const month = dayDate.getMonth() + 1; // 1-12
-    const day = dayDate.getDate(); // 1-31
-    const shortDayName = shortDayNames[resource.id];
-    
+    // Fallback: show full day name for other day-based resources
+    const dayName = resource.title || fullDayNames[resource.id] || 'Unknown';
     return (
       <div
         className="
@@ -138,7 +186,7 @@ const ResourceHeader = ({ resource, date }: ResourceHeaderProps<CalendarResource
           select-none
         "
       >
-        {`${shortDayName} ${month}/${day}`}
+        {dayName}
       </div>
     );
   }
@@ -827,7 +875,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
               event: EventComponent,
               resourceHeader: resources.length === 0 
                 ? EmptyResourceHeader 
-                : (props: ResourceHeaderProps<CalendarResource>) => <ResourceHeader {...props} date={date} />,
+                : (props: ResourceHeaderProps<CalendarResource>) => <ResourceHeader {...props} date={date} viewType={viewType} />,
               toolbar: () => null
             }}
             step={15} // 15-minute intervals

@@ -442,6 +442,55 @@ export async function getTeacherScheduleEvents(
 }
 
 // ---------------------------------------------
+// Teacher Availability API Response Types
+// ---------------------------------------------
+
+// Reuse the same types as schedule-events since the structure is identical
+export interface TeacherAvailabilityApiResponse {
+  success: boolean;
+  data: {
+    body: TeacherScheduleData;
+  };
+  message?: string;
+}
+
+/**
+ * Fetches teacher availability
+ * Endpoint: GET /admin/v2/{location}/teachers/{teacherId}/availability
+ * @param location - The location identifier (e.g., "burlington")
+ * @param teacherId - The teacher ID
+ * @param date - Optional date string (YYYY-MM-DD) to get availability for that week
+ * @returns Promise resolving to teacher availability data or null on error
+ */
+export async function getTeacherAvailability(
+  location: string,
+  teacherId: number,
+  date?: string
+): Promise<TeacherScheduleData | null> {
+  try {
+    const url = `/admin/v2/${location}/teachers/${teacherId}/availability`;
+    const params: Record<string, string> = {};
+    if (date) params.date = date;
+    
+    const response = await apiClient.get<TeacherAvailabilityApiResponse>(url, { params });
+
+    if (response.data.success && response.data.data?.body) {
+      return response.data.data.body;
+    }
+
+    return null;
+  } catch (error: unknown) {
+    console.error("Error fetching teacher availability:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch teacher availability"
+    );
+    return null;
+  }
+}
+
+// ---------------------------------------------
 // Invoiced Lessons API
 // ---------------------------------------------
 

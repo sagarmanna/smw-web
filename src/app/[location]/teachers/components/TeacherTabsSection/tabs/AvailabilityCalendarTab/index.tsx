@@ -4,19 +4,22 @@ import { useState, useEffect, useMemo } from "react";
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { AvailabilityFormModal } from "../../../modals/AvailabilityFormModal";
 import {
-  mockGetAvailability,
-  mockCreateAvailability,
-  mockUpdateAvailability,
-  mockDeleteAvailability,
-  mockGetClassrooms,
-  mockGetLocationHours,
-  type AvailabilityEvent,
-  type AvailabilityFormData,
-  type Classroom,
-  type LocationHours,
-} from "../../../../[id]/mockAvailabilityData";
+  getTeacherAvailability,
+  type TeacherScheduleData,
+  type TeacherScheduleLessonEvent,
+  type TeacherScheduleAvailabilityEvent,
+} from "../../../../[id]/teachers-details-tabs.api";
+import { getClassroomViewResources } from "@/app/[location]/schedule/schedule.api";
+import type { Classroom } from "../../../../[id]/mockAvailabilityData";
+import { modifyTeacherAvailability, deleteTeacherAvailability } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface AvailabilityCalendarTabProps {
   location: string;
@@ -35,26 +38,54 @@ const DAY_RESOURCES = [
 ];
 
 /**
- * Get the date for a specific day of week in the current week
+ * Convert lesson events to calendar events format
+ * Note: API returns resourceId as day of week (1-7) for teacher availability view
+ * Simple approach: Always set event date to Monday of the week, keep the time
+ * Events will show in correct column based on resourceId
  */
-function getDateForDay(baseDate: Date, dayOfWeek: number): Date {
-  const date = new Date(baseDate);
-  const currentDay = date.getDay(); // 0-6 (Sunday-Saturday)
-  // Convert to Monday=1, Sunday=7
-  const currentDayAdjusted = currentDay === 0 ? 7 : currentDay;
-  const diff = dayOfWeek - currentDayAdjusted;
-  date.setDate(date.getDate() + diff);
-  return date;
-}
+function convertLessonsToCalendarEvents(
+  lessons: TeacherScheduleLessonEvent[],
+  mondayDate: Date // Monday of the visible week
+): CalendarEvent[] {
+  return lessons.map((lesson) => {
+    // Parse original date to extract time only
+    const originalStart = new Date(lesson.start);
+    const originalEnd = new Date(lesson.end);
+    
+    // Extract time components
+    const startHours = originalStart.getHours();
+    const startMinutes = originalStart.getMinutes();
+    const startSeconds = originalStart.getSeconds();
+    const endHours = originalEnd.getHours();
+    const endMinutes = originalEnd.getMinutes();
+    const endSeconds = originalEnd.getSeconds();
+    
+    // Always use Monday date, but keep the time
+    const eventStart = new Date(mondayDate);
+    eventStart.setHours(startHours, startMinutes, startSeconds, 0);
+    
+    const eventEnd = new Date(mondayDate);
+    eventEnd.setHours(endHours, endMinutes, endSeconds, 0);
+    
+    // API returns resourceId as day of week (1-7), use it directly
+    const resourceId = lesson.resourceId; // Should be 1-7 (Monday-Sunday)
 
-/**
- * Combine date and time string (HH:mm:ss) into a Date object
- */
-function combineDateAndTime(date: Date, timeString: string): Date {
-  const [hours, minutes, seconds] = timeString.split(":").map(Number);
-  const newDate = new Date(date);
-  newDate.setHours(hours, minutes, seconds || 0, 0);
-  return newDate;
+    return {
+      id: `availability-${lesson.lessonId}`,
+      title: lesson.title,
+      start: eventStart,
+      end: eventEnd,
+      resourceId, // Use resourceId directly from API (day of week 1-7)
+      backgroundColor: lesson.backgroundColor,
+      borderColor: lesson.backgroundColor,
+      className: lesson.className,
+      extendedProps: {
+        availabilityId: lesson.lessonId.toString(), // Use lessonId as availabilityId
+        lessonId: lesson.lessonId.toString(),
+        tooltip: lesson.title,
+      },
+    };
+  });
 }
 
 /**
@@ -66,52 +97,22 @@ function formatTimeFromDate(date: Date): string {
   return `${hours}:${minutes}:00`;
 }
 
-/**
- * Convert availability events to calendar events format
- */
-function convertToCalendarEvents(
-  availability: AvailabilityEvent[],
-  selectedDate: Date
-): CalendarEvent[] {
-  return availability.map((avail) => {
-    // Get the date for this week's day
-    const eventDate = getDateForDay(selectedDate, avail.day);
-    const start = combineDateAndTime(eventDate, avail.fromTime);
-    const end = combineDateAndTime(eventDate, avail.toTime);
-
-    return {
-      id: avail.id,
-      title: avail.classroomName || "Available",
-      start,
-      end,
-      resourceId: avail.day,
-      backgroundColor: "#97ef83", // Green like legacy
-      borderColor: "#97ef83",
-      className: "availability-event",
-      extendedProps: {
-        availabilityId: avail.id,
-        classroomId: avail.classroomId,
-        classroomName: avail.classroomName,
-      },
-    };
-  });
-}
-
 export function AvailabilityCalendarTab({
   location,
   teacherId,
 }: AvailabilityCalendarTabProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [availabilityEvents, setAvailabilityEvents] = useState<AvailabilityEvent[]>([]);
-  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [locationHours, setLocationHours] = useState<LocationHours | null>(null);
+  const [datePickerDisplayDate, setDatePickerDisplayDate] = useState<Date>(new Date());
+  const [availabilityData, setAvailabilityData] = useState<TeacherScheduleData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSyncingDate, setIsSyncingDate] = useState<boolean>(false);
+  const [datePickerOpen, setDatePickerOpen] = useState<boolean>(false);
 
   // Modal state
   const [showModal, setShowModal] = useState<boolean>(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [editingAvailability, setEditingAvailability] = useState<AvailabilityEvent | null>(null);
+  const [editingAvailability, setEditingAvailability] = useState<TeacherScheduleLessonEvent | null>(null);
   const [modalInitialData, setModalInitialData] = useState<{
     day?: number;
     fromTime?: string;
@@ -119,49 +120,121 @@ export function AvailabilityCalendarTab({
     classroomId?: number;
     id?: string;
   } | null>(null);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [isLoadingClassrooms, setIsLoadingClassrooms] = useState<boolean>(false);
 
-  // Load data on mount and when teacherId changes
+  // Load data on mount and when teacherId or date changes
   useEffect(() => {
-    loadData();
-  }, [teacherId, location]);
+    if (!isSyncingDate) {
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teacherId, location, selectedDate]);
 
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Load all data in parallel
-      const [availability, classroomsData, hours] = await Promise.all([
-        mockGetAvailability(teacherId),
-        mockGetClassrooms(location),
-        mockGetLocationHours(location),
-      ]);
-
-      setAvailabilityEvents(availability);
-      setClassrooms(classroomsData);
-      setLocationHours(hours);
+      // Format date as YYYY-MM-DD using local timezone (not UTC)
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+      
+      const data = await getTeacherAvailability(location, teacherId, dateString);
+      
+      if (!data) {
+        throw new Error("Failed to load availability data");
+      }
+      
+      // Sync calendar date to the Monday of the week from API response
+      if (data.date?.from && !isSyncingDate) {
+        const apiWeekStart = new Date(data.date.from + 'T00:00:00');
+        
+        const currentDate = new Date(selectedDate);
+        const currentDay = currentDate.getDay();
+        const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+        const currentWeekStart = new Date(currentDate);
+        currentWeekStart.setDate(currentDate.getDate() + daysToMonday);
+        currentWeekStart.setHours(0, 0, 0, 0);
+        apiWeekStart.setHours(0, 0, 0, 0);
+        
+        if (Math.abs(apiWeekStart.getTime() - currentWeekStart.getTime()) > 12 * 60 * 60 * 1000) {
+          setIsSyncingDate(true);
+          setSelectedDate(apiWeekStart);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      setAvailabilityData(data);
+      setIsSyncingDate(false);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load availability data";
       setError(errorMessage);
       toast.error(errorMessage);
+      setIsSyncingDate(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Convert availability to calendar events
+  // Calculate Monday of the week for the calendar date
+  const calendarDate = useMemo(() => {
+    const date = new Date(selectedDate);
+    const dayOfWeek = date.getDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(date);
+    monday.setDate(date.getDate() + daysToMonday);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  }, [selectedDate]);
+
+  // Convert availability data to calendar events
   const calendarEvents = useMemo(() => {
-    return convertToCalendarEvents(availabilityEvents, selectedDate);
-  }, [availabilityEvents, selectedDate]);
+    if (!availabilityData) {
+      return [];
+    }
+
+    const lessonEvents = convertLessonsToCalendarEvents(availabilityData.lessons, calendarDate);
+    return lessonEvents;
+  }, [availabilityData, calendarDate]);
+
+  // Load classrooms from API
+  const loadClassrooms = async () => {
+    if (classrooms.length > 0) return; // Already loaded
+    
+    setIsLoadingClassrooms(true);
+    try {
+      const response = await getClassroomViewResources(location);
+      if (response?.success && response.data?.resources) {
+        // Map ClassroomViewResource to Classroom format
+        const mappedClassrooms: Classroom[] = response.data.resources.map((resource) => ({
+          id: resource.id,
+          name: resource.title,
+        }));
+        setClassrooms(mappedClassrooms);
+      }
+    } catch (error) {
+      console.error("Error loading classrooms:", error);
+      toast.error("Failed to load classrooms");
+    } finally {
+      setIsLoadingClassrooms(false);
+    }
+  };
 
   // Handle slot selection (create new availability)
-  const handleSelectSlot = (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
+  const handleSelectSlot = async (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
     const day = typeof slotInfo.resourceId === "string" 
       ? parseInt(slotInfo.resourceId) 
       : slotInfo.resourceId || 1;
     
     const fromTime = formatTimeFromDate(slotInfo.start);
     const toTime = formatTimeFromDate(slotInfo.end);
+
+    // Load classrooms before opening modal
+    await loadClassrooms();
 
     setModalMode("add");
     setEditingAvailability(null);
@@ -174,65 +247,148 @@ export function AvailabilityCalendarTab({
   };
 
   // Handle event click (edit existing availability)
-  const handleEventClick = (event: CalendarEvent) => {
+  const handleEventClick = async (event: CalendarEvent) => {
     const availabilityId = event.extendedProps?.availabilityId as string | undefined;
-    if (!availabilityId) return;
+    if (!availabilityId || !availabilityData) return;
 
-    const existingEvent = availabilityEvents.find((a) => a.id === availabilityId);
-    if (!existingEvent) return;
+    const existingLesson = availabilityData.lessons.find(
+      (l) => l.lessonId.toString() === availabilityId
+    );
+    if (!existingLesson) return;
+
+    // Load classrooms before opening modal
+    await loadClassrooms();
 
     setModalMode("edit");
-    setEditingAvailability(existingEvent);
+    setEditingAvailability(existingLesson);
+    
+    // Extract day from resourceId
+    const day = existingLesson.resourceId;
+    
+    // Extract time from start/end strings
+    const startTime = new Date(existingLesson.start);
+    const endTime = new Date(existingLesson.end);
+    const fromTime = formatTimeFromDate(startTime);
+    const toTime = formatTimeFromDate(endTime);
+
+    // Extract classroomId if available (from title or other field)
+    // Note: The API might not return classroomId directly, so we'll need to check
+    // For now, we'll try to match by title if needed
+    const classroomId = undefined; // TODO: Extract from existingLesson if available
+
     setModalInitialData({
-      id: existingEvent.id,
-      day: existingEvent.day,
-      fromTime: existingEvent.fromTime,
-      toTime: existingEvent.toTime,
-      classroomId: existingEvent.classroomId,
+      id: availabilityId,
+      day,
+      fromTime,
+      toTime,
+      classroomId,
     });
     setShowModal(true);
   };
 
-  // Handle event resize (update time)
+  // Handle event resize (open edit modal with new time)
   const handleEventResize = async (event: CalendarEvent) => {
     const availabilityId = event.extendedProps?.availabilityId as string | undefined;
-    if (!availabilityId) return;
+    if (!availabilityId || !availabilityData) return;
 
-    const existingEvent = availabilityEvents.find((a) => a.id === availabilityId);
-    if (!existingEvent) return;
+    const existingLesson = availabilityData.lessons.find(
+      (l) => l.lessonId.toString() === availabilityId
+    );
+    if (!existingLesson) return;
+
+    await loadClassrooms();
+
+    const day = typeof event.resourceId === "string"
+      ? parseInt(event.resourceId)
+      : event.resourceId || 1;
 
     const fromTime = formatTimeFromDate(event.start);
     const toTime = formatTimeFromDate(event.end);
 
-    try {
-      await mockUpdateAvailability(teacherId, availabilityId, {
-        day: existingEvent.day,
-        fromTime,
-        toTime,
-        classroomId: existingEvent.classroomId,
-      });
+    setModalMode("edit");
+    setEditingAvailability(existingLesson);
+    setModalInitialData({
+      id: availabilityId,
+      day,
+      fromTime,
+      toTime,
+      classroomId: event.extendedProps?.classroomId
+        ? Number(event.extendedProps.classroomId)
+        : undefined,
+    });
+    setShowModal(true);
+  };
 
-      toast.success("Availability time updated successfully");
-      await loadData();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to update availability";
-      toast.error(errorMessage);
-    }
+  // Handle event drop (drag to move/change day/time) - open edit modal with new values
+  const handleEventDrop = async (event: CalendarEvent) => {
+    const availabilityId = event.extendedProps?.availabilityId as string | undefined;
+    if (!availabilityId || !availabilityData) return;
+
+    const existingLesson = availabilityData.lessons.find(
+      (l) => l.lessonId.toString() === availabilityId
+    );
+    if (!existingLesson) return;
+
+    await loadClassrooms();
+
+    const day = typeof event.resourceId === "string"
+      ? parseInt(event.resourceId)
+      : event.resourceId || 1;
+
+    const fromTime = formatTimeFromDate(event.start);
+    const toTime = formatTimeFromDate(event.end);
+
+    setModalMode("edit");
+    setEditingAvailability(existingLesson);
+    setModalInitialData({
+      id: availabilityId,
+      day,
+      fromTime,
+      toTime,
+      classroomId: event.extendedProps?.classroomId
+        ? Number(event.extendedProps.classroomId)
+        : undefined,
+    });
+    setShowModal(true);
   };
 
   // Handle form submit (create or update)
-  const handleFormSubmit = async (formData: AvailabilityFormData) => {
+  const handleFormSubmit = async (formData: {
+    day: number;
+    fromTime: string; // Format: "HH:mm:ss"
+    toTime: string; // Format: "HH:mm:ss"
+    classroomId?: number;
+  }) => {
     try {
-      if (modalMode === "edit" && editingAvailability) {
-        await mockUpdateAvailability(teacherId, editingAvailability.id, formData);
-        toast.success("Availability updated successfully");
-      } else {
-        await mockCreateAvailability(teacherId, formData);
-        toast.success("Availability created successfully");
-      }
+      // Determine availability ID (0 for create, actual ID for update)
+      const availabilityId = modalMode === "edit" && editingAvailability 
+        ? editingAvailability.lessonId 
+        : 0;
 
-      await loadData();
-      setShowModal(false);
+      // Call legacy API to modify teacher availability
+      const response = await modifyTeacherAvailability(
+        location,
+        teacherId,
+        availabilityId,
+        {
+          day: formData.day,
+          fromTime: formData.fromTime,
+          toTime: formData.toTime,
+          classroomId: formData.classroomId,
+        }
+      );
+
+      if (response.status) {
+        toast.success(
+          modalMode === "edit" 
+            ? "Availability updated successfully" 
+            : "Availability created successfully"
+        );
+        await loadData();
+        setShowModal(false);
+      } else {
+        throw new Error(response.message || "Failed to save availability");
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save availability";
       toast.error(errorMessage);
@@ -242,26 +398,86 @@ export function AvailabilityCalendarTab({
   // Handle delete
   const handleDelete = async (id: string) => {
     try {
-      await mockDeleteAvailability(teacherId, id);
-      toast.success("Availability deleted successfully");
-      await loadData();
-      setShowModal(false);
+      if (!availabilityData) {
+        throw new Error("Availability data not loaded");
+      }
+
+      // Find the availability to get its data
+      const existingLesson = availabilityData.lessons.find(
+        (l) => l.lessonId.toString() === id
+      );
+      
+      if (!existingLesson) {
+        throw new Error("Availability not found");
+      }
+
+      // Extract day and times from the existing lesson
+      const day = existingLesson.resourceId;
+      const startTime = new Date(existingLesson.start);
+      const endTime = new Date(existingLesson.end);
+      const fromTime = formatTimeFromDate(startTime);
+      const toTime = formatTimeFromDate(endTime);
+
+      // Call legacy API to delete teacher availability
+      const response = await deleteTeacherAvailability(
+        location,
+        parseInt(id),
+        {
+          day,
+          fromTime,
+          toTime,
+          // classroomId is optional and may not be available
+        }
+      );
+
+      if (response.status) {
+        toast.success("Availability deleted successfully");
+        await loadData();
+        setShowModal(false);
+      } else {
+        throw new Error(response.message || "Failed to delete availability");
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to delete availability";
       toast.error(errorMessage);
     }
   };
 
-  // Get time range from location hours
+  // Get time range from availability data
   const timeRange = useMemo(() => {
-    if (!locationHours) {
+    if (!availabilityData) {
       return { minTime: "08:00:00", maxTime: "20:00:00" };
     }
     return {
-      minTime: locationHours.minTime,
-      maxTime: locationHours.maxTime,
+      minTime: availabilityData.time.from,
+      maxTime: availabilityData.time.to,
     };
-  }, [locationHours]);
+  }, [availabilityData]);
+
+  // Format week range for display
+  const weekRangeDisplay = useMemo(() => {
+    if (!availabilityData?.date) return "";
+    const startDate = new Date(availabilityData.date.from);
+    const endDate = new Date(availabilityData.date.to);
+    const startFormatted = format(startDate, "dd-MMM-yyyy, EEEE");
+    const endFormatted = format(endDate, "dd-MMM-yyyy, EEEE");
+    return `${startFormatted} – ${endFormatted}`;
+  }, [availabilityData]);
+
+  // Handle date picker selection
+  const handleDateSelect = (newDate: Date) => {
+    setIsSyncingDate(false);
+    setDatePickerDisplayDate(newDate);
+    
+    const dayOfWeek = newDate.getDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(newDate);
+    monday.setDate(newDate.getDate() + daysToMonday);
+    monday.setHours(0, 0, 0, 0);
+    
+    setSelectedDate(monday);
+    setDatePickerOpen(false);
+  };
 
   if (isLoading) {
     return (
@@ -289,6 +505,48 @@ export function AvailabilityCalendarTab({
 
   return (
     <div className="w-full">
+      <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4 flex-1">
+          {weekRangeDisplay && (
+            <p className="text-sm text-muted-foreground">
+              {weekRangeDisplay}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "w-[140px] justify-start text-left font-normal",
+                  !datePickerDisplayDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {datePickerDisplayDate ? format(datePickerDisplayDate, "MMM dd, yyyy") : "Go to Date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={datePickerDisplayDate}
+                defaultMonth={datePickerDisplayDate}
+                onSelect={(date) => {
+                  if (date) {
+                    handleDateSelect(date);
+                  }
+                }}
+                captionLayout="dropdown"
+                fromYear={2005}
+                toYear={2125}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
       <div className="mb-4">
         <p className="text-sm text-muted-foreground">
           Click on the calendar to add availability. Click on existing availability to edit or delete.
@@ -299,14 +557,48 @@ export function AvailabilityCalendarTab({
         <ReactBigCalendarWrapper
           events={calendarEvents}
           resources={DAY_RESOURCES}
-          date={selectedDate}
-          onNavigate={setSelectedDate}
+          date={calendarDate}
+          onNavigate={(newDate) => {
+            const dayOfWeek = newDate.getDay();
+            const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(newDate);
+            monday.setDate(newDate.getDate() + daysToMonday);
+            monday.setHours(0, 0, 0, 0);
+            setSelectedDate(monday);
+          }}
           onEventClick={handleEventClick}
           onEventResize={handleEventResize}
+          onEventDrop={handleEventDrop}
           onSelectSlot={handleSelectSlot}
           editable={true}
           minTime={timeRange.minTime}
           maxTime={timeRange.maxTime}
+          availability={availabilityData?.availability.map(avail => {
+            const originalStart = new Date(avail.start);
+            const originalEnd = new Date(avail.end);
+            
+            const startHours = originalStart.getHours();
+            const startMinutes = originalStart.getMinutes();
+            const startSeconds = originalStart.getSeconds();
+            const endHours = originalEnd.getHours();
+            const endMinutes = originalEnd.getMinutes();
+            const endSeconds = originalEnd.getSeconds();
+            
+            const availStart = new Date(calendarDate);
+            availStart.setHours(startHours, startMinutes, startSeconds, 0);
+            
+            const availEnd = new Date(calendarDate);
+            availEnd.setHours(endHours, endMinutes, endSeconds, 0);
+            
+            return {
+              resourceId: avail.resourceId,
+              title: "",
+              start: availStart.toISOString(),
+              end: availEnd.toISOString(),
+              rendering: avail.rendering,
+              className: avail.className,
+            };
+          }) || []}
           viewType="availability"
           height="600px"
         />
@@ -325,7 +617,7 @@ export function AvailabilityCalendarTab({
         initialData={modalInitialData}
         classrooms={classrooms}
         mode={modalMode}
-        existingAvailabilities={availabilityEvents}
+        existingAvailabilities={[]} // TODO: Convert lessons to old format if needed
       />
     </div>
   );
