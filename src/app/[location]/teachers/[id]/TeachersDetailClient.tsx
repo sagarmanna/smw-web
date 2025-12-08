@@ -3,10 +3,12 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/redux/hooks";
+import { toast } from "sonner";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useTeacherDetails } from "../hooks/useTeacherDetails";
 import { TeachersDetailCard } from "../components/TeachersDetailCard";
 import { TeacherEmailCard } from "../components/TeacherEmailCard";
@@ -16,6 +18,7 @@ import { TeacherPrivateQualificationCard } from "../components/TeacherPrivateQua
 import { TeacherGroupQualificationCard } from "../components/TeacherGroupQualificationCard";
 import { TeacherTabsSection } from "../components/TeacherTabsSection";
 import { formatFullName } from "../utils/nameUtils";
+import { deleteUserByRole } from "@/lib/api/user.api";
 
 interface TeachersDetailClientProps {
   location: string;
@@ -66,22 +69,49 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
     [location, router]
   );
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const handleDeleteClick = React.useCallback(() => {
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const handleDeleteConfirm = React.useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const response = await deleteUserByRole(location, teacherId, 'teacher');
+      
+      if (response.success) {
+        toast.success(response.message || "Teacher deleted successfully");
+        // Redirect to teachers list
+        router.push(`/${location}/teachers`);
+      } else {
+        toast.error(response.message || "Failed to delete teacher");
+      }
+    } catch (error: unknown) {
+      const errorResponse = error as { errorCode?: string; message?: string };
+      const errorMessage = errorResponse.message || "Failed to delete teacher";
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  }, [location, teacherId, router]);
+
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
     {
-      label: "Actions",
+      label: "Action",
       items: [
         {
           label: "Delete",
-          onClick: () => {
-              // TODO: implement delete behaviour
-          },
+          onClick: handleDeleteClick,
           variant: "destructive",
         },
       ],
     },
     ],
-    []
+    [handleDeleteClick]
   );
 
   // Error state - show error but still render cards with skeleton
@@ -200,6 +230,18 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
         {/* Tabs Section */}
         <TeacherTabsSection location={location} teacherId={teacherId} />
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Are you sure you want to delete this teacher?"
+        description="This action cannot be undone. The teacher and all associated data will be permanently deleted."
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+      />
     </>
   );
 }

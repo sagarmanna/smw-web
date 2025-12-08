@@ -97,3 +97,55 @@ export async function createUserByRole(
   }
 }
 
+// Delete User API
+export interface DeleteUserResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: number;
+    url: string;
+    legacyUrl: string;
+  };
+}
+
+export interface DeleteUserErrorResponse {
+  success: false;
+  errorCode: string;
+  message: string;
+}
+
+/**
+ * Delete a user by role
+ * @param location - Location slug
+ * @param userId - User ID to delete
+ * @param role - User role (teacher, customer, administrator, owner, staffmember)
+ * @returns Deleted user data with redirect URLs
+ */
+export async function deleteUserByRole(
+  location: string,
+  userId: number,
+  role: 'teacher' | 'customer' | 'administrator' | 'owner' | 'staffmember'
+): Promise<DeleteUserResponse> {
+  try {
+    const response = await apiClient.delete<DeleteUserResponse>(
+      `/admin/v2/${location}/user/${userId}/${role}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error(`Error deleting ${role} user:`, error);
+    
+    // Handle API error response
+    const axiosError = error as { response?: { data?: DeleteUserErrorResponse }; message?: string };
+    if (axiosError.response?.data) {
+      throw axiosError.response.data as DeleteUserErrorResponse;
+    }
+    
+    // Handle network/other errors
+    throw {
+      success: false,
+      errorCode: 'INTERNAL_SERVER_ERROR',
+      message: axiosError.message || `Failed to delete ${role}`,
+    } as DeleteUserErrorResponse;
+  }
+}
+
