@@ -1347,3 +1347,51 @@ export async function deleteQualification(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+export interface TeacherBulkRescheduleResponse {
+  status: boolean;
+  message?: string;
+  reshedule?: boolean;
+}
+
+/**
+ * Submit bulk reschedule request for teacher lessons using the legacy API
+ * @param location - Location slug
+ * @param teacherId - Teacher ID
+ * @param sourceDate - Source date in format "MMM dd, yyyy" (e.g., "Dec 13, 2025")
+ * @param destinationDate - Destination date in format "MMM dd, yyyy" (e.g., "Dec 14, 2025")
+ * @returns API response
+ */
+export async function submitTeacherBulkReschedule(
+  location: string,
+  teacherId: number,
+  sourceDate: string,
+  destinationDate: string
+): Promise<TeacherBulkRescheduleResponse> {
+  const formData = new FormData();
+  formData.append('PrivateLesson[teacherBulkRescheduleSourceDate]', sourceDate);
+  formData.append('PrivateLesson[teacherBulkRescheduleDestinationDate]', destinationDate);
+
+  const url = `/admin/${location}/private-lesson/teacher-bulk-reschedule?PrivateLesson[selectedTeacherId]=${teacherId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}

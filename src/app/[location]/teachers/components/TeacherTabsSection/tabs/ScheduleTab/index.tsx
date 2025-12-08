@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { BulkRescheduleModal } from "./BulkRescheduleModal";
 
 interface ScheduleTabProps {
   location: string;
@@ -103,6 +104,7 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
   const [showAll, setShowAll] = useState<boolean>(false);
   const [isSyncingDate, setIsSyncingDate] = useState<boolean>(false);
   const [datePickerOpen, setDatePickerOpen] = useState<boolean>(false);
+  const [bulkRescheduleModalOpen, setBulkRescheduleModalOpen] = useState<boolean>(false);
 
   // Load data on mount and when teacherId or date changes
   useEffect(() => {
@@ -212,9 +214,15 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
     } 
   };
 
-  // Handle bulk reschedule (placeholder)
+  // Handle bulk reschedule
   const handleBulkReschedule = () => {
-    toast.info("Bulk reschedule feature coming soon");
+    setBulkRescheduleModalOpen(true);
+  };
+
+  // Handle bulk reschedule success
+  const handleBulkRescheduleSuccess = () => {
+    // Reload schedule data after successful bulk reschedule
+    loadData();
   };
 
   // Get time range from schedule data
@@ -393,6 +401,14 @@ export function ScheduleTab({ location, teacherId }: ScheduleTabProps) {
           height="600px"
         />
       </div>
+
+      <BulkRescheduleModal
+        open={bulkRescheduleModalOpen}
+        onOpenChange={setBulkRescheduleModalOpen}
+        location={location}
+        teacherId={teacherId}
+        onSuccess={handleBulkRescheduleSuccess}
+      />
     </div>
   );
 }
