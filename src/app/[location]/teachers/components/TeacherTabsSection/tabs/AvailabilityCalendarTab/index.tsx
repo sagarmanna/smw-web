@@ -505,7 +505,7 @@ export function AvailabilityCalendarTab({
 
   return (
     <div className="w-full">
-      <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+      {/* <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4 flex-1">
           {weekRangeDisplay && (
             <p className="text-sm text-muted-foreground">
@@ -545,13 +545,13 @@ export function AvailabilityCalendarTab({
             </PopoverContent>
           </Popover>
         </div>
-      </div>
+      </div> */}
 
-      <div className="mb-4">
+      {/* <div className="mb-4">
         <p className="text-sm text-muted-foreground">
           Click on the calendar to add availability. Click on existing availability to edit or delete.
         </p>
-      </div>
+      </div> */}
 
       <div className="border rounded-lg overflow-hidden">
         <ReactBigCalendarWrapper
