@@ -4,7 +4,7 @@ import {
   StudentDetailsApiResponse,
   updateStudentProfile
 } from './students-details.api';
-import type { StudentInfo, StudentBasicDetails } from '../types';
+import type { StudentInfo, StudentBasicDetails, StudentEvaluation } from '../types';
 
 export interface UpdateStudentDetailsData {
   firstName: string;
@@ -158,6 +158,15 @@ const studentSlice = createSlice({
         };
       }
     },
+    // Add evaluation to local state (optimistic update)
+    addEvaluation: (state, action: PayloadAction<StudentEvaluation>) => {
+      if (state.studentInfo) {
+        state.studentInfo.evaluations = [
+          ...(state.studentInfo.evaluations || []),
+          action.payload,
+        ];
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -220,6 +229,7 @@ export const {
   clearError, 
   clearCache,
   updateProfile,
+  addEvaluation,
 } = studentSlice.actions;
 export default studentSlice.reducer;
 
