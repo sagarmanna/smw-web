@@ -158,7 +158,6 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               loading={isLoading}
               location={location}
               teacherId={teacherId}
-              onRefresh={refresh}
             />
 
             <TeacherGroupQualificationCard
@@ -167,7 +166,6 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
               loading={isLoading}
               location={location}
               teacherId={teacherId}
-              onRefresh={refresh}
             />
             {/* Mobile Email and Phone Cards - Only on Mobile */}
             <div className="lg:hidden space-y-3 sm:space-y-4">
