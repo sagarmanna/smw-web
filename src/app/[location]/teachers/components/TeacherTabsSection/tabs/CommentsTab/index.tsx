@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { toast } from "sonner";
 import { TabContent } from "@/components/TabContent";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, User } from "lucide-react";
 import { commentColumns, CommentData } from "../../../../teacherTabConfigs";
 import { addComment, fetchCommentsData } from "../../../../[id]/teacherTabs.slice";
+import { createNote } from "@/lib/api/legacyApiAdapter";
 
 interface CommentsTabProps {
   location: string;
@@ -37,23 +39,28 @@ export function CommentsTab({ location, teacherId }: CommentsTabProps) {
 
     try {
       setCommentLoading(true);
-      // TODO: Implement API call to add comment
-      console.log("Adding comment:", commentInput);
       
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
-      const newComment: CommentData = {
-        id: Date.now().toString(),
-        content: commentInput,
-        createdUser: "Current User", // TODO: Get from auth
-        createdOn: new Date().toLocaleString(),
-      };
-      
-      dispatch(addComment(newComment));
-      setCommentInput("");
+      // Call the legacy API to create a note/comment
+      const response = await createNote(
+        location,
+        teacherId,
+        2, // instanceType = 2 for teachers
+        commentInput.trim()
+      );
+
+      if (response.status) {
+        toast.success(response.message || "Comment added successfully");
+        // Refresh comments list to show the new comment
+        dispatch(fetchCommentsData({ location, teacherId }));
+        setCommentInput("");
+      } else {
+        const errorMessage = response.message || response.errors?.join(", ") || "Failed to add comment";
+        toast.error(errorMessage);
+      }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to add comment";
       console.error("Failed to add comment:", error);
+      toast.error(errorMessage);
     } finally {
       setCommentLoading(false);
     }

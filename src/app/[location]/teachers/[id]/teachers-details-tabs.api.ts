@@ -5,6 +5,7 @@ import { apiClient } from "@/lib/api/client";
 // ---------------------------------------------
 
 export interface UnavailableHour {
+  id: number;
   start: string;
   end: string;
   reason: string;
