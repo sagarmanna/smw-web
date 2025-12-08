@@ -412,6 +412,7 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
           <DateRangePicker
             value={dateRange}
             onChange={handleDateRangeChange}
+            preset="timeVoucher"
           />
           <Checkbox
             id="summarise-report-voucher"
