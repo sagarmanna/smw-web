@@ -164,7 +164,8 @@ export function AvailabilityFormModal({
       return;
     }
 
-    if (isEditMode && initialData) {
+    if (initialData) {
+      // Populate form for both add and edit modes when initialData is provided
       setDay(initialData.day);
       setFromTime(initialData.fromTime ? formatTimeToOption(initialData.fromTime) : "");
       setToTime(initialData.toTime ? formatTimeToOption(initialData.toTime) : "");
@@ -172,7 +173,7 @@ export function AvailabilityFormModal({
     } else {
       resetForm();
     }
-  }, [open, isEditMode, initialData, resetForm]);
+  }, [open, initialData, resetForm]);
 
   // Validate time overlap
   React.useEffect(() => {

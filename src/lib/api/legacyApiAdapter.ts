@@ -1599,3 +1599,187 @@ export async function deleteTeacherUnavailability(
     throw new Error(error instanceof Error ? error.message : 'Network error');
   }
 }
+
+/**
+ * Delete teacher availability using the legacy API
+ * @param location - Location slug
+ * @param availabilityId - Availability ID to delete
+ * @param availabilityData - The availability data (required for form submission)
+ * @returns API response with status and optional URL
+ */
+export async function deleteTeacherAvailability(
+  location: string,
+  availabilityId: number,
+  availabilityData: TeacherAvailabilityModifyData
+): Promise<TeacherAvailabilityDeleteResponse> {
+  const formData = new FormData();
+  
+  // Convert times to 12-hour format
+  const fromTime12Hour = convertTimeTo12Hour(availabilityData.fromTime);
+  const toTime12Hour = convertTimeTo12Hour(availabilityData.toTime);
+  
+  // Extract time components for from_time
+  const fromComponents = extractTimeComponents(availabilityData.fromTime);
+  formData.append('hour', fromComponents.hour);
+  formData.append('minute', fromComponents.minute);
+  formData.append('meridian', fromComponents.meridian);
+  
+  // Add TeacherRoom[from_time] in 12-hour format
+  formData.append('TeacherRoom[from_time]', fromTime12Hour);
+  
+  // Extract time components for to_time
+  const toComponents = extractTimeComponents(availabilityData.toTime);
+  formData.append('hour', toComponents.hour);
+  formData.append('minute', toComponents.minute);
+  formData.append('meridian', toComponents.meridian);
+  
+  // Add TeacherRoom[to_time] in 12-hour format
+  formData.append('TeacherRoom[to_time]', toTime12Hour);
+  
+  // Add day and classroomId (classroomId can be empty)
+  formData.append('TeacherRoom[day]', availabilityData.day.toString());
+  if (availabilityData.classroomId) {
+    formData.append('TeacherRoom[classroomId]', availabilityData.classroomId.toString());
+  }
+
+  const url = `/admin/${location}/teacher-availability/delete?id=${availabilityId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
+export interface TeacherAvailabilityModifyData {
+  day: number; // 1-7 (Monday-Sunday)
+  fromTime: string; // Format: "HH:mm:ss" (e.g., "13:00:00")
+  toTime: string; // Format: "HH:mm:ss" (e.g., "14:15:00")
+  classroomId?: number;
+}
+
+export interface TeacherAvailabilityModifyResponse {
+  status: boolean;
+  message?: string;
+}
+
+export interface TeacherAvailabilityDeleteResponse {
+  status: boolean;
+  url?: string;
+  message?: string;
+}
+
+/**
+ * Convert time from "HH:mm:ss" format to 12-hour format with AM/PM
+ * @param timeStr - Time in "HH:mm:ss" format (e.g., "13:00:00")
+ * @returns Time in "g:i A" format (e.g., "1:00 PM")
+ */
+function convertTimeTo12Hour(timeStr: string): string {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const date = new Date(2000, 0, 1, hours, minutes);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/**
+ * Extract hour, minute, and meridian from time string
+ */
+function extractTimeComponents(timeStr: string): { hour: string; minute: string; meridian: string } {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const date = new Date(2000, 0, 1, hours, minutes);
+  const hour12 = date.getHours() % 12 || 12; // Convert to 12-hour format (1-12)
+  const minute = date.getMinutes();
+  const meridian = date.getHours() >= 12 ? 'PM' : 'AM';
+  
+  return {
+    hour: hour12.toString().padStart(2, '0'),
+    minute: minute.toString().padStart(2, '0'),
+    meridian: meridian,
+  };
+}
+
+/**
+ * Modify teacher availability (create or update) using the legacy API
+ * @param location - Location slug
+ * @param teacherId - Teacher ID
+ * @param availabilityId - Availability ID (0 for create, actual ID for update)
+ * @param availabilityData - The availability data
+ * @returns API response with status
+ */
+export async function modifyTeacherAvailability(
+  location: string,
+  teacherId: number,
+  availabilityId: number,
+  availabilityData: TeacherAvailabilityModifyData
+): Promise<TeacherAvailabilityModifyResponse> {
+  const formData = new FormData();
+  
+  // Convert times to 12-hour format
+  const fromTime12Hour = convertTimeTo12Hour(availabilityData.fromTime);
+  const toTime12Hour = convertTimeTo12Hour(availabilityData.toTime);
+  
+  // Extract time components for from_time
+  const fromComponents = extractTimeComponents(availabilityData.fromTime);
+  formData.append('hour', fromComponents.hour);
+  formData.append('minute', fromComponents.minute);
+  formData.append('meridian', fromComponents.meridian);
+  
+  // Add TeacherRoom[from_time] in 12-hour format
+  formData.append('TeacherRoom[from_time]', fromTime12Hour);
+  
+  // Extract time components for to_time
+  const toComponents = extractTimeComponents(availabilityData.toTime);
+  formData.append('hour', toComponents.hour);
+  formData.append('minute', toComponents.minute);
+  formData.append('meridian', toComponents.meridian);
+  
+  // Add TeacherRoom[to_time] in 12-hour format
+  formData.append('TeacherRoom[to_time]', toTime12Hour);
+  
+  // Add day and classroomId
+  formData.append('TeacherRoom[day]', availabilityData.day.toString());
+  if (availabilityData.classroomId) {
+    formData.append('TeacherRoom[classroomId]', availabilityData.classroomId.toString());
+  }
+
+  const url = `/admin/${location}/teacher-availability/modify?teacherId=${teacherId}&id=${availabilityId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
