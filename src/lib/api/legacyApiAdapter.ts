@@ -13,8 +13,26 @@ export interface LegacyApiResponse {
 
 export interface LessonUpdateData {
   teacherId: string | number;
-  date: string; // Format: YYYY-MM-DD HH:mm:ss
-  duration: string; // Format: HH:mm:ss
+  date: string; // Format: "MMM dd, yyyy hh:mm AM/PM" (e.g., "Dec 12, 2025 04:30 PM")
+  duration: string; // Format: "HH:mm" (e.g., "00:30")
+  expiryDate?: string; // Format: "MMM dd, yyyy" (e.g., "Jan 10, 2026")
+  goToDate?: string; // Format: "MMM dd, yyyy" (e.g., "Dec 8, 2025")
+  hour?: string; // Format: "00" to "23"
+  minute?: string; // Format: "00" to "59"
+}
+
+export interface LessonValidateData {
+  hour: string; // Format: "00" to "23"
+  minute: string; // Format: "00" to "59"
+  duration: string; // Format: "HH:mm"
+  teacherId: string | number;
+  date: string; // Format: "MMM dd, yyyy hh:mm AM/PM" (e.g., "Dec 10, 2025 06:30 AM")
+  expiryDate: string; // Format: "MMM dd, yyyy" (e.g., "Jan 02, 2026")
+  goToDate: string; // Format: "MMM dd, yyyy" (e.g., "Dec 08, 2025")
+}
+
+export interface LessonValidationResponse {
+  [key: string]: string[]; // e.g., {"lesson-date": ["Teacher occupied with another lesson"]}
 }
 
 export interface ClassroomModifyData {
@@ -127,9 +145,27 @@ export async function updateLesson(
   lessonData: LessonUpdateData
 ): Promise<LegacyApiResponse> {
   const formData = new FormData();
+  
+  // Add hour and minute if provided
+  if (lessonData.hour !== undefined) {
+    formData.append('hour', lessonData.hour);
+  }
+  if (lessonData.minute !== undefined) {
+    formData.append('minute', lessonData.minute);
+  }
+  
+  // Add lesson data
+  formData.append('Lesson[duration]', lessonData.duration);
   formData.append('Lesson[teacherId]', lessonData.teacherId.toString());
   formData.append('Lesson[date]', lessonData.date);
-  formData.append('Lesson[duration]', lessonData.duration);
+  
+  // Add optional fields
+  if (lessonData.expiryDate) {
+    formData.append('PrivateLesson[expiryDate]', lessonData.expiryDate);
+  }
+  if (lessonData.goToDate) {
+    formData.append('goToDate', lessonData.goToDate);
+  }
 
   const url = `/admin/${location}/lesson/update?id=${lessonId}`;
   
@@ -155,6 +191,48 @@ export async function updateLesson(
   }
 }
 
+/**
+ * Validate lesson data before updating
+ */
+export async function validateLesson(
+  location: string,
+  lessonId: string,
+  validateData: LessonValidateData
+): Promise<LessonValidationResponse> {
+  const formData = new FormData();
+  formData.append('hour', validateData.hour);
+  formData.append('minute', validateData.minute);
+  formData.append('Lesson[duration]', validateData.duration);
+  formData.append('Lesson[teacherId]', validateData.teacherId.toString());
+  formData.append('Lesson[date]', validateData.date);
+  formData.append('PrivateLesson[expiryDate]', validateData.expiryDate);
+  formData.append('goToDate', validateData.goToDate);
+  formData.append('ajax', 'modal-form');
+
+  const url = `/admin/${location}/lesson/validate-on-update?id=${lessonId}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data || {};
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Network error');
+  }
+}
+
 // Export utility functions for date/duration formatting
 export const formatDateTimeForLegacy = (date: Date): string => {
   // Format as local time instead of UTC
@@ -175,6 +253,41 @@ export const formatDurationForLegacy = (startTime: Date, endTime: Date): string 
   const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
   
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Format date for validation API: "MMM dd, yyyy hh:mm AM/PM"
+ * Example: "Dec 10, 2025 06:30 AM"
+ */
+export const formatDateForValidation = (date: Date): string => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // 0 should be 12
+  
+  const minutesStr = minutes.toString().padStart(2, '0');
+  const hoursStr = hours.toString().padStart(2, '0');
+  
+  return `${month} ${day}, ${year} ${hoursStr}:${minutesStr} ${ampm}`;
+};
+
+/**
+ * Format date for validation API (date only): "MMM dd, yyyy"
+ * Example: "Jan 02, 2026"
+ */
+export const formatDateOnlyForValidation = (date: Date): string => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  
+  return `${month} ${day}, ${year}`;
 };
 
 /**

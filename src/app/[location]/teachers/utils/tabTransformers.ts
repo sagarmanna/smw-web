@@ -100,7 +100,7 @@ export function transformTimeVoucherData(
  * Transforms unscheduled lessons API response to UnscheduledLessonData format
  */
 export function transformUnscheduledLessonData(
-  apiItems: Array<{ id: number; student: string; phone: string; program: string; duration: string; originalDate: string; expiryDate: string }>
+  apiItems: Array<{ id: number; student: string; phone: string; program: string; programId?: number; duration: string; originalDate: string; expiryDate: string; teacher?: { id: number; title: string } }>
 ): UnscheduledLessonData[] {
   if (!apiItems || apiItems.length === 0) {
     return [];
@@ -112,9 +112,11 @@ export function transformUnscheduledLessonData(
     student: item.student || "",
     phone: item.phone || "",
     program: item.program || "",
+    programId: item.programId,
     duration: item.duration || "",
     originalDate: item.originalDate || "",
     expiryDate: item.expiryDate || "",
+    teacher: item.teacher ? { id: item.teacher.id, title: item.teacher.title } : undefined,
   }));
 }
 
