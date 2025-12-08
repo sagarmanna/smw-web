@@ -120,17 +120,32 @@ const LessonAllocationInput: React.FC<{
   onLessonAllocationChange: (index: number, value: number) => void;
 }> = ({ row, onLessonAllocationChange }) => {
   const [localValue, setLocalValue] = React.useState(row.original.allocation.toString());
+  const [error, setError] = React.useState<string | null>(null);
   
   React.useEffect(() => {
     setLocalValue(row.original.allocation.toString());
+    setError(null);
   }, [row.original.allocation]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalValue(e.target.value);
+    setError(null);
   };
   
   const handleBlur = () => {
     const numericValue = parseFloat(localValue) || 0;
+    
+    // Parse balance from string (e.g., "$18.75" or "-$1.25")
+    const balanceString = row.original.balance?.replace(/[^0-9.-]/g, '') || '0';
+    const balance = parseFloat(balanceString) || 0;
+    
+    if (numericValue > balance) {
+      setError("Can't over pay!");
+      setLocalValue(row.original.allocation.toString()); // Reset to previous valid value
+      return;
+    }
+    
+    setError(null);
     onLessonAllocationChange(row.index, numericValue);
   };
   
@@ -140,14 +155,19 @@ const LessonAllocationInput: React.FC<{
   }, [row.original.originalDate]);
   
   return (
-    <Input
-      type="number"
-      value={localValue}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      className="h-8 text-right"
-      disabled={!isEditable}
-    />
+    <div className="flex flex-col items-end">
+      <Input
+        type="number"
+        value={localValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        className={`h-8 w-24 text-right ${error ? 'border-red-500' : ''}`}
+        disabled={!isEditable}
+      />
+      {error && (
+        <span className="text-xs text-red-500 mt-1">{error}</span>
+      )}
+    </div>
   );
 };
 
@@ -159,17 +179,32 @@ const GroupLessonAllocationInput: React.FC<{
   onGroupLessonAllocationChange: (index: number, value: number) => void;
 }> = ({ row, onGroupLessonAllocationChange }) => {
   const [localValue, setLocalValue] = React.useState(row.original.allocation.toString());
+  const [error, setError] = React.useState<string | null>(null);
   
   React.useEffect(() => {
     setLocalValue(row.original.allocation.toString());
+    setError(null);
   }, [row.original.allocation]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalValue(e.target.value);
+    setError(null);
   };
   
   const handleBlur = () => {
     const numericValue = parseFloat(localValue) || 0;
+    
+    // Parse balance from string (e.g., "$18.75" or "-$1.25")
+    const balanceString = row.original.balance?.replace(/[^0-9.-]/g, '') || '0';
+    const balance = parseFloat(balanceString) || 0;
+    
+    if (numericValue > balance) {
+      setError("Can't over pay!");
+      setLocalValue(row.original.allocation.toString()); // Reset to previous valid value
+      return;
+    }
+    
+    setError(null);
     onGroupLessonAllocationChange(row.index, numericValue);
   };
   
@@ -179,14 +214,19 @@ const GroupLessonAllocationInput: React.FC<{
   }, [row.original.date]);
   
   return (
-    <Input
-      type="number"
-      value={localValue}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      className="h-8 text-right"
-      disabled={!isEditable}
-    />
+    <div className="flex flex-col items-end">
+      <Input
+        type="number"
+        value={localValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        className={`h-8 w-24 text-right ${error ? 'border-red-500' : ''}`}
+        disabled={!isEditable}
+      />
+      {error && (
+        <span className="text-xs text-red-500 mt-1">{error}</span>
+      )}
+    </div>
   );
 };
 
@@ -198,17 +238,32 @@ const InvoiceAllocationInput: React.FC<{
   onInvoiceAllocationChange: (index: number, value: number) => void;
 }> = ({ row, onInvoiceAllocationChange }) => {
   const [localValue, setLocalValue] = React.useState(row.original.allocation.toString());
+  const [error, setError] = React.useState<string | null>(null);
   
   React.useEffect(() => {
     setLocalValue(row.original.allocation.toString());
+    setError(null);
   }, [row.original.allocation]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalValue(e.target.value);
+    setError(null);
   };
   
   const handleBlur = () => {
     const numericValue = parseFloat(localValue) || 0;
+    
+    // Parse balance from string (e.g., "$18.75" or "-$1.25")
+    const balanceString = row.original.balance?.replace(/[^0-9.-]/g, '') || '0';
+    const balance = parseFloat(balanceString) || 0;
+    
+    if (numericValue > balance) {
+      setError("Can't over pay!");
+      setLocalValue(row.original.allocation.toString()); // Reset to previous valid value
+      return;
+    }
+    
+    setError(null);
     onInvoiceAllocationChange(row.index, numericValue);
   };
   
@@ -218,14 +273,19 @@ const InvoiceAllocationInput: React.FC<{
   }, [row.original.date]);
   
   return (
-    <Input
-      type="number"
-      value={localValue}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      className="h-8 text-right"
-      disabled={!isEditable}
-    />
+    <div className="flex flex-col items-end">
+      <Input
+        type="number"
+        value={localValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        className={`h-8 w-24 text-right ${error ? 'border-red-500' : ''}`}
+        disabled={!isEditable}
+      />
+      {error && (
+        <span className="text-xs text-red-500 mt-1">{error}</span>
+      )}
+    </div>
   );
 };
 
