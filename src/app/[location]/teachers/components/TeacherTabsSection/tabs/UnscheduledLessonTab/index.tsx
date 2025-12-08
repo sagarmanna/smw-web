@@ -19,6 +19,12 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [showAll, setShowAll] = useState<boolean>(false);
+  const showAllRef = React.useRef(showAll);
+
+  // Keep ref in sync with state
+  React.useEffect(() => {
+    showAllRef.current = showAll;
+  }, [showAll]);
 
   const {
     pagination,
@@ -36,7 +42,7 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
       setError(null);
       try {
         const apiLimit = convertLimitForApi(limit);
-        const result = await getTeacherUnscheduledLessons(location, teacherId, page, apiLimit);
+        const result = await getTeacherUnscheduledLessons(location, teacherId, page, apiLimit, showAllRef.current);
         if (result) {
           const transformedData = transformUnscheduledLessonData(result.unscheduledLessons);
           setData(transformedData);
@@ -59,9 +65,16 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
 
   // Lazy load: Only fetch when Unscheduled Lesson tab is clicked/rendered
   // This component only mounts when the tab is active, so this effect runs on tab click
+  // Also handles pagination changes
   React.useEffect(() => {
-    fetchUnscheduledLessons(1, 10);
-  }, [fetchUnscheduledLessons]);
+    fetchUnscheduledLessons(pagination.page, pagination.limit);
+  }, [fetchUnscheduledLessons, pagination.page, pagination.limit]);
+
+  // Refetch data when showAll checkbox changes - reset to page 1
+  React.useEffect(() => {
+    fetchUnscheduledLessons(1, pagination.limit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAll]);
 
   // Shared pagination handlers wired to the fetch function
   const { handlePageChange, handleRowsPerPageChange } = React.useMemo(

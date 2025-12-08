@@ -298,19 +298,22 @@ export interface InvoicedLessonApiResponse {
  * @param teacherId - The teacher ID
  * @param page - Page number (default: 1)
  * @param limit - Number of items per page (default: 10)
+ * @param showAll - Whether to show all unscheduled lessons (default: false)
  * @returns Promise resolving to unscheduled lessons data with pagination or null on error
  */
 export async function getTeacherUnscheduledLessons(
   location: string,
   teacherId: number,
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
+  showAll: boolean = false
 ): Promise<{ unscheduledLessons: UnscheduledLessonApiItem[]; pagination: UnscheduledLessonApiResponsePagination } | null> {
   try {
     const url = `/admin/v2/${location}/teachers/${teacherId}/unscheduled-lessons`;
     const params: Record<string, string> = {};
     if (page) params.page = page.toString();
     if (limit) params.limit = limit.toString();
+    if (showAll) params.showAll = "true";
     
     const response = await apiClient.get<UnscheduledLessonApiResponse>(url, { params });
 
