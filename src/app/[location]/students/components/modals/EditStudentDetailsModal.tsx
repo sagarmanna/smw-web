@@ -14,6 +14,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StudentBasicDetails } from "../../types";
 import { toast } from "sonner";
+import { formatDisplayDate } from "@/utils/dateUtils";
+import { parse, isValid } from "date-fns";
+
+function formatDateToISO(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function convertToISOFormat(dateStr: string): string {
+  if (!dateStr) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  try {
+    let parsedDate = parse(dateStr, "MMM dd, yyyy", new Date());
+    if (!isValid(parsedDate)) parsedDate = parse(dateStr, "MMM d, yyyy", new Date());
+    if (isValid(parsedDate)) return formatDateToISO(parsedDate);
+  } catch (error) {
+    console.warn("Failed to parse date:", dateStr, error);
+  }
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime()) ? formatDateToISO(date) : "";
+}
 
 interface EditStudentDetailsModalProps {
   open: boolean;
@@ -23,6 +43,8 @@ interface EditStudentDetailsModalProps {
   saving?: boolean;
 }
 
+type DateInputElement = HTMLInputElement & { showPicker?: () => void };
+
 export function EditStudentDetailsModal({
   open,
   onClose,
@@ -30,88 +52,102 @@ export function EditStudentDetailsModal({
   onSubmit,
   saving = false,
 }: EditStudentDetailsModalProps) {
-  const [firstName, setFirstName] = React.useState("");
-  const [lastName, setLastName] = React.useState("");
-  const [birthday, setBirthday] = React.useState("");
-  const [age, setAge] = React.useState("");
-  const [gender, setGender] = React.useState("");
-  const [notes, setNotes] = React.useState("");
-
-  // Field-level validation states
-  const [firstNameTouched, setFirstNameTouched] = React.useState(false);
-  const [lastNameTouched, setLastNameTouched] = React.useState(false);
+  const [formData, setFormData] = React.useState({
+    firstName: "",
+    lastName: "",
+    birthday: "",
+    birthdayDisplay: "",
+    gender: "",
+    notes: "",
+  });
+  const [touched, setTouched] = React.useState({ firstName: false, lastName: false });
   const [showError, setShowError] = React.useState(false);
+  const dateInputRef = React.useRef<DateInputElement | null>(null);
+
+  const updateFormData = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   React.useEffect(() => {
     if (details) {
-      setFirstName(details.firstName ?? "");
-      setLastName(details.lastName ?? "");
-      setBirthday(details.birthday ?? "");
-      setAge(details.age ?? "");
-      setGender(details.gender ?? "");
-      setNotes(details.notes ?? "");
+      const raw = details.birthday ?? "";
+      const isoDate = raw ? convertToISOFormat(raw) : "";
+      setFormData({
+        firstName: details.firstName ?? "",
+        lastName: details.lastName ?? "",
+        birthday: isoDate,
+        birthdayDisplay: isoDate ? formatDisplayDate(isoDate) : "",
+        gender: details.gender ?? "",
+        notes: details.notes ?? "",
+      });
     } else {
-      // Reset form when details are cleared
-      setFirstName("");
-      setLastName("");
-      setBirthday("");
-      setAge("");
-      setGender("");
-      setNotes("");
+      setFormData({ firstName: "", lastName: "", birthday: "", birthdayDisplay: "", gender: "", notes: "" });
     }
-    // Reset validation states when modal opens/closes
     if (open) {
-      setFirstNameTouched(false);
-      setLastNameTouched(false);
+      setTouched({ firstName: false, lastName: false });
       setShowError(false);
     }
   }, [details, open]);
 
-  // Validation helpers
-  const isFirstNameValid = (firstName?.trim() ?? "") !== "";
-  const isLastNameValid = (lastName?.trim() ?? "") !== "";
+  const validateField = (value: string): boolean => (value?.trim() ?? "") !== "";
+  const isFirstNameValid = validateField(formData.firstName);
+  const isLastNameValid = validateField(formData.lastName);
   const isFormValid = isFirstNameValid && isLastNameValid;
-
-  const firstNameError = firstNameTouched && !isFirstNameValid ? "First name is required" : "";
-  const lastNameError = lastNameTouched && !isLastNameValid ? "Last name is required" : "";
+  const fieldLabels = { firstName: "First name", lastName: "Last name" };
+  const getFieldError = (field: "firstName" | "lastName", isValid: boolean): string =>
+    touched[field] && !isValid ? `${fieldLabels[field]} is required` : "";
+  const firstNameError = getFieldError("firstName", isFirstNameValid);
+  const lastNameError = getFieldError("lastName", isLastNameValid);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    // Mark all fields as touched
-    setFirstNameTouched(true);
-    setLastNameTouched(true);
-
+    setTouched({ firstName: true, lastName: true });
     if (!isFormValid) {
       setShowError(true);
       return;
     }
-
     setShowError(false);
-
     if (!details) return;
-
-    const payload: StudentBasicDetails = {
+    const success = await onSubmit({
       id: details.id,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      birthday: birthday || undefined,
-      age: age || undefined,
-      gender: gender || undefined,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      birthday: formData.birthday || undefined,
+      gender: formData.gender || undefined,
       status: details.status,
-      notes: notes || undefined,
-    };
-
-    const success = await onSubmit(payload);
+      notes: formData.notes || undefined,
+    });
     if (success) {
       toast.success("Student details updated successfully");
       onClose();
-      // Reset validation states
-      setFirstNameTouched(false);
-      setLastNameTouched(false);
+      setTouched({ firstName: false, lastName: false });
     } else {
       toast.error("Failed to update student details");
     }
+  };
+
+  const openDatePicker = () => {
+    const inputEl = dateInputRef.current;
+    if (inputEl?.showPicker) {
+      inputEl.showPicker();
+    } else {
+      inputEl?.focus();
+    }
+  };
+
+  const handleDateChange = (value: string) => {
+    updateFormData("birthday", value);
+    updateFormData("birthdayDisplay", value ? formatDisplayDate(value) : "");
+  };
+
+  const createTextInputHandler = (field: keyof typeof formData) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    updateFormData(field, event.target.value);
+  };
+
+  const createNameInputHandler = (field: "firstName" | "lastName") => (event: React.ChangeEvent<HTMLInputElement>) => {
+    updateFormData(field, event.target.value);
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setShowError(false);
   };
 
   return (
@@ -126,71 +162,58 @@ export function EditStudentDetailsModal({
               Please fix the errors below before submitting.
             </div>
           )}
-
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="student-first-name">First Name</Label>
               <Input
                 id="student-first-name"
-                value={firstName}
-                onChange={(event) => {
-                  setFirstName(event.target.value);
-                  setFirstNameTouched(true);
-                  setShowError(false);
-                }}
-                onBlur={() => setFirstNameTouched(true)}
+                value={formData.firstName}
+                onChange={createNameInputHandler("firstName")}
+                onBlur={() => setTouched((prev) => ({ ...prev, firstName: true }))}
                 className={firstNameError ? "border-red-500" : ""}
                 placeholder="Enter first name"
               />
-              {firstNameError && (
-                <p className="text-sm text-red-600">{firstNameError}</p>
-              )}
+              {firstNameError && <p className="text-sm text-red-600">{firstNameError}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-last-name">Last Name</Label>
               <Input
                 id="student-last-name"
-                value={lastName}
-                onChange={(event) => {
-                  setLastName(event.target.value);
-                  setLastNameTouched(true);
-                  setShowError(false);
-                }}
-                onBlur={() => setLastNameTouched(true)}
+                value={formData.lastName}
+                onChange={createNameInputHandler("lastName")}
+                onBlur={() => setTouched((prev) => ({ ...prev, lastName: true }))}
                 className={lastNameError ? "border-red-500" : ""}
                 placeholder="Enter last name"
               />
-              {lastNameError && (
-                <p className="text-sm text-red-600">{lastNameError}</p>
-              )}
+              {lastNameError && <p className="text-sm text-red-600">{lastNameError}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-birthday">Birthday</Label>
-              <Input
-                id="student-birthday"
-                type="text"
-                value={birthday}
-                onChange={(event) => setBirthday(event.target.value)}
-                placeholder="e.g., Mar 15, 2018"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="student-age">Age</Label>
-              <Input
-                id="student-age"
-                type="text"
-                value={age}
-                onChange={(event) => setAge(event.target.value)}
-                placeholder="e.g., 6yrs old"
-              />
+              <div className="relative" onClick={openDatePicker}>
+                <Input
+                  id="student-birthday-display"
+                  type="text"
+                  placeholder="Select Date"
+                  value={formData.birthdayDisplay}
+                  readOnly
+                />
+                <input
+                  id="student-birthday"
+                  type="date"
+                  ref={dateInputRef}
+                  className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+                  value={formData.birthday}
+                  onChange={(event) => handleDateChange(event.target.value)}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-gender">Gender</Label>
               <Input
                 id="student-gender"
                 type="text"
-                value={gender}
-                onChange={(event) => setGender(event.target.value)}
+                value={formData.gender}
+                onChange={createTextInputHandler("gender")}
                 placeholder="e.g., Female, Male"
               />
             </div>
@@ -198,21 +221,15 @@ export function EditStudentDetailsModal({
               <Label htmlFor="student-notes">Notes</Label>
               <Textarea
                 id="student-notes"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
+                value={formData.notes}
+                onChange={createTextInputHandler("notes")}
                 placeholder="Enter notes about the student"
                 rows={3}
               />
             </div>
           </div>
-
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
@@ -224,4 +241,3 @@ export function EditStudentDetailsModal({
     </Dialog>
   );
 }
-

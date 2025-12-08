@@ -22,6 +22,12 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
   const [showAll, setShowAll] = useState<boolean>(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState<boolean>(false);
   const [selectedLesson, setSelectedLesson] = useState<UnscheduledLessonData | null>(null);
+  const showAllRef = React.useRef(showAll);
+
+  // Keep ref in sync with state
+  React.useEffect(() => {
+    showAllRef.current = showAll;
+  }, [showAll]);
 
   const {
     pagination,
@@ -39,7 +45,7 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
       setError(null);
       try {
         const apiLimit = convertLimitForApi(limit);
-        const result = await getTeacherUnscheduledLessons(location, teacherId, page, apiLimit);
+        const result = await getTeacherUnscheduledLessons(location, teacherId, page, apiLimit, showAllRef.current);
         if (result) {
           const transformedData = transformUnscheduledLessonData(result.unscheduledLessons);
           setData(transformedData);
