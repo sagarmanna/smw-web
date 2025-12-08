@@ -207,6 +207,10 @@ export function AddUnavailabilityModal({
   const toTimeSelectRef = React.useRef<HTMLButtonElement>(null);
   const timeOptions = React.useMemo(() => generateTimeOptions(), []);
   const excludeId = React.useMemo(() => (isEditMode && initialData ? initialData.id : undefined), [isEditMode, initialData]);
+  
+  // Store original date/time values for comparison in edit mode
+  const originalFromDateTime = React.useRef<string | null>(null);
+  const originalToDateTime = React.useRef<string | null>(null);
 
   const getCurrentTimeOption = React.useCallback(() => {
     const now = new Date();
@@ -252,8 +256,13 @@ export function AddUnavailabilityModal({
         setToTime(timeOptions.find((opt) => opt === toData.timeOption) || timeOptions[0]);
       }
       setReason(initialData.reason || "");
+      // Store original values for comparison
+      originalFromDateTime.current = initialData.fromDateTime;
+      originalToDateTime.current = initialData.toDateTime;
     } else {
       resetForm();
+      originalFromDateTime.current = null;
+      originalToDateTime.current = null;
     }
   }, [open, timeOptions, isEditMode, initialData, resetForm]);
 
@@ -413,15 +422,15 @@ export function AddUnavailabilityModal({
               'teacherunavailability-todatetime': response.errors.toDateTime || [],
             });
             
-            if (response.errors.fromDateTime && response.errors.fromDateTime.length > 0) {
-              setOverlapError(response.errors.fromDateTime[0]);
-            }
-            
+            // Don't set overlapError if validationErrors already has the error
+            // This prevents duplicate error messages
             if (response.errors.toDateTime && response.errors.toDateTime.length > 0) {
               setError(response.errors.toDateTime[0]);
             } else if (response.errors.fromDateTime && response.errors.fromDateTime.length > 0) {
               setError(response.errors.fromDateTime[0]);
             }
+            // Clear overlapError when using validationErrors
+            setOverlapError(null);
           } else {
             toast.error(response.message || "Failed to update unavailability");
           }
@@ -461,12 +470,14 @@ export function AddUnavailabilityModal({
             popoverOpen={fromDatePopoverOpen}
             onPopoverOpenChange={setFromDatePopoverOpen}
           />
-          {overlapError && <p className="text-sm text-red-600 dark:text-red-400">{overlapError}</p>}
-          {validationErrors['teacherunavailability-fromdatetime'] && (
+          {/* Show validationErrors first if available, otherwise show overlapError */}
+          {validationErrors['teacherunavailability-fromdatetime'] && validationErrors['teacherunavailability-fromdatetime'].length > 0 ? (
             <p className="text-sm text-red-600 dark:text-red-400">
               {validationErrors['teacherunavailability-fromdatetime'][0]}
             </p>
-          )}
+          ) : overlapError ? (
+            <p className="text-sm text-red-600 dark:text-red-400">{overlapError}</p>
+          ) : null}
           <DateTimePicker
             date={toDate} time={toTime} timeOptions={timeOptions}
             onDateChange={handleToDateSelect} onTimeChange={handleToTimeChange}
@@ -490,8 +501,32 @@ export function AddUnavailabilityModal({
               {isEditMode && onDelete && <Button type="button" variant="destructive" onClick={() => setShowDeleteConfirm(true)}>Delete</Button>}
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isValidating || isSubmitting}>Cancel</Button>
-              <Button type="submit" disabled={isValidating || isSubmitting}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isValidating || isSubmitting || isDeleting}>Cancel</Button>
+              <Button 
+                type="submit" 
+                disabled={
+                  isValidating || 
+                  isSubmitting || 
+                  isDeleting ||
+                  !fromDate || 
+                  !fromTime || 
+                  !toDate || 
+                  !toTime ||
+                  (isEditMode && (() => {
+                    // In edit mode, only enable if fromDateTime or toDateTime has changed
+                    if (!originalFromDateTime.current || !originalToDateTime.current) return true;
+                    
+                    const currentFromDateTime = formatDateTimeToISO(fromDate, fromTime);
+                    const currentToDateTime = formatDateTimeToISO(toDate, toTime);
+                    
+                    const fromChanged = currentFromDateTime !== originalFromDateTime.current;
+                    const toChanged = currentToDateTime !== originalToDateTime.current;
+                    
+                    // Disable if nothing has changed
+                    return !fromChanged && !toChanged;
+                  })())
+                }
+              >
                 {isSubmitting 
                   ? (isEditMode ? "Updating..." : "Creating...") 
                   : isValidating 

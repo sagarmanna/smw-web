@@ -215,6 +215,56 @@ export const updateTeacher = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching only qualifications
+export const fetchQualifications = createAsyncThunk(
+  'teacher/fetchQualifications',
+  async (
+    { location, teacherId }: { location: string; teacherId: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      // Fetch private and group qualifications
+      const [privateQualificationsResult, groupQualificationsResult] = await Promise.all([
+        getTeacherQualifications(location, teacherId, "private"),
+        getTeacherQualifications(location, teacherId, "group"),
+      ]);
+      
+      const qualifications: {
+        privateQualifications: TeacherQualification[];
+        groupQualifications: TeacherQualification[];
+      } = {
+        privateQualifications: [],
+        groupQualifications: [],
+      };
+      
+      // Process private qualifications
+      if (privateQualificationsResult) {
+        try {
+          qualifications.privateQualifications = transformQualificationsResponse(privateQualificationsResult);
+        } catch (transformError) {
+          console.warn('Failed to transform private qualifications:', transformError);
+          qualifications.privateQualifications = [];
+        }
+      }
+
+      // Process group qualifications
+      if (groupQualificationsResult) {
+        try {
+          qualifications.groupQualifications = transformQualificationsResponse(groupQualificationsResult);
+        } catch (transformError) {
+          console.warn('Failed to transform group qualifications:', transformError);
+          qualifications.groupQualifications = [];
+        }
+      }
+
+      return qualifications;
+    } catch (error) {
+      console.error('Error in fetchQualifications:', error);
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch qualifications');
+    }
+  }
+);
+
 const teacherSlice = createSlice({
   name: 'teacher',
   initialState,
@@ -326,6 +376,17 @@ const teacherSlice = createSlice({
       .addCase(updateTeacher.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
+      })
+      // Qualifications only reducers
+      .addCase(fetchQualifications.fulfilled, (state, action) => {
+        if (state.teacherInfo) {
+          state.teacherInfo.privateQualifications = action.payload.privateQualifications;
+          state.teacherInfo.groupQualifications = action.payload.groupQualifications;
+        }
+      })
+      .addCase(fetchQualifications.rejected, (state, action) => {
+        console.error('Failed to fetch qualifications:', action.payload);
+        // Don't set error state for qualifications failure, just log it
       });
   },
 });

@@ -12,6 +12,7 @@ import {
   updatePrivateQualifications,
   updateGroupQualifications,
   fetchTeacher,
+  fetchQualifications,
   clearCache
 } from "../[id]/teachers.slice";
 import {
@@ -33,6 +34,7 @@ type TeacherDetailsHookReturn = {
   groupQualifications: TeacherQualification[];
   refresh: () => Promise<void>;
   forceRefresh: () => Promise<void>;
+  refreshQualifications: () => Promise<void>;
   saveDetails: (next: TeacherBasicDetails) => Promise<boolean>;
   updateEmails: React.Dispatch<React.SetStateAction<TeacherEmail[]>>;
   updatePhones: React.Dispatch<React.SetStateAction<TeacherPhone[]>>;
@@ -88,6 +90,11 @@ export function useTeacherDetails(
   const forceRefresh = React.useCallback(async () => {
     dispatch(clearCache());
     dispatch(fetchTeacher({ location, teacherId }));
+  }, [dispatch, location, teacherId]);
+
+  // Refresh only qualifications (not all teacher data)
+  const refreshQualifications = React.useCallback(async () => {
+    await dispatch(fetchQualifications({ location, teacherId }));
   }, [dispatch, location, teacherId]);
 
   const saveDetails = React.useCallback(
@@ -203,6 +210,7 @@ export function useTeacherDetails(
     groupQualifications,
     refresh,
     forceRefresh,
+    refreshQualifications,
     saveDetails,
     updateEmails: handleUpdateEmails,
     updatePhones: handleUpdatePhones,

@@ -7,6 +7,8 @@ import { AddQualificationModal } from "../modals/AddQualificationModal";
 import { QualificationList } from "../sections";
 import { createQualification, updateQualification, deleteQualification } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
+import { useAppDispatch } from "@/redux/hooks";
+import { fetchQualifications } from "../../[id]/teachers.slice";
 
 interface TeacherPrivateQualificationCardProps {
   qualifications: TeacherQualification[];
@@ -14,7 +16,6 @@ interface TeacherPrivateQualificationCardProps {
   loading?: boolean;
   location: string;
   teacherId: number;
-  onRefresh?: () => Promise<void>;
 }
 
 export const TeacherPrivateQualificationCard = React.memo(
@@ -24,8 +25,8 @@ export const TeacherPrivateQualificationCard = React.memo(
     loading = false,
     location,
     teacherId,
-    onRefresh,
   }: TeacherPrivateQualificationCardProps) {
+    const dispatch = useAppDispatch();
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
     const [editingQualification, setEditingQualification] = React.useState<TeacherQualification | null>(null);
@@ -87,10 +88,14 @@ export const TeacherPrivateQualificationCard = React.memo(
               toast.success("Qualification updated successfully");
               setIsEditModalOpen(false);
               setEditingQualification(null);
-              // Refresh data from server
-              if (onRefresh) {
-                await onRefresh();
-              }
+              // Update Redux state directly
+              onUpdate((prev) =>
+                prev.map((qual) =>
+                  qual.id === editingQualification.id
+                    ? { ...qual, rate: data.rate }
+                    : qual
+                )
+              );
             } else {
               const errorMessage =
                 response.message ||
@@ -130,10 +135,10 @@ export const TeacherPrivateQualificationCard = React.memo(
                   : "Qualification added successfully"
               );
               setIsAddModalOpen(false);
-              // Refresh data from server
-              if (onRefresh) {
-                await onRefresh();
-              }
+              // For create, we need to fetch qualifications to get the IDs from server
+              // This is necessary because the API doesn't return the created qualification IDs
+              // We'll use fetchQualifications which only fetches qualifications, not all teacher data
+              await dispatch(fetchQualifications({ location, teacherId }));
             } else {
               const errorMessage =
                 response.message ||
@@ -149,7 +154,7 @@ export const TeacherPrivateQualificationCard = React.memo(
           }
         }
       },
-      [onUpdate, editingQualification, location, teacherId, onRefresh]
+      [onUpdate, editingQualification, location, teacherId]
     );
 
     const handleRowClick = React.useCallback(
@@ -195,10 +200,8 @@ export const TeacherPrivateQualificationCard = React.memo(
             toast.success("Qualification deleted successfully");
             setEditingQualification(null);
             setIsEditModalOpen(false);
-            // Refresh data from server
-            if (onRefresh) {
-              await onRefresh();
-            }
+            // Update Redux state directly - remove the deleted qualification
+            onUpdate((prev) => prev.filter((qual) => qual.id !== id));
           } else {
             const errorMessage =
               response.message ||
@@ -213,7 +216,7 @@ export const TeacherPrivateQualificationCard = React.memo(
           toast.error(errorMessage);
         }
       },
-      [onUpdate, qualifications, location, onRefresh]
+      [onUpdate, qualifications, location]
     );
 
     const handleViewToggle = React.useCallback(() => {
@@ -264,6 +267,7 @@ export const TeacherPrivateQualificationCard = React.memo(
           allowRate={true}
           mode="add"
           programType="private"
+          existingQualifications={qualifications}
         />
 
         <AddQualificationModal

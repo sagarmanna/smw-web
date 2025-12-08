@@ -25,6 +25,7 @@ interface AddQualificationModalProps {
   onDelete?: (id: string) => void;
   mode?: "add" | "edit";
   programType?: "private" | "group"; // Filter programs by type
+  existingQualifications?: TeacherQualification[]; // Existing qualifications to filter out
 }
 
 export function AddQualificationModal({
@@ -37,6 +38,7 @@ export function AddQualificationModal({
   onDelete,
   mode = "add",
   programType,
+  existingQualifications = [],
 }: AddQualificationModalProps) {
   const isEditMode = mode === "edit" && initialData !== null;
   const [programs, setPrograms] = React.useState<Program[]>([]);
@@ -51,13 +53,20 @@ export function AddQualificationModal({
   const [pendingSubmitData, setPendingSubmitData] = React.useState<{ programs: number[]; rate?: number } | null>(null);
   const originalRate = React.useRef<number | undefined>(undefined);
 
-  // Fetch programs when modal opens
+  // Fetch programs when modal opens and filter out already added programs
   React.useEffect(() => {
     if (open && !isEditMode) {
       setLoadingPrograms(true);
       getProgramsList(programType)
         .then((programList) => {
-          setPrograms(programList);
+          // Filter out programs that are already in qualifications
+          const existingProgramNames = new Set(
+            existingQualifications.map((qual) => qual.name.toLowerCase().trim())
+          );
+          const filteredPrograms = programList.filter(
+            (program) => !existingProgramNames.has(program.name.toLowerCase().trim())
+          );
+          setPrograms(filteredPrograms);
         })
         .catch((err) => {
           console.error("Error fetching programs:", err);
@@ -67,7 +76,7 @@ export function AddQualificationModal({
           setLoadingPrograms(false);
         });
     }
-  }, [open, isEditMode, programType]);
+  }, [open, isEditMode, programType, existingQualifications]);
 
   React.useEffect(() => {
     if (open) {
