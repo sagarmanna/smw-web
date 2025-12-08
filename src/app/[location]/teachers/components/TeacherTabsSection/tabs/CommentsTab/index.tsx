@@ -24,6 +24,7 @@ export function CommentsTab({ location, teacherId }: CommentsTabProps) {
   const commentsTeacherId = useAppSelector((state) => state.teacherTabs.commentsTeacherId);
   const [commentInput, setCommentInput] = useState<string>("");
   const [commentLoading, setCommentLoading] = useState<boolean>(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   useEffect(() => {
     // Only fetch if we don't have data for this teacher yet
@@ -34,6 +35,7 @@ export function CommentsTab({ location, teacherId }: CommentsTabProps) {
 
   const handleAddComment = async () => {
     if (!commentInput.trim()) {
+      setCommentError("Content cannot be blank.");
       return;
     }
 
@@ -53,6 +55,7 @@ export function CommentsTab({ location, teacherId }: CommentsTabProps) {
         // Refresh comments list to show the new comment
         dispatch(fetchCommentsData({ location, teacherId }));
         setCommentInput("");
+        setCommentError(null);
       } else {
         const errorMessage = response.message || response.errors?.join(", ") || "Failed to add comment";
         toast.error(errorMessage);
@@ -98,30 +101,40 @@ export function CommentsTab({ location, teacherId }: CommentsTabProps) {
   );
 
   const commentsBottomContent = (
-    <div className="mt-4 flex items-center space-x-2">
-      <Input
-        type="text"
-        placeholder="Type message"
-        className="flex-grow"
-        value={commentInput}
-        onChange={(e) => setCommentInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleAddComment();
-          }
-        }}
-      />
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
-        onClick={handleAddComment}
-        disabled={commentLoading}
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
-    </div>
+    <>
+      <div className="mt-4 flex items-center space-x-2">
+        <Input
+          type="text"
+          placeholder="Type message"
+          className="flex-grow"
+          value={commentInput}
+          onChange={(e) => {
+            setCommentInput(e.target.value);
+            if (commentError) setCommentError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleAddComment();
+            }
+          }}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
+          onClick={handleAddComment}
+          disabled={commentLoading}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {commentError && (
+        <div className="text-sm text-red-500 mt-1">
+          {commentError}
+        </div>
+      )}
+    </>
   );
 
   return (

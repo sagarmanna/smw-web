@@ -63,8 +63,8 @@ export const TeacherPrivateQualificationCard = React.memo(
       async (data: { programs: number[]; rate?: number }) => {
         if (editingQualification) {
           // Update existing qualification via legacy API
-          if (data.rate === undefined || data.rate === null) {
-            toast.error("Rate is required");
+          if (data.rate === undefined || data.rate === null || data.rate < 1) {
+            toast.error("Rate ($/hr) must be no less than 1.");
             return;
           }
 
@@ -111,8 +111,8 @@ export const TeacherPrivateQualificationCard = React.memo(
           }
         } else {
           // Create new qualifications via legacy API
-          if (data.rate === undefined || data.rate === null) {
-            toast.error("Rate is required");
+          if (data.rate === undefined || data.rate === null || data.rate < 1) {
+            toast.error("Rate ($/hr) must be no less than 1.");
             return;
           }
 
@@ -167,16 +167,10 @@ export const TeacherPrivateQualificationCard = React.memo(
 
     const handleDelete = React.useCallback(
       async (id: string) => {
-        // Find the qualification to get its rate
+        // Find the qualification to verify it exists
         const qualificationToDelete = qualifications.find((qual) => qual.id === id);
         if (!qualificationToDelete) {
           toast.error("Qualification not found");
-          return;
-        }
-
-        // Rate is required for delete API
-        if (qualificationToDelete.rate === undefined || qualificationToDelete.rate === null) {
-          toast.error("Rate is required for deletion");
           return;
         }
 
@@ -188,11 +182,12 @@ export const TeacherPrivateQualificationCard = React.memo(
             return;
           }
 
+          // Send empty string as rate for delete (no validation needed)
           const response = await deleteQualification(
             location,
             qualificationId,
             {
-              rate: qualificationToDelete.rate,
+              rate: "",
             }
           );
 
