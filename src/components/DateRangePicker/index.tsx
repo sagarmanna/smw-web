@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Calendar, ChevronDown } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, subWeeks } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, subWeeks, addDays, addWeeks, addMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,7 +18,7 @@ interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (range: DateRange) => void;
   className?: string;
-  preset?: "default" | "payments";
+  preset?: "default" | "payments" | "timeVoucher";
 }
 
 const defaultQuickOptions = [
@@ -106,8 +106,45 @@ const paymentsQuickOptions = [
   },
 ];
 
+const timeVoucherQuickOptions = [
+  {
+    label: "Today",
+    getValue: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    }),
+  },
+  {
+    label: "Tomorrow",
+    getValue: () => {
+      const tomorrow = addDays(new Date(), 1);
+      return {
+        from: startOfDay(tomorrow),
+        to: endOfDay(tomorrow),
+      };
+    },
+  },
+  {
+    label: "Next 7 Days",
+    getValue: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(addDays(new Date(), 6)),
+    }),
+  },
+  {
+    label: "Next 30 Days",
+    getValue: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(addDays(new Date(), 29)),
+    }),
+  },
+];
+
 export function DateRangePicker({ value, onChange, className, preset = "default" }: DateRangePickerProps) {
-  const quickOptions = preset === "payments" ? paymentsQuickOptions : defaultQuickOptions;
+  const quickOptions = 
+    preset === "payments" ? paymentsQuickOptions :
+    preset === "timeVoucher" ? timeVoucherQuickOptions :
+    defaultQuickOptions;
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(value);
   const [tempRange, setTempRange] = useState<DateRange | undefined>(value);
