@@ -213,7 +213,8 @@ export async function getTeacherView(
   date: string, 
   showAll: boolean, 
   programId?: string, 
-  teacherId?: string
+  teacherId?: string,
+  type?: string
 ): Promise<TeacherViewResponse | null> {
   try {
     const token = localStorage.getItem("token");
@@ -229,6 +230,10 @@ export async function getTeacherView(
 
     if (teacherId) {
       params.teacherId = teacherId;
+    }
+
+    if (type) {
+      params.type = type;
     }
 
     const response = await apiClient.get<TeacherViewResponse>(

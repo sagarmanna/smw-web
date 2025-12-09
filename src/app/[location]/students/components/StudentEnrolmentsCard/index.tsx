@@ -16,19 +16,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NewEnrolmentModal, type EnrolmentFormData } from "./NewEnrolmentModal";
-
-interface Enrolment {
-  program: string;
-  teacher: string;
-  day: string;
-  fromTime: string;
-  duration: string;
-  startDate: string;
-  endDate: string;
-}
+import { StudentEnrolment } from "../../types";
 
 interface StudentEnrolmentsCardProps {
-  enrolments: Enrolment[];
+  enrolments: StudentEnrolment[];
   isLoading?: boolean;
   location: string;
 }
@@ -56,6 +47,15 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
     // TODO: Implement API call to create enrolment
     setIsNewEnrolmentModalOpen(false);
   };
+
+  const handleRowClick = React.useCallback(
+    (enrolment: StudentEnrolment) => {
+      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      const url = `${legacyBase}/${location}/enrolment/view?id=${enrolment.id}`;
+      window.location.href = url;
+    },
+    [location]
+  );
 
   return (
     <>
@@ -110,6 +110,8 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
             enablePrint={false}
             enableSorting={false}
             enableRowsPerPage={false}
+            onRowClick={handleRowClick}
+            rowClassName="cursor-pointer"
           />
         ) : (
           <p className="text-sm text-muted-foreground">No enrolments found.</p>
@@ -125,4 +127,3 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
     </>
   );
 });
-
