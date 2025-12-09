@@ -201,6 +201,8 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
             <StudentCustomerCard
               customer={customer?.customer || ""}
               phone={customer?.phone || ""}
+              customerId={customer?.customerId}
+              location={location}
               isLoading={isLoading}
             />
           </div>
@@ -209,6 +211,7 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
           <StudentEnrolmentsCard
             enrolments={enrolments}
             isLoading={isLoading}
+            location={location}
           />
 
           <StudentEvaluationsCard

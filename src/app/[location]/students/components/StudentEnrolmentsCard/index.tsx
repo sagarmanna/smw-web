@@ -7,20 +7,12 @@ import {
 import { CustomTable } from "@/components/CustomTable";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface Enrolment {
-  program: string;
-  teacher: string;
-  day: string;
-  fromTime: string;
-  duration: string;
-  startDate: string;
-  endDate: string;
-}
+import { StudentEnrolment } from "../../types";
 
 interface StudentEnrolmentsCardProps {
-  enrolments: Enrolment[];
+  enrolments: StudentEnrolment[];
   isLoading?: boolean;
+  location: string;
 }
 
 const enrolmentColumns = [
@@ -36,7 +28,19 @@ const enrolmentColumns = [
 export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
   enrolments,
   isLoading = false,
+  location,
 }: StudentEnrolmentsCardProps) {
+  const handleRowClick = React.useCallback(
+    (enrolment: StudentEnrolment) => {
+      // Redirect to enrolment view page with the enrolment ID
+      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      const url = `${legacyBase}/${location}/enrolment/view?id=${enrolment.id}`;
+      // Navigate directly in the same window to avoid blank page issue
+      window.location.href = url;
+    },
+    [location]
+  );
+
   return (
     <SectionCard
       title="Enrolments"
@@ -62,6 +66,8 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
           enablePrint={false}
           enableSorting={false}
           enableRowsPerPage={false}
+          onRowClick={handleRowClick}
+          rowClassName="cursor-pointer"
         />
       ) : (
         <p className="text-sm text-muted-foreground">No enrolments found.</p>
