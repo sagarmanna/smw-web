@@ -15,9 +15,11 @@ export type StudentProfile = StudentBasicDetails;
 export interface StudentCustomer {
   customer: string;
   phone: string;
+  customerId?: number;
 }
 
 export interface StudentEnrolment {
+  id: number;
   program: string;
   teacher: string;
   day: string;

@@ -10,30 +10,18 @@ import {
 } from "../[id]/students-details.slice";
 import {
   StudentBasicDetails,
+  StudentCustomer,
+  StudentEnrolment,
+  StudentEvaluation,
 } from "../types";
 
 type StudentDetailsHookReturn = {
   loading: boolean;
   error: string | null;
   details: StudentBasicDetails | null;
-  customer: { customer: string; phone: string } | null;
-  enrolments: Array<{
-    program: string;
-    teacher: string;
-    day: string;
-    fromTime: string;
-    duration: string;
-    startDate: string;
-    endDate: string;
-  }>;
-  evaluations: Array<{
-    examDate: string;
-    mark: string;
-    level: string;
-    program: string;
-    type: string;
-    teacher: string;
-  }>;
+  customer: { customer: string; phone: string; customerId?: number } | null;
+  enrolments: StudentEnrolment[];
+  evaluations: StudentEvaluation[];
   refresh: () => Promise<void>;
   forceRefresh: () => Promise<void>;
   saveDetails: (next: StudentBasicDetails) => Promise<boolean>;
@@ -68,9 +56,9 @@ export function useStudentDetails(
   }, [studentInfo]);
 
   // Memoize arrays to prevent unnecessary re-renders
-  const customer = React.useMemo(() => studentInfo?.customer || null, [studentInfo?.customer]);
-  const enrolments = React.useMemo(() => studentInfo?.enrolments || [], [studentInfo?.enrolments]);
-  const evaluations = React.useMemo(() => studentInfo?.evaluations || [], [studentInfo?.evaluations]);
+  const customer: StudentCustomer | null = React.useMemo(() => studentInfo?.customer || null, [studentInfo?.customer]);
+  const enrolments: StudentEnrolment[] = React.useMemo(() => studentInfo?.enrolments || [], [studentInfo?.enrolments]);
+  const evaluations: StudentEvaluation[] = React.useMemo(() => studentInfo?.evaluations || [], [studentInfo?.evaluations]);
 
   const refresh = React.useCallback(async () => {
     dispatch(fetchStudent({ location, studentId }));

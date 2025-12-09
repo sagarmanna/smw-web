@@ -2,9 +2,10 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   getStudentDetails, 
   StudentDetailsApiResponse,
-  updateStudentProfile
+  getStudentEnrolments,
+  StudentEnrolmentResponse,
 } from './students-details.api';
-import type { StudentInfo, StudentBasicDetails, StudentEvaluation } from '../types';
+import type { StudentInfo, StudentBasicDetails, StudentEvaluation, StudentEnrolment } from '../types';
 
 export interface UpdateStudentDetailsData {
   firstName: string;
@@ -23,9 +24,6 @@ interface StudentState {
   currentStudentId: string | null;
 }
 
-// Cache configuration - data is considered fresh for 5 minutes (300000ms)
-const STALE_TIME_MS = 5 * 60 * 1000;
-
 const initialState: StudentState = {
   studentInfo: null,
   isLoading: false,
@@ -36,90 +34,115 @@ const initialState: StudentState = {
 };
 
 /**
+ * Helper function to split fullName into firstName and lastName
+ */
+function splitFullName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 0) {
+    return { firstName: "", lastName: "" };
+  }
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: "" };
+  }
+  // Take first part as firstName, rest as lastName
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
+/**
+ * Transforms enrolment API response to match the StudentEnrolment interface
+ */
+function transformEnrolmentsResponse(enrolments: StudentEnrolmentResponse[]): StudentEnrolment[] {
+  return enrolments.map((enrolment) => ({
+    id: enrolment.id,
+    program: enrolment.programName,
+    teacher: enrolment.teacherName,
+    day: enrolment.day,
+    fromTime: enrolment.fromTime,
+    duration: enrolment.duration,
+    startDate: enrolment.startDate,
+    endDate: enrolment.endDate,
+  }));
+}
+
+/**
  * Transforms API response to match the StudentInfo interface
  */
 function transformApiResponse(apiResponse: StudentDetailsApiResponse): StudentInfo {
   const { body } = apiResponse.data;
+  const { student, customer } = body;
+  
+  // Split fullName into firstName and lastName
+  const { firstName, lastName } = splitFullName(student.fullName);
   
   return {
     profile: {
-      id: body.profile.id,
-      firstName: body.profile.firstName,
-      lastName: body.profile.lastName,
-      birthday: body.profile.birthday || undefined,
-      age: body.profile.age || undefined,
-      gender: body.profile.gender || undefined,
-      status: body.profile.status,
-      notes: body.profile.notes || undefined,
+      id: student.id.toString(),
+      firstName,
+      lastName,
+      birthday: student.birthDate || undefined,
+      age: student.age || undefined,
+      gender: student.gender || undefined,
+      status: student.status,
+      notes: student.note || undefined,
     },
     customer: {
-      customer: body.customer.customer,
-      phone: body.customer.phone,
+      customer: customer.name || "",
+      phone: customer.phone || "",
+      customerId: customer.id,
     },
-    enrolments: body.enrolments || [],
-    evaluations: body.evaluations || [],
+    enrolments: [], // Will be fetched separately
+    evaluations: [], // Not part of this API endpoint
   };
 }
 
-// Async thunk for fetching student info with caching
+// Async thunk for fetching student info
+// Called once in page.tsx during initial page load
 export const fetchStudent = createAsyncThunk(
   'student/fetchStudent',
   async (
     { location, studentId }: { location: string; studentId: string },
-    { getState, rejectWithValue }
+    { rejectWithValue }
   ) => {
     try {
-      // Check if we have fresh cached data
-      const state = getState() as { student: StudentState };
-      const studentState = state.student;
-      
-      if (
-        studentState.studentInfo &&
-        studentState.currentStudentId === studentId &&
-        studentState.lastFetched &&
-        Date.now() - studentState.lastFetched < STALE_TIME_MS
-      ) {
-        // Return cached data - no API call needed
-        return { data: studentState.studentInfo, fromCache: true };
+      // Fetch student details and enrolments in parallel
+      const [detailsResult, enrolmentsResult] = await Promise.all([
+        getStudentDetails(location, studentId),
+        getStudentEnrolments(location, studentId),
+      ]);
+
+      if (!detailsResult || !detailsResult.success) {
+        throw new Error(detailsResult?.message || 'Failed to fetch student info');
       }
 
-      // Fetch from API
-      const result = await getStudentDetails(location, studentId);
+      const transformedData = transformApiResponse(detailsResult);
 
-      if (!result || !result.success) {
-        throw new Error(result?.message || 'Failed to fetch student info');
+      // Transform and add enrolments if available
+      if (enrolmentsResult && enrolmentsResult.success) {
+        transformedData.enrolments = transformEnrolmentsResponse(enrolmentsResult.data.body);
+      } else {
+        transformedData.enrolments = [];
       }
 
-      const transformedData = transformApiResponse(result);
-
-      return { data: transformedData, fromCache: false };
+      return { data: transformedData };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch student info');
     }
   }
 );
 
-// Async thunk for updating student details
+// Async thunk for updating student details (local state only, no API call)
 export const updateStudent = createAsyncThunk(
   'student/updateStudent',
   async (
-    { location, studentId, data }: { location: string; studentId: string; data: UpdateStudentDetailsData },
+    { data }: { location: string; studentId: string; data: UpdateStudentDetailsData },
     { rejectWithValue }
   ) => {
     try {
-      const response = await updateStudentProfile(location, studentId, {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        birthday: data.birthday,
-        gender: data.gender,
-        notes: data.notes,
-      });
-
-      if (response?.success) {
-        return data;
-      } else {
-        throw new Error(response?.message || 'Failed to update student details');
-      }
+      // Only update local state, no API call
+      return data;
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update student details');
     }
@@ -189,10 +212,7 @@ const studentSlice = createSlice({
         state.isLoading = false;
         state.studentInfo = action.payload.data;
         state.error = null;
-        // Only update timestamp if data came from API, not cache
-        if (!action.payload.fromCache) {
-          state.lastFetched = Date.now();
-        }
+        state.lastFetched = Date.now();
       })
       .addCase(fetchStudent.rejected, (state, action) => {
         state.isLoading = false;
