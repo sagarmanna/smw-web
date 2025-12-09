@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 interface AvailabilityFormModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: AvailabilityFormData) => void;
+  onSubmit: (data: AvailabilityFormData) => Promise<{ success: boolean; errors?: Record<string, string[]> }>;
   onDelete?: (id: string) => void;
   initialData?: {
     id?: string;
@@ -142,6 +142,8 @@ export function AvailabilityFormModal({
   const [classroomId, setClassroomId] = React.useState<number | undefined>(undefined);
   const [error, setError] = React.useState<string | null>(null);
   const [overlapError, setOverlapError] = React.useState<string | null>(null);
+  const [apiErrors, setApiErrors] = React.useState<{ fromTime?: string; toTime?: string }>({});
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
   const timeOptions = React.useMemo(() => generateTimeOptions(), []);
@@ -154,6 +156,8 @@ export function AvailabilityFormModal({
     setClassroomId(undefined);
     setError(null);
     setOverlapError(null);
+    setApiErrors({});
+    setIsSubmitting(false);
     setShowDeleteConfirm(false);
   }, []);
 
@@ -177,6 +181,11 @@ export function AvailabilityFormModal({
 
   // Validate time overlap
   React.useEffect(() => {
+    // Don't show client-side overlap error if API errors are present
+    if (Object.keys(apiErrors).length > 0) {
+      return;
+    }
+
     if (!day || !fromTime || !toTime || existingAvailabilities.length === 0) {
       setOverlapError(null);
       return;
@@ -203,25 +212,30 @@ export function AvailabilityFormModal({
     }
 
     setOverlapError(null);
-  }, [day, fromTime, toTime, existingAvailabilities, excludeId]);
+  }, [day, fromTime, toTime, existingAvailabilities, excludeId, apiErrors]);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setApiErrors({});
+    setIsSubmitting(true);
 
     // Validation
     if (!day) {
       setError("Please select a day.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!fromTime) {
       setError("Please select From Time.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!toTime) {
       setError("Please select To Time.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -236,12 +250,14 @@ export function AvailabilityFormModal({
 
     if (fromMinutes >= toMinutes) {
       setError("From time must be less than To time.");
+      setIsSubmitting(false);
       return;
     }
 
-    // Check for overlap
+    // Check for overlap (client-side validation)
     if (checkTimeOverlap(day, fromTimeStr, toTimeStr, existingAvailabilities, excludeId)) {
       setOverlapError("Availability time overlaps with existing availability for this day.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -253,8 +269,34 @@ export function AvailabilityFormModal({
       classroomId: classroomId || undefined,
     };
 
-    onSubmit(formData);
-    onClose();
+    try {
+      const result = await onSubmit(formData);
+      
+      if (result.success) {
+        // Only close modal on successful submission
+        onClose();
+      } else if (result.errors) {
+        // Map API error field names to form field names
+        const fieldErrors: { fromTime?: string; toTime?: string } = {};
+        
+        // Map "teacherroom-from_time" to "fromTime"
+        if (result.errors["teacherroom-from_time"] && result.errors["teacherroom-from_time"].length > 0) {
+          fieldErrors.fromTime = result.errors["teacherroom-from_time"][0];
+        }
+        
+        // Map "teacherroom-to_time" to "toTime"
+        if (result.errors["teacherroom-to_time"] && result.errors["teacherroom-to_time"].length > 0) {
+          fieldErrors.toTime = result.errors["teacherroom-to_time"][0];
+        }
+        
+        setApiErrors(fieldErrors);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save availability";
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = () => {
@@ -281,7 +323,7 @@ export function AvailabilityFormModal({
             <DialogTitle>Set Availability and Classroom</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {(error || overlapError) && (
+            {(error || overlapError) && !Object.keys(apiErrors).length && (
               <div className="rounded border border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
                 {error || overlapError}
               </div>
@@ -319,7 +361,7 @@ export function AvailabilityFormModal({
 
             {/* From Time */}
             <div className="space-y-2">
-              <Label htmlFor="fromTime" className={cn("font-bold", (error || overlapError) && "text-red-600 dark:text-red-400")}>
+              <Label htmlFor="fromTime" className={cn("font-bold", (error || overlapError || apiErrors.fromTime) && "text-red-600 dark:text-red-400")}>
                 From Time <span className="text-red-500">*</span>
               </Label>
               <Select
@@ -328,11 +370,12 @@ export function AvailabilityFormModal({
                   setFromTime(value);
                   setError(null);
                   setOverlapError(null);
+                  setApiErrors((prev) => ({ ...prev, fromTime: undefined }));
                 }}
               >
                 <SelectTrigger
                   id="fromTime"
-                  className={cn((error || overlapError) && "border-red-500 focus:ring-red-500")}
+                  className={cn((error || overlapError || apiErrors.fromTime) && "border-red-500 focus:ring-red-500")}
                 >
                   <SelectValue placeholder="Select time">
                     {fromTime ? fromTime.split(" - ")[1] : "Select time"}
@@ -346,11 +389,14 @@ export function AvailabilityFormModal({
                   ))}
                 </SelectContent>
               </Select>
+              {apiErrors.fromTime && (
+                <p className="text-sm text-red-600 dark:text-red-400">{apiErrors.fromTime}</p>
+              )}
             </div>
 
             {/* To Time */}
             <div className="space-y-2">
-              <Label htmlFor="toTime" className={cn("font-bold", (error || overlapError) && "text-red-600 dark:text-red-400")}>
+              <Label htmlFor="toTime" className={cn("font-bold", (error || overlapError || apiErrors.toTime) && "text-red-600 dark:text-red-400")}>
                 To Time <span className="text-red-500">*</span>
               </Label>
               <Select
@@ -359,11 +405,12 @@ export function AvailabilityFormModal({
                   setToTime(value);
                   setError(null);
                   setOverlapError(null);
+                  setApiErrors((prev) => ({ ...prev, toTime: undefined }));
                 }}
               >
                 <SelectTrigger
                   id="toTime"
-                  className={cn((error || overlapError) && "border-red-500 focus:ring-red-500")}
+                  className={cn((error || overlapError || apiErrors.toTime) && "border-red-500 focus:ring-red-500")}
                 >
                   <SelectValue placeholder="Select time">
                     {toTime ? toTime.split(" - ")[1] : "Select time"}
@@ -377,6 +424,9 @@ export function AvailabilityFormModal({
                   ))}
                 </SelectContent>
               </Select>
+              {apiErrors.toTime && (
+                <p className="text-sm text-red-600 dark:text-red-400">{apiErrors.toTime}</p>
+              )}
             </div>
 
             {/* Classroom Selection (Optional) */}
@@ -415,10 +465,12 @@ export function AvailabilityFormModal({
                 )}
               </div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={onClose}>
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit">Save</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Saving..." : "Save"}
+                </Button>
               </div>
             </DialogFooter>
           </form>

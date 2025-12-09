@@ -1469,6 +1469,7 @@ export interface TeacherBulkRescheduleResponse {
   status: boolean;
   message?: string;
   reshedule?: boolean;
+  error?: string;
 }
 
 /**
@@ -1793,6 +1794,7 @@ export interface TeacherAvailabilityModifyData {
 export interface TeacherAvailabilityModifyResponse {
   status: boolean;
   message?: string;
+  errors?: Record<string, string[]>;
 }
 
 export interface TeacherAvailabilityDeleteResponse {
