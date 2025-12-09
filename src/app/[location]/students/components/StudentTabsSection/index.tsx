@@ -8,15 +8,28 @@ import {
   STUDENT_TAB_CONFIGS,
   STUDENT_TAB_ORDER,
 } from "../../[id]/studentTabConfigs";
-import { TabContent } from "@/components/TabContent";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import {
+  PrivateLessonsTab,
+  GroupLessonsTab,
+  AbsentLessonsTab,
+  UnscheduledLessonsTab,
+  CommentsTab,
+  HistoryTab,
+} from "./tabs";
 
 interface StudentTabsSectionProps {
   location: string;
   studentId: string;
 }
+
+const TAB_COMPONENTS: Record<string, React.ComponentType<{ location: string; studentId: string }>> = {
+  "private-lessons": PrivateLessonsTab,
+  "group-lessons": GroupLessonsTab,
+  "absent-lessons": AbsentLessonsTab,
+  "unscheduled-lessons": UnscheduledLessonsTab,
+  "comments": CommentsTab,
+  "history": HistoryTab,
+};
 
 export function StudentTabsSection({ location, studentId }: StudentTabsSectionProps) {
   const dispatch = useAppDispatch();
@@ -24,44 +37,17 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
   const isLoading = useAppSelector((state) => state.studentTabs.isLoading);
   const error = useAppSelector((state) => state.studentTabs.error);
   const currentStudentId = useAppSelector((state) => state.studentTabs.currentStudentId);
-  
-  // Get tabs data from Redux
-  const privateLessonData = useAppSelector((state) => state.studentTabs.privateLessonData);
-  const groupLessonData = useAppSelector((state) => state.studentTabs.groupLessonData);
-  const absentLessonData = useAppSelector((state) => state.studentTabs.absentLessonData);
-  const unscheduledLessonData = useAppSelector((state) => state.studentTabs.unscheduledLessonData);
-  const commentData = useAppSelector((state) => state.studentTabs.commentData);
-  const historyData = useAppSelector((state) => state.studentTabs.historyData);
-
-  // Tab data mapping for easy access
-  const tabDataMap: Record<string, unknown[]> = {
-    privateLessonData,
-    groupLessonData,
-    absentLessonData,
-    unscheduledLessonData,
-    commentData,
-    historyData,
-  };
+  const hasData = useAppSelector((state) => state.studentTabs.privateLessonData.length > 0);
 
   // Fetch tabs data only if we don't have data for this student in Redux
   useEffect(() => {
     if (location && studentId) {
       // Only fetch if we don't have data or it's a different student
-      if (currentStudentId !== studentId) {
+      if (currentStudentId !== studentId || !hasData) {
         dispatch(fetchStudentTabsData({ location, studentId }));
       }
     }
-  }, [location, studentId, dispatch, currentStudentId]);
-
-  const handleShowMore = (tabKey: string) => {
-    // TODO: Implement show more functionality
-    console.log('Show more for tab:', tabKey);
-  };
-
-  const handleAdd = (tabKey: string) => {
-    // TODO: Implement add functionality
-    console.log('Add for tab:', tabKey);
-  };
+  }, [location, studentId, dispatch, currentStudentId, hasData]);
 
   return (
     <div className="mt-8">
@@ -79,26 +65,11 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
         </TabsList>
 
         {STUDENT_TAB_ORDER.map((tabKey) => {
-          const config = STUDENT_TAB_CONFIGS[tabKey];
-          const data = tabDataMap[config.dataKey as keyof typeof tabDataMap] || [];
+          const TabComponent = TAB_COMPONENTS[tabKey];
           
-          // Define bottom content for comments tab
-          const commentsBottomContent = tabKey === "comments" ? (
-            <div className="mt-4 flex items-center space-x-2">
-              <Input
-                type="text"
-                placeholder="Type message"
-                className="flex-grow"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : undefined;
+          if (!TabComponent) {
+            return null;
+          }
 
           return (
             <TabsContent key={tabKey} value={tabKey} className="mt-4">
@@ -111,22 +82,7 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
                   <div className="text-red-500">{error}</div>
                 </div>
               ) : (
-                <TabContent
-                  title={config.title}
-                  data={data}
-                  columns={config.columns || []}
-                  loading={isLoading && activeTab === tabKey}
-                  hasAddButton={config.hasAddButton}
-                  onAdd={() => handleAdd(tabKey)}
-                  emptyState={config.emptyState}
-                  hasTable={config.hasTable}
-                  bottomContent={commentsBottomContent}
-                  showMoreButton={config.showMoreButton}
-                  onShowMore={() => handleShowMore(tabKey)}
-                  showAllCheckbox={config.showAllCheckbox}
-                  dropdownItems={config.dropdownItems}
-                  dropdownLabel={config.dropdownLabel}
-                />
+                <TabComponent location={location} studentId={studentId} />
               )}
             </TabsContent>
           );

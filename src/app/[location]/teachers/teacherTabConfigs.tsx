@@ -31,9 +31,14 @@ export interface UnscheduledLessonData {
   student: string;
   phone: string;
   program: string;
+  programId?: number;
   duration: string;
   originalDate: string;
   expiryDate: string;
+  teacher?: {
+    id: number;
+    title: string;
+  };
 }
 
 export interface TimeVoucherData {
