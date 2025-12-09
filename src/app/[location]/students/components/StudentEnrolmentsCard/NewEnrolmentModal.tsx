@@ -14,11 +14,21 @@ import { Label } from "@/components/ui/label";
 import { Clock } from "lucide-react";
 import { getProgramsList, Program } from "../../../teachers/teachers.api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { cn } from "@/lib/utils";
+import {
+  EnrolmentStartDateModal,
+  type EnrolmentStartDateFormData,
+} from "./EnrolmentStartDateModal";
+import {
+  NewEnrolmentDetailModal,
+  type EnrolmentDetailFormData,
+} from "./NewEnrolmentDetailModal";
 
 interface NewEnrolmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNext?: (data: EnrolmentFormData) => void;
+  location: string;
 }
 
 export interface EnrolmentFormData {
@@ -32,102 +42,127 @@ export interface EnrolmentFormData {
   discountedRatePerMonth: string;
   numberOfLessons: string;
   autoRenew: boolean;
+  startDate?: string;
+  paymentCycleEffectiveDate?: string;
+  isOnline?: boolean;
 }
 
-// Payment frequency options
 const paymentFrequencyOptions = [
-  "Monthly",
-  "Bi-Monthly",
-  "Quarterly",
-  "Every 4 Months",
-  "Every 5 Months",
-  "Every 6 Months",
-  "Semi-Annually",
-  "Every 7 Months",
-  "Every 8 Months",
-  "Every 9 Months",
-  "Every 10 Months",
-  "Every 11 Months",
-  "Annually",
+  "Monthly", "Bi-Monthly", "Quarterly", "Every 4 Months", "Every 5 Months",
+  "Every 6 Months", "Semi-Annually", "Every 7 Months", "Every 8 Months",
+  "Every 9 Months", "Every 10 Months", "Every 11 Months", "Annually",
 ];
+
+const defaultFormData: EnrolmentFormData = {
+  program: "",
+  ratePerHour: "",
+  duration: "00:30",
+  ratePerMonth: "",
+  paymentFrequency: "Monthly",
+  paymentFrequencyDiscount: "",
+  multipleEnrolDiscount: "",
+  discountedRatePerMonth: "",
+  numberOfLessons: "96",
+  autoRenew: true,
+};
+
+interface NumberFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  prefix?: string;
+  suffix?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  className?: string;
+}
+
+const NumberField: React.FC<NumberFieldProps> = ({ id, label, value, onChange, prefix, suffix, placeholder, disabled, error, className }) => (
+  <div className="flex items-center justify-between gap-4">
+    <Label htmlFor={id} className={cn(error && "text-red-600 dark:text-red-400")}>
+      {label}
+    </Label>
+    <div className={cn("flex flex-col", className)}>
+      <div className="flex items-center gap-2">
+        {prefix && <span className="text-sm">{prefix}</span>}
+        <Input
+          id={id}
+          type="number"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn("w-32", error && "border-red-500 focus-visible:ring-red-500")}
+          placeholder={placeholder}
+          disabled={disabled}
+        />
+        {suffix && <span className="text-sm text-muted-foreground">{suffix}</span>}
+      </div>
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  </div>
+);
 
 export function NewEnrolmentModal({
   open,
   onOpenChange,
   onNext,
+  location,
 }: NewEnrolmentModalProps) {
   const [programs, setPrograms] = React.useState<Program[]>([]);
   const [loadingPrograms, setLoadingPrograms] = React.useState(false);
-  const [formData, setFormData] = React.useState<EnrolmentFormData>({
-    program: "",
-    ratePerHour: "",
-    duration: "00:30",
-    ratePerMonth: "",
-    paymentFrequency: "Monthly",
-    paymentFrequencyDiscount: "",
-    multipleEnrolDiscount: "",
-    discountedRatePerMonth: "",
-    numberOfLessons: "96",
-    autoRenew: true,
-  });
+  const [formData, setFormData] = React.useState<EnrolmentFormData>(defaultFormData);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [isStartDateModalOpen, setIsStartDateModalOpen] = React.useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
+  const [currentFormData, setCurrentFormData] = React.useState<EnrolmentFormData | null>(null);
 
-  // Fetch programs when modal opens
   React.useEffect(() => {
     if (open) {
       setLoadingPrograms(true);
       getProgramsList("private")
-        .then((programList) => {
-          setPrograms(programList);
-        })
-        .catch((err) => {
-          console.error("Error fetching programs:", err);
-        })
-        .finally(() => {
-          setLoadingPrograms(false);
-        });
+        .then((programList) => setPrograms(programList))
+        .catch((err) => console.error("Error fetching programs:", err))
+        .finally(() => setLoadingPrograms(false));
     } else {
-      // Reset form when modal closes
-      setFormData({
-        program: "",
-        ratePerHour: "",
-        duration: "00:30",
-        ratePerMonth: "",
-        paymentFrequency: "Monthly",
-        paymentFrequencyDiscount: "",
-        multipleEnrolDiscount: "",
-        discountedRatePerMonth: "",
-        numberOfLessons: "96",
-        autoRenew: true,
-      });
+      setFormData(defaultFormData);
+      setErrors({});
     }
   }, [open]);
 
-  // Transform programs to SearchableSelectOption format
-  const programOptions = React.useMemo(() => {
-    return programs.map((program) => ({
-      value: program.id.toString(),
-      label: program.name,
-    }));
-  }, [programs]);
-
-  // Transform payment frequencies to SearchableSelectOption format
-  const paymentFrequencySelectOptions = React.useMemo(() => {
-    return paymentFrequencyOptions.map((frequency) => ({
-      value: frequency,
-      label: frequency,
-    }));
-  }, []);
+  const programOptions = React.useMemo(() => programs.map((p) => ({ value: p.id.toString(), label: p.name })), [programs]);
+  const paymentFrequencySelectOptions = React.useMemo(() => paymentFrequencyOptions.map((f) => ({ value: f, label: f })), []);
 
   const handleFieldChange = (field: keyof EnrolmentFormData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.program?.trim()) newErrors.program = "Program Id cannot be blank.";
+    if (!formData.ratePerHour?.trim()) newErrors.ratePerHour = "Program Rate cannot be blank.";
+    if (!formData.numberOfLessons?.trim()) newErrors.numberOfLessons = "Lessons Count cannot be blank.";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
-    onNext?.(formData);
+    if (!validateForm()) return;
+    onOpenChange(false);
+    setIsStartDateModalOpen(true);
   };
 
-  const handleCancel = () => {
-    onOpenChange(false);
+  const handleStartDateModalNext = (startDateData: EnrolmentStartDateFormData) => {
+    const combinedData: EnrolmentFormData = {
+      ...formData,
+      startDate: startDateData.startDate,
+      paymentCycleEffectiveDate: startDateData.paymentCycleEffectiveDate,
+      isOnline: startDateData.isOnline,
+    };
+    setCurrentFormData(combinedData);
+    setIsStartDateModalOpen(false);
+    setIsDetailModalOpen(true);
   };
 
   return (
@@ -136,12 +171,10 @@ export function NewEnrolmentModal({
         <DialogHeader>
           <DialogTitle className="text-center">New Enrolment Basic</DialogTitle>
         </DialogHeader>
-
         <div className="space-y-4 py-4">
-          {/* Program */}
           <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="program">Program</Label>
-            <div className="w-64">
+            <Label htmlFor="program" className={cn(errors.program && "text-red-600 dark:text-red-400")}>Program</Label>
+            <div className="flex flex-col w-64">
               <SearchableSelect
                 id="program"
                 options={programOptions}
@@ -152,65 +185,27 @@ export function NewEnrolmentModal({
                 emptyText="No programs available"
                 loadingText="Loading programs..."
                 noResultsText="No programs found"
-                className="w-full"
+                className={cn("w-full", errors.program && "border-red-500")}
                 disabled={loadingPrograms}
                 isLoading={loadingPrograms}
               />
+              {errors.program && <p className="text-xs text-red-500 mt-1">{errors.program}</p>}
             </div>
           </div>
 
-          {/* Rate (per hour) */}
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="rate-per-hour">Rate (per hour)</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">$</span>
-              <Input
-                id="rate-per-hour"
-                type="number"
-                value={formData.ratePerHour}
-                onChange={(e) => handleFieldChange("ratePerHour", e.target.value)}
-                className="w-32"
-                placeholder="0.00"
-              />
-              <span className="text-sm text-muted-foreground">/hr</span>
-            </div>
-          </div>
+          <NumberField id="rate-per-hour" label="Rate (per hour)" value={formData.ratePerHour} onChange={(v) => handleFieldChange("ratePerHour", v)} prefix="$" suffix="/hr" placeholder="0.00" error={errors.ratePerHour} />
 
-          {/* Duration */}
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="duration">Duration</Label>
             <div className="flex items-center gap-2">
-              <Input
-                id="duration"
-                type="time"
-                value={formData.duration}
-                onChange={(e) => handleFieldChange("duration", e.target.value)}
-                className="w-32"
-              />
+              <Input id="duration" type="time" value={formData.duration} onChange={(e) => handleFieldChange("duration", e.target.value)} className="w-32" />
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">mins.</span>
             </div>
           </div>
 
-          {/* Rate (per month) */}
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="rate-per-month">Rate (per month)</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">$</span>
-              <Input
-                id="rate-per-month"
-                type="number"
-                value={formData.ratePerMonth}
-                onChange={(e) => handleFieldChange("ratePerMonth", e.target.value)}
-                className="w-32"
-                placeholder="0.00"
-                disabled
-              />
-              <span className="text-sm text-muted-foreground">/mn</span>
-            </div>
-          </div>
+          <NumberField id="rate-per-month" label="Rate (per month)" value={formData.ratePerMonth} onChange={(v) => handleFieldChange("ratePerMonth", v)} prefix="$" suffix="/mn" placeholder="0.00" disabled />
 
-          {/* Payment Frequency */}
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="payment-frequency">Payment Frequency</Label>
             <div className="w-64">
@@ -228,121 +223,55 @@ export function NewEnrolmentModal({
             </div>
           </div>
 
-          {/* Payment Frequency Discount */}
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="payment-frequency-discount">Payment Frequency Discount</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="payment-frequency-discount"
-                type="number"
-                value={formData.paymentFrequencyDiscount}
-                onChange={(e) =>
-                  handleFieldChange("paymentFrequencyDiscount", e.target.value)
-                }
-                className="w-32"
-                placeholder="0"
-              />
-              <span className="text-sm text-muted-foreground">%</span>
-            </div>
-          </div>
+          <NumberField id="payment-frequency-discount" label="Payment Frequency Discount" value={formData.paymentFrequencyDiscount} onChange={(v) => handleFieldChange("paymentFrequencyDiscount", v)} suffix="%" placeholder="0" />
+          <NumberField id="multiple-enrol-discount" label="Multiple Enrol. Discount (per month)" value={formData.multipleEnrolDiscount} onChange={(v) => handleFieldChange("multipleEnrolDiscount", v)} prefix="$" suffix="/mn" placeholder="0.00" />
+          <NumberField id="discounted-rate" label="Discounted Rate (per month)" value={formData.discountedRatePerMonth} onChange={(v) => handleFieldChange("discountedRatePerMonth", v)} prefix="$" suffix="/mn" placeholder="0.00" disabled />
+          <NumberField id="number-of-lessons" label="Number of Lessons" value={formData.numberOfLessons} onChange={(v) => handleFieldChange("numberOfLessons", v)} error={errors.numberOfLessons} />
 
-          {/* Multiple Enrol. Discount (per month) */}
           <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="multiple-enrol-discount">
-              Multiple Enrol. Discount (per month)
-            </Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">$</span>
-              <Input
-                id="multiple-enrol-discount"
-                type="number"
-                value={formData.multipleEnrolDiscount}
-                onChange={(e) =>
-                  handleFieldChange("multipleEnrolDiscount", e.target.value)
-                }
-                className="w-32"
-                placeholder="0.00"
-              />
-              <span className="text-sm text-muted-foreground">/mn</span>
-            </div>
-          </div>
-
-          {/* Discounted Rate (per month) */}
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="discounted-rate">Discounted Rate (per month)</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">$</span>
-              <Input
-                id="discounted-rate"
-                type="number"
-                value={formData.discountedRatePerMonth}
-                onChange={(e) =>
-                  handleFieldChange("discountedRatePerMonth", e.target.value)
-                }
-                className="w-32"
-                placeholder="0.00"
-                disabled
-              />
-              <span className="text-sm text-muted-foreground">/mn</span>
-            </div>
-          </div>
-
-          {/* Number of Lessons */}
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="number-of-lessons">Number of Lessons</Label>
-            <Input
-              id="number-of-lessons"
-              type="number"
-              value={formData.numberOfLessons}
-              onChange={(e) => handleFieldChange("numberOfLessons", e.target.value)}
-              className="w-32"
-            />
-          </div>
-
-          {/* Auto Renew */}
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="auto-renew">
-              Should this enrolment automatically renew itself?
-            </Label>
-            <div className="flex items-center gap-3">
-              <div className="flex gap-1 border rounded-md overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => handleFieldChange("autoRenew", true)}
-                  className={`text-sm px-3 py-1.5 transition-colors ${
-                    formData.autoRenew
-                      ? "bg-blue-600 text-white"
-                      : "bg-transparent text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleFieldChange("autoRenew", false)}
-                  className={`text-sm px-3 py-1.5 transition-colors ${
-                    !formData.autoRenew
-                      ? "bg-blue-600 text-white"
-                      : "bg-transparent text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  No
-                </button>
-              </div>
+            <Label htmlFor="auto-renew">Should this enrolment automatically renew itself?</Label>
+            <div className="flex gap-1 border rounded-md overflow-hidden">
+              <button type="button" onClick={() => handleFieldChange("autoRenew", true)} className={cn("text-sm px-3 py-1.5 transition-colors", formData.autoRenew ? "bg-blue-600 text-white" : "bg-transparent text-gray-700 hover:bg-gray-100")}>Yes</button>
+              <button type="button" onClick={() => handleFieldChange("autoRenew", false)} className={cn("text-sm px-3 py-1.5 transition-colors", !formData.autoRenew ? "bg-blue-600 text-white" : "bg-transparent text-gray-700 hover:bg-gray-100")}>No</button>
             </div>
           </div>
         </div>
-
         <DialogFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button onClick={handleNext} className="bg-teal-600 hover:bg-teal-700">
-            Next
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleNext} className="bg-teal-600 hover:bg-teal-700">Next</Button>
         </DialogFooter>
       </DialogContent>
+
+      <EnrolmentStartDateModal
+        open={isStartDateModalOpen}
+        onOpenChange={setIsStartDateModalOpen}
+        onBack={() => {
+          setIsStartDateModalOpen(false);
+          onOpenChange(true);
+        }}
+        onNext={handleStartDateModalNext}
+        location={location}
+      />
+
+      <NewEnrolmentDetailModal
+        open={isDetailModalOpen}
+        onOpenChange={setIsDetailModalOpen}
+        onBack={() => {
+          setIsDetailModalOpen(false);
+          setIsStartDateModalOpen(true);
+        }}
+        onPreviewLessons={() => {
+          if (currentFormData) {
+            onNext?.(currentFormData);
+            setIsDetailModalOpen(false);
+          }
+        }}
+        location={location}
+        initialData={{
+          startDate: currentFormData?.startDate,
+          showAll: false,
+        }}
+      />
     </Dialog>
   );
 }
-

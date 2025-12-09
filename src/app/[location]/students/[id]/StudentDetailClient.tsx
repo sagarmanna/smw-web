@@ -226,6 +226,7 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
           <StudentEnrolmentsCard
             enrolments={enrolments}
             isLoading={isLoading}
+            location={location}
           />
 
           <StudentEvaluationsCard
