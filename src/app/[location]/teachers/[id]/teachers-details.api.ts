@@ -188,6 +188,7 @@ export async function getTeacherQualifications(
       {
         params: {
           type: type,
+          limit: 999,
         },
       }
     );

@@ -76,8 +76,9 @@ export function BulkRescheduleModal({
         destinationDateStr
       );
 
+      // {"status":false,"error":"No Lessons for this teacher for the selected date"}
       if (!response || !response.status) {
-        throw new Error(response?.message || "Failed to submit bulk reschedule request");
+        throw new Error(response?.message || response?.error || "Failed to submit bulk reschedule request");
       }
 
       // Show success message

@@ -7,19 +7,12 @@ import {
   getTeacherAvailability,
   type TeacherScheduleData,
   type TeacherScheduleLessonEvent,
-  type TeacherScheduleAvailabilityEvent,
 } from "../../../../[id]/teachers-details-tabs.api";
 import { getClassroomViewResources } from "@/app/[location]/schedule/schedule.api";
 import type { Classroom } from "../../../../[id]/mockAvailabilityData";
 import { modifyTeacherAvailability, deleteTeacherAvailability } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 interface AvailabilityCalendarTabProps {
   location: string;
@@ -102,12 +95,10 @@ export function AvailabilityCalendarTab({
   teacherId,
 }: AvailabilityCalendarTabProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [datePickerDisplayDate, setDatePickerDisplayDate] = useState<Date>(new Date());
   const [availabilityData, setAvailabilityData] = useState<TeacherScheduleData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isSyncingDate, setIsSyncingDate] = useState<boolean>(false);
-  const [datePickerOpen, setDatePickerOpen] = useState<boolean>(false);
 
   // Modal state
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -121,7 +112,6 @@ export function AvailabilityCalendarTab({
     id?: string;
   } | null>(null);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [isLoadingClassrooms, setIsLoadingClassrooms] = useState<boolean>(false);
 
   // Load data on mount and when teacherId or date changes
   useEffect(() => {
@@ -205,7 +195,6 @@ export function AvailabilityCalendarTab({
   const loadClassrooms = async () => {
     if (classrooms.length > 0) return; // Already loaded
     
-    setIsLoadingClassrooms(true);
     try {
       const response = await getClassroomViewResources(location);
       if (response?.success && response.data?.resources) {
@@ -219,8 +208,6 @@ export function AvailabilityCalendarTab({
     } catch (error) {
       console.error("Error loading classrooms:", error);
       toast.error("Failed to load classrooms");
-    } finally {
-      setIsLoadingClassrooms(false);
     }
   };
 
@@ -358,7 +345,7 @@ export function AvailabilityCalendarTab({
     fromTime: string; // Format: "HH:mm:ss"
     toTime: string; // Format: "HH:mm:ss"
     classroomId?: number;
-  }) => {
+  }): Promise<{ success: boolean; errors?: Record<string, string[]> }> => {
     try {
       // Determine availability ID (0 for create, actual ID for update)
       const availabilityId = modalMode === "edit" && editingAvailability 
@@ -385,13 +372,18 @@ export function AvailabilityCalendarTab({
             : "Availability created successfully"
         );
         await loadData();
-        setShowModal(false);
+        return { success: true };
       } else {
+        // Check if response has errors object
+        if (response.errors) {
+          return { success: false, errors: response.errors };
+        }
         throw new Error(response.message || "Failed to save availability");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save availability";
       toast.error(errorMessage);
+      return { success: false };
     }
   };
 
@@ -454,30 +446,6 @@ export function AvailabilityCalendarTab({
     };
   }, [availabilityData]);
 
-  // Format week range for display
-  const weekRangeDisplay = useMemo(() => {
-    if (!availabilityData?.date) return "";
-    const startDate = new Date(availabilityData.date.from);
-    const endDate = new Date(availabilityData.date.to);
-    const startFormatted = format(startDate, "dd-MMM-yyyy, EEEE");
-    const endFormatted = format(endDate, "dd-MMM-yyyy, EEEE");
-    return `${startFormatted} – ${endFormatted}`;
-  }, [availabilityData]);
-
-  // Handle date picker selection
-  const handleDateSelect = (newDate: Date) => {
-    setIsSyncingDate(false);
-    setDatePickerDisplayDate(newDate);
-    
-    const dayOfWeek = newDate.getDay();
-    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(newDate);
-    monday.setDate(newDate.getDate() + daysToMonday);
-    monday.setHours(0, 0, 0, 0);
-    
-    setSelectedDate(monday);
-    setDatePickerOpen(false);
-  };
 
   if (isLoading) {
     return (
