@@ -18,6 +18,7 @@ interface EmailStatementModalProps {
   customerName?: string;
   customerEmails?: string[];
   locationName?: string;
+  hstNumber?: string;
   initialSubject?: string;
   initialContent?: string;
   privateLessonDueData?: Array<{
@@ -72,6 +73,7 @@ export default function EmailStatementModal({
   customerName: _customerName,
   customerEmails = [],
   locationName = "Arcadia Academy of Music",
+  hstNumber,
   initialSubject,
   initialContent,
   privateLessonDueData = [],
@@ -382,21 +384,18 @@ export default function EmailStatementModal({
       return "";
     }
 
-    const totalSection = shouldShowTotal
-      ? `
-  <div style="margin-top:16px;font-size:12px;font-family:system-ui,-apple-system,sans-serif;">
-    <table style="width:100%;font-size:12px;border-collapse:collapse;">
-      <tr>
-        <td style="font-weight:600;text-align:left;border:1px solid #ddd;padding:6px;">Total</td>
-        <td style="font-weight:600;text-align:right;border:1px solid #ddd;padding:6px;">${totalBalance}</td>
-      </tr>
-    </table>
-  </div>`
-      : "";
-
     const footer = `
-  <div style="margin-top:16px;font-size:12px;">
-    <p style="margin:0;"><strong>HST#</strong> FQR547785GT1234</p>
+  <div style="margin-top:16px;font-size:12px;font-family:system-ui,-apple-system,sans-serif;">
+    ${hstNumber ? `<p style="margin:0;"><strong>HST#</strong> ${hstNumber}</p>` : ""}
+    ${shouldShowTotal ? `
+    <div style="margin-top:16px;font-size:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <tr>
+          <td style="font-weight:600;text-align:left;border:1px solid #ddd;padding:6px;">Total</td>
+          <td style="font-weight:600;text-align:right;border:1px solid #ddd;padding:6px;">${totalBalance}</td>
+        </tr>
+      </table>
+    </div>` : ""}
     <p style="margin:16px 0 4px 0;">Thank you,</p>
     <p style="margin:0;">${locationName}</p>
   </div>`;
@@ -404,7 +403,6 @@ export default function EmailStatementModal({
     return `
 <div style="margin-top:16px;">
   ${sections.join("\n")}
-  ${totalSection}
   ${footer}
 </div>`;
   }
