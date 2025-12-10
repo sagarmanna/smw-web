@@ -178,6 +178,10 @@ export const generatePrintStatementHtml = (config: PrintStatementConfig): string
         Total: ${config.totalBalance}
       </div>
       ${config.footer ? `<div style="margin-top:16px;font-size:12px;">${config.footer}</div>` : ''}
+      <div style="margin-top:32px;font-size:12px;">
+        <p style="margin:0;">Thank you,</p>
+        <p style="margin:4px 0 0 0;">Arcadia Academy Of Music</p>
+      </div>
     </div>`;
 
   return `
@@ -302,12 +306,11 @@ export const buildCustomerStatementConfig = (
   if (data.creditRows && data.creditRows.length > 0) {
     tables.push({
       title: 'Credits',
-      headers: ['Type', 'Reference', 'Date', 'Amount'],
-      alignments: ['left', 'left', 'left', 'right'],
+      headers: ['Type', 'Reference', 'Amount'],
+      alignments: ['left', 'left', 'right'],
       rows: data.creditRows.map(r => ({
         type: r.type,
         reference: r.reference,
-        date: r.date,
         amount: r.amount,
       })),
     });

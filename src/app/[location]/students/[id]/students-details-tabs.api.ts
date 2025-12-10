@@ -138,14 +138,25 @@ function generateMockPrivateLessons(studentId: string): PrivateLessonData[] {
  */
 function generateMockGroupLessons(studentId: string): GroupLessonData[] {
   const studentIndex = parseInt(studentId) || 1;
-  const programs = ["Piano Core", "Guitar Fundamentals", "Violin Basics", "Music Theory", "Drums Essential"];
+  const programs = ["xPiano Contemporary", "Guitar Ensemble", "Violin Group", "Music Theory Group", "Drums Collective"];
   const program = programs[(studentIndex - 1) % programs.length];
   
   return [
-    { dueDate: "Oct 12, 2025", programName: `${program} Group A`, date: "Oct 12, 2025 @ 10:00 AM", duration: "01:00", status: "Completed", price: 25.00, owing: 0, online: "No" },
-    { dueDate: "Oct 19, 2025", programName: `${program} Group A`, date: "Oct 19, 2025 @ 10:00 AM", duration: "01:00", status: "Completed", price: 25.00, owing: 0, online: "No" },
-    { dueDate: "Oct 26, 2025", programName: `${program} Group A`, date: "Oct 26, 2025 @ 10:00 AM", duration: "01:00", status: "Scheduled", price: 25.00, owing: 25.00, online: "No" },
-    { dueDate: "Nov 02, 2025", programName: `${program} Group A`, date: "Nov 02, 2025 @ 10:00 AM", duration: "01:00", status: "Scheduled", price: 25.00, owing: 25.00, online: "No" },
+    // Group 1: Sep 15, 2025 - 1 lesson with Rescheduled status
+    { dueDate: "Sep 15, 2025", programName: program, date: "Oct 16, 2025 @ 07:30 PM", duration: "02:30", status: "Rescheduled", price: 143.75, owing: 143.75, online: "No" },
+    
+    // Group 2: Oct 15, 2025 - 5 lessons
+    { dueDate: "Oct 15, 2025", programName: program, date: "Oct 23, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
+    { dueDate: "Oct 15, 2025", programName: program, date: "Oct 30, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
+    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 06, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
+    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 13, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
+    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 20, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
+    
+    // Group 3: Nov 15, 2025 - 4 lessons
+    { dueDate: "Nov 15, 2025", programName: program, date: "Nov 27, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
+    { dueDate: "Nov 15, 2025", programName: program, date: "Dec 04, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
+    { dueDate: "Nov 15, 2025", programName: program, date: "Dec 11, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
+    { dueDate: "Nov 15, 2025", programName: program, date: "Dec 18, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
   ];
 }
 
@@ -174,8 +185,33 @@ function generateMockUnscheduledLessons(studentId: string): UnscheduledLessonDat
   const program = programs[(studentIndex - 1) % programs.length];
   
   return [
-    { program: program, phone: "(647) 889-9081", duration: "00:30", originalDate: "Sep 20, 2025", expiryDate: "Dec 31, 2025", online: "No" },
-    { program: "Music Theory", phone: "(647) 889-9081", duration: "00:30", originalDate: "Oct 10, 2025", expiryDate: "Nov 30, 2025", online: "No" },
+    // Expired lessons (should only show when "Show All" is checked)
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jan 15, 2024", expiryDate: "Apr 15, 2024", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Feb 10, 2024", expiryDate: "May 10, 2024", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Mar 05, 2024", expiryDate: "Jun 05, 2024", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Apr 20, 2024", expiryDate: "Jul 20, 2024", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "May 12, 2024", expiryDate: "Aug 12, 2024", online: "No" },
+    // Non-expired lessons
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "May 19, 2025", expiryDate: "Aug 18, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "May 26, 2025", expiryDate: "Aug 25, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 02, 2025", expiryDate: "Sep 01, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 09, 2025", expiryDate: "Sep 08, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 16, 2025", expiryDate: "Sep 15, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 23, 2025", expiryDate: "Sep 22, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 30, 2025", expiryDate: "Sep 29, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jul 07, 2025", expiryDate: "Oct 06, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jul 14, 2025", expiryDate: "Oct 13, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jul 21, 2025", expiryDate: "Oct 20, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jul 28, 2025", expiryDate: "Oct 27, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Aug 04, 2025", expiryDate: "Nov 03, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Aug 11, 2025", expiryDate: "Nov 10, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Aug 18, 2025", expiryDate: "Nov 17, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Aug 25, 2025", expiryDate: "Nov 24, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Sep 01, 2025", expiryDate: "Dec 01, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Sep 08, 2025", expiryDate: "Dec 08, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Sep 15, 2025", expiryDate: "Dec 15, 2025", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Oct 13, 2025", expiryDate: "Jan 11, 2026", online: "No" },
+    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Oct 27, 2025", expiryDate: "Jan 26, 2026", online: "No" },
   ];
 }
 
