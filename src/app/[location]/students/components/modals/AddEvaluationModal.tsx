@@ -24,67 +24,43 @@ import { cn } from "@/lib/utils";
 import { StudentEvaluation } from "../../types";
 import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
+import { getProgramsList, Program } from "../../../teachers/teachers.api";
+import { getTeachersList, Teacher } from "../../../schedule/schedule.api";
 
-// Mock data - TODO: Replace with API calls
-interface Program {
-  id: number;
-  name: string;
-}
-
-interface Teacher {
-  id: number;
-  name: string;
-  programId: number;
-}
-
-// Mock programs data
-const MOCK_PROGRAMS: Program[] = [
-  { id: 1, name: "40th Anniversary Piano" },
-  { id: 2, name: "Band" },
-  { id: 3, name: "Band (Full Year)" },
-  { id: 4, name: "Bass Guitar" },
-  { id: 5, name: "Cello" },
-  { id: 6, name: "Clarinet" },
-  { id: 7, name: "Drums" },
-  { id: 8, name: "Guitar" },
-  { id: 9, name: "Piano Core" },
-  { id: 10, name: "Violin" },
-];
-
-// Mock teachers data - teachers are associated with programs
-const MOCK_TEACHERS: Teacher[] = [
-  { id: 1, name: "Alexander Hamilton", programId: 1 },
-  { id: 2, name: "Art Tatum", programId: 1 },
-  { id: 3, name: "Sanjay Bansali", programId: 2 },
-  { id: 4, name: "sisi011 teacher01", programId: 2 },
-  { id: 5, name: "teacher 12", programId: 3 },
-  { id: 6, name: "John Doe", programId: 4 },
-  { id: 7, name: "Jane Smith", programId: 5 },
-  { id: 8, name: "Mike Johnson", programId: 6 },
-  { id: 9, name: "Sarah Williams", programId: 7 },
-  { id: 10, name: "David Brown", programId: 8 },
-  { id: 11, name: "Emily Davis", programId: 9 },
-  { id: 12, name: "Robert Wilson", programId: 10 },
-];
-
-// Mock API functions - TODO: Replace with actual API calls
+// API functions
 const fetchPrograms = async (): Promise<Program[]> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return MOCK_PROGRAMS;
+  try {
+    return await getProgramsList();
+  } catch (error) {
+    console.error("Error fetching programs:", error);
+    return [];
+  }
 };
 
-const fetchTeachersByProgram = async (programId: number): Promise<Teacher[]> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  return MOCK_TEACHERS.filter((teacher) => teacher.programId === programId);
+const fetchTeachers = async (location: string): Promise<Teacher[]> => {
+  try {
+    const response = await getTeachersList(location);
+    if (response?.success && response.data) {
+      return response.data.map((t) => ({ id: t.id, name: t.name }));
+    }
+    return [];
+  } catch (error) {
+    console.error("Error fetching teachers:", error);
+    return [];
+  }
 };
+
+interface EvaluationWithIds extends StudentEvaluation {
+  programId?: number;
+  teacherId?: number;
+}
 
 interface AddEvaluationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentName?: string;
-  onSubmit: (evaluation: StudentEvaluation) => Promise<boolean>;
+  location: string;
+  onSubmit: (evaluation: EvaluationWithIds) => Promise<boolean>;
   onDelete?: (evaluation: StudentEvaluation) => Promise<boolean>;
   saving?: boolean;
   initialData?: StudentEvaluation | null;
@@ -95,6 +71,7 @@ export function AddEvaluationModal({
   open,
   onOpenChange,
   studentName,
+  location,
   onSubmit,
   onDelete,
   saving = false,
@@ -154,17 +131,11 @@ export function AddEvaluationModal({
     }
   }, [open]);
 
-  // Fetch teachers when program is selected
+  // Fetch teachers when modal opens
   React.useEffect(() => {
-    if (selectedProgramId && open) {
+    if (open && location) {
       setLoadingTeachers(true);
-      const programId = parseInt(selectedProgramId, 10);
-      if (isNaN(programId)) {
-        console.error("Invalid programId:", selectedProgramId);
-        setLoadingTeachers(false);
-        return;
-      }
-      fetchTeachersByProgram(programId)
+      fetchTeachers(location)
         .then((teacherList) => {
           setTeachers(teacherList);
         })
@@ -175,19 +146,11 @@ export function AddEvaluationModal({
         .finally(() => {
           setLoadingTeachers(false);
         });
-    } else if (!selectedProgramId && open) {
-      // Only clear if modal is open and no program is selected (but not on initial load)
-      // Don't clear teachers if we're in edit mode and still loading programs
-      if (!isEditMode || !loadingPrograms) {
+    } else {
+      // Clear teachers when modal closes
         setTeachers([]);
-        // Don't clear selectedTeacherId if we're in edit mode - it will be set when teachers load
-        if (!isEditMode) {
-          setSelectedTeacherId("");
-          setFormData((prev) => ({ ...prev, teacher: "" }));
-        }
-      }
     }
-  }, [selectedProgramId, open, isEditMode, loadingPrograms]);
+  }, [open, location]);
 
   // Initialize form data when modal opens
   React.useEffect(() => {
@@ -262,8 +225,6 @@ export function AddEvaluationModal({
       
       if (program) {
         setSelectedProgramId(program.id.toString());
-      } else {
-        console.warn(`Program "${initialData.program}" not found in programs list`);
       }
     }
   }, [open, isEditMode, initialData, programs, selectedProgramId]);
@@ -286,8 +247,6 @@ export function AddEvaluationModal({
       
       if (teacher) {
         setSelectedTeacherId(teacher.id.toString());
-      } else {
-        console.warn(`Teacher "${initialData.teacher}" not found in teachers list for program ${selectedProgramId}`);
       }
     }
   }, [open, isEditMode, initialData, teachers, selectedProgramId, selectedTeacherId]);
@@ -333,9 +292,12 @@ export function AddEvaluationModal({
       return;
     }
 
-    const evaluation: StudentEvaluation = {
+    const evaluation: EvaluationWithIds = {
       ...formData,
       examDate: examDateString,
+      id: initialData?.id, // Include ID if editing
+      programId: selectedProgramId ? parseInt(selectedProgramId, 10) : undefined,
+      teacherId: selectedTeacherId ? parseInt(selectedTeacherId, 10) : undefined,
     };
 
     const success = await onSubmit(evaluation);
@@ -513,19 +475,17 @@ export function AddEvaluationModal({
                     }
                   }}
                   placeholder={
-                    !selectedProgramId
-                      ? "Select program first"
-                      : loadingTeachers
+                    loadingTeachers
                       ? "Loading teachers..."
                       : "Select..."
                   }
                   searchPlaceholder="Search teachers..."
-                  emptyText={!selectedProgramId ? "Select a program first" : "No teachers found."}
+                  emptyText="No teachers found."
                   className={cn(
                     "w-full",
                     errors.teacher && "[&>button]:border-red-500"
                   )}
-                  disabled={!selectedProgramId || loadingTeachers || saving}
+                  disabled={loadingTeachers || saving}
                   popoverContentProps={{ className: "w-[var(--radix-popover-trigger-width)]" }}
                 />
               </div>

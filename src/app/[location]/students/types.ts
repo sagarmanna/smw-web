@@ -30,6 +30,7 @@ export interface StudentEnrolment {
 }
 
 export interface StudentEvaluation {
+  id?: number; // Optional - new evaluations won't have ID until saved
   examDate: string;
   mark: string;
   level: string;
@@ -38,10 +39,18 @@ export interface StudentEvaluation {
   teacher: string;
 }
 
+export interface StudentEvaluationsPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface StudentInfo {
   profile: StudentProfile;
   customer: StudentCustomer;
   enrolments: StudentEnrolment[];
   evaluations: StudentEvaluation[];
+  evaluationsPagination?: StudentEvaluationsPagination;
 }
 
