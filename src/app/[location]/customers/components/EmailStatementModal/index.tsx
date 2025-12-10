@@ -234,21 +234,15 @@ export default function EmailStatementModal({
     const sections: string[] = [];
 
     if (privateLessonDueData.length > 0) {
-      const privateLessonsSection = `
-  <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px;">Private Lessons Due</h3>
-  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
-    <thead>
-      <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Student</th>
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Program</th>
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Teacher</th>
-        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
-        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
-      </tr>
-    </thead>
-    <tbody>
-      ${privateLessonDueData
+      const headerRow = `
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Student</th>
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Program</th>
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Teacher</th>
+        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
+        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>`;
+      
+      const bodyRows = privateLessonDueData
         .map((lesson) => {
           type Legacy = { lessonDate: string; student: string; program: string; teacher: string; amount: number };
           type Api = { lessonDate: string; studentName: string; programName: string; teacherName: string; amount: number | string };
@@ -258,113 +252,108 @@ export default function EmailStatementModal({
           const teacher = isApi(lesson as Legacy | Api) ? (lesson as Api).teacherName : (lesson as Legacy).teacher;
           const amountVal = (lesson as Legacy | Api).amount as number | string;
           const amountStr = typeof amountVal === "string" ? amountVal : formatCurrency(amountVal);
-          return `<tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.lessonDate}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${student}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${program}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${teacher}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${amountStr}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;">${amountStr}</td>
+          return `<tr>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.lessonDate}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${student}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${program}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${teacher}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${amountStr}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${amountStr}</td>
       </tr>`;
         })
-        .join("")}
-    </tbody>
-  </table>`;
+        .join("");
+      
+      const privateLessonsSection = `
+    <h3 style="margin:16px 0 8px;font-size:14px;">Lessons</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr>${headerRow}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
       sections.push(privateLessonsSection);
     }
 
     if (groupLessonDueData.length > 0) {
+      const headerRow = `
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Student</th>
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Program</th>
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Teacher</th>
+        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
+        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>`;
+      
+      const bodyRows = groupLessonDueData
+        .map((lesson) => {
+          const amountStr = typeof lesson.amount === "string" ? lesson.amount : formatCurrency(lesson.amount);
+          return `<tr>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.lessonDate}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.studentName}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.programName}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.teacherName}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${amountStr}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${amountStr}</td>
+      </tr>`;
+        })
+        .join("");
+      
       const groupLessonsSection = `
-  <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Group Lessons Due</h3>
-  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
-    <thead>
-      <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Student</th>
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Program</th>
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Teacher</th>
-        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
-        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
-      </tr>
-    </thead>
-    <tbody>
-      ${groupLessonDueData
-        .map(
-          (lesson) => `<tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.lessonDate}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.studentName}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.programName}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${lesson.teacherName}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;"><div style="text-align: right;">${
-          typeof lesson.amount === "string" ? lesson.amount : formatCurrency(lesson.amount)
-        }</div></td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;"><div style="text-align: right;">${
-          typeof lesson.amount === "string" ? lesson.amount : formatCurrency(lesson.amount)
-        }</div></td>
-      </tr>`
-        )
-        .join("")}
-    </tbody>
-  </table>`;
+    <h3 style="margin:16px 0 8px;font-size:14px;">Group Lessons Due</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr>${headerRow}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
       sections.push(groupLessonsSection);
     }
 
     if (invoiceData.length > 0) {
+      const headerRow = `
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Number</th>
+        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
+        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>`;
+      
+      const bodyRows = invoiceData
+        .map((invoice) => `<tr>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${invoice.date}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${invoice.id}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${formatCurrency(invoice.total)}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${formatCurrency(invoice.balance)}</td>
+      </tr>`)
+        .join("");
+      
       const invoicesSection = `
-  <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Invoices</h3>
-  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
-    <thead>
-      <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Date</th>
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Number</th>
-        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
-        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Balance</div></th>
-      </tr>
-    </thead>
-    <tbody>
-      ${invoiceData
-        .map(
-          (invoice) => `<tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${invoice.date}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${invoice.id}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(invoice.total)}</div></td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(invoice.balance)}</div></td>
-      </tr>`
-        )
-        .join("")}
-    </tbody>
-  </table>`;
+    <h3 style="margin:16px 0 8px;font-size:14px;">Invoices</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr>${headerRow}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
       sections.push(invoicesSection);
     }
 
     if (creditData.length > 0) {
-      const creditsSection = `
-  <h3 style="font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px; margin-top: 24px;">Payment Credits</h3>
-  <table class="email-statement" border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px; border: 1px solid #d1d5db;">
-    <thead>
-      <tr style="background-color: #f3f4f6; border-bottom: 1px solid #d1d5db;">
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Type</th>
-        <th style="text-align: left; padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;">Reference</th>
-        <th style="padding: 8px; font-weight: 600; color: #374151; border: 1px solid #d1d5db;"><div style="text-align: right;">Amount</div></th>
-      </tr>
-    </thead>
-    <tbody>
-      ${creditData
+      const headerRow = `
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Type</th>
+        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Reference</th>
+        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>`;
+      
+      const bodyRows = creditData
         .map((credit) => {
           const reference = credit.reference?.trim()
             ? credit.reference
             : `#${credit.id}`;
-          return `<tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${credit.type}</td>
-        <td style="padding: 8px; color: #1f2937; border: 1px solid #d1d5db;">${reference}</td>
-        <td style="padding: 8px; color: #1f2937; text-align: right; border: 1px solid #d1d5db;"><div style="text-align: right;">${formatCurrency(
-          credit.amount
-        )}</div></td>
+          return `<tr>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${credit.type}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${reference}</td>
+        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${formatCurrency(credit.amount)}</td>
       </tr>`;
         })
-        .join("")}
-    </tbody>
-  </table>`;
+        .join("");
+      
+      const creditsSection = `
+    <h3 style="margin:16px 0 8px;font-size:14px;">Payment Credits</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr>${headerRow}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
       sections.push(creditsSection);
     }
 
@@ -380,25 +369,25 @@ export default function EmailStatementModal({
 
     const totalSection = shouldShowTotal
       ? `
-  <div style="margin-top: 24px; padding-top: 16px; border-top: 2px solid #d1d5db;">
-    <table class="email-statement-total" style="width: 100%; font-size: 14px;">
+  <div style="margin-top:16px;font-size:12px;">
+    <table style="width:100%;font-size:12px;">
       <tr>
-        <td style="font-weight: bold; color: #111827; text-align: left;">Total</td>
-        <td style="font-weight: bold; color: #111827;"><div style="text-align: right;">${totalBalance}</div></td>
+        <td style="font-weight:600;text-align:left;">Total</td>
+        <td style="font-weight:600;text-align:right;">${totalBalance}</td>
       </tr>
     </table>
   </div>`
       : "";
 
     const footer = `
-  <div style="margin-top: 32px; font-size: 14px; color: #1f2937; line-height: 1.6;">
-    <p style="margin: 0;"><strong>HST#</strong> FQR547785GT1234</p>
-    <p style="margin: 16px 0 4px 0;">Thank you,</p>
-    <p style="margin: 0;">${locationName}</p>
+  <div style="margin-top:16px;font-size:12px;">
+    <p style="margin:0;"><strong>HST#</strong> FQR547785GT1234</p>
+    <p style="margin:16px 0 4px 0;">Thank you,</p>
+    <p style="margin:0;">${locationName}</p>
   </div>`;
 
     return `
-<div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
+<div style="margin-top:16px;">
   ${sections.join("\n")}
   ${totalSection}
   ${footer}
