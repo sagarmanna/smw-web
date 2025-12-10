@@ -1837,15 +1837,21 @@ export function CustomerDetailClient({
                 return `$${value.toFixed(2)}`;
               };
 
+              // Parse amount helper to handle strings like "$12.00" or numbers
+              const parseAmount = (value: number | string | undefined): number => {
+                if (typeof value === "number") return value;
+                if (!value) return 0;
+                const cleaned = String(value).replace(/[^0-9.-]/g, "");
+                const num = Number(cleaned);
+                return Number.isFinite(num) ? num : 0;
+              };
+
               // Transform private lesson due data
               const lessonRows = (privateLessonsRes.data || []).map(lesson => {
-                const rawAmount =
-                  typeof lesson.amount === "number"
-                    ? lesson.amount
-                    : Number(lesson.amount || 0);
+                const rawAmount = parseAmount(lesson.amount);
                 const amount = formatCurrency(rawAmount);
-                const balanceValue: number = Number(
-                  (lesson as { balanceDue?: number }).balanceDue ?? rawAmount
+                const balanceValue: number = parseAmount(
+                  (lesson as { balanceDue?: number | string }).balanceDue ?? rawAmount
                 );
                 const balance = formatCurrency(balanceValue);
                 return {
@@ -1860,13 +1866,10 @@ export function CustomerDetailClient({
 
               // Transform group lesson due data
               const groupLessonRows = (groupLessonsRes.data || []).map(lesson => {
-                const rawAmount =
-                  typeof lesson.amount === "number"
-                    ? lesson.amount
-                    : Number(lesson.amount || 0);
+                const rawAmount = parseAmount(lesson.amount);
                 const amount = formatCurrency(rawAmount);
-                const balanceValue: number = Number(
-                  (lesson as { balanceDue?: number }).balanceDue ?? rawAmount
+                const balanceValue: number = parseAmount(
+                  (lesson as { balanceDue?: number | string }).balanceDue ?? rawAmount
                 );
                 const balance = formatCurrency(balanceValue);
                 return {
