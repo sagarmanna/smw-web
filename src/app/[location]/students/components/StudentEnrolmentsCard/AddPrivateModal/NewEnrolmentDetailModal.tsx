@@ -383,7 +383,7 @@ export function NewEnrolmentDetailModal({
           )}
         </div>
         <DialogFooter className="!flex !flex-row !justify-between !items-center gap-2">
-          <Button variant="outline" onClick={onBack} className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600">Back</Button>
+          <Button onClick={onBack}>Back</Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             {isExpanded && (
@@ -397,7 +397,6 @@ export function NewEnrolmentDetailModal({
                   goToDate: goToDate ? format(goToDate, "yyyy-MM-dd") : undefined,
                   showAll,
                 })}
-                className="bg-teal-600 hover:bg-teal-700"
               >
                 Preview Lessons
               </Button>
