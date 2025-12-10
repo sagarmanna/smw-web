@@ -42,7 +42,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
   const [showAll, setShowAll] = React.useState(false);
   const [isNewEnrolmentModalOpen, setIsNewEnrolmentModalOpen] = React.useState(false);
 
-  const handleNewEnrolmentNext = (data: EnrolmentFormData) => {
+  const handleNewEnrolmentNext = (data: EnrolmentFormData): void => {
     console.log("New enrolment data:", data);
     // TODO: Implement API call to create enrolment
     setIsNewEnrolmentModalOpen(false);
