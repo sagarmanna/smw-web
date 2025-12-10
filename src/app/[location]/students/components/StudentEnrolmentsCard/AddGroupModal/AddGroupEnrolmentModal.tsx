@@ -255,7 +255,6 @@ export function AddGroupEnrolmentModal({
           <Button
             onClick={handleNext}
             disabled={!selectedId}
-            className="bg-blue-600 hover:bg-blue-700"
           >
             Next
           </Button>

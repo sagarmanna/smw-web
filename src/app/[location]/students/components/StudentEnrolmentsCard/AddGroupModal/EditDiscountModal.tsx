@@ -121,7 +121,6 @@ export function EditDiscountModal({
         <DialogFooter className="flex justify-end gap-2">
           <Button
             onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700"
           >
             Save
           </Button>

@@ -238,7 +238,7 @@ export function NewEnrolmentModal({
         </div>
         <DialogFooter className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleNext} className="bg-teal-600 hover:bg-teal-700">Next</Button>
+          <Button onClick={handleNext}>Next</Button>
         </DialogFooter>
       </DialogContent>
 

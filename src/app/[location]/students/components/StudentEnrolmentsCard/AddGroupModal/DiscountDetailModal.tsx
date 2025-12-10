@@ -127,7 +127,6 @@ export function DiscountDetailModal({
           </Button>
           <Button
             onClick={handlePreview}
-            className="bg-blue-600 hover:bg-blue-700"
           >
             Preview
           </Button>
