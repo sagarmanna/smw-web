@@ -51,7 +51,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
   
   // State management with API integration - only load when modal is open
   const state = usePaymentState(
-    location || 'burlington',
+    location || '',
     customerId && customerId !== '0' ? parseInt(customerId) : 0,
     customerName,
     open,
