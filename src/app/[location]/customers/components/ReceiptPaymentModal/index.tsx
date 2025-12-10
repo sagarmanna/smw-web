@@ -19,6 +19,7 @@ import {
   createAllocationHandler,
 } from "@/utils/paymentUtils";
 import { parse, isValid } from "date-fns";
+import { apiClient } from "@/lib/api/client";
 import {
   printPaymentReceipt,
   generatePaymentReceiptEmail,
@@ -318,6 +319,7 @@ export function PaymentReceiptModalContainer(
   const [lessons, setLessons] = React.useState<PaymentUsedLesson[]>([]);
   const [groupLessons, setGroupLessons] = React.useState<PaymentGroupLesson[]>([]);
   const [invoices, setInvoices] = React.useState<PaymentInvoice[]>([]);
+  const [locationDetails, setLocationDetails] = React.useState<LocationDetails | null>(null);
 
   // Edit state
   const [editDate, setEditDate] = React.useState<Date>(new Date());
@@ -333,12 +335,58 @@ export function PaymentReceiptModalContainer(
 
   const receiptHtmlRef = React.useRef<HTMLDivElement>(null);
 
+  // Fetch location details
+  const fetchLocationDetails = React.useCallback(async () => {
+    try {
+      const response = await apiClient.get<{
+        success: boolean;
+        data: {
+          id: number;
+          name: string;
+          address: string;
+          phoneNumber: string;
+          city: string;
+          province: string;
+          country: string;
+          postalCode: string;
+          email: string;
+          hstRegistrationNo: string;
+        };
+      }>(`/admin/v2/locations/${location}/details`);
+
+      if (response.data.success && response.data.data) {
+        const details: LocationDetails = {
+          name: response.data.data.name,
+          address: response.data.data.address,
+          city: response.data.data.city,
+          province: response.data.data.province,
+          country: response.data.data.country,
+          postalCode: response.data.data.postalCode,
+          phoneNumber: response.data.data.phoneNumber,
+          email: response.data.data.email,
+          hstRegistrationNo: response.data.data.hstRegistrationNo,
+        };
+        setLocationDetails(details);
+        return details;
+      }
+    } catch (error) {
+      console.error("Error fetching location details:", error);
+    }
+    return null;
+  }, [location]);
+
   // Fetch payment receipt data
   const fetchPaymentReceiptData = React.useCallback(async () => {
     // Skip API fetch if mode is "new" and directPaymentData is provided
     if (mode === "new" && directPaymentData) {
       setIsLoading(true);
       try {
+        // Fetch location details if not already available
+        let locationDetailsData = locationDetails;
+        if (!locationDetailsData) {
+          locationDetailsData = await fetchLocationDetails();
+        }
+
         // Transform directPaymentData to match expected format
         const paymentInfo: PaymentInfo = {
           userId: customerId || 0,
@@ -346,8 +394,8 @@ export function PaymentReceiptModalContainer(
           date: directPaymentData.date,
           paymentMethod: directPaymentData.paymentMethod,
           amount: directPaymentData.amount,
-          locationDetails: null,
-          locationHstRegistrationNo: "FQR547785GT1234", // Default HST number
+          locationDetails: locationDetailsData,
+          locationHstRegistrationNo: locationDetailsData?.hstRegistrationNo || "",
           acknowledgmentMessage: "Thank you for your payment!",
         };
 
@@ -403,6 +451,11 @@ export function PaymentReceiptModalContainer(
       return;
     }
 
+    // Fetch location details for view mode if not already available
+    if (mode === "view" && !locationDetails) {
+      await fetchLocationDetails();
+    }
+
     // Original API fetch for "view" mode
     if (!location || !paymentId) return;
 
@@ -455,7 +508,7 @@ export function PaymentReceiptModalContainer(
     } finally {
       setIsLoading(false);
     }
-  }, [location, paymentId, mode, directPaymentData, customerName, customerId]);
+  }, [location, paymentId, mode, directPaymentData, customerName, customerId, fetchLocationDetails, locationDetails]);
 
   // Reset editing state when modal closes or paymentId changes
   React.useEffect(() => {
@@ -535,8 +588,8 @@ export function PaymentReceiptModalContainer(
       customerName,
       customerPhone,
       customerEmail,
-      hstNumber: paymentInfo?.locationHstRegistrationNo || paymentInfo?.locationDetails?.hstRegistrationNo,
-      locationDetails: paymentInfo?.locationDetails || null,
+      hstNumber: paymentInfo?.locationHstRegistrationNo || paymentInfo?.locationDetails?.hstRegistrationNo || locationDetails?.hstRegistrationNo,
+      locationDetails: paymentInfo?.locationDetails || locationDetails,
       allocationRows: showAllocations ? allocationRows : undefined,
       groupLessonRows: groupLessonRows.length > 0 ? groupLessonRows : undefined,
       invoiceRows: invoiceRows.length > 0 ? invoiceRows : undefined,
@@ -553,6 +606,7 @@ export function PaymentReceiptModalContainer(
       groupLessonRows,
       invoiceRows,
       receiptRows,
+      locationDetails,
     ]
   );
 

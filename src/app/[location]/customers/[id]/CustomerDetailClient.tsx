@@ -46,6 +46,13 @@ import { DetailsCard } from "../components/DetailsCard";
 import { InvoiceTable } from "../components/InvoicesTable";
 import { ReceivePaymentModal } from "../components/ReceivePaymentModal";
 import { PaymentReceiptModalContainer} from "../components/ReceiptPaymentModal";
+import { 
+  printCustomerStatement, 
+  CustomerStatementData,
+  transformLocationDetailsToCompanyInfo 
+} from "@/components/PrintStatement";
+import { apiClient } from "@/lib/api/client";
+import { getPaymentCredits, getInvoiceCredits } from "../components/ReceivePaymentModal/api/receive-payment.api";
 
 // import { mockReceivePayment } from "../components/PaymentReceiptModal/mocks/legacyReceivePaymentMock";
 import AddStudentModal from "../components/AddStudentModal/index";
@@ -1772,9 +1779,136 @@ export function CustomerDetailClient({
 
         {
           label: "Print Statement",
-          onClick: () => {
-            const legacyUrl = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/print/customer-statement?id=${id}`;
-            window.open(legacyUrl, "_blank");
+          onClick: async () => {
+            try {
+              toast.loading("Loading statement data...", { id: "print-statement" });
+              
+              // Fetch all data in parallel
+              const [locationDetailsRes, privateLessonsRes, groupLessonsRes, outstandingInvoicesRes, paymentCreditsRes, invoiceCreditsRes] = await Promise.all([
+                // Fetch location details
+                apiClient.get<{
+                  success: boolean;
+                  data: {
+                    id: number;
+                    name: string;
+                    address: string;
+                    phoneNumber: string;
+                    city: string;
+                    province: string;
+                    country: string;
+                    postalCode: string;
+                    email: string;
+                    hstRegistrationNo: string;
+                  };
+                }>(`/admin/v2/locations/${location}/details`).catch(() => null),
+                // Fetch all private lesson due data
+                getCustomerPrivateLessonDue(location, Number(id), 1, 9999),
+                // Fetch all group lesson due data
+                getCustomerGroupLessonDue(location, Number(id), 1, 9999),
+                // Fetch all outstanding invoices data
+                getCustomerOutstandingInvoices(location, Number(id), 1, 9999),
+                // Fetch all payment credits
+                getPaymentCredits(location, Number(id), 1, 9999),
+                // Fetch all invoice credits
+                getInvoiceCredits(location, Number(id), 1, 9999),
+              ]);
+
+              // Process location details
+              let locationDetails = null;
+              
+              if (locationDetailsRes?.data?.success && locationDetailsRes.data.data) {
+                const locationData = locationDetailsRes.data.data;                
+                locationDetails = {
+                  name: locationData.name || "",
+                  address: locationData.address || "",
+                  city: locationData.city || "",
+                  province: locationData.province || "",
+                  country: locationData.country || "",
+                  postalCode: locationData.postalCode || "",
+                  phoneNumber: locationData.phoneNumber || "",
+                  email: locationData.email || "",
+                  hstRegistrationNo: locationData.hstRegistrationNo || "",
+                };
+              }
+
+              // Format currency helper
+              const formatCurrency = (value: number | string): string => {
+                if (typeof value === 'string') return value;
+                return `$${value.toFixed(2)}`;
+              };
+
+              // Transform private lesson due data
+              const lessonRows = (privateLessonsRes.data || []).map(lesson => ({
+                date: lesson.lessonDate || "",
+                student: lesson.studentName || "",
+                program: lesson.programName || "",
+                teacher: lesson.teacherName || "",
+                amount: formatCurrency(lesson.amount),
+              }));
+
+              // Transform group lesson due data
+              const groupLessonRows = (groupLessonsRes.data || []).map(lesson => ({
+                date: lesson.lessonDate || "",
+                student: lesson.studentName || "",
+                program: lesson.programName || "",
+                teacher: lesson.teacherName || "",
+                amount: formatCurrency(lesson.amount),
+              }));
+
+              // Transform outstanding invoices data
+              const invoiceRows = (outstandingInvoicesRes.data || []).map(invoice => ({
+                date: invoice.date || "",
+                number: invoice.id || "",
+                amount: formatCurrency(invoice.amount),
+                payment: formatCurrency(invoice.payments),
+                balance: formatCurrency(invoice.balanceDue),
+              }));
+
+              // Transform credits data - combine payment credits and invoice credits
+              const paymentCredits = (paymentCreditsRes.data || []).map(credit => ({
+                type: credit.type || "Payment Credit",
+                reference: credit.reference || "",
+                date: "", // Credits don't have date field in API response
+                amount: credit.amount || "$0.00",
+              }));
+
+              const invoiceCredits = (invoiceCreditsRes.data || []).map(credit => ({
+                type: credit.type || "Invoice Credit",
+                reference: credit.reference || "",
+                date: "", // Credits don't have date field in API response
+                amount: credit.amount || "$0.00",
+              }));
+
+              const creditRows = [...paymentCredits, ...invoiceCredits];
+
+              // Build statement data
+              const statementData: CustomerStatementData = {
+                customerName: customer 
+                  ? `${customer.firstName} ${customer.lastName}`.trim() 
+                  : "",
+                customerPhone: _customerInfo?.phone?.[0]?.number || "",
+                customerEmail: _customerInfo?.email?.[0]?.email || customer?.email || "",
+                hstNumber: locationDetails?.hstRegistrationNo || "",
+                locationDetails: locationDetails,
+                lessonRows: lessonRows.length > 0 ? lessonRows : undefined,
+                groupLessonRows: groupLessonRows.length > 0 ? groupLessonRows : undefined,
+                invoiceRows: invoiceRows.length > 0 ? invoiceRows : undefined,
+                creditRows: creditRows.length > 0 ? creditRows : undefined,
+                totalBalance: summaryData.balance || "$0.00",
+              };
+
+              toast.dismiss("print-statement");
+              
+              // Print the statement
+              const success = printCustomerStatement(statementData);
+              if (!success) {
+                toast.error("Failed to open print dialog. Please check if pop-ups are blocked.");
+              }
+            } catch (error) {
+              console.error("Error printing statement:", error);
+              toast.dismiss("print-statement");
+              toast.error("Failed to load statement data");
+            }
           },
         },
         {

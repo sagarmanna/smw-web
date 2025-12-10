@@ -1,31 +1,29 @@
-// @/component/printReceiptPayment/index.tsx
-
-// @/component/printReceipt.ts
+// @/component/printStatement/index.tsx
 
 import type {
   CompanyInfo,
   CustomerInfo,
   TableConfig,
-  PrintReceiptConfig,
-  AllocationRow,
-  GroupLessonRow,
-  InvoiceRow,
-  ReceiptRow,
-  PaymentReceiptData,
+  PrintStatementConfig,
+  StatementLessonRow,
+  StatementGroupLessonRow,
+  StatementInvoiceRow,
+  StatementCreditRow,
+  CustomerStatementData,
   LocationDetails,
-} from './types';
+} from "@/components/PrintStatement/types";
 
 // Re-export types for convenience
 export type {
   CompanyInfo,
   CustomerInfo,
   TableConfig,
-  PrintReceiptConfig,
-  AllocationRow,
-  GroupLessonRow,
-  InvoiceRow,
-  ReceiptRow,
-  PaymentReceiptData,
+  PrintStatementConfig,
+  StatementLessonRow,
+  StatementGroupLessonRow,
+  StatementInvoiceRow,
+  StatementCreditRow,
+  CustomerStatementData,
   LocationDetails,
 };
 
@@ -70,13 +68,20 @@ export const sanitizeName = (name?: string): string => {
   return cleaned || '';
 };
 
+// Helper: Format currency
+const formatCurrency = (value: number | string): string => {
+  if (typeof value === 'string') {
+    return value;
+  }
+  return `$${value.toFixed(2)}`;
+};
+
 // Helper: Generate table HTML
 export const generateTableHtml = (
   title: string,
   headers: string[],
   rows: Array<Record<string, string>>,
-  alignments?: string[],
-  hstNumber?: string
+  alignments?: string[]
 ): string => {
   if (rows.length === 0) return '';
 
@@ -93,19 +98,12 @@ export const generateTableHtml = (
     return `<tr>${cells}</tr>`;
   }).join('');
 
-  const tableHtml = `
+  return `
     <h3 style="margin:16px 0 8px;font-size:14px;">${title}</h3>
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead><tr>${headerRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
     </table>`;
-
-  // Add HST number directly after Payments Used table
-  const hstHtml = title === 'Payments Used' && hstNumber
-    ? `<div style="margin-top:8px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">${hstNumber}</span></div>`
-    : '';
-
-  return tableHtml + hstHtml;
 };
 
 // Helper: Generate company block
@@ -141,7 +139,7 @@ export const generateCustomerBlock = (customerInfo: CustomerInfo): string => {
 };
 
 // Main: Generate complete print HTML
-export const generatePrintReceiptHtml = (config: PrintReceiptConfig): string => {
+export const generatePrintStatementHtml = (config: PrintStatementConfig): string => {
   const baseUrl = typeof window !== 'undefined' 
     ? window.location.origin 
     : process.env.NEXT_PUBLIC_BASE_URL || '';
@@ -150,20 +148,18 @@ export const generatePrintReceiptHtml = (config: PrintReceiptConfig): string => 
   const fromBlock = generateCompanyBlock(config.companyInfo);
   const toBlock = generateCustomerBlock(config.customerInfo);
   
-  // Generate all tables with HST number after Payments Used table
+  // Generate all tables
   const tablesHtml = config.tables
     .map(table => generateTableHtml(
       table.title, 
       table.headers, 
       table.rows, 
-      table.alignments,
-      table.title === 'Payments Used' ? config.hstNumber : undefined
+      table.alignments
     ))
     .join('');
 
-  // Show HST number separately if no tables (no allocations) but HST exists
-  const hasPaymentsUsedTable = config.tables.some(table => table.title === 'Payments Used');
-  const hstHtml = !hasPaymentsUsedTable && config.hstNumber
+  // Show HST number if available (before balance)
+  const hstHtml = config.hstNumber
     ? `<div style="margin-top:16px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">${config.hstNumber}</span></div>`
     : '';
 
@@ -176,14 +172,11 @@ export const generatePrintReceiptHtml = (config: PrintReceiptConfig): string => 
         <div><div style="font-size:12px;margin-bottom:6px;">From</div>${fromBlock}</div>
         <div><div style="font-size:12px;margin-bottom:6px;">To</div>${toBlock}</div>
       </div>
-      <p style="font-size:12px;margin:12px 0 16px;">
-        ${'Thank you for your payment!'}
-      </p>
-      <p style="font-size:12px;margin:12px 0 16px;">
-        ${config.acknowledgmentMessage}
-      </p>
       ${tablesHtml}
       ${hstHtml}
+      <div style="margin-top:24px;font-size:14px;font-weight:600;text-align:right;">
+        Total: ${config.totalBalance}
+      </div>
       ${config.footer ? `<div style="margin-top:16px;font-size:12px;">${config.footer}</div>` : ''}
     </div>`;
 
@@ -226,52 +219,20 @@ export const openPrintDialog = (html: string): boolean => {
   }
 };
 
-// Convenience: Print receipt directly
-export const printReceipt = (config: PrintReceiptConfig): boolean => {
-  const html = generatePrintReceiptHtml(config);
+// Convenience: Print statement directly
+export const printStatement = (config: PrintStatementConfig): boolean => {
+  const html = generatePrintStatementHtml(config);
   return openPrintDialog(html);
 };
 
-// Email helper: Generate email content (similar to print but without print styles)
-export const generateEmailContent = (config: PrintReceiptConfig): string => {
-  const tablesHtml = config.tables
-    .map(table => generateTableHtml(
-      table.title, 
-      table.headers, 
-      table.rows, 
-      table.alignments,
-      table.title === 'Payments Used' ? config.hstNumber : undefined
-    ))
-    .join('');
+// ===== CUSTOMER STATEMENT SPECIFIC UTILITIES =====
 
-  // Show HST number separately if no tables (no allocations) but HST exists
-  const hasPaymentsUsedTable = config.tables.some(table => table.title === 'Payments Used');
-  const hstHtml = !hasPaymentsUsedTable && config.hstNumber
-    ? `<div style="margin-top:16px;font-size:12px;font-weight:600;">HST# <span style="font-weight:400">${config.hstNumber}</span></div>`
-    : '';
-
-  return `
-    <div style="font-family:system-ui,-apple-system,sans-serif;color:#111;">
-      <p>Thank you for your payment!</p>
-      <p>Please find the ${config.title} below</p>
-      <p>${config.acknowledgmentMessage}</p>
-      ${tablesHtml}
-      ${hstHtml}
-
-    </div>`;
-};
-
-// <p style="margin-top:16px;">Thank you,</p>
-// <p>${config.companyInfo.name.split('(')[0].trim()} Team</p>
-
-// ===== PAYMENT RECEIPT SPECIFIC UTILITIES =====
-
-// Payment Receipt Builder
-export const buildPaymentReceiptConfig = (
-  data: PaymentReceiptData,
+// Customer Statement Builder
+export const buildCustomerStatementConfig = (
+  data: CustomerStatementData,
   companyInfo?: CompanyInfo,
   logoUrl = DEFAULT_LOGO_URL
-): PrintReceiptConfig => {
+): PrintStatementConfig => {
   // Use provided companyInfo, or transform from locationDetails
   let finalCompanyInfo = companyInfo || transformLocationDetailsToCompanyInfo(data.locationDetails);
   
@@ -290,20 +251,17 @@ export const buildPaymentReceiptConfig = (
   const tables: TableConfig[] = [];
 
   // Lessons table
-  if (data.allocationRows && data.allocationRows.length > 0) {
+  if (data.lessonRows && data.lessonRows.length > 0) {
     tables.push({
       title: 'Lessons',
-      headers: ['Original Date', 'Date', 'Student', 'Program', 'Teacher', 'Amount', 'Payment', 'Balance'],
-      alignments: ['left', 'left', 'left', 'left', 'left', 'right', 'right', 'right'],
-      rows: data.allocationRows.map(r => ({
-        originalDate: r.originalDate,
+      headers: ['Date', 'Student', 'Program', 'Teacher', 'Amount'],
+      alignments: ['left', 'left', 'left', 'left', 'right'],
+      rows: data.lessonRows.map(r => ({
         date: r.date,
         student: r.student,
         program: r.program,
         teacher: r.teacher,
         amount: r.amount,
-        payment: r.payment,
-        balance: r.balance,
       })),
     });
   }
@@ -312,15 +270,14 @@ export const buildPaymentReceiptConfig = (
   if (data.groupLessonRows && data.groupLessonRows.length > 0) {
     tables.push({
       title: 'Group Lessons',
-      headers: ['Date', 'Student', 'Program', 'Invoiced ?', 'Amount', 'Balance'],
-      alignments: ['left', 'left', 'left', 'left', 'right', 'right'],
+      headers: ['Date', 'Student', 'Program', 'Teacher', 'Amount'],
+      alignments: ['left', 'left', 'left', 'left', 'right'],
       rows: data.groupLessonRows.map(r => ({
         date: r.date,
         student: r.student,
         program: r.program,
-        invoiced: r.invoiced,
+        teacher: r.teacher,
         amount: r.amount,
-        balance: r.balance,
       })),
     });
   }
@@ -341,59 +298,43 @@ export const buildPaymentReceiptConfig = (
     });
   }
 
-  // Payments Used table - only show if there are allocations (lessons, group lessons, or invoices)
-  const hasAllocations = (data.allocationRows && data.allocationRows.length > 0) ||
-    (data.groupLessonRows && data.groupLessonRows.length > 0) ||
-    (data.invoiceRows && data.invoiceRows.length > 0);
-  
-  if (data.receiptRows && data.receiptRows.length > 0 && hasAllocations) {
+  // Credits table
+  if (data.creditRows && data.creditRows.length > 0) {
     tables.push({
-      title: 'Payments Used',
-      headers: ['Reference', 'Date', 'Payment Method', 'Amount'],
+      title: 'Credits',
+      headers: ['Type', 'Reference', 'Date', 'Amount'],
       alignments: ['left', 'left', 'left', 'right'],
-      rows: data.receiptRows.map(r => ({
+      rows: data.creditRows.map(r => ({
+        type: r.type,
         reference: r.reference,
         date: r.date,
-        method: r.method,
         amount: r.amount,
       })),
     });
   }
 
-  // Build acknowledgment message
-  const safeName = sanitizeName(data.customerName);
-  const fromText = safeName ? ` from ${safeName}` : "";
-  const dateText = data.paymentDate ? ` on ${data.paymentDate}` : "";
-  const methodText = data.paymentMethod ? ` via ${data.paymentMethod}` : "";
-  const acknowledgmentMessage = `This is to acknowledge the receipt of payment${fromText}${dateText} in the amount of ${data.headerAmount}${methodText}. We have distributed it to the items below.`;
-
-  // Build footer (empty, HST number is now shown after Payments Used table)
+  // Build footer (empty)
   const footer = '';
 
   return {
-    title: 'Payment Receipt',
-    headerAmount: data.headerAmount,
+    title: 'Customer Statement',
     companyInfo: finalCompanyInfo,
     customerInfo: {
       name: data.customerName,
       phone: data.customerPhone,
       email: data.customerEmail,
     },
-    acknowledgmentMessage,
     tables,
     footer,
     logoUrl,
     hstNumber: data.hstNumber,
+    totalBalance: data.totalBalance,
   };
 };
 
-// Convenience function for payment receipts
-export const printPaymentReceipt = (data: PaymentReceiptData): boolean => {
-  const config = buildPaymentReceiptConfig(data);
-  return printReceipt(config);
+// Convenience function for customer statements
+export const printCustomerStatement = (data: CustomerStatementData): boolean => {
+  const config = buildCustomerStatementConfig(data);
+  return printStatement(config);
 };
 
-export const generatePaymentReceiptEmail = (data: PaymentReceiptData): string => {
-  const config = buildPaymentReceiptConfig(data);
-  return generateEmailContent(config);
-};
