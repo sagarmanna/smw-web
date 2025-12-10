@@ -15,13 +15,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { NewEnrolmentModal, type EnrolmentFormData } from "./NewEnrolmentModal";
+import { NewEnrolmentModal, type EnrolmentFormData } from "././AddPrivateModal/NewEnrolmentModal";
+import { 
+  AddGroupEnrolmentModal, 
+  type GroupEnrolmentCompleteData 
+} from "./AddGroupModal/AddGroupEnrolmentModal";
 import { StudentEnrolment } from "../../types";
 
 interface StudentEnrolmentsCardProps {
   enrolments: StudentEnrolment[];
   isLoading?: boolean;
   location: string;
+  onRefresh?: () => void;
 }
 
 const enrolmentColumns = [
@@ -38,14 +43,49 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
   enrolments,
   isLoading = false,
   location,
+  onRefresh,
 }: StudentEnrolmentsCardProps) {
   const [showAll, setShowAll] = React.useState(false);
   const [isNewEnrolmentModalOpen, setIsNewEnrolmentModalOpen] = React.useState(false);
+  const [isAddGroupEnrolmentModalOpen, setIsAddGroupEnrolmentModalOpen] = React.useState(false);
+  const [localEnrolments, setLocalEnrolments] = React.useState<StudentEnrolment[]>([]);
+  
+  // Merge local enrolments with props enrolments
+  const displayEnrolments = React.useMemo(() => {
+    return [...enrolments, ...localEnrolments];
+  }, [enrolments, localEnrolments]);
 
   const handleNewEnrolmentNext = (data: EnrolmentFormData) => {
-    console.log("New enrolment data:", data);
     // TODO: Implement API call to create enrolment
     setIsNewEnrolmentModalOpen(false);
+  };
+
+  const handleGroupEnrolmentNext = (data: GroupEnrolmentCompleteData) => {
+    // Static implementation - API call ignored
+    // Transform GroupEnrolmentOption to StudentEnrolment format
+    const newEnrolment: StudentEnrolment = {
+      id: Date.now(), // Temporary ID for local state
+      program: data.groupEnrolment.course,
+      teacher: data.groupEnrolment.teacher,
+      day: data.groupEnrolment.day,
+      fromTime: data.groupEnrolment.fromTime,
+      duration: data.groupEnrolment.duration,
+      startDate: data.groupEnrolment.startDate,
+      endDate: data.groupEnrolment.endDate,
+    };
+    
+    // Add to local state to display in table
+    setLocalEnrolments((prev) => [...prev, newEnrolment]);
+    
+    // Close modal
+    setIsAddGroupEnrolmentModalOpen(false);
+    
+    // TODO: Implement API call to create group enrolment when ready
+    // The data structure is ready for API integration:
+    // - data.groupEnrolment: Group enrolment details (course, teacher, day, rate, etc.)
+    // - data.discountData: Discount type and value
+    // - data.lessons: Array of lesson details with prices, discounts, and totals
+    // After API call, call onRefresh() to reload from server
   };
 
   const handleRowClick = React.useCallback(
@@ -92,7 +132,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
                 <DropdownMenuItem onClick={() => setIsNewEnrolmentModalOpen(true)}>
                   Add Private...
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => console.log("Add Group...")}>
+                <DropdownMenuItem onClick={() => setIsAddGroupEnrolmentModalOpen(true)}>
                   Add Group...
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -100,9 +140,9 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
           </div>
         }
       >
-        {enrolments.length > 0 ? (
+        {displayEnrolments.length > 0 ? (
           <CustomTable
-            data={enrolments}
+            data={displayEnrolments}
             columns={enrolmentColumns}
             enableSearch={false}
             enableExport={false}
@@ -122,6 +162,13 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
         open={isNewEnrolmentModalOpen}
         onOpenChange={setIsNewEnrolmentModalOpen}
         onNext={handleNewEnrolmentNext}
+        location={location}
+      />
+
+      <AddGroupEnrolmentModal
+        open={isAddGroupEnrolmentModalOpen}
+        onOpenChange={setIsAddGroupEnrolmentModalOpen}
+        onNext={handleGroupEnrolmentNext}
         location={location}
       />
     </>

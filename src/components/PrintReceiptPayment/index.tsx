@@ -185,6 +185,10 @@ export const generatePrintReceiptHtml = (config: PrintReceiptConfig): string => 
       ${tablesHtml}
       ${hstHtml}
       ${config.footer ? `<div style="margin-top:16px;font-size:12px;">${config.footer}</div>` : ''}
+      <div style="margin-top:32px;font-size:12px;">
+        <p style="margin:0;">Thank you,</p>
+        <p style="margin:4px 0 0 0;">Arcadia Academy Of Music</p>
+      </div>
     </div>`;
 
   return `
