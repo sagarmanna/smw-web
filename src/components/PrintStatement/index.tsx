@@ -28,6 +28,7 @@ export type {
 };
 
 export const DEFAULT_LOGO_URL = "/admin/v2/SMW.png";
+export const DEFAULT_WEBSITE = "www.arcadiamusicacademy.com";
 
 // Helper: Transform LocationDetails to CompanyInfo (DRY)
 export const transformLocationDetailsToCompanyInfo = (
@@ -54,7 +55,7 @@ export const transformLocationDetailsToCompanyInfo = (
     postalCode: locationDetails.postalCode || "",
     phone: locationDetails.phoneNumber || "",
     email: locationDetails.email || "",
-    website: "", // Website not in API response
+    website: DEFAULT_WEBSITE,
   };
 };
 
@@ -66,14 +67,6 @@ export const sanitizeName = (name?: string): string => {
     .replace(/\s+/g, ' ')
     .trim();
   return cleaned || '';
-};
-
-// Helper: Format currency
-const formatCurrency = (value: number | string): string => {
-  if (typeof value === 'string') {
-    return value;
-  }
-  return `$${value.toFixed(2)}`;
 };
 
 // Helper: Generate table HTML
@@ -258,14 +251,15 @@ export const buildCustomerStatementConfig = (
   if (data.lessonRows && data.lessonRows.length > 0) {
     tables.push({
       title: 'Lessons',
-      headers: ['Date', 'Student', 'Program', 'Teacher', 'Amount'],
-      alignments: ['left', 'left', 'left', 'left', 'right'],
+      headers: ['Date', 'Student', 'Program', 'Teacher', 'Amount', 'Balance'],
+      alignments: ['left', 'left', 'left', 'left', 'right', 'right'],
       rows: data.lessonRows.map(r => ({
         date: r.date,
         student: r.student,
         program: r.program,
         teacher: r.teacher,
         amount: r.amount,
+        balance: r.balance,
       })),
     });
   }
@@ -274,14 +268,15 @@ export const buildCustomerStatementConfig = (
   if (data.groupLessonRows && data.groupLessonRows.length > 0) {
     tables.push({
       title: 'Group Lessons',
-      headers: ['Date', 'Student', 'Program', 'Teacher', 'Amount'],
-      alignments: ['left', 'left', 'left', 'left', 'right'],
+      headers: ['Date', 'Student', 'Program', 'Teacher', 'Amount', 'Balance'],
+      alignments: ['left', 'left', 'left', 'left', 'right', 'right'],
       rows: data.groupLessonRows.map(r => ({
         date: r.date,
         student: r.student,
         program: r.program,
         teacher: r.teacher,
         amount: r.amount,
+        balance: r.balance,
       })),
     });
   }

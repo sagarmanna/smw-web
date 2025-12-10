@@ -1781,7 +1781,7 @@ export function CustomerDetailClient({
           label: "Print Statement",
           onClick: async () => {
             try {
-              toast.loading("Loading statement data...", { id: "print-statement" });
+              toast.loading("Loading print statement...", { id: "print-statement" });
               
               // Fetch all data in parallel
               const [locationDetailsRes, privateLessonsRes, groupLessonsRes, outstandingInvoicesRes, paymentCreditsRes, invoiceCreditsRes] = await Promise.all([
@@ -1838,22 +1838,46 @@ export function CustomerDetailClient({
               };
 
               // Transform private lesson due data
-              const lessonRows = (privateLessonsRes.data || []).map(lesson => ({
-                date: lesson.lessonDate || "",
-                student: lesson.studentName || "",
-                program: lesson.programName || "",
-                teacher: lesson.teacherName || "",
-                amount: formatCurrency(lesson.amount),
-              }));
+              const lessonRows = (privateLessonsRes.data || []).map(lesson => {
+                const rawAmount =
+                  typeof lesson.amount === "number"
+                    ? lesson.amount
+                    : Number(lesson.amount || 0);
+                const amount = formatCurrency(rawAmount);
+                const balanceValue: number = Number(
+                  (lesson as { balanceDue?: number }).balanceDue ?? rawAmount
+                );
+                const balance = formatCurrency(balanceValue);
+                return {
+                  date: lesson.lessonDate || "",
+                  student: lesson.studentName || "",
+                  program: lesson.programName || "",
+                  teacher: lesson.teacherName || "",
+                  amount,
+                  balance,
+                };
+              });
 
               // Transform group lesson due data
-              const groupLessonRows = (groupLessonsRes.data || []).map(lesson => ({
-                date: lesson.lessonDate || "",
-                student: lesson.studentName || "",
-                program: lesson.programName || "",
-                teacher: lesson.teacherName || "",
-                amount: formatCurrency(lesson.amount),
-              }));
+              const groupLessonRows = (groupLessonsRes.data || []).map(lesson => {
+                const rawAmount =
+                  typeof lesson.amount === "number"
+                    ? lesson.amount
+                    : Number(lesson.amount || 0);
+                const amount = formatCurrency(rawAmount);
+                const balanceValue: number = Number(
+                  (lesson as { balanceDue?: number }).balanceDue ?? rawAmount
+                );
+                const balance = formatCurrency(balanceValue);
+                return {
+                  date: lesson.lessonDate || "",
+                  student: lesson.studentName || "",
+                  program: lesson.programName || "",
+                  teacher: lesson.teacherName || "",
+                  amount,
+                  balance,
+                };
+              });
 
               // Transform outstanding invoices data
               const invoiceRows = (outstandingInvoicesRes.data || []).map(invoice => ({

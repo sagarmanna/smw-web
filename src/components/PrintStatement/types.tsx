@@ -42,6 +42,7 @@ export interface StatementLessonRow {
   program: string;
   teacher: string;
   amount: string;
+  balance: string;
 }
 
 export interface StatementGroupLessonRow {
@@ -50,6 +51,7 @@ export interface StatementGroupLessonRow {
   program: string;
   teacher: string;
   amount: string;
+  balance: string;
 }
 
 export interface StatementInvoiceRow {
