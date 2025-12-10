@@ -30,6 +30,7 @@ export type {
 };
 
 export const DEFAULT_LOGO_URL = "/admin/v2/SMW.png";
+export const DEFAULT_WEBSITE = "www.arcadiamusicacademy.com";
 
 // Helper: Transform LocationDetails to CompanyInfo (DRY)
 export const transformLocationDetailsToCompanyInfo = (
@@ -56,7 +57,7 @@ export const transformLocationDetailsToCompanyInfo = (
     postalCode: locationDetails.postalCode || "",
     phone: locationDetails.phoneNumber || "",
     email: locationDetails.email || "",
-    website: "", // Website not in API response
+    website: DEFAULT_WEBSITE,
   };
 };
 

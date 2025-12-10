@@ -144,11 +144,11 @@ export function BulkRescheduleModal({
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          {error && (
+          {/* {error && (
             <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
               {error}
             </div>
-          )}
+          )} */}
 
           <div className="grid gap-2">
             <Label htmlFor="source-date">Source Date</Label>
