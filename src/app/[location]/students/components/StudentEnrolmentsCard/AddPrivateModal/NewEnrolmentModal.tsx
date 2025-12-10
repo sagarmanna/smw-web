@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Clock } from "lucide-react";
-import { getProgramsList, Program } from "../../../teachers/teachers.api";
+import { getProgramsList, Program } from "../../../../teachers/teachers.api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { cn } from "@/lib/utils";
 import {
