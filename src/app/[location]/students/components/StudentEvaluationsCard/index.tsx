@@ -115,6 +115,18 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only on mount - use data from Redux (initial load)
 
+  // Sync currentPageEvaluations with Redux evaluations when on page 1
+  // This ensures new evaluations appear immediately without page refresh
+  React.useEffect(() => {
+    if (currentPage === 1 && initializedRef.current) {
+      setCurrentPageEvaluations(evaluations);
+      // Update pagination from Redux if available
+      if (evaluationsPagination) {
+        setPagination(evaluationsPagination);
+      }
+    }
+  }, [evaluations, evaluationsPagination, currentPage]);
+
   // Fetch evaluations when page changes (server-side pagination)
   const handlePageChange = React.useCallback(async (page: number) => {
     try {
@@ -242,32 +254,12 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         if (existingIndex >= 0) {
           // Update existing
           dispatch(updateEvaluation({ index: existingIndex, evaluation: transformedEvaluation }));
-          // Update current page if we're viewing the page with this evaluation
-          if (currentPage === 1) {
-            setCurrentPageEvaluations((prev) => {
-              const pageIndex = prev.findIndex((e) => e.id === evaluation.id);
-              if (pageIndex >= 0) {
-                const updated = [...prev];
-                updated[pageIndex] = transformedEvaluation;
-                return updated;
-              }
-              return prev;
-            });
-          }
         } else {
           // Add new - always add for new evaluations
           dispatch(addEvaluation(transformedEvaluation));
-          // If we're on page 1, add to current page view
-          if (currentPage === 1) {
-            setCurrentPageEvaluations((prev) => [transformedEvaluation, ...prev]);
-            // Update pagination total
-            setPagination((prev) => ({
-              ...prev,
-              total: prev.total + 1,
-              totalPages: Math.ceil((prev.total + 1) / prev.limit),
-            }));
-          }
         }
+        // Note: The useEffect above will sync currentPageEvaluations with Redux evaluations
+        // when on page 1, so the new/updated evaluation will appear immediately
         
         // Show success message
         toast.success(evaluation.id ? "Evaluation updated successfully" : "Evaluation created successfully");
@@ -289,8 +281,8 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
       try {
         setSaving(true);
         
-        // Find the evaluation index
-        const existingIndex = evaluations.findIndex((e) => 
+        // Find the evaluation by ID
+        const existingEvaluation = evaluations.find((e) => 
           e.id === evaluation.id ||
           (e.examDate === evaluation.examDate && 
            e.level === evaluation.level &&
@@ -298,15 +290,17 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
            e.teacher === evaluation.teacher)
         );
 
-        if (existingIndex < 0) {
+        if (!existingEvaluation || !existingEvaluation.id) {
           toast.error("Evaluation not found");
           return false;
         }
 
         // No DELETE API available - just remove from Redux state
         // Following the pattern: mutations update Redux state directly
-        dispatch(removeEvaluation(existingIndex));
+        // Note: removeEvaluation expects evaluationId (number), not index
+        dispatch(removeEvaluation(existingEvaluation.id));
         
+        toast.success("Evaluation deleted successfully");
         return true;
       } catch (error) {
         console.error("Failed to delete evaluation:", error);
