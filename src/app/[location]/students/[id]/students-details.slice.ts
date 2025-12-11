@@ -4,6 +4,8 @@ import {
   StudentDetailsApiResponse,
   getStudentEnrolments,
   StudentEnrolmentResponse,
+  getStudentEvaluations,
+  StudentEvaluationResponse,
 } from './students-details.api';
 import type { StudentInfo, StudentBasicDetails, StudentEvaluation, StudentEnrolment } from '../types';
 
@@ -68,6 +70,21 @@ function transformEnrolmentsResponse(enrolments: StudentEnrolmentResponse[]): St
 }
 
 /**
+ * Transforms evaluation API response to match the StudentEvaluation interface
+ */
+function transformEvaluationsResponse(evaluations: StudentEvaluationResponse[]): StudentEvaluation[] {
+  return evaluations.map((evaluation) => ({
+    id: evaluation.id,
+    examDate: evaluation.date,
+    mark: evaluation.mark,
+    level: evaluation.level,
+    program: evaluation.program,
+    type: evaluation.type,
+    teacher: evaluation.teacher,
+  }));
+}
+
+/**
  * Transforms API response to match the StudentInfo interface
  */
 function transformApiResponse(apiResponse: StudentDetailsApiResponse): StudentInfo {
@@ -94,7 +111,7 @@ function transformApiResponse(apiResponse: StudentDetailsApiResponse): StudentIn
       customerId: customer.id,
     },
     enrolments: [], // Will be fetched separately
-    evaluations: [], // Not part of this API endpoint
+    evaluations: [], // Will be fetched separately
   };
 }
 
@@ -107,10 +124,12 @@ export const fetchStudent = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch student details and enrolments in parallel
-      const [detailsResult, enrolmentsResult] = await Promise.all([
+      // Fetch student details, enrolments, and evaluations in parallel
+      // Initial load: fetch page 1 with limit 10 for evaluations
+      const [detailsResult, enrolmentsResult, evaluationsResult] = await Promise.all([
         getStudentDetails(location, studentId),
         getStudentEnrolments(location, studentId),
+        getStudentEvaluations(location, studentId, 1, 10),
       ]);
 
       if (!detailsResult || !detailsResult.success) {
@@ -124,6 +143,18 @@ export const fetchStudent = createAsyncThunk(
         transformedData.enrolments = transformEnrolmentsResponse(enrolmentsResult.data.body);
       } else {
         transformedData.enrolments = [];
+      }
+
+      // Transform and add evaluations if available
+      if (evaluationsResult && evaluationsResult.success) {
+        transformedData.evaluations = transformEvaluationsResponse(evaluationsResult.data.body);
+        // Store pagination info from API response
+        const apiPagination = evaluationsResult.pagination || evaluationsResult.data.pagination;
+        if (apiPagination) {
+          transformedData.evaluationsPagination = apiPagination;
+        }
+      } else {
+        transformedData.evaluations = [];
       }
 
       return { data: transformedData };
@@ -188,6 +219,40 @@ const studentSlice = createSlice({
           ...(state.studentInfo.evaluations || []),
           action.payload,
         ];
+        // Update pagination total if pagination exists
+        if (state.studentInfo.evaluationsPagination) {
+          state.studentInfo.evaluationsPagination.total += 1;
+          state.studentInfo.evaluationsPagination.totalPages = Math.ceil(
+            state.studentInfo.evaluationsPagination.total / state.studentInfo.evaluationsPagination.limit
+          );
+        }
+      }
+    },
+    // Update evaluation in local state (optimistic update)
+    updateEvaluation: (state, action: PayloadAction<{ index: number; evaluation: StudentEvaluation }>) => {
+      if (state.studentInfo && state.studentInfo.evaluations) {
+        const { index, evaluation } = action.payload;
+        const updated = [...state.studentInfo.evaluations];
+        if (index >= 0 && index < updated.length) {
+          updated[index] = evaluation;
+          state.studentInfo.evaluations = updated;
+        }
+      }
+    },
+    // Remove evaluation from local state (optimistic update)
+    removeEvaluation: (state, action: PayloadAction<number>) => {
+      if (state.studentInfo && state.studentInfo.evaluations) {
+        const evaluationId = action.payload;
+        state.studentInfo.evaluations = state.studentInfo.evaluations.filter(
+          (e) => e.id !== evaluationId
+        );
+        // Update pagination total if pagination exists
+        if (state.studentInfo.evaluationsPagination) {
+          state.studentInfo.evaluationsPagination.total = Math.max(0, state.studentInfo.evaluationsPagination.total - 1);
+          state.studentInfo.evaluationsPagination.totalPages = Math.ceil(
+            state.studentInfo.evaluationsPagination.total / state.studentInfo.evaluationsPagination.limit
+          );
+        }
       }
     },
   },
@@ -250,6 +315,8 @@ export const {
   clearCache,
   updateProfile,
   addEvaluation,
+  updateEvaluation,
+  removeEvaluation,
 } = studentSlice.actions;
 export default studentSlice.reducer;
 
