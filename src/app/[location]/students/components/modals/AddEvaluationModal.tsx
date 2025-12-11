@@ -22,10 +22,10 @@ import { Calendar as CalIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { StudentEvaluation } from "../../types";
-import { Combobox } from "@/components/ui/combobox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getProgramsList, Program } from "../../../teachers/teachers.api";
-import { getTeachersList, Teacher } from "../../../schedule/schedule.api";
+import { getTeacherView, Teacher } from "../../../schedule/schedule.api";
 
 // API functions
 const fetchPrograms = async (): Promise<Program[]> => {
@@ -37,15 +37,22 @@ const fetchPrograms = async (): Promise<Program[]> => {
   }
 };
 
-const fetchTeachers = async (location: string): Promise<Teacher[]> => {
+const fetchTeachersByProgram = async (location: string, programId: string): Promise<Teacher[]> => {
   try {
-    const response = await getTeachersList(location);
-    if (response?.success && response.data) {
-      return response.data.map((t) => ({ id: t.id, name: t.name }));
+    // Use today's date for the API call
+    const today = new Date();
+    const dateString = format(today, "yyyy-MM-dd");
+    
+    // Pass 'all-teachers-by-program' type to get all teachers associated with the program
+    // Without this type, the API only returns teachers with lessons on the specific date
+    const response = await getTeacherView(location, dateString, false, programId, undefined, 'all-teachers-by-program');
+    if (response?.success && response.data?.resources) {
+      // Map TeacherViewResource (id, title) to Teacher (id, name)
+      return response.data.resources.map((t) => ({ id: t.id, name: t.title }));
     }
     return [];
   } catch (error) {
-    console.error("Error fetching teachers:", error);
+    console.error("Error fetching teachers by program:", error);
     return [];
   }
 };
@@ -131,26 +138,32 @@ export function AddEvaluationModal({
     }
   }, [open]);
 
-  // Fetch teachers when modal opens
+  // Fetch teachers when a program is selected
   React.useEffect(() => {
-    if (open && location) {
+    if (open && location && selectedProgramId) {
       setLoadingTeachers(true);
-      fetchTeachers(location)
+      setTeachers([]); // Clear previous teachers
+      setSelectedTeacherId(""); // Clear teacher selection
+      setFormData((prev) => ({ ...prev, teacher: "" })); // Clear teacher in form data
+      
+      fetchTeachersByProgram(location, selectedProgramId)
         .then((teacherList) => {
           setTeachers(teacherList);
         })
         .catch((error) => {
-          console.error("Error fetching teachers:", error);
+          console.error("Error fetching teachers by program:", error);
           setTeachers([]);
         })
         .finally(() => {
           setLoadingTeachers(false);
         });
-    } else {
-      // Clear teachers when modal closes
-        setTeachers([]);
+    } else if (!selectedProgramId) {
+      // Clear teachers when no program is selected
+      setTeachers([]);
+      setSelectedTeacherId("");
+      setFormData((prev) => ({ ...prev, teacher: "" }));
     }
-  }, [open, location]);
+  }, [open, location, selectedProgramId]);
 
   // Initialize form data when modal opens
   React.useEffect(() => {
@@ -347,8 +360,10 @@ export function AddEvaluationModal({
     const selectedProgram = programs.find((p) => p.id.toString() === programId);
     setFormData((prev) => ({ ...prev, program: selectedProgram?.name || "" }));
     // Clear teacher selection when program changes
+    // Teachers will be fetched automatically by the useEffect watching selectedProgramId
     setSelectedTeacherId("");
     setFormData((prev) => ({ ...prev, teacher: "" }));
+    setTeachers([]); // Clear teachers immediately
   };
 
   const handleTeacherChange = (teacherId: string) => {
@@ -432,20 +447,22 @@ export function AddEvaluationModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="program">Program</Label>
-              <Combobox
-                options={programs.map((program) => ({
-                  value: program.id.toString(),
-                  label: program.name,
-                }))}
-                value={selectedProgramId}
+              <Select
+                value={selectedProgramId || undefined}
                 onValueChange={handleProgramChange}
-                placeholder={loadingPrograms ? "Loading programs..." : "Select Program"}
-                searchPlaceholder="Search programs..."
-                emptyText="No programs found."
-                className="w-full"
                 disabled={loadingPrograms || saving}
-                popoverContentProps={{ className: "w-[var(--radix-popover-trigger-width)]" }}
-              />
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={loadingPrograms ? "Loading programs..." : "Select Program"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {programs.map((program) => (
+                    <SelectItem key={program.id} value={program.id.toString()}>
+                      {program.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -461,34 +478,46 @@ export function AddEvaluationModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="teacher">Teacher</Label>
-              <div className={errors.teacher ? "border-red-500 rounded-md border p-[1px]" : ""}>
-                <Combobox
-                  options={teachers.map((teacher) => ({
-                    value: teacher.id.toString(),
-                    label: teacher.name,
-                  }))}
-                  value={selectedTeacherId}
-                  onValueChange={(value) => {
-                    handleTeacherChange(value);
-                    if (value) {
-                      setTouched((prev) => ({ ...prev, teacher: true }));
-                    }
-                  }}
-                  placeholder={
-                    loadingTeachers
-                      ? "Loading teachers..."
-                      : "Select..."
+              <Select
+                value={selectedTeacherId || undefined}
+                onValueChange={(value) => {
+                  handleTeacherChange(value);
+                  if (value) {
+                    setTouched((prev) => ({ ...prev, teacher: true }));
                   }
-                  searchPlaceholder="Search teachers..."
-                  emptyText="No teachers found."
+                }}
+                disabled={!selectedProgramId || loadingTeachers || saving}
+              >
+                <SelectTrigger 
                   className={cn(
                     "w-full",
-                    errors.teacher && "[&>button]:border-red-500"
+                    errors.teacher && "border-red-500 focus:ring-red-500"
                   )}
-                  disabled={loadingTeachers || saving}
-                  popoverContentProps={{ className: "w-[var(--radix-popover-trigger-width)]" }}
-                />
-              </div>
+                >
+                  <SelectValue 
+                    placeholder={
+                      !selectedProgramId
+                        ? "Select a program first"
+                        : loadingTeachers
+                        ? "Loading teachers..."
+                        : "Select Teacher"
+                    } 
+                  />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {teachers.length > 0 ? (
+                    teachers.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                        {teacher.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="__empty" disabled>
+                      {loadingTeachers ? "Loading teachers..." : "No teachers found."}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
               {(touched.teacher || showError) && errors.teacher && (
                 <p className="text-sm text-red-600">{errors.teacher}</p>
               )}
