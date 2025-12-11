@@ -84,4 +84,4 @@ resource "kubernetes_ingress_v1" "web_ingress" {
       }
     }
   }
-} 
+}
