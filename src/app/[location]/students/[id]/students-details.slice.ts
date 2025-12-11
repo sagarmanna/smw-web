@@ -124,12 +124,12 @@ export const fetchStudent = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch student details, enrolments, and evaluations in parallel
-      // Initial load: fetch page 1 with limit 10 for evaluations
+      // Fetch student details, enrolments, and ALL evaluations in parallel
+      // Fetch all evaluations once with large limit (no pagination)
       const [detailsResult, enrolmentsResult, evaluationsResult] = await Promise.all([
         getStudentDetails(location, studentId),
         getStudentEnrolments(location, studentId),
-        getStudentEvaluations(location, studentId, 1, 10),
+        getStudentEvaluations(location, studentId, 1, 9999), // Fetch all evaluations
       ]);
 
       if (!detailsResult || !detailsResult.success) {
@@ -148,13 +148,28 @@ export const fetchStudent = createAsyncThunk(
       // Transform and add evaluations if available
       if (evaluationsResult && evaluationsResult.success) {
         transformedData.evaluations = transformEvaluationsResponse(evaluationsResult.data.body);
-        // Store pagination info from API response
+        // Store pagination info from API response for client-side pagination
         const apiPagination = evaluationsResult.pagination || evaluationsResult.data.pagination;
         if (apiPagination) {
           transformedData.evaluationsPagination = apiPagination;
+        } else {
+          // Calculate pagination from all evaluations for client-side pagination
+          const total = transformedData.evaluations.length;
+          transformedData.evaluationsPagination = {
+            page: 1,
+            limit: 10,
+            total,
+            totalPages: Math.ceil(total / 10),
+          };
         }
       } else {
         transformedData.evaluations = [];
+        transformedData.evaluationsPagination = {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+        };
       }
 
       return { data: transformedData };
@@ -179,6 +194,7 @@ export const updateStudent = createAsyncThunk(
     }
   }
 );
+
 
 const studentSlice = createSlice({
   name: 'student',

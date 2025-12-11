@@ -14,7 +14,7 @@ import { StudentEvaluation, StudentBasicDetails } from "../../types";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { ColumnDef } from "@tanstack/react-table";
 import { addEvaluation, updateEvaluation, removeEvaluation } from "../../[id]/students-details.slice";
-import { createStudentEvaluation, getStudentEvaluations, type StudentEvaluationResponse } from "../../[id]/students-details.api";
+import { createStudentEvaluation, type StudentEvaluationResponse } from "../../[id]/students-details.api";
 import { toast } from "sonner";
 
 interface StudentEvaluationsCardProps {
@@ -70,7 +70,8 @@ const evaluationColumns: ColumnDef<StudentEvaluation>[] = [
 
 export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard({
   evaluations,
-  evaluationsPagination,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  evaluationsPagination, // Keep prop for interface compatibility but calculate pagination from evaluations (client-side)
   isLoading = false,
   studentName,
   location,
@@ -83,98 +84,37 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
   const [saving, setSaving] = React.useState(false);
   const { handlePrint } = usePrintReport<StudentEvaluation>();
 
-  // Server-side pagination state
+  // Client-side pagination state
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [currentPageEvaluations, setCurrentPageEvaluations] = React.useState<StudentEvaluation[]>(evaluations);
-  const [pagination, setPagination] = React.useState(() => {
-    // Initialize from Redux pagination if available, otherwise calculate from evaluations
-    if (evaluationsPagination) {
-      return evaluationsPagination;
-    }
+  const pageSize = 10;
+
+  // Reset to page 1 when evaluations change (e.g., after add/delete)
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [evaluations.length]);
+
+  // Calculate pagination from all evaluations in Redux
+  const pagination = React.useMemo(() => {
+    const total = evaluations.length;
     return {
-      page: 1,
-      limit: 10,
-      total: evaluations.length,
-      totalPages: Math.ceil(evaluations.length / 10),
+      page: currentPage,
+      limit: pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
     };
-  });
-  const [loadingPage, setLoadingPage] = React.useState(false);
+  }, [evaluations.length, currentPage]);
 
-  // Initialize current page evaluations from Redux (initial load - page 1)
-  // Use ref to track if we've initialized to avoid re-running on prop changes
-  const initializedRef = React.useRef(false);
-  React.useEffect(() => {
-    if (!initializedRef.current && evaluations.length > 0 && currentPage === 1) {
-      setCurrentPageEvaluations(evaluations);
-      // Use pagination from Redux if available
-      if (evaluationsPagination) {
-        setPagination(evaluationsPagination);
-      }
-      initializedRef.current = true;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only on mount - use data from Redux (initial load)
+  // Get current page evaluations from all evaluations (client-side pagination)
+  const displayedEvaluations = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return evaluations.slice(startIndex, endIndex);
+  }, [evaluations, currentPage, pageSize]);
 
-  // Sync currentPageEvaluations with Redux evaluations when on page 1
-  // This ensures new evaluations appear immediately without page refresh
-  React.useEffect(() => {
-    if (currentPage === 1 && initializedRef.current) {
-      setCurrentPageEvaluations(evaluations);
-      // Update pagination from Redux if available
-      if (evaluationsPagination) {
-        setPagination(evaluationsPagination);
-      }
-    }
-  }, [evaluations, evaluationsPagination, currentPage]);
-
-  // Fetch evaluations when page changes (server-side pagination)
-  const handlePageChange = React.useCallback(async (page: number) => {
-    try {
-      setLoadingPage(true);
-      setCurrentPage(page);
-      
-      // Fetch the page data from API
-      const result = await getStudentEvaluations(location, studentId, page, 10);
-      
-      if (result && result.success) {
-        // Transform API response to StudentEvaluation format
-        const transformedEvaluations = result.data.body.map((evaluation) => ({
-          id: evaluation.id,
-          examDate: evaluation.date,
-          mark: evaluation.mark,
-          level: evaluation.level,
-          program: evaluation.program,
-          type: evaluation.type,
-          teacher: evaluation.teacher,
-        }));
-        
-        // Update current page evaluations
-        setCurrentPageEvaluations(transformedEvaluations);
-        
-        // Update pagination info from API response
-        const apiPagination = result.pagination || result.data.pagination;
-        if (apiPagination) {
-          setPagination(apiPagination);
-        } else {
-          // Fallback: calculate from response
-          setPagination({
-            page,
-            limit: 10,
-            total: transformedEvaluations.length,
-            totalPages: Math.ceil(transformedEvaluations.length / 10),
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch evaluations page:", error);
-      toast.error("Failed to load evaluations page");
-    } finally {
-      setLoadingPage(false);
-    }
-  }, [location, studentId]);
-
-  // Use current page evaluations for display
-  const displayedEvaluations = currentPageEvaluations;
+  // Handle page change (client-side only, no API call)
+  const handlePageChange = React.useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
 
   const handleSave = React.useCallback(
     async (evaluation: StudentEvaluation & { programId?: number; teacherId?: number }): Promise<boolean> => {
@@ -273,7 +213,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         setSaving(false);
       }
     },
-    [dispatch, location, studentId, evaluations, currentPage]
+    [dispatch, location, studentId, evaluations]
   );
 
   const handleDelete = React.useCallback(
@@ -362,7 +302,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
           </>
         }
       >
-        {displayedEvaluations.length > 0 || loadingPage ? (
+        {displayedEvaluations.length > 0 || isLoading ? (
           <CustomTable
             data={displayedEvaluations}
             columns={evaluationColumns}
@@ -380,7 +320,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
             }}
             onServerSidePageChange={handlePageChange}
             hideRecordCount={false}
-            isLoading={loadingPage}
+            isLoading={isLoading}
             onRowClick={handleRowClick}
             rowClassName="cursor-pointer"
           />
