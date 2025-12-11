@@ -10,11 +10,6 @@ resource "kubernetes_ingress_v1" "web_ingress" {
       "nginx.ingress.kubernetes.io/proxy-read-timeout" = "300"
       "cert-manager.io/cluster-issuer"                 = "letsencrypt-prod"
 
-      "nginx.ingress.kubernetes.io/rewrite-target"        = "/admin/v2"
-      "nginx.ingress.kubernetes.io/configuration-snippet" = <<-EOF
-      try_files $uri $uri/ /admin/v2/index.html;
-  EOF
-
       # CRITICAL: Forward Next.js RSC (React Server Components) headers for client-side navigation
       # Without these, Next.js will fall back to full page reloads
       # This ensures RSC headers are forwarded to the backend
