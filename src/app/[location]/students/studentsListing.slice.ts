@@ -27,7 +27,7 @@ const initialState: StudentsListingState = {
   error: null,
   page: 1,
   pageSize: 20,
-  sortBy: 'lastName',
+  sortBy: 'firstName', // Default to sorting by first name
   sortDir: 'asc',
   columnFilters: {},
   activeFilter: 'active', // Default to showing only active students
