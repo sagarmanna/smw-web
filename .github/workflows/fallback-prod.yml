@@ -1,4 +1,4 @@
-name: Web-Deployment-Prod
+name: Web-fallback-Prod
 
 on:
   workflow_dispatch:
