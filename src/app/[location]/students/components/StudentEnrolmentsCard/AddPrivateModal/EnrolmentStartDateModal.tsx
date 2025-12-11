@@ -179,10 +179,10 @@ export function EnrolmentStartDateModal({
           </div>
         </div>
         <DialogFooter className="!flex !flex-row !justify-between !items-center gap-2">
-          <Button variant="outline" onClick={onBack} className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600">Back</Button>
+          <Button onClick={onBack}>Back</Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">Next</Button>
+            <Button onClick={handleNext}>Next</Button>
           </div>
         </DialogFooter>
       </DialogContent>

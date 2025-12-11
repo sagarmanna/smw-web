@@ -47,19 +47,6 @@ resource "kubernetes_ingress_v1" "web_ingress" {
             }
           }
         }
-        # CRITICAL: RSC data requests - must be before other paths for proper routing
-        path {
-          path      = "/admin/v2/_next/data"
-          path_type = "Prefix"
-          backend {
-            service {
-              name = kubernetes_service_v1.web_service.metadata[0].name
-              port {
-                number = kubernetes_service_v1.web_service.spec.0.port.0.port
-              }
-            }
-          }
-        }
         path {
           path      = "/admin/v2/_next/static"
           path_type = "Prefix"

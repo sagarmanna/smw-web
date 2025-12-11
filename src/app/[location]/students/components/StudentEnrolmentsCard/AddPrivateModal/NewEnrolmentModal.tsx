@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Clock } from "lucide-react";
-import { getProgramsList, Program } from "../../../teachers/teachers.api";
+import { getProgramsList, Program } from "../../../../teachers/teachers.api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { cn } from "@/lib/utils";
 import {
@@ -238,7 +238,7 @@ export function NewEnrolmentModal({
         </div>
         <DialogFooter className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleNext} className="bg-teal-600 hover:bg-teal-700">Next</Button>
+          <Button onClick={handleNext}>Next</Button>
         </DialogFooter>
       </DialogContent>
 
