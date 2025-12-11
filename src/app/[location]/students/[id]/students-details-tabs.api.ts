@@ -180,39 +180,8 @@ function generateMockAbsentLessons(studentId: string): AbsentLessonData[] {
  * Generates mock unscheduled lessons data for a student
  */
 function generateMockUnscheduledLessons(studentId: string): UnscheduledLessonData[] {
-  const studentIndex = parseInt(studentId) || 1;
-  const programs = ["Piano Core", "Guitar Fundamentals", "Violin Basics", "Music Theory", "Drums Essential"];
-  const program = programs[(studentIndex - 1) % programs.length];
-  
-  return [
-    // Expired lessons (should only show when "Show All" is checked)
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jan 15, 2024", expiryDate: "Apr 15, 2024", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Feb 10, 2024", expiryDate: "May 10, 2024", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Mar 05, 2024", expiryDate: "Jun 05, 2024", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Apr 20, 2024", expiryDate: "Jul 20, 2024", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "May 12, 2024", expiryDate: "Aug 12, 2024", online: "No" },
-    // Non-expired lessons
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "May 19, 2025", expiryDate: "Aug 18, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "May 26, 2025", expiryDate: "Aug 25, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 02, 2025", expiryDate: "Sep 01, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 09, 2025", expiryDate: "Sep 08, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 16, 2025", expiryDate: "Sep 15, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 23, 2025", expiryDate: "Sep 22, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jun 30, 2025", expiryDate: "Sep 29, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jul 07, 2025", expiryDate: "Oct 06, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jul 14, 2025", expiryDate: "Oct 13, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jul 21, 2025", expiryDate: "Oct 20, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Jul 28, 2025", expiryDate: "Oct 27, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Aug 04, 2025", expiryDate: "Nov 03, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Aug 11, 2025", expiryDate: "Nov 10, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Aug 18, 2025", expiryDate: "Nov 17, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Aug 25, 2025", expiryDate: "Nov 24, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Sep 01, 2025", expiryDate: "Dec 01, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Sep 08, 2025", expiryDate: "Dec 08, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Sep 15, 2025", expiryDate: "Dec 15, 2025", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Oct 13, 2025", expiryDate: "Jan 11, 2026", online: "No" },
-    { program: program, phone: "(647) 504-7582", duration: "00:30", originalDate: "Oct 27, 2025", expiryDate: "Jan 26, 2026", online: "No" },
-  ];
+  // Mock data removed - returning empty array
+  return [];
 }
 
 /**

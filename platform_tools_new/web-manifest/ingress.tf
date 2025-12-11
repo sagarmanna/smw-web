@@ -9,6 +9,15 @@ resource "kubernetes_ingress_v1" "web_ingress" {
       "nginx.ingress.kubernetes.io/proxy-send-timeout" = "300"
       "nginx.ingress.kubernetes.io/proxy-read-timeout" = "300"
       "cert-manager.io/cluster-issuer"                 = "letsencrypt-prod"
+
+      # CRITICAL: Forward Next.js RSC (React Server Components) headers for client-side navigation
+      # Without these, Next.js will fall back to full page reloads
+      # This ensures RSC headers are forwarded to the backend
+      "nginx.ingress.kubernetes.io/add-response-header-x-nextjs-data" = "1"
+
+      # Don't cache RSC data requests - they must be fresh
+      "nginx.ingress.kubernetes.io/proxy-no-cache"     = "1"
+      "nginx.ingress.kubernetes.io/proxy-cache-bypass" = "1"
     }
   }
 
@@ -26,6 +35,19 @@ resource "kubernetes_ingress_v1" "web_ingress" {
       http {
         path {
           path      = "/admin/v2"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = kubernetes_service_v1.web_service.metadata[0].name
+              port {
+                number = kubernetes_service_v1.web_service.spec.0.port.0.port
+              }
+            }
+          }
+        }
+        # RSC data fetches must be routed explicitly
+        path {
+          path      = "/admin/v2/_next/data"
           path_type = "Prefix"
           backend {
             service {
@@ -75,4 +97,4 @@ resource "kubernetes_ingress_v1" "web_ingress" {
       }
     }
   }
-} 
+}

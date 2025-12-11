@@ -5,7 +5,7 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -628,7 +628,7 @@ export function EditScheduleModal({
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="show-all-modal"
@@ -644,10 +644,12 @@ export function EditScheduleModal({
                 Show All
               </label>
             </div>
-            <div className="flex items-center gap-3 justify-end">
-              <div className="text-xs text-muted-foreground">
-                Week of {format(mondayDate, "dd-MMM-yyyy, EEEE")}
+            <div className="flex items-center justify-center">
+              <div className="text-base font-semibold text-foreground text-center">
+                {format(mondayDate, "dd-MMM-yyyy, EEEE")} – {format(addDays(mondayDate, 6), "dd-MMM-yyyy, EEEE")}
               </div>
+            </div>
+            <div className="flex items-center justify-end">
               <Popover open={goToDateOpen} onOpenChange={setGoToDateOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="h-9">
