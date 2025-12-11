@@ -13,9 +13,7 @@ resource "kubernetes_ingress_v1" "web_ingress" {
       # CRITICAL: Forward Next.js RSC (React Server Components) headers for client-side navigation
       # Without these, Next.js will fall back to full page reloads
       # This ensures RSC headers are forwarded to the backend
-      "nginx.ingress.kubernetes.io/configuration-snippet" = <<-EOT
-        more_set_headers "x-nextjs-data: 1";
-      EOT
+      "nginx.ingress.kubernetes.io/add-response-header-x-nextjs-data" = "1"
 
       # Don't cache RSC data requests - they must be fresh
       "nginx.ingress.kubernetes.io/proxy-no-cache"     = "1"
