@@ -187,19 +187,17 @@ export interface CreateEvaluationRequest {
 
 export interface EvaluationApiResponse {
   success: boolean;
-  data?: StudentEvaluationResponse | {
-    body: StudentEvaluationResponse;
-  };
+  data?: StudentEvaluationResponse;
   message?: string;
 }
 
 /**
- * Creates/Updates an evaluation for a student
+ * Creates an evaluation for a student
  * Endpoint: POST /admin/v2/{location}/student/{studentId}/evaluations
  * 
  * @param location - The location identifier
  * @param studentId - The student ID
- * @param data - The evaluation data to create/update
+ * @param data - The evaluation data to create
  * @returns Promise resolving to the evaluation response or null on error
  */
 export async function createStudentEvaluation(
@@ -219,6 +217,77 @@ export async function createStudentEvaluation(
     return {
       success: false,
       message: apiError.response?.data?.message || "Failed to save evaluation",
+    };
+  }
+}
+
+/**
+ * Updates an evaluation for a student
+ * Endpoint: PUT /admin/v2/{location}/student/{studentId}/evaluations?evaluationId={evaluationId}
+ * 
+ * @param location - The location identifier
+ * @param studentId - The student ID
+ * @param evaluationId - The evaluation ID to update
+ * @param data - The evaluation data to update
+ * @returns Promise resolving to the evaluation response or null on error
+ */
+export async function updateStudentEvaluation(
+  location: string,
+  studentId: string,
+  evaluationId: number,
+  data: CreateEvaluationRequest
+): Promise<EvaluationApiResponse | null> {
+  try {
+    const response = await apiClient.put<EvaluationApiResponse>(
+      `/admin/v2/${location}/student/${studentId}/evaluations`,
+      data,
+      {
+        params: {
+          evaluationId,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error updating student evaluation:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to update evaluation",
+    };
+  }
+}
+
+/**
+ * Deletes an evaluation for a student
+ * Endpoint: DELETE /admin/v2/{location}/student/{studentId}/evaluations?evaluationId={evaluationId}
+ * 
+ * @param location - The location identifier
+ * @param studentId - The student ID
+ * @param evaluationId - The evaluation ID to delete
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteStudentEvaluation(
+  location: string,
+  studentId: string,
+  evaluationId: number
+): Promise<EvaluationApiResponse | null> {
+  try {
+    const response = await apiClient.delete<EvaluationApiResponse>(
+      `/admin/v2/${location}/student/${studentId}/evaluations`,
+      {
+        params: {
+          evaluationId,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error deleting student evaluation:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to delete evaluation",
     };
   }
 }

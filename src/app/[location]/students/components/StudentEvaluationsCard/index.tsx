@@ -14,8 +14,14 @@ import { StudentEvaluation, StudentBasicDetails } from "../../types";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { ColumnDef } from "@tanstack/react-table";
 import { addEvaluation, updateEvaluation, removeEvaluation } from "../../[id]/students-details.slice";
-import { createStudentEvaluation, type StudentEvaluationResponse } from "../../[id]/students-details.api";
+import { 
+  createStudentEvaluation, 
+  updateStudentEvaluation,
+  deleteStudentEvaluation,
+  type StudentEvaluationResponse 
+} from "../../[id]/students-details.api";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface StudentEvaluationsCardProps {
   evaluations: StudentEvaluation[];
@@ -137,57 +143,59 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
           teacherId: evaluation.teacherId,
         };
 
-        // Call POST API first (following pattern: API call first, then update Redux)
-        const result = await createStudentEvaluation(location, studentId, apiData);
+        // Determine if this is an update or create
+        const isUpdate = !!evaluation.id;
+        
+        if (isUpdate && !evaluation.id) {
+          toast.error("Evaluation ID is required for update");
+          return false;
+        }
+        
+        // Call API first (following pattern: API call first, then update Redux)
+        const result = isUpdate
+          ? await updateStudentEvaluation(location, studentId, evaluation.id!, apiData)
+          : await createStudentEvaluation(location, studentId, apiData);
+        
         if (!result || !result.success) {
-          throw new Error(result?.message || "Failed to save evaluation");
+          throw new Error(result?.message || `Failed to ${isUpdate ? "update" : "create"} evaluation`);
         }
 
-        // Handle response structure - API returns { data: { id, programId, date, mark, level, program, type, teacher } }
-        // Check if data is directly in result.data (actual API response structure)
-        let apiResponse: StudentEvaluationResponse | undefined;
+        // API response structure: { success: true, data: { id, programId, date, mark, level, program, type, teacher } }
+        // POST/PUT APIs return the evaluation object directly in result.data
+        const apiResponse = result.data as StudentEvaluationResponse;
         
-        if (result.data && 'id' in result.data) {
-          apiResponse = result.data as unknown as StudentEvaluationResponse;
-        } else if (result.data?.body && 'id' in result.data.body) {
-          // Fallback: check for nested body structure (if API structure changes)
-          apiResponse = result.data.body;
+        if (!apiResponse || !apiResponse.id) {
+          throw new Error("Invalid response from server");
         }
 
         // Transform API response to StudentEvaluation format
-        // IMPORTANT: API response always has empty teacher field (only has teacherId)
-        // So we MUST always use the teacher name from form data
-        const teacherNameFromForm = evaluation.teacher?.trim() || "";
-        
-        let transformedEvaluation: StudentEvaluation;
-        
-        if (apiResponse) {
-          // Use API response data, but always use teacher name from form data
-          transformedEvaluation = {
-            id: apiResponse.id,
-            examDate: apiResponse.date,
-            mark: apiResponse.mark,
-            level: apiResponse.level,
-            program: apiResponse.program, // Use API response data only
-            type: apiResponse.type,
-            teacher: teacherNameFromForm, // Always use teacher name from form data (API doesn't return it)
-          };
-        } else {
-          // Fallback: Use the data we sent (API might not return the created object)
-          transformedEvaluation = {
-            examDate: evaluation.examDate,
-            mark: evaluation.mark,
-            level: evaluation.level,
-            program: evaluation.program,
-            type: evaluation.type,
-            teacher: teacherNameFromForm, // Use teacher name from form data
-          };
+        // API returns date in format "Dec 20, 2025" - convert to "YYYY-MM-DD" for storage
+        let examDateString = evaluation.examDate; // Default to form date
+        if (apiResponse.date) {
+          try {
+            const parsedDate = new Date(apiResponse.date);
+            if (!isNaN(parsedDate.getTime())) {
+              examDateString = format(parsedDate, "yyyy-MM-dd");
+            }
+          } catch {
+            // If parsing fails, use the original date from form
+            examDateString = evaluation.examDate;
+          }
         }
         
-        // Final safety check: Ensure teacher name is always present
-        if (!transformedEvaluation.teacher) {
-          transformedEvaluation.teacher = teacherNameFromForm || "Unknown";
-        }
+        // POST API returns teacher as empty string "", PUT returns teacher name
+        // Use form data teacher name if API returns empty
+        const teacherName = apiResponse.teacher?.trim() || evaluation.teacher?.trim() || "";
+        
+        const transformedEvaluation: StudentEvaluation = {
+          id: apiResponse.id,
+          examDate: examDateString,
+          mark: apiResponse.mark,
+          level: apiResponse.level,
+          program: apiResponse.program,
+          type: apiResponse.type,
+          teacher: teacherName,
+        };
 
         // Update Redux state after successful API call
         const existingIndex = evaluations.findIndex((e) => e.id === evaluation.id);
@@ -202,7 +210,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         // when on page 1, so the new/updated evaluation will appear immediately
         
         // Show success message
-        toast.success(evaluation.id ? "Evaluation updated successfully" : "Evaluation created successfully");
+        toast.success(isUpdate ? "Evaluation updated successfully" : "Evaluation created successfully");
         
         return true;
       } catch (error) {
@@ -235,8 +243,14 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
           return false;
         }
 
-        // No DELETE API available - just remove from Redux state
-        // Following the pattern: mutations update Redux state directly
+        // Call DELETE API first (following pattern: API call first, then update Redux)
+        const result = await deleteStudentEvaluation(location, studentId, existingEvaluation.id);
+        
+        if (!result || !result.success) {
+          throw new Error(result?.message || "Failed to delete evaluation");
+        }
+
+        // Update Redux state after successful API call
         // Note: removeEvaluation expects evaluationId (number), not index
         dispatch(removeEvaluation(existingEvaluation.id));
         
@@ -244,13 +258,13 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         return true;
       } catch (error) {
         console.error("Failed to delete evaluation:", error);
-        toast.error("Failed to delete evaluation. Please try again.");
+        toast.error(error instanceof Error ? error.message : "Failed to delete evaluation. Please try again.");
         return false;
       } finally {
         setSaving(false);
       }
     },
-    [dispatch, evaluations]
+    [dispatch, location, studentId, evaluations]
   );
 
   const handlePrintClick = React.useCallback(() => {
