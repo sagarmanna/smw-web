@@ -25,7 +25,7 @@ export const StudentCustomerCard = React.memo(function StudentCustomerCard({
     if (customerId) {
       // Redirect to customer view page with the customer ID (same pattern as enrolment)
       const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
-      const url = `${legacyBase}/${location}/customer/view?id=${customerId}`;
+      const url = `${legacyBase}/v2/${location}/customers/${customerId}`;
       // Navigate directly in the same window to avoid blank page issue
       window.location.href = url;
     }
