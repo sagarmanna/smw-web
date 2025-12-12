@@ -224,7 +224,7 @@ export async function createStudentEvaluation(
 }
 
 // ---------------------------------------------
-// Details fetch
+// Details fetch and update
 // ---------------------------------------------
 
 /**
@@ -270,5 +270,109 @@ export async function getStudentDetails(
       message: apiError.response?.data?.message || "Failed to fetch student details",
     };
   }
+}
+
+// ---------------------------------------------
+// Update Student Info API Types
+// ---------------------------------------------
+
+export interface UpdateStudentInfoRequest {
+  firstName: string;
+  lastName: string;
+  birthDate: string; // YYYY-MM-DD format
+  gender: string; // "1" for male, "2" for female, "0" for other
+  note: string;
+}
+
+export interface UpdateStudentInfoResponse {
+  success: boolean;
+  data: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    birthDate: string;
+    customerId: number;
+    status: number;
+    isDeleted: number;
+    gender: string;
+    note?: string; // Optional - may or may not be returned by API
+  };
+  message?: string;
+}
+
+/**
+ * Updates student information via PUT API
+ * Endpoint: PUT /admin/v2/{location}/student/{studentId}/info
+ * 
+ * @param location - The location identifier
+ * @param studentId - The student ID
+ * @param data - The student data to update
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function updateStudentInfo(
+  location: string,
+  studentId: string,
+  data: UpdateStudentInfoRequest
+): Promise<UpdateStudentInfoResponse | null> {
+  try {
+    const response = await apiClient.put<UpdateStudentInfoResponse>(
+      `/admin/v2/${location}/student/${studentId}/info`,
+      data
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error updating student info:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(studentId) || 0,
+        firstName: "",
+        lastName: "",
+        birthDate: "",
+        customerId: 0,
+        status: 0,
+        isDeleted: 0,
+        gender: "",
+      },
+      message: apiError.response?.data?.message || "Failed to update student info",
+    };
+  }
+}
+
+// ---------------------------------------------
+// Gender Conversion Helpers
+// ---------------------------------------------
+
+/**
+ * Converts gender from API format to display format
+ * API format: "1" = Male, "2" = Female, "0" = Other
+ * Display format: "Male", "Female", "Other"
+ */
+export function genderApiToDisplay(apiGender: string | undefined): string | undefined {
+  if (!apiGender) return undefined;
+  const normalized = apiGender.trim();
+  if (normalized === "1") return "Male";
+  if (normalized === "2") return "Female";
+  if (normalized === "0") return "Other";
+  // If already in display format or unknown, return as is
+  return apiGender;
+}
+
+/**
+ * Converts gender from display format to API format
+ * Display format: "Male", "Female", "Other"
+ * API format: "1" = Male, "2" = Female, "0" = Other
+ */
+export function genderDisplayToApi(displayGender: string | undefined): string {
+  if (!displayGender) return "0";
+  const normalized = displayGender.trim().toLowerCase();
+  if (normalized === "male") return "1";
+  if (normalized === "female") return "2";
+  if (normalized === "other") return "0";
+  // If already in API format, return as is
+  if (normalized === "1" || normalized === "2" || normalized === "0") return normalized;
+  // Default to "0" for unknown values
+  return "0";
 }
 

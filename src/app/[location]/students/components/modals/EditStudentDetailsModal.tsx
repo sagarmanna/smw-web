@@ -12,10 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StudentBasicDetails } from "../../types";
 import { toast } from "sonner";
 import { formatDisplayDate } from "@/utils/dateUtils";
 import { parse, isValid } from "date-fns";
+import { genderDisplayToApi } from "../../[id]/students-details.api";
 
 function formatDateToISO(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -72,6 +74,7 @@ export function EditStudentDetailsModal({
     if (details) {
       const raw = details.birthday ?? "";
       const isoDate = raw ? convertToISOFormat(raw) : "";
+      // Gender is already in display format from the API transformation
       setFormData({
         firstName: details.firstName ?? "",
         lastName: details.lastName ?? "",
@@ -108,21 +111,21 @@ export function EditStudentDetailsModal({
     }
     setShowError(false);
     if (!details) return;
+    
+    // Keep gender in display format - conversion to API format happens in saveDetails
     const success = await onSubmit({
       id: details.id,
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       birthday: formData.birthday || undefined,
-      gender: formData.gender || undefined,
+      gender: formData.gender || undefined, // Keep in display format
       status: details.status,
       notes: formData.notes || undefined,
     });
     if (success) {
-      toast.success("Student details updated successfully");
+      // Toast is handled in the parent component
       onClose();
       setTouched({ firstName: false, lastName: false });
-    } else {
-      toast.error("Failed to update student details");
     }
   };
 
@@ -209,13 +212,19 @@ export function EditStudentDetailsModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-gender">Gender</Label>
-              <Input
-                id="student-gender"
-                type="text"
+              <Select
                 value={formData.gender}
-                onChange={createTextInputHandler("gender")}
-                placeholder="e.g., Female, Male"
-              />
+                onValueChange={(value) => updateFormData("gender", value)}
+              >
+                <SelectTrigger id="student-gender">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="student-notes">Notes</Label>
