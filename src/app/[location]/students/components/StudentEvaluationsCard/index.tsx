@@ -263,17 +263,19 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         }
 
         // Update Redux state after successful API call (server-side pagination)
-        const updatedEvaluations = evaluations.filter((e) => e.id !== existingEvaluation.id);
+        // Refresh current page from server to get updated data
         if (evaluationsPagination) {
-          const updatedPagination = {
-            ...evaluationsPagination,
-            total: Math.max(0, evaluationsPagination.total - 1),
-            totalPages: Math.ceil(Math.max(0, evaluationsPagination.total - 1) / evaluationsPagination.limit),
-          };
-          dispatch(setEvaluationsPage({
-            evaluations: updatedEvaluations,
-            pagination: updatedPagination,
-          }));
+          setFetchingPage(true);
+          try {
+            await dispatch(fetchEvaluationsPage({ 
+              location, 
+              studentId, 
+              page: evaluationsPagination.page, 
+              limit: evaluationsPagination.limit 
+            })).unwrap();
+          } finally {
+            setFetchingPage(false);
+          }
         }
         
         toast.success("Evaluation deleted successfully");
@@ -286,7 +288,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         setSaving(false);
       }
     },
-    [dispatch, location, studentId, evaluations, evaluationsPagination]
+    [dispatch, location, studentId, evaluations, evaluationsPagination, setFetchingPage]
   );
 
   const handlePrintClick = React.useCallback(() => {
