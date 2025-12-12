@@ -10,7 +10,7 @@ import {
   UpdateStudentInfoRequest,
   genderApiToDisplay,
 } from './students-details.api';
-import type { StudentInfo, StudentBasicDetails, StudentEvaluation, StudentEnrolment } from '../types';
+import type { StudentInfo, StudentBasicDetails, StudentEvaluation, StudentEnrolment, StudentEvaluationsPagination } from '../types';
 
 export interface UpdateStudentDetailsData {
   firstName: string;
@@ -120,6 +120,7 @@ function transformApiResponse(apiResponse: StudentDetailsApiResponse): StudentIn
 
 // Async thunk for fetching student info
 // Called once in page.tsx during initial page load
+// Always uses server-side pagination - fetches only page 1
 export const fetchStudent = createAsyncThunk(
   'student/fetchStudent',
   async (
@@ -127,12 +128,12 @@ export const fetchStudent = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch student details, enrolments, and ALL evaluations in parallel
-      // Fetch all evaluations once with large limit (no pagination)
+      // Fetch student details, enrolments, and first page of evaluations in parallel
+      // Server-side pagination: only fetch page 1 with default limit
       const [detailsResult, enrolmentsResult, evaluationsResult] = await Promise.all([
         getStudentDetails(location, studentId),
         getStudentEnrolments(location, studentId),
-        getStudentEvaluations(location, studentId, 1, 9999), // Fetch all evaluations
+        getStudentEvaluations(location, studentId, 1, 10), // Fetch only page 1
       ]);
 
       if (!detailsResult || !detailsResult.success) {
@@ -148,21 +149,20 @@ export const fetchStudent = createAsyncThunk(
         transformedData.enrolments = [];
       }
 
-      // Transform and add evaluations if available
+      // Transform and add evaluations if available (server-side pagination)
       if (evaluationsResult && evaluationsResult.success) {
         transformedData.evaluations = transformEvaluationsResponse(evaluationsResult.data.body);
-        // Store pagination info from API response for client-side pagination
+        // Store pagination info from API response
         const apiPagination = evaluationsResult.pagination || evaluationsResult.data.pagination;
         if (apiPagination) {
           transformedData.evaluationsPagination = apiPagination;
         } else {
-          // Calculate pagination from all evaluations for client-side pagination
-          const total = transformedData.evaluations.length;
+          // Fallback pagination if API doesn't provide it
           transformedData.evaluationsPagination = {
             page: 1,
             limit: 10,
-            total,
-            totalPages: Math.ceil(total / 10),
+            total: transformedData.evaluations.length,
+            totalPages: Math.ceil(transformedData.evaluations.length / 10),
           };
         }
       } else {
@@ -178,6 +178,38 @@ export const fetchStudent = createAsyncThunk(
       return { data: transformedData };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch student info');
+    }
+  }
+);
+
+// Async thunk for fetching evaluations page (server-side pagination)
+export const fetchEvaluationsPage = createAsyncThunk(
+  'student/fetchEvaluationsPage',
+  async (
+    { location, studentId, page, limit }: { location: string; studentId: string; page: number; limit: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await getStudentEvaluations(location, studentId, page, limit);
+      
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to fetch evaluations page');
+      }
+
+      const evaluations = transformEvaluationsResponse(result.data.body);
+      const apiPagination = result.pagination || result.data.pagination;
+
+      return {
+        evaluations,
+        pagination: apiPagination || {
+          page,
+          limit,
+          total: evaluations.length,
+          totalPages: 1,
+        },
+      };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch evaluations page');
     }
   }
 );
@@ -289,6 +321,13 @@ const studentSlice = createSlice({
         }
       }
     },
+    // Set evaluations page (for server-side pagination)
+    setEvaluationsPage: (state, action: PayloadAction<{ evaluations: StudentEvaluation[]; pagination: StudentEvaluationsPagination }>) => {
+      if (state.studentInfo) {
+        state.studentInfo.evaluations = action.payload.evaluations;
+        state.studentInfo.evaluationsPagination = action.payload.pagination;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -342,6 +381,19 @@ const studentSlice = createSlice({
       .addCase(updateStudent.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
+      })
+      // Fetch evaluations page reducers (server-side pagination)
+      .addCase(fetchEvaluationsPage.pending, () => {
+        // Don't set isLoading to true to avoid showing loading for entire page
+      })
+      .addCase(fetchEvaluationsPage.fulfilled, (state, action) => {
+        if (state.studentInfo) {
+          state.studentInfo.evaluations = action.payload.evaluations;
+          state.studentInfo.evaluationsPagination = action.payload.pagination;
+        }
+      })
+      .addCase(fetchEvaluationsPage.rejected, (state, action) => {
+        state.error = action.payload as string;
       });
   },
 });
@@ -354,6 +406,7 @@ export const {
   addEvaluation,
   updateEvaluation,
   removeEvaluation,
+  setEvaluationsPage,
 } = studentSlice.actions;
 export default studentSlice.reducer;
 

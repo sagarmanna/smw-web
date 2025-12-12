@@ -23,9 +23,9 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { StudentEvaluation } from "../../types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 import { getProgramsList, Program } from "../../../teachers/teachers.api";
 import { getTeacherView, Teacher } from "../../../schedule/schedule.api";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 
 // API functions
 const fetchPrograms = async (): Promise<Program[]> => {
@@ -117,6 +117,8 @@ export function AddEvaluationModal({
     teacher: false,
   });
   const [showError, setShowError] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Fetch programs when modal opens
   React.useEffect(() => {
@@ -315,7 +317,7 @@ export function AddEvaluationModal({
 
     const success = await onSubmit(evaluation);
     if (success) {
-      toast.success(isEditMode ? "Evaluation updated successfully" : "Evaluation saved successfully");
+      // Toast notification is handled in the parent component (StudentEvaluationsCard)
       onOpenChange(false);
       setExamDate(undefined);
       setIsDatePickerOpen(false);
@@ -332,17 +334,30 @@ export function AddEvaluationModal({
     }
   };
   
-  const handleDelete = async () => {
+  const handleDeleteClick = React.useCallback(() => {
+    if (!isEditMode || !initialData || !onDelete) return;
+    setShowDeleteConfirm(true);
+  }, [isEditMode, initialData, onDelete]);
+
+  const handleDeleteConfirm = React.useCallback(async () => {
     if (!isEditMode || !initialData || !onDelete) return;
     
-    if (window.confirm("Are you sure you want to delete this evaluation?")) {
+    setIsDeleting(true);
+    try {
       const success = await onDelete(initialData);
       if (success) {
-        toast.success("Evaluation deleted successfully");
+        // Toast notification is handled in the parent component (StudentEvaluationsCard)
+        setShowDeleteConfirm(false);
         onOpenChange(false);
       }
+      // Error toast is also handled in the parent component
+    } catch (error) {
+      console.error("Error deleting evaluation:", error);
+      // Error toast is handled in the parent component
+    } finally {
+      setIsDeleting(false);
     }
-  };
+  }, [isEditMode, initialData, onDelete, onOpenChange]);
 
   const handleInputChange = (field: keyof Omit<StudentEvaluation, "examDate" | "program" | "teacher">) => (
     event: React.ChangeEvent<HTMLInputElement>
@@ -529,8 +544,8 @@ export function AddEvaluationModal({
                 <Button
                   type="button"
                   variant="destructive"
-                  onClick={handleDelete}
-                  disabled={saving}
+                  onClick={handleDeleteClick}
+                  disabled={saving || isDeleting}
                 >
                   Delete
                 </Button>
@@ -554,6 +569,15 @@ export function AddEvaluationModal({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      <DeleteConfirmationModal
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Evaluation"
+        description="Are you sure you want to delete this evaluation? This action cannot be undone."
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
+      />
     </Dialog>
   );
 }
