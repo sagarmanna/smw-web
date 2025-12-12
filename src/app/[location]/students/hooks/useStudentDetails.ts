@@ -15,6 +15,8 @@ import {
   StudentEvaluation,
   StudentEvaluationsPagination,
 } from "../types";
+import { genderDisplayToApi } from "../[id]/students-details.api";
+import { toast } from "sonner";
 
 type StudentDetailsHookReturn = {
   loading: boolean;
@@ -76,6 +78,10 @@ export function useStudentDetails(
   const saveDetails = React.useCallback(
     async (next: StudentBasicDetails) => {
       try {
+        // Convert gender from display format to API format
+        const apiGender = genderDisplayToApi(next.gender);
+        
+        // Call API first
         await dispatch(
           updateStudent({
             location,
@@ -84,18 +90,20 @@ export function useStudentDetails(
               firstName: next.firstName,
               lastName: next.lastName,
               birthday: next.birthday,
-              gender: next.gender,
+              gender: apiGender, // Convert to API format
               notes: next.notes,
             },
           })
         ).unwrap();
         
-        // Update local state optimistically
-        dispatch(updateProfile(next));
+        // State is already updated from API response in the reducer (updateStudent.fulfilled)
+        // No need to refetch enrolments and evaluations - they haven't changed
         
+        toast.success("Student details updated successfully");
         return true;
       } catch (error) {
         console.error("Failed to save student details:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to update student details. Please try again.");
         return false;
       }
     },

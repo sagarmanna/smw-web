@@ -6,6 +6,9 @@ import {
   StudentEnrolmentResponse,
   getStudentEvaluations,
   StudentEvaluationResponse,
+  updateStudentInfo,
+  UpdateStudentInfoRequest,
+  genderApiToDisplay,
 } from './students-details.api';
 import type { StudentInfo, StudentBasicDetails, StudentEvaluation, StudentEnrolment, StudentEvaluationsPagination } from '../types';
 
@@ -101,7 +104,7 @@ function transformApiResponse(apiResponse: StudentDetailsApiResponse): StudentIn
       lastName,
       birthday: student.birthDate || undefined,
       age: student.age || undefined,
-      gender: student.gender || undefined,
+      gender: genderApiToDisplay(student.gender), // Convert API format to display format
       status: student.status,
       notes: student.note || undefined,
     },
@@ -211,16 +214,31 @@ export const fetchEvaluationsPage = createAsyncThunk(
   }
 );
 
-// Async thunk for updating student details (local state only, no API call)
+// Async thunk for updating student details via API
 export const updateStudent = createAsyncThunk(
   'student/updateStudent',
   async (
-    { data }: { location: string; studentId: string; data: UpdateStudentDetailsData },
+    { location, studentId, data }: { location: string; studentId: string; data: UpdateStudentDetailsData },
     { rejectWithValue }
   ) => {
     try {
-      // Only update local state, no API call
-      return data;
+      // Call the API to update student info
+      const apiData: UpdateStudentInfoRequest = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        birthDate: data.birthday || "",
+        gender: data.gender || "0", // API expects "1", "2", or "0"
+        note: data.notes || "",
+      };
+      
+      const result = await updateStudentInfo(location, studentId, apiData);
+      
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update student details');
+      }
+      
+      // Return the API response data
+      return result.data;
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update student details');
     }
@@ -343,16 +361,19 @@ const studentSlice = createSlice({
         state.isSaving = true;
         state.error = null;
       })
-      .addCase(updateStudent.fulfilled, (state, action: PayloadAction<UpdateStudentDetailsData>) => {
+      .addCase(updateStudent.fulfilled, (state, action) => {
         state.isSaving = false;
-        if (state.studentInfo) {
+        // Update state from API response - no client-side recalculation
+        if (state.studentInfo && action.payload) {
+          const apiData = action.payload;
           state.studentInfo.profile = {
             ...state.studentInfo.profile,
-            firstName: action.payload.firstName,
-            lastName: action.payload.lastName,
-            birthday: action.payload.birthday || state.studentInfo.profile.birthday,
-            gender: action.payload.gender || state.studentInfo.profile.gender,
-            notes: action.payload.notes !== undefined ? action.payload.notes : state.studentInfo.profile.notes,
+            firstName: apiData.firstName,
+            lastName: apiData.lastName,
+            birthday: apiData.birthDate || state.studentInfo.profile.birthday,
+            gender: genderApiToDisplay(apiData.gender), // Convert API format to display format
+            // Use note from API response if provided, otherwise preserve existing value
+            notes: apiData.note !== undefined ? apiData.note : state.studentInfo.profile.notes,
           };
         }
         state.error = null;
