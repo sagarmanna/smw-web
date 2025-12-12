@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { parse, isValid, startOfDay, endOfDay, format } from "date-fns";
+import { parseTimeVoucherString } from "@/utils/dateUtils";
 import { ColumnDef } from "@tanstack/react-table";
 import { TimeVoucherData } from "../../../../teacherTabConfigs";
 import { fetchTimeVoucherData } from "../../../../[id]/teacherTabs.slice";
+import { EditScheduleModal, type EditableLessonData } from "../../EditScheduleModal";
 
 interface TimeVoucherTabProps {
   location: string;
@@ -21,33 +23,6 @@ interface SummarizedTimeVoucherData {
   duration: number;
 }
 
-// Helper function to parse date from time string
-const parseTimeString = (timeStr: string): Date | null => {
-  try {
-    // Try parsing formats like "Thursday, December 4th, 2025 01:00 PM"
-    // Remove ordinal suffixes (st, nd, rd, th)
-    const cleaned = timeStr.replace(/(\d+)(st|nd|rd|th)/g, '$1');
-    
-    // Try multiple date formats
-    const formats = [
-      "EEEE, MMMM d, yyyy h:mm a", // "Thursday, December 4, 2025 01:00 PM"
-      "EEEE, MMMM d, yyyy", // "Thursday, December 4, 2025"
-      "MMMM d, yyyy h:mm a", // "December 4, 2025 01:00 PM"
-      "MMMM d, yyyy", // "December 4, 2025"
-    ];
-    
-    for (const format of formats) {
-      const parsed = parse(cleaned, format, new Date());
-      if (isValid(parsed)) {
-        return parsed;
-      }
-    }
-    
-    return null;
-  } catch {
-    return null;
-  }
-};
 
 export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
   const dispatch = useAppDispatch();
@@ -75,6 +50,8 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
     };
   });
   const [summariseReport, setSummariseReport] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState<boolean>(false);
+  const [selectedLesson, setSelectedLesson] = useState<EditableLessonData | null>(null);
 
   // Fetch data when tab is opened and when params change
   // Only trigger API if Redux doesn't have data for these params (even if empty)
@@ -141,14 +118,14 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
     
     // Sort dates chronologically
     const sortedDates = Object.keys(grouped).sort((a, b) => {
-      let dateA = parseTimeString(a);
+      let dateA = parseTimeVoucherString(a);
       if (!dateA) {
         const cleaned = a.replace(/(\d+)(st|nd|rd|th)/g, '$1');
         const parsed = parse(cleaned, "EEEE, MMMM d, yyyy", new Date());
         dateA = isValid(parsed) ? parsed : null;
       }
       
-      let dateB = parseTimeString(b);
+      let dateB = parseTimeVoucherString(b);
       if (!dateB) {
         const cleaned = b.replace(/(\d+)(st|nd|rd|th)/g, '$1');
         const parsed = parse(cleaned, "EEEE, MMMM d, yyyy", new Date());
@@ -334,7 +311,7 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
     // Sort by date chronologically
     const sorted = mapped.sort((a: SummarizedTimeVoucherData, b: SummarizedTimeVoucherData) => {
       // Parse dates - try with time first, then without
-      let dateA = parseTimeString(a.date);
+      let dateA = parseTimeVoucherString(a.date);
       if (!dateA) {
         // Try parsing date without time
         const cleaned = a.date.replace(/(\d+)(st|nd|rd|th)/g, '$1');
@@ -342,7 +319,7 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
         dateA = isValid(parsed) ? parsed : null;
       }
       
-      let dateB = parseTimeString(b.date);
+      let dateB = parseTimeVoucherString(b.date);
       if (!dateB) {
         // Try parsing date without time
         const cleaned = b.date.replace(/(\d+)(st|nd|rd|th)/g, '$1');
@@ -382,6 +359,50 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
     isDateHeader: false,
     isDateTotal: false,
   }), [totalDuration]);
+
+  // Handle row click - open edit schedule modal
+  const handleRowClick = useCallback((row: TimeVoucherData & { isDateHeader?: boolean; isDateTotal?: boolean; dateLabel?: string }) => {
+    // Don't open modal for date headers, date totals, or summary rows
+    if (row.isDateHeader || row.isDateTotal || summariseReport) {
+      return;
+    }
+    
+    // Don't open modal if there's no valid lesson ID (summary rows have empty id)
+    if (!row.id || row.id.startsWith('time-voucher-summary-')) {
+      return;
+    }
+    
+    // Convert TimeVoucherData to EditableLessonData
+    // Note: TimeVoucherData doesn't have programId, expiryDate, or teacher
+    // These will be undefined and the modal will handle it gracefully
+    const editableLesson: EditableLessonData = {
+      id: row.id,
+      student: row.student,
+      program: row.program,
+      programId: undefined, // Not available in TimeVoucherData
+      duration: row.duration,
+      originalDate: undefined, // Not available in TimeVoucherData
+      expiryDate: undefined, // Not available in TimeVoucherData
+      originalDateTime: row.time, // Pass the full time string to modal
+      teacher: undefined, // Not available in TimeVoucherData
+    };
+    
+    setSelectedLesson(editableLesson);
+    setScheduleModalOpen(true);
+  }, [summariseReport]);
+
+  // Handle modal success - refetch data
+  const handleEditScheduleSuccess = useCallback(() => {
+    // Refetch time voucher data after successful edit
+    const params = {
+      startDate: format(appliedDateRange.from, 'yyyy-MM-dd'),
+      endDate: format(appliedDateRange.to, 'yyyy-MM-dd'),
+      summaryOnly: summariseReport,
+    };
+    dispatch(fetchTimeVoucherData({ location, teacherId, params }));
+    setScheduleModalOpen(false);
+    setSelectedLesson(null);
+  }, [location, teacherId, appliedDateRange, summariseReport, dispatch]);
 
   // Handle print functionality - redirect to print URL with date range and summary parameters
   const handlePrintClick = () => {
@@ -456,6 +477,14 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
             enablePrint={true}
             onPrint={handlePrintClick}
             isLoading={timeVoucherLoading}
+            onRowClick={handleRowClick}
+            rowClassName={(row) => {
+              // Only make lesson rows clickable, not date headers or totals
+              if (row.isDateHeader || row.isDateTotal) {
+                return '';
+              }
+              return 'cursor-pointer';
+            }}
             customEmptyState={
               !timeVoucherLoading && groupedDataWithHeaders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
@@ -467,6 +496,15 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
           />
         )}
       </CardContent>
+      
+      <EditScheduleModal
+        open={scheduleModalOpen}
+        onOpenChange={setScheduleModalOpen}
+        location={location}
+        teacherId={teacherId}
+        selectedLesson={selectedLesson}
+        onSuccess={handleEditScheduleSuccess}
+      />
     </Card>
   );
 }

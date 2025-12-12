@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, addDays } from "date-fns";
+import { parseTimeVoucherString } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,9 +23,8 @@ import {
   type TeacherScheduleData,
   type TeacherScheduleLessonEvent,
   type TeacherScheduleAvailabilityEvent,
-} from "../../../../[id]/teachers-details-tabs.api";
-import { getTeacherView } from "@/app/[location]/schedule/schedule.api";
-import { type UnscheduledLessonData } from "../../../../teacherTabConfigs";
+} from "../../../[id]/teachers-details-tabs.api";
+import { getTeacherView, getTeachersList } from "@/app/[location]/schedule/schedule.api";
 import { 
   updateLesson, 
   formatDateTimeForLegacy,
@@ -37,12 +37,30 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
+// Shared interface for lesson data that can be edited
+export interface EditableLessonData {
+  id: string;
+  student: string;
+  program: string;
+  programId?: number;
+  duration: string;
+  originalDate?: string;
+  expiryDate?: string;
+  originalDateTime?: string; // For TimeVoucherData: the full time string like "Wednesday, November 5th, 2025 04:00 PM"
+  teacher?: {
+    id: number;
+    title: string;
+  };
+  // For TimeVoucherData, we need to extract lesson ID from the id string
+  // Format: "time-voucher-{lessonId}-{timestamp}-{index}"
+}
+
 interface EditScheduleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   location: string;
   teacherId: number;
-  selectedLesson: UnscheduledLessonData | null;
+  selectedLesson: EditableLessonData | null;
   onSuccess?: () => void;
 }
 
@@ -75,6 +93,7 @@ export function EditScheduleModal({
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | undefined>(undefined);
   const [duration, setDuration] = useState<string>("");
   const [lessonId, setLessonId] = useState<number | null>(null);
+  const [resolvedProgramId, setResolvedProgramId] = useState<number | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [validationErrors, setValidationErrors] = useState<LessonValidationResponse | null>(null);
   const [isValidating, setIsValidating] = useState<boolean>(false);
@@ -190,20 +209,33 @@ export function EditScheduleModal({
 
   const fetchEligibleTeachers = useCallback(
     async (programId?: number, date?: Date) => {
-      if (!programId) {
-        setEligibleTeachers([]);
-        return;
-      }
       try {
-        const dateToUse = date || selectedDate;
-        const year = dateToUse.getFullYear();
-        const month = String(dateToUse.getMonth() + 1).padStart(2, "0");
-        const day = String(dateToUse.getDate()).padStart(2, "0");
-        const dateString = `${year}-${month}-${day}`;
+        if (programId) {
+          // Fetch teachers by program if programId is available
+          // Always use the passed date parameter, or current date if not provided
+          const dateToUse = date || new Date();
+          const year = dateToUse.getFullYear();
+          const month = String(dateToUse.getMonth() + 1).padStart(2, "0");
+          const day = String(dateToUse.getDate()).padStart(2, "0");
+          const dateString = `${year}-${month}-${day}`;
 
-        const response = await getTeacherView(location, dateString, false, programId.toString(), undefined, 'all-teachers-by-program');
-        const resources = response?.data?.resources || [];
-        setEligibleTeachers(resources);
+          const response = await getTeacherView(location, dateString, false, programId.toString(), undefined, 'all-teachers-by-program');
+          const resources = response?.data?.resources || [];
+          setEligibleTeachers(resources);
+        } else {
+          // If no programId, fetch all teachers for the location
+          const response = await getTeachersList(location);
+          if (response?.success && response.data) {
+            // Map Teacher (id, name) to TeacherViewResource format (id, title)
+            const teachers = response.data.map((t) => ({
+              id: t.id,
+              title: t.name,
+            }));
+            setEligibleTeachers(teachers);
+          } else {
+            setEligibleTeachers([]);
+          }
+        }
       } catch (err) {
         console.error("Error fetching eligible teachers:", err);
         setEligibleTeachers([]);
@@ -226,6 +258,24 @@ export function EditScheduleModal({
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
   }, []);
 
+  // Extract lesson ID from different ID formats
+  const extractLessonId = useCallback((id: string): number | null => {
+    // Handle unscheduled lesson format: "unscheduled-lesson-{id}-{timestamp}-{index}"
+    const unscheduledMatch = id.match(/unscheduled-lesson-(\d+)-/);
+    if (unscheduledMatch) {
+      return parseInt(unscheduledMatch[1], 10);
+    }
+    
+    // Handle time voucher format: "time-voucher-{id}-{timestamp}-{index}"
+    const timeVoucherMatch = id.match(/time-voucher-(\d+)-/);
+    if (timeVoucherMatch) {
+      return parseInt(timeVoucherMatch[1], 10);
+    }
+    
+    return null;
+  }, []);
+
+
   // Initialize when modal opens
   useEffect(() => {
     if (!open || !selectedLesson) {
@@ -236,12 +286,15 @@ export function EditScheduleModal({
       return;
     }
     
-    setSelectedTeacherId(selectedLesson.teacher?.id);
+    // Set teacher ID - use lesson's teacher if available, otherwise default to teacherId prop
+    setSelectedTeacherId(selectedLesson.teacher?.id || teacherId);
     
-    // Extract lesson ID from the id string (format: "unscheduled-lesson-{id}-{timestamp}-{index}")
-    const idMatch = selectedLesson.id.match(/unscheduled-lesson-(\d+)-/);
-    const extractedLessonId = idMatch ? parseInt(idMatch[1], 10) : null;
+    // Extract lesson ID from the id string
+    const extractedLessonId = extractLessonId(selectedLesson.id);
     setLessonId(extractedLessonId);
+    
+    // Reset resolved programId when lesson changes
+    setResolvedProgramId(undefined);
     
     // Round duration to nearest 15-minute increment
     if (selectedLesson.duration) {
@@ -254,25 +307,58 @@ export function EditScheduleModal({
       setDuration("00:00");
     }
     
-    const baseDate = new Date();
-    setSelectedDate(baseDate);
-    setRescheduleDate(null);
+    // Parse originalDateTime if available (from TimeVoucherData)
+    let initialRescheduleDate: Date | null = null;
+    let initialSelectedDate = new Date();
+    
+    if (selectedLesson.originalDateTime) {
+      const parsedDate = parseTimeVoucherString(selectedLesson.originalDateTime);
+      if (parsedDate) {
+        initialRescheduleDate = parsedDate;
+        initialSelectedDate = parsedDate; // Set calendar to show the week containing this date
+      }
+    }
+    
+    setSelectedDate(initialSelectedDate);
+    setRescheduleDate(initialRescheduleDate);
     setShowAllModal(false);
     setGoToDateOpen(false);
     setValidationErrors(null); // Clear validation errors when modal opens
     
+    // If programId is available, fetch teachers by program immediately
+    // Otherwise, we'll fetch it from schedule data after schedule loads
     if (selectedLesson.programId) {
-      fetchEligibleTeachers(selectedLesson.programId, baseDate);
+      fetchEligibleTeachers(selectedLesson.programId, initialSelectedDate);
     }
-  }, [open, selectedLesson?.id, fetchEligibleTeachers, parseDuration, formatDuration]);
+    // If no programId, we'll resolve it from schedule data in fetchSchedule
+  }, [open, selectedLesson?.id, selectedLesson?.originalDateTime, teacherId, fetchEligibleTeachers, parseDuration, formatDuration, extractLessonId]);
 
   // Load schedule data when modal opens or selectedDate/selectedTeacherId changes
   useEffect(() => {
-    if (!open || !selectedLesson?.programId) return;
+    if (!open) return;
     
-    const teacherIdToUse = selectedTeacherId || selectedLesson.teacher?.id || teacherId;
+    const teacherIdToUse = selectedTeacherId || selectedLesson?.teacher?.id || teacherId;
     fetchSchedule(selectedDate, teacherIdToUse);
-  }, [open, selectedDate, selectedTeacherId, selectedLesson?.programId, selectedLesson?.teacher?.id, teacherId, fetchSchedule]);
+  }, [open, selectedDate, selectedTeacherId, selectedLesson?.teacher?.id, teacherId, fetchSchedule]);
+  
+  // Extract programId from schedule data if lessonId is available but programId is not
+  useEffect(() => {
+    if (!open || !scheduleData || !lessonId || resolvedProgramId || selectedLesson?.programId) return;
+    
+    // Try to find the lesson in schedule data to get programId
+    const lesson = scheduleData.lessons.find((l) => l.lessonId === lessonId);
+    if (lesson && lesson.programId) {
+      setResolvedProgramId(lesson.programId);
+    }
+  }, [open, scheduleData, lessonId, resolvedProgramId, selectedLesson?.programId]);
+  
+  // Fetch eligible teachers when programId is resolved from schedule data
+  useEffect(() => {
+    if (!open || !resolvedProgramId || selectedLesson?.programId) return;
+    
+    // Only fetch if we resolved programId from schedule and didn't have it originally
+    fetchEligibleTeachers(resolvedProgramId, selectedDate);
+  }, [open, resolvedProgramId, selectedLesson?.programId, selectedDate, fetchEligibleTeachers]);
 
   const mondayDate = useMemo(() => getMonday(selectedDate), [selectedDate, getMonday]);
 

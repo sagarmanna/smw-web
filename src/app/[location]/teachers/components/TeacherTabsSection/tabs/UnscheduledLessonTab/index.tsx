@@ -8,7 +8,7 @@ import { getTeacherUnscheduledLessons } from "../../../../[id]/teachers-details-
 import { transformUnscheduledLessonData } from "../../../../utils/tabTransformers";
 import { useServerPagination } from "@/hooks/useServerPagination";
 import { CalendarIcon } from "lucide-react";
-import { EditScheduleModal } from "./EditScheduleModal";
+import { EditScheduleModal, type EditableLessonData } from "../../EditScheduleModal";
 
 interface UnscheduledLessonTabProps {
   location: string;
@@ -21,7 +21,7 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
   const [error, setError] = React.useState<string | null>(null);
   const [showAll, setShowAll] = useState<boolean>(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState<boolean>(false);
-  const [selectedLesson, setSelectedLesson] = useState<UnscheduledLessonData | null>(null);
+  const [selectedLesson, setSelectedLesson] = useState<EditableLessonData | null>(null);
   const showAllRef = React.useRef(showAll);
 
   // Keep ref in sync with state
@@ -81,7 +81,18 @@ export function UnscheduledLessonTab({ location, teacherId }: UnscheduledLessonT
 
   const handleCalendarClick = useCallback(
     (lesson: UnscheduledLessonData) => {
-      setSelectedLesson(lesson);
+      // Convert UnscheduledLessonData to EditableLessonData
+      const editableLesson: EditableLessonData = {
+        id: lesson.id,
+        student: lesson.student,
+        program: lesson.program,
+        programId: lesson.programId,
+        duration: lesson.duration,
+        originalDate: lesson.originalDate,
+        expiryDate: lesson.expiryDate,
+        teacher: lesson.teacher,
+      };
+      setSelectedLesson(editableLesson);
       setScheduleModalOpen(true);
     },
     []

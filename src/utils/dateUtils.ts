@@ -2,7 +2,7 @@
  * Utility functions for date formatting and conversion
  */
 
-import { parse, format } from "date-fns";
+import { parse, format, isValid } from "date-fns";
 
 /**
  * Formats a date string for display.
@@ -78,5 +78,37 @@ export function isoStringToDate(isoString: string): Date | null {
     console.warn("Failed to convert ISO string to Date:", isoString, error);
   }
   return null;
+}
+
+/**
+ * Parses time string from TimeVoucherData format
+ * Handles formats like "Wednesday, November 5th, 2025 04:00 PM"
+ * @param timeStr - Time string with ordinal suffixes (st, nd, rd, th)
+ * @returns Parsed Date object or null if parsing fails
+ */
+export function parseTimeVoucherString(timeStr: string): Date | null {
+  try {
+    // Remove ordinal suffixes (st, nd, rd, th)
+    const cleaned = timeStr.replace(/(\d+)(st|nd|rd|th)/g, '$1');
+    
+    // Try multiple date formats
+    const formats = [
+      "EEEE, MMMM d, yyyy h:mm a", // "Wednesday, November 5, 2025 04:00 PM"
+      "EEEE, MMMM d, yyyy", // "Wednesday, November 5, 2025"
+      "MMMM d, yyyy h:mm a", // "November 5, 2025 04:00 PM"
+      "MMMM d, yyyy", // "November 5, 2025"
+    ];
+    
+    for (const formatStr of formats) {
+      const parsed = parse(cleaned, formatStr, new Date());
+      if (isValid(parsed)) {
+        return parsed;
+      }
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
 }
 
