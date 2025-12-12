@@ -410,6 +410,42 @@ export async function updateStudentInfo(
 }
 
 // ---------------------------------------------
+// Delete Student Info API Types
+// ---------------------------------------------
+
+export interface DeleteStudentInfoResponse {
+  success: boolean;
+  message?: string;
+}
+
+/**
+ * Deletes student information via DELETE API
+ * Endpoint: DELETE /admin/v2/{location}/student/{studentId}/info
+ * 
+ * @param location - The location identifier
+ * @param studentId - The student ID
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteStudentInfo(
+  location: string,
+  studentId: string
+): Promise<DeleteStudentInfoResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteStudentInfoResponse>(
+      `/admin/v2/${location}/student/${studentId}/info`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error deleting student info:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to delete student info",
+    };
+  }
+}
+
+// ---------------------------------------------
 // Gender Conversion Helpers
 // ---------------------------------------------
 
