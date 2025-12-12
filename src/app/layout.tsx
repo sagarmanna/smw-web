@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ReduxProvider } from "@/components/ReduxProvider";
 import { Toaster } from "sonner";
-import { ChunkErrorHandler } from "@/components/ChunkErrorHandler";
+// import { ChunkErrorHandler } from "@/components/ChunkErrorHandler";
 import { OpenReplayTracker } from "@/components/OpenReplayTracker";
 
 const geistSans = Geist({
@@ -33,7 +33,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <OpenReplayTracker />
-        <ChunkErrorHandler />
+        {/* <ChunkErrorHandler /> */}
         <ReduxProvider>
           <ThemeProvider
             attribute="class"
