@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { privateLessonColumns, PrivateLessonData } from "../../../../[id]/studentTabConfigs";
 import { ColumnDef } from "@tanstack/react-table";
+import { AddLessonModal, type LessonFormData } from "./AddLessonModal";
 
 interface PrivateLessonsTabProps {
   location: string;
@@ -50,14 +51,12 @@ const buildGroupedData = (data: PrivateLessonData[]): GroupedPrivateLessonData[]
 };
 
 export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProps) {
-  // Props are kept for future use (e.g., API calls, filtering)
-  void location;
-  void studentId;
   const data = useAppSelector((state) => state.studentTabs.privateLessonData);
   const isLoading = useAppSelector((state) => state.studentTabs.privateLessonLoading);
   const error = useAppSelector((state) => state.studentTabs.privateLessonError);
   
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const rowsPerPage = 10;
   
   // Group data by due date
@@ -72,8 +71,12 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
   const hasMore = endIndex < totalRows;
 
   const handleAdd = useCallback(() => {
-    // TODO: Implement add functionality
-    console.log('Add private lesson');
+    setIsAddModalOpen(true);
+  }, []);
+
+  const handleSaveLesson = useCallback((formData: LessonFormData) => {
+    // TODO: Implement save functionality - call API to create lesson
+    console.log('Save lesson:', formData);
   }, []);
 
   const handleShowMore = () => {
@@ -203,6 +206,16 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
           </>
         )}
       </CardContent>
+      
+      {/* Add Lesson Modal */}
+      <AddLessonModal
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        location={location}
+        studentId={studentId}
+        privateLessonData={data}
+        onSave={handleSaveLesson}
+      />
     </Card>
   );
 }
