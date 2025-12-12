@@ -18,6 +18,7 @@ interface EmailStatementModalProps {
   customerName?: string;
   customerEmails?: string[];
   locationName?: string;
+  hstNumber?: string;
   initialSubject?: string;
   initialContent?: string;
   privateLessonDueData?: Array<{
@@ -72,6 +73,7 @@ export default function EmailStatementModal({
   customerName: _customerName,
   customerEmails = [],
   locationName = "Arcadia Academy of Music",
+  hstNumber,
   initialSubject,
   initialContent,
   privateLessonDueData = [],
@@ -232,15 +234,22 @@ export default function EmailStatementModal({
   // Generate table HTML for email content (using real customer data)
   function generateTablesHTML() {
     const sections: string[] = [];
+    // Shared inline styles to keep the emailed tables consistent across clients.
+    const tableWrapperStyle = `font-family:system-ui,-apple-system,sans-serif;color:#111;`;
+    const tableStyle = `width:100%;border-collapse:collapse;font-size:12px;`;
+    const thStyle = `text-align:left;border:1px solid #ddd;padding:6px;background-color:#f3f4f6;font-weight:600;`;
+    const thRightStyle = `text-align:right;border:1px solid #ddd;padding:6px;background-color:#f3f4f6;font-weight:600;`;
+    const tdLeftStyle = `border:1px solid #ddd;padding:6px;text-align:left;`;
+    const tdRightStyle = `border:1px solid #ddd;padding:6px;text-align:right;`;
 
     if (privateLessonDueData.length > 0) {
       const headerRow = `
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Student</th>
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Program</th>
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Teacher</th>
-        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
-        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>`;
+        <th style="${thStyle}">Date</th>
+        <th style="${thStyle}">Student</th>
+        <th style="${thStyle}">Program</th>
+        <th style="${thStyle}">Teacher</th>
+        <th style="${thRightStyle}">Amount</th>
+        <th style="${thRightStyle}">Balance</th>`;
       
       const bodyRows = privateLessonDueData
         .map((lesson) => {
@@ -253,87 +262,93 @@ export default function EmailStatementModal({
           const amountVal = (lesson as Legacy | Api).amount as number | string;
           const amountStr = typeof amountVal === "string" ? amountVal : formatCurrency(amountVal);
           return `<tr>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.lessonDate}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${student}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${program}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${teacher}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${amountStr}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${amountStr}</td>
+        <td style="${tdLeftStyle}">${lesson.lessonDate}</td>
+        <td style="${tdLeftStyle}">${student}</td>
+        <td style="${tdLeftStyle}">${program}</td>
+        <td style="${tdLeftStyle}">${teacher}</td>
+        <td style="${tdRightStyle}">${amountStr}</td>
+        <td style="${tdRightStyle}">${amountStr}</td>
       </tr>`;
         })
         .join("");
       
       const privateLessonsSection = `
+    <div style="${tableWrapperStyle}">
     <h3 style="margin:16px 0 8px;font-size:14px;">Lessons</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <table style="${tableStyle}">
       <thead><tr>${headerRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-    </table>`;
+    </table>
+    </div>`;
       sections.push(privateLessonsSection);
     }
 
     if (groupLessonDueData.length > 0) {
       const headerRow = `
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Student</th>
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Program</th>
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Teacher</th>
-        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
-        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>`;
+        <th style="${thStyle}">Date</th>
+        <th style="${thStyle}">Student</th>
+        <th style="${thStyle}">Program</th>
+        <th style="${thStyle}">Teacher</th>
+        <th style="${thRightStyle}">Amount</th>
+        <th style="${thRightStyle}">Balance</th>`;
       
       const bodyRows = groupLessonDueData
         .map((lesson) => {
           const amountStr = typeof lesson.amount === "string" ? lesson.amount : formatCurrency(lesson.amount);
           return `<tr>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.lessonDate}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.studentName}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.programName}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${lesson.teacherName}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${amountStr}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${amountStr}</td>
+        <td style="${tdLeftStyle}">${lesson.lessonDate}</td>
+        <td style="${tdLeftStyle}">${lesson.studentName}</td>
+        <td style="${tdLeftStyle}">${lesson.programName}</td>
+        <td style="${tdLeftStyle}">${lesson.teacherName}</td>
+        <td style="${tdRightStyle}">${amountStr}</td>
+        <td style="${tdRightStyle}">${amountStr}</td>
       </tr>`;
         })
         .join("");
       
       const groupLessonsSection = `
+    <div style="${tableWrapperStyle}">
     <h3 style="margin:16px 0 8px;font-size:14px;">Group Lessons Due</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <table style="${tableStyle}">
       <thead><tr>${headerRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-    </table>`;
+    </table>
+    </div>`;
       sections.push(groupLessonsSection);
     }
 
     if (invoiceData.length > 0) {
       const headerRow = `
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Date</th>
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Number</th>
-        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>
-        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Balance</th>`;
+        <th style="${thStyle}">Date</th>
+        <th style="${thStyle}">Number</th>
+        <th style="${thRightStyle}">Amount</th>
+        <th style="${thRightStyle}">Balance</th>`;
       
       const bodyRows = invoiceData
         .map((invoice) => `<tr>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${invoice.date}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${invoice.id}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${formatCurrency(invoice.total)}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${formatCurrency(invoice.balance)}</td>
+        <td style="${tdLeftStyle}">${invoice.date}</td>
+        <td style="${tdLeftStyle}">${invoice.id}</td>
+        <td style="${tdRightStyle}">${formatCurrency(invoice.total)}</td>
+        <td style="${tdRightStyle}">${formatCurrency(invoice.balance)}</td>
       </tr>`)
         .join("");
       
       const invoicesSection = `
+    <div style="${tableWrapperStyle}">
     <h3 style="margin:16px 0 8px;font-size:14px;">Invoices</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <table style="${tableStyle}">
       <thead><tr>${headerRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-    </table>`;
+    </table>
+    </div>`;
       sections.push(invoicesSection);
     }
 
     if (creditData.length > 0) {
       const headerRow = `
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Type</th>
-        <th style="text-align:left;border:1px solid #ddd;padding:6px;">Reference</th>
-        <th style="text-align:right;border:1px solid #ddd;padding:6px;">Amount</th>`;
+        <th style="${thStyle}">Type</th>
+        <th style="${thStyle}">Reference</th>
+        <th style="${thRightStyle}">Amount</th>`;
       
       const bodyRows = creditData
         .map((credit) => {
@@ -341,19 +356,21 @@ export default function EmailStatementModal({
             ? credit.reference
             : `#${credit.id}`;
           return `<tr>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${credit.type}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:left;">${reference}</td>
-        <td style="border:1px solid #ddd;padding:6px;text-align:right;">${formatCurrency(credit.amount)}</td>
+        <td style="${tdLeftStyle}">${credit.type}</td>
+        <td style="${tdLeftStyle}">${reference}</td>
+        <td style="${tdRightStyle}">${formatCurrency(credit.amount)}</td>
       </tr>`;
         })
         .join("");
       
       const creditsSection = `
+    <div style="${tableWrapperStyle}">
     <h3 style="margin:16px 0 8px;font-size:14px;">Payment Credits</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <table style="${tableStyle}">
       <thead><tr>${headerRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-    </table>`;
+    </table>
+    </div>`;
       sections.push(creditsSection);
     }
 
@@ -367,21 +384,18 @@ export default function EmailStatementModal({
       return "";
     }
 
-    const totalSection = shouldShowTotal
-      ? `
-  <div style="margin-top:16px;font-size:12px;">
-    <table style="width:100%;font-size:12px;">
-      <tr>
-        <td style="font-weight:600;text-align:left;">Total</td>
-        <td style="font-weight:600;text-align:right;">${totalBalance}</td>
-      </tr>
-    </table>
-  </div>`
-      : "";
-
     const footer = `
-  <div style="margin-top:16px;font-size:12px;">
-    <p style="margin:0;"><strong>HST#</strong> FQR547785GT1234</p>
+  <div style="margin-top:16px;font-size:12px;font-family:system-ui,-apple-system,sans-serif;">
+    ${hstNumber ? `<p style="margin:0;"><strong>HST#</strong> ${hstNumber}</p>` : ""}
+    ${shouldShowTotal ? `
+    <div style="margin-top:16px;font-size:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <tr>
+          <td style="font-weight:600;text-align:left;border:1px solid #ddd;padding:6px;">Total</td>
+          <td style="font-weight:600;text-align:right;border:1px solid #ddd;padding:6px;">${totalBalance}</td>
+        </tr>
+      </table>
+    </div>` : ""}
     <p style="margin:16px 0 4px 0;">Thank you,</p>
     <p style="margin:0;">${locationName}</p>
   </div>`;
@@ -389,7 +403,6 @@ export default function EmailStatementModal({
     return `
 <div style="margin-top:16px;">
   ${sections.join("\n")}
-  ${totalSection}
   ${footer}
 </div>`;
   }
@@ -451,13 +464,136 @@ export default function EmailStatementModal({
     return Object.keys(newErrors).length === 0;
   };
 
+  // Process HTML to add inline styles for email compatibility
+  const processEmailHTML = (html: string): string => {
+    // Use DOMParser to parse and modify HTML
+    if (typeof window === 'undefined') {
+      // Fallback for SSR - use regex to add basic styles
+      return html
+        .replace(
+          /<table([^>]*class="[^"]*")?([^>]*)>/gi,
+          (match, classAttr, rest) => {
+            const existingStyle = rest.match(/style="([^"]*)"/i)?.[1] || '';
+            const tableStyles = [
+              'width:100%',
+              'border-collapse:collapse',
+              'font-size:12px',
+              'font-family:system-ui,-apple-system,sans-serif',
+              'color:#111'
+            ].join(';');
+            const finalStyle = existingStyle ? `${existingStyle};${tableStyles}` : tableStyles;
+            return `<table${classAttr || ''} style="${finalStyle}"${rest.replace(/style="[^"]*"/gi, '')}>`;
+          }
+        )
+        .replace(
+          /<th([^>]*)>/gi,
+          (match, attrs) => {
+            const existingStyle = attrs.match(/style="([^"]*)"/i)?.[1] || '';
+            const thStyles = [
+              'text-align:left',
+              'border:1px solid #ddd',
+              'padding:6px',
+              'background-color:#f3f4f6',
+              'font-weight:600'
+            ].join(';');
+            const finalStyle = existingStyle ? `${existingStyle};${thStyles}` : thStyles;
+            return `<th style="${finalStyle}"${attrs.replace(/style="[^"]*"/gi, '')}>`;
+          }
+        )
+        .replace(
+          /<td([^>]*)>/gi,
+          (match, attrs) => {
+            const existingStyle = attrs.match(/style="([^"]*)"/i)?.[1] || '';
+            const tdStyles = [
+              'border:1px solid #ddd',
+              'padding:6px',
+              'text-align:left'
+            ].join(';');
+            const finalStyle = existingStyle ? `${existingStyle};${tdStyles}` : tdStyles;
+            return `<td style="${finalStyle}"${attrs.replace(/style="[^"]*"/gi, '')}>`;
+          }
+        );
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const tables = doc.querySelectorAll('table');
+
+    tables.forEach((table) => {
+      // Add styles to table
+      const existingTableStyle = table.getAttribute('style') || '';
+      const tableStyles = [
+        'width:100%',
+        'border-collapse:collapse',
+        'font-size:12px',
+        'font-family:system-ui,-apple-system,sans-serif',
+        'color:#111'
+      ].join(';');
+      table.setAttribute('style', existingTableStyle ? `${existingTableStyle};${tableStyles}` : tableStyles);
+
+      // Find header row to determine column alignment
+      const headerRow = table.querySelector('tr');
+      const numericColumnIndices: number[] = [];
+      
+      if (headerRow) {
+        const headers = Array.from(headerRow.querySelectorAll('th, td'));
+        headers.forEach((header, index) => {
+          const headerText = header.textContent?.toLowerCase().trim() || '';
+          if (headerText.includes('amount') || headerText.includes('balance') || 
+              headerText.includes('payment') || headerText.includes('total') ||
+              headerText.includes('price')) {
+            numericColumnIndices.push(index + 1);
+          }
+        });
+      }
+
+      // Process header cells
+      const thElements = table.querySelectorAll('th');
+      thElements.forEach((th, index) => {
+        const existingStyle = th.getAttribute('style') || '';
+        const columnIndex = Array.from(th.parentElement?.children || []).indexOf(th) + 1;
+        const isNumericColumn = numericColumnIndices.includes(columnIndex);
+        const alignStyle = isNumericColumn ? 'text-align:right' : 'text-align:left';
+        
+        const thStyles = [
+          alignStyle,
+          'border:1px solid #ddd',
+          'padding:6px',
+          'background-color:#f3f4f6',
+          'font-weight:600'
+        ].join(';');
+        th.setAttribute('style', existingStyle ? `${existingStyle};${thStyles}` : thStyles);
+      });
+
+      // Process data cells
+      const tdElements = table.querySelectorAll('td');
+      tdElements.forEach((td) => {
+        const existingStyle = td.getAttribute('style') || '';
+        const columnIndex = Array.from(td.parentElement?.children || []).indexOf(td) + 1;
+        const isNumericColumn = numericColumnIndices.includes(columnIndex);
+        const alignStyle = isNumericColumn ? 'text-align:right' : 'text-align:left';
+        
+        const tdStyles = [
+          'border:1px solid #ddd',
+          'padding:6px',
+          alignStyle
+        ].join(';');
+        td.setAttribute('style', existingStyle ? `${existingStyle};${tdStyles}` : tdStyles);
+      });
+    });
+
+    return doc.body.innerHTML;
+  };
+
   const handleSend = () => {
     if (validateForm()) {
-      // Content already includes text + tables (TipTap unified editor)
+      // Process HTML to add inline styles for email compatibility
+      const processedContent = processEmailHTML(content);
+      
       onSend({
         recipients,
         subject,
-        content: content  // Complete email from TipTap editor
+        content: processedContent  // Processed email with inline styles
       });
       handleCancel();
     }

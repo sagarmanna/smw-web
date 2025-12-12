@@ -85,7 +85,7 @@ export function StudentsListingClient({ location }: StudentsListingClientProps) 
         // Features
         enableSearch={false}
         searchPlaceholder="Search students..."
-        getSearchValue={(r) => `${r.firstName} ${r.lastName} ${r.customer} ${r.phoneNumber}`}
+        getSearchValue={(r) => `${r.firstName} ${r.lastName} ${r.customerName} ${r.phoneNumber}`}
         enableFilter={true}
         enableRowsPerPage={true}
         enablePrint={true}
@@ -136,7 +136,7 @@ export function StudentsListingClient({ location }: StudentsListingClientProps) 
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row: StudentRow) => {
-          router.push(`/${location}/students/${row.userId}`);
+          router.push(`/${location}/students/${row.id}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />

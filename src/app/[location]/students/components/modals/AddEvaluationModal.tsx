@@ -22,69 +22,52 @@ import { Calendar as CalIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { StudentEvaluation } from "../../types";
-import { Combobox } from "@/components/ui/combobox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { getProgramsList, Program } from "../../../teachers/teachers.api";
+import { getTeacherView, Teacher } from "../../../schedule/schedule.api";
 
-// Mock data - TODO: Replace with API calls
-interface Program {
-  id: number;
-  name: string;
-}
-
-interface Teacher {
-  id: number;
-  name: string;
-  programId: number;
-}
-
-// Mock programs data
-const MOCK_PROGRAMS: Program[] = [
-  { id: 1, name: "40th Anniversary Piano" },
-  { id: 2, name: "Band" },
-  { id: 3, name: "Band (Full Year)" },
-  { id: 4, name: "Bass Guitar" },
-  { id: 5, name: "Cello" },
-  { id: 6, name: "Clarinet" },
-  { id: 7, name: "Drums" },
-  { id: 8, name: "Guitar" },
-  { id: 9, name: "Piano Core" },
-  { id: 10, name: "Violin" },
-];
-
-// Mock teachers data - teachers are associated with programs
-const MOCK_TEACHERS: Teacher[] = [
-  { id: 1, name: "Alexander Hamilton", programId: 1 },
-  { id: 2, name: "Art Tatum", programId: 1 },
-  { id: 3, name: "Sanjay Bansali", programId: 2 },
-  { id: 4, name: "sisi011 teacher01", programId: 2 },
-  { id: 5, name: "teacher 12", programId: 3 },
-  { id: 6, name: "John Doe", programId: 4 },
-  { id: 7, name: "Jane Smith", programId: 5 },
-  { id: 8, name: "Mike Johnson", programId: 6 },
-  { id: 9, name: "Sarah Williams", programId: 7 },
-  { id: 10, name: "David Brown", programId: 8 },
-  { id: 11, name: "Emily Davis", programId: 9 },
-  { id: 12, name: "Robert Wilson", programId: 10 },
-];
-
-// Mock API functions - TODO: Replace with actual API calls
+// API functions
 const fetchPrograms = async (): Promise<Program[]> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return MOCK_PROGRAMS;
+  try {
+    return await getProgramsList();
+  } catch (error) {
+    console.error("Error fetching programs:", error);
+    return [];
+  }
 };
 
-const fetchTeachersByProgram = async (programId: number): Promise<Teacher[]> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  return MOCK_TEACHERS.filter((teacher) => teacher.programId === programId);
+const fetchTeachersByProgram = async (location: string, programId: string): Promise<Teacher[]> => {
+  try {
+    // Use today's date for the API call
+    const today = new Date();
+    const dateString = format(today, "yyyy-MM-dd");
+    
+    // Pass 'all-teachers-by-program' type to get all teachers associated with the program
+    // Without this type, the API only returns teachers with lessons on the specific date
+    const response = await getTeacherView(location, dateString, false, programId, undefined, 'all-teachers-by-program');
+    if (response?.success && response.data?.resources) {
+      // Map TeacherViewResource (id, title) to Teacher (id, name)
+      return response.data.resources.map((t) => ({ id: t.id, name: t.title }));
+    }
+    return [];
+  } catch (error) {
+    console.error("Error fetching teachers by program:", error);
+    return [];
+  }
 };
+
+interface EvaluationWithIds extends StudentEvaluation {
+  programId?: number;
+  teacherId?: number;
+}
 
 interface AddEvaluationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentName?: string;
-  onSubmit: (evaluation: StudentEvaluation) => Promise<boolean>;
+  location: string;
+  onSubmit: (evaluation: EvaluationWithIds) => Promise<boolean>;
   onDelete?: (evaluation: StudentEvaluation) => Promise<boolean>;
   saving?: boolean;
   initialData?: StudentEvaluation | null;
@@ -95,6 +78,7 @@ export function AddEvaluationModal({
   open,
   onOpenChange,
   studentName,
+  location,
   onSubmit,
   onDelete,
   saving = false,
@@ -154,40 +138,32 @@ export function AddEvaluationModal({
     }
   }, [open]);
 
-  // Fetch teachers when program is selected
+  // Fetch teachers when a program is selected
   React.useEffect(() => {
-    if (selectedProgramId && open) {
+    if (open && location && selectedProgramId) {
       setLoadingTeachers(true);
-      const programId = parseInt(selectedProgramId, 10);
-      if (isNaN(programId)) {
-        console.error("Invalid programId:", selectedProgramId);
-        setLoadingTeachers(false);
-        return;
-      }
-      fetchTeachersByProgram(programId)
+      setTeachers([]); // Clear previous teachers
+      setSelectedTeacherId(""); // Clear teacher selection
+      setFormData((prev) => ({ ...prev, teacher: "" })); // Clear teacher in form data
+      
+      fetchTeachersByProgram(location, selectedProgramId)
         .then((teacherList) => {
           setTeachers(teacherList);
         })
         .catch((error) => {
-          console.error("Error fetching teachers:", error);
+          console.error("Error fetching teachers by program:", error);
           setTeachers([]);
         })
         .finally(() => {
           setLoadingTeachers(false);
         });
-    } else if (!selectedProgramId && open) {
-      // Only clear if modal is open and no program is selected (but not on initial load)
-      // Don't clear teachers if we're in edit mode and still loading programs
-      if (!isEditMode || !loadingPrograms) {
-        setTeachers([]);
-        // Don't clear selectedTeacherId if we're in edit mode - it will be set when teachers load
-        if (!isEditMode) {
-          setSelectedTeacherId("");
-          setFormData((prev) => ({ ...prev, teacher: "" }));
-        }
-      }
+    } else if (!selectedProgramId) {
+      // Clear teachers when no program is selected
+      setTeachers([]);
+      setSelectedTeacherId("");
+      setFormData((prev) => ({ ...prev, teacher: "" }));
     }
-  }, [selectedProgramId, open, isEditMode, loadingPrograms]);
+  }, [open, location, selectedProgramId]);
 
   // Initialize form data when modal opens
   React.useEffect(() => {
@@ -262,8 +238,6 @@ export function AddEvaluationModal({
       
       if (program) {
         setSelectedProgramId(program.id.toString());
-      } else {
-        console.warn(`Program "${initialData.program}" not found in programs list`);
       }
     }
   }, [open, isEditMode, initialData, programs, selectedProgramId]);
@@ -286,8 +260,6 @@ export function AddEvaluationModal({
       
       if (teacher) {
         setSelectedTeacherId(teacher.id.toString());
-      } else {
-        console.warn(`Teacher "${initialData.teacher}" not found in teachers list for program ${selectedProgramId}`);
       }
     }
   }, [open, isEditMode, initialData, teachers, selectedProgramId, selectedTeacherId]);
@@ -333,9 +305,12 @@ export function AddEvaluationModal({
       return;
     }
 
-    const evaluation: StudentEvaluation = {
+    const evaluation: EvaluationWithIds = {
       ...formData,
       examDate: examDateString,
+      id: initialData?.id, // Include ID if editing
+      programId: selectedProgramId ? parseInt(selectedProgramId, 10) : undefined,
+      teacherId: selectedTeacherId ? parseInt(selectedTeacherId, 10) : undefined,
     };
 
     const success = await onSubmit(evaluation);
@@ -385,8 +360,10 @@ export function AddEvaluationModal({
     const selectedProgram = programs.find((p) => p.id.toString() === programId);
     setFormData((prev) => ({ ...prev, program: selectedProgram?.name || "" }));
     // Clear teacher selection when program changes
+    // Teachers will be fetched automatically by the useEffect watching selectedProgramId
     setSelectedTeacherId("");
     setFormData((prev) => ({ ...prev, teacher: "" }));
+    setTeachers([]); // Clear teachers immediately
   };
 
   const handleTeacherChange = (teacherId: string) => {
@@ -470,20 +447,22 @@ export function AddEvaluationModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="program">Program</Label>
-              <Combobox
-                options={programs.map((program) => ({
-                  value: program.id.toString(),
-                  label: program.name,
-                }))}
-                value={selectedProgramId}
+              <Select
+                value={selectedProgramId || undefined}
                 onValueChange={handleProgramChange}
-                placeholder={loadingPrograms ? "Loading programs..." : "Select Program"}
-                searchPlaceholder="Search programs..."
-                emptyText="No programs found."
-                className="w-full"
                 disabled={loadingPrograms || saving}
-                popoverContentProps={{ className: "w-[var(--radix-popover-trigger-width)]" }}
-              />
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={loadingPrograms ? "Loading programs..." : "Select Program"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {programs.map((program) => (
+                    <SelectItem key={program.id} value={program.id.toString()}>
+                      {program.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -499,36 +478,46 @@ export function AddEvaluationModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="teacher">Teacher</Label>
-              <div className={errors.teacher ? "border-red-500 rounded-md border p-[1px]" : ""}>
-                <Combobox
-                  options={teachers.map((teacher) => ({
-                    value: teacher.id.toString(),
-                    label: teacher.name,
-                  }))}
-                  value={selectedTeacherId}
-                  onValueChange={(value) => {
-                    handleTeacherChange(value);
-                    if (value) {
-                      setTouched((prev) => ({ ...prev, teacher: true }));
-                    }
-                  }}
-                  placeholder={
-                    !selectedProgramId
-                      ? "Select program first"
-                      : loadingTeachers
-                      ? "Loading teachers..."
-                      : "Select..."
+              <Select
+                value={selectedTeacherId || undefined}
+                onValueChange={(value) => {
+                  handleTeacherChange(value);
+                  if (value) {
+                    setTouched((prev) => ({ ...prev, teacher: true }));
                   }
-                  searchPlaceholder="Search teachers..."
-                  emptyText={!selectedProgramId ? "Select a program first" : "No teachers found."}
+                }}
+                disabled={!selectedProgramId || loadingTeachers || saving}
+              >
+                <SelectTrigger 
                   className={cn(
                     "w-full",
-                    errors.teacher && "[&>button]:border-red-500"
+                    errors.teacher && "border-red-500 focus:ring-red-500"
                   )}
-                  disabled={!selectedProgramId || loadingTeachers || saving}
-                  popoverContentProps={{ className: "w-[var(--radix-popover-trigger-width)]" }}
-                />
-              </div>
+                >
+                  <SelectValue 
+                    placeholder={
+                      !selectedProgramId
+                        ? "Select a program first"
+                        : loadingTeachers
+                        ? "Loading teachers..."
+                        : "Select Teacher"
+                    } 
+                  />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {teachers.length > 0 ? (
+                    teachers.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                        {teacher.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="__empty" disabled>
+                      {loadingTeachers ? "Loading teachers..." : "No teachers found."}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
               {(touched.teacher || showError) && errors.teacher && (
                 <p className="text-sm text-red-600">{errors.teacher}</p>
               )}

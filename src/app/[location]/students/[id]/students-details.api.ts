@@ -101,6 +101,129 @@ export async function getStudentEnrolments(
 }
 
 // ---------------------------------------------
+// Evaluations API Response Types
+// ---------------------------------------------
+
+export interface StudentEvaluationResponse {
+  id: number;
+  programId: number;
+  date: string;
+  mark: string;
+  level: string;
+  program: string;
+  type: string;
+  teacher: string;
+}
+
+export interface StudentEvaluationsPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface StudentEvaluationsApiResponse {
+  success: boolean;
+  data: {
+    body: StudentEvaluationResponse[];
+    pagination?: StudentEvaluationsPagination;
+  };
+  pagination?: StudentEvaluationsPagination;
+  message?: string;
+}
+
+/**
+ * Fetches student evaluations from the API with pagination
+ * Endpoint: GET /admin/v2/{location}/student/{studentId}/evaluations?page={page}&limit={limit}
+ * 
+ * @param location - The location identifier
+ * @param studentId - The student ID
+ * @param page - Page number (default: 1)
+ * @param limit - Number of records per page (default: 10)
+ * @returns Promise resolving to the evaluations response or null on error
+ */
+export async function getStudentEvaluations(
+  location: string,
+  studentId: string,
+  page: number = 1,
+  limit: number = 10
+): Promise<StudentEvaluationsApiResponse | null> {
+  try {
+    const response = await apiClient.get<StudentEvaluationsApiResponse>(
+      `/admin/v2/${location}/student/${studentId}/evaluations`,
+      {
+        params: {
+          page,
+          limit,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching student evaluations:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch student evaluations",
+    };
+  }
+}
+
+// ---------------------------------------------
+// Evaluation Mutation API Types
+// ---------------------------------------------
+
+export interface CreateEvaluationRequest {
+  date: string; // YYYY-MM-DD format
+  mark: number;
+  level: string;
+  programId: number;
+  type: string;
+  teacherId: number;
+}
+
+export interface EvaluationApiResponse {
+  success: boolean;
+  data?: StudentEvaluationResponse | {
+    body: StudentEvaluationResponse;
+  };
+  message?: string;
+}
+
+/**
+ * Creates/Updates an evaluation for a student
+ * Endpoint: POST /admin/v2/{location}/student/{studentId}/evaluations
+ * 
+ * @param location - The location identifier
+ * @param studentId - The student ID
+ * @param data - The evaluation data to create/update
+ * @returns Promise resolving to the evaluation response or null on error
+ */
+export async function createStudentEvaluation(
+  location: string,
+  studentId: string,
+  data: CreateEvaluationRequest
+): Promise<EvaluationApiResponse | null> {
+  try {
+    const response = await apiClient.post<EvaluationApiResponse>(
+      `/admin/v2/${location}/student/${studentId}/evaluations`,
+      data
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error creating student evaluation:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to save evaluation",
+    };
+  }
+}
+
+// ---------------------------------------------
 // Details fetch
 // ---------------------------------------------
 

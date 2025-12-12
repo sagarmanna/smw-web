@@ -252,6 +252,7 @@ export function CustomerDetailClient({
   } | null>(null);
   const [isLoadingEmailStatement, setIsLoadingEmailStatement] =
     React.useState<boolean>(false);
+  const [locationHstNumber, setLocationHstNumber] = React.useState<string | undefined>(undefined);
   const [isNotifyModalOpen, setIsNotifyModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
@@ -534,6 +535,23 @@ export function CustomerDetailClient({
       }
       
       setIsLoadingEmailStatement(true);
+      
+      // Fetch location details for HST number
+      apiClient.get<{
+        success: boolean;
+        data: {
+          hstRegistrationNo: string;
+        };
+      }>(`/admin/v2/locations/${location}/details`)
+        .then((response) => {
+          if (response.data.success && response.data.data?.hstRegistrationNo) {
+            setLocationHstNumber(response.data.data.hstRegistrationNo);
+          }
+        })
+        .catch((error: unknown) => {
+          console.error("Error fetching location details:", error);
+        });
+      
       getEmailStatement(location, Number(id))
         .then((data: EmailStatementData | null) => {
           if (data) {
@@ -552,6 +570,7 @@ export function CustomerDetailClient({
       setEmailStatementData(null);
       // Also clear emailModalOverrides when modal closes
       setEmailModalOverrides(null);
+      setLocationHstNumber(undefined);
     }
   }, [isEmailStatementModalOpen, location, id, emailModalOverrides]);
 
@@ -3005,6 +3024,7 @@ export function CustomerDetailClient({
           emailStatementData?.customerEmails || emails.map((e) => e.email)
         }
         locationName="Arcadia Academy of Music"
+        hstNumber={locationHstNumber}
         initialSubject={
           emailModalOverrides?.subject ?? emailStatementData?.emailSubject
         }

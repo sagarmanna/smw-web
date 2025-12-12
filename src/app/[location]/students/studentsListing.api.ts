@@ -1,16 +1,12 @@
 import { apiClient } from '@/lib/api/client';
-import {
-  StudentApiResponse,
-  mapApiResponseToStudentRows,
-} from './utils/mapDataTransformers';
 
-// StudentRow interface for listing table (internal representation)
+// StudentRow interface - matches API response structure directly
 export interface StudentRow {
-  userId: string; // Using string to match id field
+  id: number;
   isActive: boolean;
   firstName: string;
   lastName: string;
-  customer: string;
+  customerName: string;
   phoneNumber: string;
 }
 
@@ -33,7 +29,7 @@ interface StudentsListApiResponse {
   success: boolean;
   message: string;
   data: {
-    body: StudentApiResponse[];
+    body: StudentRow[];
     pagination: {
       page: number;
       limit: number;
@@ -123,14 +119,11 @@ export async function getStudentsList(
       { params }
     );
 
-    // Map API response to internal format
-    const mappedBody = mapApiResponseToStudentRows(response.data.data.body);
-
     return {
       success: response.data.success,
       message: response.data.message,
       data: {
-        body: mappedBody,
+        body: response.data.data.body,
         pagination: response.data.data.pagination,
       },
     };

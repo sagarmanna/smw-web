@@ -13,6 +13,7 @@ import {
   StudentCustomer,
   StudentEnrolment,
   StudentEvaluation,
+  StudentEvaluationsPagination,
 } from "../types";
 
 type StudentDetailsHookReturn = {
@@ -22,6 +23,7 @@ type StudentDetailsHookReturn = {
   customer: { customer: string; phone: string; customerId?: number } | null;
   enrolments: StudentEnrolment[];
   evaluations: StudentEvaluation[];
+  evaluationsPagination?: StudentEvaluationsPagination;
   refresh: () => Promise<void>;
   forceRefresh: () => Promise<void>;
   saveDetails: (next: StudentBasicDetails) => Promise<boolean>;
@@ -59,6 +61,7 @@ export function useStudentDetails(
   const customer: StudentCustomer | null = React.useMemo(() => studentInfo?.customer || null, [studentInfo?.customer]);
   const enrolments: StudentEnrolment[] = React.useMemo(() => studentInfo?.enrolments || [], [studentInfo?.enrolments]);
   const evaluations: StudentEvaluation[] = React.useMemo(() => studentInfo?.evaluations || [], [studentInfo?.evaluations]);
+  const evaluationsPagination: StudentEvaluationsPagination | undefined = React.useMemo(() => studentInfo?.evaluationsPagination, [studentInfo?.evaluationsPagination]);
 
   const refresh = React.useCallback(async () => {
     dispatch(fetchStudent({ location, studentId }));
@@ -106,6 +109,7 @@ export function useStudentDetails(
     customer,
     enrolments,
     evaluations,
+    evaluationsPagination,
     refresh,
     forceRefresh,
     saveDetails,

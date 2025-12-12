@@ -25,9 +25,9 @@ export const studentColumns: ColumnDef<StudentRow>[] = [
     meta: { printable: true, printableName: "Last Name" },
   } as ColumnDef<StudentRow> & { filter: { type: string } },
   {
-    accessorKey: "customer",
+    accessorKey: "customerName",
     header: () => <span>Customer</span>,
-    cell: ({ row }: { row: { original: StudentRow } }) => <span className="truncate block max-w-[260px]" title={row.original.customer}>{row.original.customer}</span>,
+    cell: ({ row }: { row: { original: StudentRow } }) => <span className="truncate block max-w-[260px]" title={row.original.customerName}>{row.original.customerName}</span>,
     enableSorting: false,
     filter: {
       type: "string"

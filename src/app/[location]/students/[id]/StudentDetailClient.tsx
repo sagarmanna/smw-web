@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { useAppSelector } from "@/redux/hooks";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
@@ -13,9 +13,6 @@ import { StudentCustomerCard } from "../components/StudentCustomerCard";
 import { StudentEnrolmentsCard } from "../components/StudentEnrolmentsCard";
 import { StudentEvaluationsCard } from "../components/StudentEvaluationsCard";
 import { StudentTabsSection } from "../components/StudentTabsSection";
-import { StudentEvaluation } from "../types";
-import { toast } from "sonner";
-import { addEvaluation } from "./students-details.slice";
 
 interface StudentDetailClientProps {
   location: string;
@@ -25,7 +22,6 @@ interface StudentDetailClientProps {
 
 export function StudentDetailClient({ location, id }: StudentDetailClientProps) {
   const router = useRouter();
-  const dispatch = useAppDispatch();
   const studentId = id;
 
   // Get loading and error from Redux - single source of truth
@@ -38,6 +34,7 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
     customer,
     enrolments,
     evaluations,
+    evaluationsPagination,
     saveDetails,
     savingDetails,
     refresh,
@@ -64,80 +61,6 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
     []
   );
 
-  const [savingEvaluation, setSavingEvaluation] = React.useState(false);
-
-  const handleSaveEvaluation = React.useCallback(
-    async (evaluation: StudentEvaluation): Promise<boolean> => {
-      try {
-        setSavingEvaluation(true);
-        
-        // Check if this is an update (evaluation exists in the list) or a new one
-        const existingIndex = evaluations.findIndex(
-          (e) => e.examDate === evaluation.examDate && 
-                 e.level === evaluation.level &&
-                 e.program === evaluation.program
-        );
-        
-        // Optimistically update evaluation in the store immediately
-        if (existingIndex >= 0) {
-          // Update existing - TODO: Implement updateEvaluation action
-          // For now, just refresh
-        } else {
-          // Add new - optimistically add evaluation to the store immediately
-          dispatch(addEvaluation(evaluation));
-        }
-        
-        // TODO: Implement save evaluation API call
-        // Example: await saveStudentEvaluation(location, studentId, evaluation);
-        console.log("Saving evaluation:", evaluation);
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        
-        // Refresh evaluations to get the latest data from the server
-        // This ensures we have the correct data if the server modifies it
-        await refresh();
-        
-        return true;
-      } catch (error) {
-        console.error("Failed to save evaluation:", error);
-        toast.error("Failed to save evaluation. Please try again.");
-        // Refresh to revert optimistic update if API call failed
-        await refresh();
-        return false;
-      } finally {
-        setSavingEvaluation(false);
-      }
-    },
-    [dispatch, refresh, evaluations]
-  );
-
-  const handleDeleteEvaluation = React.useCallback(
-    async (evaluation: StudentEvaluation): Promise<boolean> => {
-      try {
-        setSavingEvaluation(true);
-        
-        // TODO: Implement delete evaluation API call
-        // Example: await deleteStudentEvaluation(location, studentId, evaluation);
-        console.log("Deleting evaluation:", evaluation);
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        
-        // Refresh evaluations to get the latest data from the server
-        await refresh();
-        
-        return true;
-      } catch (error) {
-        console.error("Failed to delete evaluation:", error);
-        toast.error("Failed to delete evaluation. Please try again.");
-        return false;
-      } finally {
-        setSavingEvaluation(false);
-      }
-    },
-    [refresh]
-  );
 
   // Error state - show error but still render cards with skeleton
   const showError = error && !studentInfo;
@@ -217,12 +140,11 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
 
           <StudentEvaluationsCard
             evaluations={evaluations}
-            onSave={handleSaveEvaluation}
-            onDelete={handleDeleteEvaluation}
+            evaluationsPagination={evaluationsPagination}
             isLoading={isLoading}
             studentName={details ? `${details.firstName} ${details.lastName}` : undefined}
-            saving={savingEvaluation}
             location={location}
+            studentId={studentId}
             details={details}
           />
         </div>
