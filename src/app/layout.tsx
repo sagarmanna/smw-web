@@ -27,6 +27,31 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Diagnostic logging for Next.js initialization (client-side)
+  // Note: This runs on server too, but only logs on client
+  // SAFE: Only console.log, no side effects, no global overrides
+  if (typeof window !== 'undefined') {
+    // Use setTimeout to ensure this runs after Next.js initializes
+    setTimeout(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nextData = window.__NEXT_DATA__ as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nextRouterExists = typeof (window as any).next !== 'undefined';
+      
+      console.log('[Next.js Layout Debug]', {
+        nextDataExists: typeof nextData !== 'undefined',
+        nextRouterExists,
+        buildId: nextData?.buildId,
+        page: nextData?.page,
+        asPath: nextData?.asPath,
+        basePath: nextData?.assetPrefix || nextData?.basePath,
+        currentUrl: window.location.href,
+        currentPathname: window.location.pathname,
+        timestamp: new Date().toISOString(),
+      });
+    }, 100);
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
