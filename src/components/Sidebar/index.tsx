@@ -23,6 +23,45 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { menuItems, getMenuUrl } = useMenuConfig();
 
+  // Diagnostic logging for Next.js router state (once on mount)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nextRouterExists = typeof (window as any).next !== 'undefined';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nextData = window.__NEXT_DATA__ as any;
+      
+      // Check for service workers that might interfere with navigation
+      const checkServiceWorkers = async () => {
+        try {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            return registrations.length;
+          }
+          return 0;
+        } catch {
+          return 0;
+        }
+      };
+      
+      checkServiceWorkers().then(swCount => {
+        console.log('[Sidebar Router Debug]', {
+          pathname,
+          routerReady: typeof router !== 'undefined',
+          nextRouterExists,
+          nextDataExists: typeof nextData !== 'undefined',
+          buildId: nextData?.buildId,
+          page: nextData?.page,
+          asPath: nextData?.asPath,
+          serviceWorkersCount: swCount,
+          userAgent: navigator.userAgent.substring(0, 80), // Truncate for readability
+          timestamp: new Date().toISOString(),
+        });
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - pathname/router don't need to be dependencies
+
   // Check if we're on mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -66,12 +105,67 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   // Handle regular click for modern pages (close sidebar on mobile)
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const target = e.currentTarget;
+    const href = target.getAttribute('href');
+    
+    // Diagnostic logging for navigation clicks
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nextRouterExists = typeof window !== 'undefined' && typeof (window as any).next !== 'undefined';
+    const nextDataExists = typeof window !== 'undefined' && typeof window.__NEXT_DATA__ !== 'undefined';
+    
+    console.log('[Sidebar Navigation Debug]', {
+      href,
+      currentPathname: pathname,
+      isSamePage: href === pathname,
+      isMobile,
+      button: e.button,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey,
+      shiftKey: e.shiftKey,
+      nextRouterReady: nextRouterExists,
+      nextDataExists,
+      linkElement: target.tagName,
+      linkHref: target.getAttribute('href'),
+      linkHasDataNextjsLink: target.hasAttribute('data-nextjs-link'),
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Monitor navigation after click to see if it happened
+    // SAFE: setTimeout is fine here - just logging, no side effects
+    // Even if component unmounts, this won't break anything
+    setTimeout(() => {
+      // This will be logged after navigation attempt
+      // Check if window still exists (component might have unmounted)
+      if (typeof window !== 'undefined') {
+        console.log('[Sidebar Navigation Debug] Post-click check', {
+          newPathname: window.location.pathname,
+          navigationHappened: window.location.pathname !== pathname,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }, 500);
+    
+    // If clicking the same page we're already on, prevent navigation
+    if (href && pathname === href) {
+      if (process.env.NODE_ENV === 'production') {
+        console.log('[Sidebar Navigation Debug] Preventing same-page navigation');
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      // Still close sidebar on mobile
+      if (isMobile) {
+        onClose?.();
+      }
+      return;
+    }
+    
     // Only close sidebar on mobile for regular clicks (not right-click, middle-click, or Ctrl+Click)
     if (isMobile && e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       onClose?.();
     }
-    // CRITICAL: Don't prevent default or stop propagation
+    // CRITICAL: Don't prevent default or stop propagation for actual navigation
     // Let Next.js Link handle navigation natively for client-side routing
+    // DO NOT call e.preventDefault() or e.stopPropagation() - this breaks Next.js navigation
   };
 
   const renderMenuItem = (item: MenuItem, level = 0) => {
@@ -80,6 +174,21 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     const isActive = isMenuItemActive(item);
     const paddingLeft = level * 20 + 12;
     const menuUrl = getMenuUrl(item);
+    
+    // Diagnostic logging for menu URL generation (only in production)
+    if (process.env.NODE_ENV === 'production' && item.id === 'dashboard') {
+      console.log('[Sidebar Menu URL Debug]', {
+        itemId: item.id,
+        itemTitle: item.title,
+        itemUrl: item.url,
+        itemSource: item.source,
+        generatedMenuUrl: menuUrl,
+        location,
+        isRelative: menuUrl?.startsWith('/'),
+        isAbsolute: menuUrl?.startsWith('http'),
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     return (
       <div key={item.id}>
