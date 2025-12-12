@@ -349,7 +349,7 @@ export interface UpdateStudentInfoRequest {
   firstName: string;
   lastName: string;
   birthDate: string; // YYYY-MM-DD format
-  gender: string; // "1" for male, "2" for female, "0" for other
+  gender: string; // "1" for male, "2" for female, "0" for not specified
   note: string;
 }
 
@@ -451,30 +451,30 @@ export async function deleteStudentInfo(
 
 /**
  * Converts gender from API format to display format
- * API format: "1" = Male, "2" = Female, "0" = Other
- * Display format: "Male", "Female", "Other"
+ * API format: "1" = Male, "2" = Female, "0" = Not Specified
+ * Display format: "Male", "Female", "Not Specified"
  */
 export function genderApiToDisplay(apiGender: string | undefined): string | undefined {
   if (!apiGender) return undefined;
   const normalized = apiGender.trim();
   if (normalized === "1") return "Male";
   if (normalized === "2") return "Female";
-  if (normalized === "0") return "Other";
+  if (normalized === "0") return "Not Specified";
   // If already in display format or unknown, return as is
   return apiGender;
 }
 
 /**
  * Converts gender from display format to API format
- * Display format: "Male", "Female", "Other"
- * API format: "1" = Male, "2" = Female, "0" = Other
+ * Display format: "Male", "Female", "Not Specified"
+ * API format: "1" = Male, "2" = Female, "0" = Not Specified
  */
 export function genderDisplayToApi(displayGender: string | undefined): string {
   if (!displayGender) return "0";
   const normalized = displayGender.trim().toLowerCase();
   if (normalized === "male") return "1";
   if (normalized === "female") return "2";
-  if (normalized === "other") return "0";
+  if (normalized === "not specified" || normalized === "other") return "0";
   // If already in API format, return as is
   if (normalized === "1" || normalized === "2" || normalized === "0") return normalized;
   // Default to "0" for unknown values

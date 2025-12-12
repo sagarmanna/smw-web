@@ -237,8 +237,20 @@ export const updateStudent = createAsyncThunk(
         throw new Error(result?.message || 'Failed to update student details');
       }
       
-      // Return the API response data
-      return result.data;
+      // Refetch student details to get updated data (PUT response doesn't include age and formatted dates)
+      const detailsResult = await getStudentDetails(location, studentId);
+      
+      if (!detailsResult || !detailsResult.success) {
+        // If refetch fails, still return PUT response data (age will remain old value)
+        return { putResponse: result.data, getResponse: undefined };
+      }
+      
+      // Extract all data from GET response to maintain consistent formatting
+      // GET response has formatted dates (e.g., "Dec 12, 2025") and age
+      const getResponse = detailsResult.data?.body?.student;
+      
+      // Return both PUT response and GET response data
+      return { putResponse: result.data, getResponse: getResponse || undefined };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update student details');
     }
@@ -365,16 +377,39 @@ const studentSlice = createSlice({
         state.isSaving = false;
         // Update state from API response - no client-side recalculation
         if (state.studentInfo && action.payload) {
-          const apiData = action.payload;
-          state.studentInfo.profile = {
-            ...state.studentInfo.profile,
-            firstName: apiData.firstName,
-            lastName: apiData.lastName,
-            birthday: apiData.birthDate || state.studentInfo.profile.birthday,
-            gender: genderApiToDisplay(apiData.gender), // Convert API format to display format
-            // Use note from API response if provided, otherwise preserve existing value
-            notes: apiData.note !== undefined ? apiData.note : state.studentInfo.profile.notes,
-          };
+          const { putResponse, getResponse } = action.payload;
+          
+          // Use GET response data if available (has formatted dates and age), otherwise fallback to PUT response
+          if (getResponse) {
+            // Extract firstName and lastName from fullName (GET response format)
+            const { firstName, lastName } = splitFullName(getResponse.fullName);
+            
+            state.studentInfo.profile = {
+              ...state.studentInfo.profile,
+              firstName: firstName || putResponse.firstName,
+              lastName: lastName || putResponse.lastName,
+              // Use GET response birthDate (formatted like "Dec 12, 2025") to maintain consistent format
+              birthday: getResponse.birthDate || putResponse.birthDate || state.studentInfo.profile.birthday,
+              // Use age from GET response (formatted like "18yrs old")
+              age: getResponse.age || state.studentInfo.profile.age,
+              // Use gender from GET response (already in display format like "Female")
+              gender: getResponse.gender || genderApiToDisplay(putResponse.gender),
+              // Use status from GET response (already in display format like "Active")
+              status: getResponse.status || state.studentInfo.profile.status,
+              // Use note from GET response if available, otherwise from PUT response
+              notes: getResponse.note !== undefined ? getResponse.note : (putResponse.note !== undefined ? putResponse.note : state.studentInfo.profile.notes),
+            };
+          } else {
+            // Fallback to PUT response if GET response is not available
+            state.studentInfo.profile = {
+              ...state.studentInfo.profile,
+              firstName: putResponse.firstName,
+              lastName: putResponse.lastName,
+              birthday: putResponse.birthDate || state.studentInfo.profile.birthday,
+              gender: genderApiToDisplay(putResponse.gender),
+              notes: putResponse.note !== undefined ? putResponse.note : state.studentInfo.profile.notes,
+            };
+          }
         }
         state.error = null;
       })
