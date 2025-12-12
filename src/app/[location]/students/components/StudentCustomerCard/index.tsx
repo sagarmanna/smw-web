@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   SectionCard,
 } from "@/components/SectionCard";
@@ -21,15 +22,14 @@ export const StudentCustomerCard = React.memo(function StudentCustomerCard({
   location,
   isLoading = false,
 }: StudentCustomerCardProps) {
+  const router = useRouter();
+
   const handleCustomerClick = React.useCallback(() => {
     if (customerId) {
-      // Redirect to customer view page with the customer ID (same pattern as enrolment)
-      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
-      const url = `${legacyBase}/v2/${location}/customers/${customerId}`;
-      // Navigate directly in the same window to avoid blank page issue
-      window.location.href = url;
+      // Navigate to customer view page using Next.js router (client-side navigation)
+      router.push(`/${location}/customers/${customerId}`);
     }
-  }, [customerId, location]);
+  }, [customerId, location, router]);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
     // Make customer name clickable if customerId is available
