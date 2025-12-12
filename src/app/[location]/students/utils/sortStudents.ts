@@ -1,6 +1,6 @@
 import { StudentRow } from "../studentsListing.api";
 
-export type SortField = "firstName" | "lastName" | "customer";
+export type SortField = "firstName" | "lastName";
 export type SortDirection = "asc" | "desc";
 
 export function sortStudents(
