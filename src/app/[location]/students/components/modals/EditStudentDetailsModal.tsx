@@ -238,7 +238,7 @@ export function EditStudentDetailsModal({
                     defaultMonth={birthdayDate}
                     onSelect={handleDateSelect}
                     captionLayout="dropdown"
-                    fromYear={2005}
+                    fromYear={1955}
                     toYear={2125}
                     initialFocus
                   />
