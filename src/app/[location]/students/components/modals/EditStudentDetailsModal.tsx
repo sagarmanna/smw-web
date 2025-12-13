@@ -13,9 +13,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { StudentBasicDetails } from "../../types";
-import { toast } from "sonner";
-import { formatDisplayDate } from "@/utils/dateUtils";
 import { parse, isValid } from "date-fns";
 import { genderDisplayToApi } from "../../[id]/students-details.api";
 
@@ -45,8 +52,6 @@ interface EditStudentDetailsModalProps {
   saving?: boolean;
 }
 
-type DateInputElement = HTMLInputElement & { showPicker?: () => void };
-
 export function EditStudentDetailsModal({
   open,
   onClose,
@@ -58,13 +63,13 @@ export function EditStudentDetailsModal({
     firstName: "",
     lastName: "",
     birthday: "",
-    birthdayDisplay: "",
     gender: "",
     notes: "",
   });
+  const [birthdayDate, setBirthdayDate] = React.useState<Date | undefined>(undefined);
+  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
   const [touched, setTouched] = React.useState({ firstName: false, lastName: false });
   const [showError, setShowError] = React.useState(false);
-  const dateInputRef = React.useRef<DateInputElement | null>(null);
 
   const updateFormData = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -74,21 +79,45 @@ export function EditStudentDetailsModal({
     if (details) {
       const raw = details.birthday ?? "";
       const isoDate = raw ? convertToISOFormat(raw) : "";
+      
+      // Convert ISO date string to Date object for Calendar component
+      let dateObj: Date | undefined = undefined;
+      if (isoDate) {
+        try {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+            const [year, month, day] = isoDate.split('-').map(Number);
+            dateObj = new Date(year, month - 1, day);
+            if (isNaN(dateObj.getTime())) {
+              dateObj = undefined;
+            }
+          } else {
+            dateObj = new Date(isoDate);
+            if (isNaN(dateObj.getTime())) {
+              dateObj = undefined;
+            }
+          }
+        } catch {
+          dateObj = undefined;
+        }
+      }
+      
       // Gender is already in display format from the API transformation
       setFormData({
         firstName: details.firstName ?? "",
         lastName: details.lastName ?? "",
         birthday: isoDate,
-        birthdayDisplay: isoDate ? formatDisplayDate(isoDate) : "",
         gender: details.gender ?? "",
         notes: details.notes ?? "",
       });
+      setBirthdayDate(dateObj);
     } else {
-      setFormData({ firstName: "", lastName: "", birthday: "", birthdayDisplay: "", gender: "", notes: "" });
+      setFormData({ firstName: "", lastName: "", birthday: "", gender: "", notes: "" });
+      setBirthdayDate(undefined);
     }
     if (open) {
       setTouched({ firstName: false, lastName: false });
       setShowError(false);
+      setIsDatePickerOpen(false);
     }
   }, [details, open]);
 
@@ -129,18 +158,14 @@ export function EditStudentDetailsModal({
     }
   };
 
-  const openDatePicker = () => {
-    const inputEl = dateInputRef.current;
-    if (inputEl?.showPicker) {
-      inputEl.showPicker();
-    } else {
-      inputEl?.focus();
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      // Convert Date to ISO string (YYYY-MM-DD)
+      const isoDate = formatDateToISO(date);
+      setBirthdayDate(date);
+      updateFormData("birthday", isoDate);
+      setIsDatePickerOpen(false);
     }
-  };
-
-  const handleDateChange = (value: string) => {
-    updateFormData("birthday", value);
-    updateFormData("birthdayDisplay", value ? formatDisplayDate(value) : "");
   };
 
   const createTextInputHandler = (field: keyof typeof formData) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -192,23 +217,33 @@ export function EditStudentDetailsModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-birthday">Birthday</Label>
-              <div className="relative" onClick={openDatePicker}>
-                <Input
-                  id="student-birthday-display"
-                  type="text"
-                  placeholder="Select Date"
-                  value={formData.birthdayDisplay}
-                  readOnly
-                />
-                <input
-                  id="student-birthday"
-                  type="date"
-                  ref={dateInputRef}
-                  className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
-                  value={formData.birthday}
-                  onChange={(event) => handleDateChange(event.target.value)}
-                />
-              </div>
+              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !birthdayDate && "text-muted-foreground"
+                    )}
+                    type="button"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {birthdayDate ? format(birthdayDate, "MMM dd, yyyy") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={birthdayDate}
+                    defaultMonth={birthdayDate}
+                    onSelect={handleDateSelect}
+                    captionLayout="dropdown"
+                    fromYear={2005}
+                    toYear={2125}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-gender">Gender</Label>

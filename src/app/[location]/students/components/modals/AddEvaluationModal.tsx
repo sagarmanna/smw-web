@@ -145,8 +145,13 @@ export function AddEvaluationModal({
     if (open && location && selectedProgramId) {
       setLoadingTeachers(true);
       setTeachers([]); // Clear previous teachers
-      setSelectedTeacherId(""); // Clear teacher selection
-      setFormData((prev) => ({ ...prev, teacher: "" })); // Clear teacher in form data
+      
+      // In edit mode, preserve the teacher name from initialData; otherwise clear it
+      const shouldPreserveTeacher = isEditMode && initialData?.teacher;
+      if (!shouldPreserveTeacher) {
+        setSelectedTeacherId(""); // Clear teacher selection
+        setFormData((prev) => ({ ...prev, teacher: "" })); // Clear teacher in form data
+      }
       
       fetchTeachersByProgram(location, selectedProgramId)
         .then((teacherList) => {
@@ -163,9 +168,12 @@ export function AddEvaluationModal({
       // Clear teachers when no program is selected
       setTeachers([]);
       setSelectedTeacherId("");
-      setFormData((prev) => ({ ...prev, teacher: "" }));
+      // Only clear teacher if not in edit mode with initialData
+      if (!(isEditMode && initialData?.teacher)) {
+        setFormData((prev) => ({ ...prev, teacher: "" }));
+      }
     }
-  }, [open, location, selectedProgramId]);
+  }, [open, location, selectedProgramId, isEditMode, initialData]);
 
   // Initialize form data when modal opens
   React.useEffect(() => {
@@ -262,6 +270,17 @@ export function AddEvaluationModal({
       
       if (teacher) {
         setSelectedTeacherId(teacher.id.toString());
+        // Ensure formData.teacher is set to the matched teacher name
+        setFormData((prev) => ({ ...prev, teacher: teacher!.name }));
+      } else if (initialData.teacher) {
+        // If teacher not found in dropdown but exists in initialData, preserve it in formData
+        // This ensures validation passes even if teacher matching fails
+        setFormData((prev) => {
+          if (!prev.teacher) {
+            return { ...prev, teacher: initialData.teacher || "" };
+          }
+          return prev;
+        });
       }
     }
   }, [open, isEditMode, initialData, teachers, selectedProgramId, selectedTeacherId]);
@@ -424,10 +443,16 @@ export function AddEvaluationModal({
                   <Calendar
                     mode="single"
                     selected={examDate}
+                    defaultMonth={examDate}
                     onSelect={(date) => {
-                      setExamDate(date);
-                      setIsDatePickerOpen(false);
+                      if (date) {
+                        setExamDate(date);
+                        setIsDatePickerOpen(false);
+                      }
                     }}
+                    captionLayout="dropdown"
+                    fromYear={2005}
+                    toYear={2125}
                     initialFocus
                   />
                 </PopoverContent>

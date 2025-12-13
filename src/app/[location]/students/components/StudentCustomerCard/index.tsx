@@ -59,9 +59,24 @@ export const StudentCustomerCard = React.memo(function StudentCustomerCard({
   return (
     <SectionCard
       title="Customer"
-      data={detailRows}
       isLoading={isLoading}
-    />
+      className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2"
+    >
+      <div className="flex justify-center">
+        <dl className="text-sm">
+          {detailRows.map((item) => (
+            <div
+              key={item.label}
+              className="flex items-center py-1 mb-1 last:mb-0"
+            >
+              <dt className="text-sm font-semibold text-foreground min-w-[120px] text-right pr-6">
+                {item.label}
+              </dt>
+              <dd className="text-sm text-foreground">{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </SectionCard>
   );
 });
-
