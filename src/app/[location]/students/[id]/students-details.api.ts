@@ -140,30 +140,40 @@ export interface StudentEvaluationsApiResponse {
 }
 
 /**
- * Fetches student evaluations from the API with pagination
- * Endpoint: GET /admin/v2/{location}/student/{studentId}/evaluations?page={page}&limit={limit}
+ * Fetches student evaluations from the API with pagination and optional sorting
+ * Endpoint: GET /admin/v2/{location}/student/{studentId}/evaluations?page={page}&limit={limit}&sort={sort}&order={order}
  * 
  * @param location - The location identifier
  * @param studentId - The student ID
  * @param page - Page number (default: 1)
  * @param limit - Number of records per page (default: 10)
+ * @param sort - Optional field to sort by (e.g., "mark", "level")
+ * @param order - Optional sort direction ("asc" or "desc")
  * @returns Promise resolving to the evaluations response or null on error
  */
 export async function getStudentEvaluations(
   location: string,
   studentId: string,
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
+  sort?: string,
+  order?: "asc" | "desc"
 ): Promise<StudentEvaluationsApiResponse | null> {
   try {
+    const params: Record<string, string | number> = {
+      page,
+      limit,
+    };
+    
+    // Only add sorting parameters if provided (not on initial load)
+    if (sort && order) {
+      params.sort = sort;
+      params.order = order;
+    }
+    
     const response = await apiClient.get<StudentEvaluationsApiResponse>(
       `/admin/v2/${location}/student/${studentId}/evaluations`,
-      {
-        params: {
-          page,
-          limit,
-        },
-      }
+      { params }
     );
     return response.data;
   } catch (error: unknown) {

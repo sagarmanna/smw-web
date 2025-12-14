@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { AddEvaluationModal } from "../modals/AddEvaluationModal";
 import { StudentEvaluation, StudentBasicDetails } from "../../types";
 import { usePrintReport } from "@/hooks/usePrintReport";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { fetchEvaluationsPage, setEvaluationsPage } from "../../[id]/students-details.slice";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { 
   createStudentEvaluation, 
   updateStudentEvaluation,
@@ -67,8 +68,18 @@ const evaluationColumns: ColumnDef<StudentEvaluation>[] = [
       }
     } 
   },
-  { accessorKey: "mark", header: "Mark", meta: { printable: true, printableName: "Mark" } },
-  { accessorKey: "level", header: "Level", meta: { printable: true, printableName: "Level" } },
+  { 
+    accessorKey: "mark", 
+    header: "Mark", 
+    enableSorting: true,
+    meta: { printable: true, printableName: "Mark" } 
+  },
+  { 
+    accessorKey: "level", 
+    header: "Level", 
+    enableSorting: true,
+    meta: { printable: true, printableName: "Level" } 
+  },
   { accessorKey: "program", header: "Program", meta: { printable: true, printableName: "Program" } },
   { accessorKey: "type", header: "Type", meta: { printable: true, printableName: "Type" } },
   { accessorKey: "teacher", header: "Teacher", meta: { printable: true, printableName: "Teacher" } },
@@ -88,6 +99,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
   const [editingEvaluation, setEditingEvaluation] = React.useState<StudentEvaluation | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [fetchingPage, setFetchingPage] = React.useState(false);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const { handlePrint } = usePrintReport<StudentEvaluation>();
 
   // Server-side pagination: use pagination from API
@@ -114,10 +126,45 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
     setFetchingPage(true);
     try {
       const limit = pagination.limit || 10;
-      await dispatch(fetchEvaluationsPage({ location, studentId, page, limit })).unwrap();
+      // Get current sorting state
+      const sort = sorting[0]?.id as string | undefined;
+      const order = sorting[0]?.desc ? "desc" : "asc";
+      await dispatch(fetchEvaluationsPage({ 
+        location, 
+        studentId, 
+        page, 
+        limit,
+        sort,
+        order: sort ? order : undefined,
+      })).unwrap();
     } catch (error) {
       console.error("Failed to fetch evaluations page:", error);
       toast.error("Failed to load evaluations page");
+    } finally {
+      setFetchingPage(false);
+    }
+  }, [dispatch, location, studentId, pagination.limit, sorting]);
+
+  // Handle sorting change - fetch from API with sorting parameters (only when user clicks)
+  const handleSortingChange = React.useCallback(async (newSorting: SortingState) => {
+    setSorting(newSorting);
+    setFetchingPage(true);
+    try {
+      const limit = pagination.limit || 10;
+      const sort = newSorting[0]?.id as string | undefined;
+      const order = newSorting[0]?.desc ? "desc" : "asc";
+      // Reset to page 1 when sorting changes
+      await dispatch(fetchEvaluationsPage({ 
+        location, 
+        studentId, 
+        page: 1, 
+        limit,
+        sort,
+        order: sort ? order : undefined,
+      })).unwrap();
+    } catch (error) {
+      console.error("Failed to fetch sorted evaluations:", error);
+      toast.error("Failed to load sorted evaluations");
     } finally {
       setFetchingPage(false);
     }
@@ -213,7 +260,16 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
           // New evaluation: Refresh current page (evaluation might be on different page)
           setFetchingPage(true);
           try {
-            await dispatch(fetchEvaluationsPage({ location, studentId, page: evaluationsPagination.page, limit: evaluationsPagination.limit })).unwrap();
+            const sort = sorting[0]?.id as string | undefined;
+            const order = sorting[0]?.desc ? "desc" : "asc";
+            await dispatch(fetchEvaluationsPage({ 
+              location, 
+              studentId, 
+              page: evaluationsPagination.page, 
+              limit: evaluationsPagination.limit,
+              sort,
+              order: sort ? order : undefined,
+            })).unwrap();
           } finally {
             setFetchingPage(false);
           }
@@ -233,7 +289,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         setSaving(false);
       }
     },
-    [dispatch, location, studentId, evaluations, evaluationsPagination, setFetchingPage]
+    [dispatch, location, studentId, evaluations, evaluationsPagination, setFetchingPage, sorting]
   );
 
   const handleDelete = React.useCallback(
@@ -267,11 +323,15 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         if (evaluationsPagination) {
           setFetchingPage(true);
           try {
+            const sort = sorting[0]?.id as string | undefined;
+            const order = sorting[0]?.desc ? "desc" : "asc";
             await dispatch(fetchEvaluationsPage({ 
               location, 
               studentId, 
               page: evaluationsPagination.page, 
-              limit: evaluationsPagination.limit 
+              limit: evaluationsPagination.limit,
+              sort,
+              order: sort ? order : undefined,
             })).unwrap();
           } finally {
             setFetchingPage(false);
@@ -288,7 +348,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         setSaving(false);
       }
     },
-    [dispatch, location, studentId, evaluations, evaluationsPagination, setFetchingPage]
+    [dispatch, location, studentId, evaluations, evaluationsPagination, setFetchingPage, sorting]
   );
 
   const handlePrintClick = React.useCallback(() => {
@@ -318,7 +378,6 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
     <>
       <SectionCard
         title="Evaluations"
-        isLoading={isLoading || fetchingPage}
         headerActions={
           <>
             {details && (
@@ -340,7 +399,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
           </>
         }
       >
-        {displayedEvaluations.length > 0 || isLoading ? (
+        {displayedEvaluations.length > 0 || isLoading || fetchingPage ? (
           <CustomTable
             data={displayedEvaluations}
             columns={evaluationColumns}
@@ -348,8 +407,11 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
             enableExport={false}
             enableFilter={false}
             enablePrint={false}
-            enableSorting={false}
+            enableSorting={true}
             enableRowsPerPage={false}
+            manualSorting={true}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
             serverSidePagination={{
               page: pagination.page,
               limit: pagination.limit,
@@ -359,6 +421,11 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
             onServerSidePageChange={handlePageChange}
             hideRecordCount={false}
             isLoading={isLoading || fetchingPage}
+            customLoadingState={
+              <div className="flex items-center justify-center py-8">
+                <LoadingAnimation size="md" text="Loading evaluations..." />
+              </div>
+            }
             onRowClick={handleRowClick}
             rowClassName="cursor-pointer"
           />

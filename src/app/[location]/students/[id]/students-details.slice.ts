@@ -182,15 +182,29 @@ export const fetchStudent = createAsyncThunk(
   }
 );
 
-// Async thunk for fetching evaluations page (server-side pagination)
+// Async thunk for fetching evaluations page (server-side pagination and sorting)
 export const fetchEvaluationsPage = createAsyncThunk(
   'student/fetchEvaluationsPage',
   async (
-    { location, studentId, page, limit }: { location: string; studentId: string; page: number; limit: number },
+    { 
+      location, 
+      studentId, 
+      page, 
+      limit, 
+      sort, 
+      order 
+    }: { 
+      location: string; 
+      studentId: string; 
+      page: number; 
+      limit: number;
+      sort?: string;
+      order?: "asc" | "desc";
+    },
     { rejectWithValue }
   ) => {
     try {
-      const result = await getStudentEvaluations(location, studentId, page, limit);
+      const result = await getStudentEvaluations(location, studentId, page, limit, sort, order);
       
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to fetch evaluations page');
