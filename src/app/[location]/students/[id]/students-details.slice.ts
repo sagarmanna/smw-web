@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { format, parse, differenceInYears, isValid } from 'date-fns';
 import { 
   getStudentDetails, 
   StudentDetailsApiResponse,
@@ -54,6 +55,42 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
     firstName: parts[0],
     lastName: parts.slice(1).join(" "),
   };
+}
+
+/**
+ * Helper function to format birthDate from YYYY-MM-DD to display format (MMM dd, yyyy)
+ */
+function formatBirthday(birthDate: string): string {
+  if (!birthDate) return "";
+  try {
+    // Parse YYYY-MM-DD format
+    const date = parse(birthDate, "yyyy-MM-dd", new Date());
+    if (!isValid(date)) {
+      return birthDate; // Return original if parsing fails
+    }
+    // Format to "MMM d, yyyy" (e.g., "Dec 12, 2013")
+    return format(date, "MMM d, yyyy");
+  } catch {
+    return birthDate; // Return original if formatting fails
+  }
+}
+
+/**
+ * Helper function to calculate age from birthDate (YYYY-MM-DD format)
+ */
+function calculateAge(birthDate: string): string {
+  if (!birthDate) return "";
+  try {
+    const date = parse(birthDate, "yyyy-MM-dd", new Date());
+    if (!isValid(date)) {
+      return "";
+    }
+    const today = new Date();
+    const age = differenceInYears(today, date);
+    return `${age}yrs old`;
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -420,15 +457,16 @@ const studentSlice = createSlice({
           const { putResponse } = action.payload;
           
           // Update Redux state directly from PUT response (no GET call needed - follow caching pattern)
-          // Keep existing age and formatted birthday from state (PUT response doesn't include these)
+          // Format birthday and calculate age from PUT response
+          const formattedBirthday = putResponse.birthDate ? formatBirthday(putResponse.birthDate) : state.studentInfo.profile.birthday;
+          const calculatedAge = putResponse.birthDate ? calculateAge(putResponse.birthDate) : state.studentInfo.profile.age;
+          
           state.studentInfo.profile = {
             ...state.studentInfo.profile,
             firstName: putResponse.firstName,
             lastName: putResponse.lastName,
-            // Keep existing formatted birthday (PUT response has YYYY-MM-DD, we keep display format)
-            // birthday: state.studentInfo.profile.birthday,
-            // Keep existing age (PUT response doesn't include age)
-            // age: state.studentInfo.profile.age,
+            birthday: formattedBirthday,
+            age: calculatedAge,
             gender: genderApiToDisplay(putResponse.gender),
             notes: putResponse.note !== undefined ? putResponse.note : state.studentInfo.profile.notes,
           };

@@ -5,6 +5,7 @@ import {
   SectionCard,
 } from "@/components/SectionCard";
 import { CustomTable } from "@/components/CustomTable";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -157,7 +158,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
     <>
       <SectionCard
         title="Enrolments"
-        isLoading={isLoading || isLoadingEnrolments}
+        isLoading={isLoading}
         headerActions={
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -197,21 +198,22 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
           </div>
         }
       >
-        {displayEnrolments.length > 0 ? (
-          <CustomTable
-            data={displayEnrolments}
-            columns={enrolmentColumns}
-            enableSearch={false}
-            enableExport={false}
-            enableFilter={false}
-            enablePrint={false}
-            enableSorting={false}
-            enableRowsPerPage={false}
-            onRowClick={handleRowClick}
-            rowClassName="cursor-pointer"
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">No enrolments found.</p>
+        <CustomTable
+          data={displayEnrolments}
+          columns={enrolmentColumns}
+          enableSearch={false}
+          enableExport={false}
+          enableFilter={false}
+          enablePrint={false}
+          enableSorting={false}
+          enableRowsPerPage={false}
+          isLoading={isLoadingEnrolments}
+          customLoadingState={<LoadingAnimation size="md" text="Loading enrolments..." />}
+          onRowClick={handleRowClick}
+          rowClassName="cursor-pointer"
+        />
+        {displayEnrolments.length === 0 && !isLoading && !isLoadingEnrolments && (
+          <p className="text-sm text-muted-foreground mt-4">No enrolments found.</p>
         )}
       </SectionCard>
 
