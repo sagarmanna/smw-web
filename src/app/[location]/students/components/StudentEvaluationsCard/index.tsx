@@ -13,7 +13,12 @@ import { AddEvaluationModal } from "../modals/AddEvaluationModal";
 import { StudentEvaluation, StudentBasicDetails } from "../../types";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
-import { fetchEvaluationsPage, setEvaluationsPage } from "../../[id]/students-details.slice";
+import { 
+  fetchEvaluationsPage, 
+  addEvaluation,
+  updateEvaluation,
+  removeEvaluation
+} from "../../[id]/students-details.slice";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { 
   createStudentEvaluation, 
@@ -245,37 +250,19 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
           teacher: teacherName,
         };
 
-        // Update Redux state after successful API call (server-side pagination)
-        const existingIndex = evaluations.findIndex((e) => e.id === evaluation.id);
-        if (existingIndex >= 0 && evaluationsPagination) {
-          // Update existing in current page
-          const updatedEvaluations = [...evaluations];
-          updatedEvaluations[existingIndex] = transformedEvaluation;
-          // Update Redux with new page data
-          dispatch(setEvaluationsPage({
-            evaluations: updatedEvaluations,
-            pagination: evaluationsPagination,
-          }));
-        } else if (evaluationsPagination) {
-          // New evaluation: Refresh current page (evaluation might be on different page)
-          setFetchingPage(true);
-          try {
-            const sort = sorting[0]?.id as string | undefined;
-            const order = sorting[0]?.desc ? "desc" : "asc";
-            await dispatch(fetchEvaluationsPage({ 
-              location, 
-              studentId, 
-              page: evaluationsPagination.page, 
-              limit: evaluationsPagination.limit,
-              sort,
-              order: sort ? order : undefined,
-            })).unwrap();
-          } finally {
-            setFetchingPage(false);
+        // Update Redux state directly after successful API call (no GET call needed)
+        if (isUpdate) {
+          // Update existing evaluation in Redux
+          if (evaluation.id) {
+            dispatch(updateEvaluation({ 
+              evaluationId: evaluation.id, 
+              evaluation: transformedEvaluation 
+            }));
           }
+        } else {
+          // Add new evaluation to Redux (will add to page 1 if we're on page 1, otherwise just updates total)
+          dispatch(addEvaluation(transformedEvaluation));
         }
-        // Note: The useEffect above will sync currentPageEvaluations with Redux evaluations
-        // when on page 1, so the new/updated evaluation will appear immediately
         
         // Show success message
         toast.success(isUpdate ? "Evaluation updated successfully" : "Evaluation created successfully");
@@ -289,7 +276,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         setSaving(false);
       }
     },
-    [dispatch, location, studentId, evaluations, evaluationsPagination, setFetchingPage, sorting]
+    [dispatch, location, studentId]
   );
 
   const handleDelete = React.useCallback(
@@ -297,46 +284,22 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
       try {
         setSaving(true);
         
-        // Find the evaluation by ID
-        const existingEvaluation = evaluations.find((e) => 
-          e.id === evaluation.id ||
-          (e.examDate === evaluation.examDate && 
-           e.level === evaluation.level &&
-           e.program === evaluation.program &&
-           e.teacher === evaluation.teacher)
-        );
-
-        if (!existingEvaluation || !existingEvaluation.id) {
-          toast.error("Evaluation not found");
+        // Validate evaluation has an ID
+        if (!evaluation.id) {
+          toast.error("Evaluation ID is required");
           return false;
         }
 
         // Call DELETE API first (following pattern: API call first, then update Redux)
-        const result = await deleteStudentEvaluation(location, studentId, existingEvaluation.id);
+        const result = await deleteStudentEvaluation(location, studentId, evaluation.id);
         
         if (!result || !result.success) {
           throw new Error(result?.message || "Failed to delete evaluation");
         }
 
-        // Update Redux state after successful API call (server-side pagination)
-        // Refresh current page from server to get updated data
-        if (evaluationsPagination) {
-          setFetchingPage(true);
-          try {
-            const sort = sorting[0]?.id as string | undefined;
-            const order = sorting[0]?.desc ? "desc" : "asc";
-            await dispatch(fetchEvaluationsPage({ 
-              location, 
-              studentId, 
-              page: evaluationsPagination.page, 
-              limit: evaluationsPagination.limit,
-              sort,
-              order: sort ? order : undefined,
-            })).unwrap();
-          } finally {
-            setFetchingPage(false);
-          }
-        }
+        // Update Redux state directly after successful API call (no GET call needed)
+        // Remove evaluation from Redux state
+        dispatch(removeEvaluation(evaluation.id));
         
         toast.success("Evaluation deleted successfully");
         return true;
@@ -348,7 +311,7 @@ export const StudentEvaluationsCard = React.memo(function StudentEvaluationsCard
         setSaving(false);
       }
     },
-    [dispatch, location, studentId, evaluations, evaluationsPagination, setFetchingPage, sorting]
+    [dispatch, location, studentId]
   );
 
   const handlePrintClick = React.useCallback(() => {

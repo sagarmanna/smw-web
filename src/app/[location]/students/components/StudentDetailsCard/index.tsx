@@ -120,7 +120,6 @@ export const StudentDetailsCard = React.memo(function StudentDetailsCard({
         onOpenChange={setIsDeleteModalOpen}
         location={location}
         studentId={studentId}
-        studentDetails={details}
         onDeleteSuccess={onDeleteSuccess}
       />
 
