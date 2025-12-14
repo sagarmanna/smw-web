@@ -27,7 +27,7 @@ export type {
   LocationDetails,
 };
 
-export const DEFAULT_LOGO_URL = "/admin/v2/SMW.png";
+export const DEFAULT_LOGO_URL = "/admin/v2/arcadia-master-logo.png";
 export const DEFAULT_WEBSITE = "www.arcadiamusicacademy.com";
 
 // Helper: Transform LocationDetails to CompanyInfo (DRY)
@@ -125,7 +125,7 @@ export const generateCustomerBlock = (customerInfo: CustomerInfo): string => {
   const safeName = sanitizeName(customerInfo.name);
   return `
     <div style="font-size:12px;">
-      <div style="font-weight:600;">${safeName}</div>
+      <div style="font-weight:600;">${safeName || "Customer"}</div>
       ${customerInfo.phone ? `<div>${customerInfo.phone}</div>` : ""}
       ${customerInfo.email ? `<div>${customerInfo.email}</div>` : ""}
     </div>`;

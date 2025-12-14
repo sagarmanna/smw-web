@@ -1930,7 +1930,7 @@ export function CustomerDetailClient({
               // Build statement data
               const statementData: CustomerStatementData = {
                 customerName: customer 
-                  ? `${customer.firstName} ${customer.lastName}`.trim() 
+                  ? _customerInfo?.profile.name.trim() 
                   : "",
                 customerPhone: _customerInfo?.phone?.[0]?.number || "",
                 customerEmail: _customerInfo?.email?.[0]?.email || customer?.email || "",

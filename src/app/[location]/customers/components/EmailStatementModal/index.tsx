@@ -388,14 +388,9 @@ export default function EmailStatementModal({
   <div style="margin-top:16px;font-size:12px;font-family:system-ui,-apple-system,sans-serif;">
     ${hstNumber ? `<p style="margin:0;"><strong>HST#</strong> ${hstNumber}</p>` : ""}
     ${shouldShowTotal ? `
-    <div style="margin-top:16px;font-size:12px;">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <tr>
-          <td style="font-weight:600;text-align:left;border:1px solid #ddd;padding:6px;">Total</td>
-          <td style="font-weight:600;text-align:right;border:1px solid #ddd;padding:6px;">${totalBalance}</td>
-        </tr>
-      </table>
-    </div>` : ""}
+      <div style="margin-top:16px;font-size:12px;font-weight:600;">
+        <p>Total: ${totalBalance}</p>
+      </div>` : ""}
     <p style="margin:16px 0 4px 0;">Thank you,</p>
     <p style="margin:0;">${locationName}</p>
   </div>`;

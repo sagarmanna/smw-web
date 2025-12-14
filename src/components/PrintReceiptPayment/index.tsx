@@ -29,7 +29,7 @@ export type {
   LocationDetails,
 };
 
-export const DEFAULT_LOGO_URL = "/admin/v2/SMW.png";
+export const DEFAULT_LOGO_URL = "/admin/v2/arcadia-master-logo.png";
 export const DEFAULT_WEBSITE = "www.arcadiamusicacademy.com";
 
 // Helper: Transform LocationDetails to CompanyInfo (DRY)
@@ -258,7 +258,7 @@ export const generateEmailContent = (config: PrintReceiptConfig): string => {
   return `
     <div style="font-family:system-ui,-apple-system,sans-serif;color:#111;">
       <p>Thank you for your payment!</p>
-      <p>Please find the ${config.title} below</p>
+      <!-- <p>Please find the ${config.title} below</p> -->
       <p>${config.acknowledgmentMessage}</p>
       ${tablesHtml}
       ${hstHtml}
