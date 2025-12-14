@@ -135,6 +135,7 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
             enrolments={enrolments}
             isLoading={isLoading}
             location={location}
+            studentId={studentId}
             onRefresh={refresh}
           />
 

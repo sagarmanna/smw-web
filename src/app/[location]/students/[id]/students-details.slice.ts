@@ -214,6 +214,29 @@ export const fetchEvaluationsPage = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching enrolments with showAll parameter
+export const fetchStudentEnrolments = createAsyncThunk(
+  'student/fetchStudentEnrolments',
+  async (
+    { location, studentId, showAll }: { location: string; studentId: string; showAll: boolean },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await getStudentEnrolments(location, studentId, showAll);
+      
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to fetch student enrolments');
+      }
+
+      const enrolments = transformEnrolmentsResponse(result.data.body);
+
+      return { enrolments };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch student enrolments');
+    }
+  }
+);
+
 // Async thunk for updating student details via API
 export const updateStudent = createAsyncThunk(
   'student/updateStudent',
@@ -340,6 +363,12 @@ const studentSlice = createSlice({
         state.studentInfo.evaluationsPagination = action.payload.pagination;
       }
     },
+    // Set enrolments (for showAll functionality)
+    setEnrolments: (state, action: PayloadAction<StudentEnrolment[]>) => {
+      if (state.studentInfo) {
+        state.studentInfo.enrolments = action.payload;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -429,6 +458,15 @@ const studentSlice = createSlice({
       })
       .addCase(fetchEvaluationsPage.rejected, (state, action) => {
         state.error = action.payload as string;
+      })
+      // Fetch enrolments reducers
+      .addCase(fetchStudentEnrolments.fulfilled, (state, action) => {
+        if (state.studentInfo) {
+          state.studentInfo.enrolments = action.payload.enrolments;
+        }
+      })
+      .addCase(fetchStudentEnrolments.rejected, (state, action) => {
+        state.error = action.payload as string;
       });
   },
 });
@@ -442,6 +480,7 @@ export const {
   updateEvaluation,
   removeEvaluation,
   setEvaluationsPage,
+  setEnrolments,
 } = studentSlice.actions;
 export default studentSlice.reducer;
 

@@ -70,15 +70,22 @@ export interface StudentEnrolmentsApiResponse {
  * 
  * @param location - The location identifier
  * @param studentId - The student ID
+ * @param showAll - Whether to show all enrolments (default: false)
  * @returns Promise resolving to the enrolments response or null on error
  */
 export async function getStudentEnrolments(
   location: string,
-  studentId: string
+  studentId: string,
+  showAll: boolean = false
 ): Promise<StudentEnrolmentsApiResponse | null> {
   try {
     const response = await apiClient.get<StudentEnrolmentsApiResponse>(
-      `/admin/v2/${location}/student/${studentId}/enrolments`
+      `/admin/v2/${location}/student/${studentId}/enrolments`,
+      {
+        params: {
+          showAll: showAll ? "true" : undefined,
+        },
+      }
     );
     return response.data;
   } catch (error: unknown) {

@@ -21,11 +21,14 @@ import {
   type GroupEnrolmentCompleteData 
 } from "./AddGroupModal/AddGroupEnrolmentModal";
 import { StudentEnrolment } from "../../types";
+import { useAppDispatch } from "@/redux/hooks";
+import { fetchStudentEnrolments, setEnrolments } from "../../[id]/students-details.slice";
 
 interface StudentEnrolmentsCardProps {
   enrolments: StudentEnrolment[];
   isLoading?: boolean;
   location: string;
+  studentId: string;
   onRefresh?: () => void;
 }
 
@@ -43,17 +46,70 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
   enrolments,
   isLoading = false,
   location,
+  studentId,
   onRefresh,
 }: StudentEnrolmentsCardProps) {
+  const dispatch = useAppDispatch();
   const [showAll, setShowAll] = React.useState(false);
   const [isNewEnrolmentModalOpen, setIsNewEnrolmentModalOpen] = React.useState(false);
   const [isAddGroupEnrolmentModalOpen, setIsAddGroupEnrolmentModalOpen] = React.useState(false);
   const [localEnrolments, setLocalEnrolments] = React.useState<StudentEnrolment[]>([]);
+  const [isLoadingEnrolments, setIsLoadingEnrolments] = React.useState(false);
+  const previousEnrolmentsRef = React.useRef<StudentEnrolment[]>([]);
+  const hasInitializedRef = React.useRef(false);
+  
+  // Store initial enrolments as previous when component first receives data
+  React.useEffect(() => {
+    if (!hasInitializedRef.current && enrolments.length > 0 && !showAll) {
+      previousEnrolmentsRef.current = [...enrolments];
+      hasInitializedRef.current = true;
+    }
+  }, [enrolments, showAll]);
   
   // Merge local enrolments with props enrolments
   const displayEnrolments = React.useMemo(() => {
     return [...enrolments, ...localEnrolments];
   }, [enrolments, localEnrolments]);
+
+  // Handle showAll checkbox change
+  const handleShowAllChange = React.useCallback(async (checked: boolean) => {
+    if (checked) {
+      // Store current enrolments before fetching all
+      if (enrolments.length > 0) {
+        previousEnrolmentsRef.current = [...enrolments];
+      }
+      
+      // Fetch all enrolments
+      setIsLoadingEnrolments(true);
+      try {
+        setShowAll(true);
+        await dispatch(fetchStudentEnrolments({ location, studentId, showAll: true })).unwrap();
+      } catch (error) {
+        console.error("Failed to fetch all enrolments:", error);
+        // Revert checkbox state on error
+        setShowAll(false);
+      } finally {
+        setIsLoadingEnrolments(false);
+      }
+    } else {
+      // Restore previous enrolments
+      if (previousEnrolmentsRef.current.length > 0) {
+        setShowAll(false);
+        dispatch(setEnrolments(previousEnrolmentsRef.current));
+      } else {
+        // If no previous enrolments, fetch default (showAll=false)
+        setIsLoadingEnrolments(true);
+        try {
+          setShowAll(false);
+          await dispatch(fetchStudentEnrolments({ location, studentId, showAll: false })).unwrap();
+        } catch (error) {
+          console.error("Failed to fetch default enrolments:", error);
+        } finally {
+          setIsLoadingEnrolments(false);
+        }
+      }
+    }
+  }, [dispatch, location, studentId, enrolments]);
 
   const handleNewEnrolmentNext = (data: EnrolmentFormData) => {
     // TODO: Implement API call to create enrolment
@@ -101,14 +157,15 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
     <>
       <SectionCard
         title="Enrolments"
-        isLoading={isLoading}
+        isLoading={isLoading || isLoadingEnrolments}
         headerActions={
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="show-all-enrolments"
                 checked={showAll}
-                onCheckedChange={(checked) => setShowAll(checked === true)}
+                onCheckedChange={(checked) => handleShowAllChange(checked === true)}
+                disabled={isLoadingEnrolments}
               />
               <Label
                 htmlFor="show-all-enrolments"
