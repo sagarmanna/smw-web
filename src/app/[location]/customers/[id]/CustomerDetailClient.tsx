@@ -28,7 +28,6 @@ import {
   getCustomerHistory,
   CustomerSummaryData,
   CustomerInfoData,
-  getCustomerPaymentById,
   getEmailStatement,
   EmailStatementData,
 } from "../customers.api";
@@ -49,12 +48,10 @@ import { PaymentReceiptModalContainer} from "../components/ReceiptPaymentModal";
 import { 
   printCustomerStatement, 
   CustomerStatementData,
-  transformLocationDetailsToCompanyInfo 
 } from "@/components/PrintStatement";
 import { apiClient } from "@/lib/api/client";
 import { getPaymentCredits, getInvoiceCredits } from "../components/ReceivePaymentModal/api/receive-payment.api";
 
-// import { mockReceivePayment } from "../components/PaymentReceiptModal/mocks/legacyReceivePaymentMock";
 import AddStudentModal from "../components/AddStudentModal/index";
 import { NotifyViaEmailReasonsModal } from "../components/NotifyViaEmailModal";
 import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
@@ -205,9 +202,6 @@ export function CustomerDetailClient({
   const [selectedPaymentId, setSelectedPaymentId] = React.useState<
     number | null
   >(null);
-  const [paymentReceiptHtml, setPaymentReceiptHtml] = React.useState<
-    string | null
-  >(null);
   const [selectedPayment, setSelectedPayment] =
     React.useState<PaymentData | null>(null);
   const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<
@@ -324,20 +318,6 @@ export function CustomerDetailClient({
       setEmailModalOverrides(null);
     }
   }, []);
-
-  // Handle students pagination
-  const handleStudentsPageChange = (_page: number) => {
-    setStudentsPagination((prev) => ({ ...prev, page: _page }));
-  };
-
-  const handleStudentsRowsPerPageChange = (rowsPerPage: number) => {
-    setStudentsPagination((prev) => ({
-      ...prev,
-      limit: rowsPerPage,
-      page: 1,
-      totalPages: Math.ceil(prev.total / rowsPerPage),
-    }));
-  };
 
   // Handle outstanding invoices pagination
   const handleOutstandingInvoicesPageChange = React.useCallback(
@@ -1691,10 +1671,6 @@ export function CustomerDetailClient({
         console.error("Error loading customer data:", error);
       } finally {
         setLoading(false);
-        // const summary = await getCustomerSummary(location, Number(id));
-        // if (summary?.success && summary.data) {
-        //   setSummaryData(summary.data);
-        // }
       }
     };
 
@@ -1780,8 +1756,6 @@ export function CustomerDetailClient({
       setReferralSource(newData.referralSource);
       setStatus(newData.status);
       setPicture(newData.picture);
-
-      // TODO: Call API to update customer details
     },
     []
   );
