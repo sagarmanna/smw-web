@@ -17,7 +17,7 @@ import Image from "next/image";
 import { getReferralSources, ReferralSourceData } from "../DetailsCard/referralSource";
 import { updateCustomerProfile } from "./detail-card.api";
 import { toast } from "sonner";
-import { setUserPassword } from "@/lib/api/legacyApiAdapter";
+import { setUserPassword } from "@/lib/api/user.api";
 import { CustomerMergeModal } from "../CustomerMergeModal";
 
 
@@ -346,8 +346,11 @@ export function DetailsCard({
     }
 
     try {
-      const res = await setUserPassword(location, customerId, password.trim(), confirmPassword.trim());
-      if (res?.status) {
+      const res = await setUserPassword(location, customerId, {
+        password: password.trim(),
+        confirmPassword: confirmPassword.trim(),
+      });
+      if (res.success && res.data?.status) {
         toast.success("Password updated successfully");
         setIsPasswordModalOpen(false);
         setPassword("");
@@ -356,10 +359,14 @@ export function DetailsCard({
         setPasswordTouched(false);
         setConfirmPasswordTouched(false);
       } else {
-        toast.error("Failed to update password");
+        toast.error(res.message || "Failed to update password");
       }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Network error");
+    } catch (error: unknown) {
+      const errorMessage = 
+        (error as { message?: string })?.message || 
+        (error as { errorCode?: string; message?: string })?.message ||
+        "Network error";
+      toast.error(errorMessage);
     }
   };
 

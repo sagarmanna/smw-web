@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { setUserPassword } from "@/lib/api/legacyApiAdapter";
+import { setUserPassword } from "@/lib/api/user.api";
 import { 
   updateTeacher, 
   updateEmails, 
@@ -179,22 +179,24 @@ export function useTeacherDetails(
 
   const updatePassword = React.useCallback(async (password: string, confirmPassword: string) => {
     try {
-      // Call legacy API to set password
-      const response = await setUserPassword(
-        location,
-        teacherId,
+      // Call new API to set password
+      const response = await setUserPassword(location, teacherId, {
         password,
-        confirmPassword
-      );
+        confirmPassword,
+      });
 
-      if (response.status) {
+      if (response.success && response.data?.status) {
         return true;
       } else {
-        console.error("Failed to update password:", response.message || response.errors);
+        console.error("Failed to update password:", response.message);
         return false;
       }
-    } catch (err) {
-      console.error("Failed to update password:", err);
+    } catch (err: unknown) {
+      const errorMessage = 
+        (err as { message?: string })?.message || 
+        (err as { errorCode?: string; message?: string })?.message ||
+        "Failed to update password";
+      console.error("Failed to update password:", errorMessage);
       return false;
     }
   }, [location, teacherId]);

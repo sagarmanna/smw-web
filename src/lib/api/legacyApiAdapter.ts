@@ -322,7 +322,8 @@ export async function modifyClassroom(
 }
 
 /**
- * Set a user's password using the legacy API
+ * Set a user's password using the new API
+ * Updated to use: POST /admin/v2/{location}/user/{id}/set-password
  */
 export async function setUserPassword(
   location: string,
@@ -330,28 +331,44 @@ export async function setUserPassword(
   password: string,
   confirmPassword: string
 ): Promise<LegacyApiResponse> {
-  const formData = new FormData();
-  formData.append('UserForm[password]', password);
-  formData.append('UserForm[confirmPassword]', confirmPassword);
+  const url = `/admin/v2/${location}/user/${userId}/set-password`;
 
-  const url = `/admin/${location}/user/set-password?id=${userId}`;
+  const requestBody = {
+    password,
+    confirmPassword,
+  };
 
   try {
     const response = await fetch(url, {
       method: 'POST',
-      body: formData,
+      body: JSON.stringify(requestBody),
       credentials: 'include',
       headers: {
-        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
       },
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `HTTP ${response.status}: ${response.statusText}`
+      );
     }
 
     const data = await response.json();
+    
+    // Transform new API response format to legacy format for backward compatibility
+    // New API returns: { success: true, data: { status: true }, message: "..." }
+    // Legacy expects: { status: true }
+    if (data.success && data.data) {
+      return {
+        status: data.data.status ?? true,
+        message: data.message,
+      };
+    }
+    
     return data;
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : 'Network error');

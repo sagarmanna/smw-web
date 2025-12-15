@@ -149,3 +149,60 @@ export async function deleteUserByRole(
   }
 }
 
+// Set Password API
+export interface SetPasswordRequest {
+  password?: string;
+  confirmPassword?: string;
+  pin?: number;
+}
+
+export interface SetPasswordResponse {
+  success: boolean;
+  message: string;
+  data: {
+    status: boolean;
+  };
+}
+
+export interface SetPasswordErrorResponse {
+  success: false;
+  errorCode: string;
+  message: string;
+}
+
+/**
+ * Set password and/or PIN for a user
+ * @param location - Location slug
+ * @param userId - User ID
+ * @param data - Password data (password, confirmPassword, optional pin)
+ * @returns Success response with status
+ */
+export async function setUserPassword(
+  location: string,
+  userId: number | string,
+  data: SetPasswordRequest
+): Promise<SetPasswordResponse> {
+  try {
+    const response = await apiClient.post<SetPasswordResponse>(
+      `/admin/v2/${location}/user/${userId}/set-password`,
+      data
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Error setting user password:', error);
+    
+    // Handle API error response
+    const axiosError = error as { response?: { data?: SetPasswordErrorResponse }; message?: string };
+    if (axiosError.response?.data) {
+      throw axiosError.response.data as SetPasswordErrorResponse;
+    }
+    
+    // Handle network/other errors
+    throw {
+      success: false,
+      errorCode: 'INTERNAL_SERVER_ERROR',
+      message: axiosError.message || 'Failed to set password',
+    } as SetPasswordErrorResponse;
+  }
+}
+
