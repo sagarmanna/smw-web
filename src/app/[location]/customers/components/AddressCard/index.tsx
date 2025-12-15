@@ -82,11 +82,44 @@ export function AddressCard({
     country: [],
   });
   const [loadingGeoData, setLoadingGeoData] = useState(false);
+  const [hasLoadedGeoData, setHasLoadedGeoData] = useState(false);
 
-  // Fetch geodata once when component mounts
+  // Fetch geodata only when the edit/add modal opens (avoid initial-load call)
   useEffect(() => {
-    fetchGeoData();
-  }, []);
+    if (!isModalOpen || hasLoadedGeoData) return;
+
+    let isMounted = true;
+    const loadGeoData = async () => {
+      setLoadingGeoData(true);
+      try {
+        const data = await getGeoData("all");
+
+        if (!isMounted) return;
+
+        if (data) {
+          setGeoData(data);
+          setHasLoadedGeoData(true);
+        } else {
+          toast.error("Failed to load location data");
+        }
+        
+      } catch (error) {
+        if (isMounted) {
+          toast.error("Failed to load location data");
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingGeoData(false);
+        }
+      }
+    };
+
+    loadGeoData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isModalOpen, hasLoadedGeoData]);
 
   const fetchGeoData = async () => {
     setLoadingGeoData(true);
