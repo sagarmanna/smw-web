@@ -325,17 +325,73 @@ export async function modifyClassroom(
  * Set a user's password using the new API
  * Updated to use: POST /admin/v2/{location}/user/{id}/set-password
  */
-export async function setUserPassword(
+// export async function setUserPassword(
+//   location: string,
+//   userId: string | number,
+//   password: string,
+//   confirmPassword: string
+// ): Promise<LegacyApiResponse> {
+//   const url = `/admin/v2/${location}/user/${userId}/set-password`;
+
+//   const requestBody = {
+//     password,
+//     confirmPassword,
+//   };
+
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       body: JSON.stringify(requestBody),
+//       credentials: 'include',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'Accept': 'application/json',
+//         'X-Requested-With': 'XMLHttpRequest',
+//       },
+//     });
+
+//     if (!response.ok) {
+//       const errorData = await response.json().catch(() => ({}));
+//       throw new Error(
+//         errorData.message || `HTTP ${response.status}: ${response.statusText}`
+//       );
+//     }
+
+//     const data = await response.json();
+    
+//     // Transform new API response format to legacy format for backward compatibility
+//     // New API returns: { success: true, data: { status: true }, message: "..." }
+//     // Legacy expects: { status: true }
+//     if (data.success && data.data) {
+//       return {
+//         status: data.data.status ?? true,
+//         message: data.message,
+//       };
+//     }
+    
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }
+
+/**
+ * Create a student using the new API
+ * Updated to use: POST /admin/v2/{location}/student/create?userId={userId}
+ */
+export async function createStudent(
   location: string,
   userId: string | number,
-  password: string,
-  confirmPassword: string
+  studentData: StudentCreateData
 ): Promise<LegacyApiResponse> {
-  const url = `/admin/v2/${location}/user/${userId}/set-password`;
+  const url = `/admin/v2/${location}/student/create?userId=${userId}`;
 
   const requestBody = {
-    password,
-    confirmPassword,
+    firstName: studentData.firstName,
+    lastName: studentData.lastName,
+    customerId: studentData.customerId,
+    birthDate: studentData.birthDate || undefined,
+    gender: studentData.gender || undefined,
   };
 
   try {
@@ -360,66 +416,16 @@ export async function setUserPassword(
     const data = await response.json();
     
     // Transform new API response format to legacy format for backward compatibility
-    // New API returns: { success: true, data: { status: true }, message: "..." }
-    // Legacy expects: { status: true }
+    // New API returns: { success: true, data: { status: true, url: "..." }, message: "..." }
+    // Legacy expects: { status: true, url: "..." }
     if (data.success && data.data) {
       return {
         status: data.data.status ?? true,
+        url: data.data.url,
         message: data.message,
       };
     }
     
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
-
-/**
- * Create a student using the legacy API
- */
-export async function createStudent(
-  location: string,
-  userId: string | number,
-  studentData: StudentCreateData
-): Promise<LegacyApiResponse> {
-  const formData = new FormData();
-  formData.append('Student[first_name]', studentData.firstName);
-  formData.append('Student[last_name]', studentData.lastName);
-  formData.append('Student[customer_id]', studentData.customerId.toString());
-  
-  if (studentData.birthDate && studentData.birthDate.trim()) {
-    formData.append('Student[birth_date]', studentData.birthDate);
-  }
-  
-  // Map gender: "male" -> 1, "female" -> 2, "not-specified" -> empty
-  if (studentData.gender === 'male') {
-    formData.append('Student[gender]', '1');
-  } else if (studentData.gender === 'female') {
-    formData.append('Student[gender]', '2');
-  }
-  // For "not-specified", don't append anything (or append empty string)
-  
-  formData.append('User[id]', userId.toString());
-
-  const url = `/admin/${location}/student/create?userId=${userId}`;
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
     return data;
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : 'Network error');
