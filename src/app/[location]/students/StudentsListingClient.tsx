@@ -11,10 +11,19 @@ import { useExportableData } from "@/hooks/useExportableData";
 import { usePrintReport } from "@/hooks/usePrintReport";
 import { useStudentListing } from "./hooks/useStudentListing";
 import { formatLocationName } from "@/utils/textUtils";
+import {
+  calculateMaxEmailCount,
+  createEmailColumns,
+  transformRowWithEmails,
+  type ExportRowWithEmails,
+} from "./utils/emailExportUtils";
 
 interface StudentsListingClientProps {
   location: string;
 }
+
+// Type for export data with dynamic email columns
+interface ExportStudentRow extends Omit<StudentRow, 'allEmails'>, ExportRowWithEmails {}
 
 export function StudentsListingClient({ location }: StudentsListingClientProps) {
   const router = useRouter();
@@ -41,14 +50,63 @@ export function StudentsListingClient({ location }: StudentsListingClientProps) 
     handleServerSideFilterChange,
   } = useStudentListing(location);
 
-  const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<StudentRow>({
+  // Create export-specific columns with separate email columns
+  const exportColumns = React.useMemo((): ColumnDef<ExportStudentRow>[] => {
+    const baseColumns: ColumnDef<ExportStudentRow>[] = [
+      {
+        accessorKey: "firstName",
+        header: "First Name",
+        meta: { printable: true, printableName: "First Name" },
+      },
+      {
+        accessorKey: "lastName",
+        header: "Last Name",
+        meta: { printable: true, printableName: "Last Name" },
+      },
+      {
+        accessorKey: "customerName",
+        header: "Customer",
+        meta: { printable: true, printableName: "Customer" },
+      },
+      {
+        accessorKey: "phoneNumber",
+        header: "Phone",
+        meta: { printable: true, printableName: "Phone" },
+      },
+    ];
+
+    // Calculate max email count and create email columns
+    const maxEmailCount = calculateMaxEmailCount(rows);
+    const emailColumns = createEmailColumns<ExportStudentRow>(maxEmailCount);
+
+    return [...baseColumns, ...emailColumns];
+  }, [rows]);
+
+  // Transform data for export with separate email columns
+  const exportData = React.useMemo((): ExportStudentRow[] => {
+    return rows.map((row) => {
+      const baseRow = {
+        id: row.id,
+        isActive: row.isActive,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        customerName: row.customerName,
+        phoneNumber: row.phoneNumber,
+        email: row.email,
+      };
+
+      return transformRowWithEmails<StudentRow, ExportStudentRow>(row, baseRow);
+    });
+  }, [rows]);
+
+  const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<ExportStudentRow>({
     reportTitle: `Student list for ${formatLocationName(location)}`,
-    columns,
-    data: rows,
+    columns: exportColumns,
+    data: exportData,
     location: location, // Pass location for PDF header
   });
 
-  const { handlePrint } = usePrintReport<StudentRow>();
+  const { handlePrint } = usePrintReport<ExportStudentRow>();
 
   if (error) {
     return (
@@ -91,8 +149,9 @@ export function StudentsListingClient({ location }: StudentsListingClientProps) 
         enablePrint={true}
         onPrint={() => handlePrint({
           reportTitle: `Student's list for ${formatLocationName(location)}`,
-          columns,
-          data: rows,
+          columns: exportColumns,
+          data: exportData,
+          location,
         })}
         enableColumnFilters={true}
         onColumnFilterChange={handleColumnFilterChange}

@@ -4,7 +4,6 @@ import * as React from "react";
 import { ReusableModal } from "@/components/TablesModals";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { StudentBasicDetails } from "../../types";
 import { deleteStudentInfo } from "../../[id]/students-details.api";
 
 interface DeleteStudentModalProps {
@@ -12,7 +11,6 @@ interface DeleteStudentModalProps {
   onOpenChange: (open: boolean) => void;
   location: string;
   studentId: string;
-  studentDetails: StudentBasicDetails | null;
   onDeleteSuccess?: () => void;
 }
 
@@ -21,7 +19,6 @@ export function DeleteStudentModal({
   onOpenChange,
   location,
   studentId,
-  studentDetails,
   onDeleteSuccess,
 }: DeleteStudentModalProps) {
   const router = useRouter();
@@ -79,17 +76,7 @@ export function DeleteStudentModal({
       actions={modalActions}
       showFooter={true}
     >
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">
-          You are about to delete:
-        </p>
-        <div className="bg-muted p-3 rounded-md">
-          <p className="font-semibold">
-            {studentDetails?.firstName} {studentDetails?.lastName}
-          </p>
-          <p className="text-sm text-muted-foreground">ID: {studentDetails?.id}</p>
-        </div>
-      </div>
+      {null}
     </ReusableModal>
   );
 }

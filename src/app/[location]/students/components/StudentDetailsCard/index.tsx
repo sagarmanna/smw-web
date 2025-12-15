@@ -99,6 +99,7 @@ export const StudentDetailsCard = React.memo(function StudentDetailsCard({
         title="Details"
         data={detailRows}
         isLoading={isLoading}
+        className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
         headerActions={
           <>
             <EditButton onClick={() => setIsEditDetailsOpen(true)} />
@@ -120,7 +121,6 @@ export const StudentDetailsCard = React.memo(function StudentDetailsCard({
         onOpenChange={setIsDeleteModalOpen}
         location={location}
         studentId={studentId}
-        studentDetails={details}
         onDeleteSuccess={onDeleteSuccess}
       />
 

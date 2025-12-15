@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { format, parse, differenceInYears, isValid } from 'date-fns';
 import { 
   getStudentDetails, 
   StudentDetailsApiResponse,
@@ -54,6 +55,42 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
     firstName: parts[0],
     lastName: parts.slice(1).join(" "),
   };
+}
+
+/**
+ * Helper function to format birthDate from YYYY-MM-DD to display format (MMM dd, yyyy)
+ */
+function formatBirthday(birthDate: string): string {
+  if (!birthDate) return "";
+  try {
+    // Parse YYYY-MM-DD format
+    const date = parse(birthDate, "yyyy-MM-dd", new Date());
+    if (!isValid(date)) {
+      return birthDate; // Return original if parsing fails
+    }
+    // Format to "MMM d, yyyy" (e.g., "Dec 12, 2013")
+    return format(date, "MMM d, yyyy");
+  } catch {
+    return birthDate; // Return original if formatting fails
+  }
+}
+
+/**
+ * Helper function to calculate age from birthDate (YYYY-MM-DD format)
+ */
+function calculateAge(birthDate: string): string {
+  if (!birthDate) return "";
+  try {
+    const date = parse(birthDate, "yyyy-MM-dd", new Date());
+    if (!isValid(date)) {
+      return "";
+    }
+    const today = new Date();
+    const age = differenceInYears(today, date);
+    return `${age}yrs old`;
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -182,15 +219,29 @@ export const fetchStudent = createAsyncThunk(
   }
 );
 
-// Async thunk for fetching evaluations page (server-side pagination)
+// Async thunk for fetching evaluations page (server-side pagination and sorting)
 export const fetchEvaluationsPage = createAsyncThunk(
   'student/fetchEvaluationsPage',
   async (
-    { location, studentId, page, limit }: { location: string; studentId: string; page: number; limit: number },
+    { 
+      location, 
+      studentId, 
+      page, 
+      limit, 
+      sort, 
+      order 
+    }: { 
+      location: string; 
+      studentId: string; 
+      page: number; 
+      limit: number;
+      sort?: string;
+      order?: "asc" | "desc";
+    },
     { rejectWithValue }
   ) => {
     try {
-      const result = await getStudentEvaluations(location, studentId, page, limit);
+      const result = await getStudentEvaluations(location, studentId, page, limit, sort, order);
       
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to fetch evaluations page');
@@ -210,6 +261,29 @@ export const fetchEvaluationsPage = createAsyncThunk(
       };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch evaluations page');
+    }
+  }
+);
+
+// Async thunk for fetching enrolments with showAll parameter
+export const fetchStudentEnrolments = createAsyncThunk(
+  'student/fetchStudentEnrolments',
+  async (
+    { location, studentId, showAll }: { location: string; studentId: string; showAll: boolean },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await getStudentEnrolments(location, studentId, showAll);
+      
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to fetch student enrolments');
+      }
+
+      const enrolments = transformEnrolmentsResponse(result.data.body);
+
+      return { enrolments };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch student enrolments');
     }
   }
 );
@@ -237,20 +311,9 @@ export const updateStudent = createAsyncThunk(
         throw new Error(result?.message || 'Failed to update student details');
       }
       
-      // Refetch student details to get updated data (PUT response doesn't include age and formatted dates)
-      const detailsResult = await getStudentDetails(location, studentId);
-      
-      if (!detailsResult || !detailsResult.success) {
-        // If refetch fails, still return PUT response data (age will remain old value)
-        return { putResponse: result.data, getResponse: undefined };
-      }
-      
-      // Extract all data from GET response to maintain consistent formatting
-      // GET response has formatted dates (e.g., "Dec 12, 2025") and age
-      const getResponse = detailsResult.data?.body?.student;
-      
-      // Return both PUT response and GET response data
-      return { putResponse: result.data, getResponse: getResponse || undefined };
+      // Return PUT response data only (no GET call needed - follow caching pattern)
+      // Age and formatted dates will be calculated/updated in the reducer using existing state
+      return { putResponse: result.data };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update student details');
     }
@@ -290,34 +353,42 @@ const studentSlice = createSlice({
         };
       }
     },
-    // Add evaluation to local state (optimistic update)
+    // Add evaluation to local state (works with server-side pagination)
+    // Only adds to current page if we're on page 1, otherwise just updates total count
     addEvaluation: (state, action: PayloadAction<StudentEvaluation>) => {
       if (state.studentInfo) {
-        state.studentInfo.evaluations = [
-          ...(state.studentInfo.evaluations || []),
-          action.payload,
-        ];
-        // Update pagination total if pagination exists
-        if (state.studentInfo.evaluationsPagination) {
-          state.studentInfo.evaluationsPagination.total += 1;
-          state.studentInfo.evaluationsPagination.totalPages = Math.ceil(
-            state.studentInfo.evaluationsPagination.total / state.studentInfo.evaluationsPagination.limit
-          );
+        const newEvaluation = action.payload;
+        const pagination = state.studentInfo.evaluationsPagination;
+        
+        // If we're on page 1, add to the beginning of the list
+        // Otherwise, just update the total count (evaluation is on a different page)
+        if (pagination && pagination.page === 1) {
+          state.studentInfo.evaluations = [
+            newEvaluation,
+            ...(state.studentInfo.evaluations || []),
+          ];
+        }
+        
+        // Update pagination total
+        if (pagination) {
+          pagination.total += 1;
+          pagination.totalPages = Math.ceil(pagination.total / pagination.limit);
         }
       }
     },
-    // Update evaluation in local state (optimistic update)
-    updateEvaluation: (state, action: PayloadAction<{ index: number; evaluation: StudentEvaluation }>) => {
+    // Update evaluation in local state (by ID, works with server-side pagination)
+    updateEvaluation: (state, action: PayloadAction<{ evaluationId: number; evaluation: StudentEvaluation }>) => {
       if (state.studentInfo && state.studentInfo.evaluations) {
-        const { index, evaluation } = action.payload;
-        const updated = [...state.studentInfo.evaluations];
-        if (index >= 0 && index < updated.length) {
+        const { evaluationId, evaluation } = action.payload;
+        const index = state.studentInfo.evaluations.findIndex((e) => e.id === evaluationId);
+        if (index >= 0) {
+          const updated = [...state.studentInfo.evaluations];
           updated[index] = evaluation;
           state.studentInfo.evaluations = updated;
         }
       }
     },
-    // Remove evaluation from local state (optimistic update)
+    // Remove evaluation from local state (works with server-side pagination)
     removeEvaluation: (state, action: PayloadAction<number>) => {
       if (state.studentInfo && state.studentInfo.evaluations) {
         const evaluationId = action.payload;
@@ -338,6 +409,12 @@ const studentSlice = createSlice({
       if (state.studentInfo) {
         state.studentInfo.evaluations = action.payload.evaluations;
         state.studentInfo.evaluationsPagination = action.payload.pagination;
+      }
+    },
+    // Set enrolments (for showAll functionality)
+    setEnrolments: (state, action: PayloadAction<StudentEnrolment[]>) => {
+      if (state.studentInfo) {
+        state.studentInfo.enrolments = action.payload;
       }
     },
   },
@@ -377,39 +454,22 @@ const studentSlice = createSlice({
         state.isSaving = false;
         // Update state from API response - no client-side recalculation
         if (state.studentInfo && action.payload) {
-          const { putResponse, getResponse } = action.payload;
+          const { putResponse } = action.payload;
           
-          // Use GET response data if available (has formatted dates and age), otherwise fallback to PUT response
-          if (getResponse) {
-            // Extract firstName and lastName from fullName (GET response format)
-            const { firstName, lastName } = splitFullName(getResponse.fullName);
-            
-            state.studentInfo.profile = {
-              ...state.studentInfo.profile,
-              firstName: firstName || putResponse.firstName,
-              lastName: lastName || putResponse.lastName,
-              // Use GET response birthDate (formatted like "Dec 12, 2025") to maintain consistent format
-              birthday: getResponse.birthDate || putResponse.birthDate || state.studentInfo.profile.birthday,
-              // Use age from GET response (formatted like "18yrs old")
-              age: getResponse.age || state.studentInfo.profile.age,
-              // Use gender from GET response (already in display format like "Female")
-              gender: getResponse.gender || genderApiToDisplay(putResponse.gender),
-              // Use status from GET response (already in display format like "Active")
-              status: getResponse.status || state.studentInfo.profile.status,
-              // Use note from GET response if available, otherwise from PUT response
-              notes: getResponse.note !== undefined ? getResponse.note : (putResponse.note !== undefined ? putResponse.note : state.studentInfo.profile.notes),
-            };
-          } else {
-            // Fallback to PUT response if GET response is not available
-            state.studentInfo.profile = {
-              ...state.studentInfo.profile,
-              firstName: putResponse.firstName,
-              lastName: putResponse.lastName,
-              birthday: putResponse.birthDate || state.studentInfo.profile.birthday,
-              gender: genderApiToDisplay(putResponse.gender),
-              notes: putResponse.note !== undefined ? putResponse.note : state.studentInfo.profile.notes,
-            };
-          }
+          // Update Redux state directly from PUT response (no GET call needed - follow caching pattern)
+          // Format birthday and calculate age from PUT response
+          const formattedBirthday = putResponse.birthDate ? formatBirthday(putResponse.birthDate) : state.studentInfo.profile.birthday;
+          const calculatedAge = putResponse.birthDate ? calculateAge(putResponse.birthDate) : state.studentInfo.profile.age;
+          
+          state.studentInfo.profile = {
+            ...state.studentInfo.profile,
+            firstName: putResponse.firstName,
+            lastName: putResponse.lastName,
+            birthday: formattedBirthday,
+            age: calculatedAge,
+            gender: genderApiToDisplay(putResponse.gender),
+            notes: putResponse.note !== undefined ? putResponse.note : state.studentInfo.profile.notes,
+          };
         }
         state.error = null;
       })
@@ -429,6 +489,15 @@ const studentSlice = createSlice({
       })
       .addCase(fetchEvaluationsPage.rejected, (state, action) => {
         state.error = action.payload as string;
+      })
+      // Fetch enrolments reducers
+      .addCase(fetchStudentEnrolments.fulfilled, (state, action) => {
+        if (state.studentInfo) {
+          state.studentInfo.enrolments = action.payload.enrolments;
+        }
+      })
+      .addCase(fetchStudentEnrolments.rejected, (state, action) => {
+        state.error = action.payload as string;
       });
   },
 });
@@ -442,6 +511,7 @@ export const {
   updateEvaluation,
   removeEvaluation,
   setEvaluationsPage,
+  setEnrolments,
 } = studentSlice.actions;
 export default studentSlice.reducer;
 
