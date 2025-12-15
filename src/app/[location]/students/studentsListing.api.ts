@@ -8,6 +8,8 @@ export interface StudentRow {
   lastName: string;
   customerName: string;
   phoneNumber: string;
+  email?: string;
+  allEmails?: string; // Comma-separated emails for export/print
 }
 
 // StudentsQuery interface for API queries
