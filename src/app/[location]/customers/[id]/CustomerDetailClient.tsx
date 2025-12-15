@@ -1397,18 +1397,20 @@ export function CustomerDetailClient({
       setLoading(true);
 
       try {
-        // Load customer data
-        const customerData = await getCustomerById(location, Number(id));
-        setCustomer(customerData);
+        // Load customer data and info in parallel (they're independent)
+        const [customerData, infoResponse] = await Promise.all([
+          getCustomerById(location, Number(id)),
+          getCustomerInfo(location, Number(id)),
+        ]);
 
-        // Set local names from loaded customer data
+        // Process customer data
+        setCustomer(customerData);
         if (customerData) {
           setLocalFirstName(customerData.firstName);
           setLocalLastName(customerData.lastName);
         }
 
-        const infoResponse = await getCustomerInfo(location, Number(id));
-
+        // Process customer info
         if (infoResponse?.success && infoResponse.data) {
           setCustomerInfo(infoResponse.data);
 
@@ -1479,120 +1481,112 @@ export function CustomerDetailClient({
           if (infoResponse.data.discount) {
             setDiscount(infoResponse.data.discount.value || 0);
           }
-
         }
 
-        const summary = await getCustomerSummary(location, Number(id));
-        if (summary?.success && summary.data) {
-          setSummaryData(summary.data);
-        }
-
-        // Load outstanding invoices with pagination
-        const outstandingInvoicesResult = await getCustomerOutstandingInvoices(
-          location,
-          Number(id),
-          1,
-          10
-        );
-        setOutstandingInvoiceData(outstandingInvoicesResult.data);
-        setOutstandingInvoicesPagination(outstandingInvoicesResult.pagination);
-        setOutstandingInvoiceFooterTotal(
-          outstandingInvoicesResult.footer.totalAmount
-        );
-
-        // Load equipment rentals with pagination
+        // Load all independent data in parallel for better performance
         setEquipmentRentalsLoading(true);
-        const equipmentRentalsResult = await getCustomerEquipmentRentals(
-          location,
-          Number(id),
-          1,
-          10
-        );
-        setEquipmentRentalData(equipmentRentalsResult.data);
-        setEquipmentRentalsPagination(equipmentRentalsResult.pagination);
-        setEquipmentRentalsLoading(false);
+        setPaymentsLoading(true);
+        setStudentsLoading(true);
+        setStudentsError(null);
 
-        // Load other table data in parallel
-        const [invoices, _paymentsIgnore] = await Promise.all([
+        const [
+          summary,
+          outstandingInvoicesResult,
+          equipmentRentalsResult,
+          invoices,
+          recurringPaymentsResult,
+          privateLessonDueResult,
+          groupLessonDueResult,
+          paymentsResult,
+          studentsResult,
+        ] = await Promise.allSettled([
+          getCustomerSummary(location, Number(id)),
+          getCustomerOutstandingInvoices(location, Number(id), 1, 10),
+          getCustomerEquipmentRentals(location, Number(id), 1, 10),
           getCustomerInvoices(location, Number(id), 1),
-          Promise.resolve([]),
+          getCustomerRecurringPayments(location, Number(id), 1, 10),
+          getCustomerPrivateLessonDue(location, Number(id), 1, 10),
+          getCustomerGroupLessonDue(location, Number(id), 1, 10),
+          getCustomerPayments(location, Number(id), 1, 10),
+          getCustomerStudents(location, Number(id), 1, 10),
         ]);
 
-        setInvoiceData(invoices || []);
-        // Load recurring payments (no transform) with server-side pagination
-        try {
-          const { data: recurring, pagination: rPag } =
-            await getCustomerRecurringPayments(location, Number(id), 1, 10);
+        // Process summary
+        if (summary.status === "fulfilled" && summary.value?.success && summary.value.data) {
+          setSummaryData(summary.value.data);
+        }
+
+        // Process outstanding invoices
+        if (outstandingInvoicesResult.status === "fulfilled") {
+          const result = outstandingInvoicesResult.value;
+          setOutstandingInvoiceData(result.data);
+          setOutstandingInvoicesPagination(result.pagination);
+          setOutstandingInvoiceFooterTotal(result.footer.totalAmount);
+        }
+
+        // Process equipment rentals
+        if (equipmentRentalsResult.status === "fulfilled") {
+          const result = equipmentRentalsResult.value;
+          setEquipmentRentalData(result.data);
+          setEquipmentRentalsPagination(result.pagination);
+        }
+        setEquipmentRentalsLoading(false);
+
+        // Process invoices
+        if (invoices.status === "fulfilled") {
+          setInvoiceData(invoices.value || []);
+        }
+
+        // Process recurring payments
+        if (recurringPaymentsResult.status === "fulfilled") {
+          const { data: recurring, pagination: rPag } = recurringPaymentsResult.value;
           setRecurringPaymentData(recurring || []);
           setRecurringPaymentsPagination(rPag);
-        } catch {}
+        }
 
-        // Load private lesson dues with footer and pagination (no transform)
-        try {
-          const privateLessonDueResult = await getCustomerPrivateLessonDue(
-            location,
-            Number(id),
-            1,
-            10
-          );
-          setPrivateLessonDueData(privateLessonDueResult.data || []);
-          setPrivateLessonDuePagination(privateLessonDueResult.pagination);
-          if (privateLessonDueResult.footer?.totalAmount) {
-            setPrivateLessonDueFooterTotal(
-              privateLessonDueResult.footer.totalAmount
-            );
+        // Process private lesson dues
+        if (privateLessonDueResult.status === "fulfilled") {
+          const result = privateLessonDueResult.value;
+          setPrivateLessonDueData(result.data || []);
+          setPrivateLessonDuePagination(result.pagination);
+          if (result.footer?.totalAmount) {
+            setPrivateLessonDueFooterTotal(result.footer.totalAmount);
           } else {
             setPrivateLessonDueFooterTotal("$0.00");
           }
-        } catch {}
+        }
 
-        // Load group lesson dues with footer and pagination (no transform)
-        try {
-          const groupLessonDueResult = await getCustomerGroupLessonDue(
-            location,
-            Number(id),
-            1,
-            10
-          );
-          setGroupLessonDueData(groupLessonDueResult.data || []);
-          setGroupLessonDuePagination(groupLessonDueResult.pagination);
-          if (groupLessonDueResult.footer?.totalAmount) {
-            setGroupLessonDueFooterTotal(
-              groupLessonDueResult.footer.totalAmount
-            );
+        // Process group lesson dues
+        if (groupLessonDueResult.status === "fulfilled") {
+          const result = groupLessonDueResult.value;
+          setGroupLessonDueData(result.data || []);
+          setGroupLessonDuePagination(result.pagination);
+          if (result.footer?.totalAmount) {
+            setGroupLessonDueFooterTotal(result.footer.totalAmount);
           } else {
             setGroupLessonDueFooterTotal("$0.00");
           }
-        } catch {}
-        // Load payments with footer (no transform)
-        try {
-          setPaymentsLoading(true);
-          const paymentsResult = await getCustomerPayments(
-            location,
-            Number(id),
-            1,
-            10
-          );
-          setPaymentData(paymentsResult.data || []);
-          setPaymentsPagination(paymentsResult.pagination);
-          if (paymentsResult.footer?.totalRemaining) {
-            setPaymentsFooterRemaining(paymentsResult.footer.totalRemaining);
+        }
+
+        // Process payments
+        if (paymentsResult.status === "fulfilled") {
+          const result = paymentsResult.value;
+          setPaymentData(result.data || []);
+          setPaymentsPagination(result.pagination);
+          if (result.footer?.totalRemaining) {
+            setPaymentsFooterRemaining(result.footer.totalRemaining);
           } else {
             setPaymentsFooterRemaining("$0.00");
           }
-        } finally {
-          setPaymentsLoading(false);
         }
+        setPaymentsLoading(false);
 
-        // Load students data from API (server-side pagination) - only tab loaded on initial mount
-        setStudentsLoading(true);
-        setStudentsError(null);
-        try {
-          const { data: students, pagination: sPag } =
-            await getCustomerStudents(location, Number(id), 1, 10);
+        // Process students data - only tab loaded on initial mount
+        if (studentsResult.status === "fulfilled") {
+          const { data: students, pagination: sPag } = studentsResult.value;
           setStudentData(students);
           setStudentsPagination(sPag);
-        } catch {
+        } else {
           setStudentsError("Failed to load students data");
           setStudentData([]);
           setStudentsPagination((prev) => ({
@@ -1600,9 +1594,8 @@ export function CustomerDetailClient({
             total: 0,
             totalPages: 0,
           }));
-        } finally {
-          setStudentsLoading(false);
         }
+        setStudentsLoading(false);
 
         // Other tabs (enrolments, private-lessons, group-lessons, proforma-invoices, comments, history)
         // are now loaded lazily when the user switches to those tabs
