@@ -53,6 +53,7 @@ export function DetailsCard({
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [referralSources, setReferralSources] = useState<ReferralSourceData[]>([]);
   const [loadingReferralSources, setLoadingReferralSources] = useState(false);
+  const [hasLoadedReferralSources, setHasLoadedReferralSources] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [firstName, setFirstName] = useState(data.firstName || "");
@@ -93,22 +94,34 @@ export function DetailsCard({
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
 
-  // Fetch referral sources on component mount
+  // Fetch referral sources only when edit modal opens (avoid initial-load call)
   useEffect(() => {
+    if (!isModalOpen || hasLoadedReferralSources) return;
+
+    let isMounted = true;
     const fetchReferralSources = async () => {
       setLoadingReferralSources(true);
       try {
         const sources = await getReferralSources();
+        if (!isMounted) return;
         setReferralSources(sources);
+        setHasLoadedReferralSources(true);
       } catch (error) {
+        if (!isMounted) return;
         console.error("Failed to fetch referral sources:", error);
       } finally {
-        setLoadingReferralSources(false);
+        if (isMounted) {
+          setLoadingReferralSources(false);
+        }
       }
     };
 
     fetchReferralSources();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isModalOpen, hasLoadedReferralSources]);
 
   useEffect(() => {
     setFirstName(data.firstName || "");

@@ -31,6 +31,11 @@ const legacyRouteMap: LegacyRouteConfig[] = [
       `/user/view?UserSearch%5Brole_name%5D=customer&id=${params.id || ''}`
   },
   {
+    pattern: /^\/[^/]+\/students\/[^/]+$/, // Matches /[location]/students/[id]
+    legacyUrl: (params) => 
+      `/student/view?StudentSearch%5BshowAllStudents%5D=0&id=${params.id || ''}`
+  },
+  {
     pattern: /^\/[^/]+\/teachers\/[^/]+$/, // Matches /[location]/teachers/[id]
     legacyUrl: (params) => 
       `/user/view?UserSearch%5Brole_name%5D=teacher&id=${params.id || ''}`
@@ -39,6 +44,10 @@ const legacyRouteMap: LegacyRouteConfig[] = [
   {
     pattern: /^\/[^/]+\/customers$/, // Matches /[location]/customers (list page)
     legacyUrl: '/user/index?UserSearch%5Brole_name%5D=customer'
+  },
+  {
+    pattern: /^\/[^/]+\/students$/, // Matches /[location]/students (list page)
+    legacyUrl: '/student/index?StudentSearch%5BshowAllStudents%5D=0'
   },
   {
     pattern: /^\/[^/]+\/teachers$/, // Matches /[location]/teachers (list page)

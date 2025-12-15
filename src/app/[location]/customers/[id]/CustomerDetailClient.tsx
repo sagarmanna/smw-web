@@ -109,7 +109,8 @@ export function CustomerDetailClient({
   const [customer, setCustomer] = React.useState<CustomerRow | null>(null);
   const [_customerInfo, setCustomerInfo] =
     React.useState<CustomerInfoData | null>(null);
-  const [loading, setLoading] = React.useState<boolean>(true);
+  const [loading, setLoading] = React.useState<boolean>(true); // For critical above-the-fold data (summary, info, invoices)
+  const [loadingSecondary, setLoadingSecondary] = React.useState<boolean>(false); // For secondary data
   const [studentsLoading, setStudentsLoading] = React.useState<boolean>(false);
   const [studentsError, setStudentsError] = React.useState<string | null>(null);
   const [studentsPagination, setStudentsPagination] = React.useState({
@@ -1068,6 +1069,8 @@ export function CustomerDetailClient({
   const [activeTab, setActiveTab] = React.useState<string>("students");
   // Track which tabs are currently loading to prevent race conditions
   const loadingTabsRef = React.useRef<Set<string>>(new Set());
+  // Track if initial data is being loaded to prevent double calls
+  const isLoadingDataRef = React.useRef<boolean>(false);
 
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
@@ -1393,15 +1396,37 @@ export function CustomerDetailClient({
   ]);
 
   React.useEffect(() => {
+    // Prevent double calls - if already loading, skip
+    if (isLoadingDataRef.current) {
+      return;
+    }
+
+    isLoadingDataRef.current = true;
+    let isMounted = true;
+    const abortController = new AbortController();
+
     const loadData = async () => {
+      // Prevent double calls
+      if (!isMounted) return;
+
       setLoading(true);
+      setLoadingSecondary(false);
 
       try {
-        // Load customer data and info in parallel (they're independent)
-        const [customerData, infoResponse] = await Promise.all([
-          getCustomerById(location, Number(id)),
-          getCustomerInfo(location, Number(id)),
-        ]);
+        // ============================================
+        // PHASE 1: Load critical above-the-fold data
+        // (Summary, Info, Invoices - visible first)
+        // ============================================
+        const [customerData, infoResponse, summary, invoices] =
+          await Promise.all([
+            getCustomerById(location, Number(id)),
+            getCustomerInfo(location, Number(id)),
+            getCustomerSummary(location, Number(id)),
+            getCustomerInvoices(location, Number(id), 1),
+          ]);
+
+        // Check if component is still mounted before updating state
+        if (!isMounted) return;
 
         // Process customer data
         setCustomer(customerData);
@@ -1483,27 +1508,40 @@ export function CustomerDetailClient({
           }
         }
 
-        // Load all independent data in parallel for better performance
+        // Process summary (critical - above the fold)
+        if (summary?.success && summary.data) {
+          setSummaryData(summary.data);
+        }
+
+        // Process invoices (critical - above the fold)
+        setInvoiceData(invoices || []);
+
+        // Phase 1 complete - show above-the-fold content
+        setLoading(false);
+
+        // Check if component is still mounted before proceeding to Phase 2
+        if (!isMounted) return;
+
+        // ============================================
+        // PHASE 2: Load secondary data (below the fold)
+        // ============================================
+        setLoadingSecondary(true);
         setEquipmentRentalsLoading(true);
         setPaymentsLoading(true);
         setStudentsLoading(true);
         setStudentsError(null);
 
         const [
-          summary,
           outstandingInvoicesResult,
           equipmentRentalsResult,
-          invoices,
           recurringPaymentsResult,
           privateLessonDueResult,
           groupLessonDueResult,
           paymentsResult,
           studentsResult,
         ] = await Promise.allSettled([
-          getCustomerSummary(location, Number(id)),
           getCustomerOutstandingInvoices(location, Number(id), 1, 10),
           getCustomerEquipmentRentals(location, Number(id), 1, 10),
-          getCustomerInvoices(location, Number(id), 1),
           getCustomerRecurringPayments(location, Number(id), 1, 10),
           getCustomerPrivateLessonDue(location, Number(id), 1, 10),
           getCustomerGroupLessonDue(location, Number(id), 1, 10),
@@ -1511,10 +1549,8 @@ export function CustomerDetailClient({
           getCustomerStudents(location, Number(id), 1, 10),
         ]);
 
-        // Process summary
-        if (summary.status === "fulfilled" && summary.value?.success && summary.value.data) {
-          setSummaryData(summary.value.data);
-        }
+        // Check if component is still mounted before updating state
+        if (!isMounted) return;
 
         // Process outstanding invoices
         if (outstandingInvoicesResult.status === "fulfilled") {
@@ -1532,14 +1568,10 @@ export function CustomerDetailClient({
         }
         setEquipmentRentalsLoading(false);
 
-        // Process invoices
-        if (invoices.status === "fulfilled") {
-          setInvoiceData(invoices.value || []);
-        }
-
         // Process recurring payments
         if (recurringPaymentsResult.status === "fulfilled") {
-          const { data: recurring, pagination: rPag } = recurringPaymentsResult.value;
+          const { data: recurring, pagination: rPag } =
+            recurringPaymentsResult.value;
           setRecurringPaymentData(recurring || []);
           setRecurringPaymentsPagination(rPag);
         }
@@ -1597,16 +1629,34 @@ export function CustomerDetailClient({
         }
         setStudentsLoading(false);
 
+        // Phase 2 complete
+        setLoadingSecondary(false);
+
+        // Reset loading flag after successful load
+        if (isMounted) {
+          isLoadingDataRef.current = false;
+        }
+
         // Other tabs (enrolments, private-lessons, group-lessons, proforma-invoices, comments, history)
         // are now loaded lazily when the user switches to those tabs
       } catch (error) {
         console.error("Error loading customer data:", error);
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setLoadingSecondary(false);
+          isLoadingDataRef.current = false;
+        }
       }
     };
 
     loadData();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+      isLoadingDataRef.current = false;
+      abortController.abort();
+    };
   }, [location, id]);
 
   // Initialize pagination after data is loaded
@@ -1976,7 +2026,7 @@ export function CustomerDetailClient({
             title="Outstanding Invoices"
             data={outstandingInvoiceData}
             columns={CUSTOMER_TABLE_CONFIGS.outstandingInvoices.columns}
-            loading={outstandingInvoicesLoading || loading}
+            loading={outstandingInvoicesLoading || loadingSecondary}
             footerRow={outstandingInvoiceFooterRow}
             onRowClick={(row) => {
               const invoiceUrl = (row as OutstandingInvoiceData).url;
@@ -2087,7 +2137,7 @@ export function CustomerDetailClient({
                 )
           }
           columns={CUSTOMER_TABLE_CONFIGS.equipmentRentals.columns}
-          loading={equipmentRentalsLoading || loading}
+          loading={equipmentRentalsLoading || loadingSecondary}
           onAdd={() => setIsEquipmentRentalsModalOpen(true)}
           onRowClick={(row) => {
             const r = row as unknown as EquipmentRentalData;
@@ -2133,7 +2183,7 @@ export function CustomerDetailClient({
           title="Recurring Payments"
           data={_recurringPaymentData}
           columns={CUSTOMER_TABLE_CONFIGS.recurringPayments.columns}
-          loading={loading}
+          loading={loadingSecondary}
           onAdd={() => {
             setSelectedRecurringPaymentId(undefined);
             setIsRecurringPaymentModalOpen(true);
@@ -2195,7 +2245,7 @@ export function CustomerDetailClient({
           title="Private Lesson Due"
           data={privateLessonDueData}
           columns={CUSTOMER_TABLE_CONFIGS.privateLessonDue.columns}
-          loading={loading}
+          loading={loadingSecondary}
           footerRow={{
             lessonDate: "",
             studentName: "",
@@ -2264,7 +2314,7 @@ export function CustomerDetailClient({
           title="Group Lesson Due"
           data={groupLessonDueData}
           columns={CUSTOMER_TABLE_CONFIGS.groupLessonDue.columns}
-          loading={loading}
+          loading={loadingSecondary}
           footerRow={{
             lessonDate: "",
             studentName: "",
@@ -2332,7 +2382,7 @@ export function CustomerDetailClient({
           title="Payments"
           data={paymentData}
           columns={CUSTOMER_TABLE_CONFIGS.payments.columns}
-          loading={paymentsLoading || loading}
+          loading={paymentsLoading || loadingSecondary}
           footerRow={paymentFooterRow}
           onRowClick={(row) => {
             // Extract payment ID from the row
