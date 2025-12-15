@@ -22,6 +22,8 @@ import {
   type GroupEnrolmentCompleteData 
 } from "./AddGroupModal/AddGroupEnrolmentModal";
 import { StudentEnrolment } from "../../types";
+import { toast } from "sonner";
+import { isDev } from "@/utils/env";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchStudentEnrolments, setEnrolments } from "../../[id]/students-details.slice";
 
@@ -187,10 +189,10 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsNewEnrolmentModalOpen(true)}>
+                <DropdownMenuItem onClick={() => isDev() ? setIsNewEnrolmentModalOpen(true) : toast.info("This feature is in development...")}>
                   Add Private...
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setIsAddGroupEnrolmentModalOpen(true)}>
+                <DropdownMenuItem onClick={() => isDev() ? setIsAddGroupEnrolmentModalOpen(true) : toast.info("This feature is in development...")}>
                   Add Group...
                 </DropdownMenuItem>
               </DropdownMenuContent>

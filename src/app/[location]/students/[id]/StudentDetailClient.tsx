@@ -13,6 +13,7 @@ import { StudentCustomerCard } from "../components/StudentCustomerCard";
 import { StudentEnrolmentsCard } from "../components/StudentEnrolmentsCard";
 import { StudentEvaluationsCard } from "../components/StudentEvaluationsCard";
 import { StudentTabsSection } from "../components/StudentTabsSection";
+import { isDev } from "@/utils/env";
 
 interface StudentDetailClientProps {
   location: string;
@@ -151,7 +152,7 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
         </div>
 
         {/* Tabs Section */}
-        <StudentTabsSection location={location} studentId={studentId} />
+        {isDev() && <StudentTabsSection location={location} studentId={studentId} />}
       </div>
     </>
   );
