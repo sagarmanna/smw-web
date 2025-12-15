@@ -89,42 +89,17 @@ import {
   CommentData,
   HistoryData,
 } from "../tabConfigs";
-
-// const SHOULD_USE_RECEIVE_PAYMENT_MOCK = true;
-
-interface PhoneNumber {
-  id: string;
-  label: string;
-  number: string;
-  extension?: string;
-  note?: string;
-}
-
-interface Email {
-  id: string;
-  label: string;
-  email: string;
-  note?: string;
-  isPrimary?: boolean;
-}
-
-interface Address {
-  id: string;
-  label: string;
-  address: string;
-  city: string;
-  cityId: number;
-  provinceId: number;
-  countryId: number;
-  postalCode: string;
-  note?: string;
-  isPrimary?: boolean;
-}
-
-interface CustomerDetailClientProps {
-  location: string;
-  id: string;
-}
+import {
+  PhoneNumber,
+  Email,
+  Address,
+  CustomerDetailClientProps,
+  DirectPaymentReceiptData,
+  EmailModalOverrides,
+  ReceivePaymentFormData,
+  CustomerDetailsSaveData,
+  TabPagination,
+} from "./customer-details.interface";
 
 export function CustomerDetailClient({
   location,
@@ -170,15 +145,7 @@ export function CustomerDetailClient({
 
   // Simple pagination state for all tabs - CONSOLIDATED (removed duplicates)
   const [tabPagination, setTabPagination] = React.useState<
-    Record<
-      string,
-      {
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-      }
-    >
+    Record<string, TabPagination>
   >({});
   const [tabRowsPerPage, setTabRowsPerPage] = React.useState<
     Record<string, number>
@@ -207,43 +174,14 @@ export function CustomerDetailClient({
   const [selectedPaymentIndex, setSelectedPaymentIndex] = React.useState<
     number | null
   >(null);
-  const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<{
-    date: string;
-    paymentMethod: string;
-    reference: string;
-    amount: number;
-    lessons?: Array<{
-      date: string;
-      student: string;
-      program: string;
-      teacher: string;
-      amount: string;
-      payment: string;
-      balance: string;
-    }>;
-    groupLessons?: Array<{
-      date: string;
-      student: string;
-      program: string;
-      amount: string;
-      balance: string;
-    }>;
-    invoices?: Array<{
-      date: string;
-      number: string;
-      amount: string;
-      payment: string;
-      balance: string;
-    }>;
-  } | null>(null);
+  const [directPaymentReceiptData, setDirectPaymentReceiptData] =
+    React.useState<DirectPaymentReceiptData | null>(null);
   const [isEmailStatementModalOpen, setIsEmailStatementModalOpen] =
     React.useState<boolean>(false);
   const [emailStatementData, setEmailStatementData] =
     React.useState<EmailStatementData | null>(null);
-  const [emailModalOverrides, setEmailModalOverrides] = React.useState<{
-    subject?: string;
-    content?: string;
-  } | null>(null);
+  const [emailModalOverrides, setEmailModalOverrides] =
+    React.useState<EmailModalOverrides | null>(null);
   const [isLoadingEmailStatement, setIsLoadingEmailStatement] =
     React.useState<boolean>(false);
   const [locationHstNumber, setLocationHstNumber] = React.useState<string | undefined>(undefined);
@@ -634,66 +572,11 @@ export function CustomerDetailClient({
   const handlePrintInvoice = () => {};
 
   // Handle receiving payment
-  const handleReceivePayment = async (paymentData: {
-    customer: string;
-    date: string;
-    paymentMethod: string;
-    paymentMethodName?: string;
-    reference: string;
-    amountReceived: number;
-    notes: string;
-    selectedLessons: string[];
-    selectedGroupLessons?: string[];
-    selectedInvoices?: string[];
-    selectedCredits?: string[];
-    lessonPayments: Record<string, number>;
-    groupLessonPayments?: Record<string, number>;
-    invoicePayments?: Record<string, number>;
-    paymentCredits?: Record<string, number>;
-    invoiceCredits?: Record<string, number>;
-    lessonDetails?: Array<{
-      id: string;
-      date: string;
-      dueDate?: string;
-      student: string;
-      program: string;
-      teacher: string;
-      amount: number;
-      balance: number;
-      payment: string;
-    }>;
-    groupLessonDetails?: Array<{
-      id: string;
-      date: string;
-      student: string;
-      program: string;
-      amount: number;
-      balance: number;
-      payment: string;
-    }>;
-    invoiceDetails?: Array<{
-      id: string;
-      date: string;
-      number: string;
-      amount: number;
-      balance: number;
-      payment: string;
-    }>;
-    creditDetails?: Array<{
-      id: string;
-      reference: string;
-      payment: string;
-      type: string;
-    }>;
-  }) => {
+  const handleReceivePayment = async (paymentData: ReceivePaymentFormData) => {
     setIsSavingPayment(true);
     try {
       // Import the legacy API function
       const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
-      // const legacyReceivePayment = SHOULD_USE_RECEIVE_PAYMENT_MOCK
-      //   ? mockReceivePayment
-      //   : (await import("@/lib/api/legacyApiAdapter")).receivePayment;
-      // Payment method value is already the ID as a string, just convert to number
       const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
 
       // Helper function to format numbers to 2 decimal places
@@ -1786,14 +1669,7 @@ export function CustomerDetailClient({
 
   // Handle details save
   const handleDetailsSave = React.useCallback(
-    (newData: {
-      firstName: string;
-      lastName: string;
-      role: string;
-      referralSource: string;
-      status: string;
-      picture?: string;
-    }) => {
+    (newData: CustomerDetailsSaveData) => {
       // Update local names immediately
       setLocalFirstName(newData.firstName);
       setLocalLastName(newData.lastName);
