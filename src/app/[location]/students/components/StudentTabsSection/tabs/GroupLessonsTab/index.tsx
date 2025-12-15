@@ -111,15 +111,11 @@ export function GroupLessonsTab({ location, studentId }: GroupLessonsTabProps) {
           ...column,
           cell: ({ row }) => {
             const original = row.original as GroupedGroupLessonData;
-            if (original.isFirstInGroup) {
-              return (
-                <div className="font-medium text-foreground">
-                  {original.dueDate}
-                </div>
-              );
-            }
-            // Return empty for subsequent rows in the same group
-            return <div></div>;
+            return (
+              <div className="font-medium text-foreground">
+                {original.dueDate}
+              </div>
+            );
           },
         } as ColumnDef<GroupedGroupLessonData>;
       }
@@ -132,9 +128,6 @@ export function GroupLessonsTab({ location, studentId }: GroupLessonsTabProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-lg font-semibold">Group Lessons</CardTitle>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleAdd}>
-          <Plus className="h-4 w-4" />
-        </Button>
       </CardHeader>
       <CardContent className="pt-0">
         {error ? (

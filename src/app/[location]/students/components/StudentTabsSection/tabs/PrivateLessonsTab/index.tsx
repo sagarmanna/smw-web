@@ -108,21 +108,17 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
         ? columnDef.id
         : `col-${index}`;
       
-      // Customize Due Date column to show grouped dates
+      // Customize Due Date column - show due date on every row (no empty grouped rows)
       if (columnId === "dueDate") {
         return {
           ...column,
           cell: ({ row }) => {
             const original = row.original as GroupedPrivateLessonData;
-            if (original.isFirstInGroup) {
-              return (
-                <div className="font-medium text-foreground">
-                  {original.dueDate}
-                </div>
-              );
-            }
-            // Return empty for subsequent rows in the same group
-            return <div></div>;
+            return (
+              <div className="font-medium text-foreground">
+                {original.dueDate}
+              </div>
+            );
           },
         } as ColumnDef<GroupedPrivateLessonData>;
       }
