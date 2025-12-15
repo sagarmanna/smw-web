@@ -60,11 +60,11 @@ import EmailStatementModal, {
 } from "../components/EmailStatementModal/index";
 import { SummaryCards } from "./components/SummaryCards";
 import {
-  createStudent,
   createNote,
   sendEmail,
   deletePayment,
 } from "@/lib/api/legacyApiAdapter";
+import { createStudent } from "@/lib/api/student.api";
 import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 
@@ -213,18 +213,19 @@ export function CustomerDetailClient({
       setStudentsLoading(true);
       setStudentsError(null);
 
-      // Call legacy API to create student
+      // Call new API to create student
       const response = await createStudent(location, Number(id), {
         firstName: studentData.firstName || "",
         lastName: studentData.lastName || "",
         customerId: Number(id),
-        birthDate: studentData.birthDate || "",
+        birthDate: studentData.birthDate || undefined,
         gender:
           (studentData.gender as "not-specified" | "male" | "female") ||
           "not-specified",
       });
 
-      if (response.status) {
+      if (response.success && response.data?.status) {
+        toast.success("Student created successfully");
         // Success: reload students from API to get the newly created student with proper data
         const { data: students, pagination: sPag } = await getCustomerStudents(
           location,
@@ -236,15 +237,18 @@ export function CustomerDetailClient({
         setStudentsPagination(sPag);
       } else {
         // API returned an error
-        const errorMessage =
-          response.errors?.join(", ") || "Failed to create student";
+        const errorMessage = response.message || "Failed to create student";
         setStudentsError(errorMessage);
+        toast.error(errorMessage);
         console.error("Error creating student:", errorMessage);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "Failed to create student";
+        (error as { message?: string })?.message ||
+        (error as { errorCode?: string; message?: string })?.message ||
+        "Failed to create student";
       setStudentsError(errorMessage);
+      toast.error(errorMessage);
       console.error("Error creating student:", error);
     } finally {
       setStudentsLoading(false);
