@@ -1178,6 +1178,14 @@ export function CustomerDetailClient({
   const [proformaInvoicesLoading, setProformaInvoicesLoading] =
     React.useState<boolean>(false);
 
+  // Track which tabs have been loaded (lazy loading)
+  const [loadedTabs, setLoadedTabs] = React.useState<Set<string>>(
+    new Set(["students"]) // Students tab is loaded by default
+  );
+  const [activeTab, setActiveTab] = React.useState<string>("students");
+  // Track which tabs are currently loading to prevent race conditions
+  const loadingTabsRef = React.useRef<Set<string>>(new Set());
+
   // Additional customer data states
   const [phones, setPhones] = React.useState<PhoneNumber[]>([]);
   const [emails, setEmails] = React.useState<Email[]>([]);
@@ -1297,6 +1305,151 @@ export function CustomerDetailClient({
         console.error("Error loading payments:", error);
       } finally {
         setPaymentsLoading(false);
+      }
+    },
+    [location, id]
+  );
+
+  // Function to load tab data when tab is first accessed (lazy loading)
+  const loadTabData = React.useCallback(
+    async (tabKey: string) => {
+      // Prevent duplicate calls if already loading
+      if (loadingTabsRef.current.has(tabKey)) {
+        return;
+      }
+      loadingTabsRef.current.add(tabKey);
+
+      try {
+        switch (tabKey) {
+          case "enrolments":
+            setEnrolmentsLoading(true);
+            const { data: enrolments, pagination: ePag } =
+              await getCustomerEnrolments(location, Number(id), 1, 10);
+            setEnrolmentData(enrolments);
+            setEnrolmentsPagination(ePag);
+            setEnrolmentsLoading(false);
+            break;
+
+          case "private-lessons":
+            setPrivateLessonsLoading(true);
+            const { data: privateLessons, pagination: plPagination } =
+              await getCustomerPrivateLessons(location, Number(id), 1, 10);
+            setPrivateLessonData(privateLessons);
+            setPrivateLessonsPagination(plPagination);
+            setPrivateLessonsLoading(false);
+            break;
+
+          case "group-lessons":
+            setGroupLessonsLoading(true);
+            const { data: groupLessons, pagination: glPagination } =
+              await getCustomerGroupLessons(location, Number(id), 1, 10);
+            setGroupLessonData(groupLessons);
+            setGroupLessonsPagination(glPagination);
+            setGroupLessonsLoading(false);
+            break;
+
+          case "proforma-invoices":
+            setProformaInvoicesLoading(true);
+            const { data: proformas, pagination: pfPagination } =
+              await getCustomerProformaInvoices(location, Number(id), 1, 10);
+            setProformaInvoiceData(proformas);
+            setProformaInvoicesPagination(pfPagination);
+            setProformaInvoicesLoading(false);
+            break;
+
+          case "comments":
+            const comments = await getCustomerComments(location, Number(id));
+            setCommentData(comments);
+            break;
+
+          case "history":
+            setHistoryLoading(true);
+            const { data: history, pagination: hPag } = await getCustomerHistory(
+              location,
+              Number(id),
+              1,
+              10
+            );
+            setHistoryData(history);
+            setHistoryPagination(hPag);
+            setHistoryLoading(false);
+            break;
+
+          default:
+            // Students tab is already loaded on initial mount
+            break;
+        }
+
+        // Mark tab as loaded
+        setLoadedTabs((prev) => {
+          if (prev.has(tabKey)) {
+            return prev;
+          }
+          return new Set(prev).add(tabKey);
+        });
+      } catch (error) {
+        console.error(`Error loading ${tabKey} tab data:`, error);
+        // Set empty data on error
+        switch (tabKey) {
+          case "enrolments":
+            setEnrolmentData([]);
+            setEnrolmentsPagination((prev) => ({
+              ...prev,
+              total: 0,
+              totalPages: 0,
+            }));
+            setEnrolmentsLoading(false);
+            break;
+          case "private-lessons":
+            setPrivateLessonData([]);
+            setPrivateLessonsPagination((prev) => ({
+              ...prev,
+              total: 0,
+              totalPages: 0,
+            }));
+            setPrivateLessonsLoading(false);
+            break;
+          case "group-lessons":
+            setGroupLessonData([]);
+            setGroupLessonsPagination((prev) => ({
+              ...prev,
+              total: 0,
+              totalPages: 0,
+            }));
+            setGroupLessonsLoading(false);
+            break;
+          case "proforma-invoices":
+            setProformaInvoiceData([]);
+            setProformaInvoicesPagination((prev) => ({
+              ...prev,
+              total: 0,
+              totalPages: 0,
+            }));
+            setProformaInvoicesLoading(false);
+            break;
+          case "comments":
+            setCommentData([]);
+            break;
+          case "history":
+            setHistoryData([]);
+            setHistoryPagination((prev) => ({
+              ...prev,
+              total: 0,
+              totalPages: 0,
+            }));
+            setHistoryLoading(false);
+            break;
+        }
+        // Mark tab as loaded even on error to prevent retry loops
+        setLoadedTabs((prev) => {
+          if (prev.has(tabKey)) {
+            return prev;
+          }
+          return new Set(prev).add(tabKey);
+        });
+      } finally {
+        // Remove from loading set
+        loadingTabsRef.current.delete(tabKey);
       }
     },
     [location, id]
@@ -1548,7 +1701,7 @@ export function CustomerDetailClient({
           setPaymentsLoading(false);
         }
 
-        // Load students data from API (server-side pagination)
+        // Load students data from API (server-side pagination) - only tab loaded on initial mount
         setStudentsLoading(true);
         setStudentsError(null);
         try {
@@ -1568,105 +1721,8 @@ export function CustomerDetailClient({
           setStudentsLoading(false);
         }
 
-        // Load enrolments data from API (server-side pagination)
-        try {
-          setEnrolmentsLoading(true);
-          const { data: enrolments, pagination: ePag } =
-            await getCustomerEnrolments(location, Number(id), 1, 10);
-          setEnrolmentData(enrolments);
-          setEnrolmentsPagination(ePag);
-        } catch {
-          setEnrolmentData([]);
-          setEnrolmentsPagination((prev) => ({
-            ...prev,
-            total: 0,
-            totalPages: 0,
-          }));
-        } finally {
-          setEnrolmentsLoading(false);
-        }
-
-        // Load private lessons tab data from API (server-side pagination)
-        try {
-          setPrivateLessonsLoading(true);
-          const { data: privateLessons, pagination: plPagination } =
-            await getCustomerPrivateLessons(location, Number(id), 1, 10);
-          setPrivateLessonData(privateLessons);
-          setPrivateLessonsPagination(plPagination);
-        } catch {
-          setPrivateLessonData([]);
-          setPrivateLessonsPagination((prev) => ({
-            ...prev,
-            total: 0,
-            totalPages: 0,
-          }));
-        } finally {
-          setPrivateLessonsLoading(false);
-        }
-
-        // Load group lessons tab data from API (server-side pagination)
-        try {
-          setGroupLessonsLoading(true);
-          const { data: groupLessons, pagination: glPagination } =
-            await getCustomerGroupLessons(location, Number(id), 1, 10);
-          setGroupLessonData(groupLessons);
-          setGroupLessonsPagination(glPagination);
-        } catch {
-          setGroupLessonData([]);
-          setGroupLessonsPagination((prev) => ({
-            ...prev,
-            total: 0,
-            totalPages: 0,
-          }));
-        } finally {
-          setGroupLessonsLoading(false);
-        }
-
-        // Load pro-forma invoices tab data from API (server-side pagination)
-        try {
-          setProformaInvoicesLoading(true);
-          const { data: proformas, pagination: pfPagination } =
-            await getCustomerProformaInvoices(location, Number(id), 1, 10);
-          setProformaInvoiceData(proformas);
-          setProformaInvoicesPagination(pfPagination);
-        } catch {
-          setProformaInvoiceData([]);
-          setProformaInvoicesPagination((prev) => ({
-            ...prev,
-            total: 0,
-            totalPages: 0,
-          }));
-        } finally {
-          setProformaInvoicesLoading(false);
-        }
-        // Load comments tab data from API
-        try {
-          const comments = await getCustomerComments(location, Number(id));
-          setCommentData(comments);
-        } catch {
-          setCommentData([]);
-        }
-        // Load history tab data from API (server-side pagination)
-        try {
-          setHistoryLoading(true);
-          const { data: history, pagination: hPag } = await getCustomerHistory(
-            location,
-            Number(id),
-            1,
-            10
-          );
-          setHistoryData(history);
-          setHistoryPagination(hPag);
-        } catch {
-          setHistoryData([]);
-          setHistoryPagination((prev) => ({
-            ...prev,
-            total: 0,
-            totalPages: 0,
-          }));
-        } finally {
-          setHistoryLoading(false);
-        }
+        // Other tabs (enrolments, private-lessons, group-lessons, proforma-invoices, comments, history)
+        // are now loaded lazily when the user switches to those tabs
       } catch (error) {
         console.error("Error loading customer data:", error);
       } finally {
@@ -2449,7 +2505,17 @@ export function CustomerDetailClient({
 
       {/* Tabbed Interface */}
       <div className="mt-8">
-        <Tabs defaultValue="students" className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => {
+            setActiveTab(value);
+            // Load tab data when switching to a tab that hasn't been loaded yet
+            if (!loadedTabs.has(value) && !loadingTabsRef.current.has(value)) {
+              loadTabData(value);
+            }
+          }}
+          className="w-full"
+        >
           <TabsList className="inline-flex h-12 items-center justify-start rounded-md bg-muted p-1.5 text-muted-foreground w-full overflow-x-auto gap-1">
             {TAB_ORDER.map((tabKey) => (
               <TabsTrigger
