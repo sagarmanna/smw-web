@@ -112,3 +112,26 @@ export function parseTimeVoucherString(timeStr: string): Date | null {
   }
 }
 
+/**
+ * Converts decimal hours (e.g., "1.5") to HH:mm format (e.g., "01:30")
+ * Used to convert TimeVoucherData duration to format expected by EditScheduleModal
+ * @param decimalHours - Duration as decimal hours string or number
+ * @returns Duration in HH:mm format
+ */
+export function convertDecimalHoursToHHMM(decimalHours: string | number): string {
+  try {
+    const hours = typeof decimalHours === 'string' ? parseFloat(decimalHours) : decimalHours;
+    if (isNaN(hours) || hours < 0) {
+      return "00:00";
+    }
+    
+    const totalMinutes = Math.round(hours * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  } catch {
+    return "00:00";
+  }
+}
+
