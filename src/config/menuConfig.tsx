@@ -315,7 +315,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       id: 'students',
       title: 'Students',
       icon: <Users className="h-4 w-4" />,
-      url: '/student/index?StudentSearch[showAllStudents]=0',
+      url: getMenuSource(locationFlags, 'students') === 'legacy' ? '/student/index?StudentSearch[showAllStudents]=0' : '/students',
       source: getMenuSource(locationFlags, 'students') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'students') ? ('no' as const) : ('yes' as const),
