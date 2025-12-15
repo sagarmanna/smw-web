@@ -4,8 +4,20 @@ import * as React from "react";
 import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { StudentBasicDetails } from "../../types";
+import {
+  getCustomerStudentsForMerge,
+  mergeStudent,
+  MergeStudentListItem,
+} from "../../[id]/students-details.api";
 
 interface MergeStudentModalProps {
   open: boolean;
@@ -13,6 +25,7 @@ interface MergeStudentModalProps {
   location: string;
   currentStudentId: string;
   currentStudentDetails: StudentBasicDetails | null;
+  customerId: number;
   onMergeSuccess?: () => void;
 }
 
@@ -22,37 +35,78 @@ export function MergeStudentModal({
   location: _location,
   currentStudentId: _currentStudentId,
   currentStudentDetails,
+  customerId,
   onMergeSuccess,
 }: MergeStudentModalProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [students, setStudents] = React.useState<MergeStudentListItem[]>([]);
+  const [isLoadingStudents, setIsLoadingStudents] = React.useState(false);
+  const [selectedStudentId, setSelectedStudentId] = React.useState<number | null>(null);
   const [isMerging, setIsMerging] = React.useState(false);
 
+  const loadStudents = React.useCallback(async () => {
+    try {
+      setIsLoadingStudents(true);
+      const response = await getCustomerStudentsForMerge(
+        _location,
+        customerId,
+        _currentStudentId
+      );
+
+      if (!response || !response.success) {
+        toast.error(
+          response?.message || "Failed to load students for merge"
+        );
+        setStudents([]);
+        return;
+      }
+
+      setStudents(response.data.body || []);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to load students for merge";
+      toast.error(errorMessage);
+      setStudents([]);
+    } finally {
+      setIsLoadingStudents(false);
+    }
+  }, [_location, _currentStudentId, customerId]);
+
+  React.useEffect(() => {
+    if (open) {
+      void loadStudents();
+      setSelectedStudentId(null);
+      setSearchQuery("");
+    }
+  }, [open, loadStudents]);
+
   const handleMerge = async () => {
-    if (!searchQuery.trim()) {
-      toast.error("Please search and select a student to merge with");
+    if (!selectedStudentId) {
+      toast.error("Please select a student to merge with");
       return;
     }
 
     setIsMerging(true);
     try {
-      // TODO: Replace with actual API call when endpoint is available
-      // const response = await mergeStudent(_location, _currentStudentId, targetStudentId);
-      void _location; // Reserved for future API implementation
-      void _currentStudentId; // Reserved for future API implementation
-      // if (response.success) {
-      //   toast.success("Students merged successfully");
-      //   onOpenChange(false);
-      //   onMergeSuccess?.();
-      // } else {
-      //   toast.error(response.message || "Failed to merge students");
-      // }
+      const response = await mergeStudent(
+        _location,
+        _currentStudentId,
+        selectedStudentId
+      );
 
-      // Mock implementation
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success("Students merged successfully");
-      onOpenChange(false);
-      setSearchQuery("");
-      onMergeSuccess?.();
+      if (response && response.success) {
+        toast.success("Students merged successfully");
+        onOpenChange(false);
+        setSearchQuery("");
+        setSelectedStudentId(null);
+        onMergeSuccess?.();
+      } else {
+        toast.error(
+          response?.message || "Failed to merge students"
+        );
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to merge students";
@@ -65,13 +119,23 @@ export function MergeStudentModal({
   const handleCancel = () => {
     onOpenChange(false);
     setSearchQuery("");
+    setSelectedStudentId(null);
   };
 
-  React.useEffect(() => {
-    if (!open) {
-      setSearchQuery("");
+  const filteredStudents = React.useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return students;
     }
-  }, [open]);
+
+    return students.filter((student) => {
+      const nameMatch = student.fullName
+        ?.toLowerCase()
+        .includes(query);
+      const idMatch = String(student.id).includes(query);
+      return nameMatch || idMatch;
+    });
+  }, [students, searchQuery]);
 
   const modalActions = [
     {
@@ -84,7 +148,7 @@ export function MergeStudentModal({
       label: isMerging ? "Merging..." : "Merge",
       onClick: handleMerge,
       variant: "default" as const,
-      disabled: isMerging || !searchQuery.trim(),
+      disabled: isMerging || !selectedStudentId,
     },
   ];
 
@@ -93,28 +157,48 @@ export function MergeStudentModal({
       open={open}
       onOpenChange={onOpenChange}
       title="Merge Student"
-      description="Select the student to merge with"
+      description={
+        currentStudentDetails
+          ? `Select a student to merge with ${currentStudentDetails.firstName} ${currentStudentDetails.lastName}`
+          : "Select the student to merge with"
+      }
       size="lg"
       actions={modalActions}
       showFooter={true}
     >
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Select a student to merge with{" "}
-          {currentStudentDetails?.firstName} {currentStudentDetails?.lastName}
-        </p>
         <div className="space-y-2">
-          <Label htmlFor="mergeStudent">Search Student</Label>
-          <Input
-            id="mergeStudent"
-            type="text"
-            placeholder="Search by name or ID"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="focus:ring-0 focus:outline-none border-gray-300 dark:border-gray-600"
-            style={{ boxShadow: "none" }}
-            disabled={isMerging}
-          />
+          <Label htmlFor="mergeStudentSelect">Select Student</Label>
+          <Select
+            value={selectedStudentId ? String(selectedStudentId) : ""}
+            onValueChange={(value) => setSelectedStudentId(Number(value))}
+            disabled={isMerging || isLoadingStudents || filteredStudents.length === 0}
+          >
+            <SelectTrigger
+              id="mergeStudentSelect"
+              className="w-full h-9 rounded-md border border-gray-300 bg-background px-3 text-sm
+                         hover:border-gray-400 focus:border-[#f3573f] focus:ring-0 focus:outline-none
+                         disabled:cursor-not-allowed disabled:opacity-70 transition-colors"
+            >
+              <SelectValue placeholder={
+                isLoadingStudents
+                  ? "Loading students..."
+                  : filteredStudents.length === 0
+                  ? "No students found for this customer"
+                  : "Select a student to merge"
+              } />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredStudents.map((student) => (
+                <SelectItem key={student.id} value={String(student.id)}>
+                  <span className="text-sm font-medium">{student.fullName}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Search above to filter, then choose a student from the dropdown.
+          </p>
         </div>
       </div>
     </ReusableModal>
