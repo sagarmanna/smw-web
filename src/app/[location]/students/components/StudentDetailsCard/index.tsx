@@ -21,6 +21,7 @@ interface StudentDetailsCardProps {
   isLoading?: boolean;
   location: string;
   studentId: string;
+  customerId: number;
   onDeleteSuccess?: () => void;
   onMergeSuccess?: () => void;
 }
@@ -32,6 +33,7 @@ export const StudentDetailsCard = React.memo(function StudentDetailsCard({
   isLoading = false,
   location,
   studentId,
+  customerId,
   onDeleteSuccess,
   onMergeSuccess,
 }: StudentDetailsCardProps) {
@@ -132,6 +134,7 @@ export const StudentDetailsCard = React.memo(function StudentDetailsCard({
         location={location}
         currentStudentId={studentId}
         currentStudentDetails={details}
+        customerId={customerId}
         onMergeSuccess={onMergeSuccess}
       />
     </>

@@ -427,6 +427,110 @@ export async function updateStudentInfo(
 }
 
 // ---------------------------------------------
+// Merge Student APIs
+// ---------------------------------------------
+
+export interface MergeStudentListItem {
+  id: number;
+  fullName: string;
+  birthDate?: string;
+  customerName?: string;
+}
+
+export interface CustomerStudentsForMergeResponse {
+  success: boolean;
+  data: {
+    body: MergeStudentListItem[];
+  };
+  message?: string;
+}
+
+/**
+ * Fetches list of students for merge for a given customer, excluding the current student
+ * Endpoint: GET /admin/v2/{location}/customers/{customerId}/students
+ *
+ * @param location - The location identifier
+ * @param customerId - The customer ID
+ * @param excludeStudentId - ID of the current student to exclude from the list
+ * @param page - Page number (default 1)
+ * @param limit - Page size (default 20)
+ */
+export async function getCustomerStudentsForMerge(
+  location: string,
+  customerId: number,
+  excludeStudentId: string,
+  page = 1,
+  limit = 20
+): Promise<CustomerStudentsForMergeResponse | null> {
+  try {
+    const response = await apiClient.get<CustomerStudentsForMergeResponse>(
+      `/admin/v2/${location}/customers/${customerId}/students`,
+      {
+        params: {
+          page,
+          limit,
+          excludeStudentId,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching customer students for merge:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message:
+        apiError.response?.data?.message ||
+        "Failed to fetch students for merge",
+    };
+  }
+}
+
+export interface MergeStudentRequest {
+  targetId: number;
+}
+
+export interface MergeStudentResponse {
+  success: boolean;
+  message?: string;
+}
+
+/**
+ * Merges the current student into a target student
+ * Endpoint: POST /admin/v2/{location}/student/{studentId}/merge
+ *
+ * @param location - The location identifier
+ * @param studentId - The current student ID
+ * @param targetId - The target student ID to merge into
+ */
+export async function mergeStudent(
+  location: string,
+  studentId: string,
+  targetId: number
+): Promise<MergeStudentResponse | null> {
+  try {
+    const response = await apiClient.post<MergeStudentResponse>(
+      `/admin/v2/${location}/student/${studentId}/merge`,
+      {
+        targetId,
+      } as MergeStudentRequest
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error merging students:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message:
+        apiError.response?.data?.message || "Failed to merge students",
+    };
+  }
+}
+
+// ---------------------------------------------
 // Delete Student Info API Types
 // ---------------------------------------------
 

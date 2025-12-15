@@ -120,6 +120,7 @@ export function StudentDetailClient({ location, id }: StudentDetailClientProps) 
               isLoading={isLoading}
               location={location}
               studentId={studentId}
+              customerId={customer?.customerId ?? 0}
             />
 
             <StudentCustomerCard
