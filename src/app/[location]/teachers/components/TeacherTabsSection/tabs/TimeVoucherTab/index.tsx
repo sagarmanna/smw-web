@@ -7,7 +7,7 @@ import { CustomTable } from "@/components/CustomTable";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { parse, isValid, startOfDay, endOfDay, format } from "date-fns";
-import { parseTimeVoucherString } from "@/utils/dateUtils";
+import { parseTimeVoucherString, convertDecimalHoursToHHMM } from "@/utils/dateUtils";
 import { ColumnDef } from "@tanstack/react-table";
 import { TimeVoucherData } from "../../../../teacherTabConfigs";
 import { fetchTimeVoucherData } from "../../../../[id]/teacherTabs.slice";
@@ -375,12 +375,13 @@ export function TimeVoucherTab({ location, teacherId }: TimeVoucherTabProps) {
     // Convert TimeVoucherData to EditableLessonData
     // Note: TimeVoucherData doesn't have programId, expiryDate, or teacher
     // These will be undefined and the modal will handle it gracefully
+    // Convert duration from decimal hours (e.g., "1.5") to HH:mm format (e.g., "01:30")
     const editableLesson: EditableLessonData = {
       id: row.id,
       student: row.student,
       program: row.program,
       programId: undefined, // Not available in TimeVoucherData
-      duration: row.duration,
+      duration: convertDecimalHoursToHHMM(row.duration), // Convert to HH:mm format for modal
       originalDate: undefined, // Not available in TimeVoucherData
       expiryDate: undefined, // Not available in TimeVoucherData
       originalDateTime: row.time, // Pass the full time string to modal
