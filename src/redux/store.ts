@@ -12,6 +12,7 @@ import blogsListingReducer from '../app/[location]/blogs/blogsListing.slice';
 import studentReducer from '../app/[location]/students/[id]/students-details.slice';
 import studentTabsReducer from '../app/[location]/students/[id]/studentTabs.slice';
 import studentsListingReducer from '../app/[location]/students/studentsListing.slice';
+import enrolmentsListingReducer from '../app/[location]/enrolments/enrolmentsListing.slice';
 import groupCoursesListingReducer from '../app/[location]/group-courses/groupCoursesListing.slice';
 
 export const store = configureStore({
@@ -29,6 +30,7 @@ export const store = configureStore({
     student: studentReducer,
     studentTabs: studentTabsReducer,
     studentsListing: studentsListingReducer,
+    enrolmentsListing: enrolmentsListingReducer,
     groupCoursesListing: groupCoursesListingReducer,
   },
 });
