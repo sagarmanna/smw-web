@@ -68,6 +68,7 @@ import { createComment } from "@/lib/api/comment.api";
 import { createStudent } from "@/lib/api/student.api";
 import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
+import { parse, format, isValid } from "date-fns";
 
 import {
   InvoiceData,
@@ -214,12 +215,32 @@ export function CustomerDetailClient({
       setStudentsLoading(true);
       setStudentsError(null);
 
+      // Convert birthDate from "Jan 23, 2022" format to ISO 8601 format (YYYY-MM-DD)
+      let birthDateISO: string | undefined = undefined;
+      if (studentData.birthDate && studentData.birthDate.trim()) {
+        try {
+          // Parse date string like "Jan 23, 2022" using date-fns
+          // Try parsing with double-digit day format first: "Jan 23, 2022"
+          let parsedDate = parse(studentData.birthDate, 'MMM dd, yyyy', new Date());
+          if (!isValid(parsedDate)) {
+            // Try single-digit day format: "Jan 3, 2022"
+            parsedDate = parse(studentData.birthDate, 'MMM d, yyyy', new Date());
+          }
+          if (isValid(parsedDate)) {
+            // Format as YYYY-MM-DD (ISO 8601)
+            birthDateISO = format(parsedDate, 'yyyy-MM-dd');
+          }
+        } catch (error) {
+          console.error('Error parsing birth date:', error);
+        }
+      }
+
       // Call new API to create student
       const response = await createStudent(location, Number(id), {
         firstName: studentData.firstName || "",
         lastName: studentData.lastName || "",
         customerId: Number(id),
-        birthDate: studentData.birthDate || undefined,
+        birthDate: birthDateISO,
         gender:
           (studentData.gender as "not-specified" | "male" | "female") ||
           "not-specified",

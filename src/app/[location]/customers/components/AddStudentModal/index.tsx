@@ -5,8 +5,17 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 import { StudentData } from "../../tabConfigs";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface AddStudentModalProps {
   open: boolean;
@@ -35,6 +44,8 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
   });
 
   const [errors, setErrors] = React.useState<Partial<StudentFormData>>({});
+  const [birthdayDate, setBirthdayDate] = React.useState<Date | undefined>(undefined);
+  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
   // Keep customerName in sync when the prop changes (e.g., after data loads)
   React.useEffect(() => {
@@ -42,13 +53,75 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
     setFormData((prev) => ({ ...prev, customerName: name }));
   }, [customerName, open]);
 
-  // Format date to "Feb 14, 2020" style
+  // Sync birthdayDate with formData.birthDate when formData changes
+  React.useEffect(() => {
+    if (formData.birthDate) {
+      try {
+        // Parse ISO date string (YYYY-MM-DD) to Date object
+        if (/^\d{4}-\d{2}-\d{2}$/.test(formData.birthDate)) {
+          const [year, month, day] = formData.birthDate.split('-').map(Number);
+          const dateObj = new Date(year, month - 1, day);
+          if (!isNaN(dateObj.getTime())) {
+            setBirthdayDate(dateObj);
+            return;
+          }
+        }
+        // Fallback: try parsing as regular date string
+        const dateObj = new Date(formData.birthDate);
+        if (!isNaN(dateObj.getTime())) {
+          setBirthdayDate(dateObj);
+        } else {
+          setBirthdayDate(undefined);
+        }
+      } catch {
+        setBirthdayDate(undefined);
+      }
+    } else {
+      setBirthdayDate(undefined);
+    }
+  }, [formData.birthDate]);
+
+  // Reset date picker when modal closes
+  React.useEffect(() => {
+    if (!open) {
+      setBirthdayDate(undefined);
+      setIsDatePickerOpen(false);
+    }
+  }, [open]);
+
+  // Format date to ISO string (YYYY-MM-DD)
+  const formatDateToISO = (date: Date): string => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  };
+
+  // Format date to "Feb 14, 2020" style for display
   const formatBirthDate = (dateString: string): string => {
+    if (!dateString) return "";
     try {
+      // If it's already in ISO format (YYYY-MM-DD), parse it
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        return format(date, "MMM d, yyyy");
+      }
+      // Otherwise try to parse as is
       const date = new Date(dateString);
       return format(date, "MMM d, yyyy");
     } catch (error) {
       return dateString; // Return original if formatting fails
+    }
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      // Convert Date to ISO string (YYYY-MM-DD)
+      const isoDate = formatDateToISO(date);
+      setBirthdayDate(date);
+      handleInputChange("birthDate", isoDate);
+      setIsDatePickerOpen(false);
+    } else {
+      setBirthdayDate(undefined);
+      handleInputChange("birthDate", "");
     }
   };
 
@@ -117,6 +190,7 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
         birthDate: "",
         gender: "not-specified",
       });
+      setBirthdayDate(undefined);
       setErrors({});
       onOpenChange(false);
     }
@@ -131,7 +205,9 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
       birthDate: "",
       gender: "not-specified",
     });
+    setBirthdayDate(undefined);
     setErrors({});
+    setIsDatePickerOpen(false);
     onOpenChange(false);
   };
 
@@ -209,13 +285,34 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
           {/* Birth Date */}
           <div className="space-y-2">
             <Label htmlFor="birthDate">Birth Date</Label>
-            <Input
-              id="birthDate"
-              type="date"
-              value={formData.birthDate}
-              onChange={(e) => handleInputChange("birthDate", e.target.value)}
-              className={errors.birthDate ? "border-red-500" : ""}
-            />
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !birthdayDate && "text-muted-foreground",
+                    errors.birthDate && "border-red-500"
+                  )}
+                  type="button"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {birthdayDate ? format(birthdayDate, "MMM dd, yyyy") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={birthdayDate}
+                  defaultMonth={birthdayDate}
+                  onSelect={handleDateSelect}
+                  captionLayout="dropdown"
+                  fromYear={1955}
+                  toYear={2125}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
             {errors.birthDate && (
               <p className="text-sm text-red-500">{errors.birthDate}</p>
             )}
