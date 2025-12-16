@@ -35,6 +35,7 @@ import { getPaymentReceiptData } from "../components/ReceiptPaymentModal/receipt
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableCard } from "@/components/TableCard";
 import { TabContent } from "@/components/TabContent";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AddressCard } from "../components/AddressCard";
 import { EmailCard } from "../components/EmailCard";
 import { DiscountCard } from "../components/DiscountCard";
@@ -60,10 +61,10 @@ import EmailStatementModal, {
 } from "../components/EmailStatementModal/index";
 import { SummaryCards } from "./components/SummaryCards";
 import {
-  createNote,
   sendEmail,
   deletePayment,
 } from "@/lib/api/legacyApiAdapter";
+import { createComment } from "@/lib/api/comment.api";
 import { createStudent } from "@/lib/api/student.api";
 import type { PaymentReceiveData } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
@@ -532,27 +533,28 @@ export function CustomerDetailClient({
 
     try {
       setCommentLoading(true);
-      const response = await createNote(
+      const response = await createComment(
         location,
         Number(id),
-        2, // instanceType = 2 for customer notes
-        commentInput.trim()
+        2, // instanceType = 2 for customer
+        { content: commentInput.trim() }
       );
 
-      if (response.status) {
-        // Success: reload comments from API to get the newly created comment
-        const comments = await getCustomerComments(location, Number(id));
+      if (response.success && response.data?.status) {
+        // Use the comments data from the POST response instead of making another GET call
+        const comments = response.data.data?.body || [];
         setCommentData(comments);
         setCommentInput(""); // Clear input
       } else {
         // API returned an error
-        const errorMessage =
-          response.errors?.join(", ") || "Failed to create comment";
+        const errorMessage = response.message || "Failed to create comment";
         console.error("Error creating comment:", errorMessage);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "Failed to create comment";
+        (error as { message?: string })?.message ||
+        (error as { errorCode?: string; message?: string })?.message ||
+        "Failed to create comment";
       console.error("Error creating comment:", error);
     } finally {
       setCommentLoading(false);
@@ -1013,6 +1015,7 @@ export function CustomerDetailClient({
   const [commentData, setCommentData] = React.useState<CommentData[]>([]);
   const [commentInput, setCommentInput] = React.useState<string>("");
   const [commentLoading, setCommentLoading] = React.useState<boolean>(false);
+  const [commentsLoading, setCommentsLoading] = React.useState<boolean>(false);
   const [historyData, setHistoryData] = React.useState<HistoryData[]>([]);
 
   // Enrolments server-side pagination state
@@ -1248,8 +1251,16 @@ export function CustomerDetailClient({
             break;
 
           case "comments":
-            const comments = await getCustomerComments(location, Number(id));
-            setCommentData(comments);
+            setCommentsLoading(true);
+            try {
+              const comments = await getCustomerComments(location, Number(id));
+              setCommentData(comments);
+            } catch (error) {
+              console.error("Error fetching comments:", error);
+              setCommentData([]);
+            } finally {
+              setCommentsLoading(false);
+            }
             break;
 
           case "history":
@@ -2542,7 +2553,25 @@ export function CustomerDetailClient({
             const commentsCustomContent =
               tabKey === "comments" ? (
                 <div className="space-y-4">
-                  {Array.isArray(commentData) && commentData.length > 0 ? (
+                  {commentsLoading ? (
+                    // Loading skeleton
+                    Array.from({ length: 3 }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start justify-between gap-4"
+                      >
+                        <div className="flex items-start gap-3 flex-1">
+                          <Skeleton className="h-10 w-10 rounded-full" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-3/4" />
+                          </div>
+                        </div>
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    ))
+                  ) : Array.isArray(commentData) && commentData.length > 0 ? (
                     commentData.map((c: CommentData, idx: number) => (
                       <div
                         key={c.id ?? idx}
