@@ -1,10 +1,13 @@
-import React from 'react'
+import { GroupCoursesListingClient } from "./GroupCoursesListingClient";
 
-export default function GroupCoursesPage() {
-  return (
-    <div>
-      <h1>Group Courses</h1>
-    </div>
-  )
+interface GroupCoursesPageProps {
+  params: Promise<{
+    location: string;
+  }>;
+}
+
+export default async function GroupCoursesPage({ params }: GroupCoursesPageProps) {
+  const { location } = await params;
+  return <GroupCoursesListingClient location={location} />;
 }
 
