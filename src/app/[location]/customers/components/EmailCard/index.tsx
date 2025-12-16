@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -154,6 +155,13 @@ export function EmailCard({
   const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     
+    // Prevent deletion of primary email
+    const emailToDelete = emails.find(email => email.id === id);
+    if (emailToDelete?.isPrimary) {
+      toast.error("Cannot delete primary email. Please set another email as primary first.");
+      return;
+    }
+    
     try {
       const result = await deleteCustomerEmail(location, customerId, id);
       
@@ -168,7 +176,8 @@ export function EmailCard({
       }
     } catch (error) {
       console.error("Error deleting email:", error);
-      toast.error("Failed to delete email");
+      const errorMessage = (error as { message?: string })?.message || "Failed to delete email";
+      toast.error(errorMessage);
     }
   };
 
@@ -184,13 +193,13 @@ export function EmailCard({
 
     try {
       if (editingEmail) {
-        // Update existing email
+        // Update existing email - preserve the isPrimary status
         const result = await updateCustomerEmail(location, customerId, {
           id: Number(editingEmail.id),
           email: currentEmail.email,
           note: currentEmail.note || "",
           label: currentEmail.label,
-          isPrimary: false
+          isPrimary: editingEmail.isPrimary || false
         });
 
         if (result?.success && result.data) {
@@ -332,7 +341,16 @@ export function EmailCard({
               >
                 <KeyValueDisplay
                   label={email.label}
-                  value={formatEmailDisplay(email)}
+                  value={
+                    <span className="flex items-center gap-2">
+                      {formatEmailDisplay(email)}
+                      {email.isPrimary && (
+                        <Badge variant="secondary" className="text-xs">
+                          Primary
+                        </Badge>
+                      )}
+                    </span>
+                  }
                   className="justify-start flex-1"
                 />
                 <div className="flex items-center gap-2">
@@ -345,8 +363,13 @@ export function EmailCard({
                   </button>
                   <button
                     onClick={(e) => handleDeleteClick(e, email.id)}
-                    className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                    className={`p-1.5 rounded ${
+                      email.isPrimary
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-red-100 dark:hover:bg-red-900/30"
+                    }`}
                     aria-label="Delete email"
+                    disabled={email.isPrimary}
                   >
                     <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                   </button>
