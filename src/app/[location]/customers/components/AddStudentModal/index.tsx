@@ -5,17 +5,10 @@ import { ReusableModal } from "@/components/TablesModals";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { StudentData } from "../../tabConfigs";
+import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { formatDateToISO } from "@/utils/dateUtils";
+import { StudentData } from "../../tabConfigs";
 
 interface AddStudentModalProps {
   open: boolean;
@@ -45,7 +38,6 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
 
   const [errors, setErrors] = React.useState<Partial<StudentFormData>>({});
   const [birthdayDate, setBirthdayDate] = React.useState<Date | undefined>(undefined);
-  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
   // Keep customerName in sync when the prop changes (e.g., after data loads)
   React.useEffect(() => {
@@ -85,14 +77,9 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
   React.useEffect(() => {
     if (!open) {
       setBirthdayDate(undefined);
-      setIsDatePickerOpen(false);
     }
   }, [open]);
 
-  // Format date to ISO string (YYYY-MM-DD)
-  const formatDateToISO = (date: Date): string => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  };
 
   // Format date to "Feb 14, 2020" style for display
   const formatBirthDate = (dateString: string): string => {
@@ -118,7 +105,6 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
       const isoDate = formatDateToISO(date);
       setBirthdayDate(date);
       handleInputChange("birthDate", isoDate);
-      setIsDatePickerOpen(false);
     } else {
       setBirthdayDate(undefined);
       handleInputChange("birthDate", "");
@@ -207,7 +193,6 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
     });
     setBirthdayDate(undefined);
     setErrors({});
-    setIsDatePickerOpen(false);
     onOpenChange(false);
   };
 
@@ -283,40 +268,17 @@ export default function AddStudentModal({ open, onOpenChange, onSave, customerNa
           </div>
 
           {/* Birth Date */}
-          <div className="space-y-2">
-            <Label htmlFor="birthDate">Birth Date</Label>
-            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !birthdayDate && "text-muted-foreground",
-                    errors.birthDate && "border-red-500"
-                  )}
-                  type="button"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {birthdayDate ? format(birthdayDate, "MMM dd, yyyy") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={birthdayDate}
-                  defaultMonth={birthdayDate}
-                  onSelect={handleDateSelect}
-                  captionLayout="dropdown"
-                  fromYear={1955}
-                  toYear={2125}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            {errors.birthDate && (
-              <p className="text-sm text-red-500">{errors.birthDate}</p>
-            )}
-          </div>
+          <DatePicker
+            id="birthDate"
+            label="Birth Date"
+            value={birthdayDate}
+            onSelect={handleDateSelect}
+            placeholder="Pick a date"
+            error={!!errors.birthDate}
+            errorMessage={errors.birthDate as string | undefined}
+            fromYear={1955}
+            toYear={2125}
+          />
 
           {/* Gender */}
           <div className="space-y-3">

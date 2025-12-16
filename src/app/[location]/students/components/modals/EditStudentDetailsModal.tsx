@@ -13,36 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/date-picker";
+import { formatDateToISO, convertToISOFormat } from "@/utils/dateUtils";
 import { StudentBasicDetails } from "../../types";
-import { parse, isValid } from "date-fns";
 import { genderDisplayToApi } from "../../[id]/students-details.api";
-
-function formatDateToISO(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function convertToISOFormat(dateStr: string): string {
-  if (!dateStr) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-  try {
-    let parsedDate = parse(dateStr, "MMM dd, yyyy", new Date());
-    if (!isValid(parsedDate)) parsedDate = parse(dateStr, "MMM d, yyyy", new Date());
-    if (isValid(parsedDate)) return formatDateToISO(parsedDate);
-  } catch (error) {
-    console.warn("Failed to parse date:", dateStr, error);
-  }
-  const date = new Date(dateStr);
-  return !isNaN(date.getTime()) ? formatDateToISO(date) : "";
-}
 
 interface EditStudentDetailsModalProps {
   open: boolean;
@@ -67,7 +41,6 @@ export function EditStudentDetailsModal({
     notes: "",
   });
   const [birthdayDate, setBirthdayDate] = React.useState<Date | undefined>(undefined);
-  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
   const [touched, setTouched] = React.useState({ firstName: false, lastName: false });
   const [showError, setShowError] = React.useState(false);
 
@@ -117,7 +90,6 @@ export function EditStudentDetailsModal({
     if (open) {
       setTouched({ firstName: false, lastName: false });
       setShowError(false);
-      setIsDatePickerOpen(false);
     }
   }, [details, open]);
 
@@ -164,7 +136,9 @@ export function EditStudentDetailsModal({
       const isoDate = formatDateToISO(date);
       setBirthdayDate(date);
       updateFormData("birthday", isoDate);
-      setIsDatePickerOpen(false);
+    } else {
+      setBirthdayDate(undefined);
+      updateFormData("birthday", "");
     }
   };
 
@@ -215,36 +189,15 @@ export function EditStudentDetailsModal({
               />
               {lastNameError && <p className="text-sm text-red-600">{lastNameError}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="student-birthday">Birthday</Label>
-              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !birthdayDate && "text-muted-foreground"
-                    )}
-                    type="button"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {birthdayDate ? format(birthdayDate, "MMM dd, yyyy") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={birthdayDate}
-                    defaultMonth={birthdayDate}
-                    onSelect={handleDateSelect}
-                    captionLayout="dropdown"
-                    fromYear={1955}
-                    toYear={2125}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            <DatePicker
+              id="student-birthday"
+              label="Birthday"
+              value={birthdayDate}
+              onSelect={handleDateSelect}
+              placeholder="Pick a date"
+              fromYear={1955}
+              toYear={2125}
+            />
             <div className="space-y-2">
               <Label htmlFor="student-gender">Gender</Label>
               <Select

@@ -11,8 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
+import { formatDateToISO, convertToDate } from "@/utils/dateUtils";
 import { TeacherBasicDetails } from "../../types";
-import { formatDisplayDate } from "@/utils/dateUtils";
 import { toast } from "sonner";
 
 interface EditTeacherDetailsModalProps {
@@ -34,33 +35,31 @@ export function EditTeacherDetailsModal({
   const [lastName, setLastName] = React.useState("");
   // Raw date value we send to API (ISO-like, e.g. 2019-01-16)
   const [birthDate, setBirthDate] = React.useState("");
-  // Display value shown in the input (e.g. "Jan 16, 2019")
-  const [birthDateDisplay, setBirthDateDisplay] = React.useState("");
-  // Ref for native date input to imperatively open the picker
-  type DateInputElement = HTMLInputElement & {
-    showPicker?: () => void;
-  };
-  const dateInputRef = React.useRef<DateInputElement | null>(null);
+  // Date object for Calendar component
+  const [birthdayDate, setBirthdayDate] = React.useState<Date | undefined>(undefined);
   
   // Field-level validation states
   const [firstNameTouched, setFirstNameTouched] = React.useState(false);
   const [lastNameTouched, setLastNameTouched] = React.useState(false);
   const [showError, setShowError] = React.useState(false);
 
+
   React.useEffect(() => {
     if (details) {
       setFirstName(details.firstName ?? "");
       setLastName(details.lastName ?? "");
-      // Keep raw date for API and formatted string for display
+      // Keep raw date for API (ISO format)
       const raw = details.birthDate ?? "";
       setBirthDate(raw);
-      setBirthDateDisplay(raw ? formatDisplayDate(raw) : "");
+      // Convert to Date object for Calendar component
+      const dateObj = convertToDate(raw);
+      setBirthdayDate(dateObj);
     } else {
       // Reset form when details are cleared
       setFirstName("");
       setLastName("");
       setBirthDate("");
-      setBirthDateDisplay("");
+      setBirthdayDate(undefined);
     }
     // Reset validation states when modal opens/closes
     if (open) {
@@ -69,6 +68,18 @@ export function EditTeacherDetailsModal({
       setShowError(false);
     }
   }, [details, open]);
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      // Convert Date to ISO string (YYYY-MM-DD)
+      const isoDate = formatDateToISO(date);
+      setBirthdayDate(date);
+      setBirthDate(isoDate);
+    } else {
+      setBirthdayDate(undefined);
+      setBirthDate("");
+    }
+  };
 
   // Validation helpers
   const isFirstNameValid = (firstName?.trim() ?? "") !== "";
@@ -160,42 +171,16 @@ export function EditTeacherDetailsModal({
                 <p className="text-sm text-red-600">{lastNameError}</p>
               )}
             </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="teacher-birthdate">Birth Date</Label>
-              <div
-                className="relative"
-                onClick={() => {
-                  // Try to programmatically open the native date picker
-                  const inputEl = dateInputRef.current;
-                  if (inputEl?.showPicker) {
-                    inputEl.showPicker();
-                  } else {
-                    inputEl?.focus();
-                  }
-                }}
-              >
-                {/* Visible formatted field */}
-                <Input
-                  id="teacher-birthdate-display"
-                  type="text"
-                  placeholder="Select Date"
-                  value={birthDateDisplay}
-                  readOnly
-                />
-                {/* Native date input to provide calendar picker */}
-                <input
-                  id="teacher-birthdate"
-                  type="date"
-                  ref={dateInputRef}
-                  className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
-                  value={birthDate}
-                  onChange={(event) => {
-                    const value = event.target.value; // yyyy-mm-dd
-                    setBirthDate(value);
-                    setBirthDateDisplay(value ? formatDisplayDate(value) : "");
-                  }}
-                />
-              </div>
+            <div className="sm:col-span-2">
+              <DatePicker
+                id="teacher-birthdate"
+                label="Birth Date"
+                value={birthdayDate}
+                onSelect={handleDateSelect}
+                placeholder="Pick a date"
+                fromYear={1955}
+                toYear={2125}
+              />
             </div>
           </div>
 
