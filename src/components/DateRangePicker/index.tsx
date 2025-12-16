@@ -186,10 +186,16 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, preset]);
 
-  // Reset tempRange to selectedRange when popover opens
+  // Reset tempRange to selectedRange when popover opens, or default to today if no value
   useEffect(() => {
     if (isOpen) {
-      setTempRange(selectedRange);
+      if (selectedRange) {
+        setTempRange(selectedRange);
+      } else {
+        // Default to today's date when opening the picker
+        const today = new Date();
+        setTempRange({ from: today, to: today });
+      }
     }
   }, [isOpen, selectedRange]);
 
@@ -280,7 +286,7 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
               <div className="block md:hidden">
                 <CalendarComponent
                   mode="range"
-                  defaultMonth={tempRange?.from}
+                  defaultMonth={tempRange?.from || new Date()}
                   selected={tempRange}
                   onSelect={handleCalendarSelect}
                   numberOfMonths={1}
@@ -292,7 +298,7 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
               <div className="hidden md:block">
                 <CalendarComponent
                   mode="range"
-                  defaultMonth={tempRange?.from}
+                  defaultMonth={tempRange?.from || new Date()}
                   selected={tempRange}
                   onSelect={handleCalendarSelect}
                   numberOfMonths={2}
