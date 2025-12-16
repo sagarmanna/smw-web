@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useGroupCourseListing } from "./hooks/useGroupCourseListing";
 import { formatLocationName } from "@/utils/textUtils";
+import { AddGroupCourseModal } from "./components/modals/AddGroupCourseModal";
+import { AddGroupCourseScheduleModal } from "./components/modals/AddGroupCourseScheduleModal";
 
 interface GroupCoursesClientProps {
   location: string;
@@ -21,6 +23,8 @@ interface GroupCoursesClientProps {
 export function GroupCoursesListingClient({ location }: GroupCoursesClientProps) {
   const router = useRouter();
   const [isAddCourseModalOpen, setIsAddCourseModalOpen] = React.useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = React.useState(false);
+  const [pendingCourse, setPendingCourse] = React.useState<Partial<GroupCourseRow> | null>(null);
 
   const columns = React.useMemo<ColumnDef<GroupCourseRow>[]>(() => groupCourseColumns, []);
 
@@ -144,13 +148,26 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
-      
-      {/* Add Course Modal - to be implemented */}
-      {isAddCourseModalOpen && (
-        <div>
-          {/* Modal implementation will go here */}
-        </div>
-      )}
+
+      <AddGroupCourseModal
+        isOpen={isAddCourseModalOpen}
+        onClose={() => setIsAddCourseModalOpen(false)}
+        onSuccess={(course) => {
+          setPendingCourse(course);
+          setIsAddCourseModalOpen(false);
+          setIsScheduleModalOpen(true);
+        }}
+      />
+
+      <AddGroupCourseScheduleModal
+        open={isScheduleModalOpen}
+        onOpenChange={(open) => setIsScheduleModalOpen(open)}
+        onBack={() => {
+          setIsScheduleModalOpen(false);
+          setIsAddCourseModalOpen(true);
+        }}
+        course={pendingCourse}
+      />
     </ReportPageLayout>
   );
 }
