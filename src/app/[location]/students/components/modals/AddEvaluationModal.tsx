@@ -103,6 +103,8 @@ export function AddEvaluationModal({
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
   const [loadingPrograms, setLoadingPrograms] = React.useState(false);
   const [loadingTeachers, setLoadingTeachers] = React.useState(false);
+  const [programsLoaded, setProgramsLoaded] = React.useState(false);
+  const [userSelectedProgram, setUserSelectedProgram] = React.useState(false);
   
   // Validation states
   const [errors, setErrors] = React.useState<{
@@ -120,38 +122,43 @@ export function AddEvaluationModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
-  // Fetch programs when modal opens
-  React.useEffect(() => {
-    if (open) {
+  // Fetch programs only when user opens the Program dropdown
+  const handleProgramDropdownOpen = React.useCallback((isOpen: boolean) => {
+    if (isOpen && !programsLoaded && !loadingPrograms) {
       setLoadingPrograms(true);
       fetchPrograms()
         .then((programList) => {
           setPrograms(programList);
+          setProgramsLoaded(true);
+          // If we had a synthetic program selected, try to match it with a real one
+          if (isEditMode && initialData?.program && selectedProgramId === "-1") {
+            const matchedProgram = programList.find(
+              (p) => p.name === initialData.program || 
+                     p.name.toLowerCase() === initialData.program?.toLowerCase()
+            );
+            if (matchedProgram) {
+              setSelectedProgramId(matchedProgram.id.toString());
+            }
+          }
         })
         .catch((error) => {
-          console.error("Error fetching programs:", error);
+           console.error("Error fetching programs:", error);
         })
         .finally(() => {
           setLoadingPrograms(false);
         });
-    } else {
-      // Clear programs when modal closes
-      setPrograms([]);
     }
-  }, [open]);
+  }, [programsLoaded, loadingPrograms, isEditMode, initialData, selectedProgramId]);
 
-  // Fetch teachers when a program is selected
+  // Fetch teachers only when user selects a program (after user interaction)
   React.useEffect(() => {
-    if (open && location && selectedProgramId) {
+    if (open && location && selectedProgramId && userSelectedProgram && selectedProgramId !== "-1") {
       setLoadingTeachers(true);
       setTeachers([]); // Clear previous teachers
       
-      // In edit mode, preserve the teacher name from initialData; otherwise clear it
-      const shouldPreserveTeacher = isEditMode && initialData?.teacher;
-      if (!shouldPreserveTeacher) {
-        setSelectedTeacherId(""); // Clear teacher selection
-        setFormData((prev) => ({ ...prev, teacher: "" })); // Clear teacher in form data
-      }
+      // Clear teacher selection when program changes (only if it's a real program change)
+      setSelectedTeacherId("");
+      setFormData((prev) => ({ ...prev, teacher: "" }));
       
       fetchTeachersByProgram(location, selectedProgramId)
         .then((teacherList) => {
@@ -164,16 +171,17 @@ export function AddEvaluationModal({
         .finally(() => {
           setLoadingTeachers(false);
         });
-    } else if (!selectedProgramId) {
-      // Clear teachers when no program is selected
-      setTeachers([]);
-      setSelectedTeacherId("");
-      // Only clear teacher if not in edit mode with initialData
-      if (!(isEditMode && initialData?.teacher)) {
-        setFormData((prev) => ({ ...prev, teacher: "" }));
+    } else if (!selectedProgramId || selectedProgramId === "") {
+      // Clear teachers when no program is selected (but preserve if we have synthetic data)
+      if (!(isEditMode && initialData?.teacher && selectedProgramId === "-1")) {
+        setTeachers([]);
+        setSelectedTeacherId("");
+        if (!(isEditMode && initialData?.teacher)) {
+          setFormData((prev) => ({ ...prev, teacher: "" }));
+        }
       }
     }
-  }, [open, location, selectedProgramId, isEditMode, initialData]);
+  }, [open, location, selectedProgramId, userSelectedProgram, isEditMode, initialData]);
 
   // Initialize form data when modal opens
   React.useEffect(() => {
@@ -182,6 +190,9 @@ export function AddEvaluationModal({
       setSelectedProgramId("");
       setSelectedTeacherId("");
       setTeachers([]);
+      setPrograms([]);
+      setProgramsLoaded(false);
+      setUserSelectedProgram(false);
       setIsDatePickerOpen(false);
       setErrors({});
       setTouched({ level: false, teacher: false });
@@ -216,6 +227,18 @@ export function AddEvaluationModal({
           type: initialData.type || "",
           teacher: initialData.teacher || "",
         });
+        
+        // Pre-populate with synthetic options from initialData (no API calls)
+        if (initialData.program) {
+          // Create a synthetic program option for display
+          setPrograms([{ id: -1, name: initialData.program }]);
+          setSelectedProgramId("-1");
+        }
+        if (initialData.teacher) {
+          // Create a synthetic teacher option for display
+          setTeachers([{ id: -1, name: initialData.teacher }]);
+          setSelectedTeacherId("-1");
+        }
       } else {
         // Reset form for add mode
         setExamDate(undefined);
@@ -230,9 +253,9 @@ export function AddEvaluationModal({
     }
   }, [open, isEditMode, initialData]);
 
-  // Set program selection when programs are loaded and we're in edit mode
+  // Set program selection when programs are loaded and user has selected a program
   React.useEffect(() => {
-    if (open && isEditMode && initialData && programs.length > 0 && !selectedProgramId && initialData.program) {
+    if (open && isEditMode && initialData && programs.length > 0 && programsLoaded && !selectedProgramId && initialData.program) {
       // Try exact match first
       let program = programs.find((p) => p.name === initialData.program);
       
@@ -246,15 +269,16 @@ export function AddEvaluationModal({
         program = programs.find((p) => p.name.toLowerCase().includes(initialData.program.toLowerCase()) || initialData.program.toLowerCase().includes(p.name.toLowerCase()));
       }
       
-      if (program) {
+      if (program && program.id !== -1) {
+        // Only set if it's a real program (not synthetic)
         setSelectedProgramId(program.id.toString());
       }
     }
-  }, [open, isEditMode, initialData, programs, selectedProgramId]);
+  }, [open, isEditMode, initialData, programs, programsLoaded, selectedProgramId]);
   
-  // Set teacher selection when teachers are loaded and we're in edit mode
+  // Set teacher selection when teachers are loaded and user has selected a program
   React.useEffect(() => {
-    if (open && isEditMode && initialData && teachers.length > 0 && selectedProgramId && initialData.teacher && !selectedTeacherId) {
+    if (open && isEditMode && initialData && teachers.length > 0 && selectedProgramId && initialData.teacher && !selectedTeacherId && userSelectedProgram) {
       // Try exact match first
       let teacher = teachers.find((t) => t.name === initialData.teacher);
       
@@ -268,7 +292,8 @@ export function AddEvaluationModal({
         teacher = teachers.find((t) => t.name.toLowerCase().includes(initialData.teacher.toLowerCase()) || initialData.teacher.toLowerCase().includes(t.name.toLowerCase()));
       }
       
-      if (teacher) {
+      if (teacher && teacher.id !== -1) {
+        // Only set if it's a real teacher (not synthetic)
         setSelectedTeacherId(teacher.id.toString());
         // Ensure formData.teacher is set to the matched teacher name
         setFormData((prev) => ({ ...prev, teacher: teacher!.name }));
@@ -283,16 +308,38 @@ export function AddEvaluationModal({
         });
       }
     }
-  }, [open, isEditMode, initialData, teachers, selectedProgramId, selectedTeacherId]);
+  }, [open, isEditMode, initialData, teachers, selectedProgramId, selectedTeacherId, userSelectedProgram]);
 
   const validateForm = (): boolean => {
     const newErrors: { level?: string; teacher?: string } = {};
 
-    if (!formData.level.trim()) {
+    // Ensure formData has values from initialData if in edit mode and values are missing
+    let needsUpdate = false;
+    const validatedFormData = { ...formData };
+    if (isEditMode && initialData) {
+      if (!validatedFormData.level?.trim() && initialData.level) {
+        validatedFormData.level = initialData.level;
+        needsUpdate = true;
+      }
+      if (!validatedFormData.teacher?.trim() && initialData.teacher) {
+        validatedFormData.teacher = initialData.teacher;
+        needsUpdate = true;
+      }
+      if (!validatedFormData.program?.trim() && initialData.program) {
+        validatedFormData.program = initialData.program;
+        needsUpdate = true;
+      }
+      // Update formData if we had to restore values
+      if (needsUpdate) {
+        setFormData(validatedFormData);
+      }
+    }
+
+    if (!validatedFormData.level.trim()) {
       newErrors.level = "Level cannot be blank.";
     }
 
-    if (!formData.teacher.trim()) {
+    if (!validatedFormData.teacher.trim()) {
       newErrors.teacher = "Teacher cannot be blank.";
     }
 
@@ -326,12 +373,89 @@ export function AddEvaluationModal({
       return;
     }
 
+    // Get program and teacher IDs
+    let programIdNum: number | undefined = undefined;
+    let teacherIdNum: number | undefined = undefined;
+    
+    const programIdParsed = selectedProgramId ? parseInt(selectedProgramId, 10) : undefined;
+    const teacherIdParsed = selectedTeacherId ? parseInt(selectedTeacherId, 10) : undefined;
+    
+    // If we have synthetic IDs (-1), try to find real IDs by matching names
+    if (programIdParsed === -1 || !programIdParsed) {
+      // Try to find program ID by matching name
+      if (formData.program) {
+        const matchedProgram = programs.find(
+          (p) => p.id !== -1 && (
+            p.name === formData.program || 
+            p.name.toLowerCase() === formData.program.toLowerCase()
+          )
+        );
+        if (matchedProgram) {
+          programIdNum = matchedProgram.id;
+        }
+      }
+    } else {
+      programIdNum = programIdParsed;
+    }
+    
+    if (teacherIdParsed === -1 || !teacherIdParsed) {
+      // Try to find teacher ID by matching name
+      if (formData.teacher) {
+        const matchedTeacher = teachers.find(
+          (t) => t.id !== -1 && (
+            t.name === formData.teacher || 
+            t.name.toLowerCase() === formData.teacher.toLowerCase()
+          )
+        );
+        if (matchedTeacher) {
+          teacherIdNum = matchedTeacher.id;
+        }
+      }
+    } else {
+      teacherIdNum = teacherIdParsed;
+    }
+    
+    // If we still don't have IDs and we're in edit mode, try loading them
+    if (isEditMode && initialData && (!programIdNum || !teacherIdNum)) {
+      // If program ID is missing, try to load programs and find it
+      if (!programIdNum && formData.program && !programsLoaded) {
+        try {
+          const programList = await fetchPrograms();
+          const matchedProgram = programList.find(
+            (p) => p.name === formData.program || 
+                   p.name.toLowerCase() === formData.program.toLowerCase()
+          );
+          if (matchedProgram) {
+            programIdNum = matchedProgram.id;
+          }
+        } catch (error) {
+          console.error("Error fetching programs for ID lookup:", error);
+        }
+      }
+      
+      // If teacher ID is missing and we have a program, try to load teachers and find it
+      if (!teacherIdNum && formData.teacher && programIdNum && programIdNum !== -1) {
+        try {
+          const teacherList = await fetchTeachersByProgram(location, programIdNum.toString());
+          const matchedTeacher = teacherList.find(
+            (t) => t.name === formData.teacher || 
+                   t.name.toLowerCase() === formData.teacher.toLowerCase()
+          );
+          if (matchedTeacher) {
+            teacherIdNum = matchedTeacher.id;
+          }
+        } catch (error) {
+          console.error("Error fetching teachers for ID lookup:", error);
+        }
+      }
+    }
+    
     const evaluation: EvaluationWithIds = {
       ...formData,
       examDate: examDateString,
       id: initialData?.id, // Include ID if editing
-      programId: selectedProgramId ? parseInt(selectedProgramId, 10) : undefined,
-      teacherId: selectedTeacherId ? parseInt(selectedTeacherId, 10) : undefined,
+      programId: programIdNum,
+      teacherId: teacherIdNum,
     };
 
     const success = await onSubmit(evaluation);
@@ -392,12 +516,16 @@ export function AddEvaluationModal({
   const handleProgramChange = (programId: string) => {
     setSelectedProgramId(programId);
     const selectedProgram = programs.find((p) => p.id.toString() === programId);
-    setFormData((prev) => ({ ...prev, program: selectedProgram?.name || "" }));
-    // Clear teacher selection when program changes
-    // Teachers will be fetched automatically by the useEffect watching selectedProgramId
-    setSelectedTeacherId("");
-    setFormData((prev) => ({ ...prev, teacher: "" }));
-    setTeachers([]); // Clear teachers immediately
+    const programName = selectedProgram?.name || "";
+    setFormData((prev) => ({ ...prev, program: programName }));
+    // Mark that user has selected a program to trigger teacher API call
+    setUserSelectedProgram(true);
+    // Clear teacher selection when program changes (only if it's a real program, not synthetic)
+    if (programId !== "-1") {
+      setSelectedTeacherId("");
+      setFormData((prev) => ({ ...prev, teacher: "" }));
+      setTeachers([]); // Clear teachers immediately
+    }
   };
 
   const handleTeacherChange = (teacherId: string) => {
@@ -490,17 +618,32 @@ export function AddEvaluationModal({
               <Select
                 value={selectedProgramId || undefined}
                 onValueChange={handleProgramChange}
+                onOpenChange={handleProgramDropdownOpen}
                 disabled={loadingPrograms || saving}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={loadingPrograms ? "Loading programs..." : "Select Program"} />
+                  <SelectValue 
+                    placeholder={
+                      isEditMode && initialData?.program && !programsLoaded
+                        ? initialData.program
+                        : loadingPrograms
+                        ? "Loading programs..."
+                        : "Select Program"
+                    } 
+                  />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
-                  {programs.map((program) => (
-                    <SelectItem key={program.id} value={program.id.toString()}>
-                      {program.name}
+                  {programs.length > 0 ? (
+                    programs.map((program) => (
+                      <SelectItem key={program.id} value={program.id.toString()}>
+                        {program.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="__empty" disabled>
+                      {loadingPrograms ? "Loading programs..." : "No programs found."}
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -536,7 +679,9 @@ export function AddEvaluationModal({
                 >
                   <SelectValue 
                     placeholder={
-                      !selectedProgramId
+                      isEditMode && initialData?.teacher && !userSelectedProgram
+                        ? initialData.teacher
+                        : !selectedProgramId
                         ? "Select a program first"
                         : loadingTeachers
                         ? "Loading teachers..."
