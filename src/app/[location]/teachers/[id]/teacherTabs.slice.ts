@@ -293,6 +293,10 @@ const teacherTabsSlice = createSlice({
     addComment: (state, action: PayloadAction<CommentData>) => {
       state.commentData.push(action.payload);
     },
+    // Set all comments (used when creating a comment and getting all comments from response)
+    setComments: (state, action: PayloadAction<CommentData[]>) => {
+      state.commentData = action.payload;
+    },
     // Add unavailability
     addUnavailability: (state, action: PayloadAction<UnavailabilityData>) => {
       state.unavailabilityData.push(action.payload);
@@ -469,6 +473,7 @@ export const {
   clearTeacherTabs, 
   clearError,
   addComment,
+  setComments,
   addUnavailability,
   updateUnavailability,
   deleteUnavailability,

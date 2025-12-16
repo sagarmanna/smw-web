@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, User } from "lucide-react";
 import { commentColumns, CommentData } from "../../../../teacherTabConfigs";
-import { addComment, fetchCommentsData } from "../../../../[id]/teacherTabs.slice";
-import { createNote } from "@/lib/api/legacyApiAdapter";
+import { setComments, fetchCommentsData } from "../../../../[id]/teacherTabs.slice";
+import { createComment } from "@/lib/api/comment.api";
 
 interface CommentsTabProps {
   location: string;
@@ -42,26 +42,36 @@ export function CommentsTab({ location, teacherId }: CommentsTabProps) {
     try {
       setCommentLoading(true);
       
-      // Call the legacy API to create a note/comment
-      const response = await createNote(
+      // Call the new API to create a comment
+      const response = await createComment(
         location,
-        teacherId,
+        teacherId,  
         2, // instanceType = 2 for teachers
-        commentInput.trim()
+        { content: commentInput.trim() }
       );
 
-      if (response.status) {
+      if (response.success && response.data?.status) {
         toast.success(response.message || "Comment added successfully");
-        // Refresh comments list to show the new comment
-        dispatch(fetchCommentsData({ location, teacherId }));
+        // Use the comments data from the POST response instead of making another GET call
+        const comments = response.data.data?.body || [];
+        // Transform comments to match CommentData type (id should be string)
+        const transformedComments: CommentData[] = comments.map((comment) => ({
+          ...comment,
+          id: String(comment.id),
+        }));
+        // Update Redux state with all comments from the response
+        dispatch(setComments(transformedComments));
         setCommentInput("");
         setCommentError(null);
       } else {
-        const errorMessage = response.message || response.errors?.join(", ") || "Failed to add comment";
+        const errorMessage = response.message || "Failed to add comment";
         toast.error(errorMessage);
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to add comment";
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { message?: string })?.message ||
+        (error as { errorCode?: string; message?: string })?.message ||
+        "Failed to add comment";
       console.error("Failed to add comment:", error);
       toast.error(errorMessage);
     } finally {

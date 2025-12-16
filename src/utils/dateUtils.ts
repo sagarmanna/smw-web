@@ -135,3 +135,69 @@ export function convertDecimalHoursToHHMM(decimalHours: string | number): string
   }
 }
 
+/**
+ * Formats a Date object to ISO 8601 date string (YYYY-MM-DD)
+ * Used for converting Date objects to API-compatible format
+ * @param date - Date object to format
+ * @returns ISO date string in format YYYY-MM-DD
+ */
+export function formatDateToISO(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Converts ISO date string (YYYY-MM-DD) to Date object
+ * Used for converting API date strings to Date objects for date pickers
+ * @param dateStr - ISO date string in format YYYY-MM-DD or other date string
+ * @returns Date object or undefined if parsing fails
+ */
+export function convertToDate(dateStr: string): Date | undefined {
+  if (!dateStr) return undefined;
+  try {
+    // Check if it's already in ISO format (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day);
+      if (!isNaN(dateObj.getTime())) {
+        return dateObj;
+      }
+    }
+    // Fallback: try parsing as regular date string
+    const dateObj = new Date(dateStr);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Converts date string from various formats to ISO format (YYYY-MM-DD)
+ * Handles formats like "MMM dd, yyyy" or "MMM d, yyyy" and converts to ISO
+ * @param dateStr - Date string in various formats
+ * @returns ISO date string (YYYY-MM-DD) or empty string if parsing fails
+ */
+export function convertToISOFormat(dateStr: string): string {
+  if (!dateStr) return "";
+  // If already in ISO format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  try {
+    // Try parsing with double-digit day format first: "MMM dd, yyyy"
+    let parsedDate = parse(dateStr, "MMM dd, yyyy", new Date());
+    if (!isValid(parsedDate)) {
+      // Try single-digit day format: "MMM d, yyyy"
+      parsedDate = parse(dateStr, "MMM d, yyyy", new Date());
+    }
+    if (isValid(parsedDate)) {
+      return formatDateToISO(parsedDate);
+    }
+  } catch (error) {
+    console.warn("Failed to parse date:", dateStr, error);
+  }
+  // Fallback: try native Date parsing
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime()) ? formatDateToISO(date) : "";
+}
+

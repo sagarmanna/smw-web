@@ -67,74 +67,74 @@ export interface QualificationDeleteData {
 /**
  * Delete a user using the legacy API
  */
-export async function deleteUser(
-  location: string,
-  userId: string | number
-): Promise<LegacyApiResponse> {
-  const url = `/admin/${location}/user/delete?id=${userId}`;
+// export async function deleteUser(
+//   location: string,
+//   userId: string | number
+// ): Promise<LegacyApiResponse> {
+//   const url = `/admin/${location}/user/delete?id=${userId}`;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    });
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       credentials: 'include',
+//       headers: {
+//         'X-Requested-With': 'XMLHttpRequest',
+//         'Accept': 'application/json',
+//       },
+//     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
+//     const data = await response.json();
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }
 
 /**
  * Send notification email using the legacy API
  */
-export async function notifyCustomerByEmail(
-  location: string,
-  customerId: string | number,
-  notifyData: NotifyEmailData
-): Promise<LegacyApiResponse> {
-  const formData = new FormData();
+// export async function notifyCustomerByEmail(
+//   location: string,
+//   customerId: string | number,
+//   notifyData: NotifyEmailData
+// ): Promise<LegacyApiResponse> {
+//   const formData = new FormData();
 
-  if (notifyData.emailNotifyTypeIds.length === 0) {
-    throw new Error('At least one email notify type must be selected.');
-  }
+//   if (notifyData.emailNotifyTypeIds.length === 0) {
+//     throw new Error('At least one email notify type must be selected.');
+//   }
 
-  notifyData.emailNotifyTypeIds.forEach((typeId) => {
-    formData.append('NotificationEmailType[emailNotifyType][]', typeId.toString());
-  });
+//   notifyData.emailNotifyTypeIds.forEach((typeId) => {
+//     formData.append('NotificationEmailType[emailNotifyType][]', typeId.toString());
+//   });
 
-  const url = `/admin/${location}/email/notify-email?customerId=${customerId}`;
+//   const url = `/admin/${location}/email/notify-email?customerId=${customerId}`;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    });
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       body: formData,
+//       credentials: 'include',
+//       headers: {
+//         'X-Requested-With': 'XMLHttpRequest',
+//         'Accept': 'application/json',
+//       },
+//     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
+//     const data = await response.json();
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }
 
 /**
  * Update a lesson using the legacy API
@@ -379,94 +379,112 @@ export async function modifyClassroom(
  * Create a student using the new API
  * Updated to use: POST /admin/v2/{location}/student/create?userId={userId}
  */
-export async function createStudent(
-  location: string,
-  userId: string | number,
-  studentData: StudentCreateData
-): Promise<LegacyApiResponse> {
-  const url = `/admin/v2/${location}/student/create?userId=${userId}`;
+// export async function createStudent(
+//   location: string,
+//   userId: string | number,
+//   studentData: StudentCreateData
+// ): Promise<LegacyApiResponse> {
+//   const url = `/admin/v2/${location}/student/create?userId=${userId}`;
 
-  const requestBody = {
-    firstName: studentData.firstName,
-    lastName: studentData.lastName,
-    customerId: studentData.customerId,
-    birthDate: studentData.birthDate || undefined,
-    gender: studentData.gender || undefined,
-  };
+//   const requestBody = {
+//     firstName: studentData.firstName,
+//     lastName: studentData.lastName,
+//     customerId: studentData.customerId,
+//     birthDate: studentData.birthDate || undefined,
+//     gender: studentData.gender || undefined,
+//   };
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify(requestBody),
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-    });
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       body: JSON.stringify(requestBody),
+//       credentials: 'include',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'Accept': 'application/json',
+//         'X-Requested-With': 'XMLHttpRequest',
+//       },
+//     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.message || `HTTP ${response.status}: ${response.statusText}`
-      );
-    }
+//     if (!response.ok) {
+//       const errorData = await response.json().catch(() => ({}));
+//       throw new Error(
+//         errorData.message || `HTTP ${response.status}: ${response.statusText}`
+//       );
+//     }
 
-    const data = await response.json();
+//     const data = await response.json();
     
-    // Transform new API response format to legacy format for backward compatibility
-    // New API returns: { success: true, data: { status: true, url: "..." }, message: "..." }
-    // Legacy expects: { status: true, url: "..." }
-    if (data.success && data.data) {
-      return {
-        status: data.data.status ?? true,
-        url: data.data.url,
-        message: data.message,
-      };
-    }
+//     // Transform new API response format to legacy format for backward compatibility
+//     // New API returns: { success: true, data: { status: true, url: "..." }, message: "..." }
+//     // Legacy expects: { status: true, url: "..." }
+//     if (data.success && data.data) {
+//       return {
+//         status: data.data.status ?? true,
+//         url: data.data.url,
+//         message: data.message,
+//       };
+//     }
     
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }
 
 /**
- * Create a note/comment using the legacy API
+ * Create a note/comment using the new API
+ * Updated to use: POST /admin/v2/{location}/note/create?instanceId={id}&instanceType={type}
  */
-export async function createNote(
-  location: string,
-  instanceId: string | number,
-  instanceType: number,
-  content: string
-): Promise<LegacyApiResponse> {
-  const formData = new FormData();
-  formData.append('Note[content]', content);
+// export async function createNote(
+//   location: string,
+//   instanceId: string | number,
+//   instanceType: number,
+//   content: string
+// ): Promise<LegacyApiResponse> {
+//   const url = `/admin/v2/${location}/note/create?instanceId=${instanceId}&instanceType=${instanceType}`;
 
-  const url = `/admin/${location}/note/create?instanceId=${instanceId}&instanceType=${instanceType}`;
+//   const requestBody = {
+//     content,
+//   };
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    });
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       body: JSON.stringify(requestBody),
+//       credentials: 'include',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'Accept': 'application/json',
+//         'X-Requested-With': 'XMLHttpRequest',
+//       },
+//     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+//     if (!response.ok) {
+//       const errorData = await response.json().catch(() => ({}));
+//       throw new Error(
+//         errorData.message || `HTTP ${response.status}: ${response.statusText}`
+//       );
+//     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
+//     const data = await response.json();
+    
+//     // Transform new API response format to legacy format for backward compatibility
+//     // New API returns: { success: true, data: { status: true, data: CommentsDataDto }, message: "..." }
+//     // Legacy expects: { status: true, data: HTML } (but we return JSON comments data instead)
+//     if (data.success && data.data) {
+//       return {
+//         status: data.data.status ?? true,
+//         data: data.data.data, // Comments data
+//         message: data.message,
+//       };
+//     }
+    
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }
 
 /**
  * Merge a customer into another customer using the legacy API
