@@ -1,13 +1,14 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Mail, Printer } from "lucide-react";
+import { Plus, Mail, Printer } from "lucide-react";
 import { studentColumns, StudentData } from "../../../../[id]/groupCourseTabConfigs";
 import { fetchGroupCourseTabsData } from "../../../../[id]/groupCourseTabs.slice";
+import { GroupCourseStudentEnrolmentModal } from "../../../modals/GroupCourseStudentEnrolmentModal";
 
 interface StudentsTabProps {
   location: string;
@@ -20,6 +21,7 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
   const isLoading = useAppSelector((state) => state.groupCourseTabs.isLoading);
   const error = useAppSelector((state) => state.groupCourseTabs.error);
   const currentCourseId = useAppSelector((state) => state.groupCourseTabs.currentCourseId);
+  const [isEnrolmentModalOpen, setIsEnrolmentModalOpen] = useState(false);
 
   useEffect(() => {
     // Only fetch if we don't have data for this course yet
@@ -76,45 +78,56 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
   ];
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-lg font-semibold">Students</CardTitle>
-        <Button size="sm" className="bg-primary hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Student
-        </Button>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {error ? (
-          <div className="text-center py-8 text-red-500">
-            <p className="font-medium">Error loading data</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        ) : (
-          <CustomTable
-            data={data as StudentData[]}
-            columns={columnsWithActions}
-            size="compact"
-            variant="striped"
-            enableSorting={true}
-            enableExport={false}
-            enablePrint={false}
-            enableSearch={false}
-            enableFilter={false}
-            className="border-0 w-full"
-            isLoading={isLoading}
-            customEmptyState={
-              !isLoading && data.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
-                  <div className="text-4xl">👥</div>
-                  <span className="text-sm font-medium">No students found</span>
-                </div>
-              ) : undefined
-            }
-          />
-        )}
-      </CardContent>
-    </Card>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-lg font-semibold">Students</CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setIsEnrolmentModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {error ? (
+            <div className="text-center py-8 text-red-500">
+              <p className="font-medium">Error loading data</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          ) : (
+            <CustomTable
+              data={data as StudentData[]}
+              columns={columnsWithActions}
+              size="compact"
+              variant="striped"
+              enableSorting={true}
+              enableExport={false}
+              enablePrint={false}
+              enableSearch={false}
+              enableFilter={false}
+              className="border-0 w-full"
+              isLoading={isLoading}
+              customEmptyState={
+                !isLoading && data.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
+                    <div className="text-4xl">👥</div>
+                    <span className="text-sm font-medium">No students found</span>
+                  </div>
+                ) : undefined
+              }
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <GroupCourseStudentEnrolmentModal
+        open={isEnrolmentModalOpen}
+        onOpenChange={setIsEnrolmentModalOpen}
+      />
+    </>
   );
 }
 
