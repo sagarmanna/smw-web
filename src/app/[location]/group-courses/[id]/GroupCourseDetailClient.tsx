@@ -37,7 +37,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
   // All hooks must be called before any early returns
   const pageTitle = React.useMemo(() => {
     if (!courseInfo) return `Group Course #${id}`;
-    return `Group Course / ${courseInfo.course}`;
+    return courseInfo.course;
   }, [courseInfo, id]);
 
   const breadcrumbItems = React.useMemo(
