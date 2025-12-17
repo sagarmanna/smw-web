@@ -180,8 +180,21 @@ function generateMockAbsentLessons(studentId: string): AbsentLessonData[] {
  * Generates mock unscheduled lessons data for a student
  */
 function generateMockUnscheduledLessons(studentId: string): UnscheduledLessonData[] {
-  // Mock data removed - returning empty array
-  return [];
+  // Basic deterministic mock based on studentId (for future extension if needed)
+  void studentId;
+
+  // Mock row based on legacy UI example:
+  // Program | Phone | Duration | Original Date | Expiry Date | Online
+  return [
+    {
+      program: "xPiano Hybrid",
+      phone: "(209) 182-9302",
+      duration: "00:30",
+      originalDate: "Dec 18, 2025",
+      expiryDate: "Mar 18, 2026",
+      online: "No",
+    },
+  ];
 }
 
 /**

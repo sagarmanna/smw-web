@@ -277,7 +277,16 @@ export const mockStudentTabData = {
     },
   ] as AbsentLessonData[],
 
-  unscheduledLessonData: [] as UnscheduledLessonData[],
+  unscheduledLessonData: [
+    {
+      program: "xPiano Hybrid",
+      phone: "(209) 182-9302",
+      duration: "00:30",
+      originalDate: "Dec 18, 2025",
+      expiryDate: "Mar 18, 2026",
+      online: "No",
+    },
+  ] as UnscheduledLessonData[],
 
   commentData: [
     {

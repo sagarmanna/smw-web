@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import {
   PrivateLessonData,
   GroupLessonData,
@@ -163,6 +163,21 @@ const studentTabsSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    updateUnscheduledLessonsProgram: (
+      state,
+      action: PayloadAction<{
+        indices: number[];
+        programName: string;
+      }>
+    ) => {
+      const { indices, programName } = action.payload;
+      indices.forEach((index) => {
+        const lesson = state.unscheduledLessonData[index];
+        if (lesson) {
+          lesson.program = programName;
+        }
+      });
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -238,6 +253,7 @@ const studentTabsSlice = createSlice({
 export const { 
   clearStudentTabs, 
   clearError,
+  updateUnscheduledLessonsProgram,
 } = studentTabsSlice.actions;
 export default studentTabsSlice.reducer;
 

@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { unscheduledLessonColumns, UnscheduledLessonData } from "../../../../[id]/studentTabConfigs";
 import { ColumnDef } from "@tanstack/react-table";
+import { ChangeProgramTeacherModal } from "./ChangeProgramTeacherModal";
 
 interface UnscheduledLessonsTabProps {
   location: string;
@@ -27,13 +29,13 @@ interface UnscheduledLessonDataWithSelection extends UnscheduledLessonData {
 
 export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLessonsTabProps) {
   // Props are kept for future use (e.g., API calls, filtering)
-  void location;
   void studentId;
   const data = useAppSelector((state) => state.studentTabs.unscheduledLessonData);
   const isLoading = useAppSelector((state) => state.studentTabs.unscheduledLessonLoading);
   const error = useAppSelector((state) => state.studentTabs.unscheduledLessonError);
   const [showAll, setShowAll] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [isChangeProgramTeacherOpen, setIsChangeProgramTeacherOpen] = useState(false);
 
   // Helper function to check if a lesson is expired
   const isExpired = useCallback((expiryDate: string): boolean => {
@@ -80,9 +82,21 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
     }) as (UnscheduledLessonDataWithSelection & { originalIndex?: number })[];
   }, [displayedData, data, selectedRows]);
 
+  // Get the program name of the first selected lesson (used to prefill modal)
+  const firstSelectedProgramName = useMemo(() => {
+    const firstSelected = dataWithSelection.find((item) =>
+      item.originalIndex !== undefined && selectedRows.has(item.originalIndex)
+    );
+    return firstSelected?.program ?? "";
+  }, [dataWithSelection, selectedRows]);
+
   const handleChangeProgramTeacher = () => {
-    // TODO: Implement change program/teacher functionality
-    console.log('Change Program/Teacher');
+    // If there are no lessons visible or none are selected, show error message
+    if (displayedData.length === 0 || selectedRows.size === 0) {
+      toast.error("Choose any lessons");
+      return;
+    }
+    setIsChangeProgramTeacherOpen(true);
   };
 
   const handleSelectAll = useCallback((checked: boolean) => {
@@ -223,6 +237,14 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
           </>
         )}
       </CardContent>
+
+      <ChangeProgramTeacherModal
+        open={isChangeProgramTeacherOpen}
+        onOpenChange={setIsChangeProgramTeacherOpen}
+        selectedCount={selectedRows.size}
+        location={location}
+        initialProgramName={firstSelectedProgramName}
+      />
     </Card>
   );
 }
