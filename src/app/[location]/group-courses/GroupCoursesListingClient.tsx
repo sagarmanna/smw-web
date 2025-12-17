@@ -143,8 +143,7 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row: GroupCourseRow) => {
-          // Navigate to course detail page when implemented
-          // router.push(`/${location}/group-courses/${row.id}`);
+          router.push(`/${location}/group-courses/${row.id}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
