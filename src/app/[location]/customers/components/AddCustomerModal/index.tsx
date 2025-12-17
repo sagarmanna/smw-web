@@ -160,13 +160,12 @@ export function AddCustomerModal({ isOpen, onClose, onSuccess, location }: AddCu
         // Redirect to the customer detail page
         const customerId = response.data.data?.id;
         if (customerId) {
-          if(isDev() || location === "training-location"){
-            router.push(`customers/${customerId}`);
-          } else {
-          window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${customerId}`;
-          }
-          // TODO: Uncomment this when the new web is ready
-          // router.push(`customers/${customerId}`);
+          // if(isDev() || location === "training-location"){
+          //   router.push(`customers/${customerId}`);
+          // } else {
+          // window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${customerId}`;
+          // }
+          router.push(`customers/${customerId}`);
         }
       } else {
         setErrors({ submit: response.data?.message || "Failed to create customer" });
