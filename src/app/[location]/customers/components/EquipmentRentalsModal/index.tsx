@@ -1861,7 +1861,7 @@ export function EquipmentRentalsModal({
                   <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
                     <tr>
                       <td style="vertical-align: middle; padding-right: 16px; width: 80px; height: 80px; line-height: 0;">
-                        <img src="${baseUrl}/admin/v2/SMW.png" alt="Musical Instruments Logo" width="80" height="80" style="width: 80px; height: 80px; max-width: 80px; max-height: 80px; display: block; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic;" />
+                        <img src="${baseUrl}/admin/v2/arcadia-master-logo.png" alt="Musical Instruments Logo" width="80" height="80" style="width: 80px; height: 80px; max-width: 80px; max-height: 80px; display: block; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic;" />
                       </td>
                       <td style="vertical-align: middle;">
                         <h2 style="font-size: 30px; font-weight: bold; color: #1f2937; margin: 0; line-height: 1.2; padding: 0; text-align: left;">Musical Instruments</h2>
@@ -2787,7 +2787,7 @@ export function EquipmentRentalsModal({
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 flex items-center justify-center relative">
                     <Image
-                      src="/admin/v2/SMW.png"
+                      src="/admin/v2/arcadia-master-logo.png"
                       alt="Musical Instruments Logo"
                       width={80}
                       height={80}
@@ -2795,7 +2795,7 @@ export function EquipmentRentalsModal({
                       priority
                     />
                     <Image
-                      src="/admin/v2/SMW-dark.png"
+                      src="/admin/v2/arcadia-master-logo.png"
                       alt="Musical Instruments Logo"
                       width={80}
                       height={80}
