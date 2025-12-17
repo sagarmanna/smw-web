@@ -490,7 +490,7 @@ export async function getCustomerStudentsForMerge(
 }
 
 export interface MergeStudentRequest {
-  targetId: number;
+  sourceId: number;
 }
 
 export interface MergeStudentResponse {
@@ -503,19 +503,17 @@ export interface MergeStudentResponse {
  * Endpoint: POST /admin/v2/{location}/student/{studentId}/merge
  *
  * @param location - The location identifier
- * @param studentId - The current student ID
- * @param targetId - The target student ID to merge into
+ * @param studentId - The source student ID (current student being merged)
  */
 export async function mergeStudent(
   location: string,
-  studentId: string,
-  targetId: number
+  studentId: string
 ): Promise<MergeStudentResponse | null> {
   try {
     const response = await apiClient.post<MergeStudentResponse>(
       `/admin/v2/${location}/student/${studentId}/merge`,
       {
-        targetId,
+        sourceId: Number(studentId),
       } as MergeStudentRequest
     );
     return response.data;

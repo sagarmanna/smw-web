@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { ReusableModal } from "@/components/TablesModals";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -92,8 +91,7 @@ export function MergeStudentModal({
     try {
       const response = await mergeStudent(
         _location,
-        _currentStudentId,
-        selectedStudentId
+        _currentStudentId
       );
 
       if (response && response.success) {
