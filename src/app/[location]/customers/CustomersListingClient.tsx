@@ -542,13 +542,12 @@ export function CustomersListingClient({ location }: CustomersClientProps) {
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row) => {
-          // Navigate once per click: push with explicit query param key to avoid parsing quirks
-          // TODO: Remove this once we have a proper customer page
-          if(isDev() || location === "training-location" || location === "burlington"){
-            router.push(`customers/${row.id}`);
-          } else {
-            window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${row.id}`;
-          }
+          router.push(`customers/${row.id}`);
+          // if(isDev() || location === "training-location" || location === "burlington"){
+          //   router.push(`customers/${row.id}`);
+          // } else {
+          //   window.location.href = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/user/view?UserSearch%5Brole_name%5D=customer&id=${row.id}`;
+          // }
         }}
         rowClassName={(row) => `cursor-pointer ${!row.isActive ? 'opacity-60 hover:opacity-80' : ''}`}
       />
