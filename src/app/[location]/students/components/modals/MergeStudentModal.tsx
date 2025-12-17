@@ -91,7 +91,8 @@ export function MergeStudentModal({
     try {
       const response = await mergeStudent(
         _location,
-        _currentStudentId
+        _currentStudentId,
+        selectedStudentId
       );
 
       if (response && response.success) {
