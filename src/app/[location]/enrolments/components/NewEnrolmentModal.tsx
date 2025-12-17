@@ -37,6 +37,11 @@ interface NewEnrolmentModalProps {
   onOpenChange: (open: boolean) => void;
   onNext?: (data: EnrolmentFormData) => void;
   location: string;
+  /**
+   * Custom text for the final button on the shared detail modal.
+   * Defaults to "Next" for the enrolments flow.
+   */
+  nextButtonText?: string;
 }
 
 export interface EnrolmentFormData {
@@ -116,6 +121,7 @@ export function NewEnrolmentModal({
   onOpenChange,
   onNext,
   location,
+  nextButtonText,
 }: NewEnrolmentModalProps) {
   const [programs, setPrograms] = React.useState<Program[]>([]);
   const [loadingPrograms, setLoadingPrograms] = React.useState(false);
@@ -323,7 +329,7 @@ export function NewEnrolmentModal({
           goToDate: enrolmentDetailData?.goToDate,
           showAll: enrolmentDetailData?.showAll ?? false,
         }}
-        nextButtonText="Next"
+        nextButtonText={nextButtonText ?? "Next"}
       />
 
       <NewCustomerDetailsModal
