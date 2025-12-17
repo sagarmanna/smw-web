@@ -1,5 +1,4 @@
 import {
-  PrivateLessonData,
   GroupLessonData,
   AbsentLessonData,
   UnscheduledLessonData,
@@ -11,10 +10,27 @@ import {
 // Private Lessons API Response Types
 // ---------------------------------------------
 
+export interface PrivateLessonItem {
+  id: number;
+  programName: string;
+  date: string;
+  duration: string;
+  status: string;
+  price: string;
+  owing: string;
+  isOnline: string;
+  url: string;
+}
+
+export interface PrivateLessonGroup {
+  dueDate: string;
+  lessons: PrivateLessonItem[];
+}
+
 export interface PrivateLessonApiResponse {
   success: boolean;
   data: {
-    body: PrivateLessonData[];
+    body: PrivateLessonGroup[];
   };
   message?: string;
 }
@@ -112,26 +128,6 @@ export interface HistoryApiResponse {
 // ---------------------------------------------
 // Mock Data (for development)
 // ---------------------------------------------
-
-/**
- * Generates mock private lessons data for a student
- */
-function generateMockPrivateLessons(studentId: string): PrivateLessonData[] {
-  const studentIndex = parseInt(studentId) || 1;
-  const programs = ["Piano Core", "Guitar Fundamentals", "Violin Basics", "Music Theory", "Drums Essential"];
-  const program = programs[(studentIndex - 1) % programs.length];
-  
-  return [
-    { dueDate: "Sep 15, 2025", programName: program, date: "Oct 11, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Sep 15, 2025", programName: program, date: "Oct 18, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Sep 15, 2025", programName: program, date: "Oct 25, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 01, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 08, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 15, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 22, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Nov 15, 2025", programName: program, date: "Dec 06, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-  ];
-}
 
 /**
  * Generates mock group lessons data for a student
@@ -242,31 +238,28 @@ function generateMockHistory(studentId: string): HistoryData[] {
 
 /**
  * Fetches private lessons for a student
- * Endpoint: GET /admin/v2/{location}/students/{studentId}/private-lessons
+ * Endpoint: GET /admin/v2/training-location/student/{studentId}/private-lessons
  * 
- * @param location - The location identifier (e.g., "burlington")
+ * @param location - The location identifier (e.g., "training-location")
  * @param studentId - The student ID
- * @returns Promise resolving to raw API response data or null on error
+ * @returns Promise resolving to API response data as-is (grouped structure) or null on error
  */
 export async function getStudentPrivateLessons(
   location: string,
   studentId: string
-): Promise<PrivateLessonApiResponse | null> {
+): Promise<PrivateLessonGroup[] | null> {
   try {
-    // TODO: Replace with actual API call when endpoint is available
-    // const url = `/admin/v2/${location}/students/${studentId}/private-lessons`;
-    // const response = await apiClient.get<PrivateLessonApiResponse>(url);
-    // return response.data;
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const { apiClient } = await import('@/lib/api/client');
+    const url = `/admin/v2/${location}/student/${studentId}/private-lessons`;
+    const response = await apiClient.get<PrivateLessonApiResponse>(url);
     
-    return {
-      success: true,
-      data: {
-        body: generateMockPrivateLessons(studentId),
-      },
-    };
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    
+    return response.data.data.body;
   } catch (error: unknown) {
     console.error("Error fetching private lessons:", error);
     const apiError = error as { response?: { data?: { message?: string } } };

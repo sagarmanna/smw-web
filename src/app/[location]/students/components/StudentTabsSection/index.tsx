@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { fetchStudentTabsData } from "../../[id]/studentTabs.slice";
+import { useAppSelector } from "@/redux/hooks";
 import {
   STUDENT_TAB_CONFIGS,
   STUDENT_TAB_ORDER,
@@ -32,22 +31,14 @@ const TAB_COMPONENTS: Record<string, React.ComponentType<{ location: string; stu
 };
 
 export function StudentTabsSection({ location, studentId }: StudentTabsSectionProps) {
-  const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState<string>(STUDENT_TAB_ORDER[0]);
   const isLoading = useAppSelector((state) => state.studentTabs.isLoading);
   const error = useAppSelector((state) => state.studentTabs.error);
-  const currentStudentId = useAppSelector((state) => state.studentTabs.currentStudentId);
-  const hasData = useAppSelector((state) => state.studentTabs.privateLessonData.length > 0);
+  const privateLessonLoading = useAppSelector((state) => state.studentTabs.privateLessonLoading);
+  const privateLessonError = useAppSelector((state) => state.studentTabs.privateLessonError);
 
-  // Fetch tabs data only if we don't have data for this student in Redux
-  useEffect(() => {
-    if (location && studentId) {
-      // Only fetch if we don't have data or it's a different student
-      if (currentStudentId !== studentId || !hasData) {
-        dispatch(fetchStudentTabsData({ location, studentId }));
-      }
-    }
-  }, [location, studentId, dispatch, currentStudentId, hasData]);
+  // Data is fetched once in page.tsx on initial load and stored in Redux
+  // No caching on UI side - just read from Redux state
 
   return (
     <div className="mt-8">
@@ -73,13 +64,13 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
 
           return (
             <TabsContent key={tabKey} value={tabKey} className="mt-4">
-              {isLoading && activeTab === tabKey ? (
+              {(isLoading || (tabKey === 'private-lessons' && privateLessonLoading)) && activeTab === tabKey ? (
                 <div className="flex items-center justify-center h-[400px]">
                   <div className="text-gray-500">Loading...</div>
                 </div>
-              ) : error && activeTab === tabKey ? (
+              ) : (error || (tabKey === 'private-lessons' && privateLessonError)) && activeTab === tabKey ? (
                 <div className="flex items-center justify-center h-[400px]">
-                  <div className="text-red-500">{error}</div>
+                  <div className="text-red-500">{error || privateLessonError}</div>
                 </div>
               ) : (
                 <TabComponent location={location} studentId={studentId} />
