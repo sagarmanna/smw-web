@@ -1,5 +1,6 @@
 // api/receivePayment.Api.ts
 import { apiClient } from '@/lib/api/client';
+import { format } from 'date-fns';
 
 // ==========================================
 // INTERFACES
@@ -200,7 +201,9 @@ export async function getReceivePaymentLessons(
   location: string,
   customerId: number,
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
+  startDate?: Date,
+  endDate?: Date
 ): Promise<{
   data: ReceivePaymentLesson[];
   pagination: {
@@ -214,6 +217,17 @@ export async function getReceivePaymentLessons(
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    // Optional date range filters (inclusive). When not provided, backend keeps
+    // existing behaviour (only past-due lessons). When provided, backend
+    // returns lessons whose dueDate falls within the requested range,
+    // including future lessons.
+    if (startDate) {
+      params.append('startDate', format(startDate, 'yyyy-MM-dd'));
+    }
+    if (endDate) {
+      params.append('endDate', format(endDate, 'yyyy-MM-dd'));
+    }
 
     const response = await apiClient.get<ReceivePaymentLessonsResponse>(
       `/admin/v2/${location}/customers/${customerId}/receive-payment-lesson`,
@@ -253,7 +267,9 @@ export async function getReceivePaymentGroupLessons(
   location: string,
   customerId: number,
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
+  startDate?: Date,
+  endDate?: Date
 ): Promise<{
   data: ReceivePaymentGroupLesson[];
   pagination: {
@@ -267,6 +283,13 @@ export async function getReceivePaymentGroupLessons(
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('limit', limit === -1 ? '99999' : limit.toString());
+
+    if (startDate) {
+      params.append('startDate', format(startDate, 'yyyy-MM-dd'));
+    }
+    if (endDate) {
+      params.append('endDate', format(endDate, 'yyyy-MM-dd'));
+    }
 
     const response = await apiClient.get<ReceivePaymentGroupLessonsResponse>(
       `/admin/v2/${location}/customers/${customerId}/receive-payment-group-lesson`,

@@ -1,5 +1,4 @@
 import {
-  PrivateLessonData,
   GroupLessonData,
   AbsentLessonData,
   UnscheduledLessonData,
@@ -11,10 +10,27 @@ import {
 // Private Lessons API Response Types
 // ---------------------------------------------
 
+export interface PrivateLessonItem {
+  id: number;
+  programName: string;
+  date: string;
+  duration: string;
+  status: string;
+  price: string;
+  owing: string;
+  isOnline: string;
+  url: string;
+}
+
+export interface PrivateLessonGroup {
+  dueDate: string;
+  lessons: PrivateLessonItem[];
+}
+
 export interface PrivateLessonApiResponse {
   success: boolean;
   data: {
-    body: PrivateLessonData[];
+    body: PrivateLessonGroup[];
   };
   message?: string;
 }
@@ -23,10 +39,35 @@ export interface PrivateLessonApiResponse {
 // Group Lessons API Response Types
 // ---------------------------------------------
 
+export interface GroupLessonItem {
+  id: number;
+  programName: string;
+  date: string;
+  duration: string;
+  status: string;
+  price: string;
+  owing: string;
+  isOnline: string;
+  url: string;
+}
+
+export interface GroupLessonGroup {
+  dueDate: string;
+  lessons: GroupLessonItem[];
+}
+
+export interface GroupLessonApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface GroupLessonApiResponse {
   success: boolean;
   data: {
-    body: GroupLessonData[];
+    body: GroupLessonGroup[];
+    pagination: GroupLessonApiResponsePagination;
   };
   message?: string;
 }
@@ -35,10 +76,30 @@ export interface GroupLessonApiResponse {
 // Absent Lessons API Response Types
 // ---------------------------------------------
 
+export interface AbsentLessonItem {
+  id: number;
+  date: string;
+  program: string;
+  teacher: string;
+  duration: string;
+  invoiceId: number;
+  invoiceNumber: string;
+  online: string;
+  url: string;
+}
+
+export interface AbsentLessonApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface AbsentLessonApiResponse {
   success: boolean;
   data: {
-    body: AbsentLessonData[];
+    body: AbsentLessonItem[];
+    pagination: AbsentLessonApiResponsePagination;
   };
   message?: string;
 }
@@ -114,69 +175,6 @@ export interface HistoryApiResponse {
 // ---------------------------------------------
 
 /**
- * Generates mock private lessons data for a student
- */
-function generateMockPrivateLessons(studentId: string): PrivateLessonData[] {
-  const studentIndex = parseInt(studentId) || 1;
-  const programs = ["Piano Core", "Guitar Fundamentals", "Violin Basics", "Music Theory", "Drums Essential"];
-  const program = programs[(studentIndex - 1) % programs.length];
-  
-  return [
-    { dueDate: "Sep 15, 2025", programName: program, date: "Oct 11, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Sep 15, 2025", programName: program, date: "Oct 18, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Sep 15, 2025", programName: program, date: "Oct 25, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 01, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 08, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 15, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 22, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-    { dueDate: "Nov 15, 2025", programName: program, date: "Dec 06, 2025 @ 02:30 PM", duration: "00:30", status: "Scheduled", price: 32.50, owing: 32.50, online: "No" },
-  ];
-}
-
-/**
- * Generates mock group lessons data for a student
- */
-function generateMockGroupLessons(studentId: string): GroupLessonData[] {
-  const studentIndex = parseInt(studentId) || 1;
-  const programs = ["xPiano Contemporary", "Guitar Ensemble", "Violin Group", "Music Theory Group", "Drums Collective"];
-  const program = programs[(studentIndex - 1) % programs.length];
-  
-  return [
-    // Group 1: Sep 15, 2025 - 1 lesson with Rescheduled status
-    { dueDate: "Sep 15, 2025", programName: program, date: "Oct 16, 2025 @ 07:30 PM", duration: "02:30", status: "Rescheduled", price: 143.75, owing: 143.75, online: "No" },
-    
-    // Group 2: Oct 15, 2025 - 5 lessons
-    { dueDate: "Oct 15, 2025", programName: program, date: "Oct 23, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Oct 30, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 06, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 13, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-    { dueDate: "Oct 15, 2025", programName: program, date: "Nov 20, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-    
-    // Group 3: Nov 15, 2025 - 4 lessons
-    { dueDate: "Nov 15, 2025", programName: program, date: "Nov 27, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-    { dueDate: "Nov 15, 2025", programName: program, date: "Dec 04, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-    { dueDate: "Nov 15, 2025", programName: program, date: "Dec 11, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-    { dueDate: "Nov 15, 2025", programName: program, date: "Dec 18, 2025 @ 11:30 AM", duration: "00:30", status: "Scheduled", price: 28.75, owing: 28.75, online: "No" },
-  ];
-}
-
-/**
- * Generates mock absent lessons data for a student
- */
-function generateMockAbsentLessons(studentId: string): AbsentLessonData[] {
-  const studentIndex = parseInt(studentId) || 1;
-  const programs = ["Piano Core", "Guitar Fundamentals", "Violin Basics", "Music Theory", "Drums Essential"];
-  const teachers = ["Art Tatum", "Jimi Hendrix", "Itzhak Perlman", "Johann Bach", "Buddy Rich"];
-  const program = programs[(studentIndex - 1) % programs.length];
-  const teacher = teachers[(studentIndex - 1) % teachers.length];
-  
-  return [
-    { date: "Sep 28, 2025 @ 02:30 PM", program: program, teacher: teacher, duration: "00:30", invoiceId: "INV-001", online: "No" },
-    { date: "Oct 05, 2025 @ 02:30 PM", program: program, teacher: teacher, duration: "00:30", invoiceId: "INV-002", online: "No" },
-  ];
-}
-
-/**
  * Generates mock unscheduled lessons data for a student
  */
 function generateMockUnscheduledLessons(studentId: string): UnscheduledLessonData[] {
@@ -242,31 +240,28 @@ function generateMockHistory(studentId: string): HistoryData[] {
 
 /**
  * Fetches private lessons for a student
- * Endpoint: GET /admin/v2/{location}/students/{studentId}/private-lessons
+ * Endpoint: GET /admin/v2/training-location/student/{studentId}/private-lessons
  * 
- * @param location - The location identifier (e.g., "burlington")
+ * @param location - The location identifier (e.g., "training-location")
  * @param studentId - The student ID
- * @returns Promise resolving to raw API response data or null on error
+ * @returns Promise resolving to API response data as-is (grouped structure) or null on error
  */
 export async function getStudentPrivateLessons(
   location: string,
   studentId: string
-): Promise<PrivateLessonApiResponse | null> {
+): Promise<PrivateLessonGroup[] | null> {
   try {
-    // TODO: Replace with actual API call when endpoint is available
-    // const url = `/admin/v2/${location}/students/${studentId}/private-lessons`;
-    // const response = await apiClient.get<PrivateLessonApiResponse>(url);
-    // return response.data;
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const { apiClient } = await import('@/lib/api/client');
+    const url = `/admin/v2/${location}/student/${studentId}/private-lessons`;
+    const response = await apiClient.get<PrivateLessonApiResponse>(url);
     
-    return {
-      success: true,
-      data: {
-        body: generateMockPrivateLessons(studentId),
-      },
-    };
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    
+    return response.data.data.body;
   } catch (error: unknown) {
     console.error("Error fetching private lessons:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
@@ -283,32 +278,32 @@ export async function getStudentPrivateLessons(
 // ---------------------------------------------
 
 /**
- * Fetches group lessons for a student
- * Endpoint: GET /admin/v2/{location}/students/{studentId}/group-lessons
+ * Fetches group lessons for a student with pagination
+ * Endpoint: GET /admin/v2/{location}/student/{studentId}/group-lessons
  * 
  * @param location - The location identifier (e.g., "burlington")
  * @param studentId - The student ID
+ * @param page - The page number for pagination (default: 1)
  * @returns Promise resolving to raw API response data or null on error
  */
 export async function getStudentGroupLessons(
   location: string,
-  studentId: string
+  studentId: string,
+  page: number = 1
 ): Promise<GroupLessonApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when endpoint is available
-    // const url = `/admin/v2/${location}/students/${studentId}/group-lessons`;
-    // const response = await apiClient.get<GroupLessonApiResponse>(url);
-    // return response.data;
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const { apiClient } = await import('@/lib/api/client');
+    const url = `/admin/v2/${location}/student/${studentId}/group-lessons`;
+    const response = await apiClient.get<GroupLessonApiResponse>(url, {
+      params: { page }
+    });
     
-    return {
-      success: true,
-      data: {
-        body: generateMockGroupLessons(studentId),
-      },
-    };
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching group lessons:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
@@ -325,32 +320,32 @@ export async function getStudentGroupLessons(
 // ---------------------------------------------
 
 /**
- * Fetches absent lessons for a student
- * Endpoint: GET /admin/v2/{location}/students/{studentId}/absent-lessons
+ * Fetches absent lessons for a student with pagination
+ * Endpoint: GET /admin/v2/{location}/student/{studentId}/absent-lessons
  * 
  * @param location - The location identifier (e.g., "burlington")
  * @param studentId - The student ID
+ * @param page - The page number for pagination (default: 1)
  * @returns Promise resolving to raw API response data or null on error
  */
 export async function getStudentAbsentLessons(
   location: string,
-  studentId: string
+  studentId: string,
+  page: number = 1
 ): Promise<AbsentLessonApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when endpoint is available
-    // const url = `/admin/v2/${location}/students/${studentId}/absent-lessons`;
-    // const response = await apiClient.get<AbsentLessonApiResponse>(url);
-    // return response.data;
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const { apiClient } = await import('@/lib/api/client');
+    const url = `/admin/v2/${location}/student/${studentId}/absent-lessons`;
+    const response = await apiClient.get<AbsentLessonApiResponse>(url, {
+      params: { page }
+    });
     
-    return {
-      success: true,
-      data: {
-        body: generateMockAbsentLessons(studentId),
-      },
-    };
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching absent lessons:", error);
     const apiError = error as { response?: { data?: { message?: string } } };

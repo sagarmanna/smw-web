@@ -18,7 +18,7 @@ interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (range: DateRange) => void;
   className?: string;
-  preset?: "default" | "payments" | "timeVoucher";
+  preset?: "default" | "payments" | "timeVoucher" | "receivePayment";
 }
 
 const defaultQuickOptions = [
@@ -140,10 +140,64 @@ const timeVoucherQuickOptions = [
   },
 ];
 
+const receivePaymentQuickOptions = [
+  {
+    label: "This Month",
+    getValue: () => ({
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    }),
+  },
+  {
+    label: "Next Month",
+    getValue: () => {
+      const nextMonth = addMonths(new Date(), 1);
+      return {
+        from: startOfMonth(nextMonth),
+        to: endOfMonth(nextMonth),
+      };
+    },
+  },
+  {
+    label: "Next 3 Months",
+    getValue: () => {
+      const now = new Date();
+      return {
+        // Exclude current month: start from the first day of next month
+        from: startOfMonth(addMonths(now, 1)),
+        to: endOfDay(endOfMonth(addMonths(now, 3))),
+      };
+    },
+  },
+  {
+    label: "Next 6 Months",
+    getValue: () => {
+      const now = new Date();
+      return {
+        // Exclude current month: cover months 1..6 ahead
+        from: startOfMonth(addMonths(now, 1)),
+        to: endOfDay(endOfMonth(addMonths(now, 6))),
+      };
+    },
+  },
+  {
+    label: "Next 12 Months",
+    getValue: () => {
+      const now = new Date();
+      return {
+        // Exclude current month: cover months 1..12 ahead
+        from: startOfMonth(addMonths(now, 1)),
+        to: endOfDay(endOfMonth(addMonths(now, 12))),
+      };
+    },
+  },
+];
+
 export function DateRangePicker({ value, onChange, className, preset = "default" }: DateRangePickerProps) {
   const quickOptions = 
     preset === "payments" ? paymentsQuickOptions :
     preset === "timeVoucher" ? timeVoucherQuickOptions :
+    preset === "receivePayment" ? receivePaymentQuickOptions :
     defaultQuickOptions;
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(value);

@@ -57,6 +57,10 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     open,
     isInCustomerRoute
   );
+
+  // Track last applied date ranges for lessons/group lessons to avoid duplicate reloads
+  const lastDueDateRangeRef = React.useRef<{ from: Date; to: Date } | null>(null);
+  const lastGroupDueDateRangeRef = React.useRef<{ from: Date; to: Date } | null>(null);
   
   // Item manipulation handlers
   const itemHandlers = useItemHandlers(
@@ -160,6 +164,52 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     : "";
 
   const [isSaving, setIsSaving] = React.useState<boolean>(false);
+
+  // Whenever the dueDate column filter changes to a valid date range,
+  // trigger a backend reload for lessons with that range.
+  React.useEffect(() => {
+    const raw = state.lessonColumnFilters?.dueDate as { from?: Date; to?: Date } | undefined;
+    const from = raw?.from;
+    const to = raw?.to;
+
+    if (!(from instanceof Date) || !(to instanceof Date)) {
+      return;
+    }
+
+    const prev = lastDueDateRangeRef.current;
+    if (prev && prev.from.getTime() === from.getTime() && prev.to.getTime() === to.getTime()) {
+      return;
+    }
+
+    lastDueDateRangeRef.current = { from, to };
+
+    if (typeof state.reloadLessonsForDateRange === 'function') {
+      state.reloadLessonsForDateRange(from, to);
+    }
+  }, [state.lessonColumnFilters, state.reloadLessonsForDateRange]);
+
+  // Whenever the group lessons dueDate column filter changes to a valid date range,
+  // trigger a backend reload for group lessons with that range.
+  React.useEffect(() => {
+    const raw = state.groupLessonColumnFilters?.dueDate as { from?: Date; to?: Date } | undefined;
+    const from = raw?.from;
+    const to = raw?.to;
+
+    if (!(from instanceof Date) || !(to instanceof Date)) {
+      return;
+    }
+
+    const prev = lastGroupDueDateRangeRef.current;
+    if (prev && prev.from.getTime() === from.getTime() && prev.to.getTime() === to.getTime()) {
+      return;
+    }
+
+    lastGroupDueDateRangeRef.current = { from, to };
+
+    if (typeof state.reloadGroupLessonsForDateRange === 'function') {
+      state.reloadGroupLessonsForDateRange(from, to);
+    }
+  }, [state.groupLessonColumnFilters, state.reloadGroupLessonsForDateRange]);
 
   /**
    * Handle save action
@@ -296,7 +346,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
 
         <div className="overflow-y-auto flex-1 px-6">
           <PaymentFormSection
-            customer={state.customer}
+            customer={customerName || ''}
             customerId={state.customerId}
             onCustomerChange={state.setCustomer}
             paymentDate={state.paymentDate}

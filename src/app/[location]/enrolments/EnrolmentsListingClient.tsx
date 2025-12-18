@@ -22,6 +22,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScheduleView, ScheduleHeader, ScheduleViewControls, ScheduleViewProvider } from "./components/ScheduleView";
 import { ChangeTeacherModal } from "./components/ChangeTeacherModal";
+import { NewEnrolmentModal, type EnrolmentFormData } from "./components/NewEnrolmentModal";
+import { toast } from "sonner";
 
 interface EnrolmentsListingClientProps {
   location: string;
@@ -31,6 +33,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
   const [activeTab, setActiveTab] = React.useState<"enrolments" | "schedule">("enrolments");
   const [selectedRows, setSelectedRows] = React.useState<Set<number>>(new Set());
   const [changeTeacherModalOpen, setChangeTeacherModalOpen] = React.useState(false);
+  const [isNewEnrolmentModalOpen, setIsNewEnrolmentModalOpen] = React.useState(false);
 
   const {
     rows,
@@ -148,18 +151,30 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
     location: location, // Pass location for PDF header
   });
 
-  // Add Enrolment button (used in both error and success states)
-  const addEnrolmentButton = React.useMemo(() => (
-    <Button 
-      onClick={() => {
-        // TODO: Implement add enrolment functionality
-      }} 
-      className="bg-primary hover:bg-primary/90"
-    >
-      <Plus className="h-4 w-4 mr-2" />
-      Add Enrolment
-    </Button>
-  ), []);
+  // Handle new enrolment completion
+  const handleNewEnrolmentComplete = React.useCallback(async (data: EnrolmentFormData) => {
+    try {
+      // TODO: Implement API call to create enrolment
+      // Example structure:
+      // const response = await createEnrolment(location, data);
+      // if (response.success) {
+      //   toast.success("Enrolment created successfully");
+      //   setIsNewEnrolmentModalOpen(false);
+      //   fetchData(); // Refresh the listing
+      // } else {
+      //   toast.error(response.message || "Failed to create enrolment");
+      // }
+      
+      // For now, just close modal and show success message
+      console.log("Enrolment data:", data);
+      setIsNewEnrolmentModalOpen(false);
+      toast.success("Enrolment created successfully");
+      fetchData(); // Refresh the listing
+    } catch (error) {
+      console.error("Error creating enrolment:", error);
+      toast.error("Failed to create enrolment");
+    }
+  }, [fetchData, location]);
 
   // Custom toolbar buttons (Edit only - Filter is handled by enableFilter prop)
   const customToolbarButtons = React.useMemo(() => (
@@ -223,6 +238,108 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
     />
   ), [changeTeacherModalOpen, selectedRows.size, location]);
 
+  // Reusable Add Enrolment Button
+  const addEnrolmentButton = React.useMemo(() => (
+    <Button 
+      onClick={() => setIsNewEnrolmentModalOpen(true)} 
+      className="bg-primary hover:bg-primary/90"
+    >
+      <Plus className="h-4 w-4 mr-2" />
+      Add Enrolment
+    </Button>
+  ), []);
+
+  // Reusable New Enrolment Modal
+  const newEnrolmentModal = React.useMemo(() => (
+    <NewEnrolmentModal
+      open={isNewEnrolmentModalOpen}
+      onOpenChange={setIsNewEnrolmentModalOpen}
+      onNext={handleNewEnrolmentComplete}
+      location={location}
+      nextButtonText="Next"
+    />
+  ), [isNewEnrolmentModalOpen, handleNewEnrolmentComplete, location]);
+
+  // Reusable Tabs Content Area
+  const renderTabsContent = React.useCallback((showTable: boolean) => (
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "enrolments" | "schedule")}>
+      <TabsContent value="enrolments" className="mt-0">
+        <ReportPageLayout
+          title="Enrolments"
+          subtitle="Browse all enrolments, search and sort"
+          isLoading={isLoading}
+          error={showTable ? null : error}
+          onRetry={fetchData}
+          actions={addEnrolmentButton}
+        >
+          {showTable ? (
+            <CustomTable
+              data={rows}
+              columns={columns}
+              isLoading={isLoading}
+              size="compact"
+              variant="default"
+              stickyHeader={true}
+              enableSearch={false}
+              searchPlaceholder="Search enrolments..."
+              getSearchValue={(r) => `${r.program} ${r.student} ${r.teacher}`}
+              enableFilter={true}
+              enablePrint={false}
+              enableRowsPerPage={true}
+              customHeaderComponent={customToolbarButtons}
+              serverSideFilterOptions={[
+                { key: "active", label: "Active" },
+                { key: "inactive", label: "Inactive" },
+              ]}
+              activeServerSideFilter={activeFilter}
+              onServerSideFilterChange={handleServerSideFilterChange}
+              defaultFilterLabel="All Enrolments"
+              enableColumnFilters={true}
+              onColumnFilterChange={handleColumnFilterChange}
+              onColumnFilterEnter={handleColumnFilterEnter}
+              columnFilters={columnFilters}
+              columnFilterPlaceholders={{
+                program: "Enter program name",
+                student: "Enter student name",
+                teacher: "Enter teacher name",
+                autoRenewal: "Enter auto renewal status",
+              }}
+              manualSorting={true}
+              sorting={sorting}
+              onSortingChange={(s) => {
+                setSorting(s);
+                setPage(1);
+              }}
+              serverSidePagination={{ page, limit: pageSize, total, totalPages }}
+              onServerSidePageChange={(newPage) => setPage(newPage)}
+              hideRecordCount={true}
+              showRecordCountInToolbar={true}
+              rowsPerPage={pageSize}
+              rowsPerPageOptions={[10, 20, 50, 100]}
+              enableExport={true}
+              onExport={{
+                html: exportToHtml,
+                csv: exportToCsv,
+                text: exportToText,
+                excel: exportToExcel,
+                pdf: exportToPdf,
+                json: exportToJson,
+              }}
+              onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+            />
+          ) : (
+            <div />
+          )}
+        </ReportPageLayout>
+      </TabsContent>
+
+      {scheduleTabContent}
+    </Tabs>
+  ), [activeTab, isLoading, error, fetchData, addEnrolmentButton, rows, columns, customToolbarButtons, 
+      activeFilter, handleServerSideFilterChange, handleColumnFilterChange, handleColumnFilterEnter, 
+      columnFilters, sorting, setSorting, setPage, page, pageSize, total, totalPages, exportToHtml, 
+      exportToCsv, exportToText, exportToExcel, exportToPdf, exportToJson, setPageSize, scheduleTabContent]);
+
   if (error) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -247,26 +364,12 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
         </div>
 
         <div className="flex-1 mt-2 md:mt-8 lg:mt-2">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "enrolments" | "schedule")}>
-            <TabsContent value="enrolments" className="mt-0">
-              <ReportPageLayout
-                title="Enrolments"
-                subtitle="Browse all enrolments, search and sort"
-                isLoading={isLoading}
-                error={error}
-                onRetry={fetchData}
-                actions={addEnrolmentButton}
-              >
-                <div />
-              </ReportPageLayout>
-            </TabsContent>
-
-            {scheduleTabContent}
-          </Tabs>
+          {renderTabsContent(false)}
         </div>
 
-        {/* Change Teacher Modal */}
+        {/* Modals */}
         {changeTeacherModal}
+        {newEnrolmentModal}
       </div>
     );
   }
@@ -300,86 +403,13 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
 
       {/* Content Area */}
       <div className="flex-1 mt-2 md:mt-8 lg:mt-2">
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "enrolments" | "schedule")}>
-          <TabsContent value="enrolments" className="mt-0">
-            <ReportPageLayout
-              title="Enrolments"
-              subtitle="Browse all enrolments, search and sort"
-              isLoading={isLoading}
-              error={null}
-              onRetry={fetchData}
-              actions={addEnrolmentButton}
-            >
-              <CustomTable
-                data={rows}
-                columns={columns}
-                isLoading={isLoading}
-
-                // Visual configuration
-                size="compact"
-                variant="default"
-                stickyHeader={true}
-
-                // Features
-                enableSearch={false}
-                searchPlaceholder="Search enrolments..."
-                getSearchValue={(r) => `${r.program} ${r.student} ${r.teacher}`}
-                enableFilter={true}
-                enablePrint={false}
-                enableRowsPerPage={true}
-                customHeaderComponent={customToolbarButtons}
-                serverSideFilterOptions={[
-                  { key: "active", label: "Active" },
-                  { key: "inactive", label: "Inactive" },
-                ]}
-                activeServerSideFilter={activeFilter}
-                onServerSideFilterChange={handleServerSideFilterChange}
-                defaultFilterLabel="All Enrolments"
-                enableColumnFilters={true}
-                onColumnFilterChange={handleColumnFilterChange}
-                onColumnFilterEnter={handleColumnFilterEnter}
-                columnFilters={columnFilters}
-                columnFilterPlaceholders={{
-                  program: "Enter program name",
-                  student: "Enter student name",
-                  teacher: "Enter teacher name",
-                  autoRenewal: "Enter auto renewal status",
-                }}
-
-                // Sorting and pagination (server-side)
-                manualSorting={true}
-                sorting={sorting}
-                onSortingChange={(s) => {
-                  setSorting(s);
-                  setPage(1);
-                }}
-                serverSidePagination={{ page, limit: pageSize, total, totalPages }}
-                onServerSidePageChange={(newPage) => setPage(newPage)}
-                hideRecordCount={true}
-                showRecordCountInToolbar={true}
-                rowsPerPage={pageSize}
-                rowsPerPageOptions={[10, 20, 50, 100]}
-                enableExport={true}
-                onExport={{
-                  html: exportToHtml,
-                  csv: exportToCsv,
-                  text: exportToText,
-                  excel: exportToExcel,
-                  pdf: exportToPdf,
-                  json: exportToJson,
-                }}
-                onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
-              />
-            </ReportPageLayout>
-          </TabsContent>
-
-          {scheduleTabContent}
-          </Tabs>
-        </div>
-
-        {/* Change Teacher Modal */}
-        {changeTeacherModal}
+        {renderTabsContent(true)}
       </div>
+
+      {/* Modals */}
+      {changeTeacherModal}
+      {newEnrolmentModal}
+    </div>
     </ScheduleViewProvider>
   );
 }

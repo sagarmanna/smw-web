@@ -1,8 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import {
-  PrivateLessonData,
-  GroupLessonData,
-  AbsentLessonData,
   UnscheduledLessonData,
   CommentData,
   HistoryData,
@@ -10,13 +7,24 @@ import {
 import {
   getStudentComments,
   getStudentHistory,
+  getStudentPrivateLessons,
+  getStudentGroupLessons,
+  getStudentAbsentLessons,
+  PrivateLessonGroup,
+  GroupLessonGroup,
+  GroupLessonApiResponsePagination,
+  AbsentLessonItem,
+  AbsentLessonApiResponsePagination,
 } from './students-details-tabs.api';
-import { mockStudentTabData } from '../mockData/studentMockData';
 
 export interface StudentTabsState {
-  privateLessonData: PrivateLessonData[];
-  groupLessonData: GroupLessonData[];
-  absentLessonData: AbsentLessonData[];
+  privateLessonData: PrivateLessonGroup[]; // Store grouped structure as-is from API
+  groupLessonData: GroupLessonGroup[]; // Store grouped structure as-is from API
+  groupLessonPagination: GroupLessonApiResponsePagination | null;
+  groupLessonStudentId: string | null;
+  absentLessonData: AbsentLessonItem[]; // Store flat array as-is from API
+  absentLessonPagination: AbsentLessonApiResponsePagination | null;
+  absentLessonStudentId: string | null;
   unscheduledLessonData: UnscheduledLessonData[];
   commentData: CommentData[];
   historyData: HistoryData[];
@@ -43,7 +51,11 @@ export interface StudentTabsState {
 const initialState: StudentTabsState = {
   privateLessonData: [],
   groupLessonData: [],
+  groupLessonPagination: null,
+  groupLessonStudentId: null,
   absentLessonData: [],
+  absentLessonPagination: null,
+  absentLessonStudentId: null,
   unscheduledLessonData: [],
   commentData: [],
   historyData: [],
@@ -70,18 +82,20 @@ const initialState: StudentTabsState = {
 export const fetchStudentTabsData = createAsyncThunk(
   'studentTabs/fetchStudentTabsData',
   async (
-    { location: _location, studentId: _studentId }: { location: string; studentId: string },
+    // Parameters kept for backward compatibility but not used (all data fetched separately)
+    _params: { location: string; studentId: string },
     { rejectWithValue }
   ) => {
     try {
-      // For now, use mock data. TODO: Replace with actual API calls
+      // All tab data is fetched separately via their respective thunks (lazy loading)
+      // This thunk is deprecated but kept for backward compatibility
       const data = {
-        privateLessonData: mockStudentTabData.privateLessonData || [],
-        groupLessonData: mockStudentTabData.groupLessonData || [],
-        absentLessonData: mockStudentTabData.absentLessonData || [],
-        unscheduledLessonData: mockStudentTabData.unscheduledLessonData || [],
-        commentData: mockStudentTabData.commentData || [],
-        historyData: mockStudentTabData.historyData || [],
+        privateLessonData: [], // Fetched separately via fetchPrivateLessonsData
+        groupLessonData: [], // Fetched separately via fetchGroupLessonsData
+        absentLessonData: [], // TODO: Create fetchAbsentLessonsData thunk
+        unscheduledLessonData: [], // TODO: Create fetchUnscheduledLessonsData thunk
+        commentData: [], // Fetched separately via fetchCommentsData
+        historyData: [], // Fetched separately via fetchHistoryData
       };
 
       return { data };
@@ -146,6 +160,89 @@ export const fetchHistoryData = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching private lessons data
+export const fetchPrivateLessonsData = createAsyncThunk(
+  'studentTabs/fetchPrivateLessonsData',
+  async (
+    { location, studentId }: { location: string; studentId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const data = await getStudentPrivateLessons(location, studentId);
+      
+      if (!data) {
+        throw new Error('Failed to fetch private lessons');
+      }
+
+      return {
+        data,
+        studentId,
+      };
+    } catch (error) {
+      console.error('Error in fetchPrivateLessonsData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch private lessons data'
+      );
+    }
+  }
+);
+
+// Async thunk for fetching group lessons data with pagination
+export const fetchGroupLessonsData = createAsyncThunk(
+  'studentTabs/fetchGroupLessonsData',
+  async (
+    { location, studentId, page = 1 }: { location: string; studentId: string; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getStudentGroupLessons(location, studentId, page);
+      
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch group lessons');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+        studentId,
+      };
+    } catch (error) {
+      console.error('Error in fetchGroupLessonsData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch group lessons data'
+      );
+    }
+  }
+);
+
+// Async thunk for fetching absent lessons data with pagination
+export const fetchAbsentLessonsData = createAsyncThunk(
+  'studentTabs/fetchAbsentLessonsData',
+  async (
+    { location, studentId, page = 1 }: { location: string; studentId: string; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getStudentAbsentLessons(location, studentId, page);
+      
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch absent lessons');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+        studentId,
+      };
+    } catch (error) {
+      console.error('Error in fetchAbsentLessonsData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch absent lessons data'
+      );
+    }
+  }
+);
+
 const studentTabsSlice = createSlice({
   name: 'studentTabs',
   initialState,
@@ -153,7 +250,11 @@ const studentTabsSlice = createSlice({
     clearStudentTabs: (state) => {
       state.privateLessonData = [];
       state.groupLessonData = [];
+      state.groupLessonPagination = null;
+      state.groupLessonStudentId = null;
       state.absentLessonData = [];
+      state.absentLessonPagination = null;
+      state.absentLessonStudentId = null;
       state.unscheduledLessonData = [];
       state.commentData = [];
       state.historyData = [];
@@ -200,8 +301,7 @@ const studentTabsSlice = createSlice({
       })
       .addCase(fetchStudentTabsData.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.privateLessonData = action.payload.data.privateLessonData;
-        state.groupLessonData = action.payload.data.groupLessonData;
+        // Note: privateLessonData and groupLessonData are fetched separately
         state.absentLessonData = action.payload.data.absentLessonData;
         state.unscheduledLessonData = action.payload.data.unscheduledLessonData;
         state.commentData = action.payload.data.commentData;
@@ -246,6 +346,61 @@ const studentTabsSlice = createSlice({
       .addCase(fetchHistoryData.rejected, (state, action) => {
         state.historyLoading = false;
         state.historyError = action.payload as string;
+      })
+      // Fetch private lessons data
+      .addCase(fetchPrivateLessonsData.pending, (state, action) => {
+        const { studentId } = action.meta.arg as { location: string; studentId: string };
+        
+        // Clear private lesson data if switching to a different student
+        if (state.currentStudentId !== null && state.currentStudentId !== studentId) {
+          state.privateLessonData = [];
+        }
+        
+        // Update current student ID
+        state.currentStudentId = studentId;
+        state.privateLessonLoading = true;
+        state.privateLessonError = null;
+      })
+      .addCase(fetchPrivateLessonsData.fulfilled, (state, action) => {
+        state.privateLessonLoading = false;
+        state.privateLessonData = action.payload.data;
+        state.privateLessonError = null;
+      })
+      .addCase(fetchPrivateLessonsData.rejected, (state, action) => {
+        state.privateLessonLoading = false;
+        state.privateLessonError = action.payload as string;
+      })
+      // Fetch group lessons data
+      .addCase(fetchGroupLessonsData.pending, (state) => {
+        state.groupLessonLoading = true;
+        state.groupLessonError = null;
+      })
+      .addCase(fetchGroupLessonsData.fulfilled, (state, action) => {
+        state.groupLessonLoading = false;
+        state.groupLessonData = action.payload.data;
+        state.groupLessonPagination = action.payload.pagination;
+        state.groupLessonStudentId = action.payload.studentId;
+        state.groupLessonError = null;
+      })
+      .addCase(fetchGroupLessonsData.rejected, (state, action) => {
+        state.groupLessonLoading = false;
+        state.groupLessonError = action.payload as string;
+      })
+      // Fetch absent lessons data
+      .addCase(fetchAbsentLessonsData.pending, (state) => {
+        state.absentLessonLoading = true;
+        state.absentLessonError = null;
+      })
+      .addCase(fetchAbsentLessonsData.fulfilled, (state, action) => {
+        state.absentLessonLoading = false;
+        state.absentLessonData = action.payload.data;
+        state.absentLessonPagination = action.payload.pagination;
+        state.absentLessonStudentId = action.payload.studentId;
+        state.absentLessonError = null;
+      })
+      .addCase(fetchAbsentLessonsData.rejected, (state, action) => {
+        state.absentLessonLoading = false;
+        state.absentLessonError = action.payload as string;
       });
   },
 });

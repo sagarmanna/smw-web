@@ -30,6 +30,8 @@ export const usePaymentState = (
     customersList,
     isLoadingCustomers,
     reloadPaymentData,
+    reloadLessonsByDateRange,
+    reloadGroupLessonsByDateRange,
   } = usePaymentData(location, customerId, shouldLoad, isCustomerRoute);
 
   // Form state - customer stores the customer ID as string
@@ -137,6 +139,32 @@ export const usePaymentState = (
     }
   };
 
+  /**
+   * Reload lessons for the current customer by a specific due date range.
+   * When no valid customer is selected, this is a no-op.
+   */
+  const reloadLessonsForDateRange = async (startDate: Date, endDate: Date) => {
+    if (!customerIdState || customerIdState === 0) {
+      console.warn('reloadLessonsForDateRange called without a valid customerId');
+      return;
+    }
+
+    await reloadLessonsByDateRange(customerIdState, startDate, endDate);
+  };
+
+  /**
+   * Reload group lessons for the current customer by a specific due date range.
+   * When no valid customer is selected, this is a no-op.
+   */
+  const reloadGroupLessonsForDateRange = async (startDate: Date, endDate: Date) => {
+    if (!customerIdState || customerIdState === 0) {
+      console.warn('reloadGroupLessonsForDateRange called without a valid customerId');
+      return;
+    }
+
+    await reloadGroupLessonsByDateRange(customerIdState, startDate, endDate);
+  };
+
   // Reset state when modal closes
   useEffect(() => {
     if (!shouldLoad) {
@@ -199,5 +227,7 @@ export const usePaymentState = (
     customersList,
     isLoadingCustomers,
     handleCustomerChange, // This updates both customer ID and reloads data
+    reloadLessonsForDateRange,
+    reloadGroupLessonsForDateRange,
   };
 };

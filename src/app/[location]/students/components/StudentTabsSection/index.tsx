@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { fetchStudentTabsData } from "../../[id]/studentTabs.slice";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import {
   STUDENT_TAB_CONFIGS,
   STUDENT_TAB_ORDER,
@@ -16,6 +15,13 @@ import {
   CommentsTab,
   HistoryTab,
 } from "./tabs";
+import { 
+  fetchPrivateLessonsData,
+  fetchGroupLessonsData,
+  fetchAbsentLessonsData,
+  fetchCommentsData,
+  fetchHistoryData,
+} from "../../[id]/studentTabs.slice";
 
 interface StudentTabsSectionProps {
   location: string;
@@ -34,20 +40,125 @@ const TAB_COMPONENTS: Record<string, React.ComponentType<{ location: string; stu
 export function StudentTabsSection({ location, studentId }: StudentTabsSectionProps) {
   const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState<string>(STUDENT_TAB_ORDER[0]);
+  
+  // Track which tabs have been loaded to prevent duplicate API calls
+  const loadingTabsRef = useRef<Set<string>>(new Set());
+  
+  // Redux state
   const isLoading = useAppSelector((state) => state.studentTabs.isLoading);
   const error = useAppSelector((state) => state.studentTabs.error);
-  const currentStudentId = useAppSelector((state) => state.studentTabs.currentStudentId);
-  const hasData = useAppSelector((state) => state.studentTabs.privateLessonData.length > 0);
+  const privateLessonLoading = useAppSelector((state) => state.studentTabs.privateLessonLoading);
+  const privateLessonError = useAppSelector((state) => state.studentTabs.privateLessonError);
+  const groupLessonLoading = useAppSelector((state) => state.studentTabs.groupLessonLoading);
+  const groupLessonError = useAppSelector((state) => state.studentTabs.groupLessonError);
+  const absentLessonLoading = useAppSelector((state) => state.studentTabs.absentLessonLoading);
+  const absentLessonError = useAppSelector((state) => state.studentTabs.absentLessonError);
+  const commentsLoading = useAppSelector((state) => state.studentTabs.commentsLoading);
+  const commentsError = useAppSelector((state) => state.studentTabs.commentsError);
+  const historyLoading = useAppSelector((state) => state.studentTabs.historyLoading);
+  const historyError = useAppSelector((state) => state.studentTabs.historyError);
 
-  // Fetch tabs data only if we don't have data for this student in Redux
-  useEffect(() => {
-    if (location && studentId) {
-      // Only fetch if we don't have data or it's a different student
-      if (currentStudentId !== studentId || !hasData) {
-        dispatch(fetchStudentTabsData({ location, studentId }));
+  // Function to load tab data when tab is first accessed (lazy loading)
+  const loadTabData = useCallback(
+    async (tabKey: string) => {
+      // Prevent duplicate calls if already loading
+      if (loadingTabsRef.current.has(tabKey)) {
+        return;
       }
+      loadingTabsRef.current.add(tabKey);
+
+      try {
+        switch (tabKey) {
+          case "private-lessons":
+            // Fetch private lessons (lazy loaded when tab is clicked)
+            await dispatch(fetchPrivateLessonsData({ location, studentId })).unwrap();
+            break;
+
+          case "group-lessons":
+            // Fetch group lessons with pagination (only page parameter, no limit)
+            await dispatch(fetchGroupLessonsData({ 
+              location, 
+              studentId, 
+              page: 1
+            })).unwrap();
+            break;
+
+          case "absent-lessons":
+            // Fetch absent lessons with pagination (only page parameter, no limit)
+            await dispatch(fetchAbsentLessonsData({ 
+              location, 
+              studentId, 
+              page: 1
+            })).unwrap();
+            break;
+
+          case "comments":
+            // Fetch comments
+            await dispatch(fetchCommentsData({ location, studentId })).unwrap();
+            break;
+
+          case "history":
+            // Fetch history
+            await dispatch(fetchHistoryData({ location, studentId })).unwrap();
+            break;
+
+          case "absent-lessons":
+          case "unscheduled-lessons":
+            // These use mock data for now - no API call needed
+            break;
+
+          default:
+            break;
+        }
+      } catch (error) {
+        console.error(`Error loading ${tabKey} data:`, error);
+      }
+    },
+    [dispatch, location, studentId]
+  );
+
+  // Load data when tab changes
+  useEffect(() => {
+    if (activeTab) {
+      loadTabData(activeTab);
     }
-  }, [location, studentId, dispatch, currentStudentId, hasData]);
+  }, [activeTab, loadTabData]);
+
+  // Helper function to get loading state for a specific tab
+  const getTabLoadingState = (tabKey: string) => {
+    switch (tabKey) {
+      case "private-lessons":
+        return privateLessonLoading;
+      case "group-lessons":
+        return groupLessonLoading;
+      case "absent-lessons":
+        return absentLessonLoading;
+      case "comments":
+        return commentsLoading;
+      case "history":
+        return historyLoading;
+      default:
+        return false;
+    }
+  };
+
+  // Helper function to get error state for a specific tab
+  const getTabErrorState = (tabKey: string) => {
+    switch (tabKey) {
+      case "private-lessons":
+        return privateLessonError;
+      case "group-lessons":
+        return groupLessonError;
+      case "absent-lessons":
+        return absentLessonError;
+      case "comments":
+        return commentsError;
+      case "history":
+        return historyError;
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="mt-8">
@@ -71,15 +182,14 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
             return null;
           }
 
+          const isTabLoading = getTabLoadingState(tabKey);
+          const tabError = getTabErrorState(tabKey);
+
           return (
             <TabsContent key={tabKey} value={tabKey} className="mt-4">
-              {isLoading && activeTab === tabKey ? (
+              {(error || tabError) && activeTab === tabKey && !(isLoading || isTabLoading) ? (
                 <div className="flex items-center justify-center h-[400px]">
-                  <div className="text-gray-500">Loading...</div>
-                </div>
-              ) : error && activeTab === tabKey ? (
-                <div className="flex items-center justify-center h-[400px]">
-                  <div className="text-red-500">{error}</div>
+                  <div className="text-red-500">{error || tabError}</div>
                 </div>
               ) : (
                 <TabComponent location={location} studentId={studentId} />
@@ -91,4 +201,3 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
     </div>
   );
 }
-

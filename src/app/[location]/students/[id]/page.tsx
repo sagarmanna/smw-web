@@ -3,6 +3,7 @@
 import { use, useEffect, useRef } from 'react';
 import { useAppDispatch } from '@/redux/hooks';
 import { fetchStudent, clearStudent } from './students-details.slice';
+import { clearStudentTabs } from './studentTabs.slice';
 import { StudentDetailClient } from "./StudentDetailClient";
 
 interface StudentDetailPageProps {
@@ -38,18 +39,17 @@ export default function StudentDetailPage({ params }: StudentDetailPageProps) {
       const prevStudentId = prevKey.split('-')[1];
       if (prevStudentId && prevStudentId !== studentId) {
         dispatch(clearStudent());
+        dispatch(clearStudentTabs());
       }
     }
     
     // Update the ref to track this fetch
     prevKeyRef.current = currentKey;
     
-    // Always fetch when studentId/location changes - the thunk will handle caching
-    // This ensures we get fresh data when switching between students
+    // Fetch student details on initial page load
+    // Tab data (private lessons, group lessons, etc.) are loaded lazily when tabs are clicked
     dispatch(fetchStudent({ location, studentId }));
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, studentId]); // dispatch is stable from Redux Toolkit, no need to include in deps
+  }, [location, studentId, dispatch]);
 
   // Render the client component that displays the details
   return <StudentDetailClient location={location} id={id} />;
