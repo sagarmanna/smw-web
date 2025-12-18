@@ -39,12 +39,15 @@ export interface GroupLessonData {
 }
 
 export interface AbsentLessonData {
+  id: number;
   date: string;
   program: string;
   teacher: string;
   duration: string;
-  invoiceId: string;
+  invoiceId: number;
+  invoiceNumber: string;
   online: string;
+  url: string;
 }
 
 export interface UnscheduledLessonData {
