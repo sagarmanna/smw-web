@@ -21,6 +21,8 @@ export interface PrivateLessonData {
   price: number;
   owing: number;
   online: string;
+  id?: number;
+  url?: string;
 }
 
 export interface GroupLessonData {

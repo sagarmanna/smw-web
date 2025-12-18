@@ -37,6 +37,8 @@ const flattenGroupedData = (data: PrivateLessonGroup[]): GroupedPrivateLessonDat
         price: parseFloat(lesson.price.replace(/[$,]/g, '')) || 0, // Parse price string to number for display
         owing: parseFloat(lesson.owing.replace(/[$,]/g, '')) || 0, // Parse owing string to number for display
         online: lesson.isOnline,
+        id: lesson.id,
+        url: lesson.url,
         isFirstInGroup: index === 0,
         groupRowSpan: group.lessons.length,
       });
@@ -88,6 +90,18 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
     const url = `${legacyBase}/${location}/lesson/index?LessonSearch[studentId]=${studentId}&LessonSearch[student]=${encodedStudentName}&LessonSearch[type]=1&LessonSearch[isSeeMore]=1`;
     window.location.href = url;
   };
+
+  const handleRowClick = useCallback(
+    (row: GroupedPrivateLessonData) => {
+      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      // Extract lesson ID from url field (e.g., "lesson/4302884" -> "4302884") or use id directly
+      if (row.id) {
+        const url = `${legacyBase}/${location}/lesson/view?id=${row.id}`;
+        window.location.href = url;
+      }
+    },
+    [location]
+  );
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
@@ -159,6 +173,8 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
               enableFilter={false}
               className="border-0 w-full"
               isLoading={isLoading}
+              onRowClick={handleRowClick}
+              rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               customEmptyState={
                 !isLoading && paginatedData.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
