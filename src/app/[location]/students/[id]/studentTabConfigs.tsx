@@ -26,14 +26,16 @@ export interface PrivateLessonData {
 }
 
 export interface GroupLessonData {
+  id?: number;
   dueDate: string;
   programName: string;
   date: string;
   duration: string;
   status: string;
-  price: number;
-  owing: number;
+  price: string;
+  owing: string; 
   online: string;
+  url?: string;
 }
 
 export interface AbsentLessonData {
@@ -160,12 +162,10 @@ export const groupLessonColumns: ColumnDef<GroupLessonData>[] = [
   { 
     accessorKey: "price", 
     header: "Price",
-    cell: ({ row }) => formatCurrency(row.original.price),
   },
   { 
     accessorKey: "owing", 
     header: "Owing",
-    cell: ({ row }) => formatCurrency(row.original.owing),
   },
   { 
     accessorKey: "online", 
