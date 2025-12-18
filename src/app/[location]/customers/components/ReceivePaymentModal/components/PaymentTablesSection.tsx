@@ -20,16 +20,11 @@ interface PaymentTablesSectionProps {
   lessonColumns: ColumnDef<LessonItem, unknown>[];
   lessonColumnFilters: ColumnFilter;
   onLessonFilterChange: (columnKey: string, filterValue: unknown) => void;
-  // Optional server-side date range filter for lessons
-  lessonDateRange?: { from: Date; to: Date };
-  onLessonDateRangeChange?: (range: { from: Date; to: Date }) => void;
   
   groupLessons: GroupLessonItem[];
   groupLessonColumns: ColumnDef<GroupLessonItem, unknown>[];
   groupLessonColumnFilters: ColumnFilter;
   onGroupLessonFilterChange: (columnKey: string, filterValue: unknown) => void;
-  groupLessonDateRange?: { from: Date; to: Date };
-  onGroupLessonDateRangeChange?: (range: { from: Date; to: Date }) => void;
   
   invoices: InvoiceItem[];
   invoiceColumns: ColumnDef<InvoiceItem, unknown>[];
@@ -73,14 +68,10 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
   lessonColumns,
   lessonColumnFilters,
   onLessonFilterChange,
-  lessonDateRange,
-  onLessonDateRangeChange,
   groupLessons,
   groupLessonColumns,
   groupLessonColumnFilters,
   onGroupLessonFilterChange,
-  groupLessonDateRange,
-  onGroupLessonDateRangeChange,
   invoices,
   invoiceColumns,
   credits,
@@ -113,10 +104,6 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
         enableExport={TABLE_CONFIG.enableExport}
         enableFilter={TABLE_CONFIG.enableFilter}
         enablePrint={TABLE_CONFIG.enablePrint}
-        enableDateRangePicker={Boolean(onLessonDateRangeChange)}
-        dateRange={lessonDateRange}
-        onDateRangeChange={onLessonDateRangeChange}
-        dateRangePreset="receivePayment"
         enableColumnFilters={true}
         onColumnFilterChange={onLessonFilterChange}
         columnFilters={lessonColumnFilters}
@@ -140,10 +127,6 @@ export const PaymentTablesSection: React.FC<PaymentTablesSectionProps> = ({
         enableExport={TABLE_CONFIG.enableExport}
         enableFilter={TABLE_CONFIG.enableFilter}
         enablePrint={TABLE_CONFIG.enablePrint}
-        enableDateRangePicker={Boolean(onGroupLessonDateRangeChange)}
-        dateRange={groupLessonDateRange}
-        onDateRangeChange={onGroupLessonDateRangeChange}
-        dateRangePreset="receivePayment"
         enableColumnFilters={true}
         onColumnFilterChange={onGroupLessonFilterChange}
         columnFilters={groupLessonColumnFilters}
