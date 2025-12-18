@@ -32,7 +32,7 @@ export interface ColumnFilter {
   initialValue?: unknown;
   options?: { value: string; label: string }[]; // For dropdown type
   disabled?: (date: Date) => boolean; // Function to disable specific dates
-  quickPreset?: "default" | "payments"; // Optional preset for components like DateRangePicker
+  quickPreset?: "default" | "payments" | "timeVoucher" | "receivePayment"; // Optional preset for components like DateRangePicker
 }
 
 export interface CustomTableProps<TData, TValue> {
@@ -118,6 +118,7 @@ export interface CustomTableProps<TData, TValue> {
   // DateRangePicker configuration
   dateRange?: { from: Date; to: Date };
   onDateRangeChange?: (range: { from: Date; to: Date }) => void;
+  dateRangePreset?: "default" | "payments" | "timeVoucher" | "receivePayment";
   
   // Custom styling
   className?: string;
@@ -206,6 +207,7 @@ export function CustomTable<TData, TValue>({
   // DateRangePicker configuration
   dateRange,
   onDateRangeChange,
+  dateRangePreset = "default",
   
   // Custom styling
   className,
@@ -434,6 +436,7 @@ export function CustomTable<TData, TValue>({
             enableDateRangePicker={enableDateRangePicker}
             dateRange={dateRange}
             onDateRangeChange={onDateRangeChange}
+            dateRangePreset={dateRangePreset}
             enablePrint={enablePrint}
             onPrint={onPrint}
             enableExport={enableExport}

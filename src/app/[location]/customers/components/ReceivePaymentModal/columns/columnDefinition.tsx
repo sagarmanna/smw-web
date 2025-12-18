@@ -242,7 +242,7 @@ export const createLessonColumns = (
     filter: {
       type: 'date-range' as const,
       initialValue: undefined,
-      quickPreset: 'payments',
+      quickPreset: 'receivePayment',
     },
   },
   {
@@ -335,7 +335,7 @@ export const createGroupLessonColumns = (
     filter: {
       type: 'date-range' as const,
       initialValue: undefined,
-      quickPreset: 'payments',
+      quickPreset: 'receivePayment',
     },
   },
   {
