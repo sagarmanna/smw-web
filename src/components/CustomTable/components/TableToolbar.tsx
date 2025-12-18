@@ -24,6 +24,7 @@ interface TableToolbarProps<TData> {
   enableDateRangePicker: boolean;
   dateRange?: { from: Date; to: Date };
   onDateRangeChange?: (range: { from: Date; to: Date }) => void;
+  dateRangePreset?: "default" | "payments" | "timeVoucher" | "receivePayment";
   
   // Print
   enablePrint: boolean;
@@ -75,6 +76,7 @@ export function TableToolbar<TData>({
   enableDateRangePicker,
   dateRange,
   onDateRangeChange,
+  dateRangePreset = "default",
   enablePrint,
   onPrint,
   enableExport,
@@ -117,6 +119,7 @@ export function TableToolbar<TData>({
         <DateRangePicker
           value={dateRange}
           onChange={onDateRangeChange}
+          preset={dateRangePreset}
         />
       )}
       
