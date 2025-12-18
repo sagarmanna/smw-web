@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
+import { NewEnrolmentModal, type EnrolmentFormData } from "./components/NewEnrolmentModal";
+import { toast } from "sonner";
 
 interface EnrolmentsListingClientProps {
   location: string;
@@ -30,6 +32,7 @@ interface EnrolmentsListingClientProps {
 export function EnrolmentsListingClient({ location }: EnrolmentsListingClientProps) {
   const [selectedDate] = React.useState<Date>(() => new Date());
   const [selectedRows, setSelectedRows] = React.useState<Set<number>>(new Set());
+  const [isNewEnrolmentModalOpen, setIsNewEnrolmentModalOpen] = React.useState(false);
 
   const {
     rows,
@@ -147,6 +150,31 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
     location: location, // Pass location for PDF header
   });
 
+  // Handle new enrolment completion
+  const handleNewEnrolmentComplete = React.useCallback(async (data: EnrolmentFormData) => {
+    try {
+      // TODO: Implement API call to create enrolment
+      // Example structure:
+      // const response = await createEnrolment(location, data);
+      // if (response.success) {
+      //   toast.success("Enrolment created successfully");
+      //   setIsNewEnrolmentModalOpen(false);
+      //   fetchData(); // Refresh the listing
+      // } else {
+      //   toast.error(response.message || "Failed to create enrolment");
+      // }
+      
+      // For now, just close modal and show success message
+      console.log("Enrolment data:", data);
+      setIsNewEnrolmentModalOpen(false);
+      toast.success("Enrolment created successfully");
+      fetchData(); // Refresh the listing
+    } catch (error) {
+      console.error("Error creating enrolment:", error);
+      toast.error("Failed to create enrolment");
+    }
+  }, [fetchData, location]);
+
   // Custom toolbar buttons (Edit only - Filter is handled by enableFilter prop)
   const customToolbarButtons = React.useMemo(() => (
     <DropdownMenu>
@@ -212,10 +240,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
             onRetry={fetchData}
             actions={
               <Button 
-                onClick={() => {
-                  // TODO: Implement add enrolment functionality
-                  console.log("Add enrolment clicked");
-                }} 
+                onClick={() => setIsNewEnrolmentModalOpen(true)} 
                 className="bg-primary hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -269,10 +294,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
           onRetry={fetchData}
           actions={
             <Button 
-              onClick={() => {
-                // TODO: Implement add enrolment functionality
-                console.log("Add enrolment clicked");
-              }} 
+              onClick={() => setIsNewEnrolmentModalOpen(true)} 
               className="bg-primary hover:bg-primary/90"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -342,6 +364,14 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
           />
         </ReportPageLayout>
       </div>
+
+      <NewEnrolmentModal
+        open={isNewEnrolmentModalOpen}
+        onOpenChange={setIsNewEnrolmentModalOpen}
+        onNext={handleNewEnrolmentComplete}
+        location={location}
+        nextButtonText="Next"
+      />
     </div>
   );
 }

@@ -18,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DurationPicker } from "@/components/DurationPicker";
+import { parseDuration, formatDuration } from "@/utils/durationUtils";
 import {
   getTeacherScheduleEvents,
   type TeacherScheduleData,
@@ -244,19 +246,7 @@ export function EditScheduleModal({
     [location]
   );
 
-  // Parse duration string (HH:mm) into hours and minutes
-  const parseDuration = useCallback((durationStr: string) => {
-    if (!durationStr) return { hours: 0, minutes: 0 };
-    const parts = durationStr.split(":");
-    const hours = parseInt(parts[0] || "0", 10);
-    const minutes = parseInt(parts[1] || "0", 10);
-    return { hours, minutes };
-  }, []);
-
-  // Format hours and minutes into HH:mm string
-  const formatDuration = useCallback((hours: number, minutes: number) => {
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-  }, []);
+  // Note: parseDuration and formatDuration are imported from @/utils/durationUtils
 
   // Extract lesson ID from different ID formats
   const extractLessonId = useCallback((id: string): number | null => {
@@ -591,24 +581,7 @@ export function EditScheduleModal({
     }
   }, [lessonId, selectedTeacherId, rescheduleDate, selectedLesson, duration, location, validationErrors, mondayDate, parseDuration, formatDuration, formatDateForValidation, formatDateOnlyForValidation, onOpenChange, onSuccess]);
 
-  // Get current hours and minutes from duration
-  const { hours: currentHours, minutes: currentMinutes } = useMemo(() => {
-    return parseDuration(duration);
-  }, [duration, parseDuration]);
-
-  // Handle hour change
-  const handleHourChange = useCallback((newHours: number) => {
-    const clampedHours = Math.max(0, Math.min(23, newHours));
-    setDuration(formatDuration(clampedHours, currentMinutes));
-  }, [currentMinutes, formatDuration]);
-
-  // Handle minute change (only allow 00, 15, 30, 45)
-  const handleMinuteChange = useCallback((newMinutes: number) => {
-    // Round to nearest 15-minute increment
-    const roundedMinutes = Math.round(newMinutes / 15) * 15;
-    const clampedMinutes = roundedMinutes >= 60 ? 0 : roundedMinutes;
-    setDuration(formatDuration(currentHours, clampedMinutes));
-  }, [currentHours, formatDuration]);
+  // Note: DurationPicker component handles hour/minute changes internally
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -640,44 +613,12 @@ export function EditScheduleModal({
           
           <div className="grid grid-cols-4 gap-4 items-end">
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground font-semibold">Duration</div>
-              <div className="flex items-center gap-2 border rounded-md h-10 px-3 bg-background">
-                {/* Hours */}
-                <Select
-                  value={currentHours.toString()}
-                  onValueChange={(val) => handleHourChange(parseInt(val))}
-                >
-                  <SelectTrigger className="w-16 h-8 px-2 py-0 border-0 focus:ring-0 text-base font-medium shadow-none">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent 
-                    className="max-h-[200px]"
-                    style={{ maxHeight: '200px' }}
-                  >
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <SelectItem key={i} value={i.toString()}>
-                        {i.toString().padStart(2, "0")}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-xl font-semibold text-foreground">:</span>
-                {/* Minutes */}
-                <Select
-                  value={currentMinutes.toString()}
-                  onValueChange={(val) => handleMinuteChange(parseInt(val))}
-                >
-                  <SelectTrigger className="w-16 h-8 px-2 py-0 border-0 focus:ring-0 text-base font-medium shadow-none">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">00</SelectItem>
-                    <SelectItem value="15">15</SelectItem>
-                    <SelectItem value="30">30</SelectItem>
-                    <SelectItem value="45">45</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <DurationPicker
+                value={duration}
+                onChange={setDuration}
+                label="Duration"
+                className="w-full"
+              />
             </div>
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground font-semibold">Teacher</div>

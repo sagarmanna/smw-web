@@ -12,24 +12,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DurationPicker } from "@/components/DurationPicker";
-import { getProgramsList, Program } from "../../../../teachers/teachers.api";
+import { getProgramsList, Program } from "../../teachers/teachers.api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { cn } from "@/lib/utils";
 import {
   EnrolmentStartDateModal,
   type EnrolmentStartDateFormData,
-} from "./EnrolmentStartDateModal";
+} from "../../students/components/StudentEnrolmentsCard/AddPrivateModal/EnrolmentStartDateModal";
 import {
   NewEnrolmentDetailModal,
   type EnrolmentDetailFormData,
 } from "@/components/EnrolmentWizard/NewEnrolmentDetailModal";
+import {
+  NewCustomerDetailsModal,
+  type CustomerDetailsFormData,
+} from "./NewCustomerDetailsModal";
+import {
+  NewStudentDetailsModal,
+  type StudentDetailsFormData,
+} from "./NewStudentDetailsModal";
 
 interface NewEnrolmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNext?: (data: EnrolmentFormData) => void;
   location: string;
-  nextButtonText?: string; // Custom button text for NewEnrolmentDetailModal, defaults to "Preview Lessons"
+  /**
+   * Custom text for the final button on the shared detail modal.
+   * Defaults to "Next" for the enrolments flow.
+   */
+  nextButtonText?: string;
 }
 
 export interface EnrolmentFormData {
@@ -117,7 +129,11 @@ export function NewEnrolmentModal({
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [isStartDateModalOpen, setIsStartDateModalOpen] = React.useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
+  const [isCustomerDetailsModalOpen, setIsCustomerDetailsModalOpen] = React.useState(false);
+  const [isStudentDetailsModalOpen, setIsStudentDetailsModalOpen] = React.useState(false);
   const [currentFormData, setCurrentFormData] = React.useState<EnrolmentFormData | null>(null);
+  const [enrolmentDetailData, setEnrolmentDetailData] = React.useState<EnrolmentDetailFormData | null>(null);
+  const [customerDetailsData, setCustomerDetailsData] = React.useState<CustomerDetailsFormData | null>(null);
   const [startDateData, setStartDateData] = React.useState<EnrolmentStartDateFormData | null>(null);
 
   React.useEffect(() => {
@@ -132,13 +148,15 @@ export function NewEnrolmentModal({
 
   // Reset the wizard only when everything is fully closed (not while moving to the next step).
   React.useEffect(() => {
-    if (!open && !isStartDateModalOpen && !isDetailModalOpen) {
+    if (!open && !isStartDateModalOpen && !isDetailModalOpen && !isCustomerDetailsModalOpen && !isStudentDetailsModalOpen) {
       setFormData(defaultFormData);
       setErrors({});
       setCurrentFormData(null);
       setStartDateData(null);
+      setEnrolmentDetailData(null);
+      setCustomerDetailsData(null);
     }
-  }, [open, isStartDateModalOpen, isDetailModalOpen]);
+  }, [open, isStartDateModalOpen, isDetailModalOpen, isCustomerDetailsModalOpen, isStudentDetailsModalOpen]);
 
   const programOptions = React.useMemo(() => programs.map((p) => ({ value: p.id.toString(), label: p.name })), [programs]);
   const paymentFrequencySelectOptions = React.useMemo(() => paymentFrequencyOptions.map((f) => ({ value: f, label: f })), []);
@@ -294,21 +312,64 @@ export function NewEnrolmentModal({
           setIsStartDateModalOpen(true);
         }}
         onPreviewLessons={(detailData) => {
-          if (currentFormData) {
-            onNext?.(currentFormData);
-            setIsDetailModalOpen(false);
-          }
+          setEnrolmentDetailData(detailData);
+          setIsDetailModalOpen(false);
+          setIsCustomerDetailsModalOpen(true);
         }}
         location={location}
         initialData={{
           startDate: currentFormData?.startDate,
-          showAll: false,
           // Use the latest duration selected in the basic enrolment modal
           // so the calendar slot preview reflects this value (e.g. 45 mins).
           duration: currentFormData?.duration ?? formData.duration,
+          // Restore previously selected detail data when navigating back
+          teacherId: enrolmentDetailData?.teacherId,
+          day: enrolmentDetailData?.day,
+          startTime: enrolmentDetailData?.startTime,
+          goToDate: enrolmentDetailData?.goToDate,
+          showAll: enrolmentDetailData?.showAll ?? false,
         }}
-        nextButtonText={nextButtonText}
+        nextButtonText={nextButtonText ?? "Next"}
+      />
+
+      <NewCustomerDetailsModal
+        open={isCustomerDetailsModalOpen}
+        onOpenChange={setIsCustomerDetailsModalOpen}
+        onBack={() => {
+          setIsCustomerDetailsModalOpen(false);
+          setIsDetailModalOpen(true);
+        }}
+        onNext={(customerData) => {
+          setCustomerDetailsData(customerData);
+          setIsCustomerDetailsModalOpen(false);
+          setIsStudentDetailsModalOpen(true);
+        }}
+        initialData={customerDetailsData ?? undefined}
+        location={location}
+      />
+
+      <NewStudentDetailsModal
+        open={isStudentDetailsModalOpen}
+        onOpenChange={setIsStudentDetailsModalOpen}
+        onBack={() => {
+          setIsStudentDetailsModalOpen(false);
+          setIsCustomerDetailsModalOpen(true);
+        }}
+        initialData={{
+          firstName: customerDetailsData?.firstName ?? "",
+          lastName: customerDetailsData?.lastName ?? "",
+        }}
+        onNext={(studentData) => {
+          // Combine all data and pass to parent
+          if (currentFormData && enrolmentDetailData && customerDetailsData) {
+            // TODO: Combine enrolment data with customer details and student details
+            // For now, just pass the enrolment data
+            onNext?.(currentFormData);
+            setIsStudentDetailsModalOpen(false);
+          }
+        }}
       />
     </Dialog>
   );
 }
+
