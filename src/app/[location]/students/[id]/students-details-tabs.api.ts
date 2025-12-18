@@ -76,10 +76,30 @@ export interface GroupLessonApiResponse {
 // Absent Lessons API Response Types
 // ---------------------------------------------
 
+export interface AbsentLessonItem {
+  id: number;
+  date: string;
+  program: string;
+  teacher: string;
+  duration: string;
+  invoiceId: number;
+  invoiceNumber: string;
+  online: string;
+  url: string;
+}
+
+export interface AbsentLessonApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface AbsentLessonApiResponse {
   success: boolean;
   data: {
-    body: AbsentLessonData[];
+    body: AbsentLessonItem[];
+    pagination: AbsentLessonApiResponsePagination;
   };
   message?: string;
 }
@@ -153,22 +173,6 @@ export interface HistoryApiResponse {
 // ---------------------------------------------
 // Mock Data (for development)
 // ---------------------------------------------
-
-/**
- * Generates mock absent lessons data for a student
- */
-function generateMockAbsentLessons(studentId: string): AbsentLessonData[] {
-  const studentIndex = parseInt(studentId) || 1;
-  const programs = ["Piano Core", "Guitar Fundamentals", "Violin Basics", "Music Theory", "Drums Essential"];
-  const teachers = ["Art Tatum", "Jimi Hendrix", "Itzhak Perlman", "Johann Bach", "Buddy Rich"];
-  const program = programs[(studentIndex - 1) % programs.length];
-  const teacher = teachers[(studentIndex - 1) % teachers.length];
-  
-  return [
-    { date: "Sep 28, 2025 @ 02:30 PM", program: program, teacher: teacher, duration: "00:30", invoiceId: "INV-001", online: "No" },
-    { date: "Oct 05, 2025 @ 02:30 PM", program: program, teacher: teacher, duration: "00:30", invoiceId: "INV-002", online: "No" },
-  ];
-}
 
 /**
  * Generates mock unscheduled lessons data for a student
@@ -316,32 +320,32 @@ export async function getStudentGroupLessons(
 // ---------------------------------------------
 
 /**
- * Fetches absent lessons for a student
- * Endpoint: GET /admin/v2/{location}/students/{studentId}/absent-lessons
+ * Fetches absent lessons for a student with pagination
+ * Endpoint: GET /admin/v2/{location}/student/{studentId}/absent-lessons
  * 
  * @param location - The location identifier (e.g., "burlington")
  * @param studentId - The student ID
+ * @param page - The page number for pagination (default: 1)
  * @returns Promise resolving to raw API response data or null on error
  */
 export async function getStudentAbsentLessons(
   location: string,
-  studentId: string
+  studentId: string,
+  page: number = 1
 ): Promise<AbsentLessonApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when endpoint is available
-    // const url = `/admin/v2/${location}/students/${studentId}/absent-lessons`;
-    // const response = await apiClient.get<AbsentLessonApiResponse>(url);
-    // return response.data;
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const { apiClient } = await import('@/lib/api/client');
+    const url = `/admin/v2/${location}/student/${studentId}/absent-lessons`;
+    const response = await apiClient.get<AbsentLessonApiResponse>(url, {
+      params: { page }
+    });
     
-    return {
-      success: true,
-      data: {
-        body: generateMockAbsentLessons(studentId),
-      },
-    };
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching absent lessons:", error);
     const apiError = error as { response?: { data?: { message?: string } } };

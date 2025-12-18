@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import {
-  AbsentLessonData,
   UnscheduledLessonData,
   CommentData,
   HistoryData,
@@ -10,9 +9,12 @@ import {
   getStudentHistory,
   getStudentPrivateLessons,
   getStudentGroupLessons,
+  getStudentAbsentLessons,
   PrivateLessonGroup,
   GroupLessonGroup,
   GroupLessonApiResponsePagination,
+  AbsentLessonItem,
+  AbsentLessonApiResponsePagination,
 } from './students-details-tabs.api';
 
 export interface StudentTabsState {
@@ -20,7 +22,9 @@ export interface StudentTabsState {
   groupLessonData: GroupLessonGroup[]; // Store grouped structure as-is from API
   groupLessonPagination: GroupLessonApiResponsePagination | null;
   groupLessonStudentId: string | null;
-  absentLessonData: AbsentLessonData[];
+  absentLessonData: AbsentLessonItem[]; // Store flat array as-is from API
+  absentLessonPagination: AbsentLessonApiResponsePagination | null;
+  absentLessonStudentId: string | null;
   unscheduledLessonData: UnscheduledLessonData[];
   commentData: CommentData[];
   historyData: HistoryData[];
@@ -50,6 +54,8 @@ const initialState: StudentTabsState = {
   groupLessonPagination: null,
   groupLessonStudentId: null,
   absentLessonData: [],
+  absentLessonPagination: null,
+  absentLessonStudentId: null,
   unscheduledLessonData: [],
   commentData: [],
   historyData: [],
@@ -209,6 +215,34 @@ export const fetchGroupLessonsData = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching absent lessons data with pagination
+export const fetchAbsentLessonsData = createAsyncThunk(
+  'studentTabs/fetchAbsentLessonsData',
+  async (
+    { location, studentId, page = 1 }: { location: string; studentId: string; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getStudentAbsentLessons(location, studentId, page);
+      
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch absent lessons');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+        studentId,
+      };
+    } catch (error) {
+      console.error('Error in fetchAbsentLessonsData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch absent lessons data'
+      );
+    }
+  }
+);
+
 const studentTabsSlice = createSlice({
   name: 'studentTabs',
   initialState,
@@ -219,6 +253,8 @@ const studentTabsSlice = createSlice({
       state.groupLessonPagination = null;
       state.groupLessonStudentId = null;
       state.absentLessonData = [];
+      state.absentLessonPagination = null;
+      state.absentLessonStudentId = null;
       state.unscheduledLessonData = [];
       state.commentData = [];
       state.historyData = [];
@@ -349,6 +385,22 @@ const studentTabsSlice = createSlice({
       .addCase(fetchGroupLessonsData.rejected, (state, action) => {
         state.groupLessonLoading = false;
         state.groupLessonError = action.payload as string;
+      })
+      // Fetch absent lessons data
+      .addCase(fetchAbsentLessonsData.pending, (state) => {
+        state.absentLessonLoading = true;
+        state.absentLessonError = null;
+      })
+      .addCase(fetchAbsentLessonsData.fulfilled, (state, action) => {
+        state.absentLessonLoading = false;
+        state.absentLessonData = action.payload.data;
+        state.absentLessonPagination = action.payload.pagination;
+        state.absentLessonStudentId = action.payload.studentId;
+        state.absentLessonError = null;
+      })
+      .addCase(fetchAbsentLessonsData.rejected, (state, action) => {
+        state.absentLessonLoading = false;
+        state.absentLessonError = action.payload as string;
       });
   },
 });

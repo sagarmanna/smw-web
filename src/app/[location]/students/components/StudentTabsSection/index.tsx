@@ -18,6 +18,7 @@ import {
 import { 
   fetchPrivateLessonsData,
   fetchGroupLessonsData,
+  fetchAbsentLessonsData,
   fetchCommentsData,
   fetchHistoryData,
 } from "../../[id]/studentTabs.slice";
@@ -50,6 +51,8 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
   const privateLessonError = useAppSelector((state) => state.studentTabs.privateLessonError);
   const groupLessonLoading = useAppSelector((state) => state.studentTabs.groupLessonLoading);
   const groupLessonError = useAppSelector((state) => state.studentTabs.groupLessonError);
+  const absentLessonLoading = useAppSelector((state) => state.studentTabs.absentLessonLoading);
+  const absentLessonError = useAppSelector((state) => state.studentTabs.absentLessonError);
   const commentsLoading = useAppSelector((state) => state.studentTabs.commentsLoading);
   const commentsError = useAppSelector((state) => state.studentTabs.commentsError);
   const historyLoading = useAppSelector((state) => state.studentTabs.historyLoading);
@@ -74,6 +77,15 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
           case "group-lessons":
             // Fetch group lessons with pagination (only page parameter, no limit)
             await dispatch(fetchGroupLessonsData({ 
+              location, 
+              studentId, 
+              page: 1
+            })).unwrap();
+            break;
+
+          case "absent-lessons":
+            // Fetch absent lessons with pagination (only page parameter, no limit)
+            await dispatch(fetchAbsentLessonsData({ 
               location, 
               studentId, 
               page: 1
@@ -119,6 +131,8 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
         return privateLessonLoading;
       case "group-lessons":
         return groupLessonLoading;
+      case "absent-lessons":
+        return absentLessonLoading;
       case "comments":
         return commentsLoading;
       case "history":
@@ -135,6 +149,8 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
         return privateLessonError;
       case "group-lessons":
         return groupLessonError;
+      case "absent-lessons":
+        return absentLessonError;
       case "comments":
         return commentsError;
       case "history":
