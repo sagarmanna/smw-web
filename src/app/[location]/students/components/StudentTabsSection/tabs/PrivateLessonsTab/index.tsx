@@ -9,6 +9,7 @@ import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { privateLessonColumns, PrivateLessonData } from "../../../../[id]/studentTabConfigs";
 import { ColumnDef } from "@tanstack/react-table";
 import { AddLessonModal, type LessonFormData } from "./AddLessonModal";
+import { PrivateLessonGroup } from "../../../../[id]/students-details-tabs.api";
 
 interface PrivateLessonsTabProps {
   location: string;
@@ -20,29 +21,24 @@ interface GroupedPrivateLessonData extends PrivateLessonData {
   groupRowSpan?: number;
 }
 
-// Group lessons by due date
-const buildGroupedData = (data: PrivateLessonData[]): GroupedPrivateLessonData[] => {
+// Flatten grouped API data for table display (use data as-is from API)
+const flattenGroupedData = (data: PrivateLessonGroup[]): GroupedPrivateLessonData[] => {
   if (!data?.length) return [];
 
-  // Group by due date
-  const grouped: Record<string, PrivateLessonData[]> = {};
-  data.forEach((item) => {
-    const dueDate = item.dueDate || "";
-    if (!grouped[dueDate]) {
-      grouped[dueDate] = [];
-    }
-    grouped[dueDate].push(item);
-  });
-
-  // Flatten grouped data with grouping info
   const rows: GroupedPrivateLessonData[] = [];
-  Object.keys(grouped).forEach((dueDate) => {
-    const lessons = grouped[dueDate];
-    lessons.forEach((lesson, index) => {
+  data.forEach((group) => {
+    group.lessons.forEach((lesson, index) => {
       rows.push({
-        ...lesson,
+        dueDate: group.dueDate,
+        programName: lesson.programName,
+        date: lesson.date,
+        duration: lesson.duration,
+        status: lesson.status,
+        price: parseFloat(lesson.price.replace(/[$,]/g, '')) || 0, // Parse price string to number for display
+        owing: parseFloat(lesson.owing.replace(/[$,]/g, '')) || 0, // Parse owing string to number for display
+        online: lesson.isOnline,
         isFirstInGroup: index === 0,
-        groupRowSpan: lessons.length,
+        groupRowSpan: group.lessons.length,
       });
     });
   });
@@ -59,8 +55,8 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const rowsPerPage = 10;
   
-  // Group data by due date
-  const groupedData = useMemo(() => buildGroupedData(data), [data]);
+  // Flatten grouped data from API for table display 
+  const groupedData = useMemo(() => flattenGroupedData(data), [data]);
   
   // Calculate pagination on grouped data
   const totalRows = groupedData.length;
@@ -68,7 +64,6 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   const paginatedData = groupedData.slice(startIndex, endIndex);
-  const hasMore = endIndex < totalRows;
 
   const handleAdd = useCallback(() => {
     setIsAddModalOpen(true);
@@ -79,10 +74,19 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
     console.log('Save lesson:', formData);
   }, []);
 
+  // Get student name from Redux store for redirect URL
+  const studentInfo = useAppSelector((state) => state.student.studentInfo);
+  const studentName = studentInfo?.profile 
+    ? `${studentInfo.profile.firstName} ${studentInfo.profile.lastName}`.trim()
+    : '';
+
   const handleShowMore = () => {
-    if (hasMore) {
-      setCurrentPage(prev => prev + 1);
-    }
+    // Redirect to legacy URL with dynamic student ID and name
+    
+    const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+    const encodedStudentName = encodeURIComponent(studentName || '');
+    const url = `${legacyBase}/${location}/lesson/index?LessonSearch[studentId]=${studentId}&LessonSearch[student]=${encodedStudentName}&LessonSearch[type]=1&LessonSearch[isSeeMore]=1`;
+    window.location.href = url;
   };
 
   const handlePreviousPage = () => {
@@ -168,15 +172,13 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
             {/* Pagination Controls */}
             {totalRows > 0 && (
               <div className="flex items-center justify-end gap-2 mt-4">
-                {hasMore && (
-                  <Button
-                    variant="link"
-                    onClick={handleShowMore}
-                    className="text-blue-600 hover:text-blue-800 p-0 h-auto"
-                  >
-                    Show More
-                  </Button>
-                )}
+                <Button
+                  variant="link"
+                  onClick={handleShowMore}
+                  className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+                >
+                  Show More
+                </Button>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -209,7 +211,6 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
         onOpenChange={setIsAddModalOpen}
         location={location}
         studentId={studentId}
-        privateLessonData={data}
         onSave={handleSaveLesson}
       />
     </Card>

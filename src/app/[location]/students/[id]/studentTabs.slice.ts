@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import {
-  PrivateLessonData,
   GroupLessonData,
   AbsentLessonData,
   UnscheduledLessonData,
@@ -10,11 +9,13 @@ import {
 import {
   getStudentComments,
   getStudentHistory,
+  getStudentPrivateLessons,
+  PrivateLessonGroup,
 } from './students-details-tabs.api';
 import { mockStudentTabData } from '../mockData/studentMockData';
 
 export interface StudentTabsState {
-  privateLessonData: PrivateLessonData[];
+  privateLessonData: PrivateLessonGroup[]; // Store grouped structure as-is from API
   groupLessonData: GroupLessonData[];
   absentLessonData: AbsentLessonData[];
   unscheduledLessonData: UnscheduledLessonData[];
@@ -75,8 +76,9 @@ export const fetchStudentTabsData = createAsyncThunk(
   ) => {
     try {
       // For now, use mock data. TODO: Replace with actual API calls
+      // Note: privateLessonData is now fetched separately via fetchPrivateLessonsData
       const data = {
-        privateLessonData: mockStudentTabData.privateLessonData || [],
+        privateLessonData: [], // Fetched separately via fetchPrivateLessonsData
         groupLessonData: mockStudentTabData.groupLessonData || [],
         absentLessonData: mockStudentTabData.absentLessonData || [],
         unscheduledLessonData: mockStudentTabData.unscheduledLessonData || [],
@@ -141,6 +143,33 @@ export const fetchHistoryData = createAsyncThunk(
       console.error('Error in fetchHistoryData:', error);
       return rejectWithValue(
         error instanceof Error ? error.message : 'Failed to fetch history data'
+      );
+    }
+  }
+);
+
+// Async thunk for fetching private lessons data
+export const fetchPrivateLessonsData = createAsyncThunk(
+  'studentTabs/fetchPrivateLessonsData',
+  async (
+    { location, studentId }: { location: string; studentId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const data = await getStudentPrivateLessons(location, studentId);
+      
+      if (!data) {
+        throw new Error('Failed to fetch private lessons');
+      }
+
+      return {
+        data,
+        studentId,
+      };
+    } catch (error) {
+      console.error('Error in fetchPrivateLessonsData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch private lessons data'
       );
     }
   }
@@ -246,6 +275,29 @@ const studentTabsSlice = createSlice({
       .addCase(fetchHistoryData.rejected, (state, action) => {
         state.historyLoading = false;
         state.historyError = action.payload as string;
+      })
+      // Fetch private lessons data
+      .addCase(fetchPrivateLessonsData.pending, (state, action) => {
+        const { studentId } = action.meta.arg as { location: string; studentId: string };
+        
+        // Clear private lesson data if switching to a different student
+        if (state.currentStudentId !== null && state.currentStudentId !== studentId) {
+          state.privateLessonData = [];
+        }
+        
+        // Update current student ID
+        state.currentStudentId = studentId;
+        state.privateLessonLoading = true;
+        state.privateLessonError = null;
+      })
+      .addCase(fetchPrivateLessonsData.fulfilled, (state, action) => {
+        state.privateLessonLoading = false;
+        state.privateLessonData = action.payload.data;
+        state.privateLessonError = null;
+      })
+      .addCase(fetchPrivateLessonsData.rejected, (state, action) => {
+        state.privateLessonLoading = false;
+        state.privateLessonError = action.payload as string;
       });
   },
 });
