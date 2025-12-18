@@ -3066,9 +3066,9 @@ export function CustomerDetailClient({
         onOpenChange={setIsReceivePaymentModalOpen}
         onSave={handleReceivePayment}
         location={location}
-        customerName={
-          customer ? `${customer.firstName} ${customer.lastName}` : undefined
-        }
+        customerName={customer 
+          ? _customerInfo?.profile.name.trim() 
+          : ""}
         customerId={id}
         amountNeeded={calculateAmountNeeded()}
       />

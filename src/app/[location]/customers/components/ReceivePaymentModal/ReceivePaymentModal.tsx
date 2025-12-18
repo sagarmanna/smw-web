@@ -58,12 +58,8 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     isInCustomerRoute
   );
 
-  // Optional date range for lessons (server-side filter)
-  const [lessonDateRange, setLessonDateRange] = React.useState<{ from: Date; to: Date } | undefined>(undefined);
+  // Track last applied date ranges for lessons/group lessons to avoid duplicate reloads
   const lastDueDateRangeRef = React.useRef<{ from: Date; to: Date } | null>(null);
-
-  // Optional date range for group lessons (server-side filter)
-  const [groupLessonDateRange, setGroupLessonDateRange] = React.useState<{ from: Date; to: Date } | undefined>(undefined);
   const lastGroupDueDateRangeRef = React.useRef<{ from: Date; to: Date } | null>(null);
   
   // Item manipulation handlers
@@ -169,29 +165,8 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
 
   const [isSaving, setIsSaving] = React.useState<boolean>(false);
 
-  // Handle lessons date range from the table toolbar: update the column filter.
-  // The actual API reload is handled in an effect when the filter changes,
-  // so both the toolbar picker and the column filter picker behave the same.
-  const handleLessonDateRangeChange = React.useCallback(
-    (range: { from: Date; to: Date }) => {
-      if (!range?.from || !range?.to) {
-        return;
-      }
-
-      state.setLessonColumnFilters(prev => ({
-        ...prev,
-        dueDate: {
-          from: range.from,
-          to: range.to,
-        },
-      }));
-    },
-    [state]
-  );
-
   // Whenever the dueDate column filter changes to a valid date range,
-  // trigger a backend reload for lessons with that range and keep the
-  // toolbar DateRangePicker in sync.
+  // trigger a backend reload for lessons with that range.
   React.useEffect(() => {
     const raw = state.lessonColumnFilters?.dueDate as { from?: Date; to?: Date } | undefined;
     const from = raw?.from;
@@ -207,34 +182,14 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     }
 
     lastDueDateRangeRef.current = { from, to };
-    setLessonDateRange({ from, to });
 
     if (typeof state.reloadLessonsForDateRange === 'function') {
       state.reloadLessonsForDateRange(from, to);
     }
   }, [state.lessonColumnFilters, state.reloadLessonsForDateRange]);
 
-  // Handle group lessons date range from the table toolbar: update the column filter.
-  const handleGroupLessonDateRangeChange = React.useCallback(
-    (range: { from: Date; to: Date }) => {
-      if (!range?.from || !range?.to) {
-        return;
-      }
-
-      state.setGroupLessonColumnFilters(prev => ({
-        ...prev,
-        dueDate: {
-          from: range.from,
-          to: range.to,
-        },
-      }));
-    },
-    [state]
-  );
-
   // Whenever the group lessons dueDate column filter changes to a valid date range,
-  // trigger a backend reload for group lessons with that range and keep the
-  // toolbar DateRangePicker in sync.
+  // trigger a backend reload for group lessons with that range.
   React.useEffect(() => {
     const raw = state.groupLessonColumnFilters?.dueDate as { from?: Date; to?: Date } | undefined;
     const from = raw?.from;
@@ -250,7 +205,6 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
     }
 
     lastGroupDueDateRangeRef.current = { from, to };
-    setGroupLessonDateRange({ from, to });
 
     if (typeof state.reloadGroupLessonsForDateRange === 'function') {
       state.reloadGroupLessonsForDateRange(from, to);
@@ -392,7 +346,7 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
 
         <div className="overflow-y-auto flex-1 px-6">
           <PaymentFormSection
-            customer={state.customer}
+            customer={customerName || ''}
             customerId={state.customerId}
             onCustomerChange={state.setCustomer}
             paymentDate={state.paymentDate}
@@ -419,14 +373,10 @@ export const ReceivePaymentModal: React.FC<ReceivePaymentModalProps> = ({
             lessonColumns={columns.lessonColumns}
             lessonColumnFilters={state.lessonColumnFilters}
             onLessonFilterChange={filterHandlers.handleLessonFilterChange}
-            lessonDateRange={lessonDateRange}
-            onLessonDateRangeChange={handleLessonDateRangeChange}
             groupLessons={filteredGroupLessons}
             groupLessonColumns={columns.groupLessonColumns}
             groupLessonColumnFilters={state.groupLessonColumnFilters}
             onGroupLessonFilterChange={filterHandlers.handleGroupLessonFilterChange}
-            groupLessonDateRange={groupLessonDateRange}
-            onGroupLessonDateRangeChange={handleGroupLessonDateRangeChange}
             invoices={state.invoices}
             invoiceColumns={columns.invoiceColumns}
             credits={state.credits}

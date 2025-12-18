@@ -163,8 +163,9 @@ const receivePaymentQuickOptions = [
     getValue: () => {
       const now = new Date();
       return {
-        from: startOfMonth(now),
-        to: endOfDay(endOfMonth(addMonths(now, 2))),
+        // Exclude current month: start from the first day of next month
+        from: startOfMonth(addMonths(now, 1)),
+        to: endOfDay(endOfMonth(addMonths(now, 3))),
       };
     },
   },
@@ -173,8 +174,9 @@ const receivePaymentQuickOptions = [
     getValue: () => {
       const now = new Date();
       return {
-        from: startOfMonth(now),
-        to: endOfDay(endOfMonth(addMonths(now, 5))),
+        // Exclude current month: cover months 1..6 ahead
+        from: startOfMonth(addMonths(now, 1)),
+        to: endOfDay(endOfMonth(addMonths(now, 6))),
       };
     },
   },
@@ -183,8 +185,9 @@ const receivePaymentQuickOptions = [
     getValue: () => {
       const now = new Date();
       return {
-        from: startOfMonth(now),
-        to: endOfDay(endOfMonth(addMonths(now, 11))),
+        // Exclude current month: cover months 1..12 ahead
+        from: startOfMonth(addMonths(now, 1)),
+        to: endOfDay(endOfMonth(addMonths(now, 12))),
       };
     },
   },
