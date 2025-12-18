@@ -122,6 +122,21 @@ export function AddEvaluationModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
+  const resetLocalState = React.useCallback(() => {
+    setSelectedProgramId("");
+    setSelectedTeacherId("");
+    setTeachers([]);
+    setPrograms([]);
+    setProgramsLoaded(false);
+    setUserSelectedProgram(false);
+    setIsDatePickerOpen(false);
+    setErrors({});
+    setTouched({ level: false, teacher: false });
+    setShowError(false);
+    setShowDeleteConfirm(false);
+    setIsDeleting(false);
+  }, []);
+
   // Fetch programs only when user opens the Program dropdown
   const handleProgramDropdownOpen = React.useCallback((isOpen: boolean) => {
     if (isOpen && !programsLoaded && !loadingPrograms) {
@@ -184,19 +199,10 @@ export function AddEvaluationModal({
   }, [open, location, selectedProgramId, userSelectedProgram, isEditMode, initialData]);
 
   // Initialize form data when modal opens
-  React.useEffect(() => {
+  // useLayoutEffect prevents a brief flash of stale program/teacher options from a previous open.
+  React.useLayoutEffect(() => {
     if (open) {
-      // Always reset selections first when modal opens
-      setSelectedProgramId("");
-      setSelectedTeacherId("");
-      setTeachers([]);
-      setPrograms([]);
-      setProgramsLoaded(false);
-      setUserSelectedProgram(false);
-      setIsDatePickerOpen(false);
-      setErrors({});
-      setTouched({ level: false, teacher: false });
-      setShowError(false);
+      resetLocalState();
       
       if (isEditMode && initialData) {
         // Populate form with existing data for edit mode
@@ -251,7 +257,7 @@ export function AddEvaluationModal({
         });
       }
     }
-  }, [open, isEditMode, initialData]);
+  }, [open, isEditMode, initialData, resetLocalState]);
 
   // Set program selection when programs are loaded and user has selected a program
   React.useEffect(() => {
@@ -462,6 +468,9 @@ export function AddEvaluationModal({
     if (success) {
       // Toast notification is handled in the parent component (StudentEvaluationsCard)
       onOpenChange(false);
+      // Important: clear dropdown state on programmatic close (Save) to avoid carrying over teacher lists
+      // into the next open (e.g. opening Edit right after creating).
+      resetLocalState();
       setExamDate(undefined);
       setIsDatePickerOpen(false);
       setFormData({
@@ -476,6 +485,14 @@ export function AddEvaluationModal({
       setShowError(false);
     }
   };
+
+  // Ensure we reset local dropdown state on *any* close (including programmatic close after Save),
+  // not only when the user clicks outside / presses ESC.
+  React.useEffect(() => {
+    if (!open) {
+      resetLocalState();
+    }
+  }, [open, resetLocalState]);
   
   const handleDeleteClick = React.useCallback(() => {
     if (!isEditMode || !initialData || !onDelete) return;
@@ -538,8 +555,18 @@ export function AddEvaluationModal({
     }
   };
 
+  const handleDialogOpenChange = React.useCallback((value: boolean) => {
+    if (!value) {
+      // Clear local state immediately on close so reopening doesn't momentarily show old options.
+      resetLocalState();
+    }
+    if (!value && !saving) {
+      onOpenChange(false);
+    }
+  }, [onOpenChange, resetLocalState, saving]);
+
   return (
-    <Dialog open={open} onOpenChange={(value) => !value && !saving && onOpenChange(false)}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{isEditMode ? "Edit Evaluation" : "Add Evaluation"}</DialogTitle>
@@ -696,6 +723,10 @@ export function AddEvaluationModal({
                         {teacher.name}
                       </SelectItem>
                     ))
+                  ) : isEditMode && initialData?.teacher ? (
+                    // In edit mode we may intentionally avoid fetching the full teacher list.
+                    // If we have a teacher name, render it as a single selectable option instead of "No teachers found".
+                    <SelectItem value="-1">{initialData.teacher}</SelectItem>
                   ) : (
                     <SelectItem value="__empty" disabled>
                       {loadingTeachers ? "Loading teachers..." : "No teachers found."}
