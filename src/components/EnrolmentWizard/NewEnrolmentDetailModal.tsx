@@ -34,6 +34,7 @@ interface NewEnrolmentDetailModalProps {
   onPreviewLessons?: (data: EnrolmentDetailFormData) => void;
   initialData?: EnrolmentDetailFormData;
   location: string;
+  nextButtonText?: string; // Custom button text, defaults to "Preview Lessons"
 }
 
 export interface EnrolmentDetailFormData {
@@ -44,6 +45,7 @@ export interface EnrolmentDetailFormData {
   startTime?: string;
   goToDate?: string;
   showAll?: boolean;
+  duration?: string; // Duration in HH:mm format
 }
 
 const DAY_RESOURCES = [
@@ -176,6 +178,7 @@ export function NewEnrolmentDetailModal({
   onPreviewLessons,
   initialData,
   location,
+  nextButtonText = "Preview Lessons", // Default to "Preview Lessons" for students context
 }: NewEnrolmentDetailModalProps) {
   const [teachers, setTeachers] = React.useState<Array<{ id: number; name: string }>>([]);
   const [loadingTeachers, setLoadingTeachers] = React.useState(false);
@@ -185,6 +188,7 @@ export function NewEnrolmentDetailModal({
   const [startTime, setStartTime] = React.useState<string>(initialData?.startTime || "");
   const [goToDate, setGoToDate] = React.useState<Date | undefined>(initialData?.goToDate ? new Date(initialData.goToDate) : new Date());
   const [showAll, setShowAll] = React.useState<boolean>(initialData?.showAll || false);
+  const [duration, setDuration] = React.useState<string>(initialData?.duration || "00:30");
   const [calendarDate, setCalendarDate] = React.useState<Date>(new Date());
   const [scheduleData, setScheduleData] = React.useState<TeacherScheduleData | null>(null);
   const [loadingCalendar, setLoadingCalendar] = React.useState(false);
@@ -210,6 +214,7 @@ export function NewEnrolmentDetailModal({
         if (!isNaN(parsedGoToDate.getTime())) setGoToDate(parsedGoToDate);
       }
       if (initialData.showAll !== undefined) setShowAll(initialData.showAll);
+      if (initialData.duration) setDuration(initialData.duration);
     } else if (!open) {
       setSelectedTeacherId("");
       setStartDate(new Date());
@@ -217,6 +222,7 @@ export function NewEnrolmentDetailModal({
       setStartTime("");
       setGoToDate(new Date());
       setShowAll(false);
+      setDuration("00:30");
       setScheduleData(null);
       return;
     }
@@ -274,9 +280,72 @@ export function NewEnrolmentDetailModal({
   const calendarEvents = React.useMemo(() => {
     if (!scheduleData) return [];
     const events = convertLessonsToCalendarEvents(scheduleData.lessons, calendarMonday);
-    console.log('[NewEnrolmentDetailModal] Converted calendar events:', events);
+    
+    // Add preview event for selected slot if day and startTime are set
+    if (day && startTime && selectedTeacherId && duration) {
+      // Parse startTime (HH:mm format)
+      const [hoursStr, minutesStr] = startTime.split(':');
+      const selectedHours = parseInt(hoursStr || '0', 10);
+      const selectedMinutes = parseInt(minutesStr || '0', 10);
+      
+      // Find resourceId from day name (DAY_NAMES has empty string at index 0, so index matches resourceId)
+      const dayIndex = DAY_NAMES.indexOf(day);
+      const resourceId = dayIndex >= 1 && dayIndex <= 7 ? dayIndex : null;
+      
+      if (resourceId) {
+        // Parse duration (HH:mm format)
+        const [durationHoursStr, durationMinutesStr] = duration.split(':');
+        const durationHours = parseInt(durationHoursStr || '0', 10);
+        const durationMinutes = parseInt(durationMinutesStr || '0', 10);
+        
+        // Calculate end time by adding duration to start time
+        const startTimeMinutes = selectedHours * 60 + selectedMinutes;
+        const totalDurationMinutes = durationHours * 60 + durationMinutes;
+        const endTimeMinutes = startTimeMinutes + totalDurationMinutes;
+        
+        const endHours = Math.floor(endTimeMinutes / 60);
+        const endMinutes = endTimeMinutes % 60;
+        
+        // Adjust preview dates to use Monday as base date (for calendar display)
+        // but keep the time from selected slot
+        const previewStartAdjusted = new Date(calendarMonday);
+        previewStartAdjusted.setHours(selectedHours, selectedMinutes, 0, 0);
+        
+        const previewEndAdjusted = new Date(calendarMonday);
+        previewEndAdjusted.setHours(endHours, endMinutes, 0, 0);
+        
+        // Format time for display (12-hour format with AM/PM)
+        const formatTime = (hours: number, minutes: number) => {
+          const h = hours % 12 || 12;
+          const m = minutes.toString().padStart(2, '0');
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          return `${h}:${m} ${ampm}`;
+        };
+        
+        const startTimeFormatted = formatTime(selectedHours, selectedMinutes);
+        const endTimeFormatted = formatTime(endHours, endMinutes);
+        
+        const previewEvent: CalendarEvent = {
+          id: "preview-selected-slot",
+          title: `Selected: ${startTimeFormatted} - ${endTimeFormatted}`,
+          start: previewStartAdjusted,
+          end: previewEndAdjusted,
+          resourceId,
+          backgroundColor: "#3d85c6", // Blue color matching EditScheduleModal
+          borderColor: "#3d85c6", // Same blue for border
+          className: "enrolment-slot-preview",
+          extendedProps: {
+            lessonId: "preview",
+            tooltip: `Selected slot: ${day} at ${startTimeFormatted} - ${endTimeFormatted} (Duration: ${duration})`,
+          },
+        };
+        
+        return [...events, previewEvent];
+      }
+    }
+    
     return events;
-  }, [scheduleData, calendarMonday]);
+  }, [scheduleData, calendarMonday, day, startTime, selectedTeacherId, duration]);
   const timeRange = React.useMemo(() => scheduleData ? { minTime: scheduleData.time.from, maxTime: scheduleData.time.to } : { minTime: "04:00:00", maxTime: "20:00:00" }, [scheduleData]);
   const dateRange = React.useMemo(() => {
     if (scheduleData?.date) {
@@ -303,14 +372,40 @@ export function NewEnrolmentDetailModal({
     }
   };
 
-  const handleSelectSlot = (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
+  const handleSelectSlot = React.useCallback((slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
     if (!slotInfo.start || !slotInfo.resourceId) return;
-    const resourceIdNum = typeof slotInfo.resourceId === 'string' ? parseInt(slotInfo.resourceId) : slotInfo.resourceId;
-    if (resourceIdNum >= 1 && resourceIdNum <= 7) setDay(DAY_NAMES[resourceIdNum]);
-    const hours = String(slotInfo.start.getHours()).padStart(2, '0');
-    const minutes = String(slotInfo.start.getMinutes()).padStart(2, '0');
+    
+    // Extract day of week from resourceId (1-7, Monday-Sunday)
+    const resourceId = typeof slotInfo.resourceId === 'string' 
+      ? parseInt(slotInfo.resourceId) 
+      : slotInfo.resourceId || 1;
+    
+    // Validate resourceId is in valid range (1-7)
+    if (resourceId >= 1 && resourceId <= 7) {
+      setDay(DAY_NAMES[resourceId]);
+    }
+    
+    // Extract time components from slotInfo.start
+    // The time is correct, but date might be Monday for display purposes
+    const selectedHours = slotInfo.start.getHours();
+    const selectedMinutes = slotInfo.start.getMinutes();
+    const selectedSeconds = slotInfo.start.getSeconds();
+    
+    // Calculate the actual date for the selected day of week in the visible week
+    // Use calendarMonday which is already calculated from calendarDate
+    const selectedDayDate = new Date(calendarMonday);
+    const daysToAdd = resourceId - 1; // resourceId is 1-7 (Monday-Sunday)
+    selectedDayDate.setDate(calendarMonday.getDate() + daysToAdd);
+    selectedDayDate.setHours(selectedHours, selectedMinutes, selectedSeconds, 0);
+    
+    // Update goToDate to the selected day's date
+    setGoToDate(selectedDayDate);
+    
+    // Format time as HH:mm for the startTime input field
+    const hours = String(selectedHours).padStart(2, '0');
+    const minutes = String(selectedMinutes).padStart(2, '0');
     setStartTime(`${hours}:${minutes}`);
-  };
+  }, [calendarMonday]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -396,9 +491,10 @@ export function NewEnrolmentDetailModal({
                   startTime,
                   goToDate: goToDate ? format(goToDate, "yyyy-MM-dd") : undefined,
                   showAll,
+                  duration,
                 })}
               >
-                Preview Lessons
+                {nextButtonText}
               </Button>
             )}
           </div>
@@ -407,3 +503,5 @@ export function NewEnrolmentDetailModal({
     </Dialog>
   );
 }
+
+
