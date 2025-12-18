@@ -113,7 +113,7 @@ export function TableToolbar<TData>({
         {customHeaderComponent}
       
       {/* DateRangePicker */}
-      {enableDateRangePicker && dateRange && onDateRangeChange && (
+      {enableDateRangePicker && onDateRangeChange && (
         <DateRangePicker
           value={dateRange}
           onChange={onDateRangeChange}

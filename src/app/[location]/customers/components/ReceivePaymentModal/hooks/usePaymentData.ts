@@ -32,6 +32,8 @@ interface UsePaymentDataResult {
   customersList: Array<{ value: string; label: string; id: number }>;
   isLoadingCustomers: boolean;
   reloadPaymentData: (newCustomerId: number) => Promise<void>;
+  reloadLessonsByDateRange: (targetCustomerId: number, startDate: Date, endDate: Date) => Promise<void>;
+  reloadGroupLessonsByDateRange: (targetCustomerId: number, startDate: Date, endDate: Date) => Promise<void>;
 }
 
 /**
@@ -111,21 +113,24 @@ export const usePaymentData = (
     }
   }, [location, isCustomerRoute]);
 
-  // Load payment data for a specific customer
-  const loadPaymentData = useCallback(async (targetCustomerId: number) => {
-    if (!targetCustomerId || targetCustomerId === 0) {
-      // Clear data if no customer selected
-      setLessons([]);
-      setGroupLessons([]);
-      setInvoices([]);
-      setCredits([]);
-      return;
-    }
-    
-    try {
-      // Load all lessons
-      const lessonsResult = await getReceivePaymentLessons(location, targetCustomerId, 1, 99999);
-      const transformedLessons: LessonItem[] = lessonsResult.data.map(lesson => {
+  // Load only lessons for a specific customer (optionally filtered by due date range)
+  const loadLessons = useCallback(
+    async (targetCustomerId: number, startDate?: Date, endDate?: Date) => {
+      if (!targetCustomerId || targetCustomerId === 0) {
+        setLessons([]);
+        return;
+      }
+
+      const lessonsResult = await getReceivePaymentLessons(
+        location,
+        targetCustomerId,
+        1,
+        99999,
+        startDate,
+        endDate
+      );
+
+      const transformedLessons: LessonItem[] = lessonsResult.data.map((lesson) => {
         const balance = parseMoneyValue(lesson.balance);
         return {
           id: lesson.id.toString(),
@@ -140,11 +145,30 @@ export const usePaymentData = (
           payment: balance.toFixed(2),
         };
       });
-      setLessons(transformedLessons);
 
-      // Load all group lessons
+      setLessons(transformedLessons);
+    },
+    [location, parseMoneyValue]
+  );
+
+  // Load full payment data (lessons + other tables) for a specific customer
+  const loadPaymentData = useCallback(async (targetCustomerId: number) => {
+    if (!targetCustomerId || targetCustomerId === 0) {
+      // Clear data if no customer selected
+      setLessons([]);
+      setGroupLessons([]);
+      setInvoices([]);
+      setCredits([]);
+      return;
+    }
+    
+    try {
+      // Load lessons using default behaviour (no explicit date range here)
+      await loadLessons(targetCustomerId);
+
+      // Load all group lessons (default behaviour - no explicit date range here)
       const groupLessonsResult = await getReceivePaymentGroupLessons(location, targetCustomerId, 1, 99999);
-      const transformedGroupLessons: GroupLessonItem[] = groupLessonsResult.data.map(groupLesson => {
+      const transformedGroupLessons: GroupLessonItem[] = groupLessonsResult.data.map((groupLesson) => {
         const balance = parseMoneyValue(groupLesson.balance);
         return {
           id: groupLesson.id.toString(),
@@ -210,7 +234,7 @@ export const usePaymentData = (
       console.error('Error fetching payment data:', err);
       throw err;
     }
-  }, [location, parseMoneyValue]);
+  }, [location, parseMoneyValue, loadLessons]);
 
   // Reload payment data when customer changes
   const reloadPaymentData = useCallback(async (newCustomerId: number) => {
@@ -228,7 +252,7 @@ export const usePaymentData = (
         }
       }
       
-      // Load payment data
+      // Load payment data (no date range filter here to preserve existing behaviour)
       await loadPaymentData(newCustomerId);
       
     } catch (err) {
@@ -238,6 +262,60 @@ export const usePaymentData = (
       setIsLoading(false);
     }
   }, [location, loadPaymentData, isCustomerRoute]);
+
+  // Reload only lessons by a specific date range for a given customer.
+  // Other entities (group lessons, invoices, credits) are NOT reloaded.
+  const reloadLessonsByDateRange = useCallback(
+    async (targetCustomerId: number, startDate: Date, endDate: Date) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        await loadLessons(targetCustomerId, startDate, endDate);
+      } catch (err) {
+        console.error('Error reloading lessons by date range:', err);
+        setError('Failed to load lessons for selected date range');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [loadLessons]
+  );
+
+  // Reload only group lessons by a specific date range for a given customer.
+  // Other entities (lessons, invoices, credits) are NOT reloaded.
+  const reloadGroupLessonsByDateRange = useCallback(
+    async (targetCustomerId: number, startDate: Date, endDate: Date) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const result = await getReceivePaymentGroupLessons(location, targetCustomerId, 1, 99999, startDate, endDate);
+        const transformedGroupLessons: GroupLessonItem[] = result.data.map((groupLesson) => {
+          const balance = parseMoneyValue(groupLesson.balance);
+          return {
+            id: groupLesson.id.toString(),
+            selected: true,
+            date: groupLesson.date,
+            dueDate: groupLesson.dueDate,
+            student: groupLesson.studentName,
+            program: groupLesson.programName,
+            teacher: groupLesson.teacherName,
+            amount: parseMoneyValue(groupLesson.total),
+            balance: balance,
+            payment: balance.toFixed(2),
+          };
+        });
+        setGroupLessons(transformedGroupLessons);
+      } catch (err) {
+        console.error('Error reloading group lessons by date range:', err);
+        setError('Failed to load group lessons for selected date range');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [location, parseMoneyValue]
+  );
 
   // Load all data on mount
   const loadAllData = useCallback(async () => {
@@ -319,5 +397,7 @@ export const usePaymentData = (
     customersList,
     isLoadingCustomers,
     reloadPaymentData,
+    reloadLessonsByDateRange,
+    reloadGroupLessonsByDateRange,
   };
 };
