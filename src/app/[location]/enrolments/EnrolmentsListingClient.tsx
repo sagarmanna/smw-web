@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { EnrolmentRow } from "./enrolmentsListing.api";
@@ -12,16 +11,16 @@ import { useEnrolmentListing } from "./hooks/useEnrolmentListing";
 import { formatLocationName } from "@/utils/textUtils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Tv } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScheduleView, useScheduleHeader, ScheduleViewControls, ScheduleViewProvider } from "./components/ScheduleView";
+import { ScheduleView, ScheduleHeader, ScheduleViewControls, ScheduleViewProvider } from "./components/ScheduleView";
 import { ChangeTeacherModal } from "./components/ChangeTeacherModal";
 
 interface EnrolmentsListingClientProps {
@@ -32,9 +31,6 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
   const [activeTab, setActiveTab] = React.useState<"enrolments" | "schedule">("enrolments");
   const [selectedRows, setSelectedRows] = React.useState<Set<number>>(new Set());
   const [changeTeacherModalOpen, setChangeTeacherModalOpen] = React.useState(false);
-  
-  // Get schedule header info (only when schedule tab is active)
-  const { headerTitle: scheduleHeaderTitle, scheduleDetailsLoading } = useScheduleHeader(location);
 
   const {
     rows,
@@ -152,6 +148,19 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
     location: location, // Pass location for PDF header
   });
 
+  // Add Enrolment button (used in both error and success states)
+  const addEnrolmentButton = React.useMemo(() => (
+    <Button 
+      onClick={() => {
+        // TODO: Implement add enrolment functionality
+      }} 
+      className="bg-primary hover:bg-primary/90"
+    >
+      <Plus className="h-4 w-4 mr-2" />
+      Add Enrolment
+    </Button>
+  ), []);
+
   // Custom toolbar buttons (Edit only - Filter is handled by enableFilter prop)
   const customToolbarButtons = React.useMemo(() => (
     <DropdownMenu>
@@ -175,7 +184,6 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
         <DropdownMenuItem 
           onClick={() => {
             if (selectedRows.size > 0) {
-              console.log("Opening Change Teacher modal, selectedRows:", selectedRows.size);
               setChangeTeacherModalOpen(true);
             }
           }}
@@ -186,6 +194,34 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
       </DropdownMenuContent>
     </DropdownMenu>
   ), [selectedRows.size]);
+
+  // Reusable tab navigation
+  const tabNavigation = React.useMemo(() => (
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "enrolments" | "schedule")} className="w-auto">
+      <TabsList className="grid grid-cols-2 h-10 w-auto">
+        <TabsTrigger value="enrolments" className="text-xs px-2 md:px-4">Enrolments</TabsTrigger>
+        <TabsTrigger value="schedule" className="text-xs px-2 md:px-4">Schedule</TabsTrigger>
+      </TabsList>
+    </Tabs>
+  ), [activeTab]);
+
+  // Reusable schedule tab content
+  const scheduleTabContent = React.useMemo(() => (
+    <TabsContent value="schedule" className="mt-0">
+      <ScheduleView />
+    </TabsContent>
+  ), []);
+
+  // Reusable Change Teacher Modal
+  const changeTeacherModal = React.useMemo(() => (
+    <ChangeTeacherModal
+      open={changeTeacherModalOpen}
+      onOpenChange={setChangeTeacherModalOpen}
+      selectedCount={selectedRows.size}
+      location={location}
+      selectedEnrolmentIds={Array.from(selectedRows)}
+    />
+  ), [changeTeacherModalOpen, selectedRows.size, location]);
 
   if (error) {
     return (
@@ -205,12 +241,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 md:gap-4">
             {/* Navigation Tabs on the left */}
             <div className="flex items-center gap-4">
-              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "enrolments" | "schedule")} className="w-auto">
-                <TabsList className="grid grid-cols-2 h-10 w-auto">
-                  <TabsTrigger value="enrolments" className="text-xs px-2 md:px-4">Enrolments</TabsTrigger>
-                  <TabsTrigger value="schedule" className="text-xs px-2 md:px-4">Schedule</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              {tabNavigation}
             </div>
           </div>
         </div>
@@ -224,37 +255,18 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
                 isLoading={isLoading}
                 error={error}
                 onRetry={fetchData}
-                actions={
-                  <Button 
-                    onClick={() => {
-                      // TODO: Implement add enrolment functionality
-                      console.log("Add enrolment clicked");
-                    }} 
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Enrolment
-                  </Button>
-                }
+                actions={addEnrolmentButton}
               >
                 <div />
               </ReportPageLayout>
             </TabsContent>
 
-            <TabsContent value="schedule" className="mt-0">
-            <ScheduleView />
-          </TabsContent>
+            {scheduleTabContent}
           </Tabs>
         </div>
 
         {/* Change Teacher Modal */}
-        <ChangeTeacherModal
-          open={changeTeacherModalOpen}
-          onOpenChange={setChangeTeacherModalOpen}
-          selectedCount={selectedRows.size}
-          location={location}
-          selectedEnrolmentIds={Array.from(selectedRows)}
-        />
+        {changeTeacherModal}
       </div>
     );
   }
@@ -267,12 +279,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
         {/* Header Row */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
-              {scheduleHeaderTitle}
-              {scheduleDetailsLoading && (
-                <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
-              )}
-            </h1>
+            <ScheduleHeader />
           </div>
         </div>
 
@@ -280,12 +287,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 md:gap-4">
           {/* Navigation Tabs on the left */}
           <div className="flex items-center gap-4">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "enrolments" | "schedule")} className="w-auto">
-              <TabsList className="grid grid-cols-2 h-10 w-auto">
-                <TabsTrigger value="enrolments" className="text-xs px-2 md:px-4">Enrolments</TabsTrigger>
-                <TabsTrigger value="schedule" className="text-xs px-2 md:px-4">Schedule</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {tabNavigation}
           </div>
 
           {/* Schedule-specific controls (only visible when schedule tab is active) */}
@@ -306,18 +308,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
               isLoading={isLoading}
               error={null}
               onRetry={fetchData}
-              actions={
-                <Button 
-                  onClick={() => {
-                    // TODO: Implement add enrolment functionality
-                    console.log("Add enrolment clicked");
-                  }} 
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Enrolment
-                </Button>
-              }
+              actions={addEnrolmentButton}
             >
               <CustomTable
                 data={rows}
@@ -382,20 +373,12 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
             </ReportPageLayout>
           </TabsContent>
 
-          <TabsContent value="schedule" className="mt-0">
-            <ScheduleView />
-          </TabsContent>
+          {scheduleTabContent}
           </Tabs>
         </div>
 
         {/* Change Teacher Modal */}
-        <ChangeTeacherModal
-          open={changeTeacherModalOpen}
-          onOpenChange={setChangeTeacherModalOpen}
-          selectedCount={selectedRows.size}
-          location={location}
-          selectedEnrolmentIds={Array.from(selectedRows)}
-        />
+        {changeTeacherModal}
       </div>
     </ScheduleViewProvider>
   );

@@ -2,35 +2,24 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
 import { ReactBigCalendarWrapper, CalendarWrapperRef } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { 
   getScheduleDetails, 
   getTeacherView, 
-  getTeacherViewEvents, 
-  getClassroomViewResources,
+  getTeacherViewEvents,
   getProgramsList,
   getTeachersList,
   ScheduleDetails,
   TeacherViewResource,
   TeacherViewEvent,
   TeacherViewAvailability,
-  ClassroomViewResource,
   Program,
   Teacher,
 } from "../../schedule/schedule.api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { updateLesson, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
-
-interface ScheduleViewProps {
-  location: string;
-}
 
 interface CalendarEvent {
   id: string;
@@ -61,24 +50,14 @@ interface ScheduleViewContextType {
   setSelectedDate: (date: Date) => void;
   showAll: boolean;
   setShowAll: (value: boolean) => void;
-  mobileDatePickerOpen: boolean;
-  setMobileDatePickerOpen: (open: boolean) => void;
-  desktopDatePickerOpen: boolean;
-  setDesktopDatePickerOpen: (open: boolean) => void;
   isLoadingSchedule: boolean;
   scheduleDetails: ScheduleDetails | null;
   scheduleDetailsLoading: boolean;
-  scheduleDetailsError: string | null;
   teacherViewResources: TeacherViewResource[];
-  teacherViewError: string | null;
   teacherViewEvents: TeacherViewEvent[];
-  teacherViewEventsError: string | null;
   teacherViewAvailability: TeacherViewAvailability[];
-  classroomViewResources: ClassroomViewResource[];
   refreshTrigger: number;
   setRefreshTrigger: React.Dispatch<React.SetStateAction<number>>;
-  recentDates: Date[];
-  setRecentDates: React.Dispatch<React.SetStateAction<Date[]>>;
   updatingEvents: Set<string>;
   setUpdatingEvents: React.Dispatch<React.SetStateAction<Set<string>>>;
   teacherCalendarRef: React.MutableRefObject<CalendarWrapperRef | null>;
@@ -87,8 +66,6 @@ interface ScheduleViewContextType {
   handleEventDrop: (event: CalendarEvent) => Promise<void>;
   handleEventResize: (event: CalendarEvent) => Promise<void>;
   openDailySchedule: () => void;
-  goToToday: () => void;
-  handleDateSelect: (date: Date, closeCalendar: () => void) => void;
   handleDaySelect: (dayName: string) => void;
   getTimeRange: () => { minTime: string; maxTime: string };
   // Program and Teacher filters
@@ -115,20 +92,13 @@ function useScheduleViewContext() {
 function ScheduleViewProvider({ location, children }: { location: string; children: React.ReactNode }) {
   const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
   const [showAll, setShowAll] = React.useState<boolean>(false);
-  const [mobileDatePickerOpen, setMobileDatePickerOpen] = React.useState<boolean>(false);
-  const [desktopDatePickerOpen, setDesktopDatePickerOpen] = React.useState<boolean>(false);
   const [isLoadingSchedule, setIsLoadingSchedule] = React.useState<boolean>(false);
   const [scheduleDetails, setScheduleDetails] = React.useState<ScheduleDetails | null>(null);
   const [scheduleDetailsLoading, setScheduleDetailsLoading] = React.useState<boolean>(false);
-  const [scheduleDetailsError, setScheduleDetailsError] = React.useState<string | null>(null);
   const [teacherViewResources, setTeacherViewResources] = React.useState<TeacherViewResource[]>([]);
-  const [teacherViewError, setTeacherViewError] = React.useState<string | null>(null);
   const [teacherViewEvents, setTeacherViewEvents] = React.useState<TeacherViewEvent[]>([]);
-  const [teacherViewEventsError, setTeacherViewEventsError] = React.useState<string | null>(null);
   const [teacherViewAvailability, setTeacherViewAvailability] = React.useState<TeacherViewAvailability[]>([]);
-  const [classroomViewResources, setClassroomViewResources] = React.useState<ClassroomViewResource[]>([]);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
-  const [recentDates, setRecentDates] = React.useState<Date[]>([]);
   const [updatingEvents, setUpdatingEvents] = React.useState<Set<string>>(new Set());
   const teacherCalendarRef = React.useRef<CalendarWrapperRef>(null);
   
@@ -149,17 +119,14 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     const fetchScheduleDetails = async () => {
       try {
         setScheduleDetailsLoading(true);
-        setScheduleDetailsError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         const response = await getScheduleDetails(location, dateStr);
         
         if (response?.success) {
           setScheduleDetails(response.data);
-        } else {
-          setScheduleDetailsError(response?.message || 'Failed to fetch schedule details');
         }
       } catch (error) {
-        setScheduleDetailsError(error instanceof Error ? error.message : 'Failed to fetch schedule details');
+        console.error("Error fetching schedule details:", error);
       } finally {
         setScheduleDetailsLoading(false);
       }
@@ -167,23 +134,6 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
 
     fetchScheduleDetails();
   }, [location, safeSelectedDate]);
-
-  // Fetch classroom view resources on mount
-  React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const classroomResourcesResponse = await getClassroomViewResources(location);
-        
-        if (classroomResourcesResponse?.success) {
-          setClassroomViewResources(classroomResourcesResponse.data.resources);
-        }
-      } catch (error) {
-        console.error("Error fetching classroom resources:", error);
-      }
-    };
-
-    fetchData();
-  }, [location]);
 
   // Fetch programs on mount
   React.useEffect(() => {
@@ -231,7 +181,6 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
   React.useEffect(() => {
     const fetchTeacherView = async () => {
       try {
-        setTeacherViewError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         const response = await getTeacherView(
           location, 
@@ -243,11 +192,9 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
         
         if (response?.success) {
           setTeacherViewResources(response.data.resources);
-        } else {
-          setTeacherViewError(response?.message || 'Failed to fetch teacher view');
         }
       } catch (error) {
-        setTeacherViewError(error instanceof Error ? error.message : 'Failed to fetch teacher view');
+        console.error("Error fetching teacher view:", error);
       }
     };
 
@@ -259,7 +206,6 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     const fetchTeacherViewEvents = async () => {
       try {
         setIsLoadingSchedule(true);
-        setTeacherViewEventsError(null);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         
         const response = await getTeacherViewEvents(
@@ -273,11 +219,9 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
         if (response?.success) {
           setTeacherViewEvents(response.data.lessons);
           setTeacherViewAvailability(response.data.availability || []);
-        } else {
-          setTeacherViewEventsError(response?.message || 'Failed to fetch teacher view events');
         }
       } catch (error) {
-        setTeacherViewEventsError(error instanceof Error ? error.message : 'Failed to fetch teacher view events');
+        console.error("Error fetching teacher view events:", error);
       } finally {
         setIsLoadingSchedule(false);
       }
@@ -398,34 +342,6 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     window.open(`/admin/${location}/daily-schedule?date=${dateStr}`, '_blank');
   }, [location, safeSelectedDate]);
 
-  const goToToday = React.useCallback(() => {
-    setSelectedDate(new Date());
-    setMobileDatePickerOpen(false);
-    setDesktopDatePickerOpen(false);
-  }, []);
-
-  const addToRecentDates = React.useCallback((date: Date) => {
-    setRecentDates(prev => {
-      const dateStr = date.toDateString();
-      const existingIndex = prev.findIndex(d => d.toDateString() === dateStr);
-      
-      let newRecentDates;
-      if (existingIndex !== -1) {
-        newRecentDates = [date, ...prev.filter((_, index) => index !== existingIndex)];
-      } else {
-        newRecentDates = [date, ...prev];
-      }
-      
-      return newRecentDates.slice(0, 5);
-    });
-  }, []);
-
-  const handleDateSelect = React.useCallback((date: Date, closeCalendar: () => void) => {
-    setSelectedDate(date);
-    addToRecentDates(date);
-    closeCalendar();
-  }, [addToRecentDates]);
-
   // Handle day of week selection
   const handleDaySelect = React.useCallback((dayName: string) => {
     const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -455,8 +371,7 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     targetDate.setHours(0, 0, 0, 0);
     
     setSelectedDate(targetDate);
-    addToRecentDates(targetDate);
-  }, [safeSelectedDate, setSelectedDate, addToRecentDates]);
+  }, [safeSelectedDate, setSelectedDate]);
 
   const getTimeRange = React.useCallback(() => {
     if (!scheduleDetails) {
@@ -482,24 +397,14 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     setSelectedDate,
     showAll,
     setShowAll,
-    mobileDatePickerOpen,
-    setMobileDatePickerOpen,
-    desktopDatePickerOpen,
-    setDesktopDatePickerOpen,
     isLoadingSchedule,
     scheduleDetails,
     scheduleDetailsLoading,
-    scheduleDetailsError,
     teacherViewResources,
-    teacherViewError,
     teacherViewEvents,
-    teacherViewEventsError,
     teacherViewAvailability,
-    classroomViewResources,
     refreshTrigger,
     setRefreshTrigger,
-    recentDates,
-    setRecentDates,
     updatingEvents,
     setUpdatingEvents,
     teacherCalendarRef,
@@ -508,8 +413,6 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     handleEventDrop,
     handleEventResize,
     openDailySchedule,
-    goToToday,
-    handleDateSelect,
     handleDaySelect,
     getTimeRange,
     programs,
@@ -640,7 +543,6 @@ export function ScheduleView() {
     convertTeacherViewEventsToCalendar,
     teacherViewEvents,
     teacherViewResources,
-    classroomViewResources,
     handleEventClick,
     handleEventDrop,
     handleEventResize,
@@ -684,48 +586,26 @@ export function ScheduleView() {
         viewType="teacher"
         updatingEvents={updatingEvents}
         teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
-        classrooms={classroomViewResources.map(classroom => ({ id: classroom.id, title: classroom.title }))}
         height="75vh"
       />
     </div>
   );
 }
 
-// Custom hook for schedule header title and loading state
-export function useScheduleHeader(location: string) {
-  const [selectedDate] = React.useState<Date>(() => new Date());
-  const [scheduleDetails, setScheduleDetails] = React.useState<ScheduleDetails | null>(null);
-  const [scheduleDetailsLoading, setScheduleDetailsLoading] = React.useState<boolean>(false);
-
-  const safeSelectedDate = React.useMemo(() => {
-    return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
-  }, [selectedDate]);
-
-  React.useEffect(() => {
-    if (!location) return;
-
-    const fetchScheduleDetails = async () => {
-      try {
-        setScheduleDetailsLoading(true);
-        const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
-        const response = await getScheduleDetails(location, dateStr);
-        
-        if (response?.success) {
-          setScheduleDetails(response.data);
-        }
-      } catch (error) {
-        console.error("Error fetching schedule details:", error);
-      } finally {
-        setScheduleDetailsLoading(false);
-      }
-    };
-
-    fetchScheduleDetails();
-  }, [location, safeSelectedDate]);
+// Schedule Header Component
+export function ScheduleHeader() {
+  const { selectedDate, scheduleDetails, scheduleDetailsLoading } = useScheduleViewContext();
 
   const headerTitle = React.useMemo(() => {
-    return `Schedule for ${format(safeSelectedDate, "EEEE, MMMM do, yyyy")}${scheduleDetails?.Holiday?.description ? ` - ${scheduleDetails.Holiday.description}` : ''}`;
-  }, [safeSelectedDate, scheduleDetails]);
+    return `Schedule for ${format(selectedDate, "EEEE, MMMM do, yyyy")}${scheduleDetails?.Holiday?.description ? ` - ${scheduleDetails.Holiday.description}` : ''}`;
+  }, [selectedDate, scheduleDetails]);
 
-  return { headerTitle, scheduleDetailsLoading };
+  return (
+    <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
+      {headerTitle}
+      {scheduleDetailsLoading && (
+        <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
+      )}
+    </h1>
+  );
 }

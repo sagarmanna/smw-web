@@ -87,13 +87,6 @@ export function ChangeTeacherModal({
 
   const handlePreviewLessons = () => {
     // TODO: Wire up to API when endpoint is available
-    console.log("Preview teacher change for enrolments:", {
-      selectedEnrolmentIds,
-      selectedCount,
-      teacherId: selectedTeacherId || null,
-      teacherName: selectedTeacherName,
-      effectFromDate: effectFromDate ? format(effectFromDate, "yyyy-MM-dd") : null,
-    });
     onOpenChange(false);
   };
 
