@@ -50,8 +50,5 @@ COPY --from=builder /apps/package.json ./package.json
 # Expose the port
 EXPOSE 3000
 
-# Set environment to production
-ENV NODE_ENV=production
-
 # Start the application (no build needed - already built)
 CMD ["yarn", "start"]
