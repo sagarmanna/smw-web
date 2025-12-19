@@ -1,10 +1,13 @@
-import React from 'react'
+import { UnscheduledLessonsListingClient } from "./UnscheduledLessonsListingClient";
 
-export default function UnscheduledLessonsPage() {
-  return (
-    <div>
-      <h1>Unscheduled Lessons</h1>
-    </div>
-  )
+interface UnscheduledLessonsPageProps {
+  params: Promise<{
+    location: string;
+  }>;
+}
+
+export default async function UnscheduledLessonsPage({ params }: UnscheduledLessonsPageProps) {
+  const { location } = await params;
+  return <UnscheduledLessonsListingClient location={location} />;
 }
 

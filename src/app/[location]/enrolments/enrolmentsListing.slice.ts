@@ -2,7 +2,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { getEnrolmentsList, EnrolmentRow, EnrolmentsQuery } from './enrolmentsListing.api';
 import { SortField } from './utils/sortEnrolments';
 import { mockEnrolmentData } from './mockData/enrolmentMockData';
-import { parse, isValid, isWithinInterval } from 'date-fns';
+import { isValid, isWithinInterval } from 'date-fns';
+import { parseDateString } from '@/utils/dateUtils';
 
 interface EnrolmentsListingState {
   rows: EnrolmentRow[];
@@ -33,27 +34,6 @@ const initialState: EnrolmentsListingState = {
   sortDir: 'asc',
   columnFilters: {},
   activeFilter: undefined, // Default to showing all enrolments
-};
-
-// Helper function to parse date string (format: "MMM dd, yyyy" or "MMM d, yyyy")
-const parseDateString = (dateStr: string): Date | null => {
-  try {
-    // Try parsing with "MMM dd, yyyy" format (e.g., "Nov 17, 2025")
-    const parsed = parse(dateStr, 'MMM dd, yyyy', new Date());
-    if (isValid(parsed)) {
-      return parsed;
-    }
-    
-    // Try parsing with "MMM d, yyyy" format (e.g., "Nov 5, 2025")
-    const parsed2 = parse(dateStr, 'MMM d, yyyy', new Date());
-    if (isValid(parsed2)) {
-      return parsed2;
-    }
-    
-    return null;
-  } catch (error) {
-    return null;
-  }
 };
 
 // Helper function to filter and paginate mock data

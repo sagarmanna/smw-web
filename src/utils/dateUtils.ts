@@ -174,6 +174,32 @@ export function convertToDate(dateStr: string): Date | undefined {
 }
 
 /**
+ * Parses date string in format "MMM dd, yyyy" or "MMM d, yyyy" to Date object
+ * Used for parsing display date strings to Date objects for date comparisons and filtering
+ * @param dateStr - Date string in format "MMM dd, yyyy" (e.g., "Nov 17, 2025") or "MMM d, yyyy" (e.g., "Nov 5, 2025")
+ * @returns Date object or null if parsing fails
+ */
+export function parseDateString(dateStr: string): Date | null {
+  try {
+    // Try parsing with "MMM dd, yyyy" format (e.g., "Nov 17, 2025")
+    const parsed = parse(dateStr, 'MMM dd, yyyy', new Date());
+    if (isValid(parsed)) {
+      return parsed;
+    }
+    
+    // Try parsing with "MMM d, yyyy" format (e.g., "Nov 5, 2025")
+    const parsed2 = parse(dateStr, 'MMM d, yyyy', new Date());
+    if (isValid(parsed2)) {
+      return parsed2;
+    }
+    
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
  * Converts date string from various formats to ISO format (YYYY-MM-DD)
  * Handles formats like "MMM dd, yyyy" or "MMM d, yyyy" and converts to ISO
  * @param dateStr - Date string in various formats
