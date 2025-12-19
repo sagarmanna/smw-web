@@ -13,6 +13,7 @@ import studentReducer from '../app/[location]/students/[id]/students-details.sli
 import studentTabsReducer from '../app/[location]/students/[id]/studentTabs.slice';
 import studentsListingReducer from '../app/[location]/students/studentsListing.slice';
 import enrolmentsListingReducer from '../app/[location]/enrolments/enrolmentsListing.slice';
+import unscheduledLessonsListingReducer from '../app/[location]/unscheduled-lessons/unscheduledLessonsListing.slice';
 import groupCoursesListingReducer from '../app/[location]/group-courses/groupCoursesListing.slice';
 import groupCourseReducer from '../app/[location]/group-courses/[id]/groupCourseDetails.slice';
 import groupCourseTabsReducer from '../app/[location]/group-courses/[id]/groupCourseTabs.slice';
@@ -33,6 +34,7 @@ export const store = configureStore({
     studentTabs: studentTabsReducer,
     studentsListing: studentsListingReducer,
     enrolmentsListing: enrolmentsListingReducer,
+    unscheduledLessonsListing: unscheduledLessonsListingReducer,
     groupCoursesListing: groupCoursesListingReducer,
     groupCourse: groupCourseReducer,
     groupCourseTabs: groupCourseTabsReducer,
