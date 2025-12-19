@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { format } from "date-fns";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { EnrolmentRow } from "./enrolmentsListing.api";
@@ -11,7 +9,7 @@ import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
 import { useEnrolmentListing } from "./hooks/useEnrolmentListing";
 import { formatLocationName } from "@/utils/textUtils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil } from "lucide-react";
 import {
@@ -22,6 +20,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScheduleView, ScheduleHeader, ScheduleViewControls, ScheduleViewProvider } from "./components/ScheduleView";
+import { ChangeTeacherModal } from "./components/ChangeTeacherModal";
 import { NewEnrolmentModal, type EnrolmentFormData } from "./components/NewEnrolmentModal";
 import { toast } from "sonner";
 
@@ -30,8 +30,9 @@ interface EnrolmentsListingClientProps {
 }
 
 export function EnrolmentsListingClient({ location }: EnrolmentsListingClientProps) {
-  const [selectedDate] = React.useState<Date>(() => new Date());
+  const [activeTab, setActiveTab] = React.useState<"enrolments" | "schedule">("enrolments");
   const [selectedRows, setSelectedRows] = React.useState<Set<number>>(new Set());
+  const [changeTeacherModalOpen, setChangeTeacherModalOpen] = React.useState(false);
   const [isNewEnrolmentModalOpen, setIsNewEnrolmentModalOpen] = React.useState(false);
 
   const {
@@ -181,7 +182,11 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-8 w-8 group relative">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8 group relative"
+            >
               <Pencil className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -191,15 +196,149 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
         </TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => {
-          // TODO: Implement change teacher functionality
-          console.log("Change Teacher clicked");
-        }}>
+        <DropdownMenuItem 
+          onClick={() => {
+            if (selectedRows.size > 0) {
+              setChangeTeacherModalOpen(true);
+            }
+          }}
+          disabled={selectedRows.size === 0}
+        >
           Change Teacher
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  ), [selectedRows.size]);
+
+  // Reusable tab navigation
+  const tabNavigation = React.useMemo(() => (
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "enrolments" | "schedule")} className="w-auto">
+      <TabsList className="grid grid-cols-2 h-10 w-auto">
+        <TabsTrigger value="enrolments" className="text-xs px-2 md:px-4">Enrolments</TabsTrigger>
+        <TabsTrigger value="schedule" className="text-xs px-2 md:px-4">Schedule</TabsTrigger>
+      </TabsList>
+    </Tabs>
+  ), [activeTab]);
+
+  // Reusable schedule tab content
+  const scheduleTabContent = React.useMemo(() => (
+    <TabsContent value="schedule" className="mt-0">
+      <ScheduleView />
+    </TabsContent>
   ), []);
+
+  // Reusable Change Teacher Modal
+  const changeTeacherModal = React.useMemo(() => (
+    <ChangeTeacherModal
+      open={changeTeacherModalOpen}
+      onOpenChange={setChangeTeacherModalOpen}
+      selectedCount={selectedRows.size}
+      location={location}
+      selectedEnrolmentIds={Array.from(selectedRows)}
+    />
+  ), [changeTeacherModalOpen, selectedRows.size, location]);
+
+  // Reusable Add Enrolment Button
+  const addEnrolmentButton = React.useMemo(() => (
+    <Button 
+      onClick={() => setIsNewEnrolmentModalOpen(true)} 
+      className="bg-primary hover:bg-primary/90"
+    >
+      <Plus className="h-4 w-4 mr-2" />
+      Add Enrolment
+    </Button>
+  ), []);
+
+  // Reusable New Enrolment Modal
+  const newEnrolmentModal = React.useMemo(() => (
+    <NewEnrolmentModal
+      open={isNewEnrolmentModalOpen}
+      onOpenChange={setIsNewEnrolmentModalOpen}
+      onNext={handleNewEnrolmentComplete}
+      location={location}
+      nextButtonText="Next"
+    />
+  ), [isNewEnrolmentModalOpen, handleNewEnrolmentComplete, location]);
+
+  // Reusable Tabs Content Area
+  const renderTabsContent = React.useCallback((showTable: boolean) => (
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "enrolments" | "schedule")}>
+      <TabsContent value="enrolments" className="mt-0">
+        <ReportPageLayout
+          title="Enrolments"
+          subtitle="Browse all enrolments, search and sort"
+          isLoading={isLoading}
+          error={showTable ? null : error}
+          onRetry={fetchData}
+          actions={addEnrolmentButton}
+        >
+          {showTable ? (
+            <CustomTable
+              data={rows}
+              columns={columns}
+              isLoading={isLoading}
+              size="compact"
+              variant="default"
+              stickyHeader={true}
+              enableSearch={false}
+              searchPlaceholder="Search enrolments..."
+              getSearchValue={(r) => `${r.program} ${r.student} ${r.teacher}`}
+              enableFilter={true}
+              enablePrint={false}
+              enableRowsPerPage={true}
+              customHeaderComponent={customToolbarButtons}
+              serverSideFilterOptions={[
+                { key: "active", label: "Active" },
+                { key: "inactive", label: "Inactive" },
+              ]}
+              activeServerSideFilter={activeFilter}
+              onServerSideFilterChange={handleServerSideFilterChange}
+              defaultFilterLabel="All Enrolments"
+              enableColumnFilters={true}
+              onColumnFilterChange={handleColumnFilterChange}
+              onColumnFilterEnter={handleColumnFilterEnter}
+              columnFilters={columnFilters}
+              columnFilterPlaceholders={{
+                program: "Enter program name",
+                student: "Enter student name",
+                teacher: "Enter teacher name",
+                autoRenewal: "Enter auto renewal status",
+              }}
+              manualSorting={true}
+              sorting={sorting}
+              onSortingChange={(s) => {
+                setSorting(s);
+                setPage(1);
+              }}
+              serverSidePagination={{ page, limit: pageSize, total, totalPages }}
+              onServerSidePageChange={(newPage) => setPage(newPage)}
+              hideRecordCount={true}
+              showRecordCountInToolbar={true}
+              rowsPerPage={pageSize}
+              rowsPerPageOptions={[10, 20, 50, 100]}
+              enableExport={true}
+              onExport={{
+                html: exportToHtml,
+                csv: exportToCsv,
+                text: exportToText,
+                excel: exportToExcel,
+                pdf: exportToPdf,
+                json: exportToJson,
+              }}
+              onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+            />
+          ) : (
+            <div />
+          )}
+        </ReportPageLayout>
+      </TabsContent>
+
+      {scheduleTabContent}
+    </Tabs>
+  ), [activeTab, isLoading, error, fetchData, addEnrolmentButton, rows, columns, customToolbarButtons, 
+      activeFilter, handleServerSideFilterChange, handleColumnFilterChange, handleColumnFilterEnter, 
+      columnFilters, sorting, setSorting, setPage, page, pageSize, total, totalPages, exportToHtml, 
+      exportToCsv, exportToText, exportToExcel, exportToPdf, exportToJson, setPageSize, scheduleTabContent]);
 
   if (error) {
     return (
@@ -210,7 +349,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div className="flex-1 min-w-0">
               <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
-                Schedule for {format(selectedDate, "EEEE, MMMM do, yyyy")}
+                Enrolments
               </h1>
             </div>
           </div>
@@ -219,52 +358,31 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 md:gap-4">
             {/* Navigation Tabs on the left */}
             <div className="flex items-center gap-4">
-              <Tabs value="enrolments" className="w-auto">
-                <TabsList className="grid grid-cols-2 h-10 w-auto">
-                  <TabsTrigger value="enrolments" className="text-xs px-2 md:px-4">Enrolments</TabsTrigger>
-                  <TabsTrigger value="schedule" asChild className="text-xs px-2 md:px-4">
-                    <Link href={`/${location}/schedule`}>Schedule</Link>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              {tabNavigation}
             </div>
           </div>
         </div>
 
         <div className="flex-1 mt-2 md:mt-8 lg:mt-2">
-          <ReportPageLayout
-            title="Enrolments"
-            subtitle="Browse all enrolments, search and sort"
-            isLoading={isLoading}
-            error={error}
-            onRetry={fetchData}
-            actions={
-              <Button 
-                onClick={() => setIsNewEnrolmentModalOpen(true)} 
-                className="bg-primary hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Enrolment
-              </Button>
-            }
-          >
-            <div />
-          </ReportPageLayout>
+          {renderTabsContent(false)}
         </div>
+
+        {/* Modals */}
+        {changeTeacherModal}
+        {newEnrolmentModal}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Compact Header - Responsive height */}
-      <div className="flex-shrink-0 max-h-[200px] md:max-h-[100px] space-y-2">
+    <ScheduleViewProvider location={location}>
+      <div className="min-h-screen flex flex-col">
+        {/* Compact Header - Responsive height */}
+        <div className="flex-shrink-0 max-h-[200px] md:max-h-[100px] space-y-2">
         {/* Header Row */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
-              Schedule for {format(selectedDate, "EEEE, MMMM do, yyyy")}
-            </h1>
+            <ScheduleHeader />
           </div>
         </div>
 
@@ -272,107 +390,27 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 md:gap-4">
           {/* Navigation Tabs on the left */}
           <div className="flex items-center gap-4">
-            <Tabs value="enrolments" className="w-auto">
-              <TabsList className="grid grid-cols-2 h-10 w-auto">
-                <TabsTrigger value="enrolments" className="text-xs px-2 md:px-4">Enrolments</TabsTrigger>
-                <TabsTrigger value="schedule" asChild className="text-xs px-2 md:px-4">
-                  <Link href={`/${location}/schedule`}>Schedule</Link>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {tabNavigation}
           </div>
+
+          {/* Schedule-specific controls (only visible when schedule tab is active) */}
+          {activeTab === "schedule" && (
+            <ScheduleViewControls />
+          )}
         </div>
+
       </div>
 
       {/* Content Area */}
       <div className="flex-1 mt-2 md:mt-8 lg:mt-2">
-        <ReportPageLayout
-          title="Enrolments"
-          subtitle="Browse all enrolments, search and sort"
-          isLoading={isLoading}
-          error={null}
-          onRetry={fetchData}
-          actions={
-            <Button 
-              onClick={() => setIsNewEnrolmentModalOpen(true)} 
-              className="bg-primary hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Enrolment
-            </Button>
-          }
-        >
-          <CustomTable
-            data={rows}
-            columns={columns}
-            isLoading={isLoading}
-
-            // Visual configuration
-            size="compact"
-            variant="default"
-            stickyHeader={true}
-
-            // Features
-            enableSearch={false}
-            searchPlaceholder="Search enrolments..."
-            getSearchValue={(r) => `${r.program} ${r.student} ${r.teacher}`}
-            enableFilter={true}
-            enablePrint={false}
-            enableRowsPerPage={true}
-            customHeaderComponent={customToolbarButtons}
-            serverSideFilterOptions={[
-              { key: "active", label: "Active" },
-              { key: "inactive", label: "Inactive" },
-            ]}
-            activeServerSideFilter={activeFilter}
-            onServerSideFilterChange={handleServerSideFilterChange}
-            defaultFilterLabel="All Enrolments"
-            enableColumnFilters={true}
-            onColumnFilterChange={handleColumnFilterChange}
-            onColumnFilterEnter={handleColumnFilterEnter}
-            columnFilters={columnFilters}
-            columnFilterPlaceholders={{
-              program: "Enter program name",
-              student: "Enter student name",
-              teacher: "Enter teacher name",
-              autoRenewal: "Enter auto renewal status",
-            }}
-
-            // Sorting and pagination (server-side)
-            manualSorting={true}
-            sorting={sorting}
-            onSortingChange={(s) => {
-              setSorting(s);
-              setPage(1);
-            }}
-            serverSidePagination={{ page, limit: pageSize, total, totalPages }}
-            onServerSidePageChange={(newPage) => setPage(newPage)}
-            hideRecordCount={true}
-            showRecordCountInToolbar={true}
-            rowsPerPage={pageSize}
-            rowsPerPageOptions={[10, 20, 50, 100]}
-            enableExport={true}
-            onExport={{
-              html: exportToHtml,
-              csv: exportToCsv,
-              text: exportToText,
-              excel: exportToExcel,
-              pdf: exportToPdf,
-              json: exportToJson,
-            }}
-            onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
-          />
-        </ReportPageLayout>
+        {renderTabsContent(true)}
       </div>
 
-      <NewEnrolmentModal
-        open={isNewEnrolmentModalOpen}
-        onOpenChange={setIsNewEnrolmentModalOpen}
-        onNext={handleNewEnrolmentComplete}
-        location={location}
-        nextButtonText="Next"
-      />
+      {/* Modals */}
+      {changeTeacherModal}
+      {newEnrolmentModal}
     </div>
+    </ScheduleViewProvider>
   );
 }
 
