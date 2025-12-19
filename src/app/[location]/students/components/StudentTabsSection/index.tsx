@@ -19,6 +19,7 @@ import {
   fetchPrivateLessonsData,
   fetchGroupLessonsData,
   fetchAbsentLessonsData,
+  fetchUnscheduledLessonsData,
   fetchCommentsData,
   fetchHistoryData,
 } from "../../[id]/studentTabs.slice";
@@ -53,6 +54,8 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
   const groupLessonError = useAppSelector((state) => state.studentTabs.groupLessonError);
   const absentLessonLoading = useAppSelector((state) => state.studentTabs.absentLessonLoading);
   const absentLessonError = useAppSelector((state) => state.studentTabs.absentLessonError);
+  const unscheduledLessonLoading = useAppSelector((state) => state.studentTabs.unscheduledLessonLoading);
+  const unscheduledLessonError = useAppSelector((state) => state.studentTabs.unscheduledLessonError);
   const commentsLoading = useAppSelector((state) => state.studentTabs.commentsLoading);
   const commentsError = useAppSelector((state) => state.studentTabs.commentsError);
   const historyLoading = useAppSelector((state) => state.studentTabs.historyLoading);
@@ -89,6 +92,17 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
               location, 
               studentId, 
               page: 1
+            })).unwrap();
+            break;
+
+          case "unscheduled-lessons":
+            // Fetch unscheduled lessons with pagination (only page parameter, no limit)
+            // showAll defaults to false (only non-expired lessons)
+            await dispatch(fetchUnscheduledLessonsData({ 
+              location, 
+              studentId, 
+              page: 1,
+              showAll: false
             })).unwrap();
             break;
 
@@ -133,6 +147,8 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
         return groupLessonLoading;
       case "absent-lessons":
         return absentLessonLoading;
+      case "unscheduled-lessons":
+        return unscheduledLessonLoading;
       case "comments":
         return commentsLoading;
       case "history":
@@ -151,6 +167,8 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
         return groupLessonError;
       case "absent-lessons":
         return absentLessonError;
+      case "unscheduled-lessons":
+        return unscheduledLessonError;
       case "comments":
         return commentsError;
       case "history":

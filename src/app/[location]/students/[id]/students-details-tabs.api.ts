@@ -108,10 +108,29 @@ export interface AbsentLessonApiResponse {
 // Unscheduled Lessons API Response Types
 // ---------------------------------------------
 
+export interface UnscheduledLessonItem {
+  id: number;
+  program: string;
+  phone: string;
+  duration: string;
+  originalDate: string;
+  expiryDate: string;
+  online: string;
+  url: string;
+}
+
+export interface UnscheduledLessonApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface UnscheduledLessonApiResponse {
   success: boolean;
   data: {
-    body: UnscheduledLessonData[];
+    body: UnscheduledLessonItem[];
+    pagination: UnscheduledLessonApiResponsePagination;
   };
   message?: string;
 }
@@ -174,26 +193,6 @@ export interface HistoryApiResponse {
 // Mock Data (for development)
 // ---------------------------------------------
 
-/**
- * Generates mock unscheduled lessons data for a student
- */
-function generateMockUnscheduledLessons(studentId: string): UnscheduledLessonData[] {
-  // Basic deterministic mock based on studentId (for future extension if needed)
-  void studentId;
-
-  // Mock row based on legacy UI example:
-  // Program | Phone | Duration | Original Date | Expiry Date | Online
-  return [
-    {
-      program: "xPiano Hybrid",
-      phone: "(209) 182-9302",
-      duration: "00:30",
-      originalDate: "Dec 18, 2025",
-      expiryDate: "Mar 18, 2026",
-      online: "No",
-    },
-  ];
-}
 
 /**
  * Generates mock comments data for a student
@@ -362,32 +361,34 @@ export async function getStudentAbsentLessons(
 // ---------------------------------------------
 
 /**
- * Fetches unscheduled lessons for a student
- * Endpoint: GET /admin/v2/{location}/students/{studentId}/unscheduled-lessons
+ * Fetches unscheduled lessons for a student with pagination
+ * Endpoint: GET /admin/v2/{location}/student/{studentId}/unscheduled-lessons
  * 
  * @param location - The location identifier (e.g., "burlington")
  * @param studentId - The student ID
+ * @param page - The page number for pagination (default: 1)
+ * @param showAll - If false, only show non-expired lessons; if true, show both expired and non-expired (default: false)
  * @returns Promise resolving to raw API response data or null on error
  */
 export async function getStudentUnscheduledLessons(
   location: string,
-  studentId: string
+  studentId: string,
+  page: number = 1,
+  showAll: boolean = false
 ): Promise<UnscheduledLessonApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when endpoint is available
-    // const url = `/admin/v2/${location}/students/${studentId}/unscheduled-lessons`;
-    // const response = await apiClient.get<UnscheduledLessonApiResponse>(url);
-    // return response.data;
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const { apiClient } = await import('@/lib/api/client');
+    const url = `/admin/v2/${location}/student/${studentId}/unscheduled-lessons`;
+    const response = await apiClient.get<UnscheduledLessonApiResponse>(url, {
+      params: { page, showAll }
+    });
     
-    return {
-      success: true,
-      data: {
-        body: generateMockUnscheduledLessons(studentId),
-      },
-    };
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching unscheduled lessons:", error);
     const apiError = error as { response?: { data?: { message?: string } } };

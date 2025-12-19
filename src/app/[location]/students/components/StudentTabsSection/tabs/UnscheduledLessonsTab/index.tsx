@@ -1,21 +1,23 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { useAppSelector } from "@/redux/hooks";
+import { useState, useMemo, useCallback, useRef } from "react";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { unscheduledLessonColumns, UnscheduledLessonData } from "../../../../[id]/studentTabConfigs";
 import { ColumnDef } from "@tanstack/react-table";
+import { fetchUnscheduledLessonsData } from "../../../../[id]/studentTabs.slice";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ChangeProgramTeacherModal } from "./ChangeProgramTeacherModal";
 
 interface UnscheduledLessonsTabProps {
@@ -28,71 +30,89 @@ interface UnscheduledLessonDataWithSelection extends UnscheduledLessonData {
 }
 
 export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLessonsTabProps) {
-  // Props are kept for future use (e.g., API calls, filtering)
-  void studentId;
+  const dispatch = useAppDispatch();
+  
+  // Read data from Redux state (no API call here - handled by parent)
   const data = useAppSelector((state) => state.studentTabs.unscheduledLessonData);
+  const pagination = useAppSelector((state) => state.studentTabs.unscheduledLessonPagination);
   const isLoading = useAppSelector((state) => state.studentTabs.unscheduledLessonLoading);
   const error = useAppSelector((state) => state.studentTabs.unscheduledLessonError);
+  
   const [showAll, setShowAll] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [isChangeProgramTeacherOpen, setIsChangeProgramTeacherOpen] = useState(false);
+  
+  // Track last showAll value to prevent duplicate API calls
+  // Initialize to false to match parent's initial API call
+  const lastShowAllRef = useRef<boolean>(false);
+  
+  // Use page from API response for display (synced with actual data)
+  const currentPage = pagination?.page || 1;
+  const totalPages = pagination?.totalPages || 1;
+  const totalRows = pagination?.total || 0;
+  const rowsPerPage = pagination?.limit || 10; // Use limit from API response
 
-  // Helper function to check if a lesson is expired
-  const isExpired = useCallback((expiryDate: string): boolean => {
-    try {
-      const expiry = new Date(expiryDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-      expiry.setHours(0, 0, 0, 0);
-      return expiry < today;
-    } catch {
-      return false;
+  const handlePreviousPage = () => {
+    if (currentPage > 1 && !isLoading) {
+      const newPage = currentPage - 1;
+      // Fetch data for the new page (only page parameter, no limit)
+      dispatch(fetchUnscheduledLessonsData({ location, studentId, page: newPage, showAll }));
     }
-  }, []);
+  };
 
-  // Filter data based on showAll
-  // When unchecked: show only non-expired lessons
-  // When checked: show all lessons including expired ones
-  const displayedData = useMemo(() => {
-    if (showAll) {
-      // Show all lessons including expired ones
-      return data;
+  const handleNextPage = () => {
+    if (currentPage < totalPages && !isLoading) {
+      const newPage = currentPage + 1;
+      // Fetch data for the new page (only page parameter, no limit)
+      dispatch(fetchUnscheduledLessonsData({ location, studentId, page: newPage, showAll }));
     }
-    // Show only non-expired lessons when "Show All" is unchecked
-    return data.filter(item => !isExpired(item.expiryDate));
-  }, [data, showAll, isExpired]);
+  };
+
+  const handleShowAllChange = (checked: boolean) => {
+    // Only call API if value actually changed
+    if (lastShowAllRef.current !== checked) {
+      lastShowAllRef.current = checked;
+      setShowAll(checked);
+      // Reset to page 1 and fetch with new showAll value
+      setSelectedRows(new Set());
+      dispatch(fetchUnscheduledLessonsData({ 
+        location, 
+        studentId, 
+        page: 1, 
+        showAll: checked 
+      }));
+    }
+  };
+
+  const handleRowClick = useCallback(
+    (row: UnscheduledLessonData) => {
+      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      // Use the lesson ID to redirect to the lesson view page
+      if (row.id) {
+        const url = `${legacyBase}/${location}/lesson/view?id=${row.id}`;
+        window.location.href = url;
+      }
+    },
+    [location]
+  );
 
   // Add selection property to data
   const dataWithSelection = useMemo(() => {
-    return displayedData.map((item) => {
-      // Find the original index in the full data array
-      const originalIndex = data.findIndex(d => 
-        d.program === item.program &&
-        d.phone === item.phone &&
-        d.originalDate === item.originalDate &&
-        d.expiryDate === item.expiryDate &&
-        d.duration === item.duration &&
-        d.online === item.online
-      );
-      return {
-        ...item,
-        selected: originalIndex !== -1 && selectedRows.has(originalIndex),
-        originalIndex,
-      };
-    }) as (UnscheduledLessonDataWithSelection & { originalIndex?: number })[];
-  }, [displayedData, data, selectedRows]);
+    return data.map((item, index) => ({
+      ...item,
+      selected: selectedRows.has(index),
+    })) as UnscheduledLessonDataWithSelection[];
+  }, [data, selectedRows]);
 
   // Get the program name of the first selected lesson (used to prefill modal)
   const firstSelectedProgramName = useMemo(() => {
-    const firstSelected = dataWithSelection.find((item) =>
-      item.originalIndex !== undefined && selectedRows.has(item.originalIndex)
-    );
+    const firstSelected = dataWithSelection.find((item, index) => selectedRows.has(index));
     return firstSelected?.program ?? "";
   }, [dataWithSelection, selectedRows]);
 
   const handleChangeProgramTeacher = () => {
     // If there are no lessons visible or none are selected, show error message
-    if (displayedData.length === 0 || selectedRows.size === 0) {
+    if (dataWithSelection.length === 0 || selectedRows.size === 0) {
       toast.error("Choose any lessons");
       return;
     }
@@ -101,26 +121,16 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
-      // Select all displayed rows by their original indices
+      // Select all displayed rows
       const indicesToSelect = new Set<number>();
-      displayedData.forEach((item) => {
-        const originalIndex = data.findIndex(d => 
-          d.program === item.program &&
-          d.phone === item.phone &&
-          d.originalDate === item.originalDate &&
-          d.expiryDate === item.expiryDate &&
-          d.duration === item.duration &&
-          d.online === item.online
-        );
-        if (originalIndex !== -1) {
-          indicesToSelect.add(originalIndex);
-        }
+      dataWithSelection.forEach((_, index) => {
+        indicesToSelect.add(index);
       });
       setSelectedRows(indicesToSelect);
     } else {
       setSelectedRows(new Set());
     }
-  }, [displayedData, data]);
+  }, [dataWithSelection]);
 
   const handleRowSelect = useCallback((index: number, checked: boolean) => {
     setSelectedRows(prev => {
@@ -143,26 +153,30 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
         const someSelected = dataWithSelection.some(item => item.selected);
         
         return (
-          <Checkbox
-            checked={allSelected}
-            onCheckedChange={handleSelectAll}
-            aria-label="Select all"
-            className={someSelected && !allSelected ? "data-[state=indeterminate]:bg-primary" : ""}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={handleSelectAll}
+              aria-label="Select all"
+              className={someSelected && !allSelected ? "data-[state=indeterminate]:bg-primary" : ""}
+            />
+          </div>
         );
       },
       cell: ({ row }) => {
-        const originalIndex = (row.original as UnscheduledLessonDataWithSelection & { originalIndex?: number }).originalIndex;
+        const index = dataWithSelection.findIndex(item => item.id === row.original.id);
         return (
-          <Checkbox
-            checked={row.original.selected || false}
-            onCheckedChange={(checked) => {
-              if (originalIndex !== undefined) {
-                handleRowSelect(originalIndex, checked as boolean);
-              }
-            }}
-            aria-label="Select row"
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={row.original.selected || false}
+              onCheckedChange={(checked) => {
+                if (index !== -1) {
+                  handleRowSelect(index, checked as boolean);
+                }
+              }}
+              aria-label="Select row"
+            />
+          </div>
         );
       },
       enableSorting: false,
@@ -203,7 +217,7 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
                 <Checkbox
                   id="unscheduled-show-all"
                   checked={showAll}
-                  onCheckedChange={(checked: boolean) => setShowAll(checked)}
+                  onCheckedChange={handleShowAllChange}
                 />
                 <label
                   htmlFor="unscheduled-show-all"
@@ -225,8 +239,17 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
               enableFilter={false}
               className="border-0 w-full"
               isLoading={isLoading}
+              onRowClick={handleRowClick}
+              rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              customLoadingState={
+                <LoadingAnimation 
+                  size="md" 
+                  text="Loading unscheduled lessons..." 
+                  className="py-8"
+                />
+              }
               customEmptyState={
-                !isLoading && displayedData.length === 0 ? (
+                !isLoading && dataWithSelection.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
                     <div className="text-4xl">📋</div>
                     <span className="text-sm font-medium">No unscheduled lessons found</span>
@@ -234,6 +257,38 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
                 ) : undefined
               }
             />
+            
+            {/* Server-side Pagination Controls */}
+            {totalRows > 0 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows} lessons
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1 || isLoading}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleNextPage}
+                    disabled={currentPage >= totalPages || isLoading}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </CardContent>
@@ -248,4 +303,3 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
     </Card>
   );
 }
-
