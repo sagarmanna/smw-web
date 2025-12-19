@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import {
-  UnscheduledLessonData,
   CommentData,
   HistoryData,
 } from './studentTabConfigs';
@@ -10,11 +9,14 @@ import {
   getStudentPrivateLessons,
   getStudentGroupLessons,
   getStudentAbsentLessons,
+  getStudentUnscheduledLessons,
   PrivateLessonGroup,
   GroupLessonGroup,
   GroupLessonApiResponsePagination,
   AbsentLessonItem,
   AbsentLessonApiResponsePagination,
+  UnscheduledLessonItem,
+  UnscheduledLessonApiResponsePagination,
 } from './students-details-tabs.api';
 
 export interface StudentTabsState {
@@ -25,7 +27,9 @@ export interface StudentTabsState {
   absentLessonData: AbsentLessonItem[]; // Store flat array as-is from API
   absentLessonPagination: AbsentLessonApiResponsePagination | null;
   absentLessonStudentId: string | null;
-  unscheduledLessonData: UnscheduledLessonData[];
+  unscheduledLessonData: UnscheduledLessonItem[]; // Store flat array as-is from API
+  unscheduledLessonPagination: UnscheduledLessonApiResponsePagination | null;
+  unscheduledLessonStudentId: string | null;
   commentData: CommentData[];
   historyData: HistoryData[];
   isLoading: boolean;
@@ -57,6 +61,8 @@ const initialState: StudentTabsState = {
   absentLessonPagination: null,
   absentLessonStudentId: null,
   unscheduledLessonData: [],
+  unscheduledLessonPagination: null,
+  unscheduledLessonStudentId: null,
   commentData: [],
   historyData: [],
   isLoading: false,
@@ -243,6 +249,35 @@ export const fetchAbsentLessonsData = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching unscheduled lessons data with pagination
+export const fetchUnscheduledLessonsData = createAsyncThunk(
+  'studentTabs/fetchUnscheduledLessonsData',
+  async (
+    { location, studentId, page = 1, showAll = false }: { location: string; studentId: string; page?: number; showAll?: boolean },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getStudentUnscheduledLessons(location, studentId, page, showAll);
+      
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch unscheduled lessons');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+        studentId,
+        showAll,
+      };
+    } catch (error) {
+      console.error('Error in fetchUnscheduledLessonsData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch unscheduled lessons data'
+      );
+    }
+  }
+);
+
 const studentTabsSlice = createSlice({
   name: 'studentTabs',
   initialState,
@@ -256,6 +291,8 @@ const studentTabsSlice = createSlice({
       state.absentLessonPagination = null;
       state.absentLessonStudentId = null;
       state.unscheduledLessonData = [];
+      state.unscheduledLessonPagination = null;
+      state.unscheduledLessonStudentId = null;
       state.commentData = [];
       state.historyData = [];
       state.error = null;
@@ -401,6 +438,22 @@ const studentTabsSlice = createSlice({
       .addCase(fetchAbsentLessonsData.rejected, (state, action) => {
         state.absentLessonLoading = false;
         state.absentLessonError = action.payload as string;
+      })
+      // Fetch unscheduled lessons data
+      .addCase(fetchUnscheduledLessonsData.pending, (state) => {
+        state.unscheduledLessonLoading = true;
+        state.unscheduledLessonError = null;
+      })
+      .addCase(fetchUnscheduledLessonsData.fulfilled, (state, action) => {
+        state.unscheduledLessonLoading = false;
+        state.unscheduledLessonData = action.payload.data;
+        state.unscheduledLessonPagination = action.payload.pagination;
+        state.unscheduledLessonStudentId = action.payload.studentId;
+        state.unscheduledLessonError = null;
+      })
+      .addCase(fetchUnscheduledLessonsData.rejected, (state, action) => {
+        state.unscheduledLessonLoading = false;
+        state.unscheduledLessonError = action.payload as string;
       });
   },
 });

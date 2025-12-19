@@ -51,12 +51,14 @@ export interface AbsentLessonData {
 }
 
 export interface UnscheduledLessonData {
+  id: number;
   program: string;
   phone: string;
   duration: string;
   originalDate: string;
   expiryDate: string;
   online: string;
+  url: string;
 }
 
 export interface CommentData {
