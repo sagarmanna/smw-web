@@ -1,10 +1,3 @@
-import {
-  GroupLessonData,
-  AbsentLessonData,
-  UnscheduledLessonData,
-  CommentData,
-  HistoryData,
-} from './studentTabConfigs';
 
 // ---------------------------------------------
 // Private Lessons API Response Types
@@ -190,50 +183,6 @@ export interface HistoryApiResponse {
 }
 
 // ---------------------------------------------
-// Mock Data (for development)
-// ---------------------------------------------
-
-
-/**
- * Generates mock comments data for a student
- */
-function generateMockComments(studentId: string): CommentData[] {
-  const studentIndex = parseInt(studentId) || 1;
-  const teachers = ["Art Tatum", "Jimi Hendrix", "Itzhak Perlman", "Johann Bach", "Buddy Rich"];
-  const teacher = teachers[(studentIndex - 1) % teachers.length];
-  const basicStudents = [
-    { firstName: "Anna" }, { firstName: "Anna" }, { firstName: "Anwar" }, { firstName: "Angelina" },
-    { firstName: "Amy" }, { firstName: "Amit" }, { firstName: "Alison" }, { firstName: "Alicia" },
-    { firstName: "Alicia" }, { firstName: "Alice" }, { firstName: "Alex" }, { firstName: "Alessia" },
-    { firstName: "Alessia" }, { firstName: "ajay" }, { firstName: "abbanda" },
-  ];
-  const firstName = basicStudents[(studentIndex - 1) % basicStudents.length]?.firstName || "Student";
-  
-  return [
-    { date: "Oct 08, 2025", author: teacher, comment: `${firstName} is making excellent progress. Keep up the great work!` },
-    { date: "Sep 15, 2025", author: teacher, comment: "Great performance in today's lesson. Very enthusiastic learner." },
-    { date: "Aug 22, 2025", author: "Admin", comment: "Parent requested to reschedule lessons for September." },
-  ];
-}
-
-/**
- * Generates mock history data for a student
- */
-function generateMockHistory(studentId: string): HistoryData[] {
-  const studentIndex = parseInt(studentId) || 1;
-  const teachers = ["Art Tatum", "Jimi Hendrix", "Itzhak Perlman", "Johann Bach", "Buddy Rich"];
-  const teacher = teachers[(studentIndex - 1) % teachers.length];
-  
-  return [
-    { message: "Oct 10, 2025 - Lesson Scheduled: Private lesson scheduled for Nov 01, 2025 by System" },
-    { message: "Oct 08, 2025 - Comment Added: Teacher added progress comment by " + teacher },
-    { message: "Oct 05, 2025 - Absence Recorded: Student absent from lesson by Admin" },
-    { message: "Sep 27, 2025 - Profile Updated: Phone number updated by Admin" },
-    { message: "Sep 15, 2025 - Payment Received: Payment of $130.00 received by System" },
-  ];
-}
-
-// ---------------------------------------------
 // Private Lessons API
 // ---------------------------------------------
 
@@ -405,52 +354,36 @@ export async function getStudentUnscheduledLessons(
 // ---------------------------------------------
 
 /**
- * Fetches comments data for a student
+ * Fetches comments data for a student with pagination
  * Endpoint: GET /admin/v2/{location}/comments
  * 
  * @param location - The location identifier (e.g., "burlington")
  * @param studentId - The student ID (passed as id param with type=student)
+ * @param page - The page number for pagination (default: 1)
  * @returns Promise resolving to raw API response data or null on error
  */
 export async function getStudentComments(
   location: string,
-  studentId: string
+  studentId: string,
+  page: number = 1
 ): Promise<CommentsApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when endpoint is available
-    // const url = `/admin/v2/${location}/comments`;
-    // const response = await apiClient.get<CommentsApiResponse>(url, {
-    //   params: {
-    //     type: 'student',
-    //     id: studentId,
-    //   },
-    // });
-    // return response.data;
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    
-    const mockComments = generateMockComments(studentId);
-    const commentItems: CommentItem[] = mockComments.map((comment, index) => ({
-      id: index + 1,
-      content: comment.comment,
-      createdUser: comment.author,
-      avatar: "",
-      createdOn: comment.date,
-    }));
-
-    return {
-      success: true,
-      data: {
-        body: commentItems,
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: commentItems.length,
-          totalPages: 1,
-        },
+    const { apiClient } = await import('@/lib/api/client');
+    const url = `/admin/v2/${location}/comments`;
+    const response = await apiClient.get<CommentsApiResponse>(url, {
+      params: {
+        type: 'student',
+        id: studentId,
+        page,
       },
-    };
+    });
+    
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching comments:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
@@ -467,50 +400,36 @@ export async function getStudentComments(
 // ---------------------------------------------
 
 /**
- * Fetches history data for a student
+ * Fetches history data for a student with pagination
  * Endpoint: GET /admin/v2/{location}/history
  * 
  * @param location - The location identifier (e.g., "burlington")
  * @param studentId - The student ID (passed as id param with type=student)
+ * @param page - The page number for pagination (default: 1)
  * @returns Promise resolving to raw API response data or null on error
  */
 export async function getStudentHistory(
   location: string,
-  studentId: string
+  studentId: string,
+  page: number = 1
 ): Promise<HistoryApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when endpoint is available
-    // const url = `/admin/v2/${location}/history`;
-    // const response = await apiClient.get<HistoryApiResponse>(url, {
-    //   params: {
-    //     type: 'student',
-    //     id: studentId,
-    //   },
-    // });
-    // return response.data;
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    
-    const mockHistory = generateMockHistory(studentId);
-    const historyItems: HistoryItem[] = mockHistory.map((item, index) => ({
-      id: index + 1,
-      message: item.message,
-      createdOn: item.message.split(" - ")[0] || new Date().toISOString(),
-    }));
-
-    return {
-      success: true,
-      data: {
-        body: historyItems,
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: historyItems.length,
-          totalPages: 1,
-        },
+    const { apiClient } = await import('@/lib/api/client');
+    const url = `/admin/v2/${location}/history`;
+    const response = await apiClient.get<HistoryApiResponse>(url, {
+      params: {
+        type: 'student',
+        id: studentId,
+        page,
       },
-    };
+    });
+    
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching history:", error);
     const apiError = error as { response?: { data?: { message?: string } } };

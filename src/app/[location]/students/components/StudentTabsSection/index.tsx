@@ -107,18 +107,21 @@ export function StudentTabsSection({ location, studentId }: StudentTabsSectionPr
             break;
 
           case "comments":
-            // Fetch comments
-            await dispatch(fetchCommentsData({ location, studentId })).unwrap();
+            // Fetch comments with pagination (only page parameter, no limit)
+            await dispatch(fetchCommentsData({ 
+              location, 
+              studentId, 
+              page: 1
+            })).unwrap();
             break;
 
           case "history":
-            // Fetch history
-            await dispatch(fetchHistoryData({ location, studentId })).unwrap();
-            break;
-
-          case "absent-lessons":
-          case "unscheduled-lessons":
-            // These use mock data for now - no API call needed
+            // Fetch history with pagination (only page parameter, no limit)
+            await dispatch(fetchHistoryData({ 
+              location, 
+              studentId, 
+              page: 1
+            })).unwrap();
             break;
 
           default:

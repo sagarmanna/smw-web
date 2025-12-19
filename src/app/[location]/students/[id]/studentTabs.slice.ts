@@ -1,9 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import {
-  CommentData,
-  HistoryData,
-} from './studentTabConfigs';
-import {
   getStudentComments,
   getStudentHistory,
   getStudentPrivateLessons,
@@ -17,6 +13,10 @@ import {
   AbsentLessonApiResponsePagination,
   UnscheduledLessonItem,
   UnscheduledLessonApiResponsePagination,
+  CommentItem,
+  CommentsApiResponsePagination,
+  HistoryItem,
+  HistoryApiResponsePagination,
 } from './students-details-tabs.api';
 
 export interface StudentTabsState {
@@ -30,8 +30,12 @@ export interface StudentTabsState {
   unscheduledLessonData: UnscheduledLessonItem[]; // Store flat array as-is from API
   unscheduledLessonPagination: UnscheduledLessonApiResponsePagination | null;
   unscheduledLessonStudentId: string | null;
-  commentData: CommentData[];
-  historyData: HistoryData[];
+  commentData: CommentItem[]; // Store flat array as-is from API
+  commentPagination: CommentsApiResponsePagination | null;
+  commentStudentId: string | null;
+  historyData: HistoryItem[]; // Store flat array as-is from API
+  historyPagination: HistoryApiResponsePagination | null;
+  historyStudentId: string | null;
   isLoading: boolean;
   error: string | null;
   currentStudentId: string | null;
@@ -49,7 +53,6 @@ export interface StudentTabsState {
   commentsStudentId: string | null;
   historyLoading: boolean;
   historyError: string | null;
-  historyStudentId: string | null;
 }
 
 const initialState: StudentTabsState = {
@@ -64,7 +67,11 @@ const initialState: StudentTabsState = {
   unscheduledLessonPagination: null,
   unscheduledLessonStudentId: null,
   commentData: [],
+  commentPagination: null,
+  commentStudentId: null,
   historyData: [],
+  historyPagination: null,
+  historyStudentId: null,
   isLoading: false,
   error: null,
   currentStudentId: null,
@@ -81,7 +88,6 @@ const initialState: StudentTabsState = {
   commentsStudentId: null,
   historyLoading: false,
   historyError: null,
-  historyStudentId: null,
 };
 
 // Async thunk for fetching student tabs data
@@ -112,15 +118,15 @@ export const fetchStudentTabsData = createAsyncThunk(
   }
 );
 
-// Async thunk for fetching comments data
+// Async thunk for fetching comments data with pagination
 export const fetchCommentsData = createAsyncThunk(
   'studentTabs/fetchCommentsData',
   async (
-    { location, studentId }: { location: string; studentId: string },
+    { location, studentId, page = 1 }: { location: string; studentId: string; page?: number },
     { rejectWithValue }
   ) => {
     try {
-      const apiResult = await getStudentComments(location, studentId);
+      const apiResult = await getStudentComments(location, studentId, page);
       
       if (!apiResult || !apiResult.success) {
         throw new Error(apiResult?.message || 'Failed to fetch comments');
@@ -128,6 +134,7 @@ export const fetchCommentsData = createAsyncThunk(
 
       return {
         data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
         studentId,
       };
     } catch (error) {
@@ -139,15 +146,15 @@ export const fetchCommentsData = createAsyncThunk(
   }
 );
 
-// Async thunk for fetching history data
+// Async thunk for fetching history data with pagination
 export const fetchHistoryData = createAsyncThunk(
   'studentTabs/fetchHistoryData',
   async (
-    { location, studentId }: { location: string; studentId: string },
+    { location, studentId, page = 1 }: { location: string; studentId: string; page?: number },
     { rejectWithValue }
   ) => {
     try {
-      const apiResult = await getStudentHistory(location, studentId);
+      const apiResult = await getStudentHistory(location, studentId, page);
       
       if (!apiResult || !apiResult.success) {
         throw new Error(apiResult?.message || 'Failed to fetch history');
@@ -155,6 +162,7 @@ export const fetchHistoryData = createAsyncThunk(
 
       return {
         data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
         studentId,
       };
     } catch (error) {
@@ -294,7 +302,11 @@ const studentTabsSlice = createSlice({
       state.unscheduledLessonPagination = null;
       state.unscheduledLessonStudentId = null;
       state.commentData = [];
+      state.commentPagination = null;
+      state.commentStudentId = null;
       state.historyData = [];
+      state.historyPagination = null;
+      state.historyStudentId = null;
       state.error = null;
       state.currentStudentId = null;
     },
@@ -356,13 +368,10 @@ const studentTabsSlice = createSlice({
       })
       .addCase(fetchCommentsData.fulfilled, (state, action) => {
         state.commentsLoading = false;
-        // Transform CommentItem[] to CommentData[]
-        state.commentData = action.payload.data.map((item) => ({
-          date: item.createdOn,
-          author: item.createdUser,
-          comment: item.content,
-        }));
-        state.commentsStudentId = action.payload.studentId;
+        // Use API response directly (no transformation)
+        state.commentData = action.payload.data;
+        state.commentPagination = action.payload.pagination;
+        state.commentStudentId = action.payload.studentId;
         state.commentsError = null;
       })
       .addCase(fetchCommentsData.rejected, (state, action) => {
@@ -376,7 +385,9 @@ const studentTabsSlice = createSlice({
       })
       .addCase(fetchHistoryData.fulfilled, (state, action) => {
         state.historyLoading = false;
+        // Use API response directly (no transformation)
         state.historyData = action.payload.data;
+        state.historyPagination = action.payload.pagination;
         state.historyStudentId = action.payload.studentId;
         state.historyError = null;
       })

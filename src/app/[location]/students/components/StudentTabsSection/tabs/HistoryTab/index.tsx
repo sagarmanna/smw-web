@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { historyColumns, HistoryData } from "../../../../[id]/studentTabConfigs";
 import { fetchHistoryData } from "../../../../[id]/studentTabs.slice";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 
 interface HistoryTabProps {
   location: string;
@@ -14,17 +16,34 @@ interface HistoryTabProps {
 
 export function HistoryTab({ location, studentId }: HistoryTabProps) {
   const dispatch = useAppDispatch();
+  
+  // Read data from Redux state (no API call here - handled by parent)
   const data = useAppSelector((state) => state.studentTabs.historyData);
+  const pagination = useAppSelector((state) => state.studentTabs.historyPagination);
   const isLoading = useAppSelector((state) => state.studentTabs.historyLoading);
   const error = useAppSelector((state) => state.studentTabs.historyError);
-  const historyStudentId = useAppSelector((state) => state.studentTabs.historyStudentId);
+  
+  // Use page from API response for display (synced with actual data)
+  const currentPage = pagination?.page || 1;
+  const totalPages = pagination?.totalPages || 1;
+  const totalRows = pagination?.total || 0;
+  const rowsPerPage = pagination?.limit || 10; // Use limit from API response
 
-  useEffect(() => {
-    // Only fetch if we don't have data for this student yet
-    if (historyStudentId !== studentId) {
-      dispatch(fetchHistoryData({ location, studentId }));
+  const handlePreviousPage = () => {
+    if (currentPage > 1 && !isLoading) {
+      const newPage = currentPage - 1;
+      // Fetch data for the new page (only page parameter, no limit)
+      dispatch(fetchHistoryData({ location, studentId, page: newPage }));
     }
-  }, [location, studentId, dispatch, historyStudentId]);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages && !isLoading) {
+      const newPage = currentPage + 1;
+      // Fetch data for the new page (only page parameter, no limit)
+      dispatch(fetchHistoryData({ location, studentId, page: newPage }));
+    }
+  };
 
   return (
     <Card>
@@ -38,30 +57,70 @@ export function HistoryTab({ location, studentId }: HistoryTabProps) {
             <p className="text-sm">{error}</p>
           </div>
         ) : (
-          <CustomTable
-            data={data as HistoryData[]}
-            columns={historyColumns}
-            size="compact"
-            variant="striped"
-            enableSorting={true}
-            enableExport={false}
-            enablePrint={false}
-            enableSearch={false}
-            enableFilter={false}
-            className="border-0 w-full"
-            isLoading={isLoading}
-            customEmptyState={
-              !isLoading && data.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
-                  <div className="text-4xl">📋</div>
-                  <span className="text-sm font-medium">No history found</span>
+          <>
+            <CustomTable
+              data={data as HistoryData[]}
+              columns={historyColumns}
+              size="compact"
+              variant="striped"
+              enableSorting={true}
+              enableExport={false}
+              enablePrint={false}
+              enableSearch={false}
+              enableFilter={false}
+              className="border-0 w-full"
+              isLoading={isLoading}
+              customLoadingState={
+                <LoadingAnimation 
+                  size="md" 
+                  text="Loading history..." 
+                  className="py-8"
+                />
+              }
+              customEmptyState={
+                !isLoading && data.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
+                    <div className="text-4xl">📋</div>
+                    <span className="text-sm font-medium">No history found</span>
+                  </div>
+                ) : undefined
+              }
+            />
+            
+            {/* Server-side Pagination Controls */}
+            {totalRows > 0 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows} entries
                 </div>
-              ) : undefined
-            }
-          />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1 || isLoading}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleNextPage}
+                    disabled={currentPage >= totalPages || isLoading}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
   );
 }
-
