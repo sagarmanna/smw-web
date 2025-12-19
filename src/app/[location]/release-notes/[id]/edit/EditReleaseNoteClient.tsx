@@ -1,0 +1,327 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { RichTextEditor } from "@/components/RichTextEditor";
+import { getReleaseNoteById, updateReleaseNote } from "../../releaseNotesListing.api";
+import type { UpdateReleaseNoteRequest, ReleaseNoteRow } from "../../types";
+import { format, parse } from "date-fns";
+import { DetailHeader } from "@/components/DetailHeader";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+
+interface EditReleaseNoteClientProps {
+  location: string;
+  id: string;
+}
+
+/**
+ * Parse date from "MMM dd, yyyy" format to Date object
+ */
+const parseDisplayDate = (dateString: string): Date | undefined => {
+  try {
+    // Try parsing "MMM dd, yyyy" format (e.g., "Dec 16, 2025")
+    return parse(dateString, "MMM dd, yyyy", new Date());
+  } catch {
+    try {
+      // Fallback to standard date parsing
+      return new Date(dateString);
+    } catch {
+      return undefined;
+    }
+  }
+};
+
+export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientProps) {
+  const router = useRouter();
+  const [releaseVersion, setReleaseVersion] = useState("");
+  const [subject, setSubject] = useState("");
+  const [summary, setSummary] = useState("");
+  const [notes, setNotes] = useState("");
+  const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch existing release note data
+  useEffect(() => {
+    const fetchReleaseNote = async () => {
+      if (!id) {
+        setError("Invalid release note ID");
+        setIsFetching(false);
+        return;
+      }
+
+      setIsFetching(true);
+      setError(null);
+
+      try {
+        // Try to parse as number first, otherwise use as string (for index-based lookup)
+        const identifier = !isNaN(Number(id)) ? Number(id) : id;
+        const data = await getReleaseNoteById(location, identifier);
+        
+        if (data) {
+          setReleaseVersion(data.releaseVersion || "");
+          setSubject(data.subject);
+          setSummary(data.summary);
+          setNotes(data.notes);
+          
+          // Parse schedule date from "MMM dd, yyyy" format
+          const parsedDate = parseDisplayDate(data.scheduleDate);
+          setScheduleDate(parsedDate);
+        } else {
+          setError("Release note not found");
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load release note");
+      } finally {
+        setIsFetching(false);
+      }
+    };
+
+    fetchReleaseNote();
+  }, [location, id]);
+
+  const breadcrumbItems = React.useMemo(
+    () => [
+      {
+        label: "Release Notes",
+        onClick: () => router.push(`/${location}/release-notes`),
+      },
+      {
+        label: "View Release Notes",
+        onClick: () => router.push(`/${location}/release-notes/${id}`),
+      },
+    ],
+    [location, id, router]
+  );
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!subject.trim()) {
+      newErrors.subject = "Subject cannot be blank.";
+    } else if (subject.trim().length < 3) {
+      newErrors.subject = "Subject must be at least 3 characters";
+    } else if (subject.trim().length > 255) {
+      newErrors.subject = "Subject must not exceed 255 characters";
+    }
+
+    // Check if summary has actual content (not just empty HTML tags)
+    const summaryText = summary.replace(/<[^>]*>/g, "").trim();
+    if (!summaryText) {
+      newErrors.summary = "Summary cannot be blank.";
+    }
+
+    // Check if notes has actual content (not just empty HTML tags)
+    const notesText = notes.replace(/<[^>]*>/g, "").trim();
+    if (!notesText) {
+      newErrors.notes = "Notes cannot be blank.";
+    }
+
+    if (!scheduleDate) {
+      newErrors.scheduleDate = "Schedule date is required.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      if (!scheduleDate) {
+        throw new Error("Schedule date is required");
+      }
+
+      const identifier = !isNaN(Number(id)) ? Number(id) : id;
+      const payload: UpdateReleaseNoteRequest = {
+        subject: subject.trim(),
+        summary: summary,
+        notes: notes,
+        scheduleDate: format(scheduleDate, "yyyy-MM-dd"),
+        releaseVersion: releaseVersion.trim() || undefined,
+      };
+
+      const response = await updateReleaseNote(location, identifier, payload);
+
+      toast.success(response.message || "Release note updated successfully!");
+      router.push(`/${location}/release-notes/${id}`);
+    } catch (error: unknown) {
+      const apiError = error as { message?: string; errorCode?: string };
+      const errorMessage = apiError.message || "Failed to update release note";
+
+      toast.error(errorMessage);
+
+      if (apiError.errorCode === "BAD_REQUEST") {
+        console.error("Validation error:", errorMessage);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (value: string) => {
+    setSubject(value);
+    // Clear error when user starts typing
+    if (errors.subject) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.subject;
+        return newErrors;
+      });
+    }
+  };
+
+  if (isFetching) {
+    return (
+      <div className="flex items-center justify-center min-h-[600px]">
+        <LoadingAnimation size="xl" text="Loading release note..." className="text-center" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4 bg-white px-2 sm:px-3">
+        <ErrorDisplay
+          error={error}
+          title="Unable to Load Release Note"
+          fallbackMessage="An unexpected error occurred while loading the release note. Please try again later."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="bg-white dark:bg-black -mt-2">
+        <DetailHeader
+          breadcrumbItems={breadcrumbItems}
+          currentPageTitle="Edit Release Notes"
+          loading={false}
+          showActions={false}
+        />
+
+        {/* Main Content */}
+        <div className="mt-6 px-2 sm:px-3 pb-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="releaseVersion">
+                    Release Version#
+                  </Label>
+                  <Input
+                    id="releaseVersion"
+                    value={releaseVersion}
+                    onChange={(e) => setReleaseVersion(e.target.value)}
+                    placeholder="Enter release version"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="scheduleDate">
+                    Schedule date <span className="text-red-500">*</span>
+                  </Label>
+                  <DatePicker
+                    value={scheduleDate}
+                    onSelect={setScheduleDate}
+                    placeholder="Select schedule date"
+                    error={!!errors.scheduleDate}
+                    errorMessage={errors.scheduleDate}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subject">
+                  Subject <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  placeholder="Enter subject"
+                  required
+                  className={errors.subject ? "border-red-500" : ""}
+                  disabled={isLoading}
+                />
+                {errors.subject && <p className="text-sm text-red-500">{errors.subject}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  Summary <span className="text-red-500">*</span>
+                </Label>
+                <RichTextEditor
+                  value={summary}
+                  onChange={setSummary}
+                  mode="simple"
+                  minHeight="200px"
+                  error={!!errors.summary}
+                  errorMessage={errors.summary}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  Notes <span className="text-red-500">*</span>
+                </Label>
+                <RichTextEditor
+                  value={notes}
+                  onChange={setNotes}
+                  mode="full"
+                  minHeight="400px"
+                  error={!!errors.notes}
+                  errorMessage={errors.notes}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => router.push(`/${location}/release-notes/${id}`)} 
+                  disabled={isLoading}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+

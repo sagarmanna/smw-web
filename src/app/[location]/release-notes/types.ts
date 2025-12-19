@@ -7,7 +7,7 @@
  * Release Note Row - represents a single release note in the table
  */
 export interface ReleaseNoteRow {
-  id: number;
+  id?: number; // Optional - may not be present in API response
   releaseVersion?: string; // Release Version# (optional)
   subject: string;
   summary: string; // HTML content from rich text editor
@@ -64,6 +64,34 @@ export interface CreateReleaseNoteRequest {
  * Create Release Note Response - API response after creating a release note
  */
 export interface CreateReleaseNoteResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    id: number;
+    subject: string;
+    summary: string;
+    notes: string;
+    scheduleDate: string;
+    createdDate: string;
+    userPublicIdentity: string;
+  };
+}
+
+/**
+ * Update Release Note Request - payload for updating an existing release note
+ */
+export interface UpdateReleaseNoteRequest {
+  subject: string;
+  summary: string;
+  notes: string;
+  scheduleDate: string; // ISO date string format (yyyy-MM-dd)
+  releaseVersion?: string;
+}
+
+/**
+ * Update Release Note Response - API response after updating a release note
+ */
+export interface UpdateReleaseNoteResponse {
   success: boolean;
   message: string;
   data?: {

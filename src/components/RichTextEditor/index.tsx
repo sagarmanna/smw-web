@@ -97,6 +97,58 @@ export function RichTextEditor({
   const [textColor, setTextColor] = useState("#000000");
   const [bgColor, setBgColor] = useState("#ffffff");
 
+  // Helper function to convert inline styles on block elements to spans
+  const convertBlockElementStyles = React.useCallback((html: string): string => {
+    if (typeof window === 'undefined') return html;
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Find all block elements (p, div, h1-h6) with inline color styles
+    const blockElements = tempDiv.querySelectorAll('p[style*="color"], div[style*="color"], h1[style*="color"], h2[style*="color"], h3[style*="color"], h4[style*="color"], h5[style*="color"], h6[style*="color"]');
+    
+    blockElements.forEach((element) => {
+      const style = element.getAttribute('style');
+      if (style && style.includes('color:')) {
+        // Extract color value
+        const colorMatch = style.match(/color:\s*([^;]+)/i);
+        if (colorMatch) {
+          const color = colorMatch[1].trim();
+          
+          // Remove color from block element's style
+          const newStyle = style.replace(/color:\s*[^;]+;?/gi, '').trim().replace(/^;+|;+$/g, '').replace(/;\s*;/g, ';');
+          if (newStyle && newStyle !== ';') {
+            element.setAttribute('style', newStyle);
+          } else {
+            element.removeAttribute('style');
+          }
+          
+          // Wrap all content in a span with color
+          // This preserves nested elements like <strong>
+          const span = document.createElement('span');
+          span.setAttribute('style', `color: ${color}`);
+          
+          // Clone all child nodes to the span (preserve original structure)
+          const childNodes = Array.from(element.childNodes);
+          childNodes.forEach((node) => {
+            span.appendChild(node.cloneNode(true));
+          });
+          
+          // Clear element and add the span
+          element.innerHTML = '';
+          element.appendChild(span);
+        }
+      }
+    });
+    
+    return tempDiv.innerHTML;
+  }, []);
+
+  // Convert value before passing to editor
+  const convertedValue = React.useMemo(() => {
+    return convertBlockElementStyles(value);
+  }, [value, convertBlockElementStyles]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -139,7 +191,7 @@ export function RichTextEditor({
         },
       }),
     ],
-    content: value,
+    content: convertedValue,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -148,10 +200,10 @@ export function RichTextEditor({
   });
 
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value);
+    if (editor && convertedValue !== editor.getHTML()) {
+      editor.commands.setContent(convertedValue);
     }
-  }, [value, editor]);
+  }, [convertedValue, editor]);
 
   useEffect(() => {
     if (editor && isSourceView) {

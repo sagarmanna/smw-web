@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import DOMPurify from "dompurify";
 import type { ReleaseNoteRow } from "./types";
@@ -25,14 +28,73 @@ const stripHtmlTags = (html: string): string => {
   return html.replace(/<[^>]*>/g, '').trim();
 };
 
+// Action cell component that uses router for navigation
+const ActionCell = ({ row, location }: { row: { original: ReleaseNoteRow; index: number }; location: string }) => {
+  const router = useRouter();
+  
+  // Use id if available, otherwise use index-based identifier
+  const identifier = row.original.id ?? `index-${row.index}`;
+  
+  const handleView = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/${location}/release-notes/${identifier}`);
+  };
+  
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/${location}/release-notes/${identifier}/edit`);
+  };
+  
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // TODO: Implement delete functionality
+    console.log("Delete release note:", identifier);
+  };
+  
+  return (
+    <div className="flex items-center justify-center gap-1.5 h-full">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 hover:bg-primary/10"
+        onClick={handleView}
+        title="View"
+      >
+        <Eye className="h-4 w-4 text-muted-foreground hover:text-primary" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 hover:bg-primary/10"
+        onClick={handleEdit}
+        title="Edit"
+      >
+        <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+        onClick={handleDelete}
+        title="Delete"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+};
+
 // Column definitions for release notes table
-export const releaseNoteColumns: ColumnDef<ReleaseNoteRow>[] = [
+// Accepts location parameter for navigation
+export const getReleaseNoteColumns = (location: string): ColumnDef<ReleaseNoteRow>[] => [
   {
     accessorKey: "id",
     header: () => <span className="font-medium">#</span>,
-    cell: ({ row }: { row: { original: ReleaseNoteRow } }) => (
+    cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => (
       <div className="flex items-center justify-center h-full">
-        <span className="text-sm font-medium text-muted-foreground">{row.original.id}</span>
+        <span className="text-sm font-medium text-muted-foreground">
+          {row.original.id ?? row.index + 1}
+        </span>
       </div>
     ),
     enableSorting: false,
@@ -154,51 +216,14 @@ export const releaseNoteColumns: ColumnDef<ReleaseNoteRow>[] = [
   {
     id: "actions",
     header: () => <span className="font-medium">Action</span>,
-    cell: ({ row }: { row: { original: ReleaseNoteRow } }) => (
-      <div className="flex items-center justify-center gap-1.5 h-full">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 hover:bg-primary/10"
-          onClick={(e) => {
-            e.stopPropagation();
-            // TODO: Implement view functionality
-            console.log("View release note:", row.original.id);
-          }}
-          title="View"
-        >
-          <Eye className="h-4 w-4 text-muted-foreground hover:text-primary" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 hover:bg-primary/10"
-          onClick={(e) => {
-            e.stopPropagation();
-            // TODO: Implement edit functionality
-            console.log("Edit release note:", row.original.id);
-          }}
-          title="Edit"
-        >
-          <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          onClick={(e) => {
-            e.stopPropagation();
-            // TODO: Implement delete functionality
-            console.log("Delete release note:", row.original.id);
-          }}
-          title="Delete"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+    cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => (
+      <ActionCell row={row} location={location} />
     ),
     enableSorting: false,
     size: 120,
   },
 ];
+
+// Default export for backward compatibility
+export const releaseNoteColumns = getReleaseNoteColumns('');
 
