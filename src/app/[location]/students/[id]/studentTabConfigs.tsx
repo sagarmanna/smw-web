@@ -62,13 +62,17 @@ export interface UnscheduledLessonData {
 }
 
 export interface CommentData {
-  date: string;
-  author: string;
-  comment: string;
+  id: number;
+  content: string;
+  createdUser: string;
+  avatar: string;
+  createdOn: string;
 }
 
 export interface HistoryData {
+  id: number;
   message: string;
+  createdOn: string;
 }
 
 // Column definitions
@@ -197,13 +201,52 @@ export const unscheduledLessonColumns: ColumnDef<UnscheduledLessonData>[] = [
 ];
 
 export const commentColumns: ColumnDef<CommentData>[] = [
-  { accessorKey: "date", header: "Date" },
-  { accessorKey: "author", header: "Author" },
-  { accessorKey: "comment", header: "Comment" },
+  { accessorKey: "createdOn", header: "Date" },
+  { accessorKey: "createdUser", header: "Author" },
+  { accessorKey: "content", header: "Comment" },
 ];
 
 export const historyColumns: ColumnDef<HistoryData>[] = [
-  { accessorKey: "message", header: "Message" },
+  {
+    accessorKey: "message",
+    header: "Message",
+    cell: ({ row }) => {
+      const item = row.original as HistoryData;
+      // Combine createdOn and message from API (both values used directly from API)
+      const createdOn = item.createdOn || "";
+      const message = item.message || "";
+      const combined = createdOn ? `On ${createdOn}, ${message}` : message;
+      
+      // The API may include HTML links inside `message`; render safely and ensure links open in a new tab
+      let styled = combined.replace(
+        /<a\b([^>]*)>/g,
+        (_match, attrs: string) => {
+          let newAttrs = attrs || "";
+          if (!/target=/.test(newAttrs)) {
+            newAttrs += ' target="_blank" rel="noopener noreferrer"';
+          }
+          const linkClasses = "text-blue-600 hover:text-blue-800 font-medium";
+          if (/class=/.test(newAttrs)) {
+            newAttrs = newAttrs.replace(
+              /class=\"([^\"]*)\"/,
+              (_m, cls: string) => `class=\"${cls} ${linkClasses}\"`
+            );
+          } else {
+            newAttrs += ` class=\"${linkClasses}\"`;
+          }
+          return `<a${newAttrs}>`;
+        }
+      );
+      // Make placeholders like {{Alicia Jones}} clickable
+      styled = styled.replace(/\{\{([^}]+)\}\}/g, (_m, name: string) => {
+        const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<a href="#" data-name="${safeName}" class="text-blue-600 hover:text-blue-800 font-medium underline">${safeName}</a>`;
+      });
+      return (
+        <div className="text-sm" dangerouslySetInnerHTML={{ __html: styled }} />
+      );
+    },
+  },
 ];
 
 // Tab configuration interface
