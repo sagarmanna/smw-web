@@ -39,7 +39,7 @@ RUN apk add --no-cache bash
 COPY package.json yarn.lock ./
 
 # Install only production dependencies
-RUN yarn install --frozen-lockfile 
+RUN yarn install --frozen-lockfile --production
 
 # Copy built application from builder stage
 COPY --from=builder /apps/.next ./.next
