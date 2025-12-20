@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import type { ReleaseNoteRow } from "./types";
-import { releaseNoteColumns } from "./tableConfigs";
+import { getReleaseNoteColumns } from "./tableConfigs";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useReleaseNotesListing } from "./hooks/useReleaseNotesListing";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,13 @@ interface ReleaseNotesListingClientProps {
 }
 
 export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClientProps) {
+  const router = useRouter();
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
 
-  const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(() => releaseNoteColumns, []);
+  const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
+    () => getReleaseNoteColumns(location),
+    [location]
+  );
 
   const {
     rows,

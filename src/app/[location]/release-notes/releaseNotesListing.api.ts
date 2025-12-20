@@ -9,6 +9,8 @@ import type {
   ReleaseNotesListResponse,
   CreateReleaseNoteRequest,
   CreateReleaseNoteResponse,
+  UpdateReleaseNoteRequest,
+  UpdateReleaseNoteResponse,
 } from "./types";
 
 // Constants for default pagination
@@ -181,6 +183,146 @@ export async function getReleaseNotesList(
   }
 }
 
+/**
+ * Get a single release note by ID or index
+ * 
+ * @param location - Location parameter
+ * @param idOrIndex - Release note ID (number) or index (string like "index:0")
+ * @returns Promise resolving to release note or null if not found
+ */
+export async function getReleaseNoteById(
+  location: string,
+  idOrIndex: number | string
+): Promise<ReleaseNoteRow | null> {
+  try {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Check if it's an index-based lookup (format: "index-0")
+    if (typeof idOrIndex === 'string' && idOrIndex.startsWith('index-')) {
+      const index = parseInt(idOrIndex.replace('index-', ''), 10);
+      if (!isNaN(index) && index >= 0 && index < MOCK_RELEASE_NOTES.length) {
+        return MOCK_RELEASE_NOTES[index];
+      }
+      return null;
+    }
+
+    // Try to find by ID
+    const id = typeof idOrIndex === 'number' ? idOrIndex : parseInt(idOrIndex, 10);
+    if (!isNaN(id)) {
+      const releaseNote = MOCK_RELEASE_NOTES.find((note) => note.id === id);
+      if (releaseNote) return releaseNote;
+    }
+
+    // Fallback: try to find by index if id is a number
+    if (typeof idOrIndex === 'number' && idOrIndex >= 0 && idOrIndex < MOCK_RELEASE_NOTES.length) {
+      return MOCK_RELEASE_NOTES[idOrIndex];
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching release note:", error);
+    return null;
+  }
+}
+
+/**
+ * Update an existing release note
+ * 
+ * @param location - Location parameter
+ * @param id - Release note ID or identifier
+ * @param data - Release note data to update
+ * @returns Promise resolving to update release note response
+ */
+export async function updateReleaseNote(
+  location: string,
+  id: number | string,
+  data: UpdateReleaseNoteRequest
+): Promise<UpdateReleaseNoteResponse> {
+  try {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Find the release note to update
+    let releaseNoteIndex = -1;
+    if (typeof id === 'number') {
+      releaseNoteIndex = MOCK_RELEASE_NOTES.findIndex((note) => note.id === id);
+    } else if (typeof id === 'string' && id.startsWith('index-')) {
+      const index = parseInt(id.replace('index-', ''), 10);
+      if (!isNaN(index) && index >= 0 && index < MOCK_RELEASE_NOTES.length) {
+        releaseNoteIndex = index;
+      }
+    }
+
+    if (releaseNoteIndex === -1) {
+      throw new Error("Release note not found");
+    }
+
+    // Format dates to match the expected format (MMM dd, yyyy)
+    const formatDate = (dateString: string): string => {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+          const year = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const day = parseInt(parts[2], 10);
+          const dateObj = new Date(year, month, day);
+          if (!isNaN(dateObj.getTime())) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const dayStr = dateObj.getDate().toString().padStart(2, '0');
+            const monthStr = months[dateObj.getMonth()];
+            const yearStr = dateObj.getFullYear();
+            return `${monthStr} ${dayStr}, ${yearStr}`;
+          }
+        }
+        return dateString;
+      }
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      return `${month} ${day}, ${year}`;
+    };
+
+    const scheduleDateFormatted = formatDate(data.scheduleDate);
+    const existingNote = MOCK_RELEASE_NOTES[releaseNoteIndex];
+
+    // Update the release note
+    const updatedNote: ReleaseNoteRow = {
+      ...existingNote,
+      subject: data.subject,
+      summary: data.summary,
+      notes: data.notes,
+      scheduleDate: scheduleDateFormatted,
+      releaseVersion: data.releaseVersion,
+    };
+
+    MOCK_RELEASE_NOTES[releaseNoteIndex] = updatedNote;
+
+    return {
+      success: true,
+      message: "Release note updated successfully",
+      data: {
+        id: updatedNote.id!,
+        subject: updatedNote.subject,
+        summary: updatedNote.summary,
+        notes: updatedNote.notes,
+        scheduleDate: updatedNote.scheduleDate,
+        createdDate: updatedNote.createdDate,
+        userPublicIdentity: updatedNote.userPublicIdentity,
+      },
+    };
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: UpdateReleaseNoteResponse } };
+    console.error("Error updating release note:", error);
+    throw {
+      message: apiError.response?.data?.message || "Failed to update release note",
+      errorCode: apiError.response?.data?.success === false ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+    };
+  }
+}
+
 // Re-export types for convenience
 export type {
   ReleaseNoteRow,
@@ -188,6 +330,8 @@ export type {
   ReleaseNotesListResponse,
   CreateReleaseNoteRequest,
   CreateReleaseNoteResponse,
+  UpdateReleaseNoteRequest,
+  UpdateReleaseNoteResponse,
 } from "./types";
 
 /**
@@ -250,10 +394,11 @@ export async function createReleaseNote(
     const scheduleDateFormatted = formatDate(data.scheduleDate);
     const createdDateFormatted = formatDate(now.toISOString().split('T')[0]);
     
-    // Generate a new ID (get the max ID and add 1)
-    const maxId = MOCK_RELEASE_NOTES.length > 0 
-      ? Math.max(...MOCK_RELEASE_NOTES.map(note => note.id))
-      : 0;
+    // Generate a new ID (get the max ID and add 1, or use array length + 1)
+    const existingIds = MOCK_RELEASE_NOTES
+      .map(note => note.id)
+      .filter((id): id is number => id !== undefined);
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
     const newId = maxId + 1;
     
     // Create the new release note
@@ -275,7 +420,7 @@ export async function createReleaseNote(
       success: true,
       message: "Release note created successfully",
       data: {
-        id: newReleaseNote.id,
+        id: newId, // We know this is always a number since we just created it
         subject: newReleaseNote.subject,
         summary: newReleaseNote.summary,
         notes: newReleaseNote.notes,
