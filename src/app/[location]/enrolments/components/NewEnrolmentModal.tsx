@@ -158,12 +158,98 @@ export function NewEnrolmentModal({
     }
   }, [open, isStartDateModalOpen, isDetailModalOpen, isCustomerDetailsModalOpen, isStudentDetailsModalOpen]);
 
-  const programOptions = React.useMemo(() => programs.map((p) => ({ value: p.id.toString(), label: p.name })), [programs]);
+  const programOptions = React.useMemo(
+    () => programs.map((p) => ({ value: p.id.toString(), label: p.name })),
+    [programs]
+  );
   const paymentFrequencySelectOptions = React.useMemo(() => paymentFrequencyOptions.map((f) => ({ value: f, label: f })), []);
 
+  const recalculateRates = (data: EnrolmentFormData): EnrolmentFormData => {
+    try {
+      const [hoursStr = "0", minutesStr = "0"] = (data.duration || "00:30").split(":");
+      const hours = parseInt(hoursStr, 10) || 0;
+      const minutes = parseInt(minutesStr, 10) || 0;
+      const unit = (hours * 60 + minutes) / 60; // duration in hours
+
+      const rate = parseFloat(data.ratePerHour || "0") || 0;
+      if (!rate || !unit) {
+        return {
+          ...data,
+          ratePerMonth: "",
+          discountedRatePerMonth: "",
+        };
+      }
+
+      const ratePerLesson = unit * rate;
+      const ratePerMonth = ratePerLesson * 4;
+
+      let discount = 0;
+      const multiEnrol = parseFloat(data.multipleEnrolDiscount || "0") || 0;
+      const pfDiscount = parseFloat(data.paymentFrequencyDiscount || "0") || 0;
+
+      if (multiEnrol) {
+        discount += multiEnrol / 4; // per-lesson discount from monthly amount
+      }
+
+      // Customer discount is not exposed in new UI yet; treated as 0 for now.
+
+      if (pfDiscount) {
+        discount += (ratePerLesson - discount) * (pfDiscount / 100);
+      }
+
+      const ratePerLessonWithDiscount = ratePerLesson - discount;
+      const ratePerMonthWithDiscount = ratePerLessonWithDiscount * 4;
+
+      return {
+        ...data,
+        ratePerMonth: ratePerMonth.toFixed(2),
+        discountedRatePerMonth: ratePerMonthWithDiscount.toFixed(2),
+      };
+    } catch {
+      return {
+        ...data,
+        ratePerMonth: data.ratePerMonth,
+        discountedRatePerMonth: data.discountedRatePerMonth,
+      };
+    }
+  };
+
   const handleFieldChange = (field: keyof EnrolmentFormData, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const next: EnrolmentFormData = { ...prev, [field]: value as any };
+      if (
+        field === "ratePerHour" ||
+        field === "duration" ||
+        field === "paymentFrequencyDiscount" ||
+        field === "multipleEnrolDiscount"
+      ) {
+        return recalculateRates(next);
+      }
+      return next;
+    });
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const handleProgramChange = (programId: string) => {
+    const selectedProgram = programs.find((p) => p.id.toString() === programId);
+    setFormData((prev) => {
+      const rawRate = selectedProgram?.rate;
+      const numericRate =
+        rawRate !== undefined && rawRate !== null && rawRate !== ""
+          ? Number(rawRate)
+          : NaN;
+      const base: EnrolmentFormData = {
+        ...prev,
+        program: programId,
+        ratePerHour:
+          !Number.isNaN(numericRate) && Number.isFinite(numericRate)
+            ? numericRate.toFixed(2)
+            : prev.ratePerHour,
+      };
+      return recalculateRates(base);
+    });
+    if (errors.program) setErrors((prev) => ({ ...prev, program: "" }));
   };
 
   const validateForm = (): boolean => {
@@ -211,7 +297,7 @@ export function NewEnrolmentModal({
                 id="program"
                 options={programOptions}
                 value={formData.program}
-                onValueChange={(value) => handleFieldChange("program", value)}
+                onValueChange={handleProgramChange}
                 placeholder="Select program..."
                 searchPlaceholder="Search programs..."
                 emptyText="No programs available"

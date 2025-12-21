@@ -64,6 +64,55 @@ export interface StudentEnrolmentsApiResponse {
   message?: string;
 }
 
+export interface EnrolmentProgramOption {
+  id: number;
+  name: string;
+  rate?: number | string | null;
+}
+
+export interface EnrolmentPaymentFrequencyOption {
+  id: number;
+  name: string;
+  frequencyLength: number;
+}
+
+export interface CustomerDiscountInfo {
+  value: number;
+}
+
+export interface CustomerEnrolmentMetadataResponse {
+  success: boolean;
+  data: {
+    programs: EnrolmentProgramOption[];
+    paymentFrequencies: EnrolmentPaymentFrequencyOption[];
+    discount: CustomerDiscountInfo | null;
+  };
+  message?: string;
+}
+
+export interface CreateStudentEnrolmentRequest {
+  programId: number;
+  programRate: number;
+  duration: string; // HH:mm
+  paymentFrequency: string;
+  paymentFrequencyDiscount?: number;
+  multipleEnrolDiscount?: number;
+  lessonsCount: number;
+  autoRenew: boolean;
+  startDate: string; // YYYY-MM-DD
+  paymentCycleEffectiveDate: string; // YYYY-MM-DD
+  isOnline: boolean;
+  teacherId: number;
+  day: string;
+  startTime: string; // HH:mm
+}
+
+export interface CreateStudentEnrolmentApiResponse {
+  success: boolean;
+  data?: StudentEnrolmentResponse;
+  message?: string;
+}
+
 /**
  * Fetches student enrolments from the API
  * Endpoint: GET /admin/v2/{location}/student/{studentId}/enrolments
@@ -103,6 +152,60 @@ export async function getStudentEnrolments(
         },
       },
       message: apiError.response?.data?.message || "Failed to fetch student enrolments",
+    };
+  }
+}
+
+/**
+ * Fetches enrolment metadata (programs, payment frequencies, customer discount)
+ * for a given customer.
+ * Endpoint: GET /admin/v2/{location}/customers/{customerId}/enrolment-metadata
+ */
+export async function getCustomerEnrolmentMetadata(
+  location: string,
+  customerId: number,
+): Promise<CustomerEnrolmentMetadataResponse | null> {
+  try {
+    const response = await apiClient.get<CustomerEnrolmentMetadataResponse>(
+      `/admin/v2/${location}/customers/${customerId}/enrolment-metadata`,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching customer enrolment metadata:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        programs: [],
+        paymentFrequencies: [],
+        discount: null,
+      },
+      message: apiError.response?.data?.message || "Failed to fetch customer enrolment metadata",
+    };
+  }
+}
+
+/**
+ * Creates a new private enrolment for a student.
+ * Endpoint: POST /admin/v2/{location}/student/{studentId}/enrolments
+ */
+export async function createStudentEnrolment(
+  location: string,
+  studentId: string,
+  data: CreateStudentEnrolmentRequest,
+): Promise<CreateStudentEnrolmentApiResponse | null> {
+  try {
+    const response = await apiClient.post<CreateStudentEnrolmentApiResponse>(
+      `/admin/v2/${location}/student/${studentId}/enrolments`,
+      data,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error creating student enrolment:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to create enrolment",
     };
   }
 }
