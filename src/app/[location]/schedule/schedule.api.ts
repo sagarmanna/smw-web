@@ -187,6 +187,37 @@ export async function getTeachersList(location: string): Promise<TeachersRespons
   }
 }
 
+export async function getTeachersByProgram(location: string, programId: number): Promise<TeachersResponse | null> {
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await apiClient.get<{ success: boolean; data: { body: Teacher[] }; message: string }>(
+      `/admin/v2/${location}/teachers/by-program`,
+      {
+        params: { programId },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    
+    // Transform the response to match TeachersResponse format
+    if (response.data.success && response.data.data?.body) {
+      return {
+        success: true,
+        data: response.data.data.body,
+        message: response.data.message || 'Teachers retrieved successfully',
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error fetching teachers by program:", error);
+    return null;
+  }
+}
+
 export async function getScheduleDetails(location: string, date: string): Promise<ScheduleDetailsResponse | null> {
   try {
     const token = localStorage.getItem("token");

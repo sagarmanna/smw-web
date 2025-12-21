@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
@@ -26,7 +27,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getTeachersList, type TeachersResponse } from "@/app/[location]/schedule/schedule.api";
+import { getTeachersList, getTeachersByProgram, type TeachersResponse } from "@/app/[location]/schedule/schedule.api";
 import { getProgramsList } from "@/app/[location]/teachers/teachers.api";
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import {
@@ -194,13 +195,11 @@ export function AddLessonModal({
   privateLessonData = [],
   onSave,
 }: AddLessonModalProps) {
-  // Props are kept for future use
-  void studentId;
-
   const [programs, setPrograms] = React.useState<Array<{ id: number; name: string }>>([]);
   const [teachers, setTeachers] = React.useState<Array<{ id: number; name: string }>>([]);
   const [loadingPrograms, setLoadingPrograms] = React.useState(false);
   const [loadingTeachers, setLoadingTeachers] = React.useState(false);
+  const [showAllPrograms, setShowAllPrograms] = React.useState<boolean>(false);
   
   const [selectedProgramId, setSelectedProgramId] = React.useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
@@ -227,6 +226,7 @@ export function AddLessonModal({
       setDate(undefined);
       setIsOnline(false);
       setShowAll(false);
+      setShowAllPrograms(false);
       setGoToDate(new Date());
       setCalendarDate(new Date());
       setScheduleData(null);
@@ -268,13 +268,23 @@ export function AddLessonModal({
     []
   );
 
-  // Fetch programs when modal opens
+  // Fetch programs when modal opens or showAllPrograms changes
   React.useEffect(() => {
     if (!open) return;
     
-    handleFetch(
-      () => getProgramsList('private'),
-      (programList) => {
+    let isMounted = true;
+    
+    const fetchPrograms = async () => {
+      setLoadingPrograms(true);
+      try {
+        // If showAllPrograms is false, fetch only enrolled programs (with studentId)
+        // If showAllPrograms is true, fetch all programs (without studentId)
+        const programList = showAllPrograms 
+          ? await getProgramsList('private')
+          : await getProgramsList('private', studentId);
+        
+        if (!isMounted) return;
+        
         setPrograms(programList);
         // Set default program from most recent private lesson
         const mostRecentProgramName = getMostRecentProgram();
@@ -284,27 +294,82 @@ export function AddLessonModal({
             setSelectedProgramId(matchingProgram.id.toString());
           }
         }
-      },
-      setLoadingPrograms,
-      "Error fetching programs:"
-    );
-  }, [open, getMostRecentProgram, handleFetch]);
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        console.error("Error fetching programs:", err);
+      } finally {
+        if (isMounted) {
+          setLoadingPrograms(false);
+        }
+      }
+    };
+    
+    fetchPrograms();
+    
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, showAllPrograms]);
 
-  // Fetch teachers when modal opens
+  // Fetch teachers when program is selected
   React.useEffect(() => {
     if (!open) return;
     
-    handleFetch(
-      () => getTeachersList(location),
-      (response: TeachersResponse | null) => {
-        if (response?.success && response.data) {
-          setTeachers(response.data.map((t) => ({ id: t.id, name: t.name || "" })));
+    // Don't fetch teachers if no program is selected
+    if (!selectedProgramId) {
+      setTeachers([]);
+      setSelectedTeacherId(""); // Clear selected teacher when program is cleared
+      return;
+    }
+    
+    let isMounted = true;
+    
+    const fetchTeachers = async () => {
+      setLoadingTeachers(true);
+      try {
+        const programId = parseInt(selectedProgramId, 10);
+        if (isNaN(programId)) {
+          if (!isMounted) return;
+          setLoadingTeachers(false);
+          return;
         }
-      },
-      setLoadingTeachers,
-      "Error fetching teachers:"
-    );
-  }, [open, location, handleFetch]);
+        
+        const response = await getTeachersByProgram(location, programId);
+        if (!isMounted) return;
+        
+        if (response?.success && response.data) {
+          const teachersList = response.data.map((t) => ({ id: t.id, name: t.name || "" }));
+          setTeachers(teachersList);
+          // Clear selected teacher if it's not in the new list
+          setSelectedTeacherId((prev) => {
+            if (prev && !response.data.some((t) => t.id.toString() === prev)) {
+              return "";
+            }
+            return prev;
+          });
+        } else {
+          setTeachers([]);
+          setSelectedTeacherId("");
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        console.error("Error fetching teachers:", err);
+        setTeachers([]);
+        setSelectedTeacherId("");
+      } finally {
+        if (isMounted) {
+          setLoadingTeachers(false);
+        }
+      }
+    };
+    
+    fetchTeachers();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [open, location, selectedProgramId]);
 
   // Fetch schedule when teacher is selected
   React.useEffect(() => {
@@ -479,7 +544,23 @@ export function AddLessonModal({
           {/* Form Fields - Single Row */}
           <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="program">Program</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="program">Program</Label>
+                <div className="flex items-center gap-2">
+                  <Label 
+                    htmlFor="show-all-programs" 
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    {showAllPrograms ? "All Programs" : "Enrolled Only"}
+                  </Label>
+                  <Switch
+                    id="show-all-programs"
+                    checked={showAllPrograms}
+                    onCheckedChange={setShowAllPrograms}
+                    disabled={loadingPrograms}
+                  />
+                </div>
+              </div>
               <SearchableSelect
                 id="program"
                 options={programOptions}
