@@ -69,6 +69,8 @@ const DAY_RESOURCES = [
   { id: 7, title: "Sunday" },
 ];
 
+const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 const getMondayOfWeek = (date: Date): Date => {
   const dayOfWeek = date.getDay();
   const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -431,8 +433,71 @@ export function AddLessonModal({
   
   const calendarEvents = React.useMemo(() => {
     if (!scheduleData) return [];
-    return convertLessonsToCalendarEvents(scheduleData.lessons, calendarMonday);
-  }, [scheduleData, calendarMonday]);
+    const events = convertLessonsToCalendarEvents(scheduleData.lessons, calendarMonday);
+    
+    // Add preview event for selected slot if date and duration are set
+    if (date && selectedTeacherId && duration) {
+      // Get day of week from date (0 = Sunday, 1 = Monday, etc.)
+      const dayOfWeek = date.getDay();
+      // Convert to resourceId format (1 = Monday, 7 = Sunday)
+      const resourceId = dayOfWeek === 0 ? 7 : dayOfWeek;
+      
+      // Parse duration (HH:mm format)
+      const [durationHoursStr, durationMinutesStr] = duration.split(':');
+      const durationHours = parseInt(durationHoursStr || '0', 10);
+      const durationMinutes = parseInt(durationMinutesStr || '0', 10);
+      
+      // Get start time from date
+      const selectedHours = date.getHours();
+      const selectedMinutes = date.getMinutes();
+      
+      // Calculate end time by adding duration to start time
+      const startTimeMinutes = selectedHours * 60 + selectedMinutes;
+      const totalDurationMinutes = durationHours * 60 + durationMinutes;
+      const endTimeMinutes = startTimeMinutes + totalDurationMinutes;
+      
+      const endHours = Math.floor(endTimeMinutes / 60);
+      const endMinutes = endTimeMinutes % 60;
+      
+      // Adjust preview dates to use Monday as base date (for calendar display)
+      // but keep the time from selected slot
+      const previewStartAdjusted = new Date(calendarMonday);
+      previewStartAdjusted.setHours(selectedHours, selectedMinutes, 0, 0);
+      
+      const previewEndAdjusted = new Date(calendarMonday);
+      previewEndAdjusted.setHours(endHours, endMinutes, 0, 0);
+      
+      // Format time for display (12-hour format with AM/PM)
+      const formatTime = (hours: number, minutes: number) => {
+        const h = hours % 12 || 12;
+        const m = minutes.toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        return `${h}:${m} ${ampm}`;
+      };
+      
+      const startTimeFormatted = formatTime(selectedHours, selectedMinutes);
+      const endTimeFormatted = formatTime(endHours, endMinutes);
+      
+      const previewEvent: CalendarEvent = {
+        id: "preview-selected-slot",
+        title: `Selected: ${startTimeFormatted} - ${endTimeFormatted}`,
+        start: previewStartAdjusted,
+        end: previewEndAdjusted,
+        resourceId,
+        backgroundColor: "#3d85c6", // Blue color matching reference
+        borderColor: "#3d85c6", // Same blue for border
+        className: "lesson-slot-preview",
+        extendedProps: {
+          lessonId: "preview",
+          tooltip: `Selected slot: ${DAY_NAMES[resourceId]} at ${startTimeFormatted} - ${endTimeFormatted} (Duration: ${duration})`,
+        },
+      };
+      
+      return [...events, previewEvent];
+    }
+    
+    return events;
+  }, [scheduleData, calendarMonday, date, selectedTeacherId, duration]);
   
   const timeRange = React.useMemo(
     () => scheduleData
