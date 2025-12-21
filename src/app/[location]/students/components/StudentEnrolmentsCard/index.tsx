@@ -17,21 +17,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NewEnrolmentModal, type EnrolmentFormData } from "././AddPrivateModal/NewEnrolmentModal";
-import { 
-  AddGroupEnrolmentModal, 
-  type GroupEnrolmentCompleteData 
+import {
+  AddGroupEnrolmentModal,
+  type GroupEnrolmentCompleteData,
 } from "./AddGroupModal/AddGroupEnrolmentModal";
 import { StudentEnrolment } from "../../types";
 import { toast } from "sonner";
 import { isDev } from "@/utils/env";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchStudentEnrolments, setEnrolments } from "../../[id]/students-details.slice";
+import {
+  createStudentEnrolment,
+  type CreateStudentEnrolmentRequest,
+} from "../../[id]/students-details.api";
 
 interface StudentEnrolmentsCardProps {
   enrolments: StudentEnrolment[];
   isLoading?: boolean;
   location: string;
   studentId: string;
+  customerId?: number;
   onRefresh?: () => void;
 }
 
@@ -50,6 +55,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
   isLoading = false,
   location,
   studentId,
+  customerId,
   onRefresh,
 }: StudentEnrolmentsCardProps) {
   const dispatch = useAppDispatch();
@@ -114,9 +120,72 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
     }
   }, [dispatch, location, studentId, enrolments]);
 
-  const handleNewEnrolmentNext = (data: EnrolmentFormData) => {
-    // TODO: Implement API call to create enrolment
-    setIsNewEnrolmentModalOpen(false);
+  const handleNewEnrolmentNext = async (data: EnrolmentFormData) => {
+    try {
+      const payload: CreateStudentEnrolmentRequest = {
+        programId: Number(data.program),
+        programRate: Number(data.ratePerHour || 0),
+        duration: data.duration,
+        paymentFrequency: data.paymentFrequency,
+        paymentFrequencyDiscount: data.paymentFrequencyDiscount
+          ? Number(data.paymentFrequencyDiscount)
+          : undefined,
+        multipleEnrolDiscount: data.multipleEnrolDiscount
+          ? Number(data.multipleEnrolDiscount)
+          : undefined,
+        lessonsCount: Number(data.numberOfLessons || 0),
+        autoRenew: data.autoRenew,
+        startDate: data.startDate || "",
+        paymentCycleEffectiveDate: data.paymentCycleEffectiveDate || "",
+        isOnline: data.isOnline ?? false,
+        teacherId: data.teacherId ? Number(data.teacherId) : 0,
+        day: data.day || "",
+        startTime: data.startTime || "",
+      };
+
+      // Basic client-side validation to avoid bad requests
+      if (
+        !payload.programId ||
+        !payload.lessonsCount ||
+        !payload.startDate ||
+        !payload.paymentCycleEffectiveDate ||
+        !payload.teacherId ||
+        !payload.day ||
+        !payload.startTime
+      ) {
+        toast.error("Please complete all enrolment steps before saving.");
+        return;
+      }
+
+      const result = await createStudentEnrolment(location, studentId, payload);
+
+      if (!result || !result.success || !result.data) {
+        toast.error(result?.message || "Failed to create enrolment");
+        return;
+      }
+
+      const apiEnrolment = result.data;
+      const newEnrolment: StudentEnrolment = {
+        id: apiEnrolment.id,
+        program: apiEnrolment.programName,
+        teacher: apiEnrolment.teacherName,
+        day: apiEnrolment.day,
+        fromTime: apiEnrolment.fromTime,
+        duration: apiEnrolment.duration,
+        startDate: apiEnrolment.startDate,
+        endDate: apiEnrolment.endDate,
+      };
+
+      setLocalEnrolments((prev) => [...prev, newEnrolment]);
+      setIsNewEnrolmentModalOpen(false);
+      toast.success("Enrolment created successfully");
+
+      // Optionally let parent refresh other data if needed
+      onRefresh?.();
+    } catch (error) {
+      console.error("Failed to create enrolment:", error);
+      toast.error("Failed to create enrolment");
+    }
   };
 
   const handleGroupEnrolmentNext = (data: GroupEnrolmentCompleteData) => {
@@ -224,6 +293,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
         onOpenChange={setIsNewEnrolmentModalOpen}
         onNext={handleNewEnrolmentNext}
         location={location}
+        customerId={customerId}
       />
 
       <AddGroupEnrolmentModal

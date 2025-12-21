@@ -172,6 +172,8 @@ export async function getTeacherById(
 export interface Program {
   id: number;
   name: string;
+  // MySQL DECIMAL often comes back as string; support both to avoid runtime issues
+  rate?: number | string | null;
 }
 
 export interface ProgramsListResponse {
