@@ -11,8 +11,6 @@ import { StudentBasicDetails } from "../../types";
 import { EditStudentDetailsModal } from "../modals/EditStudentDetailsModal";
 import { DeleteStudentModal } from "../modals/DeleteStudentModal";
 import { MergeStudentModal } from "../modals/MergeStudentModal";
-import { toast } from "sonner";
-import { isDev } from "@/utils/env";
 
 interface StudentDetailsCardProps {
   details: StudentBasicDetails | null;
@@ -49,7 +47,7 @@ export const StudentDetailsCard = React.memo(function StudentDetailsCard({
     },
     {
       title: "Merge",
-      onClick: () => isDev() ? setIsMergeModalOpen(true) : toast.info("This feature is in development..."),
+      onClick: () => setIsMergeModalOpen(true),
     },
   ], []);
 
