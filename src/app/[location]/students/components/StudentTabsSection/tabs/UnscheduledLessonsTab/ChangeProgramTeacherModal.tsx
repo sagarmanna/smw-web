@@ -15,7 +15,9 @@ import {
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
 import { getProgramsList, type Program } from "@/app/[location]/teachers/teachers.api";
-import { getTeachersList } from "@/app/[location]/schedule/schedule.api";
+import { getTeachersByProgram } from "@/app/[location]/schedule/schedule.api";
+import { changeLessons } from "./unscheduled-lessons.api";
+import { toast } from "sonner";
 
 interface ChangeProgramTeacherModalProps {
   open: boolean;
@@ -23,6 +25,8 @@ interface ChangeProgramTeacherModalProps {
   selectedCount: number;
   location: string;
   initialProgramName?: string;
+  selectedLessonIds: number[];
+  onSuccess?: () => void;
 }
 
 export function ChangeProgramTeacherModal({
@@ -31,11 +35,14 @@ export function ChangeProgramTeacherModal({
   selectedCount,
   location,
   initialProgramName,
+  selectedLessonIds,
+  onSuccess,
 }: ChangeProgramTeacherModalProps) {
   const [programs, setPrograms] = React.useState<Program[]>([]);
   const [teachers, setTeachers] = React.useState<Array<{ id: number; name: string }>>([]);
   const [loadingPrograms, setLoadingPrograms] = React.useState(false);
   const [loadingTeachers, setLoadingTeachers] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const [selectedProgramId, setSelectedProgramId] = React.useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
@@ -45,6 +52,7 @@ export function ChangeProgramTeacherModal({
     if (!open) {
       setSelectedProgramId("");
       setSelectedTeacherId("");
+      setTeachers([]);
     }
   }, [open]);
 
@@ -84,29 +92,64 @@ export function ChangeProgramTeacherModal({
     fetchPrograms();
   }, [open, initialProgramName]);
 
-  // Fetch teachers when modal opens
+  // Fetch teachers when program is selected
   React.useEffect(() => {
     if (!open) return;
+
+    // Don't fetch teachers if no program is selected
+    if (!selectedProgramId) {
+      setTeachers([]);
+      setSelectedTeacherId(""); // Clear selected teacher when program is cleared
+      return;
+    }
+
+    let isMounted = true;
 
     const fetchTeachers = async () => {
       setLoadingTeachers(true);
       try {
-        const response = await getTeachersList(location);
+        const programId = parseInt(selectedProgramId, 10);
+        if (isNaN(programId)) {
+          if (!isMounted) return;
+          setLoadingTeachers(false);
+          return;
+        }
+
+        const response = await getTeachersByProgram(location, programId);
+        if (!isMounted) return;
+
         if (response?.success && response.data) {
-          setTeachers(response.data);
-          if (response.data.length > 0) {
-            setSelectedTeacherId(response.data[0].id.toString());
-          }
+          const teachersList = response.data.map((t) => ({ id: t.id, name: t.name || "" }));
+          setTeachers(teachersList);
+          // Clear selected teacher if it's not in the new list
+          setSelectedTeacherId((prev) => {
+            if (prev && !response.data.some((t) => t.id.toString() === prev)) {
+              return "";
+            }
+            return prev;
+          });
+        } else {
+          setTeachers([]);
+          setSelectedTeacherId("");
         }
       } catch (error) {
+        if (!isMounted) return;
         console.error("Error fetching teachers for ChangeProgramTeacherModal:", error);
+        setTeachers([]);
+        setSelectedTeacherId("");
       } finally {
-        setLoadingTeachers(false);
+        if (isMounted) {
+          setLoadingTeachers(false);
+        }
       }
     };
 
     fetchTeachers();
-  }, [open, location]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [open, location, selectedProgramId]);
 
   const programOptions = React.useMemo<SearchableSelectOption[]>(
     () => programs.map((p) => ({ value: p.id.toString(), label: p.name })),
@@ -118,31 +161,60 @@ export function ChangeProgramTeacherModal({
     [teachers]
   );
 
-  const selectedProgramName = React.useMemo(
-    () => programs.find((p) => p.id.toString() === selectedProgramId)?.name ?? "",
-    [programs, selectedProgramId]
-  );
-
-  const selectedTeacherName = React.useMemo(
-    () => teachers.find((t) => t.id.toString() === selectedTeacherId)?.name ?? "",
-    [teachers, selectedTeacherId]
-  );
-
   const handleClose = () => {
-    onOpenChange(false);
+    if (!isSubmitting) {
+      onOpenChange(false);
+    }
   };
 
-  const handleSave = () => {
-    // TODO: Wire up to API when endpoint is available
-    // For now, just log the intended change
-    console.log("Change Program/Teacher for lessons:", {
-      selectedCount,
-      programId: selectedProgramId || null,
-      programName: selectedProgramName,
-      teacherId: selectedTeacherId || null,
-      teacherName: selectedTeacherName,
-    });
-    onOpenChange(false);
+  const handleSave = async () => {
+    // Validate inputs
+    if (!selectedProgramId || !selectedTeacherId) {
+      toast.error("Please select both program and teacher");
+      return;
+    }
+
+    if (selectedLessonIds.length === 0) {
+      toast.error("No lessons selected");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await changeLessons(
+        location,
+        selectedLessonIds,
+        {
+          programId: parseInt(selectedProgramId, 10),
+          teacherId: parseInt(selectedTeacherId, 10),
+        }
+      );
+
+      if (response.success) {
+        toast.success(
+          response.message || `Successfully changed ${response.data?.processedCount || selectedCount} lesson(s)`
+        );
+        onOpenChange(false);
+        // Call onSuccess callback to refresh data
+        if (onSuccess) {
+          onSuccess();
+        }
+      } else {
+        // Handle validation errors
+        if (response.errors) {
+          const errorMessages = Object.values(response.errors).flat();
+          toast.error(errorMessages.join(", ") || "Failed to change lessons");
+        } else {
+          toast.error(response.message || "Failed to change lessons");
+        }
+      }
+    } catch (error) {
+      console.error("Error changing lessons:", error);
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while changing lessons";
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -200,11 +272,11 @@ export function ChangeProgramTeacherModal({
         </div>
 
         <DialogFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            Save
+          <Button onClick={handleSave} disabled={isSubmitting || !selectedProgramId || !selectedTeacherId}>
+            {isSubmitting ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
