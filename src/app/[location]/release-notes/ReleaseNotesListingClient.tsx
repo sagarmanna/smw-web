@@ -114,8 +114,7 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={() => {
-          // Refresh the data after successful release note creation
-          fetchData();
+          // No need to fetch - Redux state is automatically updated after API call
         }}
         location={location}
       />

@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import { createReleaseNote } from "../../releaseNotesListing.api";
+import { useAppDispatch } from "@/redux/hooks";
+import { addReleaseNote } from "../../releaseNotesListing.slice";
 import type { CreateReleaseNoteRequest } from "../../types";
 import { format } from "date-fns";
 
@@ -21,6 +22,7 @@ interface AddReleaseNoteModalProps {
 }
 
 export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: AddReleaseNoteModalProps) {
+  const dispatch = useAppDispatch();
   const [releaseVersion, setReleaseVersion] = useState("");
   const [subject, setSubject] = useState("");
   const [summary, setSummary] = useState("");
@@ -94,9 +96,10 @@ export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: Ad
         scheduleDate: format(scheduleDate, "yyyy-MM-dd"),
       };
 
-      const response = await createReleaseNote(location, payload);
+      // Call Redux action which will call API and update state
+      await dispatch(addReleaseNote({ location, data: payload })).unwrap();
 
-      toast.success(response.message || "Release note created successfully!");
+      toast.success("Release note created successfully!");
       onSuccess?.();
       onClose();
 

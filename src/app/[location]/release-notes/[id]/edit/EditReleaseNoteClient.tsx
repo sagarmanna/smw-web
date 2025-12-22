@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import { getReleaseNoteById, updateReleaseNote } from "../../releaseNotesListing.api";
+import { getReleaseNoteById } from "../../releaseNotesListing.api";
+import { useAppDispatch } from "@/redux/hooks";
+import { updateReleaseNote as updateReleaseNoteAction } from "../../releaseNotesListing.slice";
 import type { UpdateReleaseNoteRequest, ReleaseNoteRow } from "../../types";
 import { format, parse } from "date-fns";
 import { DetailHeader } from "@/components/DetailHeader";
@@ -40,6 +42,7 @@ const parseDisplayDate = (dateString: string): Date | undefined => {
 
 export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const [releaseVersion, setReleaseVersion] = useState("");
   const [subject, setSubject] = useState("");
   const [summary, setSummary] = useState("");
@@ -158,9 +161,10 @@ export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientPro
         releaseVersion: releaseVersion.trim() || undefined,
       };
 
-      const response = await updateReleaseNote(location, identifier, payload);
+      // Call Redux action which will call API and update state
+      await dispatch(updateReleaseNoteAction({ location, id: identifier, data: payload })).unwrap();
 
-      toast.success(response.message || "Release note updated successfully!");
+      toast.success("Release note updated successfully!");
       router.push(`/${location}/release-notes/${id}`);
     } catch (error: unknown) {
       const apiError = error as { message?: string; errorCode?: string };
