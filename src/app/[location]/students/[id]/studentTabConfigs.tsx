@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+import DOMPurify from "dompurify";
 import { formatCurrency } from "@/utils/formatCurrency";
 
 // Data interfaces
@@ -241,45 +242,147 @@ export const commentColumns: ColumnDef<CommentData>[] = [
   { accessorKey: "content", header: "Comment" },
 ];
 
+/**
+ * Sanitizes HTML content to prevent XSS attacks
+ * Allows only safe HTML tags and attributes for history messages
+ */
+const sanitizeHistoryHtml = (html: string): string => {
+  try {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'a', 'span', 'div', 'b', 'i'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+      ALLOW_DATA_ATTR: false,
+    });
+  } catch (error) {
+    console.error('Error sanitizing HTML:', error);
+    // Return escaped HTML as fallback
+    return html.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+};
+
+/**
+ * Processes HTML links to ensure they open in the same window and have consistent styling
+ */
+const processHistoryLinks = (html: string): string => {
+  try {
+    // Use DOMParser for proper HTML parsing instead of regex
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const links = doc.querySelectorAll('a');
+
+    links.forEach((link) => {
+      // Set target to _self for same-window navigation
+      link.setAttribute('target', '_self');
+      
+      // Add consistent styling classes
+      const existingClasses = link.getAttribute('class') || '';
+      const linkClasses = 'text-blue-600 hover:text-blue-800 font-medium';
+      if (!existingClasses.includes('text-blue-600')) {
+        link.setAttribute('class', existingClasses ? `${existingClasses} ${linkClasses}` : linkClasses);
+      }
+    });
+
+    return doc.body.innerHTML;
+  } catch (error) {
+    console.error('Error processing links:', error);
+    // Fallback to regex-based approach if DOMParser fails
+    return html.replace(
+      /<a\b([^>]*)>/g,
+      (_match, attrs: string) => {
+        let newAttrs = attrs || "";
+        newAttrs = newAttrs.replace(/target="[^"]*"/g, '');
+        newAttrs += ' target="_self"';
+        const linkClasses = "text-blue-600 hover:text-blue-800 font-medium";
+        if (/class=/.test(newAttrs)) {
+          newAttrs = newAttrs.replace(
+            /class=\"([^\"]*)\"/,
+            (_m, cls: string) => `class="${cls} ${linkClasses}"`
+          );
+        } else {
+          newAttrs += ` class="${linkClasses}"`;
+        }
+        return `<a${newAttrs}>`;
+      }
+    );
+  }
+};
+
+/**
+ * Component for rendering history messages with secure HTML and link handling
+ */
+const HistoryMessageCell: React.FC<{ item: HistoryData }> = ({ item }) => {
+  // Memoize the processed HTML to avoid reprocessing on every render
+  const processedHtml = useMemo(() => {
+    try {
+      const createdOn = item.createdOn || "";
+      const message = item.message || "";
+      const combined = createdOn ? `On ${createdOn}, ${message}` : message;
+      
+      // First sanitize the HTML
+      const sanitized = sanitizeHistoryHtml(combined);
+      
+      // Then process links for same-window navigation and styling
+      const withProcessedLinks = processHistoryLinks(sanitized);
+      
+      return withProcessedLinks;
+    } catch (error) {
+      console.error('Error processing history message:', error);
+      // Fallback: return escaped text
+      const createdOn = item.createdOn || "";
+      const message = item.message || "";
+      const combined = createdOn ? `On ${createdOn}, ${message}` : message;
+      return combined.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  }, [item.createdOn, item.message]);
+
+  // Memoize click handler to avoid recreating on every render
+  const handleLinkClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    try {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      const anchor = target.closest("a") as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href || href === "#") return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Validate URL before navigation to prevent security issues
+      try {
+        // Allow both absolute URLs and relative paths
+        if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('/')) {
+          window.location.href = href;
+        } else {
+          console.warn('Invalid URL format:', href);
+        }
+      } catch (urlError) {
+        console.error('Error navigating to URL:', urlError);
+      }
+    } catch (error) {
+      console.error('Error handling link click:', error);
+    }
+  }, []);
+
+  return (
+    <div 
+      className="text-sm" 
+      dangerouslySetInnerHTML={{ __html: processedHtml }}
+      onClick={handleLinkClick}
+      role="textbox"
+      aria-label="History message"
+    />
+  );
+};
+
 export const historyColumns: ColumnDef<HistoryData>[] = [
   {
     accessorKey: "message",
     header: "Message",
     cell: ({ row }) => {
-      const item = row.original as HistoryData;
-      // Combine createdOn and message from API (both values used directly from API)
-      const createdOn = item.createdOn || "";
-      const message = item.message || "";
-      const combined = createdOn ? `On ${createdOn}, ${message}` : message;
-      
-      // The API may include HTML links inside `message`; render safely and ensure links open in a new tab
-      let styled = combined.replace(
-        /<a\b([^>]*)>/g,
-        (_match, attrs: string) => {
-          let newAttrs = attrs || "";
-          if (!/target=/.test(newAttrs)) {
-            newAttrs += ' target="_blank" rel="noopener noreferrer"';
-          }
-          const linkClasses = "text-blue-600 hover:text-blue-800 font-medium";
-          if (/class=/.test(newAttrs)) {
-            newAttrs = newAttrs.replace(
-              /class=\"([^\"]*)\"/,
-              (_m, cls: string) => `class=\"${cls} ${linkClasses}\"`
-            );
-          } else {
-            newAttrs += ` class=\"${linkClasses}\"`;
-          }
-          return `<a${newAttrs}>`;
-        }
-      );
-      // Make placeholders like {{Alicia Jones}} clickable
-      styled = styled.replace(/\{\{([^}]+)\}\}/g, (_m, name: string) => {
-        const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        return `<a href="#" data-name="${safeName}" class="text-blue-600 hover:text-blue-800 font-medium underline">${safeName}</a>`;
-      });
-      return (
-        <div className="text-sm" dangerouslySetInnerHTML={{ __html: styled }} />
-      );
+      return <HistoryMessageCell item={row.original} />;
     },
   },
 ];
