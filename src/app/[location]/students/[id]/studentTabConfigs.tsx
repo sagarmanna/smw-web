@@ -1,3 +1,4 @@
+import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { formatCurrency } from "@/utils/formatCurrency";
 
@@ -182,14 +183,48 @@ export const groupLessonColumns: ColumnDef<GroupLessonData>[] = [
   },
 ];
 
-export const absentLessonColumns: ColumnDef<AbsentLessonData>[] = [
+export const getAbsentLessonColumns = (location: string): ColumnDef<AbsentLessonData>[] => [
   { accessorKey: "date", header: "Date" },
   { accessorKey: "program", header: "Program" },
   { accessorKey: "teacher", header: "Teacher" },
   { accessorKey: "duration", header: "Duration" },
-  { accessorKey: "invoiceId", header: "Invoice ID" },
+  {
+    accessorKey: "invoiceNumber",
+    header: "Invoice ID",
+    cell: ({ row }) => {
+      const invoiceNumber = row.original.invoiceNumber;
+      const invoiceId = row.original.invoiceId;
+      
+      const handleInvoiceClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row click
+        if (invoiceId) {
+          const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/invoice/view?id=${invoiceId}`;
+          window.location.href = url;
+        }
+      };
+      
+      return (
+        <div className="flex items-center h-full">
+          {invoiceNumber ? (
+            <span
+              onClick={handleInvoiceClick}
+              className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer font-medium"
+              title={`View invoice ${invoiceNumber}`}
+            >
+              {invoiceNumber}
+            </span>
+          ) : (
+            <span className="text-sm text-muted-foreground">-</span>
+          )}
+        </div>
+      );
+    },
+  },
   { accessorKey: "online", header: "Online" },
 ];
+
+// Default export for backward compatibility
+export const absentLessonColumns = getAbsentLessonColumns('');
 
 export const unscheduledLessonColumns: ColumnDef<UnscheduledLessonData>[] = [
   { accessorKey: "program", header: "Program" },
@@ -288,7 +323,7 @@ export const STUDENT_TAB_CONFIGS: Record<string, StudentTabConfig<unknown>> = {
     title: "Absent Lessons",
     hasAddButton: false,
     hasTable: true,
-    columns: absentLessonColumns as ColumnDef<unknown>[],
+    columns: getAbsentLessonColumns('') as ColumnDef<unknown>[],
     dataKey: "absentLessonData",
   },
   "unscheduled-lessons": {

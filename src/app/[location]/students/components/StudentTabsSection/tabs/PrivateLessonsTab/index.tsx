@@ -5,7 +5,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus } from "lucide-react";
 import { privateLessonColumns, PrivateLessonData } from "../../../../[id]/studentTabConfigs";
 import { ColumnDef } from "@tanstack/react-table";
 import { AddLessonModal, type LessonFormData } from "./AddLessonModal";
@@ -53,19 +53,13 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
   const isLoading = useAppSelector((state) => state.studentTabs.privateLessonLoading);
   const error = useAppSelector((state) => state.studentTabs.privateLessonError);
   
-  const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const rowsPerPage = 10;
   
   // Flatten grouped data from API for table display 
   const groupedData = useMemo(() => flattenGroupedData(data), [data]);
   
-  // Calculate pagination on grouped data
-  const totalRows = groupedData.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const paginatedData = groupedData.slice(startIndex, endIndex);
+  // Show only first 10 records
+  const displayedData = useMemo(() => groupedData.slice(0, 10), [groupedData]);
 
   const handleAdd = useCallback(() => {
     setIsAddModalOpen(true);
@@ -84,7 +78,6 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
 
   const handleShowMore = () => {
     // Redirect to legacy URL with dynamic student ID and name
-    
     const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
     const encodedStudentName = encodeURIComponent(studentName || '');
     const url = `${legacyBase}/${location}/lesson/index?LessonSearch[studentId]=${studentId}&LessonSearch[student]=${encodedStudentName}&LessonSearch[type]=1&LessonSearch[isSeeMore]=1`;
@@ -103,17 +96,6 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
     [location]
   );
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(prev => prev + 1);
-    }
-  };
 
   // Create custom columns with grouped due date
   const columnsWithGrouping = useMemo(() => {
@@ -162,7 +144,7 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
         ) : (
           <>
             <CustomTable
-              data={paginatedData as GroupedPrivateLessonData[]}
+              data={displayedData as GroupedPrivateLessonData[]}
               columns={columnsWithGrouping}
               size="compact"
               variant="striped"
@@ -176,7 +158,7 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
               onRowClick={handleRowClick}
               rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               customEmptyState={
-                !isLoading && paginatedData.length === 0 ? (
+                !isLoading && displayedData.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
                     <div className="text-4xl">📋</div>
                     <span className="text-sm font-medium">No private lessons found</span>
@@ -185,9 +167,9 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
               }
             />
             
-            {/* Pagination Controls */}
-            {totalRows > 0 && (
-              <div className="flex items-center justify-end gap-2 mt-4">
+            {/* Show More Button - only show if there are more than 10 records */}
+            {groupedData.length > 10 && (
+              <div className="flex items-center justify-end mt-4">
                 <Button
                   variant="link"
                   onClick={handleShowMore}
@@ -195,26 +177,6 @@ export function PrivateLessonsTab({ location, studentId }: PrivateLessonsTabProp
                 >
                   Show More
                 </Button>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={handlePreviousPage}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={handleNextPage}
-                    disabled={currentPage >= totalPages}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
             )}
           </>

@@ -328,6 +328,10 @@ const studentTabsSlice = createSlice({
         }
       });
     },
+    // Set all comments (used when creating a comment and getting all comments from response)
+    setComments: (state, action: PayloadAction<CommentItem[]>) => {
+      state.commentData = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -473,6 +477,8 @@ export const {
   clearStudentTabs, 
   clearError,
   updateUnscheduledLessonsProgram,
+  setComments,
 } = studentTabsSlice.actions;
+
 export default studentTabsSlice.reducer;
 

@@ -5,11 +5,58 @@ import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import { CommentData } from "../../../../[id]/studentTabConfigs";
-import { fetchCommentsData } from "../../../../[id]/studentTabs.slice";
-import { Skeleton } from "@/components/ui/skeleton";
+import { setComments } from "../../../../[id]/studentTabs.slice";
 import { createComment } from "@/lib/api/comment.api";
+import { toast } from "sonner";
+
+// Comment item component with avatar error handling
+const CommentItem = ({ comment }: { comment: CommentData }) => {
+  const [imageError, setImageError] = useState(false);
+
+  // Construct avatar URL - if it's a relative path, prepend legacy base URL
+  const getAvatarUrl = () => {
+    if (!comment.avatar) return null;
+    // If already a full URL, use as-is
+    if (comment.avatar.startsWith('http://') || comment.avatar.startsWith('https://')) {
+      return comment.avatar;
+    }
+    // If relative path, prepend legacy base URL
+    const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || '';
+    return legacyBase && !comment.avatar.startsWith('/') 
+      ? `${legacyBase}${comment.avatar.startsWith('/') ? '' : '/'}${comment.avatar}`
+      : comment.avatar;
+  };
+
+  const avatarUrl = getAvatarUrl();
+
+  return (
+    <div className="flex items-start space-x-3 pb-4 border-b last:border-b-0">
+      <div className="flex-shrink-0">
+        {avatarUrl && !imageError ? (
+          <img 
+            src={avatarUrl} 
+            alt={comment.createdUser}
+            className="h-8 w-8 rounded-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">{comment.createdUser}</p>
+          <p className="text-xs text-muted-foreground">{comment.createdOn}</p>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">{comment.content}</p>
+      </div>
+    </div>
+  );
+};
 
 interface CommentsTabProps {
   location: string;
@@ -21,39 +68,17 @@ export function CommentsTab({ location, studentId }: CommentsTabProps) {
   
   // Read data from Redux state (no API call here - handled by parent)
   const data = useAppSelector((state) => state.studentTabs.commentData);
-  const pagination = useAppSelector((state) => state.studentTabs.commentPagination);
   const loading = useAppSelector((state) => state.studentTabs.commentsLoading);
   const error = useAppSelector((state) => state.studentTabs.commentsError);
   
   const [commentInput, setCommentInput] = useState<string>("");
   const [commentLoading, setCommentLoading] = useState<boolean>(false);
   const [commentError, setCommentError] = useState<string | null>(null);
-  
-  // Use page from API response for display (synced with actual data)
-  const currentPage = pagination?.page || 1;
-  const totalPages = pagination?.totalPages || 1;
-  const totalRows = pagination?.total || 0;
-  const rowsPerPage = pagination?.limit || 10; // Use limit from API response
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1 && !loading) {
-      const newPage = currentPage - 1;
-      // Fetch data for the new page (only page parameter, no limit)
-      dispatch(fetchCommentsData({ location, studentId, page: newPage }));
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages && !loading) {
-      const newPage = currentPage + 1;
-      // Fetch data for the new page (only page parameter, no limit)
-      dispatch(fetchCommentsData({ location, studentId, page: newPage }));
-    }
-  };
 
   const handleAddComment = async () => {
     if (!commentInput.trim()) {
-      return; // Don't submit empty comments
+      setCommentError("Content cannot be blank.");
+      return;
     }
 
     try {
@@ -68,15 +93,23 @@ export function CommentsTab({ location, studentId }: CommentsTabProps) {
       );
 
       if (response.success && response.data?.status) {
-        // Clear input and refresh comments list
+        toast.success(response.message || "Comment added successfully");
+        // Use the comments data from the POST response instead of making another GET call
+        const comments = response.data.data?.body || [];
+        // Comments from API already match CommentData type (id is number)
+        const transformedComments: CommentData[] = comments.map((comment) => ({
+          id: comment.id,
+          content: comment.content,
+          createdUser: comment.createdUser,
+          avatar: comment.avatar,
+          createdOn: comment.createdOn,
+        }));
+        dispatch(setComments(transformedComments));
         setCommentInput("");
         setCommentError(null);
-        // Refresh comments list (fetch current page)
-        dispatch(fetchCommentsData({ location, studentId, page: currentPage }));
       } else {
-        // API returned an error
-        const errorMessage = response.message || "Failed to create comment";
-        console.error("Error creating comment:", errorMessage);
+        const errorMessage = response.message || "Failed to add comment";
+        toast.error(errorMessage);
         setCommentError(errorMessage);
       }
     } catch (error: unknown) {
@@ -85,6 +118,7 @@ export function CommentsTab({ location, studentId }: CommentsTabProps) {
         (error as { errorCode?: string; message?: string })?.message ||
         "Failed to create comment";
       console.error("Error creating comment:", error);
+      toast.error(errorMessage);
       setCommentError(errorMessage);
     } finally {
       setCommentLoading(false);
@@ -94,52 +128,16 @@ export function CommentsTab({ location, studentId }: CommentsTabProps) {
   const commentsCustomContent = (
     <div className="space-y-4">
       {loading ? (
-        // Loading skeleton
-        Array.from({ length: 3 }).map((_, idx) => (
-          <div
-            key={idx}
-            className="flex items-start justify-between gap-4"
-          >
-            <div className="flex items-start gap-3 flex-1">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </div>
-            </div>
-            <Skeleton className="h-3 w-20" />
-          </div>
-        ))
+        <div className="text-center py-8 text-muted-foreground">Loading comments...</div>
       ) : error ? (
         <div className="text-center py-8 text-red-500">Error: {error}</div>
       ) : data.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No comments found.
+        <div className="text-center py-8 text-muted-foreground">
+          No results found.
         </div>
       ) : (
-        (data as CommentData[]).map((comment, idx: number) => (
-          <div
-            key={comment.id ?? idx}
-            className="flex items-start justify-between gap-4"
-          >
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center border">
-                <User className="h-6 w-6 text-gray-500" />
-              </div>
-              <div>
-                <div className="font-semibold text-blue-600">
-                  {comment.createdUser}
-                </div>
-                <div className="text-sm text-gray-800 dark:text-gray-200">
-                  {comment.content}
-                </div>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 whitespace-nowrap">
-              {comment.createdOn}
-            </div>
-          </div>
+        (data as CommentData[]).map((comment) => (
+          <CommentItem key={comment.id} comment={comment} />
         ))
       )}
     </div>
@@ -147,37 +145,6 @@ export function CommentsTab({ location, studentId }: CommentsTabProps) {
 
   const commentsBottomContent = (
     <>
-      {/* Pagination Controls */}
-      {totalRows > 0 && (
-        <div className="flex items-center justify-between mt-4 mb-4">
-          <div className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows} comments
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1 || loading}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleNextPage}
-              disabled={currentPage >= totalPages || loading}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
       <div className="mt-4 flex items-center space-x-2">
         <Input
           type="text"
