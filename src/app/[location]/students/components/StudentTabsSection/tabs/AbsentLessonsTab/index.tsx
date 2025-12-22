@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { absentLessonColumns, AbsentLessonData } from "../../../../[id]/studentTabConfigs";
+import { getAbsentLessonColumns, AbsentLessonData } from "../../../../[id]/studentTabConfigs";
 import { fetchAbsentLessonsData } from "../../../../[id]/studentTabs.slice";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 
@@ -23,6 +23,9 @@ export function AbsentLessonsTab({ location, studentId }: AbsentLessonsTabProps)
   const pagination = useAppSelector((state) => state.studentTabs.absentLessonPagination);
   const isLoading = useAppSelector((state) => state.studentTabs.absentLessonLoading);
   const error = useAppSelector((state) => state.studentTabs.absentLessonError);
+  
+  // Get columns with location parameter
+  const columns = useMemo(() => getAbsentLessonColumns(location), [location]);
   
   // Use page from API response for display (synced with actual data)
   const currentPage = pagination?.page || 1;
@@ -73,7 +76,7 @@ export function AbsentLessonsTab({ location, studentId }: AbsentLessonsTabProps)
           <>
             <CustomTable
               data={data as AbsentLessonData[]}
-              columns={absentLessonColumns}
+              columns={columns}
               size="compact"
               variant="striped"
               enableSorting={true}
