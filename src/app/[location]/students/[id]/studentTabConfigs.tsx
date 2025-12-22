@@ -272,6 +272,7 @@ export const historyColumns: ColumnDef<HistoryData>[] = [
           return `<a${newAttrs}>`;
         }
       );
+      
       // Make placeholders like {{Alicia Jones}} clickable
       styled = styled.replace(/\{\{([^}]+)\}\}/g, (_m, name: string) => {
         const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
