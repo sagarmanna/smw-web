@@ -693,7 +693,19 @@ export function AddLessonModal({
       );
 
       if (createResult && createResult.success) {
-        // Success - close modal and refresh
+        // Success - redirect to legacy lesson view page
+        const lessonId = createResult.data?.lessonId;
+        if (lessonId) {
+          const legacyUrl = process.env.NEXT_PUBLIC_LEGACY_URL;
+          if (legacyUrl) {
+            // Construct URL: NEXT_PUBLIC_LEGACY_URL/${location}/lesson/view?id={lessonId}
+            const redirectUrl = `${legacyUrl}/${location}/lesson/view?id=${lessonId}`;
+            window.location.href = redirectUrl;
+            return; // Exit early since we're redirecting
+          }
+        }
+        
+        // Fallback: close modal and refresh if no redirect
         const formData: LessonFormData = {
           programId: selectedProgramId,
           programName: selectedProgramName,
