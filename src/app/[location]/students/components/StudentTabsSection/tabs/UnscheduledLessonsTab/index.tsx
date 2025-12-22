@@ -110,6 +110,22 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
     return firstSelected?.program ?? "";
   }, [dataWithSelection, selectedRows]);
 
+  // Get selected lesson IDs
+  const selectedLessonIds = useMemo(() => {
+    return dataWithSelection
+      .filter((_, index) => selectedRows.has(index))
+      .map((item) => item.id)
+      .filter((id): id is number => id !== undefined && id !== null);
+  }, [dataWithSelection, selectedRows]);
+
+  // Handle successful lesson change - refresh data
+  const handleChangeSuccess = useCallback(() => {
+    // Clear selections
+    setSelectedRows(new Set());
+    // Refresh data
+    dispatch(fetchUnscheduledLessonsData({ location, studentId, page: currentPage, showAll }));
+  }, [dispatch, location, studentId, currentPage, showAll]);
+
   const handleChangeProgramTeacher = () => {
     // If there are no lessons visible or none are selected, show error message
     if (dataWithSelection.length === 0 || selectedRows.size === 0) {
@@ -299,6 +315,8 @@ export function UnscheduledLessonsTab({ location, studentId }: UnscheduledLesson
         selectedCount={selectedRows.size}
         location={location}
         initialProgramName={firstSelectedProgramName}
+        selectedLessonIds={selectedLessonIds}
+        onSuccess={handleChangeSuccess}
       />
     </Card>
   );
