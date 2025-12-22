@@ -27,7 +27,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getTeachersList, getTeachersByProgram, type TeachersResponse } from "@/app/[location]/schedule/schedule.api";
+import { getTeachersList, getTeachersByProgram, type TeachersResponse, validatePrivateLesson, createPrivateLesson } from "@/app/[location]/schedule/schedule.api";
 import { getProgramsList } from "@/app/[location]/teachers/teachers.api";
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import {
@@ -216,6 +216,10 @@ export function AddLessonModal({
   const [loadingCalendar, setLoadingCalendar] = React.useState(false);
   const [datePickerOpen, setDatePickerOpen] = React.useState(false);
   const [goToDatePickerOpen, setGoToDatePickerOpen] = React.useState(false);
+  const [validationErrors, setValidationErrors] = React.useState<Record<string, string[]>>({});
+  const [validating, setValidating] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   // Note: parseDuration and formatDuration are imported from @/utils/durationUtils
 
@@ -232,6 +236,8 @@ export function AddLessonModal({
       setGoToDate(new Date());
       setCalendarDate(new Date());
       setScheduleData(null);
+      setValidationErrors({});
+      setSaveError(null);
     }
   }, [open]);
 
@@ -570,33 +576,153 @@ export function AddLessonModal({
   );
 
   const handleSelectSlot = React.useCallback(
-    (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
+    async (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
       if (!slotInfo.start) return;
       
-      const duration = calculateDuration(slotInfo.start, slotInfo.end);
-      setDuration(duration);
+      // Preserve user's manually set duration - don't override it when selecting a slot
+      // Only use slot duration if user hasn't set one yet (still at default)
+      const slotDuration = calculateDuration(slotInfo.start, slotInfo.end);
+      // Don't update duration - keep the user's choice
+      // The duration field is controlled by the user via DurationPicker
       
       const resourceId = parseResourceId(slotInfo.resourceId);
       const selectedDate = calculateSelectedDate(resourceId, slotInfo.start);
       setDate(selectedDate);
+      
+      // Use the current duration (user's choice) for validation
+      const durationToUse = duration || "00:30";
+      
+      // Validate the selected time slot
+      if (selectedProgramId && selectedTeacherId && selectedDate && durationToUse) {
+        setValidating(true);
+        setValidationErrors({});
+        
+        try {
+          // Format date as 'YYYY-MM-DD HH:mm:ss'
+          const formattedDate = format(selectedDate, 'yyyy-MM-dd HH:mm:ss');
+          
+          // Convert duration from 'HH:mm' to 'HH:mm:ss'
+          const durationParts = durationToUse.split(':');
+          const formattedDuration = durationParts.length === 2 
+            ? `${durationParts[0]}:${durationParts[1]}:00`
+            : durationToUse;
+          
+          const validationResult = await validatePrivateLesson(
+            location,
+            studentId,
+            {
+              programId: parseInt(selectedProgramId, 10),
+              teacherId: parseInt(selectedTeacherId, 10),
+              date: formattedDate,
+              duration: formattedDuration,
+              isOnline: isOnline,
+            }
+          );
+          
+          if (validationResult && !validationResult.success && validationResult.data) {
+            setValidationErrors(validationResult.data);
+          } else {
+            setValidationErrors({});
+          }
+        } catch (error) {
+          console.error('Error validating lesson:', error);
+          setValidationErrors({ _general: ['Failed to validate lesson'] });
+        } finally {
+          setValidating(false);
+        }
+      }
     },
-    [calculateDuration, calculateSelectedDate]
+    [calculateDuration, calculateSelectedDate, selectedProgramId, selectedTeacherId, location, studentId, isOnline, duration]
   );
 
-  const handleSave = () => {
-    const formData: LessonFormData = {
-      programId: selectedProgramId,
-      programName: selectedProgramName,
-      teacherId: selectedTeacherId,
-      teacherName: selectedTeacherName,
-      duration,
-      date: date ? formatDateString(date) : undefined,
-      isOnline,
-      showAll,
-      goToDate: goToDate ? formatDateString(goToDate) : undefined,
-    };
-    onSave?.(formData);
-    onOpenChange(false);
+  const handleSave = async () => {
+    // Validate required fields
+    if (!selectedProgramId || !selectedTeacherId || !date || !duration) {
+      setSaveError("Please fill in all required fields (Program, Teacher, Date, Duration)");
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    setValidationErrors({});
+
+    try {
+      // Format date as 'YYYY-MM-DD HH:mm:ss'
+      const formattedDate = format(date, 'yyyy-MM-dd HH:mm:ss');
+      
+      // Convert duration from 'HH:mm' to 'HH:mm:ss'
+      const durationParts = duration.split(':');
+      const formattedDuration = durationParts.length === 2 
+        ? `${durationParts[0]}:${durationParts[1]}:00`
+        : duration;
+
+      // Step 1: Validate first
+      const validationResult = await validatePrivateLesson(
+        location,
+        studentId,
+        {
+          programId: parseInt(selectedProgramId, 10),
+          teacherId: parseInt(selectedTeacherId, 10),
+          date: formattedDate,
+          duration: formattedDuration,
+          isOnline: isOnline,
+        }
+      );
+
+      // Check validation result
+      if (validationResult && !validationResult.success) {
+        if (validationResult.data) {
+          setValidationErrors(validationResult.data);
+        }
+        setSaveError(validationResult.message || "Validation failed. Please check the errors below.");
+        setSaving(false);
+        return;
+      }
+
+      // Step 2: If validation passes, create the lesson
+      const createResult = await createPrivateLesson(
+        location,
+        studentId,
+        {
+          programId: parseInt(selectedProgramId, 10),
+          teacherId: parseInt(selectedTeacherId, 10),
+          date: formattedDate,
+          duration: formattedDuration,
+          isOnline: isOnline,
+        }
+      );
+
+      if (createResult && createResult.success) {
+        // Success - close modal and refresh
+        const formData: LessonFormData = {
+          programId: selectedProgramId,
+          programName: selectedProgramName,
+          teacherId: selectedTeacherId,
+          teacherName: selectedTeacherName,
+          duration,
+          date: date ? formatDateString(date) : undefined,
+          isOnline,
+          showAll,
+          goToDate: goToDate ? formatDateString(goToDate) : undefined,
+        };
+        onSave?.(formData);
+        onOpenChange(false);
+      } else {
+        // Creation failed
+        if (createResult?.errors) {
+          setValidationErrors(createResult.errors);
+        } else if (createResult?.data && typeof createResult.data === 'object' && !('lessonId' in createResult.data)) {
+          // Only set as validation errors if data is not the success response
+          setValidationErrors(createResult.data as Record<string, string[]>);
+        }
+        setSaveError(createResult?.message || "Failed to create lesson. Please try again.");
+      }
+    } catch (error) {
+      console.error('Error saving lesson:', error);
+      setSaveError(error instanceof Error ? error.message : "Failed to create lesson. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -692,6 +818,33 @@ export function AddLessonModal({
             </div>
           </div>
           
+          {/* Validation Errors */}
+          {Object.keys(validationErrors).length > 0 && (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+              <div className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
+                Validation Errors:
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-sm text-red-700 dark:text-red-300">
+                {Object.entries(validationErrors).map(([field, errors]) =>
+                  errors.map((error, index) => (
+                    <li key={`${field}-${index}`}>
+                      {field !== '_general' && field !== '_error' ? `${field}: ` : ''}{error}
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          )}
+
+          {/* Save Error */}
+          {saveError && (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+              <div className="text-sm font-medium text-red-800 dark:text-red-200">
+                {saveError}
+              </div>
+            </div>
+          )}
+          
           {/* Date Navigation */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center py-2">
             <div className="flex items-center gap-2">
@@ -764,11 +917,14 @@ export function AddLessonModal({
           </div>
         </div>
         <DialogFooter className="!flex !flex-row !justify-between !items-center gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            Save
+          <Button 
+            onClick={handleSave}
+            disabled={saving || !selectedProgramId || !selectedTeacherId || !date || !duration}
+          >
+            {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

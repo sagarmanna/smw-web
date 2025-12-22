@@ -371,3 +371,103 @@ export async function getClassroomViewEvents(
     return null;
   }
 }
+
+export interface ValidatePrivateLessonRequest {
+  programId: number;
+  teacherId: number;
+  date: string; // Format: 'YYYY-MM-DD HH:mm:ss'
+  duration: string; // Format: 'HH:mm:ss'
+  isOnline?: boolean;
+}
+
+export interface ValidatePrivateLessonResponse {
+  success: boolean;
+  data?: Record<string, string[]>; // Field name -> array of error messages
+  message?: string;
+  errorCode?: string;
+}
+
+export async function validatePrivateLesson(
+  location: string,
+  studentId: string,
+  data: ValidatePrivateLessonRequest
+): Promise<ValidatePrivateLessonResponse | null> {
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await apiClient.post<ValidatePrivateLessonResponse>(
+      `/admin/v2/${location}/lesson/validate-private`,
+      data,
+      {
+        params: { studentId },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error validating private lesson:", error);
+    // Return error response if available
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { data?: ValidatePrivateLessonResponse } };
+      if (axiosError.response?.data) {
+        return axiosError.response.data;
+      }
+    }
+    return null;
+  }
+}
+
+export interface CreatePrivateLessonRequest {
+  programId: number;
+  teacherId: number;
+  date: string; // Format: 'YYYY-MM-DD HH:mm:ss'
+  duration: string; // Format: 'HH:mm:ss'
+  isOnline?: boolean;
+}
+
+export interface CreatePrivateLessonResponse {
+  success: boolean;
+  data?: {
+    lessonId: number;
+    url?: string;
+  };
+  errors?: Record<string, string[]>; // Field name -> array of error messages
+  message?: string;
+  errorCode?: string;
+}
+
+export async function createPrivateLesson(
+  location: string,
+  studentId: string,
+  data: CreatePrivateLessonRequest
+): Promise<CreatePrivateLessonResponse | null> {
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await apiClient.post<CreatePrivateLessonResponse>(
+      `/admin/v2/${location}/extra-lesson/create-private`,
+      data,
+      {
+        params: { studentId },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error creating private lesson:", error);
+    // Return error response if available
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { data?: CreatePrivateLessonResponse } };
+      if (axiosError.response?.data) {
+        return axiosError.response.data;
+      }
+    }
+    return null;
+  }
+}
