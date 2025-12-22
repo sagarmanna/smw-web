@@ -18,7 +18,7 @@ interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (range: DateRange) => void;
   className?: string;
-  preset?: "default" | "payments" | "timeVoucher" | "receivePayment";
+  preset?: "default" | "payments" | "timeVoucher" | "receivePayment" | "privateLessons";
 }
 
 const defaultQuickOptions = [
@@ -193,11 +193,46 @@ const receivePaymentQuickOptions = [
   },
 ];
 
+const privateLessonsQuickOptions = [
+  {
+    label: "Today",
+    getValue: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    }),
+  },
+  {
+    label: "Tomorrow",
+    getValue: () => {
+      const tomorrow = addDays(new Date(), 1);
+      return {
+        from: startOfDay(tomorrow),
+        to: endOfDay(tomorrow),
+      };
+    },
+  },
+  {
+    label: "Next 7 Days",
+    getValue: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(addDays(new Date(), 6)),
+    }),
+  },
+  {
+    label: "Next 30 Days",
+    getValue: () => ({
+      from: startOfDay(new Date()),
+      to: endOfDay(addDays(new Date(), 29)),
+    }),
+  },
+];
+
 export function DateRangePicker({ value, onChange, className, preset = "default" }: DateRangePickerProps) {
   const quickOptions = 
     preset === "payments" ? paymentsQuickOptions :
     preset === "timeVoucher" ? timeVoucherQuickOptions :
     preset === "receivePayment" ? receivePaymentQuickOptions :
+    preset === "privateLessons" ? privateLessonsQuickOptions :
     defaultQuickOptions;
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(value);
@@ -220,6 +255,8 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
     
     for (const option of quickOptions) {
       const optionRange = option.getValue();
+      // Skip options that return undefined
+      if (!optionRange) continue;
       if (dateRangesMatch(range, optionRange)) {
         return option.label;
       }
@@ -236,6 +273,8 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
       setSelectedQuickOption(matchingOption);
     } else {
       setSelectedQuickOption(null);
+      setSelectedRange(undefined);
+      setTempRange(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, preset]);
@@ -255,11 +294,13 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
 
   const handleQuickOption = (option: typeof quickOptions[0]) => {
     const range = option.getValue();
-    setSelectedRange(range);
-    setTempRange(range);
-    setSelectedQuickOption(option.label);
-    onChange?.(range);
-    setIsOpen(false);
+    if (range) {
+      setSelectedRange(range);
+      setTempRange(range);
+      setSelectedQuickOption(option.label);
+      onChange?.(range);
+      setIsOpen(false);
+    }
   };
 
   const handleCalendarSelect = (range: CalendarDateRange | undefined) => {
@@ -290,6 +331,7 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
     if (!range) return "Select date range";
     return `${format(range.from, "MMM dd")} - ${format(range.to, "MMM dd, yyyy")}`;
   };
+
 
   return (
     <div className={cn("relative", className)}>
