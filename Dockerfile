@@ -1,5 +1,6 @@
-# Use official Node.js LTS image as base
-FROM node:20-alpine
+# Multi-stage build to ensure consistent chunks across all replicas
+# Stage 1: Build the application
+FROM node:20-alpine AS builder
 
 # Add bash for better scripting capabilities
 RUN apk add --no-cache bash
@@ -19,11 +20,40 @@ COPY tailwind.config.ts ./
 COPY postcss.config.mjs ./
 COPY next.config.ts ./
 
+# Copy .env file if it exists (for NEXT_PUBLIC_* variables at build time)
+COPY .env ./
+
 # Copy source code
 COPY src ./src
 COPY public ./public
-# Expose the port your app runs on
+
+# Build the Next.js application
+# This creates .next directory with all chunks
+RUN yarn build
+
+# Stage 2: Production runtime
+FROM node:20-alpine AS runner
+
+WORKDIR /apps
+
+# Add bash
+RUN apk add --no-cache bash
+
+# Copy package files
+COPY package.json yarn.lock ./
+
+# Install only production dependencies
+RUN yarn install --frozen-lockfile
+
+# Copy built application from builder stage
+COPY --from=builder /apps/.next ./.next
+COPY --from=builder /apps/public ./public
+COPY --from=builder /apps/next.config.ts ./next.config.ts
+COPY --from=builder /apps/package.json ./package.json
+COPY --from=builder /apps/.env ./.env
+
+# Expose the port
 EXPOSE 3000
 
-# Start the application
-CMD ["sh", "-c", "yarn build && yarn start"]
+# Start the application (no build needed - already built)
+CMD ["yarn", "start"]
