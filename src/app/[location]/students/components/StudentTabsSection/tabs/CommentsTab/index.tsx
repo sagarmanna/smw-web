@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, User } from "lucide-react";
 import { CommentData } from "../../../../[id]/studentTabConfigs";
-import { fetchCommentsData } from "../../../../[id]/studentTabs.slice";
-import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { setComments } from "../../../../[id]/studentTabs.slice";
+import { createComment } from "@/lib/api/comment.api";
+import { toast } from "sonner";
 
 // Comment item component with avatar error handling
 const CommentItem = ({ comment }: { comment: CommentData }) => {
@@ -82,19 +83,42 @@ export function CommentsTab({ location, studentId }: CommentsTabProps) {
 
     try {
       setCommentLoading(true);
-      
-      // TODO: Implement add comment functionality
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log('Add comment:', commentInput);
-      setCommentInput("");
       setCommentError(null);
-      // Refresh comments list
-      dispatch(fetchCommentsData({ location, studentId, page: 1 }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to add comment";
-      console.error("Failed to add comment:", error);
+      
+      const response = await createComment(
+        location,
+        Number(studentId),
+        1, // instanceType = 1 for student
+        { content: commentInput.trim() }
+      );
+
+      if (response.success && response.data?.status) {
+        toast.success(response.message || "Comment added successfully");
+        // Use the comments data from the POST response instead of making another GET call
+        const comments = response.data.data?.body || [];
+        // Comments from API already match CommentData type (id is number)
+        const transformedComments: CommentData[] = comments.map((comment) => ({
+          id: comment.id,
+          content: comment.content,
+          createdUser: comment.createdUser,
+          avatar: comment.avatar,
+          createdOn: comment.createdOn,
+        }));
+        dispatch(setComments(transformedComments));
+        setCommentInput("");
+        setCommentError(null);
+      } else {
+        const errorMessage = response.message || "Failed to add comment";
+        toast.error(errorMessage);
+        setCommentError(errorMessage);
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { message?: string })?.message ||
+        (error as { errorCode?: string; message?: string })?.message ||
+        "Failed to create comment";
+      console.error("Error creating comment:", error);
+      toast.error(errorMessage);
       setCommentError(errorMessage);
     } finally {
       setCommentLoading(false);
@@ -104,11 +128,7 @@ export function CommentsTab({ location, studentId }: CommentsTabProps) {
   const commentsCustomContent = (
     <div className="space-y-4">
       {loading ? (
-        <LoadingAnimation 
-          size="md" 
-          text="Loading comments..." 
-          className="py-8"
-        />
+        <div className="text-center py-8 text-muted-foreground">Loading comments...</div>
       ) : error ? (
         <div className="text-center py-8 text-red-500">Error: {error}</div>
       ) : data.length === 0 ? (
@@ -129,25 +149,26 @@ export function CommentsTab({ location, studentId }: CommentsTabProps) {
         <Input
           type="text"
           placeholder="Type message"
-          className={`flex-grow ${commentError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+          className="flex-grow"
           value={commentInput}
-          onChange={(e) => {
-            setCommentInput(e.target.value);
-            if (commentError) setCommentError(null);
-          }}
+          onChange={(e) => setCommentInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
+            if (
+              e.key === "Enter" &&
+              commentInput.trim() &&
+              !commentLoading
+            ) {
               handleAddComment();
             }
           }}
+          disabled={commentLoading}
         />
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
+          className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white disabled:opacity-50"
           onClick={handleAddComment}
-          disabled={commentLoading}
+          disabled={!commentInput.trim() || commentLoading}
         >
           <Plus className="h-4 w-4" />
         </Button>
