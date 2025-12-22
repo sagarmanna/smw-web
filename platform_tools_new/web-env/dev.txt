@@ -1,0 +1,5 @@
+NEXT_PUBLIC_API_URL: https://api.dev2.studiomanagerweb.com
+NEXT_PUBLIC_LEGACY_URL: https://dev2.studiomanagerweb.com/admin
+NEXT_PUBLIC_ENV: development
+NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY: ynaB5AYYp4ypy8aRX6NU
+NEXT_PUBLIC_OPENREPLAY_INGEST_POINT: https://openreplay.studiomanagerweb.com/ingest
