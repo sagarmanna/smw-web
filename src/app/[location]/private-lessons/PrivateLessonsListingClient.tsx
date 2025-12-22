@@ -13,6 +13,18 @@ import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SubstituteTeacherModal } from "./components/SubstituteTeacherModal";
+import { EditDiscountModal } from "./components/EditDiscountModal";
+import { toast } from "sonner";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { substituteTeacherForLessons, updateLessonsPrices, selectLessonDiscounts } from "./privateLessonsListing.slice";
+import { calculateDiscountedPricesForLessons } from "./utils/discountCalculations";
 
 interface PrivateLessonsListingClientProps {
   location: string;
@@ -20,6 +32,9 @@ interface PrivateLessonsListingClientProps {
 
 export function PrivateLessonsListingClient({ location }: PrivateLessonsListingClientProps) {
   const [selectedRows, setSelectedRows] = React.useState<Set<number>>(new Set());
+  const [isSubstituteModalOpen, setIsSubstituteModalOpen] = React.useState(false);
+  const [isEditDiscountModalOpen, setIsEditDiscountModalOpen] = React.useState(false);
+  const dispatch = useAppDispatch();
 
   const {
     rows,
@@ -40,6 +55,69 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
     handleColumnFilterEnter,
     handleServerSideFilterChange,
   } = usePrivateLessonsListing(location);
+
+  const selectedLessons = React.useMemo(
+    () => rows.filter((row) => selectedRows.has(row.id)),
+    [rows, selectedRows]
+  );
+
+  // Get previous discount data for selected lessons
+  const previousDiscountData = useAppSelector((state) => {
+    const lessonIds = selectedLessons.map((lesson) => lesson.id);
+    return selectLessonDiscounts(state, lessonIds);
+  });
+
+  // Helper to check if any lessons are selected
+  const hasSelectedLessons = React.useMemo(
+    () => selectedLessons.length > 0,
+    [selectedLessons.length]
+  );
+
+  // Helper to clear selection
+  const clearSelection = React.useCallback(() => {
+    setSelectedRows(new Set());
+  }, []);
+
+  const handleSubstituteTeacherClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+
+    // Ensure all selected lessons have the same teacher
+    const uniqueTeachers = new Set(selectedLessons.map((lesson) => lesson.teacher));
+
+    if (uniqueTeachers.size > 1) {
+      toast.error("Choose lessons with same teacher");
+      return;
+    }
+
+    setIsSubstituteModalOpen(true);
+  }, [hasSelectedLessons, selectedLessons]);
+
+  const handleEditDiscountClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+    setIsEditDiscountModalOpen(true);
+  }, [hasSelectedLessons]);
+
+  const handleSubstituteSave = React.useCallback(
+    (teacherId: string, teacherName: string, lessonIds: number[]) => {
+      // Optimistically update Redux rows
+      dispatch(substituteTeacherForLessons({ lessonIds, teacher: teacherName }));
+
+      // TODO: Replace with real API call using teacherId + lessonIds
+      console.log("Substitute teacher assigned", { teacherId, teacherName, lessonIds });
+
+      // Clear selection and close modal
+      clearSelection();
+      setIsSubstituteModalOpen(false);
+
+      // Show success toast
+      toast.success("Lessons are substituted to the selected teachers");
+    },
+    [dispatch]
+  );
   
   // Add checkbox column to columns
   const columns = React.useMemo<ColumnDef<PrivateLessonRow>[]>(() => {
@@ -56,7 +134,7 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
               if (checked) {
                 setSelectedRows(new Set(rows.map(row => row.id)));
               } else {
-                setSelectedRows(new Set());
+                clearSelection();
               }
             }}
             aria-label="Select all"
@@ -147,36 +225,110 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
     location: location,
   });
 
-  // Custom toolbar button (Edit only)
-  const customToolbarButtons = React.useMemo(() => (
-    <div className="flex items-center gap-2">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="h-8 w-8"
-            disabled={selectedRows.size === 0}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Edit</p>
-        </TooltipContent>
-      </Tooltip>
-    </div>
-  ), [selectedRows.size]);
+  // Custom toolbar button (Edit dropdown menu)
+  // Behaviour:
+  // - Edit icon is always enabled (like Enrolments)
+  // - Menu options are disabled until at least one row is selected
+  const customToolbarButtons = React.useMemo(() => {
+    const hasSelection = selectedRows.size > 0;
+
+    return (
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-8 w-8"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Edit</p>
+            </TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem 
+              onClick={handleSubstituteTeacherClick}
+              disabled={!hasSelection}
+            >
+              Substitute Teacher
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={handleEditDiscountClick}
+              disabled={!hasSelection}
+            >
+              Edit Discount
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => console.log("Edit Duration")}
+              disabled={!hasSelection}
+            >
+              Edit Duration
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => console.log("Delete")}
+              disabled={!hasSelection}
+              className="text-destructive focus:text-destructive"
+            >
+              Delete
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => console.log("Edit Classroom")}
+              disabled={!hasSelection}
+            >
+              Edit Classroom
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => console.log("Edit Online Type")}
+              disabled={!hasSelection}
+            >
+              Edit Online Type
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => console.log("Email Selected")}
+              disabled={!hasSelection}
+            >
+              Email Selected
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => console.log("Unschedule")}
+              disabled={!hasSelection}
+            >
+              Unschedule
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => console.log("Bulk Reschedule")}
+              disabled={!hasSelection}
+            >
+              Bulk Reschedule
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => console.log("Generate Invoice")}
+              disabled={!hasSelection}
+            >
+              Generate Invoice
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  }, [selectedRows.size, handleSubstituteTeacherClick]);
 
   return (
-    <ReportPageLayout
-      title="Private Lessons"
-      subtitle="Browse all private lessons, search and sort"
-      isLoading={isLoading}
-      error={error}
-      onRetry={fetchData}
-    >
-      <CustomTable
+    <>
+      <ReportPageLayout
+        title="Private Lessons"
+        subtitle="Browse all private lessons, search and sort"
+        isLoading={isLoading}
+        error={error}
+        onRetry={fetchData}
+      >
+        <CustomTable
         data={rows}
         columns={columns}
         isLoading={isLoading}
@@ -200,12 +352,11 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
           json: exportToJson,
         }}
         serverSideFilterOptions={[
-          { key: "scheduled", label: "Scheduled" },
-          { key: "completed", label: "Completed" },
+          { key: "show past lessons", label: "Show Past Lessons" },
         ]}
         activeServerSideFilter={activeFilter}
         onServerSideFilterChange={handleServerSideFilterChange}
-        defaultFilterLabel="All Lessons"
+        defaultFilterLabel="All Private Lessons"
         enableColumnFilters={true}
         onColumnFilterChange={handleColumnFilterChange}
         onColumnFilterEnter={handleColumnFilterEnter}
@@ -232,8 +383,47 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
         rowsPerPage={pageSize}
         rowsPerPageOptions={[10, 20, 50, 100]}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+        />
+      </ReportPageLayout>
+
+      <SubstituteTeacherModal
+        open={isSubstituteModalOpen}
+        onOpenChange={setIsSubstituteModalOpen}
+        location={location}
+        selectedLessons={selectedLessons}
+        onSave={handleSubstituteSave}
       />
-    </ReportPageLayout>
+
+      <EditDiscountModal
+        open={isEditDiscountModalOpen}
+        onOpenChange={setIsEditDiscountModalOpen}
+        selectedLessons={selectedLessons}
+        initialDiscountData={previousDiscountData || undefined}
+        onSave={(data, lessonIds) => {
+          // Calculate discounted prices for all selected lessons using utility function
+          const newPrices = calculateDiscountedPricesForLessons(selectedLessons, data);
+
+          // Update Redux state with new prices and store discount data
+          dispatch(updateLessonsPrices({ 
+            lessonIds, 
+            newPrices,
+            discountData: data 
+          }));
+
+          // TODO: Replace with real API call
+          console.log("Discounts applied to lessons", { data, lessonIds, newPrices });
+
+          // Clear selection and close modal
+          clearSelection();
+          setIsEditDiscountModalOpen(false);
+
+          // Show success toast
+          toast.success(
+            `Discounts applied to ${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""}`
+          );
+        }}
+      />
+    </>
   );
 }
 
