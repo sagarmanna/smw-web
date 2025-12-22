@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
@@ -26,7 +27,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getTeachersList, type TeachersResponse } from "@/app/[location]/schedule/schedule.api";
+import { getTeachersList, getTeachersByProgram, type TeachersResponse, validatePrivateLesson, createPrivateLesson } from "@/app/[location]/schedule/schedule.api";
 import { getProgramsList } from "@/app/[location]/teachers/teachers.api";
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import {
@@ -67,6 +68,8 @@ const DAY_RESOURCES = [
   { id: 6, title: "Saturday" },
   { id: 7, title: "Sunday" },
 ];
+
+const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const getMondayOfWeek = (date: Date): Date => {
   const dayOfWeek = date.getDay();
@@ -194,13 +197,11 @@ export function AddLessonModal({
   privateLessonData = [],
   onSave,
 }: AddLessonModalProps) {
-  // Props are kept for future use
-  void studentId;
-
   const [programs, setPrograms] = React.useState<Array<{ id: number; name: string }>>([]);
   const [teachers, setTeachers] = React.useState<Array<{ id: number; name: string }>>([]);
   const [loadingPrograms, setLoadingPrograms] = React.useState(false);
   const [loadingTeachers, setLoadingTeachers] = React.useState(false);
+  const [showAllPrograms, setShowAllPrograms] = React.useState<boolean>(false);
   
   const [selectedProgramId, setSelectedProgramId] = React.useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
@@ -215,6 +216,10 @@ export function AddLessonModal({
   const [loadingCalendar, setLoadingCalendar] = React.useState(false);
   const [datePickerOpen, setDatePickerOpen] = React.useState(false);
   const [goToDatePickerOpen, setGoToDatePickerOpen] = React.useState(false);
+  const [validationErrors, setValidationErrors] = React.useState<Record<string, string[]>>({});
+  const [validating, setValidating] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   // Note: parseDuration and formatDuration are imported from @/utils/durationUtils
 
@@ -227,9 +232,12 @@ export function AddLessonModal({
       setDate(undefined);
       setIsOnline(false);
       setShowAll(false);
+      setShowAllPrograms(false);
       setGoToDate(new Date());
       setCalendarDate(new Date());
       setScheduleData(null);
+      setValidationErrors({});
+      setSaveError(null);
     }
   }, [open]);
 
@@ -268,13 +276,23 @@ export function AddLessonModal({
     []
   );
 
-  // Fetch programs when modal opens
+  // Fetch programs when modal opens or showAllPrograms changes
   React.useEffect(() => {
     if (!open) return;
     
-    handleFetch(
-      () => getProgramsList('private'),
-      (programList) => {
+    let isMounted = true;
+    
+    const fetchPrograms = async () => {
+      setLoadingPrograms(true);
+      try {
+        // If showAllPrograms is false, fetch only enrolled programs (with studentId)
+        // If showAllPrograms is true, fetch all programs (without studentId)
+        const programList = showAllPrograms 
+          ? await getProgramsList('private')
+          : await getProgramsList('private', studentId);
+        
+        if (!isMounted) return;
+        
         setPrograms(programList);
         // Set default program from most recent private lesson
         const mostRecentProgramName = getMostRecentProgram();
@@ -284,27 +302,82 @@ export function AddLessonModal({
             setSelectedProgramId(matchingProgram.id.toString());
           }
         }
-      },
-      setLoadingPrograms,
-      "Error fetching programs:"
-    );
-  }, [open, getMostRecentProgram, handleFetch]);
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        console.error("Error fetching programs:", err);
+      } finally {
+        if (isMounted) {
+          setLoadingPrograms(false);
+        }
+      }
+    };
+    
+    fetchPrograms();
+    
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, showAllPrograms]);
 
-  // Fetch teachers when modal opens
+  // Fetch teachers when program is selected
   React.useEffect(() => {
     if (!open) return;
     
-    handleFetch(
-      () => getTeachersList(location),
-      (response: TeachersResponse | null) => {
-        if (response?.success && response.data) {
-          setTeachers(response.data.map((t) => ({ id: t.id, name: t.name || "" })));
+    // Don't fetch teachers if no program is selected
+    if (!selectedProgramId) {
+      setTeachers([]);
+      setSelectedTeacherId(""); // Clear selected teacher when program is cleared
+      return;
+    }
+    
+    let isMounted = true;
+    
+    const fetchTeachers = async () => {
+      setLoadingTeachers(true);
+      try {
+        const programId = parseInt(selectedProgramId, 10);
+        if (isNaN(programId)) {
+          if (!isMounted) return;
+          setLoadingTeachers(false);
+          return;
         }
-      },
-      setLoadingTeachers,
-      "Error fetching teachers:"
-    );
-  }, [open, location, handleFetch]);
+        
+        const response = await getTeachersByProgram(location, programId);
+        if (!isMounted) return;
+        
+        if (response?.success && response.data) {
+          const teachersList = response.data.map((t) => ({ id: t.id, name: t.name || "" }));
+          setTeachers(teachersList);
+          // Clear selected teacher if it's not in the new list
+          setSelectedTeacherId((prev) => {
+            if (prev && !response.data.some((t) => t.id.toString() === prev)) {
+              return "";
+            }
+            return prev;
+          });
+        } else {
+          setTeachers([]);
+          setSelectedTeacherId("");
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        console.error("Error fetching teachers:", err);
+        setTeachers([]);
+        setSelectedTeacherId("");
+      } finally {
+        if (isMounted) {
+          setLoadingTeachers(false);
+        }
+      }
+    };
+    
+    fetchTeachers();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [open, location, selectedProgramId]);
 
   // Fetch schedule when teacher is selected
   React.useEffect(() => {
@@ -366,8 +439,71 @@ export function AddLessonModal({
   
   const calendarEvents = React.useMemo(() => {
     if (!scheduleData) return [];
-    return convertLessonsToCalendarEvents(scheduleData.lessons, calendarMonday);
-  }, [scheduleData, calendarMonday]);
+    const events = convertLessonsToCalendarEvents(scheduleData.lessons, calendarMonday);
+    
+    // Add preview event for selected slot if date and duration are set
+    if (date && selectedTeacherId && duration) {
+      // Get day of week from date (0 = Sunday, 1 = Monday, etc.)
+      const dayOfWeek = date.getDay();
+      // Convert to resourceId format (1 = Monday, 7 = Sunday)
+      const resourceId = dayOfWeek === 0 ? 7 : dayOfWeek;
+      
+      // Parse duration (HH:mm format)
+      const [durationHoursStr, durationMinutesStr] = duration.split(':');
+      const durationHours = parseInt(durationHoursStr || '0', 10);
+      const durationMinutes = parseInt(durationMinutesStr || '0', 10);
+      
+      // Get start time from date
+      const selectedHours = date.getHours();
+      const selectedMinutes = date.getMinutes();
+      
+      // Calculate end time by adding duration to start time
+      const startTimeMinutes = selectedHours * 60 + selectedMinutes;
+      const totalDurationMinutes = durationHours * 60 + durationMinutes;
+      const endTimeMinutes = startTimeMinutes + totalDurationMinutes;
+      
+      const endHours = Math.floor(endTimeMinutes / 60);
+      const endMinutes = endTimeMinutes % 60;
+      
+      // Adjust preview dates to use Monday as base date (for calendar display)
+      // but keep the time from selected slot
+      const previewStartAdjusted = new Date(calendarMonday);
+      previewStartAdjusted.setHours(selectedHours, selectedMinutes, 0, 0);
+      
+      const previewEndAdjusted = new Date(calendarMonday);
+      previewEndAdjusted.setHours(endHours, endMinutes, 0, 0);
+      
+      // Format time for display (12-hour format with AM/PM)
+      const formatTime = (hours: number, minutes: number) => {
+        const h = hours % 12 || 12;
+        const m = minutes.toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        return `${h}:${m} ${ampm}`;
+      };
+      
+      const startTimeFormatted = formatTime(selectedHours, selectedMinutes);
+      const endTimeFormatted = formatTime(endHours, endMinutes);
+      
+      const previewEvent: CalendarEvent = {
+        id: "preview-selected-slot",
+        title: `Selected: ${startTimeFormatted} - ${endTimeFormatted}`,
+        start: previewStartAdjusted,
+        end: previewEndAdjusted,
+        resourceId,
+        backgroundColor: "#3d85c6", // Blue color matching reference
+        borderColor: "#3d85c6", // Same blue for border
+        className: "lesson-slot-preview",
+        extendedProps: {
+          lessonId: "preview",
+          tooltip: `Selected slot: ${DAY_NAMES[resourceId]} at ${startTimeFormatted} - ${endTimeFormatted} (Duration: ${duration})`,
+        },
+      };
+      
+      return [...events, previewEvent];
+    }
+    
+    return events;
+  }, [scheduleData, calendarMonday, date, selectedTeacherId, duration]);
   
   const timeRange = React.useMemo(
     () => scheduleData
@@ -440,33 +576,153 @@ export function AddLessonModal({
   );
 
   const handleSelectSlot = React.useCallback(
-    (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
+    async (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
       if (!slotInfo.start) return;
       
-      const duration = calculateDuration(slotInfo.start, slotInfo.end);
-      setDuration(duration);
+      // Preserve user's manually set duration - don't override it when selecting a slot
+      // Only use slot duration if user hasn't set one yet (still at default)
+      const slotDuration = calculateDuration(slotInfo.start, slotInfo.end);
+      // Don't update duration - keep the user's choice
+      // The duration field is controlled by the user via DurationPicker
       
       const resourceId = parseResourceId(slotInfo.resourceId);
       const selectedDate = calculateSelectedDate(resourceId, slotInfo.start);
       setDate(selectedDate);
+      
+      // Use the current duration (user's choice) for validation
+      const durationToUse = duration || "00:30";
+      
+      // Validate the selected time slot
+      if (selectedProgramId && selectedTeacherId && selectedDate && durationToUse) {
+        setValidating(true);
+        setValidationErrors({});
+        
+        try {
+          // Format date as 'YYYY-MM-DD HH:mm:ss'
+          const formattedDate = format(selectedDate, 'yyyy-MM-dd HH:mm:ss');
+          
+          // Convert duration from 'HH:mm' to 'HH:mm:ss'
+          const durationParts = durationToUse.split(':');
+          const formattedDuration = durationParts.length === 2 
+            ? `${durationParts[0]}:${durationParts[1]}:00`
+            : durationToUse;
+          
+          const validationResult = await validatePrivateLesson(
+            location,
+            studentId,
+            {
+              programId: parseInt(selectedProgramId, 10),
+              teacherId: parseInt(selectedTeacherId, 10),
+              date: formattedDate,
+              duration: formattedDuration,
+              isOnline: isOnline,
+            }
+          );
+          
+          if (validationResult && !validationResult.success && validationResult.data) {
+            setValidationErrors(validationResult.data);
+          } else {
+            setValidationErrors({});
+          }
+        } catch (error) {
+          console.error('Error validating lesson:', error);
+          setValidationErrors({ _general: ['Failed to validate lesson'] });
+        } finally {
+          setValidating(false);
+        }
+      }
     },
-    [calculateDuration, calculateSelectedDate]
+    [calculateDuration, calculateSelectedDate, selectedProgramId, selectedTeacherId, location, studentId, isOnline, duration]
   );
 
-  const handleSave = () => {
-    const formData: LessonFormData = {
-      programId: selectedProgramId,
-      programName: selectedProgramName,
-      teacherId: selectedTeacherId,
-      teacherName: selectedTeacherName,
-      duration,
-      date: date ? formatDateString(date) : undefined,
-      isOnline,
-      showAll,
-      goToDate: goToDate ? formatDateString(goToDate) : undefined,
-    };
-    onSave?.(formData);
-    onOpenChange(false);
+  const handleSave = async () => {
+    // Validate required fields
+    if (!selectedProgramId || !selectedTeacherId || !date || !duration) {
+      setSaveError("Please fill in all required fields (Program, Teacher, Date, Duration)");
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    setValidationErrors({});
+
+    try {
+      // Format date as 'YYYY-MM-DD HH:mm:ss'
+      const formattedDate = format(date, 'yyyy-MM-dd HH:mm:ss');
+      
+      // Convert duration from 'HH:mm' to 'HH:mm:ss'
+      const durationParts = duration.split(':');
+      const formattedDuration = durationParts.length === 2 
+        ? `${durationParts[0]}:${durationParts[1]}:00`
+        : duration;
+
+      // Step 1: Validate first
+      const validationResult = await validatePrivateLesson(
+        location,
+        studentId,
+        {
+          programId: parseInt(selectedProgramId, 10),
+          teacherId: parseInt(selectedTeacherId, 10),
+          date: formattedDate,
+          duration: formattedDuration,
+          isOnline: isOnline,
+        }
+      );
+
+      // Check validation result
+      if (validationResult && !validationResult.success) {
+        if (validationResult.data) {
+          setValidationErrors(validationResult.data);
+        }
+        setSaveError(validationResult.message || "Validation failed. Please check the errors below.");
+        setSaving(false);
+        return;
+      }
+
+      // Step 2: If validation passes, create the lesson
+      const createResult = await createPrivateLesson(
+        location,
+        studentId,
+        {
+          programId: parseInt(selectedProgramId, 10),
+          teacherId: parseInt(selectedTeacherId, 10),
+          date: formattedDate,
+          duration: formattedDuration,
+          isOnline: isOnline,
+        }
+      );
+
+      if (createResult && createResult.success) {
+        // Success - close modal and refresh
+        const formData: LessonFormData = {
+          programId: selectedProgramId,
+          programName: selectedProgramName,
+          teacherId: selectedTeacherId,
+          teacherName: selectedTeacherName,
+          duration,
+          date: date ? formatDateString(date) : undefined,
+          isOnline,
+          showAll,
+          goToDate: goToDate ? formatDateString(goToDate) : undefined,
+        };
+        onSave?.(formData);
+        onOpenChange(false);
+      } else {
+        // Creation failed
+        if (createResult?.errors) {
+          setValidationErrors(createResult.errors);
+        } else if (createResult?.data && typeof createResult.data === 'object' && !('lessonId' in createResult.data)) {
+          // Only set as validation errors if data is not the success response
+          setValidationErrors(createResult.data as Record<string, string[]>);
+        }
+        setSaveError(createResult?.message || "Failed to create lesson. Please try again.");
+      }
+    } catch (error) {
+      console.error('Error saving lesson:', error);
+      setSaveError(error instanceof Error ? error.message : "Failed to create lesson. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -479,7 +735,23 @@ export function AddLessonModal({
           {/* Form Fields - Single Row */}
           <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="program">Program</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="program">Program</Label>
+                <div className="flex items-center gap-2">
+                  <Label 
+                    htmlFor="show-all-programs" 
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    {showAllPrograms ? "All Programs" : "Enrolled Only"}
+                  </Label>
+                  <Switch
+                    id="show-all-programs"
+                    checked={showAllPrograms}
+                    onCheckedChange={setShowAllPrograms}
+                    disabled={loadingPrograms}
+                  />
+                </div>
+              </div>
               <SearchableSelect
                 id="program"
                 options={programOptions}
@@ -545,6 +817,33 @@ export function AddLessonModal({
               </Label>
             </div>
           </div>
+          
+          {/* Validation Errors */}
+          {Object.keys(validationErrors).length > 0 && (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+              <div className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
+                Validation Errors:
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-sm text-red-700 dark:text-red-300">
+                {Object.entries(validationErrors).map(([field, errors]) =>
+                  errors.map((error, index) => (
+                    <li key={`${field}-${index}`}>
+                      {field !== '_general' && field !== '_error' ? `${field}: ` : ''}{error}
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          )}
+
+          {/* Save Error */}
+          {saveError && (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+              <div className="text-sm font-medium text-red-800 dark:text-red-200">
+                {saveError}
+              </div>
+            </div>
+          )}
           
           {/* Date Navigation */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center py-2">
@@ -618,11 +917,14 @@ export function AddLessonModal({
           </div>
         </div>
         <DialogFooter className="!flex !flex-row !justify-between !items-center gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            Save
+          <Button 
+            onClick={handleSave}
+            disabled={saving || !selectedProgramId || !selectedTeacherId || !date || !duration}
+          >
+            {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

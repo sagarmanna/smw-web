@@ -182,9 +182,15 @@ export interface ProgramsListResponse {
   data: Program[];
 }
 
-export async function getProgramsList(type?: 'private' | 'group'): Promise<Program[]> {
+export async function getProgramsList(type?: 'private' | 'group', studentId?: number | string): Promise<Program[]> {
   try {
-    const params = type ? { type } : {};
+    const params: Record<string, string> = {};
+    if (type) {
+      params.type = type;
+    }
+    if (studentId) {
+      params.studentId = String(studentId);
+    }
     const response = await apiClient.get<ProgramsListResponse>(
       `/admin/v2/programs/list`,
       { params }
