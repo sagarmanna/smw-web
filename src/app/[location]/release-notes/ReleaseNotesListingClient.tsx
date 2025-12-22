@@ -20,11 +20,6 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
   const router = useRouter();
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
 
-  const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
-    () => getReleaseNoteColumns(location),
-    [location]
-  );
-
   const {
     rows,
     total,
@@ -42,6 +37,11 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
     handleColumnFilterChange,
     handleColumnFilterEnter,
   } = useReleaseNotesListing(location);
+
+  const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
+    () => getReleaseNoteColumns(location, page, pageSize),
+    [location, page, pageSize]
+  );
 
   if (error) {
     return (

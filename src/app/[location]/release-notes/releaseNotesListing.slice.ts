@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { format } from 'date-fns';
 import { 
   getReleaseNotesList, 
   createReleaseNote as createReleaseNoteAPI,
@@ -8,24 +9,67 @@ import {
 import type { CreateReleaseNoteRequest, UpdateReleaseNoteRequest, CreateReleaseNoteResponse, UpdateReleaseNoteResponse } from './types';
 
 /**
+ * Helper function to format date from ISO string to display format (MMM dd, yyyy)
+ * Follows DRY principle - uses date-fns for consistency
+ */
+function formatDateForDisplay(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      // If parsing fails, return original string
+      return dateString;
+    }
+    return format(date, 'MMM dd, yyyy');
+  } catch {
+    return dateString;
+  }
+}
+
+/**
  * Helper function to transform API response data to ReleaseNoteRow format
+ * For create operations, merges API response with request data since API returns minimal fields
  * Follows DRY principle - used by both add and update operations
  */
 function transformReleaseNoteResponse(
-  responseData: CreateReleaseNoteResponse['data'] | UpdateReleaseNoteResponse['data']
+  responseData: CreateReleaseNoteResponse['data'] | UpdateReleaseNoteResponse['data'],
+  requestData?: CreateReleaseNoteRequest | UpdateReleaseNoteRequest
 ): ReleaseNoteRow | null {
   if (!responseData) return null;
   
-  return {
-    id: responseData.id,
-    subject: responseData.subject,
-    summary: responseData.summary,
-    notes: responseData.notes,
-    scheduleDate: responseData.scheduleDate,
-    createdDate: responseData.createdDate,
-    userPublicIdentity: responseData.userPublicIdentity,
-    releaseVersion: undefined,
-  };
+  // For create operations, API returns minimal data, so merge with request data
+  if (requestData && 'summary' in requestData && 'notes' in requestData) {
+    // Use current date for createdDate since API doesn't return it for new items
+    // This ensures new items appear at the top when sorted by createdDate descending
+    const currentDate = new Date();
+    const createdDateFormatted = formatDateForDisplay(currentDate.toISOString());
+    
+    return {
+      id: responseData.id,
+      subject: responseData.subject,
+      summary: requestData.summary, // From request
+      notes: requestData.notes, // From request
+      scheduleDate: formatDateForDisplay(responseData.scheduleDate), // Format from API
+      createdDate: createdDateFormatted, // Use current date so new items appear at top
+      userPublicIdentity: "Current User", // Placeholder - will be updated when we fetch full data
+      releaseVersion: 'version' in requestData ? requestData.version : undefined,
+    };
+  }
+  
+  // For update operations, response should have all fields
+  if ('summary' in responseData && 'notes' in responseData && 'createdDate' in responseData && 'userPublicIdentity' in responseData) {
+    return {
+      id: responseData.id,
+      subject: responseData.subject,
+      summary: responseData.summary,
+      notes: responseData.notes,
+      scheduleDate: formatDateForDisplay(responseData.scheduleDate),
+      createdDate: formatDateForDisplay(responseData.createdDate),
+      userPublicIdentity: responseData.userPublicIdentity,
+      releaseVersion: undefined,
+    };
+  }
+  
+  return null;
 }
 
 /**
@@ -119,16 +163,25 @@ export const addReleaseNote = createAsyncThunk(
   'releaseNotesListing/addReleaseNote',
   async (
     { location, data }: { location: string; data: CreateReleaseNoteRequest },
-    { rejectWithValue }
+    { rejectWithValue, getState }
   ) => {
     try {
       const response = await createReleaseNoteAPI(location, data);
       
       if (response && response.success && response.data) {
-        const transformedNote = transformReleaseNoteResponse(response.data);
+        // Get user info from Redux state for userPublicIdentity
+        const state = getState() as { user: { userInfo: { fullName?: string } | null } };
+        const userPublicIdentity = state.user?.userInfo?.fullName || "Current User";
+        
+        // Transform API response, merging with request data since API returns minimal fields
+        const transformedNote = transformReleaseNoteResponse(response.data, data);
         if (!transformedNote) {
           return rejectWithValue('Failed to transform release note data');
         }
+        
+        // Update userPublicIdentity from Redux state
+        transformedNote.userPublicIdentity = userPublicIdentity;
+        
         return transformedNote;
       }
 
@@ -254,6 +307,8 @@ const releaseNotesListingSlice = createSlice({
       .addCase(addReleaseNote.fulfilled, (state, action) => {
         // Add the new note to the beginning of the array
         state.allRows.unshift(action.payload);
+        // Reset to page 1 to show the newly added item at the top
+        state.page = 1;
       })
       .addCase(addReleaseNote.rejected, setErrorOnRejected)
       // Update existing release note

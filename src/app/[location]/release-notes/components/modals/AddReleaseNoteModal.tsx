@@ -43,8 +43,29 @@ export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: Ad
     }
   }, [isOpen]);
 
+  /**
+   * Validates version number format
+   * Only accepts semantic versioning format: major.minor.patch (e.g., 2.1.1, 1.0.0, 10.20.30)
+   * Rejects: single numbers (1), two segments (1.0), more than three segments (1.2.3.4), leading zeros (2.0.023)
+   */
+  const isValidVersionFormat = (version: string): boolean => {
+    const trimmed = version.trim();
+    // Pattern: exactly three segments separated by dots, each segment is a non-zero-padded number
+    // Examples: 1.0.0, 2.1.1, 10.20.30
+    // Rejects: 1, 1.0, 1.0.0.1, 01.0.0, 2.0.023 (leading zeros)
+    const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+    return versionPattern.test(trimmed);
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+
+    // Validate release version (required and format)
+    if (!releaseVersion.trim()) {
+      newErrors.releaseVersion = "Release version is required.";
+    } else if (!isValidVersionFormat(releaseVersion)) {
+      newErrors.releaseVersion = "Invalid version number format.";
+    }
 
     if (!subject.trim()) {
       newErrors.subject = "Subject cannot be blank.";
@@ -60,11 +81,7 @@ export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: Ad
       newErrors.summary = "Summary cannot be blank.";
     }
 
-    // Check if notes has actual content (not just empty HTML tags)
-    const notesText = notes.replace(/<[^>]*>/g, "").trim();
-    if (!notesText) {
-      newErrors.notes = "Notes cannot be blank.";
-    }
+    // Notes is optional - no validation needed
 
     if (!scheduleDate) {
       newErrors.scheduleDate = "Schedule date is required.";
@@ -89,11 +106,22 @@ export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: Ad
         throw new Error("Schedule date is required");
       }
 
+      // Validate version is provided (required field)
+      if (!releaseVersion.trim()) {
+        setErrors({ releaseVersion: "Release version is required." });
+        setIsLoading(false);
+        return;
+      }
+
+      // Ensure version is always a string (required by API)
+      const versionValue = releaseVersion.trim();
+      
       const payload: CreateReleaseNoteRequest = {
         subject: subject.trim(),
         summary: summary,
         notes: notes,
         scheduleDate: format(scheduleDate, "yyyy-MM-dd"),
+        version: versionValue, // Required field - validated above
       };
 
       // Call Redux action which will call API and update state
@@ -135,6 +163,35 @@ export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: Ad
     }
   };
 
+  const handleVersionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setReleaseVersion(value);
+    
+    // Real-time validation feedback
+    if (value.trim()) {
+      if (!isValidVersionFormat(value)) {
+        setErrors((prev) => ({
+          ...prev,
+          releaseVersion: "Invalid version number format.",
+        }));
+      } else {
+        // Clear error if format is valid
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.releaseVersion;
+          return newErrors;
+        });
+      }
+    } else {
+      // Clear error if field is empty (will be caught by required validation on submit)
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.releaseVersion;
+        return newErrors;
+      });
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
@@ -146,15 +203,21 @@ export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: Ad
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="releaseVersion">
-                Release Version#
+                Release Version# <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="releaseVersion"
-                value={releaseVersion}
-                onChange={(e) => setReleaseVersion(e.target.value)}
+                type="text"
+                value={releaseVersion || ""}
+                onChange={handleVersionChange}
                 placeholder="Enter release version"
+                className={errors.releaseVersion ? "border-red-500" : ""}
                 disabled={isLoading}
+                required
               />
+              {errors.releaseVersion && (
+                <p className="text-sm text-red-500">{errors.releaseVersion}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -205,7 +268,7 @@ export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: Ad
 
           <div className="space-y-2">
             <Label>
-              Notes <span className="text-red-500">*</span>
+              Notes
             </Label>
             <RichTextEditor
               value={notes}

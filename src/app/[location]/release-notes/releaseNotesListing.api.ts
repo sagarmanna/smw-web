@@ -206,7 +206,7 @@ export type {
  * Creates a new release note
  * 
  * @param location - Location parameter
- * @param data - Release note data (subject, summary, notes, scheduleDate)
+ * @param data - Release note data (subject, summary, notes, scheduleDate, version)
  * @returns Promise resolving to create release note response
  * 
  * @example
@@ -215,32 +215,76 @@ export type {
  *   subject: 'Release 2.3.0', 
  *   summary: '<p>Summary content</p>',
  *   notes: '<p>Detailed notes</p>',
- *   scheduleDate: '2025-12-19'
+ *   scheduleDate: '2025-12-19',
+ *   version: '1.0.0'
  * });
  * ```
- * 
- * @todo Implement API call to create release note
  */
 export async function createReleaseNote(
   location: string,
   data: CreateReleaseNoteRequest
 ): Promise<CreateReleaseNoteResponse> {
   try {
-    // TODO: Implement API call to create release note
-    // Endpoint: POST /admin/v2/${location}/release-notes
-    // Parameters will be used when API is implemented
-    void location;
-    void data;
+    // Prepare request body matching API structure
+    // Ensure version is always a string (required by API)
+    const versionValue = data.version && typeof data.version === 'string' 
+      ? data.version.trim() 
+      : "";
     
-    // Placeholder - API implementation needed
-    console.warn("createReleaseNote: API implementation needed");
-    throw new Error("API implementation needed for createReleaseNote");
+    const requestBody = {
+      subject: data.subject,
+      summary: data.summary,
+      notes: data.notes,
+      scheduleDate: data.scheduleDate,
+      version: versionValue, // Always include as string (can be empty)
+    };
+
+    // Make API call to create release note
+    const response = await apiClient.post<CreateReleaseNoteResponse>(
+      `/admin/v2/${location}/release-notes`,
+      requestBody
+    );
+
+    return response.data;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: CreateReleaseNoteResponse } };
+    const apiError = error as { 
+      response?: { 
+        data?: {
+          success?: boolean;
+          errorCode?: string;
+          message?: string | string[];
+        };
+        status?: number;
+        statusText?: string;
+      };
+      message?: string;
+    };
+    
     console.error("Error creating release note:", error);
+    
+    // Handle API error response
+    if (apiError.response?.data) {
+      const errorData = apiError.response.data;
+      // Handle message as either string or array
+      let errorMessage = "Failed to create release note";
+      if (errorData.message) {
+        if (Array.isArray(errorData.message)) {
+          errorMessage = errorData.message.join(", ");
+        } else {
+          errorMessage = errorData.message;
+        }
+      }
+      
+      throw {
+        message: errorMessage,
+        errorCode: errorData.errorCode || (errorData.success === false ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR'),
+      };
+    }
+    
+    // Handle network/other errors
     throw {
-      message: apiError.response?.data?.message || "Failed to create release note",
-      errorCode: apiError.response?.data?.success === false ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+      message: apiError.message || "Failed to create release note",
+      errorCode: 'INTERNAL_SERVER_ERROR',
     };
   }
 }
