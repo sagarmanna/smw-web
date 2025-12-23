@@ -162,7 +162,7 @@ export function RichTextEditor({
             Table.configure({
               resizable: true,
               HTMLAttributes: {
-                class: "border-collapse border border-gray-300",
+                class: "border-collapse border border-input",
               },
             }),
             TableRow,
@@ -201,6 +201,11 @@ export function RichTextEditor({
       onChange(editor.getHTML());
     },
     editable: !disabled,
+    editorProps: {
+      attributes: {
+        "data-placeholder": placeholder,
+      },
+    },
   });
 
   useEffect(() => {
@@ -331,7 +336,7 @@ export function RichTextEditor({
       )}
       
       {/* Toolbar */}
-      <div className={`border border-gray-300 rounded-t-md p-2 bg-gray-50 space-y-2 ${error ? "border-red-500" : ""}`}>
+      <div className={`border border-input rounded-t-md p-2 bg-muted space-y-2 ${error ? "border-red-500" : ""}`}>
         {/* Row 1: File/Edit Actions (Full mode only) */}
         {mode === "full" && (
           <div className="flex flex-wrap gap-1">
@@ -532,7 +537,7 @@ export function RichTextEditor({
               >
                 <Type className="h-4 w-4" />
                 <div 
-                  className="w-3 h-3 rounded border border-gray-300 ml-1"
+                  className="w-3 h-3 rounded border border-input ml-1"
                   style={{ backgroundColor: textColor }}
                 />
               </Button>
@@ -543,7 +548,7 @@ export function RichTextEditor({
                   <button
                     key={color}
                     type="button"
-                    className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition"
+                    className="w-6 h-6 rounded border border-input hover:scale-110 transition"
                     style={{ backgroundColor: color }}
                     onClick={() => setTextColorValue(color)}
                   />
@@ -571,7 +576,7 @@ export function RichTextEditor({
               >
                 <Type className="h-4 w-4" />
                 <div 
-                  className="w-3 h-3 rounded border border-gray-300 ml-1"
+                  className="w-3 h-3 rounded border border-input ml-1 bg-yellow-200 dark:bg-yellow-800"
                   style={{ backgroundColor: bgColor }}
                 />
               </Button>
@@ -582,7 +587,7 @@ export function RichTextEditor({
                   <button
                     key={color}
                     type="button"
-                    className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition"
+                    className="w-6 h-6 rounded border border-input hover:scale-110 transition"
                     style={{ backgroundColor: color }}
                     onClick={() => setBgColorValue(color)}
                   />
@@ -845,16 +850,16 @@ export function RichTextEditor({
 
       {/* Editor Content */}
       {isSourceView ? (
-        <div className="border border-gray-300 border-t-0 rounded-b-md" style={{ minHeight }}>
+        <div className="border border-input border-t-0 rounded-b-md bg-background" style={{ minHeight }}>
           <textarea
             value={sourceValue}
             onChange={(e) => setSourceValue(e.target.value)}
-            className="w-full font-mono text-sm p-2 border-0 rounded-b-md"
+            className="w-full font-mono text-sm p-2 border-0 rounded-b-md bg-background text-foreground"
             style={{ minHeight }}
             placeholder="HTML source code"
             disabled={disabled}
           />
-          <div className="p-2 border-t">
+          <div className="p-2 border-t border-input">
             <Button
               type="button"
               variant="outline"
@@ -868,12 +873,12 @@ export function RichTextEditor({
         </div>
       ) : (
         <div
-          className={`border border-gray-300 border-t-0 rounded-b-md p-4 prose prose-sm max-w-none ${isFullscreen ? "fixed inset-4 z-50 bg-white rounded-lg shadow-2xl" : ""} ${error ? "border-red-500" : ""}`}
+          className={`border border-input border-t-0 rounded-b-md p-4 prose prose-sm dark:prose-invert max-w-none bg-background text-foreground ${isFullscreen ? "fixed inset-4 z-50 bg-background rounded-lg shadow-2xl" : ""} ${error ? "border-red-500" : ""}`}
           style={{ minHeight }}
         >
           <EditorContent
             editor={editor}
-            className="[&_.ProseMirror]:outline-none [&_.ProseMirror]:prose [&_.ProseMirror]:prose-sm [&_.ProseMirror]:max-w-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-gray-400 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0 [&_.ProseMirror_mark[data-color]]:rounded [&_.ProseMirror_mark[data-color]]:px-0.5"
+            className="[&_.ProseMirror]:outline-none [&_.ProseMirror]:prose [&_.ProseMirror]:prose-sm [&_.ProseMirror]:dark:prose-invert [&_.ProseMirror]:max-w-none [&_.ProseMirror]:text-foreground [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0"
           />
         </div>
       )}
