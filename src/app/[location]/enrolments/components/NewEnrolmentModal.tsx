@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { DurationPicker } from "@/components/DurationPicker";
 import { getProgramsList, Program } from "../../teachers/teachers.api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -264,26 +265,15 @@ export function NewEnrolmentModal({
 
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="auto-renew">Should this enrolment automatically renew itself?</Label>
-            <div className="flex gap-1 border rounded-md overflow-hidden">
-              <Button 
-                type="button" 
-                onClick={() => handleFieldChange("autoRenew", true)} 
-                variant={formData.autoRenew ? "default" : "outline"}
-                size="sm"
-                className="rounded-none border-0"
-              >
-                Yes
-              </Button>
-              <Button 
-                type="button" 
-                onClick={() => handleFieldChange("autoRenew", false)} 
-                variant={!formData.autoRenew ? "default" : "outline"}
-                size="sm"
-                className="rounded-none border-0"
-              >
-                No
-              </Button>
-            </div>
+            <SegmentedControl
+              options={[
+                { value: true, label: "Yes" },
+                { value: false, label: "No" },
+              ]}
+              value={formData.autoRenew}
+              onValueChange={(value) => handleFieldChange("autoRenew", value)}
+              variant="default"
+            />
           </div>
         </div>
         <DialogFooter className="flex justify-end gap-2">

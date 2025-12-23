@@ -14,6 +14,12 @@ import {
 } from "../privateLessonsListing.slice";
 import { PrivateLessonsQuery } from "../privateLessonsListing.api";
 import { SortField } from "../utils/sortPrivateLessons";
+import { 
+  isDateRange, 
+  serializeDateRange, 
+  deserializeDateRange, 
+  deserializeColumnFilters 
+} from "../utils/dateRangeSerialization";
 
 export function usePrivateLessonsListing(location: string) {
   const dispatch = useAppDispatch();
@@ -53,14 +59,6 @@ export function usePrivateLessonsListing(location: string) {
     sortDir: 'asc' | 'desc';
   } | null>(null);
 
-  // Helper to check if value is a date range
-  const isDateRange = (val: unknown): val is { from?: Date; to?: Date } => {
-    if (val === null || typeof val !== 'object') return false;
-    return (
-      'from' in (val as { from?: unknown }) ||
-      'to' in (val as { to?: unknown })
-    );
-  };
 
   // Build query function - not memoized to avoid unnecessary recreations
   const buildQuery = React.useCallback((
@@ -84,11 +82,15 @@ export function usePrivateLessonsListing(location: string) {
       order: currentSortDir,
     };
 
-    // Handle Date range filter
+    // Handle Date range filter (convert from ISO strings or Date objects)
     const dateFilter = currentColumnFilters.date;
     if (isDateRange(dateFilter) && dateFilter.from && dateFilter.to) {
-      query.dateFrom = format(dateFilter.from, 'yyyy-MM-dd');
-      query.dateTo = format(dateFilter.to, 'yyyy-MM-dd');
+      const fromDate = typeof dateFilter.from === 'string' ? new Date(dateFilter.from) : dateFilter.from;
+      const toDate = typeof dateFilter.to === 'string' ? new Date(dateFilter.to) : dateFilter.to;
+      if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
+        query.dateFrom = format(fromDate, 'yyyy-MM-dd');
+        query.dateTo = format(toDate, 'yyyy-MM-dd');
+      }
     }
 
     return query;
@@ -168,14 +170,22 @@ export function usePrivateLessonsListing(location: string) {
 
   const handleColumnFilterChange = React.useCallback(
     (columnKey: string, filterValue: unknown) => {
+      // Serialize Date objects to ISO strings before storing in Redux
+      let serializedValue = filterValue;
+      if (columnKey === 'date' && isDateRange(filterValue)) {
+        serializedValue = serializeDateRange(filterValue);
+      } else if (filterValue === "all" || filterValue === "" || filterValue === null) {
+        serializedValue = undefined;
+      }
+
       // Use ref to get latest value without dependency
       const newFilters = {
         ...columnFiltersRef.current,
-        [columnKey]: filterValue === "all" || filterValue === "" || filterValue === null ? undefined : filterValue,
+        [columnKey]: serializedValue,
       };
       dispatch(setColumnFilters(newFilters));
       
-      // Update ref immediately for the API call
+      // Update ref immediately for the API call (with serialized values)
       columnFiltersRef.current = newFilters;
       
       // Check if it's a date range filter
@@ -210,6 +220,11 @@ export function usePrivateLessonsListing(location: string) {
     [dispatch]
   );
 
+  // Convert date filter from ISO strings (Redux) to Date objects (for components)
+  const columnFiltersForComponents = React.useMemo(() => {
+    return deserializeColumnFilters(columnFilters);
+  }, [columnFilters]);
+
   return {
     rows,
     total,
@@ -222,7 +237,7 @@ export function usePrivateLessonsListing(location: string) {
     setPage: handleSetPage,
     pageSize,
     setPageSize: handleSetPageSize,
-    columnFilters,
+    columnFilters: columnFiltersForComponents, // Return converted filters with Date objects
     activeFilter,
     fetchData,
     handleColumnFilterChange,

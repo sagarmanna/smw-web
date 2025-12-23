@@ -4,6 +4,16 @@ import { SortField } from './utils/sortPrivateLessons';
 import { mockPrivateLessonData } from './mockData/privateLessonMockData';
 import { isValid, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { parseDateString } from '@/utils/dateUtils';
+import { serializeColumnFilters } from './utils/dateRangeSerialization';
+
+// Discount form data interface - shared between components and Redux
+export interface LessonDiscountData {
+  paymentFrequencyDiscountPercent: string;
+  customerDiscountPercent: string;
+  multipleEnrollmentDiscountAmount: string; // fixed $
+  lineItemDiscountType: "fixed" | "percentage";
+  lineItemDiscountValue: string;
+}
 
 interface PrivateLessonsListingState {
   rows: PrivateLessonRow[];
@@ -20,14 +30,16 @@ interface PrivateLessonsListingState {
   // Filters
   columnFilters: Record<string, unknown>;
   activeFilter?: string;
+  // Discount history: maps lesson ID to discount data
+  lessonDiscounts: Record<number, LessonDiscountData>;
 }
 
-// Initialize default date filter to today
+// Initialize default date filter to today (as ISO strings for Redux serialization)
 const getDefaultDateFilter = () => {
   const today = new Date();
   return {
-    from: startOfDay(today),
-    to: endOfDay(today),
+    from: startOfDay(today).toISOString(),
+    to: endOfDay(today).toISOString(),
   };
 };
 
@@ -45,6 +57,7 @@ const initialState: PrivateLessonsListingState = {
     date: getDefaultDateFilter(),
   },
   activeFilter: undefined, // Default to showing all lessons
+  lessonDiscounts: {}, // Store discount data per lesson
 };
 
 // Helper function to filter and paginate mock data
@@ -203,7 +216,8 @@ const privateLessonsListingSlice = createSlice({
       state.page = 1; // Reset to first page when sorting changes
     },
     setColumnFilters: (state, action: PayloadAction<Record<string, unknown>>) => {
-      state.columnFilters = action.payload;
+      // Serialize Date objects to ISO strings for Redux compatibility
+      state.columnFilters = serializeColumnFilters(action.payload);
       state.page = 1; // Reset to first page when filters change
     },
     setActiveFilter: (state, action: PayloadAction<string | undefined>) => {
@@ -218,6 +232,97 @@ const privateLessonsListingSlice = createSlice({
       state.total = 0;
       state.totalPages = 0;
       state.page = 1;
+    },
+    substituteTeacherForLessons: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; teacher: string }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) =>
+        idSet.has(row.id) ? { ...row, teacher: action.payload.teacher } : row
+      );
+    },
+    updateLessonsPrices: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; newPrices: Map<number, string>; discountData?: LessonDiscountData }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) =>
+        idSet.has(row.id) && action.payload.newPrices.has(row.id)
+          ? { ...row, price: action.payload.newPrices.get(row.id)! }
+          : row
+      );
+      
+      // Store discount data for each lesson if provided
+      if (action.payload.discountData) {
+        action.payload.lessonIds.forEach((lessonId) => {
+          state.lessonDiscounts[lessonId] = action.payload.discountData!;
+        });
+      }
+    },
+    updateLessonsDuration: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; duration: string }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) =>
+        idSet.has(row.id) ? { ...row, duration: action.payload.duration } : row
+      );
+    },
+    updateLessonsClassroom: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; classroomId: string; classroomName: string }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) =>
+        idSet.has(row.id) 
+          ? { ...row, classroom: action.payload.classroomName }
+          : row
+      );
+    },
+    updateLessonsOnlineStatus: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; onlineStatus: string }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) =>
+        idSet.has(row.id) 
+          ? { ...row, online: action.payload.onlineStatus }
+          : row
+      );
+    },
+    deleteLessons: (
+      state,
+      action: PayloadAction<{ lessonIds: number[] }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.filter((row) => !idSet.has(row.id));
+      // Update total count
+      state.total = Math.max(0, state.total - action.payload.lessonIds.length);
+      // Clean up discount data for deleted lessons
+      action.payload.lessonIds.forEach((lessonId) => {
+        delete state.lessonDiscounts[lessonId];
+      });
+    },
+    updateLessonsStatus: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; status: string; newDate?: string; dateMap?: Map<number, string> }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) => {
+        if (idSet.has(row.id)) {
+          const updatedRow = { ...row, status: action.payload.status };
+          // If dateMap is provided, use it to update individual dates
+          if (action.payload.dateMap && action.payload.dateMap.has(row.id)) {
+            updatedRow.date = action.payload.dateMap.get(row.id)!;
+          } else if (action.payload.newDate) {
+            // Fallback to single newDate if dateMap not provided
+            updatedRow.date = action.payload.newDate;
+          }
+          return updatedRow;
+        }
+        return row;
+      });
     },
   },
   extraReducers: (builder) => {
@@ -248,7 +353,33 @@ export const {
   setActiveFilter,
   clearError,
   clearPrivateLessons,
+  substituteTeacherForLessons,
+  updateLessonsPrices,
+  updateLessonsDuration,
+  updateLessonsClassroom,
+  updateLessonsOnlineStatus,
+  deleteLessons,
+  updateLessonsStatus,
 } = privateLessonsListingSlice.actions;
+
+// Selector to get discount data for a set of lessons
+export const selectLessonDiscounts = (state: { privateLessonsListing: PrivateLessonsListingState }, lessonIds: number[]): LessonDiscountData | null => {
+  if (lessonIds.length === 0) return null;
+  
+  // Check if all lessons have the same discount data
+  const firstLessonDiscount = state.privateLessonsListing.lessonDiscounts[lessonIds[0]];
+  if (!firstLessonDiscount) return null;
+  
+  // Verify all lessons have the same discount data
+  const allHaveSameDiscount = lessonIds.every(
+    (id) => {
+      const discount = state.privateLessonsListing.lessonDiscounts[id];
+      return discount && JSON.stringify(discount) === JSON.stringify(firstLessonDiscount);
+    }
+  );
+  
+  return allHaveSameDiscount ? firstLessonDiscount : null;
+};
 
 export default privateLessonsListingSlice.reducer;
 

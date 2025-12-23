@@ -12,6 +12,7 @@ export interface PrivateLessonRow {
   status: string; // "Scheduled" | "Completed" | etc.
   payment: string; // "Paid" | "Owing"
   price: string;
+  classroom?: string; // Optional classroom name
 }
 
 // PrivateLessonsQuery interface for API queries
