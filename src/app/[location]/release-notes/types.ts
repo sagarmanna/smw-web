@@ -52,16 +52,20 @@ export interface ReleaseNotesListResponse {
 
 /**
  * Create Release Note Request - payload for creating a new release note
+ * Matches API request body structure
+ * Note: version is required and cannot be empty
  */
 export interface CreateReleaseNoteRequest {
   subject: string;
   summary: string;
   notes: string;
   scheduleDate: string; // ISO date string format (yyyy-MM-dd)
+  version: string; // Release version (required, cannot be empty)
 }
 
 /**
  * Create Release Note Response - API response after creating a release note
+ * API returns minimal data, so we'll merge with request data
  */
 export interface CreateReleaseNoteResponse {
   success: boolean;
@@ -69,11 +73,8 @@ export interface CreateReleaseNoteResponse {
   data?: {
     id: number;
     subject: string;
-    summary: string;
-    notes: string;
-    scheduleDate: string;
-    createdDate: string;
-    userPublicIdentity: string;
+    scheduleDate: string; // ISO format from API (e.g., "2025-12-20T02:00:00.000Z")
+    createdByUserId: number;
   };
 }
 

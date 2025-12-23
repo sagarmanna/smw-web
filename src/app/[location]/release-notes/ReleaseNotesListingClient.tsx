@@ -20,11 +20,6 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
   const router = useRouter();
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
 
-  const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
-    () => getReleaseNoteColumns(location),
-    [location]
-  );
-
   const {
     rows,
     total,
@@ -42,6 +37,11 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
     handleColumnFilterChange,
     handleColumnFilterEnter,
   } = useReleaseNotesListing(location);
+
+  const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
+    () => getReleaseNoteColumns(location, page, pageSize),
+    [location, page, pageSize]
+  );
 
   if (error) {
     return (
@@ -114,8 +114,7 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={() => {
-          // Refresh the data after successful release note creation
-          fetchData();
+          // No need to fetch - Redux state is automatically updated after API call
         }}
         location={location}
       />

@@ -1,26 +1,100 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { getReleaseNotesList, ReleaseNoteRow, ReleaseNotesQuery } from './releaseNotesListing.api';
+import { format } from 'date-fns';
+import { 
+  getReleaseNotesList, 
+  createReleaseNote as createReleaseNoteAPI,
+  updateReleaseNote as updateReleaseNoteAPI,
+  ReleaseNoteRow 
+} from './releaseNotesListing.api';
+import type { CreateReleaseNoteRequest, UpdateReleaseNoteRequest, CreateReleaseNoteResponse, UpdateReleaseNoteResponse } from './types';
+
+/**
+ * Helper function to format date from ISO string to display format (MMM dd, yyyy)
+ * Follows DRY principle - uses date-fns for consistency
+ */
+function formatDateForDisplay(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      // If parsing fails, return original string
+      return dateString;
+    }
+    return format(date, 'MMM dd, yyyy');
+  } catch {
+    return dateString;
+  }
+}
+
+/**
+ * Helper function to transform API response data to ReleaseNoteRow format
+ * For create operations, merges API response with request data since API returns minimal fields
+ * Follows DRY principle - used by both add and update operations
+ */
+function transformReleaseNoteResponse(
+  responseData: CreateReleaseNoteResponse['data'] | UpdateReleaseNoteResponse['data'],
+  requestData?: CreateReleaseNoteRequest | UpdateReleaseNoteRequest
+): ReleaseNoteRow | null {
+  if (!responseData) return null;
+  
+  // For create operations, API returns minimal data, so merge with request data
+  if (requestData && 'summary' in requestData && 'notes' in requestData) {
+    // Use current date for createdDate since API doesn't return it for new items
+    // This ensures new items appear at the top when sorted by createdDate descending
+    const currentDate = new Date();
+    const createdDateFormatted = formatDateForDisplay(currentDate.toISOString());
+    
+    return {
+      id: responseData.id,
+      subject: responseData.subject,
+      summary: requestData.summary, // From request
+      notes: requestData.notes, // From request
+      scheduleDate: formatDateForDisplay(responseData.scheduleDate), // Format from API
+      createdDate: createdDateFormatted, // Use current date so new items appear at top
+      userPublicIdentity: "Current User", // Placeholder - will be updated when we fetch full data
+      releaseVersion: 'version' in requestData ? requestData.version : undefined,
+    };
+  }
+  
+  // For update operations, response should have all fields
+  if ('summary' in responseData && 'notes' in responseData && 'createdDate' in responseData && 'userPublicIdentity' in responseData) {
+    return {
+      id: responseData.id,
+      subject: responseData.subject,
+      summary: responseData.summary,
+      notes: responseData.notes,
+      scheduleDate: formatDateForDisplay(responseData.scheduleDate),
+      createdDate: formatDateForDisplay(responseData.createdDate),
+      userPublicIdentity: responseData.userPublicIdentity,
+      releaseVersion: undefined,
+    };
+  }
+  
+  return null;
+}
+
+/**
+ * Helper function to handle API errors consistently
+ * Follows DRY principle - used by all async thunks
+ */
+function handleApiError(error: unknown, defaultMessage: string): string {
+  return error instanceof Error ? error.message : defaultMessage;
+}
 
 interface ReleaseNotesListingState {
-  rows: ReleaseNoteRow[];
-  total: number;
-  totalPages: number;
+  // All release notes data (fetched once on initial load)
+  allRows: ReleaseNoteRow[];
   isLoading: boolean;
   error: string | null;
-  // Pagination
+  // Client-side pagination, sorting, and filtering
   page: number;
   pageSize: number;
-  // Sorting
   sortBy?: "subject" | "scheduleDate" | "createdDate";
   sortDir: 'asc' | 'desc';
-  // Filters
   columnFilters: Record<string, unknown>;
 }
 
 const initialState: ReleaseNotesListingState = {
-  rows: [],
-  total: 0,
-  totalPages: 0,
+  allRows: [], // Store all data here
   isLoading: false,
   error: null,
   page: 1,
@@ -30,32 +104,135 @@ const initialState: ReleaseNotesListingState = {
   columnFilters: {},
 };
 
-// Async thunk for fetching release notes list
+// Constants for API pagination
+const API_PAGE_LIMIT = 20; // Standard page size for fetching all data from API
+
+// Async thunk for fetching all release notes once on initial load
+// Called once in page.tsx during initial page load
+// Fetches all pages using proper pagination parameters from API response
 export const fetchReleaseNotes = createAsyncThunk(
   'releaseNotesListing/fetchReleaseNotes',
   async (
-    { location, query }: { location: string; query: ReleaseNotesQuery },
+    { location }: { location: string },
     { rejectWithValue }
   ) => {
     try {
-      const response = await getReleaseNotesList(location, query);
-      
-      if (response && response.success) {
-        return {
-          rows: response.data.body,
-          total: response.data.pagination.total,
-          totalPages: response.data.pagination.totalPages,
-        };
+      const allRows: ReleaseNoteRow[] = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      let hasMorePages = true;
+
+      // Fetch all pages until we have all data
+      while (hasMorePages) {
+        const response = await getReleaseNotesList(location, { page: currentPage, limit: API_PAGE_LIMIT });
+        
+        if (response && response.success && response.data) {
+          // Add the rows from this page to our collection
+          allRows.push(...response.data.body);
+          
+          // Get pagination info from API response
+          const pagination = response.data.pagination;
+          totalPages = pagination.totalPages;
+          
+          // Check if there are more pages to fetch
+          hasMorePages = currentPage < totalPages;
+          currentPage++;
+        } else {
+          // If API call fails, stop fetching
+          hasMorePages = false;
+          if (currentPage === 1) {
+            // If first page fails, return empty result
+            return {
+              rows: [],
+            };
+          }
+        }
       }
 
-      // Return empty result if API call fails or returns unsuccessful response
       return {
-        rows: [],
-        total: 0,
-        totalPages: 0,
+        rows: allRows,
       };
     } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch release notes');
+      return rejectWithValue(handleApiError(error, 'Failed to fetch release notes'));
+    }
+  }
+);
+
+// Async thunk for creating a new release note
+export const addReleaseNote = createAsyncThunk(
+  'releaseNotesListing/addReleaseNote',
+  async (
+    { location, data }: { location: string; data: CreateReleaseNoteRequest },
+    { rejectWithValue, getState }
+  ) => {
+    try {
+      const response = await createReleaseNoteAPI(location, data);
+      
+      if (response && response.success && response.data) {
+        // Get user info from Redux state for userPublicIdentity
+        const state = getState() as { user: { userInfo: { fullName?: string } | null } };
+        const userPublicIdentity = state.user?.userInfo?.fullName || "Current User";
+        
+        // Transform API response, merging with request data since API returns minimal fields
+        const transformedNote = transformReleaseNoteResponse(response.data, data);
+        if (!transformedNote) {
+          return rejectWithValue('Failed to transform release note data');
+        }
+        
+        // Update userPublicIdentity from Redux state
+        transformedNote.userPublicIdentity = userPublicIdentity;
+        
+        return transformedNote;
+      }
+
+      return rejectWithValue('Failed to create release note');
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to create release note'));
+    }
+  }
+);
+
+// Async thunk for updating an existing release note
+export const updateReleaseNote = createAsyncThunk(
+  'releaseNotesListing/updateReleaseNote',
+  async (
+    { location, id, data }: { location: string; id: number | string; data: UpdateReleaseNoteRequest },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await updateReleaseNoteAPI(location, id, data);
+      
+      if (response && response.success && response.data) {
+        const transformedNote = transformReleaseNoteResponse(response.data);
+        if (!transformedNote) {
+          return rejectWithValue('Failed to transform release note data');
+        }
+        return transformedNote;
+      }
+
+      return rejectWithValue('Failed to update release note');
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to update release note'));
+    }
+  }
+);
+
+// Async thunk for deleting a release note
+export const deleteReleaseNote = createAsyncThunk(
+  'releaseNotesListing/deleteReleaseNote',
+  async (
+    { location, id }: { location: string; id: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      // TODO: Implement API call to delete release note
+      // Endpoint: DELETE /admin/v2/${location}/release-notes/{id}
+      // For now, just return the id to remove from state
+      // When API is implemented, call it here first, then return id on success
+      void location; // Will be used when API is implemented
+      return id;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to delete release note'));
     }
   }
 );
@@ -84,16 +261,12 @@ const releaseNotesListingSlice = createSlice({
       state.error = null;
     },
     clearReleaseNotes: (state) => {
-      state.rows = [];
-      state.total = 0;
-      state.totalPages = 0;
+      state.allRows = [];
       state.page = 1;
     },
     resetReleaseNotesState: (state) => {
       // Reset all state to initial values (useful when location changes)
-      state.rows = [];
-      state.total = 0;
-      state.totalPages = 0;
+      state.allRows = [];
       state.isLoading = false;
       state.error = null;
       state.page = 1;
@@ -104,22 +277,57 @@ const releaseNotesListingSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    // Helper to clear error on pending actions (DRY principle)
+    const clearErrorOnPending = (state: ReleaseNotesListingState) => {
+      state.error = null;
+    };
+
+    // Helper to set error on rejected actions (DRY principle)
+    const setErrorOnRejected = (state: ReleaseNotesListingState, action: { payload: unknown }) => {
+      state.error = action.payload as string;
+    };
+
     builder
+      // Fetch all release notes (once on initial load)
       .addCase(fetchReleaseNotes.pending, (state) => {
         state.isLoading = true;
-        state.error = null;
+        clearErrorOnPending(state);
       })
       .addCase(fetchReleaseNotes.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.rows = action.payload.rows;
-        state.total = action.payload.total;
-        state.totalPages = action.payload.totalPages;
+        state.allRows = action.payload.rows;
         state.error = null;
       })
       .addCase(fetchReleaseNotes.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
-      });
+        setErrorOnRejected(state, action);
+      })
+      // Add new release note
+      .addCase(addReleaseNote.pending, clearErrorOnPending)
+      .addCase(addReleaseNote.fulfilled, (state, action) => {
+        // Add the new note to the beginning of the array
+        state.allRows.unshift(action.payload);
+        // Reset to page 1 to show the newly added item at the top
+        state.page = 1;
+      })
+      .addCase(addReleaseNote.rejected, setErrorOnRejected)
+      // Update existing release note
+      .addCase(updateReleaseNote.pending, clearErrorOnPending)
+      .addCase(updateReleaseNote.fulfilled, (state, action) => {
+        // Find and update the note in the array
+        const index = state.allRows.findIndex(note => note.id === action.payload.id);
+        if (index !== -1) {
+          state.allRows[index] = action.payload;
+        }
+      })
+      .addCase(updateReleaseNote.rejected, setErrorOnRejected)
+      // Delete release note
+      .addCase(deleteReleaseNote.pending, clearErrorOnPending)
+      .addCase(deleteReleaseNote.fulfilled, (state, action) => {
+        // Remove the note from the array
+        state.allRows = state.allRows.filter(note => note.id !== action.payload);
+      })
+      .addCase(deleteReleaseNote.rejected, setErrorOnRejected);
   },
 });
 

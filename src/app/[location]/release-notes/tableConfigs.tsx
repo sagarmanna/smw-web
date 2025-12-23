@@ -85,18 +85,28 @@ const ActionCell = ({ row, location }: { row: { original: ReleaseNoteRow; index:
 };
 
 // Column definitions for release notes table
-// Accepts location parameter for navigation
-export const getReleaseNoteColumns = (location: string): ColumnDef<ReleaseNoteRow>[] => [
+// Accepts location parameter for navigation and pagination info for row numbering
+export const getReleaseNoteColumns = (
+  location: string,
+  page: number = 1,
+  pageSize: number = 10
+): ColumnDef<ReleaseNoteRow>[] => [
   {
     accessorKey: "id",
     header: () => <span className="font-medium">#</span>,
-    cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => (
-      <div className="flex items-center justify-center h-full">
-        <span className="text-sm font-medium text-muted-foreground">
-          {row.original.id ?? row.index + 1}
-        </span>
-      </div>
-    ),
+    cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => {
+      // Calculate row number based on position in full list: (page - 1) * pageSize + rowIndex + 1
+      // This ensures sequential numbering 1, 2, 3... based on API response order
+      const rowNumber = (page - 1) * pageSize + row.index + 1;
+      
+      return (
+        <div className="flex items-center justify-center h-full">
+          <span className="text-sm font-medium text-muted-foreground">
+            {rowNumber}
+          </span>
+        </div>
+      );
+    },
     enableSorting: false,
     size: 50,
     meta: { printable: true, printableName: "#" },
@@ -225,5 +235,5 @@ export const getReleaseNoteColumns = (location: string): ColumnDef<ReleaseNoteRo
 ];
 
 // Default export for backward compatibility
-export const releaseNoteColumns = getReleaseNoteColumns('');
+export const releaseNoteColumns = getReleaseNoteColumns('', 1, 10);
 
