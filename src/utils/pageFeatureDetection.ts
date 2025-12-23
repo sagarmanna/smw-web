@@ -25,6 +25,7 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'payments': 'payments',
     'teachers': 'teachers',
     'students': 'students',
+    'release-notes': 'releaseNotes',
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -54,6 +55,7 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     payments: `/payment/index?PaymentSearch%5BisDefault%5D=1`,
     teachers: `/user/index?UserSearch%5Brole_name%5D=teacher`,
     students: `/student/index?StudentSearch%5BshowAllStudents%5D=0`,
+    releaseNotes: `/release-notes/index`,
   };
     
   const legacyPath = featureToUrlMap[feature] || '/dashboard';

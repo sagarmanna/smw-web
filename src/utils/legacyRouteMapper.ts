@@ -69,6 +69,10 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     pattern: '/menu-flags',
     legacyUrl: '/admin/menu-flags'
   },
+  {
+    pattern: '/release-notes',
+    legacyUrl: '/release-notes/index'
+  },
 ];
 
 /**
