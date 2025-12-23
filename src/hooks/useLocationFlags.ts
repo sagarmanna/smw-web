@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from 'react';
+import axios from 'axios';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchAllLocationFlags, fetchLocationFlags, updateLocationFlags } from '@/redux/locationFlagsSlice';
 
@@ -37,6 +38,26 @@ export function useLocationFlags(location: string) {
     dispatch(updateLocationFlags({ location, flags: newFlags }));
   };
 
+  const verifyFlagsPassword = async (password: string): Promise<boolean> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await axios.post(
+      `${process.env.NEXT_PUBLIC_API_URL}/admin/v2/locations/flags/verify-password`,
+      { password },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    return response.data?.success === true;
+  };
+
   const isFeatureEnabled = (feature: string): boolean => {
     const featureFlag = locationFlags[feature];
     return featureFlag !== 'disabled';
@@ -52,6 +73,7 @@ export function useLocationFlags(location: string) {
     isLoading,
     error,
     updateFlags,
+    verifyFlagsPassword,
     isFeatureEnabled,
     getFeatureSource,
   };

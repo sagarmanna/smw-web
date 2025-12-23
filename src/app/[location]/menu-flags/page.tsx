@@ -7,6 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2, Save, RefreshCw, AlertCircle, ShieldX } from "lucide-react";
@@ -129,12 +137,15 @@ function MenuFlagsManager() {
   const params = useParams();
   const location = params.location as string;
   const { userInfo, isLoading: userLoading } = useUserInfo(location);
-  const { flags, isLoading, updateFlags } = useLocationFlags(location);
+  const { flags, isLoading, updateFlags, verifyFlagsPassword } = useLocationFlags(location);
   
   const [localFlags, setLocalFlags] = useState<LocationFlags>({});
   const [originalFlags, setOriginalFlags] = useState<LocationFlags>({});
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const isAdmin = userInfo?.id === 694;
 
@@ -145,18 +156,49 @@ function MenuFlagsManager() {
     }
   }, [flags]);
 
+  const resetPasswordState = () => {
+    setPassword("");
+    setPasswordError("");
+  };
+
   const saveFlags = async () => {
+    const trimmedPassword = password.trim();
+    if (!trimmedPassword) {
+      setPasswordError("Password is required");
+      return;
+    }
+
     try {
       setSaving(true);
+      const isValid = await verifyFlagsPassword(trimmedPassword);
+      if (!isValid) {
+        setPasswordError("Invalid password");
+        return;
+      }
+
       await updateFlags(localFlags);
       setOriginalFlags(localFlags);
       setHasChanges(false);
       toast.success('Menu flags updated successfully');
+      setPasswordModalOpen(false);
+      resetPasswordState();
     } catch (error) {
       console.error('Error saving flags:', error);
-      toast.error('Failed to save menu flags');
+      toast.error(typeof error === 'string' ? error : 'Failed to save menu flags');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenPasswordModal = () => {
+    resetPasswordState();
+    setPasswordModalOpen(true);
+  };
+
+  const handlePasswordModalChange = (open: boolean) => {
+    setPasswordModalOpen(open);
+    if (!open) {
+      resetPasswordState();
     }
   };
 
@@ -273,7 +315,7 @@ function MenuFlagsManager() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button onClick={saveFlags} disabled={!hasChanges || saving}>
+          <Button onClick={handleOpenPasswordModal} disabled={!hasChanges || saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Save Changes
           </Button>
@@ -315,6 +357,40 @@ function MenuFlagsManager() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={passwordModalOpen} onOpenChange={handlePasswordModalChange}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirm Save</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="flag-password">Password</Label>
+            <Input
+              id="flag-password"
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (passwordError) setPasswordError("");
+              }}
+              placeholder="Enter password"
+              autoFocus
+            />
+            {passwordError && (
+              <p className="text-sm text-destructive">{passwordError}</p>
+            )}
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={() => handlePasswordModalChange(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={saveFlags} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
