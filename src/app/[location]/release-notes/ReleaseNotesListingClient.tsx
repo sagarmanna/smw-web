@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AddReleaseNoteModal } from "./components/modals/AddReleaseNoteModal";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-import { useAppDispatch } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { deleteReleaseNote as deleteReleaseNoteAction } from "./releaseNotesListing.slice";
 import { toast } from "sonner";
 
@@ -23,6 +23,9 @@ interface ReleaseNotesListingClientProps {
 export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClientProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { userInfo } = useAppSelector((state) => state.user);
+  const isAdmin = userInfo?.role === 'administrator';
+  
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   const [deleteModalState, setDeleteModalState] = React.useState<{
     isOpen: boolean;
@@ -72,8 +75,8 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
   }, [dispatch, location, deleteModalState.id]);
 
   const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
-    () => getReleaseNoteColumns(location, page, pageSize, handleDeleteClick),
-    [location, page, pageSize, handleDeleteClick]
+    () => getReleaseNoteColumns(location, page, pageSize, handleDeleteClick, isAdmin),
+    [location, page, pageSize, handleDeleteClick, isAdmin]
   );
 
   if (error) {
@@ -98,13 +101,15 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
       error={null}
       onRetry={fetchData}
       actions={
-        <Button 
-          onClick={() => setIsAddModalOpen(true)} 
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create
-        </Button>
+        isAdmin ? (
+          <Button 
+            onClick={() => setIsAddModalOpen(true)} 
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create
+          </Button>
+        ) : undefined
       }
     >
       <CustomTable

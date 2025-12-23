@@ -1,6 +1,7 @@
 import AdminLayout from "@/components/AdminLayout";
 import { GlobalDataProvider } from "@/providers/GlobalDataProvider";
 import { TokenGuard } from "@/components/TokenGuard";
+import { ReleaseNotesPopup } from "@/components/ReleaseNotesPopup";
 
 interface AdminV2LayoutProps {
   children: React.ReactNode;
@@ -15,7 +16,10 @@ export default async function AdminV2Layout({ children, params }: AdminV2LayoutP
   return (
     <TokenGuard>
       <GlobalDataProvider location={location}>
-        <AdminLayout>{children}</AdminLayout>
+        <AdminLayout>
+          {children}
+          <ReleaseNotesPopup location={location} />
+        </AdminLayout>
       </GlobalDataProvider>
     </TokenGuard>
   );
