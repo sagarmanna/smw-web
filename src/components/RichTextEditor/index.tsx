@@ -8,6 +8,7 @@ import { Subscript } from "@tiptap/extension-subscript";
 import { Superscript } from "@tiptap/extension-superscript";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
+import { Highlight } from "@tiptap/extension-highlight";
 import { Link } from "@tiptap/extension-link";
 import { Image } from "@tiptap/extension-image";
 import { Table } from "@tiptap/extension-table";
@@ -179,6 +180,9 @@ export function RichTextEditor({
       Superscript,
       TextStyle,
       Color,
+      Highlight.configure({
+        multicolor: true,
+      }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
@@ -309,7 +313,7 @@ export function RichTextEditor({
   const setBgColorValue = (color: string) => {
     setBgColor(color);
     if (editor) {
-      editor.chain().focus().setMark("textStyle", { backgroundColor: color }).run();
+      editor.chain().focus().setHighlight({ color }).run();
     }
     setShowBgColorPicker(false);
   };
@@ -563,10 +567,11 @@ export function RichTextEditor({
                 size="sm"
                 title="Background Color"
                 disabled={disabled}
+                className={editor.isActive("highlight") ? "bg-gray-200" : ""}
               >
                 <Type className="h-4 w-4" />
                 <div 
-                  className="w-3 h-3 rounded border border-gray-300 ml-1 bg-yellow-200"
+                  className="w-3 h-3 rounded border border-gray-300 ml-1"
                   style={{ backgroundColor: bgColor }}
                 />
               </Button>
@@ -589,6 +594,20 @@ export function RichTextEditor({
                 onChange={(e) => setBgColorValue(e.target.value)}
                 className="mt-2 h-8"
               />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                onClick={() => {
+                  if (editor) {
+                    editor.chain().focus().unsetHighlight().run();
+                  }
+                  setShowBgColorPicker(false);
+                }}
+              >
+                Remove Highlight
+              </Button>
             </PopoverContent>
           </Popover>
           
@@ -854,7 +873,7 @@ export function RichTextEditor({
         >
           <EditorContent
             editor={editor}
-            className="[&_.ProseMirror]:outline-none [&_.ProseMirror]:prose [&_.ProseMirror]:prose-sm [&_.ProseMirror]:max-w-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-gray-400 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0"
+            className="[&_.ProseMirror]:outline-none [&_.ProseMirror]:prose [&_.ProseMirror]:prose-sm [&_.ProseMirror]:max-w-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-gray-400 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0 [&_.ProseMirror_mark[data-color]]:rounded [&_.ProseMirror_mark[data-color]]:px-0.5"
           />
         </div>
       )}
