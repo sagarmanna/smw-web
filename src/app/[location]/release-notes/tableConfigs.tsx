@@ -95,12 +95,15 @@ const ActionCell = ({
 
 // Column definitions for release notes table
 // Accepts location parameter for navigation and pagination info for row numbering
+// isAdmin parameter controls whether action column is shown
 export const getReleaseNoteColumns = (
   location: string,
   page: number = 1,
   pageSize: number = 10,
-  onDelete?: (id: number | string) => void
-): ColumnDef<ReleaseNoteRow>[] => [
+  onDelete?: (id: number | string) => void,
+  isAdmin: boolean = false
+): ColumnDef<ReleaseNoteRow>[] => {
+  const baseColumns: ColumnDef<ReleaseNoteRow>[] = [
   {
     accessorKey: "id",
     header: () => <span className="font-medium">#</span>,
@@ -233,17 +236,24 @@ export const getReleaseNoteColumns = (
     size: 160,
     meta: { printable: true, printableName: "User Public Identity" },
   },
-  {
-    id: "actions",
-    header: () => <span className="font-medium">Action</span>,
-    cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => (
-      <ActionCell row={row} location={location} onDelete={onDelete} />
-    ),
-    enableSorting: false,
-    size: 120,
-  },
-];
+  ];
+
+  // Add action column only for admins
+  if (isAdmin) {
+    baseColumns.push({
+      id: "actions",
+      header: () => <span className="font-medium">Action</span>,
+      cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => (
+        <ActionCell row={row} location={location} onDelete={onDelete} />
+      ),
+      enableSorting: false,
+      size: 120,
+    });
+  }
+
+  return baseColumns;
+};
 
 // Default export for backward compatibility
-export const releaseNoteColumns = getReleaseNoteColumns('', 1, 10);
+export const releaseNoteColumns = getReleaseNoteColumns('', 1, 10, undefined, false);
 
