@@ -21,10 +21,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SubstituteTeacherModal } from "./components/SubstituteTeacherModal";
 import { EditDiscountModal } from "./components/EditDiscountModal";
+import { EditDurationModal } from "./components/EditDurationModal";
+import { EditClassroomModal } from "./components/EditClassroomModal";
+import { EditOnlineTypeModal } from "./components/EditOnlineTypeModal";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { substituteTeacherForLessons, updateLessonsPrices, selectLessonDiscounts } from "./privateLessonsListing.slice";
+import { substituteTeacherForLessons, updateLessonsPrices, updateLessonsDuration, updateLessonsClassroom, updateLessonsOnlineStatus, deleteLessons, selectLessonDiscounts } from "./privateLessonsListing.slice";
 import { calculateDiscountedPricesForLessons } from "./utils/discountCalculations";
+import { parseDateString } from "@/utils/dateUtils";
+import { startOfDay, isBefore } from "date-fns";
 
 interface PrivateLessonsListingClientProps {
   location: string;
@@ -34,6 +40,10 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
   const [selectedRows, setSelectedRows] = React.useState<Set<number>>(new Set());
   const [isSubstituteModalOpen, setIsSubstituteModalOpen] = React.useState(false);
   const [isEditDiscountModalOpen, setIsEditDiscountModalOpen] = React.useState(false);
+  const [isEditDurationModalOpen, setIsEditDurationModalOpen] = React.useState(false);
+  const [isEditClassroomModalOpen, setIsEditClassroomModalOpen] = React.useState(false);
+  const [isEditOnlineTypeModalOpen, setIsEditOnlineTypeModalOpen] = React.useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const dispatch = useAppDispatch();
 
   const {
@@ -100,6 +110,80 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
     }
     setIsEditDiscountModalOpen(true);
   }, [hasSelectedLessons]);
+
+  const handleEditDurationClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+    setIsEditDurationModalOpen(true);
+  }, [hasSelectedLessons]);
+
+  const handleEditClassroomClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+
+    // Check if any lesson is from yesterday or earlier
+    // Only allow editing for today and tomorrow dates
+    const today = startOfDay(new Date());
+
+    const hasInvalidDate = selectedLessons.some((lesson) => {
+      // Extract date part (before "@" if present)
+      const datePart = lesson.date.split(" @ ")[0].trim();
+      const lessonDate = parseDateString(datePart);
+      
+      if (!lessonDate) {
+        // If we can't parse the date, allow editing (fail-safe)
+        return false;
+      }
+      
+      const lessonDateStart = startOfDay(lessonDate);
+      
+      // Check if lesson date is before today (yesterday or earlier)
+      // Only allow today and tomorrow
+      return isBefore(lessonDateStart, today);
+    });
+
+    if (hasInvalidDate) {
+      toast.error("One of the selected lessons is invoiced. Invoiced lessons can't be edited.");
+      return;
+    }
+
+    setIsEditClassroomModalOpen(true);
+  }, [hasSelectedLessons, selectedLessons]);
+
+  const handleEditOnlineTypeClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+    setIsEditOnlineTypeModalOpen(true);
+  }, [hasSelectedLessons]);
+
+  const handleDeleteClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+    setIsDeleteModalOpen(true);
+  }, [hasSelectedLessons]);
+
+  const handleDeleteConfirm = React.useCallback(() => {
+    const lessonIds = selectedLessons.map((lesson) => lesson.id);
+    
+    // Update Redux state - remove deleted lessons
+    dispatch(deleteLessons({ lessonIds }));
+
+    // TODO: Replace with real API call
+    console.log("Lessons deleted", { lessonIds });
+
+    // Clear selection and close modal
+    clearSelection();
+    setIsDeleteModalOpen(false);
+
+    // Show success toast
+    toast.success(
+      `${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""} deleted successfully`
+    );
+  }, [selectedLessons, dispatch, clearSelection]);
 
   const handleSubstituteSave = React.useCallback(
     (teacherId: string, teacherName: string, lessonIds: number[]) => {
@@ -265,26 +349,26 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
               Edit Discount
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => console.log("Edit Duration")}
+              onClick={handleEditDurationClick}
               disabled={!hasSelection}
             >
               Edit Duration
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => console.log("Delete")}
+              onClick={handleDeleteClick}
               disabled={!hasSelection}
               className="text-destructive focus:text-destructive"
             >
               Delete
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => console.log("Edit Classroom")}
+              onClick={handleEditClassroomClick}
               disabled={!hasSelection}
             >
               Edit Classroom
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => console.log("Edit Online Type")}
+              onClick={handleEditOnlineTypeClick}
               disabled={!hasSelection}
             >
               Edit Online Type
@@ -317,7 +401,7 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
         </DropdownMenu>
       </div>
     );
-  }, [selectedRows.size, handleSubstituteTeacherClick]);
+  }, [selectedRows.size, handleSubstituteTeacherClick, handleEditDiscountClick, handleEditDurationClick, handleEditClassroomClick, handleEditOnlineTypeClick, handleDeleteClick]);
 
   return (
     <>
@@ -422,6 +506,83 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
             `Discounts applied to ${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""}`
           );
         }}
+      />
+
+      <EditDurationModal
+        open={isEditDurationModalOpen}
+        onOpenChange={setIsEditDurationModalOpen}
+        selectedLessons={selectedLessons}
+        onSave={(duration, lessonIds) => {
+          // Update Redux state with new duration
+          dispatch(updateLessonsDuration({ lessonIds, duration }));
+
+          // TODO: Replace with real API call
+          console.log("Duration updated for lessons", { duration, lessonIds });
+
+          // Clear selection and close modal
+          clearSelection();
+          setIsEditDurationModalOpen(false);
+
+          // Show success toast
+          toast.success("Lesson Duration Edited Successfully");
+        }}
+      />
+
+      <EditClassroomModal
+        open={isEditClassroomModalOpen}
+        onOpenChange={setIsEditClassroomModalOpen}
+        location={location}
+        selectedLessons={selectedLessons}
+        onSave={(classroomId, classroomName, lessonIds) => {
+          // Update Redux state with new classroom
+          dispatch(updateLessonsClassroom({ lessonIds, classroomId, classroomName }));
+
+          // TODO: Replace with real API call
+          console.log("Classroom updated for lessons", { classroomId, classroomName, lessonIds });
+
+          // Clear selection and close modal
+          clearSelection();
+          setIsEditClassroomModalOpen(false);
+
+          // Show success toast
+          toast.success("Lesson Classroom Edited Successfully");
+        }}
+      />
+
+      <EditOnlineTypeModal
+        open={isEditOnlineTypeModalOpen}
+        onOpenChange={setIsEditOnlineTypeModalOpen}
+        selectedLessons={selectedLessons}
+        onSave={(onlineStatus, lessonIds) => {
+          // Update Redux state with new online status
+          dispatch(updateLessonsOnlineStatus({ lessonIds, onlineStatus }));
+
+          // TODO: Replace with real API call
+          console.log("Online status updated for lessons", { onlineStatus, lessonIds });
+
+          // Clear selection and close modal
+          clearSelection();
+          setIsEditOnlineTypeModalOpen(false);
+
+          // Show success toast based on selection
+          const toastMessage = onlineStatus === "Yes" 
+            ? "Private Lesson Edited To Make Online Class Successfully"
+            : "Private Lesson Edited To Make In Class Successfully";
+          toast.success(toastMessage);
+        }}
+      />
+
+      <DeleteConfirmationModal
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        title={
+          selectedLessons.length === 1
+            ? "Are you sure you want to delete this lesson?"
+            : `Are you sure you want to delete ${selectedLessons.length} lessons?`
+        }
+        onConfirm={handleDeleteConfirm}
+        confirmLabel="OK"
+        cancelLabel="Cancel"
       />
     </>
   );

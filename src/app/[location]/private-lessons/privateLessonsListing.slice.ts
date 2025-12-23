@@ -260,6 +260,50 @@ const privateLessonsListingSlice = createSlice({
         });
       }
     },
+    updateLessonsDuration: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; duration: string }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) =>
+        idSet.has(row.id) ? { ...row, duration: action.payload.duration } : row
+      );
+    },
+    updateLessonsClassroom: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; classroomId: string; classroomName: string }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) =>
+        idSet.has(row.id) 
+          ? { ...row, classroom: action.payload.classroomName }
+          : row
+      );
+    },
+    updateLessonsOnlineStatus: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; onlineStatus: string }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) =>
+        idSet.has(row.id) 
+          ? { ...row, online: action.payload.onlineStatus }
+          : row
+      );
+    },
+    deleteLessons: (
+      state,
+      action: PayloadAction<{ lessonIds: number[] }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.filter((row) => !idSet.has(row.id));
+      // Update total count
+      state.total = Math.max(0, state.total - action.payload.lessonIds.length);
+      // Clean up discount data for deleted lessons
+      action.payload.lessonIds.forEach((lessonId) => {
+        delete state.lessonDiscounts[lessonId];
+      });
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -291,6 +335,10 @@ export const {
   clearPrivateLessons,
   substituteTeacherForLessons,
   updateLessonsPrices,
+  updateLessonsDuration,
+  updateLessonsClassroom,
+  updateLessonsOnlineStatus,
+  deleteLessons,
 } = privateLessonsListingSlice.actions;
 
 // Selector to get discount data for a set of lessons
