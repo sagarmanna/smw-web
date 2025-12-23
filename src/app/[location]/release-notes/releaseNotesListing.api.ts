@@ -1,6 +1,5 @@
 /**
  * Release Notes API file
- * Following the same pattern as studentsListing.api.ts and teachersListing.api.ts
  */
 
 import { apiClient } from "@/lib/api/client";
@@ -120,37 +119,6 @@ export async function getReleaseNotesList(
 }
 
 /**
- * Get a single release note by ID
- * 
- * @param location - Location parameter
- * @param id - Release note ID
- * @returns Promise resolving to release note or null if not found
- * 
- * @todo Implement API call to fetch single release note by ID
- */
-export async function getReleaseNoteById(
-  location: string,
-  id: number | string
-): Promise<ReleaseNoteRow | null> {
-  try {
-    // TODO: Implement API call to fetch single release note
-    // Endpoint: GET /admin/v2/${location}/release-notes/{id}
-    const releaseNoteId = typeof id === 'string' ? parseInt(id, 10) : id;
-    
-    if (isNaN(releaseNoteId)) {
-      return null;
-    }
-
-    // Placeholder - API implementation needed
-    console.warn("getReleaseNoteById: API implementation needed");
-    return null;
-  } catch (error) {
-    console.error("Error fetching release note:", error);
-    return null;
-  }
-}
-
-/**
  * Update an existing release note
  * 
  * @param location - Location parameter
@@ -158,7 +126,16 @@ export async function getReleaseNoteById(
  * @param data - Release note data to update
  * @returns Promise resolving to update release note response
  * 
- * @todo Implement API call to update release note
+ * @example
+ * ```typescript
+ * const releaseNote = await updateReleaseNote('location1', 32, {
+ *   subject: 'Updated Subject',
+ *   summary: '<p>Updated summary</p>',
+ *   notes: '<p>Updated notes</p>',
+ *   scheduleDate: '2025-12-20',
+ *   releaseVersion: '2.0.0'
+ * });
+ * ```
  */
 export async function updateReleaseNote(
   location: string,
@@ -166,27 +143,80 @@ export async function updateReleaseNote(
   data: UpdateReleaseNoteRequest
 ): Promise<UpdateReleaseNoteResponse> {
   try {
-    // TODO: Implement API call to update release note
-    // Endpoint: PUT /admin/v2/${location}/release-notes/{id}
-    // Parameters will be used when API is implemented
-    void location;
-    void data;
-    
+    // Parse ID - handle both number and string inputs
     const releaseNoteId = typeof id === 'string' ? parseInt(id, 10) : id;
     
     if (isNaN(releaseNoteId)) {
       throw new Error("Invalid release note ID");
     }
 
-    // Placeholder - API implementation needed
-    console.warn("updateReleaseNote: API implementation needed");
-    throw new Error("API implementation needed for updateReleaseNote");
+    // Prepare request body matching API structure
+    // API expects: subject, summary, notes, scheduleDate
+    // Note: API may not accept releaseVersion in the request body, but we include it if provided
+    const requestBody: {
+      subject: string;
+      summary: string;
+      notes: string;
+      scheduleDate: string;
+      version?: string;
+    } = {
+      subject: data.subject,
+      summary: data.summary,
+      notes: data.notes,
+      scheduleDate: data.scheduleDate,
+    };
+
+    // Include version if provided (following createReleaseNote pattern)
+    if (data.releaseVersion && typeof data.releaseVersion === 'string') {
+      requestBody.version = data.releaseVersion.trim();
+    }
+
+    // Make API call to update release note
+    const response = await apiClient.put<UpdateReleaseNoteResponse>(
+      `/admin/v2/${location}/release-notes/${releaseNoteId}`,
+      requestBody
+    );
+
+    return response.data;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: UpdateReleaseNoteResponse } };
+    const apiError = error as { 
+      response?: { 
+        data?: {
+          success?: boolean;
+          errorCode?: string;
+          message?: string | string[];
+        };
+        status?: number;
+        statusText?: string;
+      };
+      message?: string;
+    };
+    
     console.error("Error updating release note:", error);
+    
+    // Handle API error response
+    if (apiError.response?.data) {
+      const errorData = apiError.response.data;
+      // Handle message as either string or array
+      let errorMessage = "Failed to update release note";
+      if (errorData.message) {
+        if (Array.isArray(errorData.message)) {
+          errorMessage = errorData.message.join(", ");
+        } else {
+          errorMessage = errorData.message;
+        }
+      }
+      
+      throw {
+        message: errorMessage,
+        errorCode: errorData.errorCode || (errorData.success === false ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR'),
+      };
+    }
+    
+    // Handle network/other errors
     throw {
-      message: apiError.response?.data?.message || "Failed to update release note",
-      errorCode: apiError.response?.data?.success === false ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+      message: apiError.message || "Failed to update release note",
+      errorCode: 'INTERNAL_SERVER_ERROR',
     };
   }
 }
@@ -284,6 +314,93 @@ export async function createReleaseNote(
     // Handle network/other errors
     throw {
       message: apiError.message || "Failed to create release note",
+      errorCode: 'INTERNAL_SERVER_ERROR',
+    };
+  }
+}
+
+/**
+ * Delete a release note
+ * 
+ * @param location - Location parameter
+ * @param id - Release note ID
+ * @returns Promise resolving to delete release note response
+ * 
+ * @example
+ * ```typescript
+ * const response = await deleteReleaseNote('location1', 32);
+ * ```
+ */
+export async function deleteReleaseNote(
+  location: string,
+  id: number | string
+): Promise<{
+  success: boolean;
+  message: string;
+  data?: {
+    id: number;
+    deletedByUserId: number;
+    deletedOn: string;
+  };
+}> {
+  try {
+    // Parse ID - handle both number and string inputs
+    const releaseNoteId = typeof id === 'string' ? parseInt(id, 10) : id;
+    
+    if (isNaN(releaseNoteId)) {
+      throw new Error("Invalid release note ID");
+    }
+
+    // Make API call to delete release note
+    const response = await apiClient.delete<{
+      success: boolean;
+      message: string;
+      data?: {
+        id: number;
+        deletedByUserId: number;
+        deletedOn: string;
+      };
+    }>(`/admin/v2/${location}/release-notes/${releaseNoteId}`);
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { 
+      response?: { 
+        data?: {
+          success?: boolean;
+          errorCode?: string;
+          message?: string | string[];
+        };
+        status?: number;
+        statusText?: string;
+      };
+      message?: string;
+    };
+    
+    console.error("Error deleting release note:", error);
+    
+    // Handle API error response
+    if (apiError.response?.data) {
+      const errorData = apiError.response.data;
+      // Handle message as either string or array
+      let errorMessage = "Failed to delete release note";
+      if (errorData.message) {
+        if (Array.isArray(errorData.message)) {
+          errorMessage = errorData.message.join(", ");
+        } else {
+          errorMessage = errorData.message;
+        }
+      }
+      
+      throw {
+        message: errorMessage,
+        errorCode: errorData.errorCode || (errorData.success === false ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR'),
+      };
+    }
+    
+    // Handle network/other errors
+    throw {
+      message: apiError.message || "Failed to delete release note",
       errorCode: 'INTERNAL_SERVER_ERROR',
     };
   }

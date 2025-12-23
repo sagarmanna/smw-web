@@ -23,6 +23,7 @@ export default function ReleaseNotesPage({ params }: ReleaseNotesPageProps) {
     if (!location) return;
     
     // Skip if we've already fetched for this exact location (prevents duplicate calls during re-renders)
+    // This ensures the GET API is called ONLY ONCE per location
     if (prevLocationRef.current === location) {
       return;
     }
@@ -35,8 +36,15 @@ export default function ReleaseNotesPage({ params }: ReleaseNotesPageProps) {
     // Update the ref to track this fetch
     prevLocationRef.current = location;
     
-    // Fetch all release notes once on initial page load
-    // Data is stored in Redux state, pagination/sorting/filtering happens client-side
+    /**
+     * Fetch all release notes ONCE on initial page load
+     * 
+     * This is the ONLY place where GET API is called.
+     * After this, all data comes from Redux state:
+     * - Add/Update/Delete operations update Redux directly after API calls
+     * - No refetching needed
+     * - Pagination, sorting, and filtering happen client-side on Redux data
+     */
     dispatch(fetchReleaseNotes({ location }));
   }, [location, dispatch]);
 
