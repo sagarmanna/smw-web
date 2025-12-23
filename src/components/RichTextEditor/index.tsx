@@ -8,6 +8,7 @@ import { Subscript } from "@tiptap/extension-subscript";
 import { Superscript } from "@tiptap/extension-superscript";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
+import { Highlight } from "@tiptap/extension-highlight";
 import { Link } from "@tiptap/extension-link";
 import { Image } from "@tiptap/extension-image";
 import { Table } from "@tiptap/extension-table";
@@ -179,6 +180,9 @@ export function RichTextEditor({
       Superscript,
       TextStyle,
       Color,
+      Highlight.configure({
+        multicolor: true,
+      }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
@@ -197,6 +201,11 @@ export function RichTextEditor({
       onChange(editor.getHTML());
     },
     editable: !disabled,
+    editorProps: {
+      attributes: {
+        "data-placeholder": placeholder,
+      },
+    },
   });
 
   useEffect(() => {
@@ -309,7 +318,7 @@ export function RichTextEditor({
   const setBgColorValue = (color: string) => {
     setBgColor(color);
     if (editor) {
-      editor.chain().focus().setMark("textStyle", { backgroundColor: color }).run();
+      editor.chain().focus().setHighlight({ color }).run();
     }
     setShowBgColorPicker(false);
   };
@@ -563,6 +572,7 @@ export function RichTextEditor({
                 size="sm"
                 title="Background Color"
                 disabled={disabled}
+                className={editor.isActive("highlight") ? "bg-gray-200" : ""}
               >
                 <Type className="h-4 w-4" />
                 <div 
@@ -589,6 +599,20 @@ export function RichTextEditor({
                 onChange={(e) => setBgColorValue(e.target.value)}
                 className="mt-2 h-8"
               />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                onClick={() => {
+                  if (editor) {
+                    editor.chain().focus().unsetHighlight().run();
+                  }
+                  setShowBgColorPicker(false);
+                }}
+              >
+                Remove Highlight
+              </Button>
             </PopoverContent>
           </Popover>
           
