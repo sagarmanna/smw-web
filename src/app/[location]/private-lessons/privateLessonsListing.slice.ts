@@ -304,6 +304,26 @@ const privateLessonsListingSlice = createSlice({
         delete state.lessonDiscounts[lessonId];
       });
     },
+    updateLessonsStatus: (
+      state,
+      action: PayloadAction<{ lessonIds: number[]; status: string; newDate?: string; dateMap?: Map<number, string> }>
+    ) => {
+      const idSet = new Set(action.payload.lessonIds);
+      state.rows = state.rows.map((row) => {
+        if (idSet.has(row.id)) {
+          const updatedRow = { ...row, status: action.payload.status };
+          // If dateMap is provided, use it to update individual dates
+          if (action.payload.dateMap && action.payload.dateMap.has(row.id)) {
+            updatedRow.date = action.payload.dateMap.get(row.id)!;
+          } else if (action.payload.newDate) {
+            // Fallback to single newDate if dateMap not provided
+            updatedRow.date = action.payload.newDate;
+          }
+          return updatedRow;
+        }
+        return row;
+      });
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -339,6 +359,7 @@ export const {
   updateLessonsClassroom,
   updateLessonsOnlineStatus,
   deleteLessons,
+  updateLessonsStatus,
 } = privateLessonsListingSlice.actions;
 
 // Selector to get discount data for a set of lessons

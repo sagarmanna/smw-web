@@ -25,12 +25,15 @@ import { EditDurationModal } from "./components/EditDurationModal";
 import { EditClassroomModal } from "./components/EditClassroomModal";
 import { EditOnlineTypeModal } from "./components/EditOnlineTypeModal";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { UnscheduleReasonModal } from "./components/UnscheduleReasonModal";
+import { BulkRescheduleModal } from "./components/BulkRescheduleModal";
+import EmailStatementModal, { type EmailFormData } from "@/app/[location]/customers/components/EmailStatementModal/index";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { substituteTeacherForLessons, updateLessonsPrices, updateLessonsDuration, updateLessonsClassroom, updateLessonsOnlineStatus, deleteLessons, selectLessonDiscounts } from "./privateLessonsListing.slice";
+import { substituteTeacherForLessons, updateLessonsPrices, updateLessonsDuration, updateLessonsClassroom, updateLessonsOnlineStatus, deleteLessons, updateLessonsStatus, selectLessonDiscounts } from "./privateLessonsListing.slice";
 import { calculateDiscountedPricesForLessons } from "./utils/discountCalculations";
 import { parseDateString } from "@/utils/dateUtils";
-import { startOfDay, isBefore } from "date-fns";
+import { startOfDay, isBefore, format } from "date-fns";
 
 interface PrivateLessonsListingClientProps {
   location: string;
@@ -44,6 +47,10 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
   const [isEditClassroomModalOpen, setIsEditClassroomModalOpen] = React.useState(false);
   const [isEditOnlineTypeModalOpen, setIsEditOnlineTypeModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
+  const [isUnscheduleConfirmModalOpen, setIsUnscheduleConfirmModalOpen] = React.useState(false);
+  const [isUnscheduleReasonModalOpen, setIsUnscheduleReasonModalOpen] = React.useState(false);
+  const [isBulkRescheduleModalOpen, setIsBulkRescheduleModalOpen] = React.useState(false);
   const dispatch = useAppDispatch();
 
   const {
@@ -166,6 +173,115 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
     setIsDeleteModalOpen(true);
   }, [hasSelectedLessons]);
 
+  const handleEmailSelectedClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+    setIsEmailModalOpen(true);
+  }, [hasSelectedLessons]);
+
+  const handleSendEmail = React.useCallback((emailData: EmailFormData) => {
+    // TODO: Replace with real API call
+
+    // Close modal and clear selection
+    setIsEmailModalOpen(false);
+    clearSelection();
+
+    // Show success toast
+    toast.success("Mail has been sent successfully");
+  }, [selectedLessons, clearSelection]);
+
+  const handleUnscheduleClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+    setIsUnscheduleConfirmModalOpen(true);
+  }, [hasSelectedLessons]);
+
+  const handleUnscheduleConfirm = React.useCallback(() => {
+    setIsUnscheduleConfirmModalOpen(false);
+    setIsUnscheduleReasonModalOpen(true);
+  }, []);
+
+  const handleUnscheduleReasonSave = React.useCallback((reason: string) => {
+    const lessonIds = selectedLessons.map((lesson) => lesson.id);
+    
+    // Update Redux state - change status to "Unscheduled"
+    dispatch(updateLessonsStatus({ lessonIds, status: "Unscheduled" }));
+
+    // TODO: Replace with real API call
+
+    // Clear selection and close modal
+    clearSelection();
+    setIsUnscheduleReasonModalOpen(false);
+
+    // Show success toast
+    toast.success(
+      `${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""} unscheduled successfully`
+    );
+  }, [selectedLessons, dispatch, clearSelection]);
+
+  const handleBulkRescheduleClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+    setIsBulkRescheduleModalOpen(true);
+  }, [hasSelectedLessons]);
+
+  const handleGenerateInvoiceClick = React.useCallback(() => {
+    if (!hasSelectedLessons) {
+      return;
+    }
+    toast.error("Selected lesson's have not been invoiced");
+  }, [hasSelectedLessons]);
+
+  const handleRowClick = React.useCallback((row: PrivateLessonRow) => {
+    // Navigate to external lesson view page
+    const legacyBaseUrl = process.env.NEXT_PUBLIC_LEGACY_URL || 'https://dev2.studiomanagerweb.com/admin';
+    const url = `${legacyBaseUrl}/${location}/lesson/view?id=${row.id}`;
+    window.location.href = url;
+  }, [location]);
+
+  const handleBulkRescheduleSave = React.useCallback((selectedDate: Date) => {
+    const lessonIds = selectedLessons.map((lesson) => lesson.id);
+    
+    // Format the new date: preserve time from original date, update date portion
+    // Date format: "MMM dd, yyyy @ hh:mm a" (e.g., "Dec 19, 2025 @ 02:00 PM")
+    const formattedNewDate = format(selectedDate, "MMM dd, yyyy");
+    
+    // Create a map of lesson IDs to their new date strings (preserving time)
+    const dateMap = new Map<number, string>();
+    selectedLessons.forEach((lesson) => {
+      const timePart = lesson.date.includes(" @ ") 
+        ? lesson.date.split(" @ ")[1] 
+        : ""; // Extract time part (e.g., "02:00 PM")
+      
+      const newDateString = timePart 
+        ? `${formattedNewDate} @ ${timePart}`
+        : formattedNewDate;
+      
+      dateMap.set(lesson.id, newDateString);
+    });
+    
+    // Update Redux state - change status to "Rescheduled" and update dates
+    dispatch(updateLessonsStatus({ 
+      lessonIds, 
+      status: "Rescheduled",
+      dateMap
+    }));
+
+    // TODO: Replace with real API call
+
+    // Clear selection and close modal
+    clearSelection();
+    setIsBulkRescheduleModalOpen(false);
+
+    // Show success toast
+    toast.success(
+      `${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""} rescheduled successfully`
+    );
+  }, [selectedLessons, dispatch, clearSelection]);
+
   const handleDeleteConfirm = React.useCallback(() => {
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
     
@@ -173,7 +289,6 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
     dispatch(deleteLessons({ lessonIds }));
 
     // TODO: Replace with real API call
-    console.log("Lessons deleted", { lessonIds });
 
     // Clear selection and close modal
     clearSelection();
@@ -191,7 +306,6 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
       dispatch(substituteTeacherForLessons({ lessonIds, teacher: teacherName }));
 
       // TODO: Replace with real API call using teacherId + lessonIds
-      console.log("Substitute teacher assigned", { teacherId, teacherName, lessonIds });
 
       // Clear selection and close modal
       clearSelection();
@@ -374,25 +488,25 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
               Edit Online Type
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => console.log("Email Selected")}
+              onClick={handleEmailSelectedClick}
               disabled={!hasSelection}
             >
               Email Selected
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => console.log("Unschedule")}
+              onClick={handleUnscheduleClick}
               disabled={!hasSelection}
             >
               Unschedule
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => console.log("Bulk Reschedule")}
+              onClick={handleBulkRescheduleClick}
               disabled={!hasSelection}
             >
               Bulk Reschedule
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => console.log("Generate Invoice")}
+              onClick={handleGenerateInvoiceClick}
               disabled={!hasSelection}
             >
               Generate Invoice
@@ -401,7 +515,7 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
         </DropdownMenu>
       </div>
     );
-  }, [selectedRows.size, handleSubstituteTeacherClick, handleEditDiscountClick, handleEditDurationClick, handleEditClassroomClick, handleEditOnlineTypeClick, handleDeleteClick]);
+  }, [selectedRows.size, handleSubstituteTeacherClick, handleEditDiscountClick, handleEditDurationClick, handleEditClassroomClick, handleEditOnlineTypeClick, handleDeleteClick, handleEmailSelectedClick, handleUnscheduleClick, handleBulkRescheduleClick, handleGenerateInvoiceClick]);
 
   return (
     <>
@@ -467,6 +581,8 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
         rowsPerPage={pageSize}
         rowsPerPageOptions={[10, 20, 50, 100]}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+        onRowClick={handleRowClick}
+        rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         />
       </ReportPageLayout>
 
@@ -495,7 +611,6 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
           }));
 
           // TODO: Replace with real API call
-          console.log("Discounts applied to lessons", { data, lessonIds, newPrices });
 
           // Clear selection and close modal
           clearSelection();
@@ -517,7 +632,6 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
           dispatch(updateLessonsDuration({ lessonIds, duration }));
 
           // TODO: Replace with real API call
-          console.log("Duration updated for lessons", { duration, lessonIds });
 
           // Clear selection and close modal
           clearSelection();
@@ -538,7 +652,6 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
           dispatch(updateLessonsClassroom({ lessonIds, classroomId, classroomName }));
 
           // TODO: Replace with real API call
-          console.log("Classroom updated for lessons", { classroomId, classroomName, lessonIds });
 
           // Clear selection and close modal
           clearSelection();
@@ -558,7 +671,6 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
           dispatch(updateLessonsOnlineStatus({ lessonIds, onlineStatus }));
 
           // TODO: Replace with real API call
-          console.log("Online status updated for lessons", { onlineStatus, lessonIds });
 
           // Clear selection and close modal
           clearSelection();
@@ -583,6 +695,44 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
         onConfirm={handleDeleteConfirm}
         confirmLabel="OK"
         cancelLabel="Cancel"
+      />
+
+      <EmailStatementModal
+        open={isEmailModalOpen}
+        onOpenChange={setIsEmailModalOpen}
+        onSend={handleSendEmail}
+        customerName={selectedLessons.length === 1 ? selectedLessons[0]?.student : undefined}
+        customerEmails={[]}
+        locationName=""
+        initialSubject="Message from Arcadia Academy of Music"
+        initialContent="<div></div>"
+        privateLessonDueData={[]}
+        groupLessonDueData={[]}
+        invoiceData={[]}
+        creditData={[]}
+        totalBalance="$0.00"
+        showDeleteButton={false}
+      />
+
+      <DeleteConfirmationModal
+        open={isUnscheduleConfirmModalOpen}
+        onOpenChange={setIsUnscheduleConfirmModalOpen}
+        title="Are you sure you want to unschedule?"
+        onConfirm={handleUnscheduleConfirm}
+        confirmLabel="OK"
+        cancelLabel="Cancel"
+      />
+
+      <UnscheduleReasonModal
+        open={isUnscheduleReasonModalOpen}
+        onOpenChange={setIsUnscheduleReasonModalOpen}
+        onSave={handleUnscheduleReasonSave}
+      />
+
+      <BulkRescheduleModal
+        open={isBulkRescheduleModalOpen}
+        onOpenChange={setIsBulkRescheduleModalOpen}
+        onSave={handleBulkRescheduleSave}
       />
     </>
   );

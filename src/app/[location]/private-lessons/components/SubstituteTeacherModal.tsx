@@ -202,7 +202,6 @@ export function SubstituteTeacherModal({
             className="h-6 w-6 text-primary hover:text-primary"
             onClick={() => {
               // Placeholder – hook into conflict editing when available
-              console.log("Edit conflict for lesson:", row.original.id);
             }}
           >
             <Pencil className="h-3.5 w-3.5" />
