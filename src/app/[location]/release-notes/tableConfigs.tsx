@@ -29,7 +29,15 @@ const stripHtmlTags = (html: string): string => {
 };
 
 // Action cell component that uses router for navigation
-const ActionCell = ({ row, location }: { row: { original: ReleaseNoteRow; index: number }; location: string }) => {
+const ActionCell = ({ 
+  row, 
+  location, 
+  onDelete 
+}: { 
+  row: { original: ReleaseNoteRow; index: number }; 
+  location: string;
+  onDelete?: (id: number | string) => void;
+}) => {
   const router = useRouter();
   
   // Use id if available, otherwise use index-based identifier
@@ -47,8 +55,9 @@ const ActionCell = ({ row, location }: { row: { original: ReleaseNoteRow; index:
   
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implement delete functionality
-    console.log("Delete release note:", identifier);
+    if (onDelete && row.original.id) {
+      onDelete(row.original.id);
+    }
   };
   
   return (
@@ -89,7 +98,8 @@ const ActionCell = ({ row, location }: { row: { original: ReleaseNoteRow; index:
 export const getReleaseNoteColumns = (
   location: string,
   page: number = 1,
-  pageSize: number = 10
+  pageSize: number = 10,
+  onDelete?: (id: number | string) => void
 ): ColumnDef<ReleaseNoteRow>[] => [
   {
     accessorKey: "id",
@@ -227,7 +237,7 @@ export const getReleaseNoteColumns = (
     id: "actions",
     header: () => <span className="font-medium">Action</span>,
     cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => (
-      <ActionCell row={row} location={location} />
+      <ActionCell row={row} location={location} onDelete={onDelete} />
     ),
     enableSorting: false,
     size: 120,

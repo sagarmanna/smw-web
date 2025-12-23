@@ -9,8 +9,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import { getReleaseNoteById } from "../../releaseNotesListing.api";
-import { useAppDispatch } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { updateReleaseNote as updateReleaseNoteAction } from "../../releaseNotesListing.slice";
 import type { UpdateReleaseNoteRequest, ReleaseNoteRow } from "../../types";
 import { format, parse } from "date-fns";
@@ -49,48 +48,52 @@ export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientPro
   const [notes, setNotes] = useState("");
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
 
-  // Fetch existing release note data
+  // Get release notes from Redux store
+  const allRows = useAppSelector((state) => state.releaseNotesListing.allRows);
+  const isLoadingStore = useAppSelector((state) => state.releaseNotesListing.isLoading);
+
+  // Find the release note by ID from Redux store
+  const releaseNote = React.useMemo(() => {
+    if (!id) return null;
+    
+    // Try to parse as number first (ID from API is a number)
+    const numericId = typeof id === 'string' && !isNaN(Number(id)) && id.trim() !== '' 
+      ? Number(id) 
+      : (!isNaN(Number(id)) ? Number(id) : null);
+    
+    if (numericId !== null) {
+      // Find by numeric ID - use loose equality to handle any type coercion
+      const found = allRows.find(note => note.id != null && Number(note.id) === numericId);
+      return found || null;
+    } else if (typeof id === 'string' && id.startsWith('index-')) {
+      // Handle index-based identifier (fallback when ID is not available)
+      const index = parseInt(id.replace('index-', ''), 10);
+      if (!isNaN(index) && allRows[index]) {
+        return allRows[index];
+      }
+    }
+    
+    return null;
+  }, [allRows, id]);
+
+  // Populate form fields when release note is found
   useEffect(() => {
-    const fetchReleaseNote = async () => {
-      if (!id) {
-        setError("Invalid release note ID");
-        setIsFetching(false);
-        return;
-      }
+    if (releaseNote) {
+      setReleaseVersion(releaseNote.releaseVersion || "");
+      setSubject(releaseNote.subject);
+      setSummary(releaseNote.summary);
+      setNotes(releaseNote.notes);
+      
+      // Parse schedule date from "MMM dd, yyyy" format
+      const parsedDate = parseDisplayDate(releaseNote.scheduleDate);
+      setScheduleDate(parsedDate);
+    }
+  }, [releaseNote]);
 
-      setIsFetching(true);
-      setError(null);
-
-      try {
-        // Try to parse as number first, otherwise use as string (for index-based lookup)
-        const identifier = !isNaN(Number(id)) ? Number(id) : id;
-        const data = await getReleaseNoteById(location, identifier);
-        
-        if (data) {
-          setReleaseVersion(data.releaseVersion || "");
-          setSubject(data.subject);
-          setSummary(data.summary);
-          setNotes(data.notes);
-          
-          // Parse schedule date from "MMM dd, yyyy" format
-          const parsedDate = parseDisplayDate(data.scheduleDate);
-          setScheduleDate(parsedDate);
-        } else {
-          setError("Release note not found");
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load release note");
-      } finally {
-        setIsFetching(false);
-      }
-    };
-
-    fetchReleaseNote();
-  }, [location, id]);
+  const isLoadingData = isLoadingStore;
+  const error = releaseNote === null && !isLoadingData ? "Release note not found" : null;
 
   const breadcrumbItems = React.useMemo(
     () => [
@@ -192,7 +195,7 @@ export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientPro
     }
   };
 
-  if (isFetching) {
+  if (isLoadingData) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <LoadingAnimation size="xl" text="Loading release note..." className="text-center" />

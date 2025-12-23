@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { getReleaseNoteById } from "../releaseNotesListing.api";
-import type { ReleaseNoteRow } from "../types";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { deleteReleaseNote as deleteReleaseNoteAction } from "../releaseNotesListing.slice";
 import { DetailHeader } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import DOMPurify from "dompurify";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 
 interface ReleaseNoteDetailClientProps {
   location: string;
@@ -30,40 +31,38 @@ const sanitizeHtml = (html: string): string => {
 
 export function ReleaseNoteDetailClient({ location, id }: ReleaseNoteDetailClientProps) {
   const router = useRouter();
-  const [releaseNote, setReleaseNote] = React.useState<ReleaseNoteRow | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const dispatch = useAppDispatch();
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  
+  // Get release notes from Redux store
+  const allRows = useAppSelector((state) => state.releaseNotesListing.allRows);
+  const isLoadingStore = useAppSelector((state) => state.releaseNotesListing.isLoading);
 
-  // Fetch release note details
-  React.useEffect(() => {
-    const fetchReleaseNote = async () => {
-      if (!id) {
-        setError("Invalid release note identifier");
-        setIsLoading(false);
-        return;
+  // Find the release note by ID from Redux store
+  const releaseNote = React.useMemo(() => {
+    if (!id) return null;
+    
+    // Try to parse as number first (ID from API is a number)
+    const numericId = !isNaN(Number(id)) && id.trim() !== '' ? Number(id) : null;
+    
+    if (numericId !== null) {
+      // Find by numeric ID - use loose equality to handle any type coercion
+      const found = allRows.find(note => note.id != null && Number(note.id) === numericId);
+      return found || null;
+    } else if (typeof id === 'string' && id.startsWith('index-')) {
+      // Handle index-based identifier (fallback when ID is not available)
+      const index = parseInt(id.replace('index-', ''), 10);
+      if (!isNaN(index) && allRows[index]) {
+        return allRows[index];
       }
+    }
+    
+    return null;
+  }, [allRows, id]);
 
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // Try to parse as number first, otherwise use as string (for index-based lookup)
-        const identifier = !isNaN(Number(id)) ? Number(id) : id;
-        const data = await getReleaseNoteById(location, identifier);
-        if (data) {
-          setReleaseNote(data);
-        } else {
-          setError("Release note not found");
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load release note");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchReleaseNote();
-  }, [location, id]);
+  const isLoading = isLoadingStore;
+  const error = releaseNote === null && !isLoading ? "Release note not found" : null;
 
   const breadcrumbItems = React.useMemo(
     () => [
@@ -80,8 +79,27 @@ export function ReleaseNoteDetailClient({ location, id }: ReleaseNoteDetailClien
   };
 
   const handleDelete = () => {
-    // TODO: Implement delete functionality
-    toast.info("Delete functionality coming soon");
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!releaseNote || !releaseNote.id) {
+      toast.error("Unable to delete: Release note ID not found");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteReleaseNoteAction({ location, id: releaseNote.id })).unwrap();
+      toast.success("Release note deleted successfully");
+      router.push(`/${location}/release-notes`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete release note";
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+    }
   };
 
   if (isLoading) {
@@ -210,6 +228,17 @@ export function ReleaseNoteDetailClient({ location, id }: ReleaseNoteDetailClien
           </div>
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        title="Delete Release Note"
+        description="Are you sure you want to delete this release note? This action cannot be undone."
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+      />
     </>
   );
 }

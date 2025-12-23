@@ -4,6 +4,7 @@ import {
   getReleaseNotesList, 
   createReleaseNote as createReleaseNoteAPI,
   updateReleaseNote as updateReleaseNoteAPI,
+  deleteReleaseNote as deleteReleaseNoteAPI,
   ReleaseNoteRow 
 } from './releaseNotesListing.api';
 import type { CreateReleaseNoteRequest, UpdateReleaseNoteRequest, CreateReleaseNoteResponse, UpdateReleaseNoteResponse } from './types';
@@ -27,7 +28,7 @@ function formatDateForDisplay(dateString: string): string {
 
 /**
  * Helper function to transform API response data to ReleaseNoteRow format
- * For create operations, merges API response with request data since API returns minimal fields
+ * For create and update operations, merges API response with request data since API returns minimal fields
  * Follows DRY principle - used by both add and update operations
  */
 function transformReleaseNoteResponse(
@@ -36,26 +37,47 @@ function transformReleaseNoteResponse(
 ): ReleaseNoteRow | null {
   if (!responseData) return null;
   
-  // For create operations, API returns minimal data, so merge with request data
+  // If requestData is provided (for both create and update), API returns minimal data
+  // So we merge API response with request data
   if (requestData && 'summary' in requestData && 'notes' in requestData) {
-    // Use current date for createdDate since API doesn't return it for new items
-    // This ensures new items appear at the top when sorted by createdDate descending
-    const currentDate = new Date();
-    const createdDateFormatted = formatDateForDisplay(currentDate.toISOString());
+    // Determine if this is a create or update operation
+    // CreateReleaseNoteRequest has 'version' field, UpdateReleaseNoteRequest has 'releaseVersion' field
+    const isCreate = 'version' in requestData;
     
-    return {
-      id: responseData.id,
-      subject: responseData.subject,
-      summary: requestData.summary, // From request
-      notes: requestData.notes, // From request
-      scheduleDate: formatDateForDisplay(responseData.scheduleDate), // Format from API
-      createdDate: createdDateFormatted, // Use current date so new items appear at top
-      userPublicIdentity: "Current User", // Placeholder - will be updated when we fetch full data
-      releaseVersion: 'version' in requestData ? requestData.version : undefined,
-    };
+    if (isCreate) {
+      // For create operations, use current date for createdDate
+      const createRequest = requestData as CreateReleaseNoteRequest;
+      const currentDate = new Date();
+      const createdDateFormatted = formatDateForDisplay(currentDate.toISOString());
+      
+      return {
+        id: responseData.id,
+        subject: responseData.subject,
+        summary: createRequest.summary, // From request
+        notes: createRequest.notes, // From request
+        scheduleDate: formatDateForDisplay(responseData.scheduleDate), // Format from API
+        createdDate: createdDateFormatted, // Use current date so new items appear at top
+        userPublicIdentity: "Current User", // Placeholder - will be updated when we fetch full data
+        releaseVersion: createRequest.version,
+      };
+    } else {
+      // For update operations, merge with request data
+      // Note: createdDate and userPublicIdentity should be preserved from existing note in Redux
+      const updateRequest = requestData as UpdateReleaseNoteRequest;
+      return {
+        id: responseData.id,
+        subject: responseData.subject,
+        summary: updateRequest.summary, // From request
+        notes: updateRequest.notes, // From request
+        scheduleDate: formatDateForDisplay(responseData.scheduleDate), // Format from API
+        createdDate: '', // Will be set from existing note in Redux
+        userPublicIdentity: '', // Will be set from existing note in Redux
+        releaseVersion: updateRequest.releaseVersion,
+      };
+    }
   }
   
-  // For update operations, response should have all fields
+  // Fallback: if response has all fields (legacy support)
   if ('summary' in responseData && 'notes' in responseData && 'createdDate' in responseData && 'userPublicIdentity' in responseData) {
     return {
       id: responseData.id,
@@ -106,10 +128,22 @@ const initialState: ReleaseNotesListingState = {
 
 // Constants for API pagination
 const API_PAGE_LIMIT = 20; // Standard page size for fetching all data from API
+const MAX_PAGES_LIMIT = 1000; // Safety limit to prevent infinite loops (prevents fetching too many pages)
+const MAX_CONSECUTIVE_ERRORS = 3; // Maximum consecutive API errors before aborting fetch
 
-// Async thunk for fetching all release notes once on initial load
-// Called once in page.tsx during initial page load
-// Fetches all pages using proper pagination parameters from API response
+/**
+ * Async thunk for fetching all release notes once on initial load
+ * 
+ * IMPORTANT: This is called ONLY ONCE in page.tsx during initial page load.
+ * It fetches all pages sequentially and stores the complete dataset in Redux.
+ * 
+ * After initial load, all operations use Redux state:
+ * - Add/Update/Delete: Call API first, then update Redux state
+ * - No refetching needed as mutations update Redux directly
+ * 
+ * @param location - Location parameter for the API call
+ * @returns All release notes data to be stored in Redux
+ */
 export const fetchReleaseNotes = createAsyncThunk(
   'releaseNotesListing/fetchReleaseNotes',
   async (
@@ -121,12 +155,16 @@ export const fetchReleaseNotes = createAsyncThunk(
       let currentPage = 1;
       let totalPages = 1;
       let hasMorePages = true;
+      let consecutiveErrors = 0;
 
       // Fetch all pages until we have all data
-      while (hasMorePages) {
+      while (hasMorePages && currentPage <= MAX_PAGES_LIMIT) {
         const response = await getReleaseNotesList(location, { page: currentPage, limit: API_PAGE_LIMIT });
         
         if (response && response.success && response.data) {
+          // Reset error counter on successful fetch
+          consecutiveErrors = 0;
+          
           // Add the rows from this page to our collection
           allRows.push(...response.data.body);
           
@@ -138,15 +176,31 @@ export const fetchReleaseNotes = createAsyncThunk(
           hasMorePages = currentPage < totalPages;
           currentPage++;
         } else {
-          // If API call fails, stop fetching
-          hasMorePages = false;
-          if (currentPage === 1) {
-            // If first page fails, return empty result
+          // If API call fails, track consecutive errors
+          consecutiveErrors++;
+          
+          // If too many consecutive errors, abort to prevent infinite loop
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            console.warn(`Aborted fetching after ${MAX_CONSECUTIVE_ERRORS} consecutive errors`);
+            hasMorePages = false;
+          } else {
+            // Try next page (might be a temporary issue)
+            currentPage++;
+            hasMorePages = currentPage <= totalPages && currentPage <= MAX_PAGES_LIMIT;
+          }
+          
+          // If first page fails completely, return empty result
+          if (currentPage === 2 && allRows.length === 0) {
             return {
               rows: [],
             };
           }
         }
+      }
+
+      // Safety check: If we hit the max pages limit, log a warning
+      if (currentPage > MAX_PAGES_LIMIT) {
+        console.warn(`Reached maximum pages limit (${MAX_PAGES_LIMIT}). Some data may not be loaded.`);
       }
 
       return {
@@ -158,7 +212,16 @@ export const fetchReleaseNotes = createAsyncThunk(
   }
 );
 
-// Async thunk for creating a new release note
+/**
+ * Async thunk for creating a new release note
+ * 
+ * Flow: API call first → Transform response → Update Redux state
+ * No refetch needed as Redux is updated directly after successful API call
+ * 
+ * @param location - Location parameter for the API call
+ * @param data - Release note data to create
+ * @returns Transformed release note to be added to Redux state
+ */
 export const addReleaseNote = createAsyncThunk(
   'releaseNotesListing/addReleaseNote',
   async (
@@ -166,22 +229,24 @@ export const addReleaseNote = createAsyncThunk(
     { rejectWithValue, getState }
   ) => {
     try {
+      // Step 1: Call API first
       const response = await createReleaseNoteAPI(location, data);
       
       if (response && response.success && response.data) {
-        // Get user info from Redux state for userPublicIdentity
+        // Step 2: Get user info from Redux state for userPublicIdentity
         const state = getState() as { user: { userInfo: { fullName?: string } | null } };
         const userPublicIdentity = state.user?.userInfo?.fullName || "Current User";
         
-        // Transform API response, merging with request data since API returns minimal fields
+        // Step 3: Transform API response, merging with request data since API returns minimal fields
         const transformedNote = transformReleaseNoteResponse(response.data, data);
         if (!transformedNote) {
           return rejectWithValue('Failed to transform release note data');
         }
         
-        // Update userPublicIdentity from Redux state
+        // Step 4: Update userPublicIdentity from Redux state
         transformedNote.userPublicIdentity = userPublicIdentity;
         
+        // Step 5: Return transformed note (will be added to Redux in extraReducers)
         return transformedNote;
       }
 
@@ -192,21 +257,51 @@ export const addReleaseNote = createAsyncThunk(
   }
 );
 
-// Async thunk for updating an existing release note
+/**
+ * Async thunk for updating an existing release note
+ * 
+ * Flow: API call first → Transform response → Update Redux state
+ * No refetch needed as Redux is updated directly after successful API call
+ * 
+ * @param location - Location parameter for the API call
+ * @param id - Release note ID to update
+ * @param data - Release note data to update
+ * @returns Transformed release note to be updated in Redux state
+ */
 export const updateReleaseNote = createAsyncThunk(
   'releaseNotesListing/updateReleaseNote',
   async (
     { location, id, data }: { location: string; id: number | string; data: UpdateReleaseNoteRequest },
-    { rejectWithValue }
+    { rejectWithValue, getState }
   ) => {
     try {
+      // Step 1: Call API first
       const response = await updateReleaseNoteAPI(location, id, data);
       
       if (response && response.success && response.data) {
-        const transformedNote = transformReleaseNoteResponse(response.data);
+        // Step 2: Get the existing note from Redux state to preserve createdDate and userPublicIdentity
+        const state = getState() as { releaseNotesListing: { allRows: ReleaseNoteRow[] } };
+        const existingNote = state.releaseNotesListing.allRows.find(note => note.id === Number(id));
+        
+        // Step 3: Transform API response, merging with request data since API returns minimal fields
+        const transformedNote = transformReleaseNoteResponse(response.data, data);
+        
         if (!transformedNote) {
           return rejectWithValue('Failed to transform release note data');
         }
+
+        // Step 4: Preserve createdDate and userPublicIdentity from existing note if available
+        if (existingNote) {
+          transformedNote.createdDate = existingNote.createdDate;
+          transformedNote.userPublicIdentity = existingNote.userPublicIdentity;
+        }
+
+        // Step 5: Preserve releaseVersion from request data if it was provided
+        if (data.releaseVersion) {
+          transformedNote.releaseVersion = data.releaseVersion;
+        }
+
+        // Step 6: Return transformed note (will be updated in Redux in extraReducers)
         return transformedNote;
       }
 
@@ -217,20 +312,33 @@ export const updateReleaseNote = createAsyncThunk(
   }
 );
 
-// Async thunk for deleting a release note
+/**
+ * Async thunk for deleting a release note
+ * 
+ * Flow: API call first → Remove from Redux state
+ * No refetch needed as Redux is updated directly after successful API call
+ * 
+ * @param location - Location parameter for the API call
+ * @param id - Release note ID to delete
+ * @returns The deleted note ID to be removed from Redux state
+ */
 export const deleteReleaseNote = createAsyncThunk(
   'releaseNotesListing/deleteReleaseNote',
   async (
-    { location, id }: { location: string; id: number },
+    { location, id }: { location: string; id: number | string },
     { rejectWithValue }
   ) => {
     try {
-      // TODO: Implement API call to delete release note
-      // Endpoint: DELETE /admin/v2/${location}/release-notes/{id}
-      // For now, just return the id to remove from state
-      // When API is implemented, call it here first, then return id on success
-      void location; // Will be used when API is implemented
-      return id;
+      // Step 1: Call API first
+      const response = await deleteReleaseNoteAPI(location, id);
+      
+      if (response && response.success) {
+        // Step 2: Return the ID (will be removed from Redux in extraReducers)
+        const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+        return numericId;
+      }
+
+      return rejectWithValue('Failed to delete release note');
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to delete release note'));
     }
@@ -288,7 +396,8 @@ const releaseNotesListingSlice = createSlice({
     };
 
     builder
-      // Fetch all release notes (once on initial load)
+      // Fetch all release notes (once on initial load in page.tsx)
+      // This is the ONLY place where GET API is called
       .addCase(fetchReleaseNotes.pending, (state) => {
         state.isLoading = true;
         clearErrorOnPending(state);
@@ -302,29 +411,32 @@ const releaseNotesListingSlice = createSlice({
         state.isLoading = false;
         setErrorOnRejected(state, action);
       })
-      // Add new release note
+      // Add new release note (API called first, then Redux updated here)
       .addCase(addReleaseNote.pending, clearErrorOnPending)
       .addCase(addReleaseNote.fulfilled, (state, action) => {
         // Add the new note to the beginning of the array
+        // No refetch needed - Redux state is updated directly
         state.allRows.unshift(action.payload);
         // Reset to page 1 to show the newly added item at the top
         state.page = 1;
       })
       .addCase(addReleaseNote.rejected, setErrorOnRejected)
-      // Update existing release note
+      // Update existing release note (API called first, then Redux updated here)
       .addCase(updateReleaseNote.pending, clearErrorOnPending)
       .addCase(updateReleaseNote.fulfilled, (state, action) => {
         // Find and update the note in the array
+        // No refetch needed - Redux state is updated directly
         const index = state.allRows.findIndex(note => note.id === action.payload.id);
         if (index !== -1) {
           state.allRows[index] = action.payload;
         }
       })
       .addCase(updateReleaseNote.rejected, setErrorOnRejected)
-      // Delete release note
+      // Delete release note (API called first, then Redux updated here)
       .addCase(deleteReleaseNote.pending, clearErrorOnPending)
       .addCase(deleteReleaseNote.fulfilled, (state, action) => {
         // Remove the note from the array
+        // No refetch needed - Redux state is updated directly
         state.allRows = state.allRows.filter(note => note.id !== action.payload);
       })
       .addCase(deleteReleaseNote.rejected, setErrorOnRejected);

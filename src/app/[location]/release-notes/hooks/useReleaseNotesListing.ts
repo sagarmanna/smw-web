@@ -10,7 +10,6 @@ import {
   setColumnFilters,
   fetchReleaseNotes,
 } from "../releaseNotesListing.slice";
-import type { ReleaseNoteRow } from "../types";
 
 export function useReleaseNotesListing(location: string) {
   const dispatch = useAppDispatch();
@@ -121,8 +120,21 @@ export function useReleaseNotesListing(location: string) {
     dispatch(setPage(1));
   }, [dispatch]);
 
-  // fetchData function for retry/refresh functionality
-  // Re-fetches all data from API (useful for error retry or manual refresh)
+  /**
+   * Fetch data function - ONLY for error recovery and manual refresh
+   * 
+   * IMPORTANT: This function should NOT be called during normal operations.
+   * Data is fetched once on initial page load and stored in Redux.
+   * Mutations (add/update/delete) update Redux state directly after API calls.
+   * 
+   * Use cases:
+   * - Error retry: When initial fetch fails, user can retry
+   * - Manual refresh: Force refresh all data from server (rarely needed)
+   * 
+   * DO NOT use this for:
+   * - Refreshing after mutations (Redux is already updated)
+   * - Regular data updates (data comes from Redux state)
+   */
   const fetchData = React.useCallback(async () => {
     await dispatch(fetchReleaseNotes({ location }));
   }, [dispatch, location]);

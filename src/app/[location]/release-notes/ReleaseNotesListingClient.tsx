@@ -11,6 +11,10 @@ import { useReleaseNotesListing } from "./hooks/useReleaseNotesListing";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AddReleaseNoteModal } from "./components/modals/AddReleaseNoteModal";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { useAppDispatch } from "@/redux/hooks";
+import { deleteReleaseNote as deleteReleaseNoteAction } from "./releaseNotesListing.slice";
+import { toast } from "sonner";
 
 interface ReleaseNotesListingClientProps {
   location: string;
@@ -18,7 +22,13 @@ interface ReleaseNotesListingClientProps {
 
 export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClientProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [deleteModalState, setDeleteModalState] = React.useState<{
+    isOpen: boolean;
+    id: number | null;
+  }>({ isOpen: false, id: null });
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const {
     rows,
@@ -38,9 +48,32 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
     handleColumnFilterEnter,
   } = useReleaseNotesListing(location);
 
+  const handleDeleteClick = React.useCallback((id: number | string) => {
+    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+    if (!isNaN(numericId)) {
+      setDeleteModalState({ isOpen: true, id: numericId });
+    }
+  }, []);
+
+  const handleConfirmDelete = React.useCallback(async () => {
+    if (!deleteModalState.id) return;
+
+    setIsDeleting(true);
+    try {
+      await dispatch(deleteReleaseNoteAction({ location, id: deleteModalState.id })).unwrap();
+      toast.success("Release note deleted successfully");
+      setDeleteModalState({ isOpen: false, id: null });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete release note";
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [dispatch, location, deleteModalState.id]);
+
   const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
-    () => getReleaseNoteColumns(location, page, pageSize),
-    [location, page, pageSize]
+    () => getReleaseNoteColumns(location, page, pageSize, handleDeleteClick),
+    [location, page, pageSize, handleDeleteClick]
   );
 
   if (error) {
@@ -114,9 +147,21 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={() => {
-          // No need to fetch - Redux state is automatically updated after API call
+          // No need to refetch - Redux state is automatically updated after API call
+          // The addReleaseNote thunk calls POST API first, then updates Redux state
         }}
         location={location}
+      />
+
+      <DeleteConfirmationModal
+        open={deleteModalState.isOpen}
+        onOpenChange={(open) => setDeleteModalState({ isOpen: open, id: open ? deleteModalState.id : null })}
+        title="Delete Release Note"
+        description="Are you sure you want to delete this release note? This action cannot be undone."
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
       />
     </ReportPageLayout>
   );
