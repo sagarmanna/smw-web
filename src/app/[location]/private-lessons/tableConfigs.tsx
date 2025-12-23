@@ -2,6 +2,7 @@ import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { PrivateLessonRow } from "./privateLessonsListing.api";
 import { startOfDay, endOfDay } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Column definitions for private lessons table
 export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
@@ -179,4 +180,108 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
     meta: { printable: true, printableName: "Price" },
   } as ColumnDef<PrivateLessonRow>,
 ];
+
+// Export-specific columns for CSV, PDF, etc.
+export const exportColumns: ColumnDef<PrivateLessonRow>[] = [
+  {
+    accessorKey: "date",
+    header: "Date",
+    meta: { printable: true, printableName: "Date" },
+  },
+  {
+    accessorKey: "student",
+    header: "Student",
+    meta: { printable: true, printableName: "Student" },
+  },
+  {
+    accessorKey: "program",
+    header: "Program",
+    meta: { printable: true, printableName: "Program" },
+  },
+  {
+    accessorKey: "teacher",
+    header: "Teacher",
+    meta: { printable: true, printableName: "Teacher" },
+  },
+  {
+    accessorKey: "duration",
+    header: "Duration",
+    meta: { printable: true, printableName: "Duration" },
+  },
+  {
+    accessorKey: "online",
+    header: "Online",
+    meta: { printable: true, printableName: "Online" },
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { printable: true, printableName: "Status" },
+  },
+  {
+    accessorKey: "payment",
+    header: "Payment",
+    meta: { printable: true, printableName: "Payment" },
+  },
+  {
+    accessorKey: "price",
+    header: "Price",
+    meta: { printable: true, printableName: "Price" },
+  },
+];
+
+// Helper function to create checkbox column
+export function createCheckboxColumn(
+  rows: PrivateLessonRow[],
+  selectedRows: Set<number>,
+  setSelectedRows: React.Dispatch<React.SetStateAction<Set<number>>>,
+  clearSelection: () => void
+): ColumnDef<PrivateLessonRow> {
+  return {
+    id: "select",
+    header: () => {
+      const allSelected = rows.length > 0 && rows.every(row => selectedRows.has(row.id));
+      const someSelected = rows.some(row => selectedRows.has(row.id));
+
+      return (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={(checked: boolean) => {
+              if (checked) {
+                setSelectedRows(new Set(rows.map(row => row.id)));
+              } else {
+                clearSelection();
+              }
+            }}
+            aria-label="Select all"
+            className={someSelected && !allSelected ? "data-[state=indeterminate]:bg-primary" : ""}
+          />
+        </div>
+      );
+    },
+    cell: ({ row }) => (
+      <div onClick={(e) => e.stopPropagation()}>
+        <Checkbox
+          checked={selectedRows.has(row.original.id)}
+          onCheckedChange={(checked: boolean) => {
+            setSelectedRows(prev => {
+              const newSet = new Set(prev);
+              if (checked) {
+                newSet.add(row.original.id);
+              } else {
+                newSet.delete(row.original.id);
+              }
+              return newSet;
+            });
+          }}
+          aria-label="Select row"
+        />
+      </div>
+    ),
+    enableSorting: false,
+    enableHiding: false,
+    size: 40,
+  };
+}
 
