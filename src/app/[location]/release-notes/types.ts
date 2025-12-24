@@ -54,11 +54,12 @@ export interface ReleaseNotesListResponse {
  * Create Release Note Request - payload for creating a new release note
  * Matches API request body structure
  * Note: version is required and cannot be empty
+ * Notes is optional (can be empty or omitted)
  */
 export interface CreateReleaseNoteRequest {
   subject: string;
   summary: string;
-  notes: string;
+  notes?: string; // Optional - can be empty or omitted
   scheduleDate: string; // ISO date string format (yyyy-MM-dd)
   version: string; // Release version (required, cannot be empty)
 }
@@ -80,11 +81,12 @@ export interface CreateReleaseNoteResponse {
 
 /**
  * Update Release Note Request - payload for updating an existing release note
+ * Notes is optional (can be empty or omitted)
  */
 export interface UpdateReleaseNoteRequest {
   subject: string;
   summary: string;
-  notes: string;
+  notes?: string; // Optional - can be empty or omitted
   scheduleDate: string; // ISO date string format (yyyy-MM-dd)
   releaseVersion?: string;
 }

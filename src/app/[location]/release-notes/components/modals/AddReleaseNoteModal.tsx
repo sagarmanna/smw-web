@@ -119,10 +119,14 @@ export function AddReleaseNoteModal({ isOpen, onClose, onSuccess, location }: Ad
       const payload: CreateReleaseNoteRequest = {
         subject: subject.trim(),
         summary: summary,
-        notes: notes,
         scheduleDate: format(scheduleDate, "yyyy-MM-dd"),
         version: versionValue, // Required field - validated above
       };
+
+      // Only include notes if it has content (notes is optional)
+      if (notes && notes.trim()) {
+        payload.notes = notes;
+      }
 
       // Call Redux action which will call API and update state
       await dispatch(addReleaseNote({ location, data: payload })).unwrap();

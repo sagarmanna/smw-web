@@ -126,11 +126,7 @@ export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientPro
       newErrors.summary = "Summary cannot be blank.";
     }
 
-    // Check if notes has actual content (not just empty HTML tags)
-    const notesText = notes.replace(/<[^>]*>/g, "").trim();
-    if (!notesText) {
-      newErrors.notes = "Notes cannot be blank.";
-    }
+    // Notes is optional - no validation needed
 
     if (!scheduleDate) {
       newErrors.scheduleDate = "Schedule date is required.";
@@ -159,10 +155,14 @@ export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientPro
       const payload: UpdateReleaseNoteRequest = {
         subject: subject.trim(),
         summary: summary,
-        notes: notes,
         scheduleDate: format(scheduleDate, "yyyy-MM-dd"),
         releaseVersion: releaseVersion.trim() || undefined,
       };
+
+      // Only include notes if it has content (notes is optional)
+      if (notes && notes.trim()) {
+        payload.notes = notes;
+      }
 
       // Call Redux action which will call API and update state
       await dispatch(updateReleaseNoteAction({ location, id: identifier, data: payload })).unwrap();

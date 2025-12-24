@@ -39,7 +39,8 @@ function transformReleaseNoteResponse(
   
   // If requestData is provided (for both create and update), API returns minimal data
   // So we merge API response with request data
-  if (requestData && 'summary' in requestData && 'notes' in requestData) {
+  // Check for 'summary' in requestData (notes is optional, so we don't check for it)
+  if (requestData && 'summary' in requestData) {
     // Determine if this is a create or update operation
     // CreateReleaseNoteRequest has 'version' field, UpdateReleaseNoteRequest has 'releaseVersion' field
     const isCreate = 'version' in requestData;
@@ -54,7 +55,7 @@ function transformReleaseNoteResponse(
         id: responseData.id,
         subject: responseData.subject,
         summary: createRequest.summary, // From request
-        notes: createRequest.notes, // From request
+        notes: createRequest.notes || "", // From request (default to empty string if not provided)
         scheduleDate: formatDateForDisplay(responseData.scheduleDate), // Format from API
         createdDate: createdDateFormatted, // Use current date so new items appear at top
         userPublicIdentity: "Current User", // Placeholder - will be updated when we fetch full data
@@ -68,7 +69,7 @@ function transformReleaseNoteResponse(
         id: responseData.id,
         subject: responseData.subject,
         summary: updateRequest.summary, // From request
-        notes: updateRequest.notes, // From request
+        notes: updateRequest.notes || "", // From request (default to empty string if not provided)
         scheduleDate: formatDateForDisplay(responseData.scheduleDate), // Format from API
         createdDate: '', // Will be set from existing note in Redux
         userPublicIdentity: '', // Will be set from existing note in Redux
