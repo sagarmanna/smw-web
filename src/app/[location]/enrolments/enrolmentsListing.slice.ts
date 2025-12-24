@@ -1,9 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { getEnrolmentsList, EnrolmentRow, EnrolmentsQuery } from './enrolmentsListing.api';
 import { SortField } from './utils/sortEnrolments';
-import { mockEnrolmentData } from './mockData/enrolmentMockData';
-import { isValid, isWithinInterval } from 'date-fns';
-import { parseDateString } from '@/utils/dateUtils';
 
 interface EnrolmentsListingState {
   rows: EnrolmentRow[];
@@ -36,129 +33,6 @@ const initialState: EnrolmentsListingState = {
   activeFilter: undefined, // Default to showing all enrolments
 };
 
-// Helper function to filter and paginate mock data
-const filterAndPaginateMockData = (
-  data: EnrolmentRow[],
-  query: EnrolmentsQuery
-): { rows: EnrolmentRow[]; total: number; totalPages: number } => {
-  let filteredData = [...data];
-
-  // Apply filters
-  if (query.program) {
-    filteredData = filteredData.filter(row => 
-      row.program.toLowerCase().includes(query.program!.toLowerCase())
-    );
-  }
-  if (query.student) {
-    filteredData = filteredData.filter(row => 
-      row.student.toLowerCase().includes(query.student!.toLowerCase())
-    );
-  }
-  if (query.teacher) {
-    filteredData = filteredData.filter(row => 
-      row.teacher.toLowerCase().includes(query.teacher!.toLowerCase())
-    );
-  }
-  if (query.autoRenewal) {
-    // For dropdown filters, use exact match
-    filteredData = filteredData.filter(row => 
-      row.autoRenewal.toLowerCase() === query.autoRenewal!.toLowerCase()
-    );
-  }
-
-  // Apply Lessons Remaining filter (numeric search)
-  if (query.lessonsRemaining) {
-    const searchValue = query.lessonsRemaining.trim();
-    if (searchValue) {
-      // Try to parse as number for exact match, otherwise use string contains
-      const numericValue = Number(searchValue);
-      if (!isNaN(numericValue)) {
-        // Exact numeric match
-        filteredData = filteredData.filter(row => 
-          row.lessonsRemaining === numericValue
-        );
-      } else {
-        // String contains match (e.g., "12" matches "12", "120", "1234")
-        filteredData = filteredData.filter(row => 
-          String(row.lessonsRemaining ?? '').includes(searchValue)
-        );
-      }
-    }
-  }
-
-  // Apply Start Date range filter
-  if (query.startDateFrom && query.startDateTo) {
-    const fromDate = new Date(query.startDateFrom);
-    const toDate = new Date(query.startDateTo);
-    if (isValid(fromDate) && isValid(toDate)) {
-      filteredData = filteredData.filter(row => {
-        const rowStartDate = parseDateString(row.startDate);
-        if (!rowStartDate) return false;
-        try {
-          return isWithinInterval(rowStartDate, { start: fromDate, end: toDate });
-        } catch (error) {
-          return false;
-        }
-      });
-    }
-  }
-
-  // Apply End Date range filter
-  if (query.endDateFrom && query.endDateTo) {
-    const fromDate = new Date(query.endDateFrom);
-    const toDate = new Date(query.endDateTo);
-    if (isValid(fromDate) && isValid(toDate)) {
-      filteredData = filteredData.filter(row => {
-        const rowEndDate = parseDateString(row.endDate);
-        if (!rowEndDate) return false;
-        try {
-          return isWithinInterval(rowEndDate, { start: fromDate, end: toDate });
-        } catch (error) {
-          return false;
-        }
-      });
-    }
-  }
-
-  // Apply sorting
-  if (query.sort) {
-    filteredData.sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
-
-      if (query.sort === "lessonsRemaining") {
-        aValue = a.lessonsRemaining ?? 0;
-        bValue = b.lessonsRemaining ?? 0;
-      } else {
-        aValue = (a[query.sort as keyof EnrolmentRow] || "") as string;
-        bValue = (b[query.sort as keyof EnrolmentRow] || "") as string;
-      }
-
-      const comparison = typeof aValue === "number" && typeof bValue === "number"
-        ? aValue - bValue
-        : String(aValue).localeCompare(String(bValue));
-      
-      return query.order === "desc" ? -comparison : comparison;
-    });
-  }
-
-  const total = filteredData.length;
-  const page = query.page || 1;
-  const limit = query.limit || 20;
-  const totalPages = Math.ceil(total / limit);
-
-  // Apply pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-
-  return {
-    rows: paginatedData,
-    total,
-    totalPages,
-  };
-};
-
 // Async thunk for fetching enrolments list
 export const fetchEnrolments = createAsyncThunk(
   'enrolmentsListing/fetchEnrolments',
@@ -167,32 +41,22 @@ export const fetchEnrolments = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Use mock data for now
-      const result = filterAndPaginateMockData(mockEnrolmentData, query);
+      const response = await getEnrolmentsList(location, query);
       
+      if (response && response.success) {
+        return {
+          rows: response.data.body,
+          total: response.data.pagination.total,
+          totalPages: response.data.pagination.totalPages,
+        };
+      }
+
+      // Return empty result if API call fails or returns unsuccessful response
       return {
-        rows: result.rows,
-        total: result.total,
-        totalPages: result.totalPages,
+        rows: [],
+        total: 0,
+        totalPages: 0,
       };
-
-      // TODO: Uncomment when ready to use real API
-      // const response = await getEnrolmentsList(location, query);
-      // 
-      // if (response && response.success) {
-      //   return {
-      //     rows: response.data.body,
-      //     total: response.data.pagination.total,
-      //     totalPages: response.data.pagination.totalPages,
-      //   };
-      // }
-
-      // // Return empty result if API call fails or returns unsuccessful response
-      // return {
-      //   rows: [],
-      //   total: 0,
-      //   totalPages: 0,
-      // };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch enrolments');
     }
