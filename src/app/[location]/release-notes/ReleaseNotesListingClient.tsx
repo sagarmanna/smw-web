@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import type { ReleaseNoteRow } from "./types";
@@ -11,22 +10,32 @@ import { useReleaseNotesListing } from "./hooks/useReleaseNotesListing";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AddReleaseNoteModal } from "./components/modals/AddReleaseNoteModal";
+import { ViewReleaseNoteModal } from "./components/modals/ViewReleaseNoteModal";
+import { EditReleaseNoteModal } from "./components/modals/EditReleaseNoteModal";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { deleteReleaseNote as deleteReleaseNoteAction } from "./releaseNotesListing.slice";
 import { toast } from "sonner";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 
 interface ReleaseNotesListingClientProps {
   location: string;
 }
 
 export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClientProps) {
-  const router = useRouter();
   const dispatch = useAppDispatch();
   const { userInfo } = useAppSelector((state) => state.user);
   const isAdmin = userInfo?.role === 'administrator';
   
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [viewModalState, setViewModalState] = React.useState<{
+    isOpen: boolean;
+    id: number | string | null;
+  }>({ isOpen: false, id: null });
+  const [editModalState, setEditModalState] = React.useState<{
+    isOpen: boolean;
+    id: number | string | null;
+  }>({ isOpen: false, id: null });
   const [deleteModalState, setDeleteModalState] = React.useState<{
     isOpen: boolean;
     id: number | null;
@@ -50,6 +59,14 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
     handleColumnFilterChange,
     handleColumnFilterEnter,
   } = useReleaseNotesListing(location);
+
+  const handleViewClick = React.useCallback((id: number | string) => {
+    setViewModalState({ isOpen: true, id });
+  }, []);
+
+  const handleEditClick = React.useCallback((id: number | string) => {
+    setEditModalState({ isOpen: true, id });
+  }, []);
 
   const handleDeleteClick = React.useCallback((id: number | string) => {
     const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
@@ -77,9 +94,22 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
   }, [dispatch, location, deleteModalState.id, fetchData]);
 
   const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
-    () => getReleaseNoteColumns(location, page, pageSize, handleDeleteClick, isAdmin),
-    [location, page, pageSize, handleDeleteClick, isAdmin]
+    () => getReleaseNoteColumns(location, page, pageSize, handleViewClick, handleEditClick, handleDeleteClick, isAdmin),
+    [location, page, pageSize, handleViewClick, handleEditClick, handleDeleteClick, isAdmin]
   );
+
+  // Show full-page loading animation while fetching data
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[600px]">
+        <LoadingAnimation 
+          size="xl" 
+          text="Loading release notes data..." 
+          className="text-center"
+        />
+      </div>  
+    );
+  }
 
   if (error) {
     return (
@@ -158,6 +188,24 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
           fetchData();
         }}
         location={location}
+      />
+
+      <ViewReleaseNoteModal
+        isOpen={viewModalState.isOpen}
+        onClose={() => setViewModalState({ isOpen: false, id: null })}
+        location={location}
+        releaseNoteId={viewModalState.id}
+      />
+
+      <EditReleaseNoteModal
+        isOpen={editModalState.isOpen}
+        onClose={() => setEditModalState({ isOpen: false, id: null })}
+        onSuccess={() => {
+          // Refetch to get updated sorted list from server
+          fetchData();
+        }}
+        location={location}
+        releaseNoteId={editModalState.id}
       />
 
       <DeleteConfirmationModal

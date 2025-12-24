@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
-import { deleteReleaseNote as deleteReleaseNoteAction } from "../releaseNotesListing.slice";
+import { deleteReleaseNote as deleteReleaseNoteAction, fetchReleaseNotes } from "../releaseNotesListing.slice";
 import { DetailHeader } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -12,6 +12,8 @@ import DOMPurify from "dompurify";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { getReleaseNotesList } from "../releaseNotesListing.api";
+import type { ReleaseNoteRow } from "../types";
 
 interface ReleaseNoteDetailClientProps {
   location: string;
@@ -34,35 +36,90 @@ export function ReleaseNoteDetailClient({ location, id }: ReleaseNoteDetailClien
   const dispatch = useAppDispatch();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [releaseNote, setReleaseNote] = React.useState<ReleaseNoteRow | null>(null);
+  const [isLoadingNote, setIsLoadingNote] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   
   // Get release notes from Redux store
   const rows = useAppSelector((state) => state.releaseNotesListing.rows);
   const isLoadingStore = useAppSelector((state) => state.releaseNotesListing.isLoading);
 
-  // Find the release note by ID from Redux store
-  const releaseNote = React.useMemo(() => {
-    if (!id) return null;
-    
-    // Try to parse as number first (ID from API is a number)
+  // Fetch release note by ID if not found in Redux
+  React.useEffect(() => {
+    if (!id) {
+      setError("Release note ID is required");
+      return;
+    }
+
     const numericId = !isNaN(Number(id)) && id.trim() !== '' ? Number(id) : null;
-    
-    if (numericId !== null) {
-      // Find by numeric ID - use loose equality to handle any type coercion
+    if (!numericId) {
+      setError("Invalid release note ID");
+      return;
+    }
+
+    // First, try to find in Redux store
+    if (rows && Array.isArray(rows) && rows.length > 0) {
       const found = rows.find(note => note.id != null && Number(note.id) === numericId);
-      return found || null;
-    } else if (typeof id === 'string' && id.startsWith('index-')) {
-      // Handle index-based identifier (fallback when ID is not available)
-      const index = parseInt(id.replace('index-', ''), 10);
-      if (!isNaN(index) && rows[index]) {
-        return rows[index];
+      if (found) {
+        setReleaseNote(found);
+        setError(null);
+        return;
       }
     }
-    
-    return null;
-  }, [rows, id]);
 
-  const isLoading = isLoadingStore;
-  const error = releaseNote === null && !isLoading ? "Release note not found" : null;
+    // If not found in Redux, fetch from API
+    // We'll need to search through pages to find the note
+    const fetchNoteById = async () => {
+      setIsLoadingNote(true);
+      setError(null);
+      
+      try {
+        // Try fetching multiple pages to find the note
+        // Start with page 1 and go up to a reasonable limit
+        let foundNote: ReleaseNoteRow | null = null;
+        
+        for (let page = 1; page <= 10; page++) {
+          const response = await getReleaseNotesList(location, {
+            page,
+            limit: 50, // Larger limit to reduce API calls
+            sortBy: 'id',
+            sortDir: 'desc',
+          });
+
+          if (response && response.success && response.data) {
+            const note = response.data.body.find(
+              (note: ReleaseNoteRow) => note.id != null && Number(note.id) === numericId
+            );
+            
+            if (note) {
+              foundNote = note;
+              break;
+            }
+
+            // If we've reached the last page, stop searching
+            if (page >= response.data.pagination.totalPages) {
+              break;
+            }
+          }
+        }
+
+        if (foundNote) {
+          setReleaseNote(foundNote);
+        } else {
+          setError("Release note not found");
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to fetch release note";
+        setError(errorMessage);
+      } finally {
+        setIsLoadingNote(false);
+      }
+    };
+
+    fetchNoteById();
+  }, [id, location, rows]);
+
+  const isLoading = isLoadingStore || isLoadingNote;
 
   const breadcrumbItems = React.useMemo(
     () => [
