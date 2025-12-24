@@ -4,8 +4,10 @@ import * as React from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { 
   fetchEnrolment,
-  clearCache
+  clearCache,
+  updateEnrolment,
 } from "../[id]/enrolment-details.slice";
+import { toast } from "sonner";
 import {
   EnrolmentDetails,
   EnrolmentDiscounts,
@@ -28,6 +30,8 @@ type EnrolmentDetailsHookReturn = {
   history: EnrolmentHistory[];
   refresh: () => Promise<void>;
   forceRefresh: () => Promise<void>;
+  saveDetails: (details: Partial<EnrolmentDetails>) => Promise<boolean>;
+  savingDetails: boolean;
 };
 
 export function useEnrolmentDetails(
@@ -40,6 +44,7 @@ export function useEnrolmentDetails(
   const enrolmentInfo = useAppSelector((state) => state.enrolment?.enrolmentInfo);
   const loading = useAppSelector((state) => state.enrolment?.isLoading || false);
   const error = useAppSelector((state) => state.enrolment?.error);
+  const savingDetails = useAppSelector((state) => state.enrolment?.isSaving || false);
 
   // Transform Redux state to hook return format
   const details: EnrolmentDetails | null = React.useMemo(() => {
@@ -84,6 +89,28 @@ export function useEnrolmentDetails(
     dispatch(fetchEnrolment({ location, enrolmentId }));
   }, [dispatch, location, enrolmentId]);
 
+  const saveDetails = React.useCallback(
+    async (details: Partial<EnrolmentDetails>): Promise<boolean> => {
+      try {
+        await dispatch(
+          updateEnrolment({
+            location,
+            enrolmentId,
+            data: details,
+          })
+        ).unwrap();
+        
+        toast.success("Enrolment details updated successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to save enrolment details:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to update enrolment details. Please try again.");
+        return false;
+      }
+    },
+    [dispatch, location, enrolmentId]
+  );
+
   return {
     loading,
     error,
@@ -96,6 +123,8 @@ export function useEnrolmentDetails(
     history,
     refresh,
     forceRefresh,
+    saveDetails,
+    savingDetails,
   };
 }
 

@@ -38,6 +38,8 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     scheduleHistory,
     lessons,
     history,
+    saveDetails,
+    savingDetails,
   } = useEnrolmentDetails(location, enrolmentId);
 
   // All hooks must be called before any early returns
@@ -129,6 +131,8 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
             <div className="space-y-3 sm:space-y-4">
               <EnrolmentDetailsCard
                 details={details}
+                onSaveDetails={saveDetails}
+                savingDetails={savingDetails}
                 isLoading={isLoading}
                 location={location}
                 studentId={details?.studentId}
