@@ -12,7 +12,7 @@ import EmailStatementModal, {
 import { toast } from "sonner";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getPaymentReceiptData } from "@/app/[location]/customers/components/ReceiptPaymentModal/receipt-payment.api";
-import { getCustomerPayments } from "@/app/[location]/customers/customers.api";
+import { getCustomerPayments, getCustomerInfo } from "@/app/[location]/customers/customers.api";
 
 interface PaymentsReceivePaymentModalProps {
   open: boolean;
@@ -68,6 +68,8 @@ export function PaymentsReceivePaymentModal({
     }>;
   } | null>(null);
   const [customerName, setCustomerName] = React.useState<string>("");
+  const [customerPhone, setCustomerPhone] = React.useState<string>("");
+  const [customerEmail, setCustomerEmail] = React.useState<string>("");
   const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
   const [emailModalOverrides, setEmailModalOverrides] = React.useState<{
     subject?: string;
@@ -191,9 +193,36 @@ export function PaymentsReceivePaymentModal({
 
         // Store payment data
         setReceiptPaymentData(paymentData);
-        // TODO: Fetch customer name from customerId - for now using placeholder
-        setCustomerName(`Customer ${customerIdNum}`);
         onOpenChange(false);
+
+        // Fetch customer info for receipt
+        try {
+          const customerInfo = await getCustomerInfo(location, customerIdNum);
+          if (customerInfo?.success && customerInfo.data) {
+            const profile = customerInfo.data.profile;
+            const emails = customerInfo.data.email || [];
+            const phones = customerInfo.data.phone || [];
+            
+            // Get primary email/phone or first available
+            const primaryEmail = emails.find((e) => e.isPrimary) || emails[0];
+            const primaryPhone = phones.find((p) => p.isPrimary) || phones[0];
+            
+            setCustomerName(profile?.name || `Customer ${customerIdNum}`);
+            setCustomerPhone(primaryPhone?.number || "");
+            setCustomerEmail(primaryEmail?.email || "");
+          } else {
+            // Fallback if customer info fetch fails
+            setCustomerName(`Customer ${customerIdNum}`);
+            setCustomerPhone("");
+            setCustomerEmail("");
+          }
+        } catch (error) {
+          console.error("Error fetching customer info:", error);
+          // Fallback if customer info fetch fails
+          setCustomerName(`Customer ${customerIdNum}`);
+          setCustomerPhone("");
+          setCustomerEmail("");
+        }
 
         // Fetch receipt data from API after saving (similar to CustomerDetailClient)
         try {
@@ -514,11 +543,16 @@ export function PaymentsReceivePaymentModal({
             setIsReceiptModalOpen(open);
             if (!open) {
               setDirectPaymentReceiptData(null);
+              setCustomerName("");
+              setCustomerPhone("");
+              setCustomerEmail("");
             }
           }}
           location={location}
           customerId={Number(receiptPaymentData?.customer) || undefined}
           customerName={customerName}
+          customerPhone={customerPhone}
+          customerEmail={customerEmail}
           mode="new"
           directPaymentData={directPaymentReceiptData || transformedReceiptData}
           onEmail={handleEmail}
