@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { EnrolmentRow } from "./enrolmentsListing.api";
@@ -30,6 +31,7 @@ interface EnrolmentsListingClientProps {
 }
 
 export function EnrolmentsListingClient({ location }: EnrolmentsListingClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<"enrolments" | "schedule">("enrolments");
   const [selectedRows, setSelectedRows] = React.useState<Set<number>>(new Set());
   const [changeTeacherModalOpen, setChangeTeacherModalOpen] = React.useState(false);
@@ -326,6 +328,10 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
                 json: exportToJson,
               }}
               onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+              onRowClick={(row: EnrolmentRow) => {
+                router.push(`/${location}/enrolments/${row.id}`);
+              }}
+              rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             />
           ) : (
             <div />
@@ -338,7 +344,8 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
   ), [activeTab, isLoading, error, fetchData, addEnrolmentButton, rows, columns, customToolbarButtons, 
       activeFilter, handleServerSideFilterChange, handleColumnFilterChange, handleColumnFilterEnter, 
       columnFilters, sorting, setSorting, setPage, page, pageSize, total, totalPages, exportToHtml, 
-      exportToCsv, exportToText, exportToExcel, exportToPdf, exportToJson, setPageSize, scheduleTabContent]);
+      exportToCsv, exportToText, exportToExcel, exportToPdf, exportToJson, setPageSize, scheduleTabContent, 
+      router, location]);
 
   if (error) {
     return (
