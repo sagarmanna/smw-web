@@ -155,20 +155,24 @@ export async function updateReleaseNote(
     }
 
     // Prepare request body matching API structure
-    // API expects: subject, summary, notes, scheduleDate
+    // API expects: subject, summary, notes (optional), scheduleDate
     // Note: API may not accept releaseVersion in the request body, but we include it if provided
     const requestBody: {
       subject: string;
       summary: string;
-      notes: string;
+      notes?: string;
       scheduleDate: string;
       version?: string;
     } = {
       subject: data.subject,
       summary: data.summary,
-      notes: data.notes,
       scheduleDate: data.scheduleDate,
     };
+
+    // Only include notes if it has content (notes is optional)
+    if (data.notes && data.notes.trim()) {
+      requestBody.notes = data.notes;
+    }
 
     // Include version if provided (following createReleaseNote pattern)
     if (data.releaseVersion && typeof data.releaseVersion === 'string') {
@@ -265,13 +269,23 @@ export async function createReleaseNote(
       ? data.version.trim() 
       : "";
     
-    const requestBody = {
+    const requestBody: {
+      subject: string;
+      summary: string;
+      notes?: string;
+      scheduleDate: string;
+      version: string;
+    } = {
       subject: data.subject,
       summary: data.summary,
-      notes: data.notes,
       scheduleDate: data.scheduleDate,
       version: versionValue, // Always include as string (can be empty)
     };
+
+    // Only include notes if it has content
+    if (data.notes && data.notes.trim()) {
+      requestBody.notes = data.notes;
+    }
 
     // Make API call to create release note
     const response = await apiClient.post<CreateReleaseNoteResponse>(

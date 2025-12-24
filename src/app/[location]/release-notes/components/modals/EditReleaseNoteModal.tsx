@@ -154,11 +154,7 @@ export function EditReleaseNoteModal({ isOpen, onClose, onSuccess, location, rel
       newErrors.summary = "Summary cannot be blank.";
     }
 
-    // Check if notes has actual content (not just empty HTML tags)
-    const notesText = notes.replace(/<[^>]*>/g, "").trim();
-    if (!notesText) {
-      newErrors.notes = "Notes cannot be blank.";
-    }
+    // Notes is optional - no validation needed
 
     if (!scheduleDate) {
       newErrors.scheduleDate = "Schedule date is required.";
@@ -191,10 +187,14 @@ export function EditReleaseNoteModal({ isOpen, onClose, onSuccess, location, rel
       const payload: UpdateReleaseNoteRequest = {
         subject: subject.trim(),
         summary: summary,
-        notes: notes,
         scheduleDate: format(scheduleDate, "yyyy-MM-dd"),
         releaseVersion: releaseVersion.trim() || undefined,
       };
+
+      // Only include notes if it has content (notes is optional)
+      if (notes && notes.trim()) {
+        payload.notes = notes;
+      }
 
       // Call Redux action which will call API and update state
       await dispatch(updateReleaseNote({ location, id: releaseNote.id, data: payload })).unwrap();
@@ -315,7 +315,7 @@ export function EditReleaseNoteModal({ isOpen, onClose, onSuccess, location, rel
 
             <div className="space-y-2">
               <Label>
-                Notes <span className="text-red-500">*</span>
+                Notes
               </Label>
               <RichTextEditor
                 value={notes}
