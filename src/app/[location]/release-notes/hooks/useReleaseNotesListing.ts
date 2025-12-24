@@ -14,20 +14,21 @@ import {
 export function useReleaseNotesListing(location: string) {
   const dispatch = useAppDispatch();
 
-  // Get all data from Redux (fetched once in page.tsx)
-  const allRows = useAppSelector((state) => state.releaseNotesListing.allRows);
+  // Get data from Redux (server-side sorted and paginated)
+  const rows = useAppSelector((state) => state.releaseNotesListing.rows);
   const isLoading = useAppSelector((state) => state.releaseNotesListing.isLoading);
   const error = useAppSelector((state) => state.releaseNotesListing.error);
   const page = useAppSelector((state) => state.releaseNotesListing.page);
   const pageSize = useAppSelector((state) => state.releaseNotesListing.pageSize);
+  const total = useAppSelector((state) => state.releaseNotesListing.total);
+  const totalPages = useAppSelector((state) => state.releaseNotesListing.totalPages);
   const sortBy = useAppSelector((state) => state.releaseNotesListing.sortBy);
   const sortDir = useAppSelector((state) => state.releaseNotesListing.sortDir);
   const columnFilters = useAppSelector((state) => state.releaseNotesListing.columnFilters);
 
-  // Client-side filtering, sorting, and pagination
-  const { filteredRows, total, totalPages } = React.useMemo(() => {
-    // Step 1: Apply filters
-    let filtered = [...allRows];
+  // Client-side filtering only (sorting and pagination are server-side)
+  const filteredRows = React.useMemo(() => {
+    let filtered = [...rows];
     
     if (columnFilters.subject) {
       const subjectFilter = String(columnFilters.subject).toLowerCase();
@@ -36,43 +37,8 @@ export function useReleaseNotesListing(location: string) {
       );
     }
 
-    // Step 2: Apply sorting
-    if (sortBy) {
-      filtered.sort((a, b) => {
-        let aValue: string | number = "";
-        let bValue: string | number = "";
-
-        if (sortBy === "subject") {
-          aValue = a.subject.toLowerCase();
-          bValue = b.subject.toLowerCase();
-        } else if (sortBy === "scheduleDate") {
-          aValue = new Date(a.scheduleDate).getTime();
-          bValue = new Date(b.scheduleDate).getTime();
-        } else if (sortBy === "createdDate") {
-          aValue = new Date(a.createdDate).getTime();
-          bValue = new Date(b.createdDate).getTime();
-        }
-
-        if (sortDir === "desc") {
-          return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-        }
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      });
-    }
-
-    // Step 3: Calculate pagination
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize);
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedRows = filtered.slice(startIndex, endIndex);
-
-    return {
-      filteredRows: paginatedRows,
-      total,
-      totalPages,
-    };
-  }, [allRows, columnFilters, sortBy, sortDir, page, pageSize]);
+    return filtered;
+  }, [rows, columnFilters]);
 
   // Convert Redux sorting state to TanStack Table format
   const sorting: SortingState = React.useMemo(() => {
@@ -80,11 +46,34 @@ export function useReleaseNotesListing(location: string) {
     return [{ id: sortBy, desc: sortDir === 'desc' }];
   }, [sortBy, sortDir]);
 
+  // Track if this is the initial mount to avoid duplicate API calls
+  const isInitialMount = React.useRef(true);
+
+  // Trigger API call when sorting or pagination changes (but not on initial mount)
+  React.useEffect(() => {
+    // Skip on initial mount - page.tsx handles the initial fetch
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Only trigger API call if we have a valid sortBy
+    if (sortBy) {
+      dispatch(fetchReleaseNotes({ 
+        location, 
+        sortBy, 
+        sortDir, 
+        page, 
+        limit: pageSize 
+      }));
+    }
+  }, [dispatch, location, sortBy, sortDir, page, pageSize]);
+
   const handleSetSorting = React.useCallback(
     (newSorting: SortingState) => {
-      const sortBy = newSorting[0]?.id as "subject" | "scheduleDate" | "createdDate" | undefined;
-      const sortDir = newSorting[0]?.desc ? 'desc' : 'asc';
-      dispatch(setSorting({ sortBy, sortDir }));
+      const newSortBy = newSorting[0]?.id as "subject" | "scheduleDate" | "createdDate" | "id" | undefined;
+      const newSortDir = newSorting[0]?.desc ? 'desc' : 'asc';
+      dispatch(setSorting({ sortBy: newSortBy, sortDir: newSortDir }));
     },
     [dispatch]
   );
@@ -121,23 +110,21 @@ export function useReleaseNotesListing(location: string) {
   }, [dispatch]);
 
   /**
-   * Fetch data function - ONLY for error recovery and manual refresh
-   * 
-   * IMPORTANT: This function should NOT be called during normal operations.
-   * Data is fetched once on initial page load and stored in Redux.
-   * Mutations (add/update/delete) update Redux state directly after API calls.
+   * Fetch data function - for error recovery and manual refresh
    * 
    * Use cases:
-   * - Error retry: When initial fetch fails, user can retry
-   * - Manual refresh: Force refresh all data from server (rarely needed)
-   * 
-   * DO NOT use this for:
-   * - Refreshing after mutations (Redux is already updated)
-   * - Regular data updates (data comes from Redux state)
+   * - Error retry: When fetch fails, user can retry
+   * - Manual refresh: Force refresh data from server
    */
   const fetchData = React.useCallback(async () => {
-    await dispatch(fetchReleaseNotes({ location }));
-  }, [dispatch, location]);
+    await dispatch(fetchReleaseNotes({ 
+      location,
+      sortBy: sortBy || 'createdDate',
+      sortDir: sortDir || 'desc',
+      page,
+      limit: pageSize
+    }));
+  }, [dispatch, location, sortBy, sortDir, page, pageSize]);
 
   return {
     rows: filteredRows,

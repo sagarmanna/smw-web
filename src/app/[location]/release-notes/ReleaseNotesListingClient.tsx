@@ -66,13 +66,15 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
       await dispatch(deleteReleaseNoteAction({ location, id: deleteModalState.id })).unwrap();
       toast.success("Release note deleted successfully");
       setDeleteModalState({ isOpen: false, id: null });
+      // Refetch to get updated sorted list from server
+      fetchData();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to delete release note";
       toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
     }
-  }, [dispatch, location, deleteModalState.id]);
+  }, [dispatch, location, deleteModalState.id, fetchData]);
 
   const columns = React.useMemo<ColumnDef<ReleaseNoteRow>[]>(
     () => getReleaseNoteColumns(location, page, pageSize, handleDeleteClick, isAdmin),
@@ -152,8 +154,8 @@ export function ReleaseNotesListingClient({ location }: ReleaseNotesListingClien
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={() => {
-          // No need to refetch - Redux state is automatically updated after API call
-          // The addReleaseNote thunk calls POST API first, then updates Redux state
+          // Refetch to get updated sorted list from server
+          fetchData();
         }}
         location={location}
       />
