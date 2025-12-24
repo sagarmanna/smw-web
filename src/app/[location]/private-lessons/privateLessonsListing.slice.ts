@@ -4,7 +4,7 @@ import { SortField } from './utils/sortPrivateLessons';
 import { mockPrivateLessonData } from './mockData/privateLessonMockData';
 import { isValid, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { parseDateString } from '@/utils/dateUtils';
-import { serializeColumnFilters } from './utils/dateRangeSerialization';
+import { serializeColumnFilters } from '@/utils/dateRangeSerialization';
 
 // Discount form data interface - shared between components and Redux
 export interface LessonDiscountData {

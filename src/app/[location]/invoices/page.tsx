@@ -1,10 +1,13 @@
-import React from 'react'
+import { InvoicesListingClient } from "./InvoicesListingClient";
 
-export default function InvoicesPage() {
-  return (
-    <div>
-      <h1>Invoices</h1>
-    </div>
-  )
+interface InvoicesPageProps {
+  params: Promise<{
+    location: string;
+  }>;
+}
+
+export default async function InvoicesPage({ params }: InvoicesPageProps) {
+  const { location } = await params;
+  return <InvoicesListingClient location={location} />;
 }
 
