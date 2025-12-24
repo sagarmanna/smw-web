@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import DOMPurify from "dompurify";
 import type { ReleaseNoteRow } from "./types";
@@ -28,29 +27,33 @@ const stripHtmlTags = (html: string): string => {
   return html.replace(/<[^>]*>/g, '').trim();
 };
 
-// Action cell component that uses router for navigation
+// Action cell component that uses callbacks for modals
 const ActionCell = ({ 
   row, 
-  location, 
+  onView,
+  onEdit,
   onDelete 
 }: { 
   row: { original: ReleaseNoteRow; index: number }; 
-  location: string;
+  onView?: (id: number | string) => void;
+  onEdit?: (id: number | string) => void;
   onDelete?: (id: number | string) => void;
 }) => {
-  const router = useRouter();
-  
   // Use id if available, otherwise use index-based identifier
   const identifier = row.original.id ?? `index-${row.index}`;
   
   const handleView = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/${location}/release-notes/${identifier}`);
+    if (onView && row.original.id) {
+      onView(row.original.id);
+    }
   };
   
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/${location}/release-notes/${identifier}/edit`);
+    if (onEdit && row.original.id) {
+      onEdit(row.original.id);
+    }
   };
   
   const handleDelete = (e: React.MouseEvent) => {
@@ -61,7 +64,7 @@ const ActionCell = ({
   };
   
   return (
-    <div className="flex items-center justify-center gap-1.5 h-full">
+    <div className="flex flex-col items-center justify-center gap-1.5 h-full py-2">
       <Button
         variant="ghost"
         size="icon"
@@ -71,35 +74,41 @@ const ActionCell = ({
       >
         <Eye className="h-4 w-4 text-muted-foreground hover:text-primary" />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 hover:bg-primary/10"
-        onClick={handleEdit}
-        title="Edit"
-      >
-        <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-        onClick={handleDelete}
-        title="Delete"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {onEdit && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 hover:bg-primary/10"
+          onClick={handleEdit}
+          title="Edit"
+        >
+          <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+        </Button>
+      )}
+      {onDelete && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={handleDelete}
+          title="Delete"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 };
 
 // Column definitions for release notes table
 // Accepts location parameter for navigation and pagination info for row numbering
-// isAdmin parameter controls whether action column is shown
+// isAdmin parameter controls whether edit/delete actions are shown
 export const getReleaseNoteColumns = (
   location: string,
   page: number = 1,
   pageSize: number = 10,
+  onView?: (id: number | string) => void,
+  onEdit?: (id: number | string) => void,
   onDelete?: (id: number | string) => void,
   isAdmin: boolean = false
 ): ColumnDef<ReleaseNoteRow>[] => {
@@ -163,7 +172,7 @@ export const getReleaseNoteColumns = (
       );
     },
     enableSorting: false,
-    size: 320,
+    size: 450,
     meta: { printable: true, printableName: "Summary" },
   },
   {
@@ -191,7 +200,7 @@ export const getReleaseNoteColumns = (
       );
     },
     enableSorting: false,
-    size: 650,
+    size: 900,
     meta: { printable: true, printableName: "Notes" },
   },
   {
@@ -238,22 +247,25 @@ export const getReleaseNoteColumns = (
   },
   ];
 
-  // Add action column only for admins
-  if (isAdmin) {
-    baseColumns.push({
-      id: "actions",
-      header: () => <span className="font-medium">Action</span>,
-      cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => (
-        <ActionCell row={row} location={location} onDelete={onDelete} />
-      ),
-      enableSorting: false,
-      size: 120,
-    });
-  }
+  // Add action column for all users (view only for non-admin, view/edit/delete for admin)
+  baseColumns.push({
+    id: "actions",
+    header: () => <span className="font-medium">Action</span>,
+    cell: ({ row }: { row: { original: ReleaseNoteRow; index: number } }) => (
+      <ActionCell 
+        row={row} 
+        onView={onView}
+        onEdit={isAdmin ? onEdit : undefined}
+        onDelete={isAdmin ? onDelete : undefined}
+      />
+    ),
+    enableSorting: false,
+    size: 60,
+  });
 
   return baseColumns;
 };
 
 // Default export for backward compatibility
-export const releaseNoteColumns = getReleaseNoteColumns('', 1, 10, undefined, false);
+export const releaseNoteColumns = getReleaseNoteColumns('', 1, 10, undefined, undefined, undefined, false);
 

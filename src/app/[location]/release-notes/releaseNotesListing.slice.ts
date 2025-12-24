@@ -103,24 +103,28 @@ function handleApiError(error: unknown, defaultMessage: string): string {
 }
 
 interface ReleaseNotesListingState {
-  // All release notes data (fetched once on initial load)
-  allRows: ReleaseNoteRow[];
+  // Release notes data (fetched from API with server-side sorting/pagination)
+  rows: ReleaseNoteRow[];
   isLoading: boolean;
   error: string | null;
-  // Client-side pagination, sorting, and filtering
+  // Server-side pagination and sorting
   page: number;
   pageSize: number;
-  sortBy?: "subject" | "scheduleDate" | "createdDate";
+  total: number;
+  totalPages: number;
+  sortBy?: "subject" | "scheduleDate" | "createdDate" | "id";
   sortDir: 'asc' | 'desc';
   columnFilters: Record<string, unknown>;
 }
 
 const initialState: ReleaseNotesListingState = {
-  allRows: [], // Store all data here
+  rows: [], // Store current page data here
   isLoading: false,
   error: null,
   page: 1,
   pageSize: 10,
+  total: 0,
+  totalPages: 1,
   sortBy: 'createdDate', // Default to sorting by created date
   sortDir: 'desc',
   columnFilters: {},
@@ -132,79 +136,61 @@ const MAX_PAGES_LIMIT = 1000; // Safety limit to prevent infinite loops (prevent
 const MAX_CONSECUTIVE_ERRORS = 3; // Maximum consecutive API errors before aborting fetch
 
 /**
- * Async thunk for fetching all release notes once on initial load
+ * Async thunk for fetching release notes with server-side sorting and pagination
  * 
- * IMPORTANT: This is called ONLY ONCE in page.tsx during initial page load.
- * It fetches all pages sequentially and stores the complete dataset in Redux.
+ * IMPORTANT: This is called:
+ * - Once on initial page load in page.tsx
+ * - When sorting changes (triggers API call with new sort parameters)
+ * - When pagination changes (triggers API call with new page)
  * 
  * After initial load, all operations use Redux state:
  * - Add/Update/Delete: Call API first, then update Redux state
- * - No refetching needed as mutations update Redux directly
+ * - Sorting/Pagination: Triggers API call to get sorted/paginated data
  * 
  * @param location - Location parameter for the API call
- * @returns All release notes data to be stored in Redux
+ * @param sortBy - Sort column (subject, scheduleDate, createdDate, id)
+ * @param sortDir - Sort direction (asc, desc)
+ * @param page - Page number (default: 1)
+ * @param limit - Page size (default: API_PAGE_LIMIT)
+ * @returns Release notes data to be stored in Redux
  */
 export const fetchReleaseNotes = createAsyncThunk(
   'releaseNotesListing/fetchReleaseNotes',
   async (
-    { location }: { location: string },
+    { 
+      location, 
+      sortBy = 'id', 
+      sortDir = 'desc',
+      page = 1,
+      limit = API_PAGE_LIMIT
+    }: { 
+      location: string;
+      sortBy?: "subject" | "scheduleDate" | "createdDate" | "id";
+      sortDir?: 'asc' | 'desc';
+      page?: number;
+      limit?: number;
+    },
     { rejectWithValue }
   ) => {
     try {
-      const allRows: ReleaseNoteRow[] = [];
-      let currentPage = 1;
-      let totalPages = 1;
-      let hasMorePages = true;
-      let consecutiveErrors = 0;
-
-      // Fetch all pages until we have all data
-      while (hasMorePages && currentPage <= MAX_PAGES_LIMIT) {
-        const response = await getReleaseNotesList(location, { page: currentPage, limit: API_PAGE_LIMIT });
+      // Fetch single page with sorting from API
+      const response = await getReleaseNotesList(location, { 
+        page, 
+        limit,
+        sortBy,
+        sortDir
+      });
         
-        if (response && response.success && response.data) {
-          // Reset error counter on successful fetch
-          consecutiveErrors = 0;
-          
-          // Add the rows from this page to our collection
-          allRows.push(...response.data.body);
-          
-          // Get pagination info from API response
-          const pagination = response.data.pagination;
-          totalPages = pagination.totalPages;
-          
-          // Check if there are more pages to fetch
-          hasMorePages = currentPage < totalPages;
-          currentPage++;
-        } else {
-          // If API call fails, track consecutive errors
-          consecutiveErrors++;
-          
-          // If too many consecutive errors, abort to prevent infinite loop
-          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-            console.warn(`Aborted fetching after ${MAX_CONSECUTIVE_ERRORS} consecutive errors`);
-            hasMorePages = false;
-          } else {
-            // Try next page (might be a temporary issue)
-            currentPage++;
-            hasMorePages = currentPage <= totalPages && currentPage <= MAX_PAGES_LIMIT;
-          }
-          
-          // If first page fails completely, return empty result
-          if (currentPage === 2 && allRows.length === 0) {
-            return {
-              rows: [],
-            };
-          }
-        }
-      }
-
-      // Safety check: If we hit the max pages limit, log a warning
-      if (currentPage > MAX_PAGES_LIMIT) {
-        console.warn(`Reached maximum pages limit (${MAX_PAGES_LIMIT}). Some data may not be loaded.`);
+      if (response && response.success && response.data) {
+        return {
+          rows: response.data.body,
+          pagination: response.data.pagination,
+        };
       }
 
       return {
-        rows: allRows,
+        rows: [],
+        pagination: { page: 1, limit, total: 0, totalPages: 1 },
       };
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch release notes'));
@@ -280,8 +266,8 @@ export const updateReleaseNote = createAsyncThunk(
       
       if (response && response.success && response.data) {
         // Step 2: Get the existing note from Redux state to preserve createdDate and userPublicIdentity
-        const state = getState() as { releaseNotesListing: { allRows: ReleaseNoteRow[] } };
-        const existingNote = state.releaseNotesListing.allRows.find(note => note.id === Number(id));
+        const state = getState() as { releaseNotesListing: { rows: ReleaseNoteRow[] } };
+        const existingNote = state.releaseNotesListing.rows.find(note => note.id === Number(id));
         
         // Step 3: Transform API response, merging with request data since API returns minimal fields
         const transformedNote = transformReleaseNoteResponse(response.data, data);
@@ -356,7 +342,7 @@ const releaseNotesListingSlice = createSlice({
       state.pageSize = action.payload;
       state.page = 1; // Reset to first page when page size changes
     },
-    setSorting: (state, action: PayloadAction<{ sortBy?: "subject" | "scheduleDate" | "createdDate"; sortDir: 'asc' | 'desc' }>) => {
+    setSorting: (state, action: PayloadAction<{ sortBy?: "subject" | "scheduleDate" | "createdDate" | "id"; sortDir: 'asc' | 'desc' }>) => {
       state.sortBy = action.payload.sortBy;
       state.sortDir = action.payload.sortDir;
       state.page = 1; // Reset to first page when sorting changes
@@ -369,16 +355,20 @@ const releaseNotesListingSlice = createSlice({
       state.error = null;
     },
     clearReleaseNotes: (state) => {
-      state.allRows = [];
+      state.rows = [];
       state.page = 1;
+      state.total = 0;
+      state.totalPages = 1;
     },
     resetReleaseNotesState: (state) => {
       // Reset all state to initial values (useful when location changes)
-      state.allRows = [];
+      state.rows = [];
       state.isLoading = false;
       state.error = null;
       state.page = 1;
       state.pageSize = 10;
+      state.total = 0;
+      state.totalPages = 1;
       state.sortBy = 'createdDate';
       state.sortDir = 'desc';
       state.columnFilters = {};
@@ -396,48 +386,45 @@ const releaseNotesListingSlice = createSlice({
     };
 
     builder
-      // Fetch all release notes (once on initial load in page.tsx)
-      // This is the ONLY place where GET API is called
+      // Fetch release notes (called on initial load and when sorting/pagination changes)
       .addCase(fetchReleaseNotes.pending, (state) => {
         state.isLoading = true;
         clearErrorOnPending(state);
       })
       .addCase(fetchReleaseNotes.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.allRows = action.payload.rows;
+        state.rows = action.payload.rows;
+        if (action.payload.pagination) {
+          state.total = action.payload.pagination.total;
+          state.totalPages = action.payload.pagination.totalPages;
+        }
         state.error = null;
       })
       .addCase(fetchReleaseNotes.rejected, (state, action) => {
         state.isLoading = false;
         setErrorOnRejected(state, action);
       })
-      // Add new release note (API called first, then Redux updated here)
+      // Add new release note (API called first, then refetch to get sorted list)
       .addCase(addReleaseNote.pending, clearErrorOnPending)
-      .addCase(addReleaseNote.fulfilled, (state, action) => {
-        // Add the new note to the beginning of the array
-        // No refetch needed - Redux state is updated directly
-        state.allRows.unshift(action.payload);
-        // Reset to page 1 to show the newly added item at the top
+      .addCase(addReleaseNote.fulfilled, (state) => {
+        // Reset to page 1 - will trigger refetch in page.tsx useEffect
         state.page = 1;
       })
       .addCase(addReleaseNote.rejected, setErrorOnRejected)
-      // Update existing release note (API called first, then Redux updated here)
+      // Update existing release note (API called first, then refetch to get sorted list)
       .addCase(updateReleaseNote.pending, clearErrorOnPending)
-      .addCase(updateReleaseNote.fulfilled, (state, action) => {
-        // Find and update the note in the array
-        // No refetch needed - Redux state is updated directly
-        const index = state.allRows.findIndex(note => note.id === action.payload.id);
-        if (index !== -1) {
-          state.allRows[index] = action.payload;
-        }
+      .addCase(updateReleaseNote.fulfilled, (state) => {
+        // Refetch will be triggered by page.tsx useEffect when needed
       })
       .addCase(updateReleaseNote.rejected, setErrorOnRejected)
-      // Delete release note (API called first, then Redux updated here)
+      // Delete release note (API called first, then refetch to get updated list)
       .addCase(deleteReleaseNote.pending, clearErrorOnPending)
-      .addCase(deleteReleaseNote.fulfilled, (state, action) => {
-        // Remove the note from the array
-        // No refetch needed - Redux state is updated directly
-        state.allRows = state.allRows.filter(note => note.id !== action.payload);
+      .addCase(deleteReleaseNote.fulfilled, (state) => {
+        // Refetch will be triggered by page.tsx useEffect when needed
+        // If current page becomes empty, reset to page 1
+        if (state.rows.length === 1 && state.page > 1) {
+          state.page = state.page - 1;
+        }
       })
       .addCase(deleteReleaseNote.rejected, setErrorOnRejected);
   },

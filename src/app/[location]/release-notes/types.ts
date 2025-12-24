@@ -24,8 +24,8 @@ export interface ReleaseNotesQuery {
   page?: number;
   limit?: number;
   subject?: string;
-  sort?: "subject" | "scheduleDate" | "createdDate";
-  order?: "asc" | "desc";
+  sortBy?: "subject" | "scheduleDate" | "createdDate" | "id";
+  sortDir?: "asc" | "desc";
 }
 
 /**

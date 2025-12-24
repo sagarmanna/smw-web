@@ -75,6 +75,10 @@ export async function getReleaseNotesList(
       params.append("limit", query.limit.toString());
     }
 
+    // Add sorting parameters
+    if (query.sortBy) params.append("sortBy", query.sortBy);
+    if (query.sortDir) params.append("sortDir", query.sortDir);
+
     // Make API call to the release notes endpoint
     const response = await apiClient.get<ReleaseNotesListResponse>(
       `/admin/v2/${location}/release-notes`,

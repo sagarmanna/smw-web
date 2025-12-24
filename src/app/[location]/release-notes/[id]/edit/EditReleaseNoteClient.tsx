@@ -51,7 +51,7 @@ export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientPro
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Get release notes from Redux store
-  const allRows = useAppSelector((state) => state.releaseNotesListing.allRows);
+  const rows = useAppSelector((state) => state.releaseNotesListing.rows);
   const isLoadingStore = useAppSelector((state) => state.releaseNotesListing.isLoading);
 
   // Find the release note by ID from Redux store
@@ -65,18 +65,18 @@ export function EditReleaseNoteClient({ location, id }: EditReleaseNoteClientPro
     
     if (numericId !== null) {
       // Find by numeric ID - use loose equality to handle any type coercion
-      const found = allRows.find(note => note.id != null && Number(note.id) === numericId);
+      const found = rows.find(note => note.id != null && Number(note.id) === numericId);
       return found || null;
     } else if (typeof id === 'string' && id.startsWith('index-')) {
       // Handle index-based identifier (fallback when ID is not available)
       const index = parseInt(id.replace('index-', ''), 10);
-      if (!isNaN(index) && allRows[index]) {
-        return allRows[index];
+      if (!isNaN(index) && rows[index]) {
+        return rows[index];
       }
     }
     
     return null;
-  }, [allRows, id]);
+  }, [rows, id]);
 
   // Populate form fields when release note is found
   useEffect(() => {
