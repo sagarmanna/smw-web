@@ -151,3 +151,71 @@ export function transformApiResponse(apiResponse: EnrolmentDetailsApiResponse): 
   };
 }
 
+// Update Enrolment Details API Types
+export interface UpdateEnrolmentDetailsRequest {
+  rate?: string;
+  autoRenewal?: string;
+  online?: boolean;
+}
+
+export interface UpdateEnrolmentDetailsResponse {
+  success: boolean;
+  data: {
+    id: number;
+    rate: string;
+    autoRenewal: string;
+    online: boolean;
+  };
+  message?: string;
+}
+
+/**
+ * Updates enrolment details via PUT API
+ * For now, returns mock response
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param data - The enrolment data to update
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function updateEnrolmentDetails(
+  location: string,
+  enrolmentId: string,
+  data: UpdateEnrolmentDetailsRequest
+): Promise<UpdateEnrolmentDetailsResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await apiClient.put<UpdateEnrolmentDetailsResponse>(
+    //   `/admin/v2/${location}/enrolment/${enrolmentId}/details`,
+    //   data
+    // );
+    // return response.data;
+    
+    // For now, return mock response - simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      data: {
+        id: Number(enrolmentId) || 0,
+        rate: data.rate || "$20.00",
+        autoRenewal: data.autoRenewal || "Disabled",
+        online: data.online !== undefined ? data.online : false,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error updating enrolment details:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(enrolmentId) || 0,
+        rate: "",
+        autoRenewal: "Disabled",
+        online: false,
+      },
+      message: apiError.response?.data?.message || "Failed to update enrolment details",
+    };
+  }
+}
+
