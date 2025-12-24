@@ -97,6 +97,22 @@ export function useEnrolmentListing(location: string) {
       query.endDateTo = format(endDateFilter.to, 'yyyy-MM-dd');
     }
 
+    // Map activeFilter to showActive, showInActive, showAll
+    if (currentActiveFilter === "active") {
+      query.showActive = true;
+      query.showInActive = false;
+      query.showAll = false;
+    } else if (currentActiveFilter === "inactive") {
+      query.showActive = false;
+      query.showInActive = true;
+      query.showAll = false;
+    } else {
+      // Show all when activeFilter is undefined
+      query.showActive = false;
+      query.showInActive = false;
+      query.showAll = false;
+    }
+
     return query;
   }, []);
 

@@ -19,12 +19,15 @@ export interface EnrolmentsQuery {
   program?: string;
   student?: string;
   teacher?: string;
-  autoRenewal?: string;
+  autoRenewal?: string; // "all" | "Enabled" | "Disabled"
   lessonsRemaining?: string; // Filter for lessons remaining (can be number as string)
   startDateFrom?: string; // Date range filter for start date
   startDateTo?: string;
   endDateFrom?: string; // Date range filter for end date
   endDateTo?: string;
+  showActive?: boolean;
+  showInActive?: boolean;
+  showAll?: boolean;
   sort?: "program" | "student" | "teacher" | "startDate" | "endDate" | "lessonsRemaining";
   order?: "asc" | "desc";
 }
@@ -83,7 +86,36 @@ const buildEnrolmentsQueryParams = (query: EnrolmentsQuery): URLSearchParams => 
   if (query.program) params.append("program", query.program);
   if (query.student) params.append("student", query.student);
   if (query.teacher) params.append("teacher", query.teacher);
-  if (query.autoRenewal) params.append("autoRenewal", query.autoRenewal);
+  
+  // Map autoRenewal to isAutoRenewal (handle "all" value)
+  if (query.autoRenewal) {
+    const isAutoRenewalValue = query.autoRenewal === "all" ? "all" : query.autoRenewal;
+    params.append("isAutoRenewal", isAutoRenewalValue);
+  } else {
+    params.append("isAutoRenewal", "all");
+  }
+  
+  // Map date range filters
+  if (query.startDateFrom) params.append("startFrom", query.startDateFrom);
+  if (query.startDateTo) params.append("startTo", query.startDateTo);
+  if (query.endDateFrom) params.append("endFrom", query.endDateFrom);
+  if (query.endDateTo) params.append("endTo", query.endDateTo);
+  
+  // Lessons remaining filter
+  if (query.lessonsRemaining !== undefined) {
+    params.append("lessonsRemaining", query.lessonsRemaining);
+  }
+  
+  // Show filters (active/inactive/all) - always include with default "false"
+  const showFilters: Array<{ key: string; value: boolean | undefined }> = [
+    { key: "showActive", value: query.showActive },
+    { key: "showInActive", value: query.showInActive },
+    { key: "showAll", value: query.showAll },
+  ];
+  showFilters.forEach(({ key, value }) => {
+    params.append(key, (value !== undefined ? value : false).toString());
+  });
+  
   if (query.sort) {
     params.append("sort", query.sort);
     // Always include order when sort is provided
@@ -113,7 +145,7 @@ export async function getEnrolmentsList(
     const params = buildEnrolmentsQueryParams(query);
 
     const response = await apiClient.get<EnrolmentsListApiResponse>(
-      `/admin/v2/${location}/user/list/enrolment`,
+      `/admin/v2/${location}/enrolments/list`,
       { params }
     );
 
