@@ -37,14 +37,14 @@ export default function ReleaseNotesPage({ params }: ReleaseNotesPageProps) {
     prevLocationRef.current = location;
     
     /**
-     * Fetch release notes on initial page load with default sorting
+     * Fetch release notes on initial page load with default sorting by schedule date
      * 
      * After initial load, sorting changes will trigger API calls via the hook.
      * Pagination changes will also trigger API calls via the hook.
      */
     dispatch(fetchReleaseNotes({ 
       location,
-      sortBy: 'createdDate',
+      sortBy: 'scheduleDate',
       sortDir: 'desc',
       page: 1,
       limit: 10

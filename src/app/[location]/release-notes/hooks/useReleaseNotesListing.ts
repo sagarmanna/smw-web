@@ -119,7 +119,7 @@ export function useReleaseNotesListing(location: string) {
   const fetchData = React.useCallback(async () => {
     await dispatch(fetchReleaseNotes({ 
       location,
-      sortBy: sortBy || 'createdDate',
+      sortBy: sortBy || 'scheduleDate',
       sortDir: sortDir || 'desc',
       page,
       limit: pageSize

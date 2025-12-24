@@ -126,7 +126,7 @@ const initialState: ReleaseNotesListingState = {
   pageSize: 10,
   total: 0,
   totalPages: 1,
-  sortBy: 'createdDate', // Default to sorting by created date
+  sortBy: 'scheduleDate', // Default to sorting by schedule date
   sortDir: 'desc',
   columnFilters: {},
 };
@@ -370,7 +370,7 @@ const releaseNotesListingSlice = createSlice({
       state.pageSize = 10;
       state.total = 0;
       state.totalPages = 1;
-      state.sortBy = 'createdDate';
+      state.sortBy = 'scheduleDate';
       state.sortDir = 'desc';
       state.columnFilters = {};
     },
