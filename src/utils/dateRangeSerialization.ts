@@ -4,6 +4,8 @@
  * Redux requires all state to be serializable (plain objects, arrays, primitives).
  * Date objects are not serializable, so we convert them to ISO strings when storing
  * in Redux and convert back to Date objects when needed by components.
+ * 
+ * Shared utility used across multiple modules (invoices, private-lessons, etc.)
  */
 
 export interface DateRange {
@@ -94,5 +96,4 @@ export function deserializeColumnFilters(filters: Record<string, unknown>): Reco
   
   return deserialized;
 }
-
 

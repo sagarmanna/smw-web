@@ -5,15 +5,15 @@ import { SortingState } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { 
-  fetchPrivateLessons, 
+  fetchInvoices, 
   setPage, 
   setPageSize, 
   setSorting, 
   setColumnFilters,
   setActiveFilter
-} from "../privateLessonsListing.slice";
-import { PrivateLessonsQuery } from "../privateLessonsListing.api";
-import { SortField } from "../utils/sortPrivateLessons";
+} from "../invoicesListing.slice";
+import { InvoicesQuery } from "../invoicesListing.api";
+import { SortField } from "../invoicesListing.slice";
 import { 
   isDateRange, 
   serializeDateRange, 
@@ -21,21 +21,21 @@ import {
   deserializeColumnFilters 
 } from "@/utils/dateRangeSerialization";
 
-export function usePrivateLessonsListing(location: string) {
+export function useInvoiceListing(location: string) {
   const dispatch = useAppDispatch();
 
   // Get state from Redux
-  const rows = useAppSelector((state) => state.privateLessonsListing.rows);
-  const total = useAppSelector((state) => state.privateLessonsListing.total);
-  const totalPages = useAppSelector((state) => state.privateLessonsListing.totalPages);
-  const isLoading = useAppSelector((state) => state.privateLessonsListing.isLoading);
-  const error = useAppSelector((state) => state.privateLessonsListing.error);
-  const page = useAppSelector((state) => state.privateLessonsListing.page);
-  const pageSize = useAppSelector((state) => state.privateLessonsListing.pageSize);
-  const sortBy = useAppSelector((state) => state.privateLessonsListing.sortBy);
-  const sortDir = useAppSelector((state) => state.privateLessonsListing.sortDir);
-  const columnFilters = useAppSelector((state) => state.privateLessonsListing.columnFilters);
-  const activeFilter = useAppSelector((state) => state.privateLessonsListing.activeFilter);
+  const rows = useAppSelector((state) => state.invoicesListing.rows);
+  const total = useAppSelector((state) => state.invoicesListing.total);
+  const totalPages = useAppSelector((state) => state.invoicesListing.totalPages);
+  const isLoading = useAppSelector((state) => state.invoicesListing.isLoading);
+  const error = useAppSelector((state) => state.invoicesListing.error);
+  const page = useAppSelector((state) => state.invoicesListing.page);
+  const pageSize = useAppSelector((state) => state.invoicesListing.pageSize);
+  const sortBy = useAppSelector((state) => state.invoicesListing.sortBy);
+  const sortDir = useAppSelector((state) => state.invoicesListing.sortDir);
+  const columnFilters = useAppSelector((state) => state.invoicesListing.columnFilters);
+  const activeFilter = useAppSelector((state) => state.invoicesListing.activeFilter);
 
   // Convert Redux sorting state to TanStack Table format
   const sorting: SortingState = React.useMemo(() => {
@@ -68,16 +68,15 @@ export function usePrivateLessonsListing(location: string) {
     currentActiveFilter: string | undefined,
     currentSortBy: SortField | undefined,
     currentSortDir: 'asc' | 'desc'
-  ): PrivateLessonsQuery => {
-    const query: PrivateLessonsQuery = {
+  ): InvoicesQuery => {
+    const query: InvoicesQuery = {
       page: currentPage,
       limit: currentPageSize,
+      number: currentColumnFilters.number as string | undefined,
+      customer: currentColumnFilters.customer as string | undefined,
       student: currentColumnFilters.student as string | undefined,
-      program: currentColumnFilters.program as string | undefined,
-      teacher: currentColumnFilters.teacher as string | undefined,
-      online: currentColumnFilters.online as string | undefined,
+      phone: currentColumnFilters.phone as string | undefined,
       status: currentColumnFilters.status as string | undefined,
-      payment: currentColumnFilters.payment as string | undefined,
       sort: currentSortBy,
       order: currentSortDir,
     };
@@ -99,7 +98,7 @@ export function usePrivateLessonsListing(location: string) {
   // Fetch data function - stable reference, reads latest values from refs/state
   const fetchData = React.useCallback(async () => {
     const query = buildQuery(page, pageSize, columnFilters, activeFilter, sortBy, sortDir);
-    await dispatch(fetchPrivateLessons({ location, query }));
+    await dispatch(fetchInvoices({ location, query }));
   }, [dispatch, location, page, pageSize, columnFilters, activeFilter, sortBy, sortDir, buildQuery]);
 
   // Keep columnFilters ref in sync
@@ -141,7 +140,7 @@ export function usePrivateLessonsListing(location: string) {
     if (!hasInitialFetchedRef.current || paramsChanged) {
       hasInitialFetchedRef.current = true;
       const query = buildQuery(page, pageSize, columnFiltersRef.current, activeFilter, sortBy, sortDir);
-      dispatch(fetchPrivateLessons({ location, query }));
+      dispatch(fetchInvoices({ location, query }));
     }
   }, [location, page, pageSize, activeFilter, sortBy, sortDir, dispatch, buildQuery]);
 
@@ -190,14 +189,14 @@ export function usePrivateLessonsListing(location: string) {
       
       // Check if it's a date range filter
       const isDateRangeFilter = columnKey === 'date';
-      // Immediately trigger API call for dropdown filters (online, status, payment), date range filters, or when clearing any filter
-      const isDropdownFilter = columnKey === 'online' || columnKey === 'status' || columnKey === 'payment';
-      const isClearing = filterValue === null || filterValue === '' || filterValue === undefined || filterValue === "all";
+      // Immediately trigger API call for dropdown filters (status), date range filters, or when clearing any filter
+      const isDropdownFilter = columnKey === 'status';
+      const isClearing = filterValue === null || filterValue === '' || filterValue === undefined || filterValue === "all" || filterValue === "All";
       
       if (isDropdownFilter || isDateRangeFilter || isClearing) {
         // Trigger API call immediately for dropdown selections, date range selections, or when clearing filters
         const query = buildQuery(1, pageSize, newFilters, activeFilter, sortBy, sortDir);
-        dispatch(fetchPrivateLessons({ location, query }));
+        dispatch(fetchInvoices({ location, query }));
         // Also reset page to 1 when filtering
         dispatch(setPage(1));
       }
@@ -208,7 +207,7 @@ export function usePrivateLessonsListing(location: string) {
   const handleColumnFilterEnter = React.useCallback(() => {
     // Immediately fetch when Enter is pressed, bypassing debounce
     const query = buildQuery(1, pageSize, columnFiltersRef.current, activeFilter, sortBy, sortDir);
-    dispatch(fetchPrivateLessons({ location, query }));
+    dispatch(fetchInvoices({ location, query }));
     dispatch(setPage(1));
   }, [dispatch, location, pageSize, activeFilter, sortBy, sortDir, buildQuery]);
 
