@@ -85,7 +85,28 @@ export default function Header({ onMenuClick }: HeaderProps) {
     
     // If modern feature, proceed with normal location change
     changeLocation(newLocation);
+    
     // Update the URL path
+    // For detail pages (with ID), redirect to listing page instead
+    // Example: /admin/v2/training-location/teachers/6199 -> /admin/v2/new-location/teachers
+    const pathSegments = pathname.split('/').filter(Boolean);
+    const locationIndex = pathSegments.findIndex(seg => seg === location);
+    
+    if (locationIndex !== -1 && locationIndex < pathSegments.length - 1) {
+      // Check if there's an ID segment after the location (detail page)
+      // Path structure: admin, v2, location, feature, [id, ...]
+      const featureIndex = locationIndex + 1;
+      const idIndex = locationIndex + 2;
+      
+      if (pathSegments[idIndex] && !isNaN(Number(pathSegments[idIndex]))) {
+        // This is a detail page with an ID - redirect to listing page
+        const newPath = `/${pathSegments.slice(0, locationIndex).join('/')}/${newLocation}/${pathSegments[featureIndex]}`;
+        router.push(newPath);
+        return;
+      }
+    }
+    
+    // For listing pages or other pages, just replace the location
     const newPath = pathname.replace(`/${location}`, `/${newLocation}`);
     router.push(newPath);
   };
