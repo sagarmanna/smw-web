@@ -339,3 +339,67 @@ export async function permanentScheduleChange(
   }
 }
 
+// Update Enrolment Discounts API Types
+export interface UpdateEnrolmentDiscountsRequest {
+  pfDiscount?: string;
+  multipleEnrolDiscount?: string;
+}
+
+export interface UpdateEnrolmentDiscountsResponse {
+  success: boolean;
+  data: {
+    id: number;
+    pfDiscount: string;
+    multipleEnrolDiscount: string;
+  };
+  message?: string;
+}
+
+/**
+ * Updates enrolment discounts via PUT API
+ * For now, returns mock response
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param data - The discount data to update
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function updateEnrolmentDiscounts(
+  location: string,
+  enrolmentId: string,
+  data: UpdateEnrolmentDiscountsRequest
+): Promise<UpdateEnrolmentDiscountsResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await apiClient.put<UpdateEnrolmentDiscountsResponse>(
+    //   `/admin/v2/${location}/enrolment/${enrolmentId}/discounts`,
+    //   data
+    // );
+    // return response.data;
+    
+    // For now, return mock response - simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      data: {
+        id: Number(enrolmentId) || 0,
+        pfDiscount: data.pfDiscount || "Not set",
+        multipleEnrolDiscount: data.multipleEnrolDiscount || "Not set",
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error updating enrolment discounts:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(enrolmentId) || 0,
+        pfDiscount: "Not set",
+        multipleEnrolDiscount: "Not set",
+      },
+      message: apiError.response?.data?.message || "Failed to update enrolment discounts",
+    };
+  }
+}
+

@@ -6,8 +6,9 @@ import {
   updateEnrolmentDetails,
   adjustEnrolmentEndDate,
   permanentScheduleChange,
+  updateEnrolmentDiscounts,
 } from './enrolment-details.api';
-import type { EnrolmentInfo, EnrolmentDetails, EnrolmentSchedule } from '../types';
+import type { EnrolmentInfo, EnrolmentDetails, EnrolmentSchedule, EnrolmentDiscounts } from '../types';
 
 interface EnrolmentState {
   enrolmentInfo: EnrolmentInfo | null;
@@ -115,6 +116,32 @@ export const changeSchedulePermanently = createAsyncThunk(
       return { data: result.data };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to perform permanent schedule change');
+    }
+  }
+);
+
+// Async thunk for updating enrolment discounts
+export const updateDiscounts = createAsyncThunk(
+  'enrolment/updateDiscounts',
+  async (
+    { location, enrolmentId, data }: { location: string; enrolmentId: string; data: Partial<EnrolmentDiscounts> },
+    { rejectWithValue }
+  ) => {
+    try {
+      const updateData = {
+        pfDiscount: data.pfDiscount,
+        multipleEnrolDiscount: data.multipleEnrolDiscount,
+      };
+      
+      const result = await updateEnrolmentDiscounts(location, enrolmentId, updateData);
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update enrolment discounts');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update enrolment discounts');
     }
   }
 );
@@ -245,6 +272,28 @@ const enrolmentSlice = createSlice({
         state.error = null;
       })
       .addCase(changeSchedulePermanently.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Update discounts reducers
+      .addCase(updateDiscounts.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updateDiscounts.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update discounts from API response
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          state.enrolmentInfo.discounts = {
+            ...state.enrolmentInfo.discounts,
+            pfDiscount: data.pfDiscount,
+            multipleEnrolDiscount: data.multipleEnrolDiscount,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(updateDiscounts.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       });

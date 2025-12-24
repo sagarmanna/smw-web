@@ -42,6 +42,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     savingDetails,
     adjustScheduleEndDate,
     changeSchedulePermanently,
+    saveDiscounts,
   } = useEnrolmentDetails(location, enrolmentId);
 
   // All hooks must be called before any early returns
@@ -143,6 +144,10 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
 
               <EnrolmentDiscountsCard
                 discounts={discounts}
+                schedule={schedule}
+                details={details}
+                onSaveDiscounts={saveDiscounts}
+                savingDiscounts={savingDetails}
                 isLoading={isLoading}
               />
 

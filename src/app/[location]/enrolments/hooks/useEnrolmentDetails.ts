@@ -8,6 +8,7 @@ import {
   updateEnrolment,
   adjustEndDate,
   changeSchedulePermanently as changeSchedulePermanentlyThunk,
+  updateDiscounts,
 } from "../[id]/enrolment-details.slice";
 import { toast } from "sonner";
 import {
@@ -36,6 +37,7 @@ type EnrolmentDetailsHookReturn = {
   savingDetails: boolean;
   adjustScheduleEndDate: (endDate: string) => Promise<boolean>;
   changeSchedulePermanently: (startingDate: string) => Promise<boolean>;
+  saveDiscounts: (discounts: Partial<EnrolmentDiscounts>) => Promise<boolean>;
 };
 
 export function useEnrolmentDetails(
@@ -160,6 +162,29 @@ export function useEnrolmentDetails(
     [dispatch, location, enrolmentId]
   );
 
+  const saveDiscounts = React.useCallback(
+    async (discounts: Partial<EnrolmentDiscounts>): Promise<boolean> => {
+      try {
+        await dispatch(
+          updateDiscounts({
+            location,
+            enrolmentId,
+            data: discounts,
+          })
+        ).unwrap();
+        
+        toast.success("Discounts updated successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to save discounts:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to update discounts. Please try again.";
+        toast.error(errorMessage);
+        return false;
+      }
+    },
+    [dispatch, location, enrolmentId]
+  );
+
   return {
     loading,
     error,
@@ -176,6 +201,7 @@ export function useEnrolmentDetails(
     savingDetails,
     adjustScheduleEndDate,
     changeSchedulePermanently,
+    saveDiscounts,
   };
 }
 
