@@ -219,3 +219,187 @@ export async function updateEnrolmentDetails(
   }
 }
 
+// Adjust End Date API Types
+export interface AdjustEndDateRequest {
+  endDate: string;
+}
+
+export interface AdjustEndDateResponse {
+  success: boolean;
+  data: {
+    id: number;
+    endDate: string;
+  };
+  message?: string;
+}
+
+/**
+ * Adjusts enrolment end date via PUT API
+ * For now, returns mock response
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param data - The end date data
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function adjustEnrolmentEndDate(
+  location: string,
+  enrolmentId: string,
+  data: AdjustEndDateRequest
+): Promise<AdjustEndDateResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await apiClient.put<AdjustEndDateResponse>(
+    //   `/admin/v2/${location}/enrolment/${enrolmentId}/schedule/end-date`,
+    //   data
+    // );
+    // return response.data;
+    
+    // For now, return mock response - simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      data: {
+        id: Number(enrolmentId) || 0,
+        endDate: data.endDate,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error adjusting enrolment end date:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(enrolmentId) || 0,
+        endDate: "",
+      },
+      message: apiError.response?.data?.message || "Failed to adjust enrolment end date",
+    };
+  }
+}
+
+// Permanent Schedule Change API Types
+export interface PermanentScheduleChangeRequest {
+  startingDate: string;
+}
+
+export interface PermanentScheduleChangeResponse {
+  success: boolean;
+  data: {
+    id: number;
+    startingDate: string;
+  };
+  message?: string;
+}
+
+/**
+ * Performs permanent schedule change via PUT API
+ * For now, returns mock response
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param data - The starting date data
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function permanentScheduleChange(
+  location: string,
+  enrolmentId: string,
+  data: PermanentScheduleChangeRequest
+): Promise<PermanentScheduleChangeResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await apiClient.put<PermanentScheduleChangeResponse>(
+    //   `/admin/v2/${location}/enrolment/${enrolmentId}/schedule/permanent-change`,
+    //   data
+    // );
+    // return response.data;
+    
+    // For now, return mock response - simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      data: {
+        id: Number(enrolmentId) || 0,
+        startingDate: data.startingDate,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error performing permanent schedule change:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(enrolmentId) || 0,
+        startingDate: "",
+      },
+      message: apiError.response?.data?.message || "Failed to perform permanent schedule change",
+    };
+  }
+}
+
+// Update Enrolment Discounts API Types
+export interface UpdateEnrolmentDiscountsRequest {
+  pfDiscount?: string;
+  multipleEnrolDiscount?: string;
+}
+
+export interface UpdateEnrolmentDiscountsResponse {
+  success: boolean;
+  data: {
+    id: number;
+    pfDiscount: string;
+    multipleEnrolDiscount: string;
+  };
+  message?: string;
+}
+
+/**
+ * Updates enrolment discounts via PUT API
+ * For now, returns mock response
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param data - The discount data to update
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function updateEnrolmentDiscounts(
+  location: string,
+  enrolmentId: string,
+  data: UpdateEnrolmentDiscountsRequest
+): Promise<UpdateEnrolmentDiscountsResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await apiClient.put<UpdateEnrolmentDiscountsResponse>(
+    //   `/admin/v2/${location}/enrolment/${enrolmentId}/discounts`,
+    //   data
+    // );
+    // return response.data;
+    
+    // For now, return mock response - simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      data: {
+        id: Number(enrolmentId) || 0,
+        pfDiscount: data.pfDiscount || "Not set",
+        multipleEnrolDiscount: data.multipleEnrolDiscount || "Not set",
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error updating enrolment discounts:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(enrolmentId) || 0,
+        pfDiscount: "Not set",
+        multipleEnrolDiscount: "Not set",
+      },
+      message: apiError.response?.data?.message || "Failed to update enrolment discounts",
+    };
+  }
+}
+
