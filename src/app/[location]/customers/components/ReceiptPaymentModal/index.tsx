@@ -25,6 +25,7 @@ import {
   generatePaymentReceiptEmail,
   PaymentReceiptData,
 } from "@/components/PrintReceiptPayment";
+import { getCustomerInfo } from "../../customers.api";
 import type {
   PaymentMethod,
   AllocationRow,
@@ -320,6 +321,11 @@ export function PaymentReceiptModalContainer(
   const [groupLessons, setGroupLessons] = React.useState<PaymentGroupLesson[]>([]);
   const [invoices, setInvoices] = React.useState<PaymentInvoice[]>([]);
   const [locationDetails, setLocationDetails] = React.useState<LocationDetails | null>(null);
+  const [fetchedCustomerInfo, setFetchedCustomerInfo] = React.useState<{
+    name?: string;
+    phone?: string;
+    email?: string;
+  } | null>(null);
 
   // Edit state
   const [editDate, setEditDate] = React.useState<Date>(new Date());
@@ -374,6 +380,37 @@ export function PaymentReceiptModalContainer(
     }
     return null;
   }, [location]);
+
+  // Fetch customer info if not provided
+  const fetchCustomerInfoIfNeeded = React.useCallback(async (userId?: number) => {
+    // Only fetch if customer info is missing and we have a userId
+    if ((!customerName && !customerPhone && !customerEmail) && userId) {
+      try {
+        const customerData = await getCustomerInfo(location, userId);
+        if (customerData?.success && customerData.data) {
+          const profile = customerData.data.profile;
+          const emails = customerData.data.email || [];
+          const phones = customerData.data.phone || [];
+          
+          // Get primary email/phone or first available
+          const primaryEmail = emails.find((e) => e.isPrimary) || emails[0];
+          const primaryPhone = phones.find((p) => p.isPrimary) || phones[0];
+          
+          setFetchedCustomerInfo({
+            name: profile?.name || customerName,
+            phone: primaryPhone?.number || customerPhone,
+            email: primaryEmail?.email || customerEmail,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching customer info:", error);
+        // Don't set fetchedCustomerInfo on error, will use props or empty
+      }
+    } else {
+      // Clear fetched info if we have props
+      setFetchedCustomerInfo(null);
+    }
+  }, [location, customerName, customerPhone, customerEmail]);
 
   // Fetch payment receipt data
   const fetchPaymentReceiptData = React.useCallback(async () => {
@@ -459,7 +496,7 @@ export function PaymentReceiptModalContainer(
     // Original API fetch for "view" mode
     if (!location || !paymentId) return;
 
-    setIsLoading(true);
+      setIsLoading(true);
     try {
       const data = await getPaymentReceiptData(location, paymentId);
 
@@ -468,6 +505,11 @@ export function PaymentReceiptModalContainer(
       setGroupLessons(data.groupLessons.data);
       setInvoices(data.invoices.data);
       setPaymentMethods(data.paymentMethods);
+
+      // Fetch customer info if not provided
+      if (data.info?.userId) {
+        await fetchCustomerInfoIfNeeded(data.info.userId);
+      }
 
       // Set default payment method and date
       if (data.info && data.paymentMethods.length > 0) {
@@ -508,7 +550,7 @@ export function PaymentReceiptModalContainer(
     } finally {
       setIsLoading(false);
     }
-  }, [location, paymentId, mode, directPaymentData, customerName, customerId, fetchLocationDetails, locationDetails]);
+  }, [location, paymentId, mode, directPaymentData, customerName, customerId, fetchLocationDetails, locationDetails, fetchCustomerInfoIfNeeded]);
 
   // Reset editing state when modal closes or paymentId changes
   React.useEffect(() => {
@@ -580,14 +622,19 @@ export function PaymentReceiptModalContainer(
   );
 
   // Build payment receipt data for print/email
+  // Use fetched customer info if props are not provided
+  const effectiveCustomerName = customerName || fetchedCustomerInfo?.name;
+  const effectiveCustomerPhone = customerPhone || fetchedCustomerInfo?.phone;
+  const effectiveCustomerEmail = customerEmail || fetchedCustomerInfo?.email;
+
   const paymentReceiptData: PaymentReceiptData = React.useMemo(
     () => ({
       headerAmount,
       paymentDate: paymentInfo?.date,
       paymentMethod: paymentInfo?.paymentMethod,
-      customerName,
-      customerPhone,
-      customerEmail,
+      customerName: effectiveCustomerName,
+      customerPhone: effectiveCustomerPhone,
+      customerEmail: effectiveCustomerEmail,
       hstNumber: paymentInfo?.locationHstRegistrationNo || paymentInfo?.locationDetails?.hstRegistrationNo || locationDetails?.hstRegistrationNo,
       locationDetails: paymentInfo?.locationDetails || locationDetails,
       allocationRows: showAllocations ? allocationRows : undefined,
@@ -598,9 +645,9 @@ export function PaymentReceiptModalContainer(
     [
       headerAmount,
       paymentInfo,
-      customerName,
-      customerPhone,
-      customerEmail,
+      effectiveCustomerName,
+      effectiveCustomerPhone,
+      effectiveCustomerEmail,
       showAllocations,
       allocationRows,
       groupLessonRows,

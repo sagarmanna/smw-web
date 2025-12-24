@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import DOMPurify from "dompurify";
 import { useAppSelector } from "@/redux/hooks";
+import { format } from "date-fns";
 
 interface ReleaseNote {
   id: number;
@@ -131,7 +132,7 @@ export function ReleaseNotesPopup({ location }: ReleaseNotesPopupProps) {
         <DialogHeader>
           <DialogTitle>{releaseNote.subject}</DialogTitle>
           <DialogDescription>
-            Release Note - {new Date(releaseNote.scheduleDate).toLocaleDateString()}
+            Release Note - {format(new Date(releaseNote.scheduleDate), "MM/dd/yy")}
           </DialogDescription>
         </DialogHeader>
 
