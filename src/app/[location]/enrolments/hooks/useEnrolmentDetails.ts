@@ -6,6 +6,8 @@ import {
   fetchEnrolment,
   clearCache,
   updateEnrolment,
+  adjustEndDate,
+  changeSchedulePermanently as changeSchedulePermanentlyThunk,
 } from "../[id]/enrolment-details.slice";
 import { toast } from "sonner";
 import {
@@ -32,6 +34,8 @@ type EnrolmentDetailsHookReturn = {
   forceRefresh: () => Promise<void>;
   saveDetails: (details: Partial<EnrolmentDetails>) => Promise<boolean>;
   savingDetails: boolean;
+  adjustScheduleEndDate: (endDate: string) => Promise<boolean>;
+  changeSchedulePermanently: (startingDate: string) => Promise<boolean>;
 };
 
 export function useEnrolmentDetails(
@@ -111,6 +115,51 @@ export function useEnrolmentDetails(
     [dispatch, location, enrolmentId]
   );
 
+  const adjustScheduleEndDate = React.useCallback(
+    async (endDate: string): Promise<boolean> => {
+      try {
+        await dispatch(
+          adjustEndDate({
+            location,
+            enrolmentId,
+            endDate,
+          })
+        ).unwrap();
+        
+        toast.success("End date adjusted successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to adjust end date:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to adjust end date. Please try again.");
+        return false;
+      }
+    },
+    [dispatch, location, enrolmentId]
+  );
+
+  const changeSchedulePermanently = React.useCallback(
+    async (startingDate: string): Promise<boolean> => {
+      try {
+        await dispatch(
+          changeSchedulePermanentlyThunk({
+            location,
+            enrolmentId,
+            startingDate,
+          })
+        ).unwrap();
+        
+        toast.success("Schedule changed successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to change schedule:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to change schedule. Please try again.";
+        toast.error(errorMessage);
+        return false;
+      }
+    },
+    [dispatch, location, enrolmentId]
+  );
+
   return {
     loading,
     error,
@@ -125,6 +174,8 @@ export function useEnrolmentDetails(
     forceRefresh,
     saveDetails,
     savingDetails,
+    adjustScheduleEndDate,
+    changeSchedulePermanently,
   };
 }
 

@@ -4,8 +4,10 @@ import {
   EnrolmentDetailsApiResponse,
   transformApiResponse,
   updateEnrolmentDetails,
+  adjustEnrolmentEndDate,
+  permanentScheduleChange,
 } from './enrolment-details.api';
-import type { EnrolmentInfo, EnrolmentDetails } from '../types';
+import type { EnrolmentInfo, EnrolmentDetails, EnrolmentSchedule } from '../types';
 
 interface EnrolmentState {
   enrolmentInfo: EnrolmentInfo | null;
@@ -71,6 +73,48 @@ export const updateEnrolment = createAsyncThunk(
       return { data: result.data };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update enrolment details');
+    }
+  }
+);
+
+// Async thunk for adjusting enrolment end date
+export const adjustEndDate = createAsyncThunk(
+  'enrolment/adjustEndDate',
+  async (
+    { location, enrolmentId, endDate }: { location: string; enrolmentId: string; endDate: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await adjustEnrolmentEndDate(location, enrolmentId, { endDate });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to adjust enrolment end date');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to adjust enrolment end date');
+    }
+  }
+);
+
+// Async thunk for permanent schedule change
+export const changeSchedulePermanently = createAsyncThunk(
+  'enrolment/changeSchedulePermanently',
+  async (
+    { location, enrolmentId, startingDate }: { location: string; enrolmentId: string; startingDate: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await permanentScheduleChange(location, enrolmentId, { startingDate });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to perform permanent schedule change');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to perform permanent schedule change');
     }
   }
 );
@@ -145,6 +189,62 @@ const enrolmentSlice = createSlice({
         state.error = null;
       })
       .addCase(updateEnrolment.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Adjust end date reducers
+      .addCase(adjustEndDate.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(adjustEndDate.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update schedule end date from API response
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          // Format date for display (assuming API returns YYYY-MM-DD)
+          const formattedDate = data.endDate ? new Date(data.endDate).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : state.enrolmentInfo.schedule.endDate;
+          
+          state.enrolmentInfo.schedule = {
+            ...state.enrolmentInfo.schedule,
+            endDate: formattedDate,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(adjustEndDate.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Permanent schedule change reducers
+      .addCase(changeSchedulePermanently.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(changeSchedulePermanently.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update schedule start date from API response
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          // Format date for display (assuming API returns YYYY-MM-DD)
+          const formattedDate = data.startingDate ? new Date(data.startingDate).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : state.enrolmentInfo.schedule.startDate;
+          
+          state.enrolmentInfo.schedule = {
+            ...state.enrolmentInfo.schedule,
+            startDate: formattedDate,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(changeSchedulePermanently.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       });
