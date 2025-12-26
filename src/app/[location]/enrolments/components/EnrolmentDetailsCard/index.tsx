@@ -45,10 +45,6 @@ export const EnrolmentDetailsCard = React.memo(function EnrolmentDetailsCard({
   }, [customerId, location, router]);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
-    const rateText = details?.rateFromDate && details?.rateToDate
-      ? `${details.rate} From ${details.rateFromDate} To ${details.rateToDate}`
-      : details?.rate || "N/A";
-
     const studentValue = studentId ? (
       <span
         onClick={handleStudentClick}
@@ -71,7 +67,7 @@ export const EnrolmentDetailsCard = React.memo(function EnrolmentDetailsCard({
       details?.customer || "N/A"
     );
 
-    return [
+    const rows: SectionCardDataRow[] = [
       {
         label: "Program",
         value: details?.program || "N/A",
@@ -80,10 +76,44 @@ export const EnrolmentDetailsCard = React.memo(function EnrolmentDetailsCard({
         label: "Teacher",
         value: details?.teacher || "N/A",
       },
-      {
-        label: "Rate",
-        value: rateText,
-      },
+    ];
+
+    // Add each rate as a separate row (format: "Rate" -> "$20.00 From Dec 17, 2025 To Feb 28, 2026")
+    const rates = details?.rates || [];
+    if (rates.length > 0) {
+      rates.forEach((rate) => {
+        if (rate.fromDate && rate.toDate && rate.amount) {
+          // Format: Label: "Rate", Value: "$20.00 From Dec 17, 2025 To Feb 28, 2026"
+          const rateValue = `${rate.amount} From ${rate.fromDate} To ${rate.toDate}`;
+          rows.push({
+            label: "Rate",
+            value: rateValue,
+          });
+        } else if (rate.amount) {
+          // Fallback if dates are missing
+          rows.push({
+            label: "Rate",
+            value: rate.amount,
+          });
+        }
+      });
+    } else {
+      // Fallback to single rate if rates array is empty
+      if (details?.rateFromDate && details?.rateToDate && details?.rate) {
+        const rateValue = `${details.rate} From ${details.rateFromDate} To ${details.rateToDate}`;
+        rows.push({
+          label: "Rate",
+          value: rateValue,
+        });
+      } else {
+        rows.push({
+          label: "Rate",
+          value: details?.rate || "N/A",
+        });
+      }
+    }
+
+    rows.push(
       {
         label: "Auto Renewal",
         value: details?.autoRenewal || "N/A",
@@ -103,8 +133,10 @@ export const EnrolmentDetailsCard = React.memo(function EnrolmentDetailsCard({
       {
         label: "Online",
         value: details?.online ? "Yes" : "No",
-      },
-    ];
+      }
+    );
+
+    return rows;
   }, [details, studentId, customerId, handleStudentClick, handleCustomerClick]);
 
   const handleSave = React.useCallback(

@@ -9,6 +9,12 @@ export interface EnrolmentBasicDetails {
   lessonsRemaining: number;
 }
 
+export interface EnrolmentRate {
+  fromDate: string;
+  toDate: string;
+  amount: string;
+}
+
 export interface EnrolmentDetails {
   id: number;
   program: string;
@@ -16,6 +22,7 @@ export interface EnrolmentDetails {
   rate: string;
   rateFromDate?: string;
   rateToDate?: string;
+  rates: EnrolmentRate[];
   autoRenewal: string;
   duration: string;
   student: string;

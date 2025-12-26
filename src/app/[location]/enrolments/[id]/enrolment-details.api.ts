@@ -1,6 +1,5 @@
 import { apiClient } from "@/lib/api/client";
 import type { EnrolmentInfo } from "../types";
-import { mockEnrolmentDetails } from "../mockData/enrolmentDetailsMockData";
 
 // API Response Types
 export interface EnrolmentRate {
@@ -50,6 +49,24 @@ export interface EnrolmentScheduleApiResponse {
   success: boolean;
   data: {
     body: EnrolmentScheduleResponseBody;
+  };
+  message?: string;
+}
+
+// Schedule History API Response Types
+export interface EnrolmentScheduleHistoryResponseBody {
+  id: number;
+  date: string;
+  day: string;
+  time: string;
+  duration: string;
+  teacher: string;
+}
+
+export interface EnrolmentScheduleHistoryApiResponse {
+  success: boolean;
+  data: {
+    body: EnrolmentScheduleHistoryResponseBody[];
   };
   message?: string;
 }
@@ -135,24 +152,66 @@ export async function getEnrolmentSchedule(
 }
 
 /**
+ * Fetches enrolment schedule history information from the API
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/schedule-history
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the enrolment schedule history response or null on error
+ */
+export async function getEnrolmentScheduleHistory(
+  location: string,
+  enrolmentId: string
+): Promise<EnrolmentScheduleHistoryApiResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentScheduleHistoryApiResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/schedule-history`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching enrolment schedule history:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch enrolment schedule history",
+    };
+  }
+}
+
+/**
  * Transforms API response to match the EnrolmentInfo interface
  * Maps API response fields directly to UI state (no calculations, only type conversions)
  */
 export function transformApiResponse(
   apiResponse: EnrolmentDetailsApiResponse,
-  scheduleResponse: EnrolmentScheduleApiResponse | null
+  scheduleResponse: EnrolmentScheduleApiResponse | null,
+  scheduleHistoryResponse: EnrolmentScheduleHistoryApiResponse | null
 ): EnrolmentInfo {
   const { body } = apiResponse.data;
-  const mockData = mockEnrolmentDetails;
   
-  // Get first rate from rates array (API returns array, UI expects single rate with dates)
-  const firstRate = body.rates && body.rates.length > 0 ? body.rates[0] : null;
+  // Store all rates from API response directly (no formatting, use API data as-is)
+  const rates = body.rates || [];
+  const firstRate = rates.length > 0 ? rates[0] : null;
   
   // Convert online string "Yes"/"No" to boolean (minimal type conversion, no calculation)
   const onlineBoolean = body.online === "Yes";
   
   // Get schedule data from API response
   const scheduleBody = scheduleResponse?.data?.body;
+  
+  // Get schedule history data from API response
+  const scheduleHistoryBody = scheduleHistoryResponse?.data?.body || [];
+  const scheduleHistory = scheduleHistoryBody.map((item) => ({
+    id: item.id,
+    date: item.date || "",
+    day: item.day || "",
+    time: item.time || "",
+    duration: item.duration || "",
+    teacher: item.teacher || "",
+  }));
   
   return {
     details: {
@@ -162,6 +221,11 @@ export function transformApiResponse(
       rate: firstRate?.amount || "",
       rateFromDate: firstRate?.fromDate || undefined,
       rateToDate: firstRate?.toDate || undefined,
+      rates: rates.map((rate) => ({
+        fromDate: rate.fromDate || "",
+        toDate: rate.toDate || "",
+        amount: rate.amount || "",
+      })),
       autoRenewal: body.autoRenewal || "",
       duration: body.duration || "",
       student: body.student || "",
@@ -175,7 +239,7 @@ export function transformApiResponse(
       multipleEnrolDiscount: body.discounts?.multipleEnrolDiscount || "",
     },
     paymentFrequency: {
-      paymentFrequency: mockData.paymentFrequency.paymentFrequency, // Not in API response, keep mock for now
+      paymentFrequency: "", // Not in API response yet
     },
     schedule: {
       day: scheduleBody?.day || "",
@@ -183,9 +247,9 @@ export function transformApiResponse(
       startDate: scheduleBody?.startDate || "",
       endDate: scheduleBody?.endDate || "",
     },
-    scheduleHistory: mockData.scheduleHistory, // Not in API response, keep mock for now
-    lessons: mockData.lessons, // Not in API response, keep mock for now
-    history: mockData.history, // Not in API response, keep mock for now
+    scheduleHistory: scheduleHistory,
+    lessons: [], // Not in API response yet
+    history: [], // Not in API response yet
   };
 }
 
