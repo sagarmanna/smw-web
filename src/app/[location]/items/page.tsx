@@ -1,10 +1,14 @@
-import React from 'react'
+import React from 'react';
+import { ItemsListingClient } from './ItemsListingClient';
 
-export default function ItemsPage() {
-  return (
-    <div>
-      <h1>Items</h1>
-    </div>
-  )
+interface ItemsPageProps {
+  params: Promise<{
+    location: string;
+  }>;
+}
+
+export default async function ItemsPage({ params }: ItemsPageProps) {
+  const { location } = await params;
+  return <ItemsListingClient location={location} />;
 }
 
