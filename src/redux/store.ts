@@ -21,6 +21,7 @@ import groupCoursesListingReducer from '../app/[location]/group-courses/groupCou
 import groupCourseReducer from '../app/[location]/group-courses/[id]/groupCourseDetails.slice';
 import groupCourseTabsReducer from '../app/[location]/group-courses/[id]/groupCourseTabs.slice';
 import itemsListingReducer from '../app/[location]/items/itemsListing.slice';
+import invoicesListingReducer from '../app/[location]/invoices/invoicesListing.slice';
 
 export const store = configureStore({
   reducer: {
@@ -46,6 +47,7 @@ export const store = configureStore({
     groupCourse: groupCourseReducer,
     groupCourseTabs: groupCourseTabsReducer,
     itemsListing: itemsListingReducer,
+    invoicesListing: invoicesListingReducer,
   },
 });
 

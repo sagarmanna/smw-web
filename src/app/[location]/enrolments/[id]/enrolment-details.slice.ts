@@ -1,11 +1,14 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   getEnrolmentDetails, 
-  EnrolmentDetailsApiResponse,
   transformApiResponse,
   updateEnrolmentDetails,
+  adjustEnrolmentEndDate,
+  permanentScheduleChange,
+  updateEnrolmentDiscounts,
+  updateEnrolmentPaymentFrequency,
 } from './enrolment-details.api';
-import type { EnrolmentInfo, EnrolmentDetails } from '../types';
+import type { EnrolmentInfo, EnrolmentDetails, EnrolmentDiscounts, EnrolmentPaymentFrequency } from '../types';
 
 interface EnrolmentState {
   enrolmentInfo: EnrolmentInfo | null;
@@ -75,6 +78,95 @@ export const updateEnrolment = createAsyncThunk(
   }
 );
 
+// Async thunk for adjusting enrolment end date
+export const adjustEndDate = createAsyncThunk(
+  'enrolment/adjustEndDate',
+  async (
+    { location, enrolmentId, endDate }: { location: string; enrolmentId: string; endDate: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await adjustEnrolmentEndDate(location, enrolmentId, { endDate });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to adjust enrolment end date');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to adjust enrolment end date');
+    }
+  }
+);
+
+// Async thunk for permanent schedule change
+export const changeSchedulePermanently = createAsyncThunk(
+  'enrolment/changeSchedulePermanently',
+  async (
+    { location, enrolmentId, startingDate }: { location: string; enrolmentId: string; startingDate: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await permanentScheduleChange(location, enrolmentId, { startingDate });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to perform permanent schedule change');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to perform permanent schedule change');
+    }
+  }
+);
+
+// Async thunk for updating enrolment discounts
+export const updateDiscounts = createAsyncThunk(
+  'enrolment/updateDiscounts',
+  async (
+    { location, enrolmentId, data }: { location: string; enrolmentId: string; data: Partial<EnrolmentDiscounts> },
+    { rejectWithValue }
+  ) => {
+    try {
+      const updateData = {
+        pfDiscount: data.pfDiscount,
+        multipleEnrolDiscount: data.multipleEnrolDiscount,
+      };
+      
+      const result = await updateEnrolmentDiscounts(location, enrolmentId, updateData);
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update enrolment discounts');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update enrolment discounts');
+    }
+  }
+);
+
+// Async thunk for updating enrolment payment frequency
+export const updatePaymentFrequency = createAsyncThunk(
+  'enrolment/updatePaymentFrequency',
+  async (
+    { location, enrolmentId, data }: { location: string; enrolmentId: string; data: { paymentFrequency: string; effectiveDate: string } },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await updateEnrolmentPaymentFrequency(location, enrolmentId, data);
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update enrolment payment frequency');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update enrolment payment frequency');
+    }
+  }
+);
+
 const enrolmentSlice = createSlice({
   name: 'enrolment',
   initialState,
@@ -96,6 +188,15 @@ const enrolmentSlice = createSlice({
       if (state.enrolmentInfo) {
         state.enrolmentInfo.details = {
           ...state.enrolmentInfo.details,
+          ...action.payload,
+        };
+      }
+    },
+    // Update payment frequency in local state
+    updatePaymentFrequencyState: (state, action: PayloadAction<Partial<EnrolmentPaymentFrequency>>) => {
+      if (state.enrolmentInfo) {
+        state.enrolmentInfo.paymentFrequency = {
+          ...state.enrolmentInfo.paymentFrequency,
           ...action.payload,
         };
       }
@@ -147,6 +248,105 @@ const enrolmentSlice = createSlice({
       .addCase(updateEnrolment.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
+      })
+      // Adjust end date reducers
+      .addCase(adjustEndDate.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(adjustEndDate.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update schedule end date from API response
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          // Format date for display (assuming API returns YYYY-MM-DD)
+          const formattedDate = data.endDate ? new Date(data.endDate).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : state.enrolmentInfo.schedule.endDate;
+          
+          state.enrolmentInfo.schedule = {
+            ...state.enrolmentInfo.schedule,
+            endDate: formattedDate,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(adjustEndDate.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Permanent schedule change reducers
+      .addCase(changeSchedulePermanently.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(changeSchedulePermanently.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update schedule start date from API response
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          // Format date for display (assuming API returns YYYY-MM-DD)
+          const formattedDate = data.startingDate ? new Date(data.startingDate).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : state.enrolmentInfo.schedule.startDate;
+          
+          state.enrolmentInfo.schedule = {
+            ...state.enrolmentInfo.schedule,
+            startDate: formattedDate,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(changeSchedulePermanently.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Update discounts reducers
+      .addCase(updateDiscounts.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updateDiscounts.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update discounts from API response
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          state.enrolmentInfo.discounts = {
+            ...state.enrolmentInfo.discounts,
+            pfDiscount: data.pfDiscount,
+            multipleEnrolDiscount: data.multipleEnrolDiscount,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(updateDiscounts.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Update payment frequency reducers
+      .addCase(updatePaymentFrequency.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updatePaymentFrequency.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update payment frequency from API response
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          state.enrolmentInfo.paymentFrequency = {
+            ...state.enrolmentInfo.paymentFrequency,
+            paymentFrequency: data.paymentFrequency,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(updatePaymentFrequency.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
       });
   },
 });
@@ -156,6 +356,7 @@ export const {
   clearError, 
   clearCache,
   updateDetails,
+  updatePaymentFrequencyState,
 } = enrolmentSlice.actions;
 export default enrolmentSlice.reducer;
 
