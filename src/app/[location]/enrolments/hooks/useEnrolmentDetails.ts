@@ -4,6 +4,7 @@ import * as React from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { 
   fetchEnrolment,
+  fetchEnrolmentHistory,
   clearCache,
   updateEnrolment,
   adjustEndDate,
@@ -32,8 +33,12 @@ type EnrolmentDetailsHookReturn = {
   scheduleHistory: EnrolmentScheduleHistory[];
   lessons: EnrolmentLesson[];
   history: EnrolmentHistory[];
+  historyPagination: { page: number; limit: number; total: number; totalPages: number } | null;
+  historyLoading: boolean;
+  historyError: string | null;
   refresh: () => Promise<void>;
   forceRefresh: () => Promise<void>;
+  fetchHistory: (page?: number) => Promise<void>;
   saveDetails: (details: Partial<EnrolmentDetails>) => Promise<boolean>;
   savingDetails: boolean;
   adjustScheduleEndDate: (endDate: string) => Promise<boolean>;
@@ -53,6 +58,12 @@ export function useEnrolmentDetails(
   const loading = useAppSelector((state) => state.enrolment?.isLoading || false);
   const error = useAppSelector((state) => state.enrolment?.error);
   const savingDetails = useAppSelector((state) => state.enrolment?.isSaving || false);
+  
+  // Get history data from Redux store (separate from enrolmentInfo)
+  const historyData = useAppSelector((state) => state.enrolment?.historyData || []);
+  const historyPagination = useAppSelector((state) => state.enrolment?.historyPagination);
+  const historyLoading = useAppSelector((state) => state.enrolment?.historyLoading || false);
+  const historyError = useAppSelector((state) => state.enrolment?.historyError);
 
   // Transform Redux state to hook return format
   const details: EnrolmentDetails | null = React.useMemo(() => {
@@ -84,8 +95,8 @@ export function useEnrolmentDetails(
   }, [enrolmentInfo]);
 
   const history: EnrolmentHistory[] = React.useMemo(() => {
-    return enrolmentInfo?.history || [];
-  }, [enrolmentInfo]);
+    return historyData;
+  }, [historyData]);
 
   const refresh = React.useCallback(async () => {
     dispatch(fetchEnrolment({ location, enrolmentId }));
@@ -96,6 +107,25 @@ export function useEnrolmentDetails(
     dispatch(clearCache());
     dispatch(fetchEnrolment({ location, enrolmentId }));
   }, [dispatch, location, enrolmentId]);
+
+  // Fetch history with pagination
+  const fetchHistory = React.useCallback(
+    async (page: number = 1): Promise<void> => {
+      try {
+        await dispatch(
+          fetchEnrolmentHistory({
+            location,
+            enrolmentId,
+            page,
+          })
+        ).unwrap();
+      } catch (error) {
+        console.error("Failed to fetch history:", error);
+        // Error is already handled in Redux state
+      }
+    },
+    [dispatch, location, enrolmentId]
+  );
 
   const saveDetails = React.useCallback(
     async (details: Partial<EnrolmentDetails>): Promise<boolean> => {
@@ -220,8 +250,12 @@ export function useEnrolmentDetails(
     scheduleHistory,
     lessons,
     history,
+    historyPagination,
+    historyLoading,
+    historyError,
     refresh,
     forceRefresh,
+    fetchHistory,
     saveDetails,
     savingDetails,
     adjustScheduleEndDate,

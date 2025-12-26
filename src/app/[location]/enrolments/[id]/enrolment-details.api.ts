@@ -181,6 +181,169 @@ export async function getEnrolmentScheduleHistory(
   }
 }
 
+// Payment Frequency API Response Types
+export interface EnrolmentPaymentFrequencyResponseBody {
+  id: number;
+  paymentFrequency: string;
+}
+
+export interface EnrolmentPaymentFrequencyApiResponse {
+  success: boolean;
+  data: {
+    body: EnrolmentPaymentFrequencyResponseBody;
+  };
+  message?: string;
+}
+
+// Lessons API Response Types
+export interface EnrolmentLessonResponseBody {
+  id: number;
+  dueDate: string;
+  date: string;
+  duration: string;
+  status: string;
+  price: string;
+  owing: string;
+  online: string;
+}
+
+export interface EnrolmentLessonsApiResponse {
+  success: boolean;
+  data: {
+    body: EnrolmentLessonResponseBody[];
+  };
+  message?: string;
+}
+
+// History API Response Types
+export interface EnrolmentHistoryResponseBody {
+  id: number;
+  createdOn: string;
+  message: string;
+}
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface EnrolmentHistoryApiResponse {
+  success: boolean;
+  data: {
+    body: EnrolmentHistoryResponseBody[];
+    pagination?: PaginationInfo;
+  };
+  message?: string;
+}
+
+/**
+ * Fetches enrolment payment frequency from the API
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/payment-frequency
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the payment frequency response or null on error
+ */
+export async function getEnrolmentPaymentFrequency(
+  location: string,
+  enrolmentId: string
+): Promise<EnrolmentPaymentFrequencyApiResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentPaymentFrequencyApiResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/payment-frequency`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching enrolment payment frequency:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: {
+          id: Number(enrolmentId) || 0,
+          paymentFrequency: "",
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to fetch enrolment payment frequency",
+    };
+  }
+}
+
+/**
+ * Fetches enrolment lessons from the API
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/lessons
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the lessons response or null on error
+ */
+export async function getEnrolmentLessons(
+  location: string,
+  enrolmentId: string
+): Promise<EnrolmentLessonsApiResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentLessonsApiResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/lessons`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching enrolment lessons:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch enrolment lessons",
+    };
+  }
+}
+
+/**
+ * Fetches enrolment history from the API with pagination
+ * Endpoint: GET /admin/v2/{location}/history?type=enrolment&id={enrolmentId}&page={page}
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param page - The page number for pagination (default: 1)
+ * @returns Promise resolving to the history response or null on error
+ */
+export async function getEnrolmentHistory(
+  location: string,
+  enrolmentId: string,
+  page: number = 1
+): Promise<EnrolmentHistoryApiResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentHistoryApiResponse>(
+      `/admin/v2/${location}/history`,
+      {
+        params: {
+          type: 'enrolment',
+          id: enrolmentId,
+          page,
+        },
+      }
+    );
+    
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching enrolment history:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch enrolment history"
+    );
+    return null;
+  }
+}
+
 /**
  * Transforms API response to match the EnrolmentInfo interface
  * Maps API response fields directly to UI state (no calculations, only type conversions)
@@ -188,7 +351,9 @@ export async function getEnrolmentScheduleHistory(
 export function transformApiResponse(
   apiResponse: EnrolmentDetailsApiResponse,
   scheduleResponse: EnrolmentScheduleApiResponse | null,
-  scheduleHistoryResponse: EnrolmentScheduleHistoryApiResponse | null
+  scheduleHistoryResponse: EnrolmentScheduleHistoryApiResponse | null,
+  paymentFrequencyResponse: EnrolmentPaymentFrequencyApiResponse | null,
+  lessonsResponse: EnrolmentLessonsApiResponse | null
 ): EnrolmentInfo {
   const { body } = apiResponse.data;
   
@@ -211,6 +376,22 @@ export function transformApiResponse(
     time: item.time || "",
     duration: item.duration || "",
     teacher: item.teacher || "",
+  }));
+  
+  // Get payment frequency from API response
+  const paymentFrequencyBody = paymentFrequencyResponse?.data?.body;
+  
+  // Get lessons from API response
+  const lessonsBody = lessonsResponse?.data?.body || [];
+  const lessons = lessonsBody.map((item) => ({
+    id: item.id,
+    dueDate: item.dueDate || "",
+    date: item.date || "",
+    duration: item.duration || "",
+    status: item.status || "",
+    price: item.price || "",
+    owing: item.owing || "",
+    online: item.online === "Yes",
   }));
   
   return {
@@ -239,7 +420,7 @@ export function transformApiResponse(
       multipleEnrolDiscount: body.discounts?.multipleEnrolDiscount || "",
     },
     paymentFrequency: {
-      paymentFrequency: "", // Not in API response yet
+      paymentFrequency: paymentFrequencyBody?.paymentFrequency || "",
     },
     schedule: {
       day: scheduleBody?.day || "",
@@ -248,8 +429,8 @@ export function transformApiResponse(
       endDate: scheduleBody?.endDate || "",
     },
     scheduleHistory: scheduleHistory,
-    lessons: [], // Not in API response yet
-    history: [], // Not in API response yet
+    lessons: lessons,
+    history: [], // History is fetched separately with pagination
   };
 }
 

@@ -38,6 +38,10 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     scheduleHistory,
     lessons,
     history,
+    historyPagination,
+    historyLoading,
+    historyError,
+    fetchHistory,
     saveDetails,
     savingDetails,
     adjustScheduleEndDate,
@@ -45,6 +49,15 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     saveDiscounts,
     savePaymentFrequency,
   } = useEnrolmentDetails(location, enrolmentId);
+
+  // Fetch history on initial load - optimized dependencies
+  React.useEffect(() => {
+    // Only fetch if we have valid IDs and haven't loaded history yet
+    if (enrolmentId && location && !historyPagination && !historyLoading) {
+      fetchHistory(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enrolmentId, location]); // Only depend on IDs, fetchHistory is stable from useCallback
 
   // All hooks must be called before any early returns
   const pageTitle = React.useMemo(() => {
@@ -187,6 +200,10 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
           <EnrolmentHistoryCard
             history={history}
             isLoading={isLoading}
+            pagination={historyPagination}
+            historyLoading={historyLoading}
+            historyError={historyError}
+            onPageChange={fetchHistory}
           />
         </div>
       </div>
