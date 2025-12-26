@@ -8,6 +8,13 @@ export const mockEnrolmentDetails: EnrolmentInfo = {
     rate: "$20.00",
     rateFromDate: "Nov 14, 2025",
     rateToDate: "Feb 28, 2026",
+    rates: [
+      {
+        fromDate: "Nov 14, 2025",
+        toDate: "Feb 28, 2026",
+        amount: "$20.00",
+      },
+    ],
     autoRenewal: "Disabled",
     duration: "01:00",
     student: "stu1 nov12",

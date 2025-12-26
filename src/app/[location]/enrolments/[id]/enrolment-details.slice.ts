@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   getEnrolmentDetails,
   getEnrolmentSchedule,
+  getEnrolmentScheduleHistory,
   transformApiResponse,
   updateEnrolmentDetails,
   adjustEnrolmentEndDate,
@@ -37,10 +38,11 @@ export const fetchEnrolment = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch details and schedule in parallel, but handle schedule failure gracefully
-      const [detailsResult, scheduleResult] = await Promise.allSettled([
+      // Fetch details, schedule, and schedule history in parallel, but handle failures gracefully
+      const [detailsResult, scheduleResult, scheduleHistoryResult] = await Promise.allSettled([
         getEnrolmentDetails(location, enrolmentId),
         getEnrolmentSchedule(location, enrolmentId),
+        getEnrolmentScheduleHistory(location, enrolmentId),
       ]);
 
       // Details API is required - fail if it doesn't succeed
@@ -60,7 +62,18 @@ export const fetchEnrolment = createAsyncThunk(
         console.warn('Schedule API error:', scheduleResult.reason);
       }
 
-      const transformedData = transformApiResponse(details, schedule);
+      // Schedule History API is optional - log error but don't fail the entire fetch
+      let scheduleHistory: Awaited<ReturnType<typeof getEnrolmentScheduleHistory>> = null;
+      if (scheduleHistoryResult.status === 'fulfilled') {
+        scheduleHistory = scheduleHistoryResult.value;
+        if (!scheduleHistory || !scheduleHistory.success) {
+          console.warn('Schedule History API failed:', scheduleHistory?.message || 'Unknown error');
+        }
+      } else {
+        console.warn('Schedule History API error:', scheduleHistoryResult.reason);
+      }
+
+      const transformedData = transformApiResponse(details, schedule, scheduleHistory);
 
       return { data: transformedData };
     } catch (error) {
