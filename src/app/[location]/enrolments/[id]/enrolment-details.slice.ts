@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
-  getEnrolmentDetails, 
+  getEnrolmentDetails,
+  getEnrolmentSchedule,
   transformApiResponse,
   updateEnrolmentDetails,
   adjustEnrolmentEndDate,
@@ -36,13 +37,30 @@ export const fetchEnrolment = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const result = await getEnrolmentDetails(location, enrolmentId);
+      // Fetch details and schedule in parallel, but handle schedule failure gracefully
+      const [detailsResult, scheduleResult] = await Promise.allSettled([
+        getEnrolmentDetails(location, enrolmentId),
+        getEnrolmentSchedule(location, enrolmentId),
+      ]);
 
-      if (!result || !result.success) {
-        throw new Error(result?.message || 'Failed to fetch enrolment info');
+      // Details API is required - fail if it doesn't succeed
+      const details = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
+      if (!details || !details.success) {
+        throw new Error(details?.message || 'Failed to fetch enrolment info');
       }
 
-      const transformedData = transformApiResponse(result);
+      // Schedule API is optional - log error but don't fail the entire fetch
+      let schedule: Awaited<ReturnType<typeof getEnrolmentSchedule>> = null;
+      if (scheduleResult.status === 'fulfilled') {
+        schedule = scheduleResult.value;
+        if (!schedule || !schedule.success) {
+          console.warn('Schedule API failed:', schedule?.message || 'Unknown error');
+        }
+      } else {
+        console.warn('Schedule API error:', scheduleResult.reason);
+      }
+
+      const transformedData = transformApiResponse(details, schedule);
 
       return { data: transformedData };
     } catch (error) {
@@ -256,19 +274,12 @@ const enrolmentSlice = createSlice({
       })
       .addCase(adjustEndDate.fulfilled, (state, action) => {
         state.isSaving = false;
-        // Update schedule end date from API response
+        // Update schedule end date from API response (API returns formatted date)
         if (state.enrolmentInfo && action.payload) {
           const { data } = action.payload;
-          // Format date for display (assuming API returns YYYY-MM-DD)
-          const formattedDate = data.endDate ? new Date(data.endDate).toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
-          }) : state.enrolmentInfo.schedule.endDate;
-          
           state.enrolmentInfo.schedule = {
             ...state.enrolmentInfo.schedule,
-            endDate: formattedDate,
+            endDate: data.endDate || state.enrolmentInfo.schedule.endDate,
           };
         }
         state.error = null;
@@ -284,19 +295,12 @@ const enrolmentSlice = createSlice({
       })
       .addCase(changeSchedulePermanently.fulfilled, (state, action) => {
         state.isSaving = false;
-        // Update schedule start date from API response
+        // Update schedule start date from API response (API returns formatted date)
         if (state.enrolmentInfo && action.payload) {
           const { data } = action.payload;
-          // Format date for display (assuming API returns YYYY-MM-DD)
-          const formattedDate = data.startingDate ? new Date(data.startingDate).toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
-          }) : state.enrolmentInfo.schedule.startDate;
-          
           state.enrolmentInfo.schedule = {
             ...state.enrolmentInfo.schedule,
-            startDate: formattedDate,
+            startDate: data.startingDate || state.enrolmentInfo.schedule.startDate,
           };
         }
         state.error = null;

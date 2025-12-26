@@ -37,6 +37,23 @@ export interface EnrolmentDetailsApiResponse {
   message?: string;
 }
 
+// Schedule API Response Types
+export interface EnrolmentScheduleResponseBody {
+  id: number;
+  day: string;
+  time: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface EnrolmentScheduleApiResponse {
+  success: boolean;
+  data: {
+    body: EnrolmentScheduleResponseBody;
+  };
+  message?: string;
+}
+
 /**
  * Fetches detailed enrolment information from the API
  * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/info
@@ -82,10 +99,49 @@ export async function getEnrolmentDetails(
 }
 
 /**
+ * Fetches enrolment schedule information from the API
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/schedule
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the enrolment schedule response or null on error
+ */
+export async function getEnrolmentSchedule(
+  location: string,
+  enrolmentId: string
+): Promise<EnrolmentScheduleApiResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentScheduleApiResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/schedule`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching enrolment schedule:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: {
+          id: Number(enrolmentId) || 0,
+          day: "",
+          time: "",
+          startDate: "",
+          endDate: "",
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to fetch enrolment schedule",
+    };
+  }
+}
+
+/**
  * Transforms API response to match the EnrolmentInfo interface
  * Maps API response fields directly to UI state (no calculations, only type conversions)
  */
-export function transformApiResponse(apiResponse: EnrolmentDetailsApiResponse): EnrolmentInfo {
+export function transformApiResponse(
+  apiResponse: EnrolmentDetailsApiResponse,
+  scheduleResponse: EnrolmentScheduleApiResponse | null
+): EnrolmentInfo {
   const { body } = apiResponse.data;
   const mockData = mockEnrolmentDetails;
   
@@ -94,6 +150,9 @@ export function transformApiResponse(apiResponse: EnrolmentDetailsApiResponse): 
   
   // Convert online string "Yes"/"No" to boolean (minimal type conversion, no calculation)
   const onlineBoolean = body.online === "Yes";
+  
+  // Get schedule data from API response
+  const scheduleBody = scheduleResponse?.data?.body;
   
   return {
     details: {
@@ -119,10 +178,10 @@ export function transformApiResponse(apiResponse: EnrolmentDetailsApiResponse): 
       paymentFrequency: mockData.paymentFrequency.paymentFrequency, // Not in API response, keep mock for now
     },
     schedule: {
-      day: mockData.schedule.day, // Not in API response, keep mock for now
-      time: mockData.schedule.time, // Not in API response, keep mock for now
-      startDate: mockData.schedule.startDate, // Not in API response, keep mock for now
-      endDate: mockData.schedule.endDate, // Not in API response, keep mock for now
+      day: scheduleBody?.day || "",
+      time: scheduleBody?.time || "",
+      startDate: scheduleBody?.startDate || "",
+      endDate: scheduleBody?.endDate || "",
     },
     scheduleHistory: mockData.scheduleHistory, // Not in API response, keep mock for now
     lessons: mockData.lessons, // Not in API response, keep mock for now
