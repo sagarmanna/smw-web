@@ -1,8 +1,34 @@
 import { apiClient } from "@/lib/api/client";
-import type { EnrolmentInfo, EnrolmentDetails, EnrolmentDiscounts, EnrolmentPaymentFrequency, EnrolmentSchedule, EnrolmentScheduleHistory, EnrolmentLesson } from "../types";
+import type { EnrolmentInfo } from "../types";
 import { mockEnrolmentDetails } from "../mockData/enrolmentDetailsMockData";
 
 // API Response Types
+export interface EnrolmentRate {
+  fromDate: string;
+  toDate: string;
+  amount: string;
+}
+
+export interface EnrolmentDiscountsResponse {
+  pfDiscount: string;
+  multipleEnrolDiscount: string;
+}
+
+export interface EnrolmentDetailsResponseBody {
+  id: number;
+  studentId?: number;
+  customerId?: number;
+  program: string;
+  teacher: string;
+  rates: EnrolmentRate[];
+  discounts: EnrolmentDiscountsResponse;
+  autoRenewal: string;
+  duration: string;
+  student: string;
+  customer: string;
+  online: string;
+}
+
 export interface EnrolmentDetailsApiResponse {
   success: boolean;
   data: {
@@ -11,32 +37,9 @@ export interface EnrolmentDetailsApiResponse {
   message?: string;
 }
 
-export interface EnrolmentDetailsResponseBody {
-  id: number;
-  program: string;
-  teacher: string;
-  rate: string;
-  rateFromDate?: string;
-  rateToDate?: string;
-  autoRenewal: string;
-  duration: string;
-  student: string;
-  studentId?: number;
-  customer: string;
-  customerId?: number;
-  online: boolean;
-  pfDiscount?: string;
-  multipleEnrolDiscount?: string;
-  paymentFrequency?: string;
-  day?: string;
-  time?: string;
-  startDate?: string;
-  endDate?: string;
-}
-
 /**
  * Fetches detailed enrolment information from the API
- * For now, returns mock data
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/info
  * 
  * @param location - The location identifier
  * @param enrolmentId - The enrolment ID
@@ -47,45 +50,10 @@ export async function getEnrolmentDetails(
   enrolmentId: string
 ): Promise<EnrolmentDetailsApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.get<EnrolmentDetailsApiResponse>(
-    //   `/admin/v2/${location}/enrolment/${enrolmentId}/details`
-    // );
-    // return response.data;
-    
-    // For now, return mock data - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const mockData = { ...mockEnrolmentDetails };
-    mockData.details.id = Number(enrolmentId) || mockData.details.id;
-    
-    return {
-      success: true,
-      data: {
-        body: {
-          id: mockData.details.id,
-          program: mockData.details.program,
-          teacher: mockData.details.teacher,
-          rate: mockData.details.rate,
-          rateFromDate: mockData.details.rateFromDate,
-          rateToDate: mockData.details.rateToDate,
-          autoRenewal: mockData.details.autoRenewal,
-          duration: mockData.details.duration,
-          student: mockData.details.student,
-          studentId: mockData.details.studentId,
-          customer: mockData.details.customer,
-          customerId: mockData.details.customerId,
-          online: mockData.details.online,
-          pfDiscount: mockData.discounts.pfDiscount,
-          multipleEnrolDiscount: mockData.discounts.multipleEnrolDiscount,
-          paymentFrequency: mockData.paymentFrequency.paymentFrequency,
-          day: mockData.schedule.day,
-          time: mockData.schedule.time,
-          startDate: mockData.schedule.startDate,
-          endDate: mockData.schedule.endDate,
-        },
-      },
-    };
+    const response = await apiClient.get<EnrolmentDetailsApiResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/info`
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching enrolment details:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
@@ -96,12 +64,16 @@ export async function getEnrolmentDetails(
           id: Number(enrolmentId) || 0,
           program: "",
           teacher: "",
-          rate: "",
-          autoRenewal: "Disabled",
+          rates: [],
+          discounts: {
+            pfDiscount: "",
+            multipleEnrolDiscount: "",
+          },
+          autoRenewal: "",
           duration: "",
           student: "",
           customer: "",
-          online: false,
+          online: "",
         },
       },
       message: apiError.response?.data?.message || "Failed to fetch enrolment details",
@@ -111,43 +83,50 @@ export async function getEnrolmentDetails(
 
 /**
  * Transforms API response to match the EnrolmentInfo interface
+ * Maps API response fields directly to UI state (no calculations, only type conversions)
  */
 export function transformApiResponse(apiResponse: EnrolmentDetailsApiResponse): EnrolmentInfo {
   const { body } = apiResponse.data;
   const mockData = mockEnrolmentDetails;
   
+  // Get first rate from rates array (API returns array, UI expects single rate with dates)
+  const firstRate = body.rates && body.rates.length > 0 ? body.rates[0] : null;
+  
+  // Convert online string "Yes"/"No" to boolean (minimal type conversion, no calculation)
+  const onlineBoolean = body.online === "Yes";
+  
   return {
     details: {
       id: body.id,
-      program: body.program || mockData.details.program,
-      teacher: body.teacher || mockData.details.teacher,
-      rate: body.rate || mockData.details.rate,
-      rateFromDate: body.rateFromDate || mockData.details.rateFromDate,
-      rateToDate: body.rateToDate || mockData.details.rateToDate,
-      autoRenewal: body.autoRenewal || mockData.details.autoRenewal,
-      duration: body.duration || mockData.details.duration,
-      student: body.student || mockData.details.student,
-      studentId: body.studentId || mockData.details.studentId,
-      customer: body.customer || mockData.details.customer,
-      customerId: body.customerId || mockData.details.customerId,
-      online: body.online !== undefined ? body.online : mockData.details.online,
+      program: body.program || "",
+      teacher: body.teacher || "",
+      rate: firstRate?.amount || "",
+      rateFromDate: firstRate?.fromDate || undefined,
+      rateToDate: firstRate?.toDate || undefined,
+      autoRenewal: body.autoRenewal || "",
+      duration: body.duration || "",
+      student: body.student || "",
+      studentId: body.studentId,
+      customer: body.customer || "",
+      customerId: body.customerId,
+      online: onlineBoolean,
     },
     discounts: {
-      pfDiscount: body.pfDiscount || mockData.discounts.pfDiscount,
-      multipleEnrolDiscount: body.multipleEnrolDiscount || mockData.discounts.multipleEnrolDiscount,
+      pfDiscount: body.discounts?.pfDiscount || "",
+      multipleEnrolDiscount: body.discounts?.multipleEnrolDiscount || "",
     },
     paymentFrequency: {
-      paymentFrequency: body.paymentFrequency || mockData.paymentFrequency.paymentFrequency,
+      paymentFrequency: mockData.paymentFrequency.paymentFrequency, // Not in API response, keep mock for now
     },
     schedule: {
-      day: body.day || mockData.schedule.day,
-      time: body.time || mockData.schedule.time,
-      startDate: body.startDate || mockData.schedule.startDate,
-      endDate: body.endDate || mockData.schedule.endDate,
+      day: mockData.schedule.day, // Not in API response, keep mock for now
+      time: mockData.schedule.time, // Not in API response, keep mock for now
+      startDate: mockData.schedule.startDate, // Not in API response, keep mock for now
+      endDate: mockData.schedule.endDate, // Not in API response, keep mock for now
     },
-    scheduleHistory: mockData.scheduleHistory,
-    lessons: mockData.lessons,
-    history: mockData.history,
+    scheduleHistory: mockData.scheduleHistory, // Not in API response, keep mock for now
+    lessons: mockData.lessons, // Not in API response, keep mock for now
+    history: mockData.history, // Not in API response, keep mock for now
   };
 }
 
@@ -198,8 +177,8 @@ export async function updateEnrolmentDetails(
       success: true,
       data: {
         id: Number(enrolmentId) || 0,
-        rate: data.rate || "$20.00",
-        autoRenewal: data.autoRenewal || "Disabled",
+        rate: data.rate || "",
+        autoRenewal: data.autoRenewal || "",
         online: data.online !== undefined ? data.online : false,
       },
     };
@@ -211,7 +190,7 @@ export async function updateEnrolmentDetails(
       data: {
         id: Number(enrolmentId) || 0,
         rate: "",
-        autoRenewal: "Disabled",
+        autoRenewal: "",
         online: false,
       },
       message: apiError.response?.data?.message || "Failed to update enrolment details",
@@ -384,8 +363,8 @@ export async function updateEnrolmentDiscounts(
       success: true,
       data: {
         id: Number(enrolmentId) || 0,
-        pfDiscount: data.pfDiscount || "Not set",
-        multipleEnrolDiscount: data.multipleEnrolDiscount || "Not set",
+        pfDiscount: data.pfDiscount || "",
+        multipleEnrolDiscount: data.multipleEnrolDiscount || "",
       },
     };
   } catch (error: unknown) {
@@ -395,8 +374,8 @@ export async function updateEnrolmentDiscounts(
       success: false,
       data: {
         id: Number(enrolmentId) || 0,
-        pfDiscount: "Not set",
-        multipleEnrolDiscount: "Not set",
+        pfDiscount: "",
+        multipleEnrolDiscount: "",
       },
       message: apiError.response?.data?.message || "Failed to update enrolment discounts",
     };
@@ -431,6 +410,8 @@ export async function getPaymentFrequencyOptions(
     //   `/admin/v2/${location}/enrolment/payment-frequency-options`
     // );
     // return response.data;
+    
+    void location;
     
     // For now, return mock data - simulate API delay
     await new Promise(resolve => setTimeout(resolve, 300));
