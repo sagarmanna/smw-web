@@ -9,6 +9,7 @@ import {
   adjustEndDate,
   changeSchedulePermanently as changeSchedulePermanentlyThunk,
   updateDiscounts,
+  updatePaymentFrequency as updatePaymentFrequencyThunk,
 } from "../[id]/enrolment-details.slice";
 import { toast } from "sonner";
 import {
@@ -38,6 +39,7 @@ type EnrolmentDetailsHookReturn = {
   adjustScheduleEndDate: (endDate: string) => Promise<boolean>;
   changeSchedulePermanently: (startingDate: string) => Promise<boolean>;
   saveDiscounts: (discounts: Partial<EnrolmentDiscounts>) => Promise<boolean>;
+  savePaymentFrequency: (data: { paymentFrequency: string; effectiveDate: string }) => Promise<boolean>;
 };
 
 export function useEnrolmentDetails(
@@ -185,6 +187,29 @@ export function useEnrolmentDetails(
     [dispatch, location, enrolmentId]
   );
 
+  const savePaymentFrequency = React.useCallback(
+    async (data: { paymentFrequency: string; effectiveDate: string }): Promise<boolean> => {
+      try {
+        await dispatch(
+          updatePaymentFrequencyThunk({
+            location,
+            enrolmentId,
+            data,
+          })
+        ).unwrap();
+        
+        toast.success("Payment frequency updated successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to save payment frequency:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to update payment frequency. Please try again.";
+        toast.error(errorMessage);
+        return false;
+      }
+    },
+    [dispatch, location, enrolmentId]
+  );
+
   return {
     loading,
     error,
@@ -202,6 +227,7 @@ export function useEnrolmentDetails(
     adjustScheduleEndDate,
     changeSchedulePermanently,
     saveDiscounts,
+    savePaymentFrequency,
   };
 }
 

@@ -43,6 +43,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     adjustScheduleEndDate,
     changeSchedulePermanently,
     saveDiscounts,
+    savePaymentFrequency,
   } = useEnrolmentDetails(location, enrolmentId);
 
   // All hooks must be called before any early returns
@@ -154,6 +155,9 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
               <EnrolmentPaymentFrequencyCard
                 paymentFrequency={paymentFrequency}
                 isLoading={isLoading}
+                onSavePaymentFrequency={savePaymentFrequency}
+                savingPaymentFrequency={savingDetails}
+                location={location}
               />
             </div>
 
