@@ -1,14 +1,14 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   getEnrolmentDetails, 
-  EnrolmentDetailsApiResponse,
   transformApiResponse,
   updateEnrolmentDetails,
   adjustEnrolmentEndDate,
   permanentScheduleChange,
   updateEnrolmentDiscounts,
+  updateEnrolmentPaymentFrequency,
 } from './enrolment-details.api';
-import type { EnrolmentInfo, EnrolmentDetails, EnrolmentSchedule, EnrolmentDiscounts } from '../types';
+import type { EnrolmentInfo, EnrolmentDetails, EnrolmentDiscounts, EnrolmentPaymentFrequency } from '../types';
 
 interface EnrolmentState {
   enrolmentInfo: EnrolmentInfo | null;
@@ -146,6 +146,27 @@ export const updateDiscounts = createAsyncThunk(
   }
 );
 
+// Async thunk for updating enrolment payment frequency
+export const updatePaymentFrequency = createAsyncThunk(
+  'enrolment/updatePaymentFrequency',
+  async (
+    { location, enrolmentId, data }: { location: string; enrolmentId: string; data: { paymentFrequency: string; effectiveDate: string } },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await updateEnrolmentPaymentFrequency(location, enrolmentId, data);
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update enrolment payment frequency');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update enrolment payment frequency');
+    }
+  }
+);
+
 const enrolmentSlice = createSlice({
   name: 'enrolment',
   initialState,
@@ -167,6 +188,15 @@ const enrolmentSlice = createSlice({
       if (state.enrolmentInfo) {
         state.enrolmentInfo.details = {
           ...state.enrolmentInfo.details,
+          ...action.payload,
+        };
+      }
+    },
+    // Update payment frequency in local state
+    updatePaymentFrequencyState: (state, action: PayloadAction<Partial<EnrolmentPaymentFrequency>>) => {
+      if (state.enrolmentInfo) {
+        state.enrolmentInfo.paymentFrequency = {
+          ...state.enrolmentInfo.paymentFrequency,
           ...action.payload,
         };
       }
@@ -296,6 +326,27 @@ const enrolmentSlice = createSlice({
       .addCase(updateDiscounts.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
+      })
+      // Update payment frequency reducers
+      .addCase(updatePaymentFrequency.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updatePaymentFrequency.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update payment frequency from API response
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          state.enrolmentInfo.paymentFrequency = {
+            ...state.enrolmentInfo.paymentFrequency,
+            paymentFrequency: data.paymentFrequency,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(updatePaymentFrequency.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
       });
   },
 });
@@ -305,6 +356,7 @@ export const {
   clearError, 
   clearCache,
   updateDetails,
+  updatePaymentFrequencyState,
 } = enrolmentSlice.actions;
 export default enrolmentSlice.reducer;
 
