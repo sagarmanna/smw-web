@@ -36,15 +36,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getEquipmentRentalsInfo,
   getEquipmentRentalsInfoForUpdate,
+  createEquipmentRental,
+  updateEquipmentRental,
+  deleteEquipmentRental,
+  equipmentReturned,
   type InstrumentRental,
   type Student,
 } from "./Equipment-Rentals.api";
-import {
-  createEquipmentRental,
-  equipmentReturned,
-  deleteEquipmentRental,
-  updateEquipmentRental,
-} from "@/lib/api/legacyApiAdapter";
 import { apiClient } from "@/lib/api/client";
 
 interface InstrumentData {
@@ -628,7 +626,11 @@ export function EquipmentRentalsModal({
         }
 
         if (rentalId && rentalDetails?.createdOn) {
-          setRentalCreatedOn(new Date(rentalDetails.createdOn + "T00:00:00"));
+          // Parse date string (YYYY-MM-DD) in local timezone to avoid timezone issues
+          const [year, month, day] = rentalDetails.createdOn.split('-').map(Number);
+          const createdDate = new Date(year, month - 1, day);
+          createdDate.setHours(0, 0, 0, 0);
+          setRentalCreatedOn(createdDate);
         } else {
           setRentalCreatedOn(null);
         }
@@ -1312,36 +1314,28 @@ export function EquipmentRentalsModal({
       setSaving(true);
 
       const durationMatch = formData.duration.match(/^(\d+)/);
-      const duration = durationMatch ? parseInt(durationMatch[1]) : 1;
+      const duration = durationMatch ? parseInt(durationMatch[1]) : null;
 
-      const tenderTypeNumber =
-        TENDER_TYPE_MAP[formData.tenderType] || formData.tenderType || "";
+      const tenderTypeNumber = formData.tenderType
+        ? parseInt(TENDER_TYPE_MAP[formData.tenderType] || formData.tenderType)
+        : null;
 
-      const startDateFormatted = format(
-        formData.rentalStartDate,
-        "MMM dd, yyyy"
-      );
+      // Format start date as ISO string (YYYY-MM-DD)
+      const startDateISO = format(formData.rentalStartDate, "yyyy-MM-dd");
 
-      let returnDateISO = "";
+      // Format return date as ISO string if it exists
+      let returnDateISO: string | undefined = undefined;
       if (formData.returnDate) {
-        returnDateISO = formData.returnDate.toISOString();
+        returnDateISO = format(formData.returnDate, "yyyy-MM-dd");
       } else if (!formData.onGoing && formData.rentalStartDate) {
         const calculatedReturnDate = calculateReturnDate(
           formData.rentalStartDate,
-          duration
+          duration || 1
         );
-        returnDateISO = calculatedReturnDate.toISOString();
+        returnDateISO = format(calculatedReturnDate, "yyyy-MM-dd");
       }
 
-      const mappedInstruments = filledInstruments.map((instrument) => ({
-        instrumentId: instrument.instrumentId,
-        retailValue: instrument.retailValue || "",
-        assetTag: instrument.assetTag || "",
-        monthlyRate: instrument.monthlyRate || "0",
-        numberOfMonths: instrument.numberOfMonths || "0",
-        total: instrument.total || "0.00",
-      }));
-
+      // Calculate totals
       const subTotal = filledInstruments.reduce(
         (sum, instrument) => sum + parseFloat(instrument.total || "0"),
         0
@@ -1353,26 +1347,37 @@ export function EquipmentRentalsModal({
         totalTax += (instrumentTotal * instrument.taxRate) / 100;
       });
       const hst = totalTax;
-      const instrumentsTotal = subTotal + hst;
+      const total = subTotal + hst;
+
+      // Map instruments to new API format
+      const mappedInstruments = filledInstruments.map((instrument) => ({
+        instrumentId: instrument.instrumentId,
+        value: instrument.retailValue ? parseFloat(instrument.retailValue) : undefined,
+        asset: instrument.assetTag || undefined,
+        monthlyRate: parseFloat(instrument.monthlyRate || "0"),
+        months: parseInt(instrument.numberOfMonths || "0"),
+        total: parseFloat(instrument.total || "0"),
+      }));
 
       const response = await createEquipmentRental(location, customerId, {
-        userId: customerId,
-        customerName: formData.customer,
         studentId: parseInt(formData.studentId),
-        startDate: startDateFormatted,
-        isOnGoing: formData.onGoing,
-        duration: duration,
+        startDate: startDateISO,
         returnDate: returnDateISO,
-        securityDeposit: formData.securityDeposit,
-        tenderType: tenderTypeNumber,
-        depositAmount: formData.depositAmount || "",
-        instruments: mappedInstruments,
+        isOnGoing: formData.onGoing || false,
+        duration: formData.onGoing ? null : duration,
+        securityDeposit: formData.securityDeposit === "yes",
+        tenderType: formData.securityDeposit === "yes" ? tenderTypeNumber : null,
+        depositAmount:
+          formData.securityDeposit === "yes" && tenderTypeNumber !== 3
+            ? parseFloat(formData.depositAmount || "0")
+            : null,
         subTotal: subTotal,
         hst: hst,
-        instrumentsTotal: instrumentsTotal,
+        total: total,
+        instruments: mappedInstruments,
       });
 
-      if (response.status) {
+      if (response.status === true) {
         toast.success("Equipment rental created successfully");
 
         const selectedStudent = availableStudents.find(
@@ -1392,14 +1397,14 @@ export function EquipmentRentalsModal({
           studentLastName:
             selectedStudent?.fullName.split(" ").slice(1).join(" ") || "",
           startDate: format(formData.rentalStartDate, "yyyy-MM-dd"),
-          duration: duration,
+          duration: duration || 1, // Default to 1 if null (for ongoing rentals)
           returnDate: returnDateISO
             ? format(new Date(returnDateISO), "yyyy-MM-dd")
             : "",
           instruments: filledInstruments,
           subTotal: subTotal,
           hst: hst,
-          total: instrumentsTotal,
+          total: total, // Use total instead of instrumentsTotal
           location: location,
         });
 
@@ -1412,8 +1417,9 @@ export function EquipmentRentalsModal({
           });
         }
       } else {
-        const errorMessage =
-          response.errors?.join(", ") || "Failed to create equipment rental";
+        const errorMessage = Array.isArray(response.errors)
+          ? response.errors.join(", ")
+          : response.errors || "Failed to create equipment rental";
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -1470,83 +1476,23 @@ export function EquipmentRentalsModal({
     try {
       setReturning(true);
 
-      const selectedStudent = availableStudents.find(
-        (s) => s.id.toString() === formData.studentId
-      );
-      const studentName = selectedStudent?.fullName || "";
-
-      if (!studentName) {
-        toast.error("Student information not found");
-        return;
-      }
-
-      // Use the actual return date from formData if available, otherwise use today's date
-      // For ongoing rentals, if user has set a return date via Edit button, use that
-      // Otherwise, use today's date as the equipment returned date
-      const equipmentReturnedDate = formData.returnDate && formData.returnDate instanceof Date
-        ? formData.returnDate
-        : new Date();
-      const returnDateFormatted = format(equipmentReturnedDate, "MMM dd, yyyy");
-      
-      // NOTE: We do NOT send returnDate in FormData to preserve the original return date
-      // The backend should preserve the original return date from the database
-      // Only the URL parameter 'returnDate' is used to set the equipment returned date
-
-      const filledInstruments = instruments.filter(
-        (inst) => inst.instrumentId > 0
-      );
-
-      const mappedInstruments =
-        filledInstruments.length > 0
-          ? filledInstruments.map((instrument) => {
-              const instrumentTotal = parseFloat(instrument.total || "0");
-              // Use taxRate from each instrument instead of hardcoded TAX_RATE
-              const instrumentTax = ((instrumentTotal * instrument.taxRate) / 100).toFixed(2);
-              return {
-                value: "",
-                asset: "",
-                price: instrument.monthlyRate || "0",
-                duration: instrument.numberOfMonths || "0",
-                total: instrument.total || "0.00",
-                tax: instrumentTax,
-              };
-            })
-          : [
-              {
-                value: "",
-                asset: "",
-                price: "0",
-                duration: "0",
-                total: "0.00",
-                tax: "0.00",
-              },
-            ];
-
+      // New API: No need to send any data, just rentalId in query
       const response = await equipmentReturned(
         location,
-        rentalId,
-        returnDateFormatted, // This sets the equipment returned date (uses formData.returnDate if set, otherwise today's date)
-        {
-          userId: customerId,
-          customerName: formData.customer,
-          studentName: studentName,
-          // returnDate is NOT sent in FormData to preserve the original return date
-          securityDeposit: "",
-          tenderType: "",
-          depositAmount: "0.00",
-          instruments: mappedInstruments,
-        }
+        customerId,
+        rentalId
       );
 
-      if (response.status) {
+      if (response.status === true) {
         toast.success("Equipment marked as returned successfully");
         onOpenChange(false);
         if (onEquipmentReturned) {
           onEquipmentReturned(rentalId);
         }
       } else {
-        const errorMessage =
-          response.errors?.join(", ") || "Failed to mark equipment as returned";
+        const errorMessage = Array.isArray(response.errors)
+          ? response.errors.join(", ")
+          : response.errors || "Failed to mark equipment as returned";
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -1581,69 +1527,26 @@ export function EquipmentRentalsModal({
     try {
       setUpdating(true);
 
-      const selectedStudent = availableStudents.find(
-        (s) => s.id.toString() === formData.studentId
-      );
-      const studentName = selectedStudent?.fullName || "";
-
-      if (!studentName) {
-        toast.error("Student information not found");
-        return;
-      }
-
-      const returnDateFormatted = format(formData.returnDate, "MMM dd, yyyy");
-
-      const filledInstruments = instruments.filter(
-        (inst) => inst.instrumentId > 0
-      );
-
-      const mappedInstruments =
-        filledInstruments.length > 0
-          ? filledInstruments.map((instrument) => {
-              const instrumentTotal = parseFloat(instrument.total || "0");
-              // Use taxRate from each instrument instead of hardcoded TAX_RATE
-              const instrumentTax = ((instrumentTotal * instrument.taxRate) / 100).toFixed(2);
-              return {
-                value: "",
-                asset: "",
-                price: instrument.monthlyRate || "0",
-                duration: "", // Empty string as per API requirement
-                total: instrument.total || "0.00",
-                tax: instrumentTax,
-              };
-            })
-          : [
-              {
-                value: "",
-                asset: "",
-                price: "0",
-                duration: "",
-                total: "0.00",
-                tax: "0.00",
-              },
-            ];
+      // Format return date as ISO string (YYYY-MM-DD)
+      const returnDateISO = format(formData.returnDate, "yyyy-MM-dd");
 
       const response = await updateEquipmentRental(
         location,
+        customerId,
         rentalId,
-        returnDateFormatted,
         {
-          userId: customerId,
-          customerName: formData.customer,
-          studentName: studentName,
-          returnDate: returnDateFormatted,
-          securityDeposit: "",
-          tenderType: "",
-          depositAmount: formData.depositAmount || "0.00",
-          instruments: mappedInstruments,
+          returnDate: returnDateISO,
         }
       );
 
-      if (response.status) {
+      if (response.status === true) {
         toast.success("Return date updated successfully");
         // Refresh the data to get updated return date
         await fetchEquipmentRentalsData();
         if (onSave) {
+          const filledInstruments = instruments.filter(
+            (inst) => inst.instrumentId > 0
+          );
           onSave({
             ...formData,
             instruments: filledInstruments,
@@ -1651,14 +1554,9 @@ export function EquipmentRentalsModal({
         }
       } else {
         // Handle both string and array error formats
-        let errorMessage = "Failed to update return date";
-        if (response.errors) {
-          if (typeof response.errors === "string") {
-            errorMessage = response.errors;
-          } else if (Array.isArray(response.errors)) {
-            errorMessage = response.errors.join(", ");
-          }
-        }
+        const errorMessage = Array.isArray(response.errors)
+          ? response.errors.join(", ")
+          : response.errors || "Failed to update return date";
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -1685,70 +1583,23 @@ export function EquipmentRentalsModal({
       setDeleting(true);
       setShowDeleteConfirm(false);
 
-      const selectedStudent = availableStudents.find(
-        (s) => s.id.toString() === formData.studentId
-      );
-      const studentName = selectedStudent?.fullName || "";
-
-      if (!studentName) {
-        toast.error("Student information not found");
-        return;
-      }
-
-      const returnDateISO = formData.returnDate
-        ? format(formData.returnDate, "yyyy-MM-dd")
-        : "";
-
-      const filledInstruments = instruments.filter(
-        (inst) => inst.instrumentId > 0
+      // New API: No need to send any data, just rentalId in query
+      const response = await deleteEquipmentRental(
+        location,
+        customerId,
+        rentalId
       );
 
-      const mappedInstruments =
-        filledInstruments.length > 0
-          ? filledInstruments.map((instrument) => {
-              const instrumentTotal = parseFloat(instrument.total || "0");
-              // Use taxRate from each instrument instead of hardcoded TAX_RATE
-              const instrumentTax = ((instrumentTotal * instrument.taxRate) / 100).toFixed(2);
-              return {
-                value: "",
-                asset: "",
-                price: instrument.monthlyRate || "0",
-                duration: instrument.numberOfMonths || "0",
-                total: instrument.total || "0.00",
-                tax: instrumentTax,
-              };
-            })
-          : [
-              {
-                value: "",
-                asset: "",
-                price: "0",
-                duration: "0",
-                total: "0.00",
-                tax: "0.00",
-              },
-            ];
-
-      const response = await deleteEquipmentRental(location, rentalId, {
-        userId: customerId,
-        customerName: formData.customer,
-        studentName: studentName,
-        returnDate: returnDateISO,
-        securityDeposit: "",
-        tenderType: "",
-        depositAmount: formData.depositAmount || "0.00",
-        instruments: mappedInstruments,
-      });
-
-      if (response.status) {
+      if (response.status === true) {
         toast.success("Equipment rental deleted successfully");
         onOpenChange(false);
         if (onDelete) {
           onDelete();
         }
       } else {
-        const errorMessage =
-          response.errors?.join(", ") || "Failed to delete equipment rental";
+        const errorMessage = Array.isArray(response.errors)
+          ? response.errors.join(", ")
+          : response.errors || "Failed to delete equipment rental";
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -2378,8 +2229,8 @@ export function EquipmentRentalsModal({
                 </SelectContent>
               </Select>
               <Label className="w-24 ml-6">Return Date</Label>
-              {isEditMode && formData.onGoing && !formData.returnDate ? (
-                // In edit mode with ongoing rental and no return date, show date picker to allow setting return date
+              {isEditMode && formData.onGoing ? (
+                // In edit mode with ongoing rental, show date picker to allow setting/updating return date
                 <Popover
                   open={isReturnDateOpen}
                   onOpenChange={setIsReturnDateOpen}
@@ -2439,11 +2290,11 @@ export function EquipmentRentalsModal({
                   </PopoverContent>
                 </Popover>
               ) : (
-                // In create mode, non-ongoing, or edit mode with ongoing rental that has return date, show read-only input
+                // In create mode or non-ongoing, show read-only input
                 <Input
                   key={`return-date-${formData.onGoing ? "ongoing-empty" : formData.returnDate?.toISOString() || "empty"}-${formData.returnDate === undefined ? "undefined" : "defined"}`}
                   value={
-                    // Show return date if it exists (even for ongoing rentals in edit mode)
+                    // Show return date if it exists
                     formData.returnDate && formData.returnDate instanceof Date && !isNaN(formData.returnDate.getTime())
                       ? format(formData.returnDate, "MMM dd, yyyy")
                       : formData.onGoing === true
@@ -2451,7 +2302,7 @@ export function EquipmentRentalsModal({
                         : returnDateInputValue
                   }
                   readOnly
-                  disabled={formData.onGoing || isEditMode || (isEditMode && formData.onGoing && formData.returnDate)}
+                  disabled={formData.onGoing || isEditMode}
                   className="bg-gray-50 dark:bg-gray-800 w-48"
                   placeholder=""
                 />
@@ -2633,9 +2484,13 @@ export function EquipmentRentalsModal({
                 (() => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  const createdDate = new Date(rentalCreatedOn);
+                  // Ensure createdDate is properly parsed and normalized
+                  const createdDate = rentalCreatedOn instanceof Date 
+                    ? new Date(rentalCreatedOn.getTime())
+                    : new Date(rentalCreatedOn);
                   createdDate.setHours(0, 0, 0, 0);
-                  const showDelete = today <= createdDate;
+                  // Show delete button when today is same day or before created date (matching legacy: today_date <= created_On)
+                  const showDelete = today.getTime() <= createdDate.getTime();
                   return showDelete ? (
                     <Button
                       variant="destructive"
@@ -2652,7 +2507,7 @@ export function EquipmentRentalsModal({
             </div>
           )}
           <div className="flex items-center gap-2">
-            {isEditMode && formData.onGoing && !formData.returnDate && (
+            {isEditMode && formData.onGoing && (
               <Button
                 onClick={handleUpdateReturnDate}
                 disabled={!formData.returnDate || updating}
