@@ -45,6 +45,7 @@ export function EditEnrolmentDiscountsModal({
 
   React.useEffect(() => {
     if (discounts) {
+      // Convert "Not set" to empty string for display in input fields
       const pfValue = discounts.pfDiscount && discounts.pfDiscount !== "Not set" ? discounts.pfDiscount : "";
       const multipleValue = discounts.multipleEnrolDiscount && discounts.multipleEnrolDiscount !== "Not set" ? discounts.multipleEnrolDiscount : "";
       
@@ -94,8 +95,8 @@ export function EditEnrolmentDiscountsModal({
     if (!discounts) return;
     
     const success = await onSubmit({
-      pfDiscount: formData.pfDiscount || "Not set",
-      multipleEnrolDiscount: formData.multipleEnrolDiscount || "Not set",
+      pfDiscount: formData.pfDiscount || "",
+      multipleEnrolDiscount: formData.multipleEnrolDiscount || "",
     });
     
     if (success) {

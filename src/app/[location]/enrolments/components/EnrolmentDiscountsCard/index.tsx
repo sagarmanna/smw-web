@@ -32,11 +32,11 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
     return [
       {
         label: "PF Discount",
-        value: discounts?.pfDiscount || "Not set",
+        value: discounts?.pfDiscount || "",
       },
       {
         label: "Multiple Enrol. Discount",
-        value: discounts?.multipleEnrolDiscount || "Not set",
+        value: discounts?.multipleEnrolDiscount || "",
       },
     ];
   }, [discounts]);
