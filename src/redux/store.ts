@@ -20,6 +20,7 @@ import privateLessonsListingReducer from '../app/[location]/private-lessons/priv
 import groupCoursesListingReducer from '../app/[location]/group-courses/groupCoursesListing.slice';
 import groupCourseReducer from '../app/[location]/group-courses/[id]/groupCourseDetails.slice';
 import groupCourseTabsReducer from '../app/[location]/group-courses/[id]/groupCourseTabs.slice';
+import itemsListingReducer from '../app/[location]/items/itemsListing.slice';
 import invoicesListingReducer from '../app/[location]/invoices/invoicesListing.slice';
 
 export const store = configureStore({
@@ -45,6 +46,7 @@ export const store = configureStore({
     groupCoursesListing: groupCoursesListingReducer,
     groupCourse: groupCourseReducer,
     groupCourseTabs: groupCourseTabsReducer,
+    itemsListing: itemsListingReducer,
     invoicesListing: invoicesListingReducer,
   },
 });
