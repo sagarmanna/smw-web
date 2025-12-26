@@ -3,14 +3,18 @@ import {
   getEnrolmentDetails,
   getEnrolmentSchedule,
   getEnrolmentScheduleHistory,
+  getEnrolmentPaymentFrequency,
+  getEnrolmentLessons,
+  getEnrolmentHistory,
   transformApiResponse,
   updateEnrolmentDetails,
   adjustEnrolmentEndDate,
   permanentScheduleChange,
   updateEnrolmentDiscounts,
   updateEnrolmentPaymentFrequency,
+  type PaginationInfo,
 } from './enrolment-details.api';
-import type { EnrolmentInfo, EnrolmentDetails, EnrolmentDiscounts, EnrolmentPaymentFrequency } from '../types';
+import type { EnrolmentInfo, EnrolmentDetails, EnrolmentDiscounts, EnrolmentPaymentFrequency, EnrolmentHistory } from '../types';
 
 interface EnrolmentState {
   enrolmentInfo: EnrolmentInfo | null;
@@ -19,6 +23,11 @@ interface EnrolmentState {
   error: string | null;
   lastFetched: number | null;
   currentEnrolmentId: string | null;
+  // History state with pagination
+  historyData: EnrolmentHistory[];
+  historyPagination: PaginationInfo | null;
+  historyLoading: boolean;
+  historyError: string | null;
 }
 
 const initialState: EnrolmentState = {
@@ -28,6 +37,10 @@ const initialState: EnrolmentState = {
   error: null,
   lastFetched: null,
   currentEnrolmentId: null,
+  historyData: [],
+  historyPagination: null,
+  historyLoading: false,
+  historyError: null,
 };
 
 // Async thunk for fetching enrolment info
@@ -38,11 +51,13 @@ export const fetchEnrolment = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch details, schedule, and schedule history in parallel, but handle failures gracefully
-      const [detailsResult, scheduleResult, scheduleHistoryResult] = await Promise.allSettled([
+      // Fetch details, schedule, schedule history, payment frequency, and lessons in parallel, but handle failures gracefully
+      const [detailsResult, scheduleResult, scheduleHistoryResult, paymentFrequencyResult, lessonsResult] = await Promise.allSettled([
         getEnrolmentDetails(location, enrolmentId),
         getEnrolmentSchedule(location, enrolmentId),
         getEnrolmentScheduleHistory(location, enrolmentId),
+        getEnrolmentPaymentFrequency(location, enrolmentId),
+        getEnrolmentLessons(location, enrolmentId),
       ]);
 
       // Details API is required - fail if it doesn't succeed
@@ -73,7 +88,29 @@ export const fetchEnrolment = createAsyncThunk(
         console.warn('Schedule History API error:', scheduleHistoryResult.reason);
       }
 
-      const transformedData = transformApiResponse(details, schedule, scheduleHistory);
+      // Payment Frequency API is optional - log error but don't fail the entire fetch
+      let paymentFrequency: Awaited<ReturnType<typeof getEnrolmentPaymentFrequency>> = null;
+      if (paymentFrequencyResult.status === 'fulfilled') {
+        paymentFrequency = paymentFrequencyResult.value;
+        if (!paymentFrequency || !paymentFrequency.success) {
+          console.warn('Payment Frequency API failed:', paymentFrequency?.message || 'Unknown error');
+        }
+      } else {
+        console.warn('Payment Frequency API error:', paymentFrequencyResult.reason);
+      }
+
+      // Lessons API is optional - log error but don't fail the entire fetch
+      let lessons: Awaited<ReturnType<typeof getEnrolmentLessons>> = null;
+      if (lessonsResult.status === 'fulfilled') {
+        lessons = lessonsResult.value;
+        if (!lessons || !lessons.success) {
+          console.warn('Lessons API failed:', lessons?.message || 'Unknown error');
+        }
+      } else {
+        console.warn('Lessons API error:', lessonsResult.reason);
+      }
+
+      const transformedData = transformApiResponse(details, schedule, scheduleHistory, paymentFrequency, lessons);
 
       return { data: transformedData };
     } catch (error) {
@@ -177,6 +214,34 @@ export const updateDiscounts = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching enrolment history with pagination
+export const fetchEnrolmentHistory = createAsyncThunk(
+  'enrolment/fetchEnrolmentHistory',
+  async (
+    { location, enrolmentId, page = 1 }: { location: string; enrolmentId: string; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getEnrolmentHistory(location, enrolmentId, page);
+      
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch enrolment history');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+        enrolmentId,
+      };
+    } catch (error) {
+      console.error('Error in fetchEnrolmentHistory:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch enrolment history data'
+      );
+    }
+  }
+);
+
 // Async thunk for updating enrolment payment frequency
 export const updatePaymentFrequency = createAsyncThunk(
   'enrolment/updatePaymentFrequency',
@@ -207,6 +272,9 @@ const enrolmentSlice = createSlice({
       state.error = null;
       state.lastFetched = null;
       state.currentEnrolmentId = null;
+      state.historyData = [];
+      state.historyPagination = null;
+      state.historyError = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -364,6 +432,25 @@ const enrolmentSlice = createSlice({
       .addCase(updatePaymentFrequency.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
+      })
+      // Fetch enrolment history reducers
+      .addCase(fetchEnrolmentHistory.pending, (state) => {
+        state.historyLoading = true;
+        state.historyError = null;
+      })
+      .addCase(fetchEnrolmentHistory.fulfilled, (state, action) => {
+        state.historyLoading = false;
+        state.historyData = action.payload.data.map((item) => ({
+          id: item.id,
+          message: item.message || "",
+          createdOn: item.createdOn || "",
+        }));
+        state.historyPagination = action.payload.pagination || null;
+        state.historyError = null;
+      })
+      .addCase(fetchEnrolmentHistory.rejected, (state, action) => {
+        state.historyLoading = false;
+        state.historyError = action.payload as string;
       });
   },
 });
