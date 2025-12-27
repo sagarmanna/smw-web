@@ -59,6 +59,20 @@ export interface GetMergePreviewResponse {
   };
 }
 
+export interface MergeCustomerRequest {
+  sourceCustomerId: number;
+}
+
+export interface MergeCustomerResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    targetCustomerId: number;
+    sourceCustomerId: number;
+  };
+  errorCode?: string;
+}
+
 /**
  * Get list of customers available for merging (excluding the current customer)
  * @param location - The location identifier
@@ -133,6 +147,49 @@ export async function getMergePreview(
           enrolments: []
         }
       }
+    };
+  }
+}
+
+/**
+ * Merge a duplicate customer into the target customer using the new API
+ * @param location - The location identifier
+ * @param targetCustomerId - The target customer ID (to keep)
+ * @param sourceCustomerId - The source customer ID (to merge)
+ * @returns Promise with the merge result
+ */
+export async function mergeCustomer(
+  location: string,
+  targetCustomerId: number,
+  sourceCustomerId: number
+): Promise<MergeCustomerResponse> {
+  try {
+    const response = await apiClient.post<MergeCustomerResponse>(
+      `/admin/v2/${location}/customers/${targetCustomerId}/merge`,
+      {
+        sourceCustomerId
+      }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { 
+      response?: { 
+        data?: { 
+          success?: boolean;
+          message?: string;
+          errorCode?: string;
+        } 
+      } 
+    };
+    
+    console.error('Error merging customer:', error);
+    
+    // Return error response in the expected format
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to merge customer',
+      errorCode: apiError.response?.data?.errorCode || 'INTERNAL_SERVER_ERROR'
     };
   }
 }
