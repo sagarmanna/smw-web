@@ -5,10 +5,10 @@ import { toast } from "sonner";
 import {
   getCustomersForMerge,
   getMergePreview,
+  mergeCustomer,
   CustomerMergeData,
   MergePreviewData,
 } from "./customer-merge.api";
-import { mergeCustomer } from "@/lib/api/legacyApiAdapter";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 
@@ -208,7 +208,7 @@ export function CustomerMergeModal({
         selectedCustomer.id
       );
 
-      if (response.status) {
+      if (response.success) {
         // Success case
         toast.success(
           response.message || "Customer merged successfully"
@@ -220,7 +220,7 @@ export function CustomerMergeModal({
       } else {
         // Error case - API returned an error
         const errorMessage =
-          response.errors?.join(", ") ||
+          response.message ||
           "Failed to merge customer. Please try again.";
         toast.error(errorMessage);
       }
