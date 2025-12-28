@@ -24,7 +24,7 @@ import {
   LessonDetailModal,
   type LessonDetail,
 } from "./LessonDetailModal";
-import { fetchGroupCourses } from "../../../[id]/students-details.api";
+import { fetchGroupCourses, type LessonPreviewDto } from "../../../[id]/students-details.api";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { toast } from "sonner";
 
@@ -70,13 +70,36 @@ export function AddGroupEnrolmentModal({
   const [groupEnrolmentOptions, setGroupEnrolmentOptions] = React.useState<GroupEnrolmentOption[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [searchTimeout, setSearchTimeout] = React.useState<NodeJS.Timeout | null>(null);
+  const [apiLessons, setApiLessons] = React.useState<LessonDetail[] | null>(null);
+  const [enrolmentId, setEnrolmentId] = React.useState<number | undefined>(undefined);
+
+  const loadGroupCourses = React.useCallback(async (courseName?: string) => {
+    if (!studentId) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetchGroupCourses(location, studentId, courseName);
+      if (response?.success && response.data) {
+        setGroupEnrolmentOptions(response.data);
+      } else {
+        toast.error(response?.message || "Failed to load group courses");
+        setGroupEnrolmentOptions([]);
+      }
+    } catch (error) {
+      console.error("Error loading group courses:", error);
+      toast.error("Failed to load group courses");
+      setGroupEnrolmentOptions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location, studentId]);
 
   // Fetch group courses when modal opens
   React.useEffect(() => {
     if (open && studentId) {
       loadGroupCourses();
     }
-  }, [open, studentId]);
+  }, [open, studentId, loadGroupCourses]);
 
   // Debounced search - fetch courses when search query changes
   React.useEffect(() => {
@@ -100,28 +123,7 @@ export function AddGroupEnrolmentModal({
         clearTimeout(timeout);
       }
     };
-  }, [searchQuery, open]);
-
-  const loadGroupCourses = async (courseName?: string) => {
-    if (!studentId) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetchGroupCourses(location, studentId, courseName);
-      if (response?.success && response.data) {
-        setGroupEnrolmentOptions(response.data);
-      } else {
-        toast.error(response?.message || "Failed to load group courses");
-        setGroupEnrolmentOptions([]);
-      }
-    } catch (error) {
-      console.error("Error loading group courses:", error);
-      toast.error("Failed to load group courses");
-      setGroupEnrolmentOptions([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [searchQuery, open, loadGroupCourses, searchTimeout]);
 
   // Filter data based on search query (client-side fallback, but API handles it)
   const filteredData = React.useMemo(() => {
@@ -137,6 +139,8 @@ export function AddGroupEnrolmentModal({
       setIsLessonDetailModalOpen(false);
       setSelectedGroupEnrolment(null);
       setDiscountData(null);
+      setApiLessons(null);
+      setEnrolmentId(undefined);
     } else {
       // Cleanup timeout when modal closes
       if (searchTimeout) {
@@ -144,12 +148,12 @@ export function AddGroupEnrolmentModal({
         setSearchTimeout(null);
       }
     }
-  }, [open]);
+  }, [open, searchTimeout]);
 
   const handleNext = () => {
     const selected = groupEnrolmentOptions.find((opt) => opt.id === selectedId);
     if (selected) {
-      // Open discount detail modal instead of calling onNext directly
+      // Open discount detail modal directly (no API call needed)
       setIsDiscountModalOpen(true);
     }
   };
@@ -163,6 +167,25 @@ export function AddGroupEnrolmentModal({
       setIsDiscountModalOpen(false);
       setIsLessonDetailModalOpen(true);
     }
+  };
+
+  const handleApiPreview = async (lessons: LessonPreviewDto[], enrolmentIdFromApi?: number) => {
+    // Transform API lessons to LessonDetail format
+    const transformedLessons: LessonDetail[] = lessons.map((lesson) => ({
+      id: lesson.id.toString(),
+      dateTime: lesson.dateTime,
+      duration: lesson.duration,
+      price: lesson.price,
+      discount: lesson.discount,
+      total: lesson.total,
+    }));
+    setApiLessons(transformedLessons);
+    if (enrolmentIdFromApi) {
+      setEnrolmentId(enrolmentIdFromApi);
+    }
+    // Close discount modal and open lesson detail modal
+    setIsDiscountModalOpen(false);
+    setIsLessonDetailModalOpen(true);
   };
 
   const handleLessonDetailConfirm = (lessons: LessonDetail[]) => {
@@ -316,6 +339,10 @@ export function AddGroupEnrolmentModal({
         open={isDiscountModalOpen}
         onOpenChange={setIsDiscountModalOpen}
         onPreview={handleDiscountPreview}
+        onApiPreview={handleApiPreview}
+        location={location}
+        studentId={studentId}
+        courseId={selectedId}
         onClose={() => {
           // Keep discount modal open if we're going to lesson detail
           if (!isLessonDetailModalOpen) {
@@ -331,6 +358,9 @@ export function AddGroupEnrolmentModal({
           onConfirm={handleLessonDetailConfirm}
           groupEnrolment={selectedGroupEnrolment}
           discountData={discountData}
+          apiLessons={apiLessons}
+          location={location}
+          enrolmentId={enrolmentId}
         />
       )}
     </Dialog>

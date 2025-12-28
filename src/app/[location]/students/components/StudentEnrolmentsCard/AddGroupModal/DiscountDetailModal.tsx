@@ -12,6 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+// import { LoadingAnimation } from "@/components/LoadingAnimation";
+// import { applyGroupEnrolment } from "../../../../[id]/students-details.api";
+import { toast } from "sonner";
+import { applyGroupEnrolment, type LessonPreviewDto } from "../../../[id]/students-details.api";
 
 export interface DiscountDetailFormData {
   discountType: "fixed" | "percentage";
@@ -24,6 +28,10 @@ interface DiscountDetailModalProps {
   onPreview: (data: DiscountDetailFormData) => void;
   initialData?: Partial<DiscountDetailFormData>;
   onClose?: () => void;
+  location?: string;
+  studentId?: string;
+  courseId?: string;
+  onApiPreview?: (lessons: LessonPreviewDto[], enrolmentId?: number) => void; // Callback with API lessons data and enrolmentId
 }
 
 export function DiscountDetailModal({
@@ -32,6 +40,10 @@ export function DiscountDetailModal({
   onPreview,
   initialData,
   onClose,
+  location,
+  studentId,
+  courseId,
+  onApiPreview,
 }: DiscountDetailModalProps) {
   const [discountType, setDiscountType] = React.useState<"fixed" | "percentage">(
     initialData?.discountType || "fixed"
@@ -39,6 +51,7 @@ export function DiscountDetailModal({
   const [discountValue, setDiscountValue] = React.useState<string>(
     initialData?.discountValue || ""
   );
+  const [isLoading, setIsLoading] = React.useState(false);
 
   // Reset form when modal opens/closes
   React.useEffect(() => {
@@ -48,12 +61,58 @@ export function DiscountDetailModal({
     }
   }, [open, initialData]);
 
-  const handlePreview = () => {
-    onPreview({
-      discountType,
-      discountValue,
-    });
-    // Don't close the modal here - let the parent handle it
+  const handlePreview = async () => {
+    // Prevent multiple simultaneous calls
+    if (isLoading) {
+      return;
+    }
+
+    // If API preview is available and we have required data, call API
+    if (onApiPreview && location && studentId && courseId) {
+      setIsLoading(true);
+      try {
+        const response = await applyGroupEnrolment(
+          location,
+          studentId,
+          courseId,
+          discountValue || undefined,
+          discountType
+        );
+        
+        if (response?.success && response.data?.lessons) {
+          // Pass lessons and enrolmentId from API to parent
+          onApiPreview(response.data.lessons, response.data.enrolmentId);
+          // Also call the regular preview callback for backward compatibility
+          onPreview({
+            discountType,
+            discountValue,
+          });
+        } else {
+          toast.error(response?.message || "Failed to load lesson details");
+          // Fallback to regular preview
+          onPreview({
+            discountType,
+            discountValue,
+          });
+        }
+      } catch (error) {
+        console.error("Error applying group enrolment:", error);
+        toast.error("Failed to load lesson details");
+        // Fallback to regular preview
+        onPreview({
+          discountType,
+          discountValue,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Fallback to regular preview (no API call)
+      onPreview({
+        discountType,
+        discountValue,
+      });
+    }
   };
 
   const handleCancel = () => {
@@ -122,13 +181,18 @@ export function DiscountDetailModal({
         </div>
 
         <DialogFooter className="flex justify-between gap-2">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </Button>
           <Button
             onClick={handlePreview}
+            disabled={isLoading}
           >
-            Preview
+            {isLoading ? (
+              "Loading..."
+            ) : (
+              "Preview"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
