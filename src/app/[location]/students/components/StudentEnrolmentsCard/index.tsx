@@ -317,6 +317,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
         onOpenChange={setIsAddGroupEnrolmentModalOpen}
         onNext={handleGroupEnrolmentNext}
         location={location}
+        studentId={studentId}
       />
     </>
   );

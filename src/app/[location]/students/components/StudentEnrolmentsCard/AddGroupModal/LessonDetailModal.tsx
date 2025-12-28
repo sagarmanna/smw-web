@@ -17,6 +17,8 @@ import { parse, isValid } from "date-fns";
 import type { GroupEnrolmentOption } from "./AddGroupEnrolmentModal";
 import type { DiscountDetailFormData } from "./DiscountDetailModal";
 import { EditDiscountModal, type EditDiscountFormData } from "./EditDiscountModal";
+import { confirmGroupEnrolment } from "../../../[id]/students-details.api";
+import { toast } from "sonner";
 
 export interface LessonDetail {
   id: string;
@@ -33,6 +35,9 @@ interface LessonDetailModalProps {
   onConfirm: (lessons: LessonDetail[]) => void;
   groupEnrolment: GroupEnrolmentOption;
   discountData: DiscountDetailFormData;
+  apiLessons?: LessonDetail[] | null; // Lessons from API (preferred over client-side generation)
+  location?: string;
+  enrolmentId?: number; // Enrolment ID from group-apply API response
 }
 
 const DAY_MAP: Record<string, number> = {
@@ -101,14 +106,25 @@ export function LessonDetailModal({
   onConfirm,
   groupEnrolment,
   discountData,
+  apiLessons,
+  location,
+  enrolmentId,
 }: LessonDetailModalProps) {
   const [lessons, setLessons] = React.useState<LessonDetail[]>([]);
   const [isEditDiscountModalOpen, setIsEditDiscountModalOpen] = React.useState(false);
   const [editingLesson, setEditingLesson] = React.useState<LessonDetail | null>(null);
+  const [isConfirming, setIsConfirming] = React.useState(false);
 
   React.useEffect(() => {
     if (!open || !groupEnrolment || !discountData) return;
 
+    // Prefer API lessons if available
+    if (apiLessons && apiLessons.length > 0) {
+      setLessons(apiLessons);
+      return;
+    }
+
+    // Fallback to client-side generation (for backward compatibility)
     const lessonDates = generateLessonDates(
       groupEnrolment.startDate,
       groupEnrolment.endDate,
@@ -129,7 +145,7 @@ export function LessonDetailModal({
         total: pricePerLesson - discountPerLesson,
       }))
     );
-  }, [open, groupEnrolment, discountData]);
+  }, [open, groupEnrolment, discountData, apiLessons]);
 
   const handleEdit = React.useCallback((lesson: LessonDetail) => {
     setEditingLesson(lesson);
@@ -187,12 +203,15 @@ export function LessonDetailModal({
       {
         accessorKey: "dateTime",
         header: "Date/Time",
-        cell: ({ row }) =>
-          row.original.id === "footer" ? (
-            <div className="font-semibold">{row.original.dateTime || "Total"}</div>
-          ) : (
-            formatDateTime(new Date(row.getValue("dateTime")), groupEnrolment.fromTime)
-          ),
+        cell: ({ row }) => {
+          if (row.original.id === "footer") {
+            return <div className="font-semibold">{row.original.dateTime || "Total"}</div>;
+          }
+          // API returns ISO string, convert to Date and format
+          const date = new Date(row.getValue("dateTime"));
+          // Use the time from groupEnrolment.fromTime if available, otherwise use the date's time
+          return formatDateTime(date, groupEnrolment.fromTime);
+        },
       },
       {
         accessorKey: "duration",
@@ -272,14 +291,42 @@ export function LessonDetailModal({
         </div>
 
         <DialogFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isConfirming}>
+            Cancel
+          </Button>
           <Button
-            onClick={() => {
-              onConfirm(lessons);
-              onOpenChange(false);
+            onClick={async () => {
+              // If we have enrolmentId from API, call confirm API first
+              if (location && enrolmentId) {
+                setIsConfirming(true);
+                try {
+                  const response = await confirmGroupEnrolment(location, enrolmentId);
+                  if (response?.success) {
+                    toast.success("Group enrolment confirmed successfully");
+                    onConfirm(lessons);
+                    onOpenChange(false);
+                  } else {
+                    toast.error(response?.message || "Failed to confirm group enrolment");
+                  }
+                } catch (error) {
+                  console.error("Error confirming group enrolment:", error);
+                  toast.error("Failed to confirm group enrolment");
+                } finally {
+                  setIsConfirming(false);
+                }
+              } else {
+                // Fallback: just call onConfirm without API call
+                onConfirm(lessons);
+                onOpenChange(false);
+              }
             }}
+            disabled={isConfirming}
           >
-            Confirm
+            {isConfirming ? (
+              "Confirming..."
+            ) : (
+              "Confirm"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

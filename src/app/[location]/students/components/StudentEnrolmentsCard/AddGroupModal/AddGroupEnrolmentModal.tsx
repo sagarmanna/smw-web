@@ -24,6 +24,9 @@ import {
   LessonDetailModal,
   type LessonDetail,
 } from "./LessonDetailModal";
+import { fetchGroupCourses, type LessonPreviewDto } from "../../../[id]/students-details.api";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { toast } from "sonner";
 
 export interface GroupEnrolmentOption {
   id: string;
@@ -48,13 +51,15 @@ interface AddGroupEnrolmentModalProps {
   onOpenChange: (open: boolean) => void;
   onNext: (data: GroupEnrolmentCompleteData) => void;
   location: string;
+  studentId: string;
 }
 
 export function AddGroupEnrolmentModal({
   open,
   onOpenChange,
   onNext,
-  location: _location,
+  location,
+  studentId,
 }: AddGroupEnrolmentModalProps) {
   const [selectedId, setSelectedId] = React.useState<string>("");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
@@ -62,36 +67,68 @@ export function AddGroupEnrolmentModal({
   const [isLessonDetailModalOpen, setIsLessonDetailModalOpen] = React.useState(false);
   const [selectedGroupEnrolment, setSelectedGroupEnrolment] = React.useState<GroupEnrolmentOption | null>(null);
   const [discountData, setDiscountData] = React.useState<DiscountDetailFormData | null>(null);
+  const [groupEnrolmentOptions, setGroupEnrolmentOptions] = React.useState<GroupEnrolmentOption[]>([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [searchTimeout, setSearchTimeout] = React.useState<NodeJS.Timeout | null>(null);
+  const [apiLessons, setApiLessons] = React.useState<LessonDetail[] | null>(null);
+  const [enrolmentId, setEnrolmentId] = React.useState<number | undefined>(undefined);
 
-  // Mock data - replace with actual API call
-  const [groupEnrolmentOptions] = React.useState<GroupEnrolmentOption[]>([
-    {
-      id: "1",
-      course: "Band",
-      teacher: "Daniel Clain",
-      day: "Saturday",
-      rate: 450.0,
-      fromTime: "07:30 PM",
-      duration: "01:30",
-      startDate: "Oct 18, 2025",
-      endDate: "Jan 03, 2026",
-    },
-  ]);
+  const loadGroupCourses = React.useCallback(async (courseName?: string) => {
+    if (!studentId) return;
 
-  // Filter data based on search query
-  const filteredData = React.useMemo(() => {
-    if (!searchQuery.trim()) {
-      return groupEnrolmentOptions;
+    setIsLoading(true);
+    try {
+      const response = await fetchGroupCourses(location, studentId, courseName);
+      if (response?.success && response.data) {
+        setGroupEnrolmentOptions(response.data);
+      } else {
+        toast.error(response?.message || "Failed to load group courses");
+        setGroupEnrolmentOptions([]);
+      }
+    } catch (error) {
+      console.error("Error loading group courses:", error);
+      toast.error("Failed to load group courses");
+      setGroupEnrolmentOptions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location, studentId]);
+
+  // Fetch group courses when modal opens
+  React.useEffect(() => {
+    if (open && studentId) {
+      loadGroupCourses();
+    }
+  }, [open, studentId, loadGroupCourses]);
+
+  // Debounced search - fetch courses when search query changes
+  React.useEffect(() => {
+    if (!open) return;
+
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
 
-    const query = searchQuery.toLowerCase();
-    return groupEnrolmentOptions.filter(
-      (option) =>
-        option.course.toLowerCase().includes(query) ||
-        option.teacher.toLowerCase().includes(query) ||
-        option.day.toLowerCase().includes(query)
-    );
-  }, [groupEnrolmentOptions, searchQuery]);
+    // Set new timeout for debounced search
+    const timeout = setTimeout(() => {
+      loadGroupCourses(searchQuery.trim() || undefined);
+    }, 500); // 500ms debounce
+
+    setSearchTimeout(timeout);
+
+    // Cleanup
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [searchQuery, open, loadGroupCourses, searchTimeout]);
+
+  // Filter data based on search query (client-side fallback, but API handles it)
+  const filteredData = React.useMemo(() => {
+    return groupEnrolmentOptions;
+  }, [groupEnrolmentOptions]);
 
   // Reset selection when modal opens/closes
   React.useEffect(() => {
@@ -102,13 +139,21 @@ export function AddGroupEnrolmentModal({
       setIsLessonDetailModalOpen(false);
       setSelectedGroupEnrolment(null);
       setDiscountData(null);
+      setApiLessons(null);
+      setEnrolmentId(undefined);
+    } else {
+      // Cleanup timeout when modal closes
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        setSearchTimeout(null);
+      }
     }
-  }, [open]);
+  }, [open, searchTimeout]);
 
   const handleNext = () => {
     const selected = groupEnrolmentOptions.find((opt) => opt.id === selectedId);
     if (selected) {
-      // Open discount detail modal instead of calling onNext directly
+      // Open discount detail modal directly (no API call needed)
       setIsDiscountModalOpen(true);
     }
   };
@@ -122,6 +167,25 @@ export function AddGroupEnrolmentModal({
       setIsDiscountModalOpen(false);
       setIsLessonDetailModalOpen(true);
     }
+  };
+
+  const handleApiPreview = async (lessons: LessonPreviewDto[], enrolmentIdFromApi?: number) => {
+    // Transform API lessons to LessonDetail format
+    const transformedLessons: LessonDetail[] = lessons.map((lesson) => ({
+      id: lesson.id.toString(),
+      dateTime: lesson.dateTime,
+      duration: lesson.duration,
+      price: lesson.price,
+      discount: lesson.discount,
+      total: lesson.total,
+    }));
+    setApiLessons(transformedLessons);
+    if (enrolmentIdFromApi) {
+      setEnrolmentId(enrolmentIdFromApi);
+    }
+    // Close discount modal and open lesson detail modal
+    setIsDiscountModalOpen(false);
+    setIsLessonDetailModalOpen(true);
   };
 
   const handleLessonDetailConfirm = (lessons: LessonDetail[]) => {
@@ -228,23 +292,33 @@ export function AddGroupEnrolmentModal({
 
           {/* Table */}
           <div className="flex-1 overflow-hidden">
-            <RadioGroup value={selectedId} onValueChange={setSelectedId}>
-              <CustomTable
-                data={filteredData}
-                columns={columns}
-                enableSearch={false}
-                enableExport={false}
-                enableFilter={false}
-                enablePrint={false}
-                enableSorting={false}
-                enableRowsPerPage={false}
-                maxHeight="calc(90vh - 250px)"
-                onRowClick={handleRowClick}
-                rowClassName={(row: GroupEnrolmentOption) =>
-                  selectedId === row.id ? "bg-primary/10" : ""
-                }
-              />
-            </RadioGroup>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <LoadingAnimation size="md" text="Loading group courses..." />
+              </div>
+            ) : filteredData.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-sm text-muted-foreground">No group courses available.</p>
+              </div>
+            ) : (
+              <RadioGroup value={selectedId} onValueChange={setSelectedId}>
+                <CustomTable
+                  data={filteredData}
+                  columns={columns}
+                  enableSearch={false}
+                  enableExport={false}
+                  enableFilter={false}
+                  enablePrint={false}
+                  enableSorting={false}
+                  enableRowsPerPage={false}
+                  maxHeight="calc(90vh - 250px)"
+                  onRowClick={handleRowClick}
+                  rowClassName={(row: GroupEnrolmentOption) =>
+                    selectedId === row.id ? "bg-primary/10" : ""
+                  }
+                />
+              </RadioGroup>
+            )}
           </div>
         </div>
 
@@ -265,6 +339,10 @@ export function AddGroupEnrolmentModal({
         open={isDiscountModalOpen}
         onOpenChange={setIsDiscountModalOpen}
         onPreview={handleDiscountPreview}
+        onApiPreview={handleApiPreview}
+        location={location}
+        studentId={studentId}
+        courseId={selectedId}
         onClose={() => {
           // Keep discount modal open if we're going to lesson detail
           if (!isLessonDetailModalOpen) {
@@ -280,6 +358,9 @@ export function AddGroupEnrolmentModal({
           onConfirm={handleLessonDetailConfirm}
           groupEnrolment={selectedGroupEnrolment}
           discountData={discountData}
+          apiLessons={apiLessons}
+          location={location}
+          enrolmentId={enrolmentId}
         />
       )}
     </Dialog>

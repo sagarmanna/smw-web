@@ -134,9 +134,3 @@ export function DatePicker({
     </>
   );
 }
-
-
-
-
-
-

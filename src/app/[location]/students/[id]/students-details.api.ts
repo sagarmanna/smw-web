@@ -800,3 +800,196 @@ export function genderDisplayToApi(displayGender: string | undefined): string {
   return "0";
 }
 
+// ---------------------------------------------
+// Group Course Enrolment API Types
+// ---------------------------------------------
+
+export interface GroupCourseOption {
+  id: string;
+  course: string;
+  teacher: string;
+  day: string;
+  rate: number;
+  fromTime: string;
+  duration: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface FetchGroupCoursesApiResponse {
+  success: boolean;
+  data: GroupCourseOption[];
+  message?: string;
+}
+
+/**
+ * Fetches available group courses for a student
+ * Endpoint: GET /admin/v2/{location}/course/fetch-group?studentId={studentId}&courseName={courseName}
+ * 
+ * @param location - The location identifier
+ * @param studentId - The student ID
+ * @param courseName - Optional course name filter
+ * @returns Promise resolving to the group courses response or null on error
+ */
+export async function fetchGroupCourses(
+  location: string,
+  studentId: string,
+  courseName?: string,
+): Promise<FetchGroupCoursesApiResponse | null> {
+  try {
+    const params: Record<string, string | number> = {
+      studentId: Number(studentId),
+    };
+    
+    if (courseName) {
+      params.courseName = courseName;
+    }
+    
+    const response = await apiClient.get<FetchGroupCoursesApiResponse>(
+      `/admin/v2/${location}/course/fetch-group`,
+      { params }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching group courses:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: [],
+      message: apiError.response?.data?.message || "Failed to fetch group courses",
+    };
+  }
+}
+
+// ---------------------------------------------
+// Group Enrolment API Types
+// ---------------------------------------------
+
+export interface GroupCourseFormRequest {
+  studentId: number;
+  courseId: number;
+  discount?: string;
+  discountType?: number; // 0 = percentage, 1 = dollar
+}
+
+export interface LessonPreviewDto {
+  id: number;
+  dateTime: string;
+  duration: string;
+  price: number;
+  discount: number;
+  total: number;
+}
+
+export interface GroupEnrolmentPreviewResponse {
+  success: boolean;
+  data: {
+    enrolmentId: number;
+    lessons: LessonPreviewDto[];
+  };
+  message?: string;
+}
+
+/**
+ * Apply group enrolment - creates unconfirmed enrolment, applies discount, returns lesson preview
+ * Endpoint: POST /admin/v2/{location}/enrolments/group-apply
+ * 
+ * @param location - The location identifier
+ * @param studentId - The student ID
+ * @param courseId - The course ID
+ * @param discount - Optional discount value
+ * @param discountType - Discount type: "fixed" (dollar) or "percentage"
+ * @returns Promise resolving to the lesson preview response or null on error
+ */
+export async function applyGroupEnrolment(
+  location: string,
+  studentId: string,
+  courseId: string,
+  discount?: string,
+  discountType?: "fixed" | "percentage",
+): Promise<GroupEnrolmentPreviewResponse | null> {
+  try {
+    const params: Record<string, string | number> = {
+      studentId: Number(studentId),
+      courseId: Number(courseId),
+    };
+
+    const body: Record<string, string | number> = {
+      studentId: Number(studentId),
+      courseId: Number(courseId),
+    };
+
+    if (discount) {
+      body.discount = discount;
+      // Convert UI discount type to API format: fixed = 1 (dollar), percentage = 0
+      body.discountType = discountType === "fixed" ? 1 : 0;
+    }
+
+    const response = await apiClient.post<GroupEnrolmentPreviewResponse>(
+      `/admin/v2/${location}/enrolments/group-apply`,
+      body,
+      { params }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error applying group enrolment:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        enrolmentId: 0,
+        lessons: [],
+      },
+      message: apiError.response?.data?.message || "Failed to apply group enrolment",
+    };
+  }
+}
+
+// ---------------------------------------------
+// Group Enrolment Confirm API Types
+// ---------------------------------------------
+
+export interface GroupEnrolmentConfirmResponse {
+  success: boolean;
+  data: {
+    enrolmentId: number;
+  };
+  message?: string;
+}
+
+/**
+ * Confirm group enrolment - sets isConfirmed=true and creates GroupLesson records
+ * Endpoint: POST /admin/v2/{location}/enrolments/group-confirm?enrolmentId={enrolmentId}
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID to confirm
+ * @returns Promise resolving to the response or null on error
+ */
+export async function confirmGroupEnrolment(
+  location: string,
+  enrolmentId: number,
+): Promise<GroupEnrolmentConfirmResponse | null> {
+  try {
+    const params: Record<string, string | number> = {
+      enrolmentId: enrolmentId,
+    };
+
+    const response = await apiClient.post<GroupEnrolmentConfirmResponse>(
+      `/admin/v2/${location}/enrolments/group-confirm`,
+      {},
+      { params }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error confirming group enrolment:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        enrolmentId: enrolmentId,
+      },
+      message: apiError.response?.data?.message || "Failed to confirm group enrolment",
+    };
+  }
+}
+
