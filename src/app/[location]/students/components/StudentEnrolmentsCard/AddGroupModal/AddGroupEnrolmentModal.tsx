@@ -24,6 +24,9 @@ import {
   LessonDetailModal,
   type LessonDetail,
 } from "./LessonDetailModal";
+import { fetchGroupCourses } from "../../../[id]/students-details.api";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { toast } from "sonner";
 
 export interface GroupEnrolmentOption {
   id: string;
@@ -48,13 +51,15 @@ interface AddGroupEnrolmentModalProps {
   onOpenChange: (open: boolean) => void;
   onNext: (data: GroupEnrolmentCompleteData) => void;
   location: string;
+  studentId: string;
 }
 
 export function AddGroupEnrolmentModal({
   open,
   onOpenChange,
   onNext,
-  location: _location,
+  location,
+  studentId,
 }: AddGroupEnrolmentModalProps) {
   const [selectedId, setSelectedId] = React.useState<string>("");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
@@ -62,36 +67,66 @@ export function AddGroupEnrolmentModal({
   const [isLessonDetailModalOpen, setIsLessonDetailModalOpen] = React.useState(false);
   const [selectedGroupEnrolment, setSelectedGroupEnrolment] = React.useState<GroupEnrolmentOption | null>(null);
   const [discountData, setDiscountData] = React.useState<DiscountDetailFormData | null>(null);
+  const [groupEnrolmentOptions, setGroupEnrolmentOptions] = React.useState<GroupEnrolmentOption[]>([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [searchTimeout, setSearchTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
-  // Mock data - replace with actual API call
-  const [groupEnrolmentOptions] = React.useState<GroupEnrolmentOption[]>([
-    {
-      id: "1",
-      course: "Band",
-      teacher: "Daniel Clain",
-      day: "Saturday",
-      rate: 450.0,
-      fromTime: "07:30 PM",
-      duration: "01:30",
-      startDate: "Oct 18, 2025",
-      endDate: "Jan 03, 2026",
-    },
-  ]);
+  // Fetch group courses when modal opens
+  React.useEffect(() => {
+    if (open && studentId) {
+      loadGroupCourses();
+    }
+  }, [open, studentId]);
 
-  // Filter data based on search query
-  const filteredData = React.useMemo(() => {
-    if (!searchQuery.trim()) {
-      return groupEnrolmentOptions;
+  // Debounced search - fetch courses when search query changes
+  React.useEffect(() => {
+    if (!open) return;
+
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
 
-    const query = searchQuery.toLowerCase();
-    return groupEnrolmentOptions.filter(
-      (option) =>
-        option.course.toLowerCase().includes(query) ||
-        option.teacher.toLowerCase().includes(query) ||
-        option.day.toLowerCase().includes(query)
-    );
-  }, [groupEnrolmentOptions, searchQuery]);
+    // Set new timeout for debounced search
+    const timeout = setTimeout(() => {
+      loadGroupCourses(searchQuery.trim() || undefined);
+    }, 500); // 500ms debounce
+
+    setSearchTimeout(timeout);
+
+    // Cleanup
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [searchQuery, open]);
+
+  const loadGroupCourses = async (courseName?: string) => {
+    if (!studentId) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetchGroupCourses(location, studentId, courseName);
+      if (response?.success && response.data) {
+        setGroupEnrolmentOptions(response.data);
+      } else {
+        toast.error(response?.message || "Failed to load group courses");
+        setGroupEnrolmentOptions([]);
+      }
+    } catch (error) {
+      console.error("Error loading group courses:", error);
+      toast.error("Failed to load group courses");
+      setGroupEnrolmentOptions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Filter data based on search query (client-side fallback, but API handles it)
+  const filteredData = React.useMemo(() => {
+    return groupEnrolmentOptions;
+  }, [groupEnrolmentOptions]);
 
   // Reset selection when modal opens/closes
   React.useEffect(() => {
@@ -102,6 +137,12 @@ export function AddGroupEnrolmentModal({
       setIsLessonDetailModalOpen(false);
       setSelectedGroupEnrolment(null);
       setDiscountData(null);
+    } else {
+      // Cleanup timeout when modal closes
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        setSearchTimeout(null);
+      }
     }
   }, [open]);
 
@@ -228,23 +269,33 @@ export function AddGroupEnrolmentModal({
 
           {/* Table */}
           <div className="flex-1 overflow-hidden">
-            <RadioGroup value={selectedId} onValueChange={setSelectedId}>
-              <CustomTable
-                data={filteredData}
-                columns={columns}
-                enableSearch={false}
-                enableExport={false}
-                enableFilter={false}
-                enablePrint={false}
-                enableSorting={false}
-                enableRowsPerPage={false}
-                maxHeight="calc(90vh - 250px)"
-                onRowClick={handleRowClick}
-                rowClassName={(row: GroupEnrolmentOption) =>
-                  selectedId === row.id ? "bg-primary/10" : ""
-                }
-              />
-            </RadioGroup>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <LoadingAnimation size="md" text="Loading group courses..." />
+              </div>
+            ) : filteredData.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-sm text-muted-foreground">No group courses available.</p>
+              </div>
+            ) : (
+              <RadioGroup value={selectedId} onValueChange={setSelectedId}>
+                <CustomTable
+                  data={filteredData}
+                  columns={columns}
+                  enableSearch={false}
+                  enableExport={false}
+                  enableFilter={false}
+                  enablePrint={false}
+                  enableSorting={false}
+                  enableRowsPerPage={false}
+                  maxHeight="calc(90vh - 250px)"
+                  onRowClick={handleRowClick}
+                  rowClassName={(row: GroupEnrolmentOption) =>
+                    selectedId === row.id ? "bg-primary/10" : ""
+                  }
+                />
+              </RadioGroup>
+            )}
           </div>
         </div>
 
