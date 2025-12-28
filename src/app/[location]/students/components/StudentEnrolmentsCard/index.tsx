@@ -75,9 +75,12 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
     }
   }, [enrolments, showAll]);
   
-  // Merge local enrolments with props enrolments
+  // Merge local enrolments with props enrolments, removing duplicates by ID
   const displayEnrolments = React.useMemo(() => {
-    return [...enrolments, ...localEnrolments];
+    const enrolmentIds = new Set(enrolments.map(e => e.id));
+    // Only include local enrolments that don't exist in props enrolments
+    const uniqueLocalEnrolments = localEnrolments.filter(e => !enrolmentIds.has(e.id));
+    return [...enrolments, ...uniqueLocalEnrolments];
   }, [enrolments, localEnrolments]);
 
   // Handle showAll checkbox change
@@ -176,12 +179,24 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
         endDate: apiEnrolment.endDate,
       };
 
+      // Add to local enrolments temporarily for immediate UI feedback
       setLocalEnrolments((prev) => [...prev, newEnrolment]);
       setIsNewEnrolmentModalOpen(false);
       toast.success("Enrolment created successfully");
 
-      // Optionally let parent refresh other data if needed
-      onRefresh?.();
+      // Refresh enrolments from API - this will include the newly created enrolment
+      // The duplicate filtering in displayEnrolments will prevent showing it twice
+      if (onRefresh) {
+        try {
+          await onRefresh();
+        } catch (error) {
+          console.error("Failed to refresh enrolments:", error);
+        }
+      }
+      
+      // Clear the local enrolment after refresh completes
+      // The enrolment from API will now be in the enrolments prop
+      setLocalEnrolments((prev) => prev.filter(e => e.id !== newEnrolment.id));
     } catch (error) {
       console.error("Failed to create enrolment:", error);
       toast.error("Failed to create enrolment");
@@ -291,6 +306,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
       <NewEnrolmentModal
         open={isNewEnrolmentModalOpen}
         onOpenChange={setIsNewEnrolmentModalOpen}
+        studentId={Number(studentId)}
         onNext={handleNewEnrolmentNext}
         location={location}
         customerId={customerId}

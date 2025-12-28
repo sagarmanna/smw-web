@@ -27,7 +27,15 @@ import {
 import {
   NewEnrolmentReviewModal,
   type LessonPreview,
+  type EnrolmentReviewDetails,
 } from "@/components/EnrolmentWizard/NewEnrolmentReviewModal";
+import {
+  createStudentEnrolment,
+  getLessonReview,
+  confirmLessons,
+  type CreateStudentEnrolmentRequest,
+} from "../../../[id]/students-details.api";
+import { toast } from "sonner";
 
 interface NewEnrolmentModalProps {
   open: boolean;
@@ -35,6 +43,7 @@ interface NewEnrolmentModalProps {
   onNext?: (data: EnrolmentFormData) => void;
   location: string;
   customerId?: number;
+  studentId?: number; // Student ID for creating enrolment
   nextButtonText?: string; // Custom button text for NewEnrolmentDetailModal, defaults to "Preview Lessons"
 }
 
@@ -123,6 +132,7 @@ export function NewEnrolmentModal({
   onNext,
   location,
   customerId,
+  studentId,
   nextButtonText,
 }: NewEnrolmentModalProps) {
   const [programs, setPrograms] = React.useState<Program[]>([]);
@@ -138,6 +148,9 @@ export function NewEnrolmentModal({
   const [startDateData, setStartDateData] = React.useState<EnrolmentStartDateFormData | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = React.useState(false);
   const [lessonPreviews, setLessonPreviews] = React.useState<LessonPreview[]>([]);
+  const [reviewDetails, setReviewDetails] = React.useState<EnrolmentReviewDetails | undefined>(undefined);
+  const [loadingReview, setLoadingReview] = React.useState(false);
+  const [createdCourseId, setCreatedCourseId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -178,13 +191,15 @@ export function NewEnrolmentModal({
 
   // Reset the wizard only when everything is fully closed (not while moving to the next step).
   React.useEffect(() => {
-    if (!open && !isStartDateModalOpen && !isDetailModalOpen) {
+    if (!open && !isStartDateModalOpen && !isDetailModalOpen && !isReviewModalOpen) {
       setFormData(defaultFormData);
       setErrors({});
       setCurrentFormData(null);
       setStartDateData(null);
+      setLessonPreviews([]);
+      setReviewDetails(undefined);
     }
-  }, [open, isStartDateModalOpen, isDetailModalOpen]);
+  }, [open, isStartDateModalOpen, isDetailModalOpen, isReviewModalOpen]);
 
   const programOptions = React.useMemo(
     () => programs.map((p) => ({ value: p.id.toString(), label: p.name })),
@@ -433,50 +448,138 @@ export function NewEnrolmentModal({
           setIsDetailModalOpen(false);
           setIsStartDateModalOpen(true);
         }}
-        onPreviewLessons={(detailData) => {
-          if (currentFormData) {
-            const combinedData: EnrolmentFormData = {
-              ...currentFormData,
-              teacherId: detailData.teacherId,
-              teacherName: detailData.teacherName,
-              day: detailData.day,
-              startTime: detailData.startTime,
-              goToDate: detailData.goToDate,
-              // prefer duration from detail step if provided
-              duration: detailData.duration ?? currentFormData.duration,
+        isLoading={loadingReview}
+        onPreviewLessons={async (detailData) => {
+          if (!currentFormData || !studentId) {
+            toast.error("Missing required data to create enrolment");
+            return;
+          }
+
+          const combinedData: EnrolmentFormData = {
+            ...currentFormData,
+            teacherId: detailData.teacherId,
+            teacherName: detailData.teacherName,
+            day: detailData.day,
+            startTime: detailData.startTime,
+            goToDate: detailData.goToDate,
+            duration: detailData.duration ?? currentFormData.duration,
+          };
+          setCurrentFormData(combinedData);
+
+          setLoadingReview(true);
+          try {
+            // Create enrolment (matching legacy: creates course, enrolment, and lessons)
+            const payload: CreateStudentEnrolmentRequest = {
+              programId: Number(combinedData.program),
+              programRate: Number(combinedData.ratePerHour || 0),
+              duration: combinedData.duration,
+              paymentFrequency: combinedData.paymentFrequency,
+              paymentFrequencyDiscount: combinedData.paymentFrequencyDiscount
+                ? Number(combinedData.paymentFrequencyDiscount)
+                : undefined,
+              multipleEnrolDiscount: combinedData.multipleEnrolDiscount
+                ? Number(combinedData.multipleEnrolDiscount)
+                : undefined,
+              lessonsCount: Number(combinedData.numberOfLessons || 0),
+              autoRenew: combinedData.autoRenew,
+              startDate: combinedData.startDate || "",
+              paymentCycleEffectiveDate: combinedData.paymentCycleEffectiveDate || "",
+              isOnline: combinedData.isOnline ?? false,
+              teacherId: combinedData.teacherId ? Number(combinedData.teacherId) : 0,
+              day: combinedData.day || "",
+              startTime: combinedData.startTime || "",
             };
-            setCurrentFormData(combinedData);
 
-            // Build simple weekly lesson preview (no holidays/blackouts yet)
-            const startDateStr = combinedData.startDate;
-            const startTimeStr = combinedData.startTime;
-            const lessonsCount = parseInt(combinedData.numberOfLessons || "0", 10);
-            const previews: LessonPreview[] = [];
-
-            if (startDateStr && startTimeStr && lessonsCount > 0) {
-              const baseDate = new Date(startDateStr);
-              if (!isNaN(baseDate.getTime())) {
-                for (let i = 0; i < lessonsCount; i++) {
-                  const d = new Date(baseDate);
-                  d.setDate(d.getDate() + i * 7);
-                  const iso = d.toISOString().slice(0, 10);
-                  previews.push({
-                    index: i + 1,
-                    date: iso,
-                    day: detailData.day || "",
-                    startTime: startTimeStr,
-                    duration: combinedData.duration,
-                  });
-                }
-              }
+            // Basic validation
+            if (
+              !payload.programId ||
+              !payload.lessonsCount ||
+              !payload.startDate ||
+              !payload.paymentCycleEffectiveDate ||
+              !payload.teacherId ||
+              !payload.day ||
+              !payload.startTime
+            ) {
+              toast.error("Please complete all enrolment steps before previewing.");
+              setLoadingReview(false);
+              return;
             }
 
+            const createResult = await createStudentEnrolment(location, studentId.toString(), payload);
+
+            if (!createResult || !createResult.success || !createResult.data) {
+              toast.error(createResult?.message || "Failed to create enrolment");
+              setLoadingReview(false);
+              return;
+            }
+
+            // Get courseId from the created enrolment response
+            const courseId = createResult.data.courseId;
+            
+            if (!courseId) {
+              toast.error("Course ID not available in response");
+              setLoadingReview(false);
+              return;
+            }
+
+            // Fetch lesson review data (matching legacy GET /lesson/review)
+            const reviewResult = await getLessonReview(location, courseId, false);
+            
+            if (!reviewResult || !reviewResult.success || !reviewResult.data) {
+              toast.error("Failed to load lesson review data");
+              setLoadingReview(false);
+              return;
+            }
+
+            const reviewData = reviewResult.data;
+            
+            // Transform review lessons to LessonPreview format
+            const previews: LessonPreview[] = reviewData.lessons.map((lesson, index) => {
+              const lessonDate = new Date(lesson.date);
+              const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+              const dayName = dayNames[lessonDate.getDay()];
+              
+              // Extract UTC time from the date string to avoid timezone conversion
+              // The API returns dates like "2025-12-28T22:00:00.000Z" which should be displayed as 10:00 PM
+              // Use UTC methods to get the exact time without timezone conversion
+              const utcHours = String(lessonDate.getUTCHours()).padStart(2, '0');
+              const utcMinutes = String(lessonDate.getUTCMinutes()).padStart(2, '0');
+              const startTime = `${utcHours}:${utcMinutes}`;
+              
+              return {
+                index: index + 1,
+                date: lessonDate.toISOString().split('T')[0],
+                day: dayName,
+                startTime: startTime, // HH:mm in UTC (exact time from API)
+                duration: lesson.duration,
+                conflict: lesson.conflict,
+                isHolidayConflict: lesson.isHolidayConflict,
+                isConflict: lesson.isConflict,
+                isUnscheduled: lesson.isUnscheduled,
+              };
+            });
+
             setLessonPreviews(previews);
+            setReviewDetails({
+              studentName: reviewData.studentName,
+              programName: reviewData.programName,
+              teacherName: reviewData.teacherName,
+              startDate: reviewData.startDate,
+              endDate: reviewData.endDate,
+              startTime: reviewData.startTime,
+            });
+            setCreatedCourseId(reviewData.courseId);
+          } catch (error) {
+            console.error("Error creating enrolment or fetching review:", error);
+            toast.error("Failed to create enrolment or load review data");
+          } finally {
+            setLoadingReview(false);
             setIsDetailModalOpen(false);
             setIsReviewModalOpen(true);
           }
         }}
         location={location}
+        programId={currentFormData?.program || formData.program}
         initialData={{
           startDate: currentFormData?.startDate,
           showAll: false,
@@ -491,14 +594,39 @@ export function NewEnrolmentModal({
         open={isReviewModalOpen}
         onOpenChange={setIsReviewModalOpen}
         lessons={lessonPreviews}
+        details={reviewDetails}
         onBack={() => {
           setIsReviewModalOpen(false);
           setIsDetailModalOpen(true);
         }}
-        onConfirm={() => {
-          if (currentFormData) {
-            onNext?.(currentFormData);
-            setIsReviewModalOpen(false);
+        isLoading={loadingReview}
+        onConfirm={async () => {
+          if (!createdCourseId) {
+            toast.error("Cannot confirm: Course ID missing");
+            return;
+          }
+
+          setLoadingReview(true);
+          try {
+            // Call the lesson confirmation API (separate endpoint)
+            const result = await confirmLessons(location, createdCourseId);
+
+            if (result && result.success) {
+              toast.success(result.message || "Lessons confirmed successfully");
+              setIsReviewModalOpen(false);
+              onOpenChange(false);
+              // Refresh enrolments list if onNext is available
+              if (currentFormData) {
+                onNext?.(currentFormData);
+              }
+            } else {
+              toast.error(result?.message || "Failed to confirm lessons");
+            }
+          } catch (error: unknown) {
+            console.error("Error confirming lessons:", error);
+            toast.error("Failed to confirm lessons");
+          } finally {
+            setLoadingReview(false);
           }
         }}
       />

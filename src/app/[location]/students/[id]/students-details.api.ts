@@ -39,6 +39,7 @@ export interface StudentDetailsApiResponse {
 
 export interface StudentEnrolmentResponse {
   id: number;
+  courseId?: number; // Optional: included when creating enrolment for review
   programName: string;
   teacherName: string;
   day: string;
@@ -206,6 +207,100 @@ export async function createStudentEnrolment(
     return {
       success: false,
       message: apiError.response?.data?.message || "Failed to create enrolment",
+    };
+  }
+}
+
+export interface LessonReviewItem {
+  id: number;
+  date: string;
+  duration: string;
+  conflict?: string;
+  isHolidayConflict?: boolean;
+  isConflict?: boolean;
+  isUnscheduled?: boolean;
+}
+
+export interface LessonReviewData {
+  courseId: number;
+  programName: string;
+  teacherName: string;
+  studentName: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  lessons: LessonReviewItem[];
+  summary: {
+    holidayConflicted: number;
+    conflicted: number;
+    unscheduled: number;
+    scheduled: number;
+    total: number;
+  };
+}
+
+export interface LessonReviewResponse {
+  success: boolean;
+  data: LessonReviewData;
+  message: string;
+}
+
+/**
+ * Get lesson review data for a course
+ * Endpoint: GET /admin/v2/{location}/lesson/review?courseId=X&showAllReviewLessons=0
+ */
+export async function getLessonReview(
+  location: string,
+  courseId: number,
+  showAllReviewLessons: boolean = false,
+): Promise<LessonReviewResponse | null> {
+  try {
+    const response = await apiClient.get<LessonReviewResponse>(
+      `/admin/v2/${location}/lesson/review`,
+      {
+        params: {
+          courseId,
+          showAllReviewLessons: showAllReviewLessons ? '1' : '0',
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching lesson review:", error);
+    return null;
+  }
+}
+
+export interface ConfirmLessonsResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Confirm lessons for a course
+ * Endpoint: POST /admin/v2/{location}/lesson/confirm?courseId=X
+ */
+export async function confirmLessons(
+  location: string,
+  courseId: number,
+): Promise<ConfirmLessonsResponse | null> {
+  try {
+    const response = await apiClient.post<ConfirmLessonsResponse>(
+      `/admin/v2/${location}/lesson/confirm`,
+      {},
+      {
+        params: {
+          courseId,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error confirming lessons:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to confirm lessons",
     };
   }
 }
