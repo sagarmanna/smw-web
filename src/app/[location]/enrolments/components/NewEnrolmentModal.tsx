@@ -393,6 +393,7 @@ export function NewEnrolmentModal({
           setIsCustomerDetailsModalOpen(true);
         }}
         location={location}
+        programId={currentFormData?.program || formData.program}
         initialData={{
           startDate: currentFormData?.startDate,
           // Use the latest duration selected in the basic enrolment modal

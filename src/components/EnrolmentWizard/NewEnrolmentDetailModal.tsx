@@ -15,10 +15,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getTeachersList, type TeachersResponse } from "@/app/[location]/schedule/schedule.api";
+import { getTeachersList, getTeachersByProgram, type TeachersResponse } from "@/app/[location]/schedule/schedule.api";
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import {
   getTeacherScheduleEvents,
@@ -35,6 +35,8 @@ interface NewEnrolmentDetailModalProps {
   initialData?: EnrolmentDetailFormData;
   location: string;
   nextButtonText?: string; // Custom button text, defaults to "Preview Lessons"
+  programId?: string; // Optional program ID to filter teachers
+  isLoading?: boolean; // Loading state for Preview Lessons button
 }
 
 export interface EnrolmentDetailFormData {
@@ -179,6 +181,8 @@ export function NewEnrolmentDetailModal({
   initialData,
   location,
   nextButtonText = "Preview Lessons", // Default to "Preview Lessons" for students context
+  programId,
+  isLoading = false,
 }: NewEnrolmentDetailModalProps) {
   const [teachers, setTeachers] = React.useState<Array<{ id: number; name: string }>>([]);
   const [loadingTeachers, setLoadingTeachers] = React.useState(false);
@@ -231,7 +235,15 @@ export function NewEnrolmentDetailModal({
   React.useEffect(() => {
     if (!open) return;
     setLoadingTeachers(true);
-    getTeachersList(location)
+    // Use getTeachersByProgram if programId is provided and valid, otherwise use getTeachersList
+    const parsedProgramId = programId && typeof programId === 'string' && programId.trim() ? parseInt(programId, 10) : null;
+    const isValidProgramId = parsedProgramId !== null && !isNaN(parsedProgramId) && parsedProgramId > 0;
+    
+    const fetchTeachers = isValidProgramId
+      ? getTeachersByProgram(location, parsedProgramId)
+      : getTeachersList(location);
+    
+    fetchTeachers
       .then((response: TeachersResponse | null) => {
         if (response?.success && response.data) {
           setTeachers(response.data.map((t) => ({ id: t.id, name: t.name || "" })));
@@ -239,7 +251,7 @@ export function NewEnrolmentDetailModal({
       })
       .catch((err: unknown) => console.error("Error fetching teachers:", err))
       .finally(() => setLoadingTeachers(false));
-  }, [open, location]);
+  }, [open, location, programId]);
 
   React.useEffect(() => {
     if (!selectedTeacherId || !open) {
@@ -493,7 +505,9 @@ export function NewEnrolmentDetailModal({
                   showAll,
                   duration,
                 })}
+                disabled={isLoading}
               >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {nextButtonText}
               </Button>
             )}
