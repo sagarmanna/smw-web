@@ -30,6 +30,8 @@ const ALLOWED_PATHS = [
   '/items',
   '/timeline',
   '/blogs',
+  '/administrators',
+  '/test-email',
   '/menu-flags', 
   '/staffmembers/[id]',
   '/[location]/report/account-receivable/[id]',
