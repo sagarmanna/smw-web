@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/redux/hooks";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -33,6 +34,7 @@ export function usePrivateLessonsHandlers({
   clearSelection,
   modalState,
 }: UsePrivateLessonsHandlersProps) {
+  const router = useRouter();
   const dispatch = useAppDispatch();
 
   // Click Handlers
@@ -135,10 +137,8 @@ export function usePrivateLessonsHandlers({
   }, [hasSelectedLessons]);
 
   const handleRowClick = React.useCallback((row: PrivateLessonRow) => {
-    const legacyBaseUrl = process.env.NEXT_PUBLIC_LEGACY_URL || 'https://dev2.studiomanagerweb.com/admin';
-    const url = `${legacyBaseUrl}/${location}/lesson/view?id=${row.id}`;
-    window.location.href = url;
-  }, [location]);
+    router.push(`/${location}/private-lessons/${row.id}`);
+  }, [location, router]);
 
   // Save Handlers
   const handleSendEmail = React.useCallback((emailData: EmailFormData) => {
