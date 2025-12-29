@@ -19,8 +19,6 @@ export interface ItemsQuery {
   code?: string;
   itemCategory?: string;
   description?: string;
-  sort?: "code" | "description";
-  order?: "asc" | "desc";
 }
 
 // API response structure
@@ -77,13 +75,6 @@ const buildItemsQueryParams = (query: ItemsQuery): URLSearchParams => {
   if (query.code) params.append("code", query.code);
   if (query.itemCategory) params.append("itemCategory", query.itemCategory);
   if (query.description) params.append("description", query.description);
-  if (query.sort) {
-    params.append("sort", query.sort);
-    // Always include order when sort is provided
-    // Use explicit order if provided, otherwise default to 'asc'
-    const orderValue = query.order && query.order.trim() !== "" ? query.order : "asc";
-    params.append("order", orderValue);
-  }
 
   return params;
 };
@@ -106,7 +97,7 @@ export async function getItemsList(
     const params = buildItemsQueryParams(query);
 
     const response = await apiClient.get<ItemsListApiResponse>(
-      `/admin/v2/${location}/user/list/item`,
+      `/admin/v2/${location}/items`,
       { params }
     );
 
