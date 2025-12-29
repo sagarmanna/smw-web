@@ -125,11 +125,9 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
           itemCategory: "Enter item category",
           description: "Enter description",
         }}
-        manualSorting={true}
         sorting={sorting}
         onSortingChange={(s) => {
           setSorting(s);
-          setPage(1);
         }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
