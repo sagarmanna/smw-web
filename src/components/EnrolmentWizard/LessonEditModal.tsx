@@ -18,7 +18,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 import { getTeachersList, getTeachersByProgram, type TeachersResponse } from "@/app/[location]/schedule/schedule.api";
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import {
@@ -27,28 +26,22 @@ import {
   type TeacherScheduleAvailabilityEvent,
   type TeacherScheduleLessonEvent,
 } from "@/app/[location]/teachers/[id]/teachers-details-tabs.api";
+import { updateLesson, updateLessonField, validateLessonUpdate, type UpdateLessonRequest, type UpdateLessonFieldRequest, type UpdateLessonFieldResponse, type ValidateLessonUpdateRequest, type ValidateLessonUpdateResponse } from "@/app/[location]/students/[id]/students-details.api";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
-interface NewEnrolmentDetailModalProps {
+interface LessonEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onBack?: () => void;
-  onPreviewLessons?: (data: EnrolmentDetailFormData) => void;
-  initialData?: EnrolmentDetailFormData;
+  lessonId: number;
+  lessonDate: string; // ISO date string
+  lessonTime: string; // HH:mm format
+  lessonDuration: string; // HH:mm format
+  currentTeacherId?: number;
   location: string;
-  nextButtonText?: string; // Custom button text, defaults to "Preview Lessons"
   programId?: string; // Optional program ID to filter teachers
-  isLoading?: boolean; // Loading state for Preview Lessons button
-}
-
-export interface EnrolmentDetailFormData {
-  teacherId?: string;
-  teacherName?: string;
-  startDate?: string;
-  day?: string;
-  startTime?: string;
-  goToDate?: string;
-  showAll?: boolean;
-  duration?: string; // Duration in HH:mm format
+  onLessonUpdated?: () => void; // Callback when lesson is updated
+  allLessons?: Array<{ id: number; date: string; time: string; duration: string }>; // All lessons for "Apply All"
 }
 
 const DAY_RESOURCES = [
@@ -85,7 +78,6 @@ const convertLessonsToCalendarEvents = (lessons: TeacherScheduleLessonEvent[], m
     const endMinutes = originalEnd.getMinutes();
     const endSeconds = originalEnd.getSeconds();
     
-    // Always use Monday date, but keep the time
     const eventStart = new Date(mondayDate);
     eventStart.setHours(startHours, startMinutes, startSeconds, 0);
     
@@ -128,7 +120,6 @@ const convertAvailabilityEvents = (availability: TeacherScheduleAvailabilityEven
     const endMinutes = originalEnd.getMinutes();
     const endSeconds = originalEnd.getSeconds();
     
-    // Always use Monday date, but keep the time
     const availStart = new Date(mondayDate);
     availStart.setHours(startHours, startMinutes, startSeconds, 0);
     
@@ -174,69 +165,70 @@ const DatePickerField: React.FC<DatePickerProps> = ({ label, date, onDateSelect,
   </div>
 );
 
-export function NewEnrolmentDetailModal({
+export function LessonEditModal({
   open,
   onOpenChange,
-  onBack,
-  onPreviewLessons,
-  initialData,
+  lessonId,
+  lessonDate,
+  lessonTime,
+  lessonDuration,
+  currentTeacherId,
   location,
-  nextButtonText = "Preview Lessons", // Default to "Preview Lessons" for students context
   programId,
-  isLoading = false,
-}: NewEnrolmentDetailModalProps) {
+  onLessonUpdated,
+  allLessons = [],
+}: LessonEditModalProps) {
   const [teachers, setTeachers] = React.useState<Array<{ id: number; name: string }>>([]);
   const [loadingTeachers, setLoadingTeachers] = React.useState(false);
-  const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>(initialData?.teacherId || "");
-  const [startDate, setStartDate] = React.useState<Date | undefined>(initialData?.startDate ? new Date(initialData.startDate) : new Date());
-  const [day, setDay] = React.useState<string>(initialData?.day || "");
-  const [startTime, setStartTime] = React.useState<string>(initialData?.startTime || "");
-  const [goToDate, setGoToDate] = React.useState<Date | undefined>(initialData?.goToDate ? new Date(initialData.goToDate) : new Date());
-  const [showAll, setShowAll] = React.useState<boolean>(initialData?.showAll || false);
-  const [duration, setDuration] = React.useState<string>(initialData?.duration || "00:30");
-  const [calendarDate, setCalendarDate] = React.useState<Date>(new Date());
+  const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>(() => {
+    // Set initial teacher ID from prop if available
+    return currentTeacherId?.toString() || "";
+  });
+  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(() => {
+    const date = new Date(lessonDate);
+    return isNaN(date.getTime()) ? new Date() : date;
+  });
+  const [day, setDay] = React.useState<string>("");
+  const [startTime, setStartTime] = React.useState<string>(lessonTime || "");
+  const [goToDate, setGoToDate] = React.useState<Date | undefined>(() => {
+    const date = new Date(lessonDate);
+    return isNaN(date.getTime()) ? new Date() : date;
+  });
+  const [showAll, setShowAll] = React.useState<boolean>(false);
+  const [duration, setDuration] = React.useState<string>(lessonDuration || "00:30");
+  const [calendarDate, setCalendarDate] = React.useState<Date>(() => {
+    const date = new Date(lessonDate);
+    return isNaN(date.getTime()) ? new Date() : getMondayOfWeek(new Date());
+  });
   const [scheduleData, setScheduleData] = React.useState<TeacherScheduleData | null>(null);
   const [loadingCalendar, setLoadingCalendar] = React.useState(false);
   const [startDatePickerOpen, setStartDatePickerOpen] = React.useState(false);
   const [goToDatePickerOpen, setGoToDatePickerOpen] = React.useState(false);
+  const [isApplyingSingle, setIsApplyingSingle] = React.useState(false); // Loading state for Apply button
+  const [isApplyingAll, setIsApplyingAll] = React.useState(false); // Loading state for Apply All button
+  const [validationError, setValidationError] = React.useState<string | null>(null);
   const isExpanded = !!selectedTeacherId;
 
-  // Update form data when initialData changes or modal opens
+  // Update form data when lesson data changes
   React.useEffect(() => {
-    if (open && initialData) {
-      if (initialData.startDate) {
-        const parsedDate = new Date(initialData.startDate);
-        if (!isNaN(parsedDate.getTime())) {
-          setStartDate(parsedDate);
-          setCalendarDate(getMondayOfWeek(parsedDate));
-        }
+    if (open) {
+      const date = new Date(lessonDate);
+      if (!isNaN(date.getTime())) {
+        setSelectedDate(date);
+        setGoToDate(date);
+        setCalendarDate(getMondayOfWeek(date));
       }
-      if (initialData.teacherId) setSelectedTeacherId(initialData.teacherId);
-      if (initialData.day) setDay(initialData.day);
-      if (initialData.startTime) setStartTime(initialData.startTime);
-      if (initialData.goToDate) {
-        const parsedGoToDate = new Date(initialData.goToDate);
-        if (!isNaN(parsedGoToDate.getTime())) setGoToDate(parsedGoToDate);
+      if (lessonTime) setStartTime(lessonTime);
+      if (lessonDuration) setDuration(lessonDuration);
+      if (currentTeacherId) {
+        setSelectedTeacherId(currentTeacherId.toString());
       }
-      if (initialData.showAll !== undefined) setShowAll(initialData.showAll);
-      if (initialData.duration) setDuration(initialData.duration);
-    } else if (!open) {
-      setSelectedTeacherId("");
-      setStartDate(new Date());
-      setDay("");
-      setStartTime("");
-      setGoToDate(new Date());
-      setShowAll(false);
-      setDuration("00:30");
-      setScheduleData(null);
-      return;
     }
-  }, [open, initialData]);
+  }, [open, lessonDate, lessonTime, lessonDuration, currentTeacherId]);
 
   React.useEffect(() => {
     if (!open) return;
     setLoadingTeachers(true);
-    // Use getTeachersByProgram if programId is provided and valid, otherwise use getTeachersList
     const parsedProgramId = programId && typeof programId === 'string' && programId.trim() ? parseInt(programId, 10) : null;
     const isValidProgramId = parsedProgramId !== null && !isNaN(parsedProgramId) && parsedProgramId > 0;
     
@@ -247,12 +239,21 @@ export function NewEnrolmentDetailModal({
     fetchTeachers
       .then((response: TeachersResponse | null) => {
         if (response?.success && response.data) {
-          setTeachers(response.data.map((t) => ({ id: t.id, name: t.name || "" })));
+          const teachersList = response.data.map((t) => ({ id: t.id, name: t.name || "" }));
+          setTeachers(teachersList);
+          
+          // Set teacher selection after teachers are loaded
+          if (currentTeacherId && !selectedTeacherId) {
+            const teacherExists = teachersList.some(t => t.id === currentTeacherId);
+            if (teacherExists) {
+              setSelectedTeacherId(currentTeacherId.toString());
+            }
+          }
         }
       })
       .catch((err: unknown) => console.error("Error fetching teachers:", err))
       .finally(() => setLoadingTeachers(false));
-  }, [open, location, programId]);
+  }, [open, location, programId, currentTeacherId, selectedTeacherId]);
 
   React.useEffect(() => {
     if (!selectedTeacherId || !open) {
@@ -264,9 +265,6 @@ export function NewEnrolmentDetailModal({
     getTeacherScheduleEvents(location, parseInt(selectedTeacherId), formatDateString(monday), showAll)
       .then((response: TeacherScheduleData | null) => {
         if (response) {
-          console.log('[NewEnrolmentDetailModal] Schedule data received:', response);
-          console.log('[NewEnrolmentDetailModal] Lessons count:', response.lessons?.length || 0);
-          console.log('[NewEnrolmentDetailModal] Availability count:', response.availability?.length || 0);
           setScheduleData(response);
           if (response.date?.from) {
             const apiWeekStart = new Date(response.date.from + 'T00:00:00');
@@ -276,7 +274,6 @@ export function NewEnrolmentDetailModal({
             }
           }
         } else {
-          console.log('[NewEnrolmentDetailModal] No schedule data received');
           setScheduleData(null);
         }
       })
@@ -294,24 +291,19 @@ export function NewEnrolmentDetailModal({
     if (!scheduleData) return [];
     const events = convertLessonsToCalendarEvents(scheduleData.lessons, calendarMonday);
     
-    // Add preview event for selected slot if day and startTime are set
     if (day && startTime && selectedTeacherId && duration) {
-      // Parse startTime (HH:mm format)
       const [hoursStr, minutesStr] = startTime.split(':');
       const selectedHours = parseInt(hoursStr || '0', 10);
       const selectedMinutes = parseInt(minutesStr || '0', 10);
       
-      // Find resourceId from day name (DAY_NAMES has empty string at index 0, so index matches resourceId)
       const dayIndex = DAY_NAMES.indexOf(day);
       const resourceId = dayIndex >= 1 && dayIndex <= 7 ? dayIndex : null;
       
       if (resourceId) {
-        // Parse duration (HH:mm format)
         const [durationHoursStr, durationMinutesStr] = duration.split(':');
         const durationHours = parseInt(durationHoursStr || '0', 10);
         const durationMinutes = parseInt(durationMinutesStr || '0', 10);
         
-        // Calculate end time by adding duration to start time
         const startTimeMinutes = selectedHours * 60 + selectedMinutes;
         const totalDurationMinutes = durationHours * 60 + durationMinutes;
         const endTimeMinutes = startTimeMinutes + totalDurationMinutes;
@@ -319,15 +311,12 @@ export function NewEnrolmentDetailModal({
         const endHours = Math.floor(endTimeMinutes / 60);
         const endMinutes = endTimeMinutes % 60;
         
-        // Adjust preview dates to use Monday as base date (for calendar display)
-        // but keep the time from selected slot
         const previewStartAdjusted = new Date(calendarMonday);
         previewStartAdjusted.setHours(selectedHours, selectedMinutes, 0, 0);
         
         const previewEndAdjusted = new Date(calendarMonday);
         previewEndAdjusted.setHours(endHours, endMinutes, 0, 0);
         
-        // Format time for display (12-hour format with AM/PM)
         const formatTime = (hours: number, minutes: number) => {
           const h = hours % 12 || 12;
           const m = minutes.toString().padStart(2, '0');
@@ -344,8 +333,8 @@ export function NewEnrolmentDetailModal({
           start: previewStartAdjusted,
           end: previewEndAdjusted,
           resourceId,
-          backgroundColor: "#3d85c6", // Blue color matching EditScheduleModal
-          borderColor: "#3d85c6", // Same blue for border
+          backgroundColor: "#3d85c6",
+          borderColor: "#3d85c6",
           className: "enrolment-slot-preview",
           extendedProps: {
             lessonId: "preview",
@@ -374,7 +363,7 @@ export function NewEnrolmentDetailModal({
 
   const handleTeacherChange = (value: string) => {
     setSelectedTeacherId(value);
-    setCalendarDate(getMondayOfWeek(startDate || new Date()));
+    setCalendarDate(getMondayOfWeek(selectedDate || new Date()));
   };
 
   const handleDateSelect = (date: Date | undefined, setter: (date: Date | undefined) => void, closePicker: () => void) => {
@@ -385,46 +374,232 @@ export function NewEnrolmentDetailModal({
     }
   };
 
-  const handleSelectSlot = React.useCallback((slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
-    if (!slotInfo.start || !slotInfo.resourceId) return;
+  const handleSelectSlot = React.useCallback(async (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
+    if (!slotInfo.start || !slotInfo.resourceId || !selectedTeacherId || !lessonId) return;
     
-    // Extract day of week from resourceId (1-7, Monday-Sunday)
     const resourceId = typeof slotInfo.resourceId === 'string' 
       ? parseInt(slotInfo.resourceId) 
       : slotInfo.resourceId || 1;
     
-    // Validate resourceId is in valid range (1-7)
     if (resourceId >= 1 && resourceId <= 7) {
       setDay(DAY_NAMES[resourceId]);
     }
     
-    // Extract time components from slotInfo.start
-    // The time is correct, but date might be Monday for display purposes
     const selectedHours = slotInfo.start.getHours();
     const selectedMinutes = slotInfo.start.getMinutes();
     const selectedSeconds = slotInfo.start.getSeconds();
     
-    // Calculate the actual date for the selected day of week in the visible week
-    // Use calendarMonday which is already calculated from calendarDate
     const selectedDayDate = new Date(calendarMonday);
-    const daysToAdd = resourceId - 1; // resourceId is 1-7 (Monday-Sunday)
+    const daysToAdd = resourceId - 1;
     selectedDayDate.setDate(calendarMonday.getDate() + daysToAdd);
     selectedDayDate.setHours(selectedHours, selectedMinutes, selectedSeconds, 0);
     
-    // Update goToDate to the selected day's date
     setGoToDate(selectedDayDate);
     
-    // Format time as HH:mm for the startTime input field
     const hours = String(selectedHours).padStart(2, '0');
     const minutes = String(selectedMinutes).padStart(2, '0');
     setStartTime(`${hours}:${minutes}`);
-  }, [calendarMonday]);
+    
+    // Validate the selected slot
+    setValidationError(null); // Clear previous errors
+    
+    try {
+      const teacherId = parseInt(selectedTeacherId, 10);
+      if (!teacherId || !duration) return;
+      
+      // Build date string in UTC format (YYYY-MM-DDTHH:mm:ss.sssZ)
+      const validationDate = new Date(selectedDayDate);
+      validationDate.setUTCHours(selectedHours, selectedMinutes, selectedSeconds, 0);
+      
+      // Format duration as HH:mm:ss
+      const durationParts = duration.split(':');
+      const durationFormatted = durationParts.length === 2 
+        ? `${durationParts[0]}:${durationParts[1]}:00`
+        : duration;
+      
+      const validationRequest: ValidateLessonUpdateRequest = {
+        id: lessonId,
+        teacherId,
+        date: validationDate.toISOString(),
+        duration: durationFormatted,
+      };
+      
+      const validationResult = await validateLessonUpdate(location, lessonId, validationRequest);
+      
+      if (validationResult && !validationResult.success) {
+        // Show validation errors as alert above calendar
+        const errors = validationResult.data || {};
+        const errorMessages: string[] = [];
+        
+        Object.keys(errors).forEach((key) => {
+          const fieldErrors = errors[key];
+          if (Array.isArray(fieldErrors)) {
+            errorMessages.push(...fieldErrors);
+          }
+        });
+        
+        if (errorMessages.length > 0) {
+          setValidationError(errorMessages.join(', '));
+        } else {
+          setValidationError(validationResult.message || 'Validation failed');
+        }
+      } else {
+        setValidationError(null); // Clear error on successful validation
+      }
+    } catch (error) {
+      console.error('Error validating lesson update:', error);
+      setValidationError('Error validating lesson. Please try again.');
+    }
+  }, [calendarMonday, selectedTeacherId, lessonId, location, duration]);
+
+  const buildUpdateRequest = (targetDate: Date, targetTime: string, targetTeacherId?: number): UpdateLessonRequest => {
+    // Combine date and time into ISO string using UTC to match database storage
+    const [hours, minutes] = targetTime.split(':');
+    const combinedDate = new Date(targetDate);
+    combinedDate.setUTCHours(parseInt(hours || '0', 10), parseInt(minutes || '0', 10), 0, 0);
+    
+    const request: UpdateLessonRequest = {
+      date: combinedDate.toISOString(),
+    };
+    
+    if (targetTeacherId) {
+      request.teacherId = targetTeacherId;
+    }
+    
+    if (duration) {
+      request.duration = `${duration}:00`; // Convert HH:mm to HH:mm:ss
+    }
+    
+    return request;
+  };
+
+  const buildUpdateFieldRequest = (targetDate: Date, targetTime: string, targetTeacherId?: number, applyContext?: string): UpdateLessonFieldRequest => {
+    // Format date similar to legacy (MMM dd, yyyy HH:mm AM/PM)
+    const [hours, minutes] = targetTime.split(':');
+    const hour = parseInt(hours || '0', 10);
+    const minute = parseInt(minutes || '0', 10);
+    
+    // Format date as "MMM dd, yyyy HH:mm AM/PM" (like legacy)
+    const formattedDate = format(targetDate, "MMM dd, yyyy");
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    const dateStr = `${formattedDate} ${displayHour}:${String(minute).padStart(2, '0')} ${ampm}`;
+    
+    const request: UpdateLessonFieldRequest = {
+      id: lessonId,
+      date: dateStr,
+      hour: String(hour).padStart(2, '0'),
+      minute: String(minute).padStart(2, '0'),
+      goToDate: format(targetDate, "MMM dd, yyyy"),
+    };
+    
+    if (targetTeacherId) {
+      request.teacherId = targetTeacherId;
+    }
+    
+    if (duration) {
+      // Convert HH:mm to HH:mm:ss format (ensure we don't add extra :00)
+      const durationParts = duration.split(':');
+      if (durationParts.length === 2) {
+        // Format: HH:mm -> convert to HH:mm:ss
+        request.duration = `${durationParts[0]}:${durationParts[1]}:00`;
+      } else if (durationParts.length === 3) {
+        // Already in HH:mm:ss format
+        request.duration = duration;
+      } else {
+        // Fallback: assume it's already correct
+        request.duration = duration;
+      }
+    }
+    
+    // Always include applyContext (legacy: '1' = apply single, '2' = apply all)
+    // If not provided, default to '1' for apply single
+    request.applyContext = applyContext || '1';
+    
+    return request;
+  };
+
+  const handleApply = async () => {
+    if (!selectedDate || !startTime) {
+      toast.error("Please select a date and time");
+      return;
+    }
+
+    if (validationError) {
+      toast.error("Please resolve validation errors before applying");
+      return;
+    }
+
+    setIsApplyingSingle(true);
+    try {
+      const teacherId = selectedTeacherId ? parseInt(selectedTeacherId, 10) : undefined;
+      // applyContext='1' for apply single (legacy: '1' = apply single, '2' = apply all)
+      const updateRequest = buildUpdateFieldRequest(selectedDate, startTime, teacherId, '1');
+      
+      const result = await updateLessonField(location, lessonId, updateRequest);
+      
+      if (result?.success) {
+        toast.success("Lesson updated successfully");
+        onLessonUpdated?.();
+        onOpenChange(false);
+      } else {
+        toast.error(result?.message || "Failed to update lesson");
+      }
+    } catch (error: unknown) {
+      console.error("Error updating lesson:", error);
+      toast.error("Failed to update lesson");
+    } finally {
+      setIsApplyingSingle(false);
+    }
+  };
+
+  const handleApplyAll = async () => {
+    if (!selectedDate || !startTime || allLessons.length === 0) {
+      toast.error("Please select a date and time, and ensure there are lessons to update");
+      return;
+    }
+
+    if (validationError) {
+      toast.error("Please resolve validation errors before applying");
+      return;
+    }
+
+    setIsApplyingAll(true);
+    try {
+      const teacherId = selectedTeacherId ? parseInt(selectedTeacherId, 10) : undefined;
+      
+      // Use the new update-field endpoint with applyContext='2' for Apply All (legacy: '2' = apply all, '1' = apply single)
+      const updateRequest = buildUpdateFieldRequest(selectedDate, startTime, teacherId, '2');
+      
+      const result = await updateLessonField(location, lessonId, updateRequest);
+      
+      if (result?.success) {
+        const responseData = result.data as UpdateLessonFieldResponse['data'];
+        const updatedCount = responseData?.updatedCount || allLessons.length;
+        const totalCount = responseData?.totalCount || allLessons.length;
+        if (updatedCount === totalCount) {
+          toast.success(`All ${totalCount} lessons updated successfully`);
+        } else {
+          toast.warning(`${updatedCount} of ${totalCount} lessons updated successfully`);
+        }
+        onLessonUpdated?.();
+        onOpenChange(false);
+      } else {
+        toast.error(result?.message || "Failed to update lessons");
+      }
+    } catch (error: unknown) {
+      console.error("Error updating lessons:", error);
+      toast.error("Failed to update some lessons");
+    } finally {
+      setIsApplyingAll(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn("max-w-4xl", isExpanded && "max-w-7xl max-h-[90vh] overflow-y-auto")}>
         <DialogHeader>
-          <DialogTitle className="text-center">New Enrolment Detail</DialogTitle>
+          <DialogTitle className="text-center">Edit Lesson</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -445,7 +620,7 @@ export function NewEnrolmentDetailModal({
                 isLoading={loadingTeachers}
               />
             </div>
-            <DatePickerField label="Start Date" date={startDate} onDateSelect={(date) => handleDateSelect(date, setStartDate, () => setStartDatePickerOpen(false))} isOpen={startDatePickerOpen} onOpenChange={setStartDatePickerOpen} />
+            <DatePickerField label="Date" date={selectedDate} onDateSelect={(date) => handleDateSelect(date, setSelectedDate, () => setStartDatePickerOpen(false))} isOpen={startDatePickerOpen} onOpenChange={setStartDatePickerOpen} />
             <div className="space-y-2">
               <Label htmlFor="day">Day</Label>
               <Input id="day" type="text" value={day} onChange={(e) => setDay(e.target.value)} className="w-full" placeholder="Day" disabled={!isExpanded} />
@@ -465,6 +640,32 @@ export function NewEnrolmentDetailModal({
               <div className="text-center py-2">
                 <p className="text-lg font-semibold">{dateRange}</p>
               </div>
+              {validationError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <p className="text-sm font-medium text-red-800">{validationError}</p>
+                    </div>
+                    <div className="ml-auto pl-3">
+                      <button
+                        type="button"
+                        onClick={() => setValidationError(null)}
+                        className="inline-flex text-red-400 hover:text-red-600"
+                      >
+                        <span className="sr-only">Dismiss</span>
+                        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="border rounded-lg overflow-hidden">
                 {loadingCalendar ? (
                   <div className="flex items-center justify-center h-[60vh]">
@@ -491,25 +692,27 @@ export function NewEnrolmentDetailModal({
           )}
         </div>
         <DialogFooter className="!flex !flex-row !justify-between !items-center gap-2">
-          <Button onClick={onBack}>Back</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            {isExpanded && (
+            <Button
+              type="button"
+              onClick={handleApply}
+              disabled={isApplyingSingle || isApplyingAll || !selectedDate || !startTime || !!validationError}
+            >
+              {isApplyingSingle && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Apply
+            </Button>
+            {allLessons.length > 0 && (
               <Button
-                onClick={() => onPreviewLessons?.({
-                  teacherId: selectedTeacherId,
-                  teacherName: selectedTeacherName,
-                  startDate: startDate ? format(startDate, "yyyy-MM-dd") : undefined,
-                  day,
-                  startTime,
-                  goToDate: goToDate ? format(goToDate, "yyyy-MM-dd") : undefined,
-                  showAll,
-                  duration,
-                })}
-                disabled={isLoading}
+                type="button"
+                variant="default"
+                onClick={handleApplyAll}
+                disabled={isApplyingSingle || isApplyingAll || !selectedDate || !startTime || !!validationError}
               >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {nextButtonText}
+                {isApplyingAll && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Apply All
               </Button>
             )}
           </div>
@@ -518,5 +721,4 @@ export function NewEnrolmentDetailModal({
     </Dialog>
   );
 }
-
 

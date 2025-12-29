@@ -280,6 +280,130 @@ export interface ConfirmLessonsResponse {
  * Confirm lessons for a course
  * Endpoint: POST /admin/v2/{location}/lesson/confirm?courseId=X
  */
+export interface UpdateLessonRequest {
+  date?: string; // ISO date string (YYYY-MM-DDTHH:mm:ss.sssZ)
+  teacherId?: number;
+  duration?: string; // HH:mm:ss
+}
+
+export async function updateLesson(
+  location: string,
+  lessonId: number,
+  data: UpdateLessonRequest,
+): Promise<{ success: boolean; data: unknown; message?: string }> {
+  try {
+    const response = await apiClient.put(
+      `/admin/v2/${location}/lesson/${lessonId}`,
+      data,
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error updating lesson:", error);
+    throw error;
+  }
+}
+
+export interface UpdateLessonFieldRequest {
+  id?: number;
+  teacherId?: number;
+  date?: string; // Can be in various formats
+  duration?: string; // HH:mm:ss format
+  hour?: string; // Hour (00-23)
+  minute?: string; // Minute (00-59)
+  goToDate?: string; // Date for goToDate
+  applyContext?: string; // '1' for apply all, undefined for single
+}
+
+/**
+ * Update lesson field (matches legacy update-field endpoint)
+ * Endpoint: POST /admin/v2/{location}/lesson/update-field?id=X&LessonReview[enrolmentIds]=
+ * 
+ * Note: Legacy API uses bracket notation in query params: LessonReview[enrolmentIds]
+ * This is handled automatically by axios when passed in params object
+ */
+export interface UpdateLessonFieldResponse {
+  success: boolean;
+  data?: {
+    updatedCount?: number;
+    totalCount?: number;
+    id?: number;
+    date?: string;
+    teacherId?: number;
+    duration?: string;
+  };
+  message?: string;
+}
+
+export async function updateLessonField(
+  location: string,
+  lessonId: number,
+  data: UpdateLessonFieldRequest,
+  enrolmentIds?: string,
+): Promise<UpdateLessonFieldResponse> {
+  try {
+    // Build query params
+    const params: Record<string, string> = { id: lessonId.toString() };
+    
+    // Add enrolmentIds if provided
+    if (enrolmentIds !== undefined && enrolmentIds !== null && enrolmentIds !== '') {
+      params['enrolmentIds'] = enrolmentIds;
+    }
+
+    const response = await apiClient.post(
+      `/admin/v2/${location}/lesson/update-field`,
+      data,
+      { params }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error updating lesson field:", error);
+    throw error;
+  }
+}
+
+export interface ValidateLessonUpdateRequest {
+  id: number;
+  teacherId: number;
+  date: string; // ISO date string
+  duration: string; // HH:mm:ss format
+  applyContext?: string; // Optional context (e.g., '1' for apply all)
+}
+
+export interface ValidateLessonUpdateResponse {
+  success: boolean;
+  errorCode?: string;
+  message?: string;
+  data?: Record<string, string[]>; // Validation errors
+}
+
+/**
+ * Validate lesson update (when editing lesson date/time/teacher)
+ * Endpoint: POST /admin/v2/{location}/lesson/validate-on-update?id=X
+ */
+export async function validateLessonUpdate(
+  location: string,
+  lessonId: number,
+  data: ValidateLessonUpdateRequest,
+): Promise<ValidateLessonUpdateResponse | null> {
+  try {
+    const response = await apiClient.post<ValidateLessonUpdateResponse>(
+      `/admin/v2/${location}/lesson/validate-on-update`,
+      data,
+      {
+        params: { id: lessonId },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error(`Error validating lesson update ${lessonId}:`, error);
+    const apiError = error as { response?: { data?: ValidateLessonUpdateResponse } };
+    if (apiError.response?.data) {
+      return apiError.response.data;
+    }
+    return null;
+  }
+}
+
 export async function confirmLessons(
   location: string,
   courseId: number,
