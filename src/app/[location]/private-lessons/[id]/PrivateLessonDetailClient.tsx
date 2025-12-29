@@ -149,6 +149,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                 onSaveDetails={saveDetails}
                 savingDetails={savingDetails}
                 isLoading={isLoading}
+                location={location}
               />
 
               <PrivateLessonStudentCard

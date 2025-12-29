@@ -1,19 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import {
   SectionCard,
   EditButton,
 } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { PrivateLessonDetails } from "../../types";
+import { EditPrivateLessonDetailsModal } from "../modals/EditPrivateLessonDetailsModal";
 
 interface PrivateLessonDetailsCardProps {
   details: PrivateLessonDetails | null;
   onSaveDetails: (details: Partial<PrivateLessonDetails>) => Promise<boolean>;
   savingDetails?: boolean;
   isLoading?: boolean;
+  location?: string;
 }
 
 export const PrivateLessonDetailsCard = React.memo(function PrivateLessonDetailsCard({
@@ -21,7 +22,10 @@ export const PrivateLessonDetailsCard = React.memo(function PrivateLessonDetails
   onSaveDetails,
   savingDetails = false,
   isLoading = false,
+  location,
 }: PrivateLessonDetailsCardProps) {
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
     const colorCodeDisplay = details?.colorCode ? (
       <div className="flex items-center gap-2">
@@ -58,21 +62,52 @@ export const PrivateLessonDetailsCard = React.memo(function PrivateLessonDetails
   }, [details]);
 
   const handleEditClick = React.useCallback(() => {
-    toast.info("This feature is under process");
+    setIsModalOpen(true);
+  }, []);
+
+  const handleSubmit = React.useCallback(
+    async (data: { classroom?: string; colorCode?: string; online?: boolean }): Promise<boolean> => {
+      if (!location) return false;
+      const updatedDetails: Partial<PrivateLessonDetails> = {
+        classroom: data.classroom,
+        colorCode: data.colorCode,
+        online: data.online,
+      };
+      return await onSaveDetails(updatedDetails);
+    },
+    [onSaveDetails, location]
+  );
+
+  const handleClose = React.useCallback(() => {
+    setIsModalOpen(false);
   }, []);
 
   return (
-    <SectionCard
-      title="Details"
-      data={detailRows}
-      isLoading={isLoading}
-      className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
-      headerActions={
-        <>
-          <EditButton onClick={handleEditClick} />
-        </>
-      }
-    />
+    <>
+      <SectionCard
+        title="Details"
+        data={detailRows}
+        isLoading={isLoading}
+        className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
+        headerActions={
+          <>
+            <EditButton onClick={handleEditClick} />
+          </>
+        }
+      />
+      <EditPrivateLessonDetailsModal
+        open={isModalOpen}
+        onClose={handleClose}
+        details={{
+          classroom: details?.classroom,
+          colorCode: details?.colorCode,
+          online: details?.online,
+        }}
+        location={location || ""}
+        onSubmit={handleSubmit}
+        saving={savingDetails}
+      />
+    </>
   );
 });
 
