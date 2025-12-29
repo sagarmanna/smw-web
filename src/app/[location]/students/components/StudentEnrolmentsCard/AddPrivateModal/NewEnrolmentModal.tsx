@@ -455,16 +455,16 @@ export function NewEnrolmentModal({
             return;
           }
 
-          const combinedData: EnrolmentFormData = {
-            ...currentFormData,
-            teacherId: detailData.teacherId,
-            teacherName: detailData.teacherName,
-            day: detailData.day,
-            startTime: detailData.startTime,
-            goToDate: detailData.goToDate,
-            duration: detailData.duration ?? currentFormData.duration,
-          };
-          setCurrentFormData(combinedData);
+            const combinedData: EnrolmentFormData = {
+              ...currentFormData,
+              teacherId: detailData.teacherId,
+              teacherName: detailData.teacherName,
+              day: detailData.day,
+              startTime: detailData.startTime,
+              goToDate: detailData.goToDate,
+              duration: detailData.duration ?? currentFormData.duration,
+            };
+            setCurrentFormData(combinedData);
 
           setLoadingReview(true);
           try {
@@ -548,6 +548,7 @@ export function NewEnrolmentModal({
               
               return {
                 index: index + 1,
+                id: lesson.id, // Lesson ID for editing
                 date: lessonDate.toISOString().split('T')[0],
                 day: dayName,
                 startTime: startTime, // HH:mm in UTC (exact time from API)
@@ -564,6 +565,7 @@ export function NewEnrolmentModal({
               studentName: reviewData.studentName,
               programName: reviewData.programName,
               teacherName: reviewData.teacherName,
+              teacherId: currentFormData?.teacherId ? Number(currentFormData.teacherId) : undefined,
               startDate: reviewData.startDate,
               endDate: reviewData.endDate,
               startTime: reviewData.startTime,
@@ -600,6 +602,49 @@ export function NewEnrolmentModal({
           setIsDetailModalOpen(true);
         }}
         isLoading={loadingReview}
+        location={location}
+        courseId={createdCourseId || undefined}
+        programId={currentFormData?.program || formData.program}
+        onLessonUpdated={async () => {
+          // Refresh lesson review data after lesson update
+          if (createdCourseId) {
+            try {
+              const reviewResult = await getLessonReview(location, createdCourseId, false);
+              if (reviewResult?.success && reviewResult.data) {
+                const reviewData = reviewResult.data;
+                
+                // Transform review lessons to LessonPreview format
+                const previews: LessonPreview[] = reviewData.lessons.map((lesson, index) => {
+                  const lessonDate = new Date(lesson.date);
+                  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                  const dayName = dayNames[lessonDate.getDay()];
+                  
+                  // Extract UTC time from the date string to avoid timezone conversion
+                  const utcHours = String(lessonDate.getUTCHours()).padStart(2, '0');
+                  const utcMinutes = String(lessonDate.getUTCMinutes()).padStart(2, '0');
+                  const startTime = `${utcHours}:${utcMinutes}`;
+                  
+                  return {
+                    index: index + 1,
+                    id: lesson.id, // Lesson ID for editing
+                    date: lessonDate.toISOString().split('T')[0],
+                    day: dayName,
+                    startTime: startTime, // HH:mm in UTC (exact time from API)
+                    duration: lesson.duration,
+                    conflict: lesson.conflict,
+                    isHolidayConflict: lesson.isHolidayConflict,
+                    isConflict: lesson.isConflict,
+                    isUnscheduled: lesson.isUnscheduled,
+                  };
+                });
+
+                setLessonPreviews(previews);
+              }
+            } catch (error) {
+              console.error('Error refreshing lesson review:', error);
+            }
+          }
+        }}
         onConfirm={async () => {
           if (!createdCourseId) {
             toast.error("Cannot confirm: Course ID missing");
@@ -616,8 +661,8 @@ export function NewEnrolmentModal({
               setIsReviewModalOpen(false);
               onOpenChange(false);
               // Refresh enrolments list if onNext is available
-              if (currentFormData) {
-                onNext?.(currentFormData);
+          if (currentFormData) {
+            onNext?.(currentFormData);
               }
             } else {
               toast.error(result?.message || "Failed to confirm lessons");

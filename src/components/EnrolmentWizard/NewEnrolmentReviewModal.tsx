@@ -10,10 +10,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
+import { LessonEditModal } from "./LessonEditModal";
 
 export interface LessonPreview {
   index: number;
+  id?: number;       // Lesson ID for editing
   date: string;      // YYYY-MM-DD
   day: string;       // e.g. Thursday
   startTime: string; // HH:mm
@@ -28,6 +30,7 @@ export interface EnrolmentReviewDetails {
   studentName?: string;
   programName?: string;
   teacherName?: string;
+  teacherId?: number;
   startDate?: string;
   endDate?: string;
   startTime?: string;
@@ -41,6 +44,10 @@ interface NewEnrolmentReviewModalProps {
   onBack?: () => void;
   onConfirm?: () => void;
   isLoading?: boolean; // Loading state for Confirm Enrolment button
+  onLessonUpdated?: () => void; // Callback when a lesson is updated
+  location?: string; // Location slug for API calls
+  courseId?: number; // Course ID for refreshing review data
+  programId?: string; // Program ID for filtering teachers
 }
 
 export function NewEnrolmentReviewModal({
@@ -51,7 +58,19 @@ export function NewEnrolmentReviewModal({
   onBack,
   onConfirm,
   isLoading = false,
+  onLessonUpdated,
+  location,
+  courseId,
+  programId,
 }: NewEnrolmentReviewModalProps) {
+  const [editingLesson, setEditingLesson] = React.useState<{
+    id: number;
+    date: string;
+    time: string;
+    duration: string;
+  } | null>(null);
+  const [editModalOpen, setEditModalOpen] = React.useState(false);
+
   // Debug: Log details when they change
   React.useEffect(() => {
     if (open && details) {
@@ -76,16 +95,21 @@ export function NewEnrolmentReviewModal({
     };
   }, [lessons]);
 
-  // Format date/time similar to legacy (datetime format)
+  // Check if there are any conflicts (excluding holiday conflicts which are handled separately)
+  const hasConflicts = React.useMemo(() => {
+    return lessons.some(lesson => lesson.isConflict || lesson.conflict);
+  }, [lessons]);
+
+  // Format date/time similar to legacy (datetime format with AM/PM)
   const formatDateTime = (date: string, time: string): string => {
     try {
       const dateObj = new Date(date);
-      if (isNaN(dateObj.getTime())) return `${date} ${time}`;
+      if (isNaN(dateObj.getTime())) return `${date} ${formatTime(time)}`;
       
       const formattedDate = format(dateObj, "MMM dd, yyyy");
-      return `${formattedDate} ${time}`;
+      return `${formattedDate} ${formatTime(time)}`;
     } catch {
-      return `${date} ${time}`;
+      return `${date} ${formatTime(time)}`;
     }
   };
 
@@ -218,7 +242,7 @@ export function NewEnrolmentReviewModal({
           {lessons.length === 0 ? (
             <div className="border rounded-md p-8 text-center">
               <p className="text-sm text-muted-foreground">
-                No conflicts here! You are ready to confirm!
+                No future lessons to review.
               </p>
             </div>
           ) : (
@@ -229,6 +253,7 @@ export function NewEnrolmentReviewModal({
                     <th className="px-3 py-2 text-left font-semibold">Date/Time</th>
                     <th className="px-3 py-2 text-left font-semibold">Duration</th>
                     <th className="px-3 py-2 text-left font-semibold">Conflict</th>
+                    <th className="px-3 py-2 text-left font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,11 +269,39 @@ export function NewEnrolmentReviewModal({
                         <td className="px-3 py-2">
                           {lesson.conflict || (hasConflict ? (
                             <span className="text-destructive text-xs">
-                              {lesson.isHolidayConflict ? 'Holiday conflict' : 
-                               lesson.isConflict ? 'Conflict' : 
-                               lesson.isUnscheduled ? 'Unscheduled' : ''}
+                              {lesson.conflict || (
+                                lesson.isHolidayConflict ? 'Holiday conflict' : 
+                                lesson.isConflict ? 'Conflict' : 
+                                lesson.isUnscheduled ? 'Unscheduled' : ''
+                              )}
                             </span>
                           ) : null)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {lesson.id && (lesson.conflict || hasConflict) && (
+                            <Pencil 
+                              className="h-4 w-4 text-blue-600 cursor-pointer hover:text-blue-800" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (lesson.id && location) {
+                                  // Extract time from date (UTC time stored in database)
+                                  const lessonDate = new Date(lesson.date);
+                                  const hours = lessonDate.getUTCHours();
+                                  const minutes = lessonDate.getUTCMinutes();
+                                  const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                                  
+                                  // Open edit modal for this lesson
+                                  setEditingLesson({
+                                    id: lesson.id,
+                                    date: lesson.date,
+                                    time: timeStr,
+                                    duration: lesson.duration,
+                                  });
+                                  setEditModalOpen(true);
+                                }
+                              }}
+                            />
+                          )}
                         </td>
                       </tr>
                     );
@@ -258,13 +311,13 @@ export function NewEnrolmentReviewModal({
             </div>
           )}
 
-          {lessons.length > 0 && (
+          {/* {lessons.length > 0 && (
             <p className="text-xs text-muted-foreground">
               This is a preview based on the selected start date, day, time, and number of
-              lessons. Final scheduling may adjust for holidays or other constraints in the
+              lessons. Only future lessons are shown. Final scheduling may adjust for holidays or other constraints in the
               legacy system.
             </p>
-          )}
+          )} */}
         </div>
 
         <DialogFooter className="!flex !flex-row !justify-between !items-center gap-2">
@@ -279,13 +332,54 @@ export function NewEnrolmentReviewModal({
             >
               Cancel
             </Button>
-            <Button type="button" onClick={onConfirm} disabled={isLoading}>
+            <Button 
+              type="button" 
+              onClick={onConfirm} 
+              disabled={isLoading || hasConflicts}
+              title={hasConflicts ? "Please resolve all conflicts before confirming" : undefined}
+            >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm Enrolment
             </Button>
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Lesson Edit Modal */}
+      {editingLesson && location && (
+        <LessonEditModal
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          lessonId={editingLesson.id}
+          lessonDate={editingLesson.date}
+          lessonTime={editingLesson.time}
+          lessonDuration={editingLesson.duration}
+          location={location}
+          programId={programId}
+          currentTeacherId={details?.teacherId}
+          onLessonUpdated={() => {
+            setEditModalOpen(false);
+            setEditingLesson(null);
+            onLessonUpdated?.();
+          }}
+          allLessons={lessons
+            .filter(l => l.id && (l.conflict || l.isConflict || l.isHolidayConflict))
+            .map(l => {
+              // Extract time from date (UTC time stored in database)
+              const lessonDate = new Date(l.date);
+              const hours = lessonDate.getUTCHours();
+              const minutes = lessonDate.getUTCMinutes();
+              const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+              
+              return {
+                id: l.id!,
+                date: l.date,
+                time: timeStr,
+                duration: l.duration,
+              };
+            })}
+        />
+      )}
     </Dialog>
   );
 }

@@ -69,7 +69,7 @@ export function AddGroupEnrolmentModal({
   const [discountData, setDiscountData] = React.useState<DiscountDetailFormData | null>(null);
   const [groupEnrolmentOptions, setGroupEnrolmentOptions] = React.useState<GroupEnrolmentOption[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [searchTimeout, setSearchTimeout] = React.useState<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const [apiLessons, setApiLessons] = React.useState<LessonDetail[] | null>(null);
   const [enrolmentId, setEnrolmentId] = React.useState<number | undefined>(undefined);
 
@@ -106,8 +106,8 @@ export function AddGroupEnrolmentModal({
     if (!open) return;
 
     // Clear previous timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
 
     // Set new timeout for debounced search
@@ -115,7 +115,7 @@ export function AddGroupEnrolmentModal({
       loadGroupCourses(searchQuery.trim() || undefined);
     }, 500); // 500ms debounce
 
-    setSearchTimeout(timeout);
+    searchTimeoutRef.current = timeout;
 
     // Cleanup
     return () => {
@@ -123,7 +123,7 @@ export function AddGroupEnrolmentModal({
         clearTimeout(timeout);
       }
     };
-  }, [searchQuery, open, loadGroupCourses, searchTimeout]);
+  }, [searchQuery, open, loadGroupCourses]);
 
   // Filter data based on search query (client-side fallback, but API handles it)
   const filteredData = React.useMemo(() => {
@@ -143,12 +143,12 @@ export function AddGroupEnrolmentModal({
       setEnrolmentId(undefined);
     } else {
       // Cleanup timeout when modal closes
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-        setSearchTimeout(null);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
       }
     }
-  }, [open, searchTimeout]);
+  }, [open]);
 
   const handleNext = () => {
     const selected = groupEnrolmentOptions.find((opt) => opt.id === selectedId);
