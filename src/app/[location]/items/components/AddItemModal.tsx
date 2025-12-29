@@ -23,8 +23,9 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { Plus } from "lucide-react";
 import { ItemRow } from "../itemsListing.api";
-import { mockItemData } from "../mockData/itemMockData";
+import { getItemCategories, createItemCategory } from "../itemCategories.api";
 
 interface AddItemModalProps {
   isOpen: boolean;
@@ -44,25 +45,6 @@ interface ItemFormData {
   tax: string;
   status: "Enable" | "Disable";
 }
-
-const itemCategoryOptions = [
-  { value: "Account Adjustments", label: "Account Adjustments" },
-  { value: "Arcadia Examinations", label: "Arcadia Examinations" },
-  { value: "Band", label: "Band" },
-  { value: "category3", label: "category3" },
-  { value: "category4", label: "category4" },
-  { value: "Concert", label: "Concert" },
-  { value: "Gift Card", label: "Gift Card" },
-  { value: "Instrument", label: "Instrument" },
-  { value: "Methods Books", label: "Methods Books" },
-  { value: "Musicfest", label: "Musicfest" },
-  { value: "Non Lesson", label: "Non Lesson" },
-  { value: "Non Method Books", label: "Non Method Books" },
-  { value: "Payment Credit", label: "Payment Credit" },
-  { value: "Rentals", label: "Rentals" },
-  { value: "Repairing Charges", label: "Repairing Charges" },
-  { value: "Smallware", label: "Smallware" },
-];
 
 const taxOptions = [
   "No Tax",
@@ -88,6 +70,12 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
   const [isLoading, setIsLoading] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [showRoyaltyFreeConfirm, setShowRoyaltyFreeConfirm] = React.useState(false);
+  const [itemCategoryOptions, setItemCategoryOptions] = React.useState<{ value: string; label: string }[]>([]);
+  const [itemCategoriesLoading, setItemCategoriesLoading] = React.useState(false);
+  const [showCreateCategoryDialog, setShowCreateCategoryDialog] = React.useState(false);
+  const [newCategoryName, setNewCategoryName] = React.useState("");
+  const [isCreatingCategory, setIsCreatingCategory] = React.useState(false);
+  const lastCategoriesLocationRef = React.useRef<string | null>(null);
 
   // Initialize form data when modal opens or initialData changes
   React.useEffect(() => {
@@ -116,6 +104,69 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
       setErrors({});
     }
   }, [isOpen, initialData, mode]);
+
+  // Fetch item categories for the SearchableSelect (when modal opens / location changes)
+  const fetchItemCategories = React.useCallback(() => {
+    setItemCategoriesLoading(true);
+    
+    getItemCategories(location)
+      .then((res) => {
+        if (!res.success) {
+          setItemCategoryOptions([]);
+          return;
+        }
+        // Filter duplicates by name to ensure unique keys, keeping the first occurrence
+        const seen = new Set<string>();
+        const opts = res.data
+          .filter((c) => {
+            if (seen.has(c.name)) return false;
+            seen.add(c.name);
+            return true;
+          })
+          .map((c) => ({ value: c.name, label: c.name }));
+        setItemCategoryOptions(opts);
+        lastCategoriesLocationRef.current = location;
+      })
+      .catch(() => {
+        setItemCategoryOptions([]);
+      })
+      .finally(() => {
+        setItemCategoriesLoading(false);
+      });
+  }, [location]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (lastCategoriesLocationRef.current === location && itemCategoryOptions.length > 0) return;
+    fetchItemCategories();
+  }, [isOpen, location, itemCategoryOptions.length, fetchItemCategories]);
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error("Category name cannot be blank");
+      return;
+    }
+
+    setIsCreatingCategory(true);
+    try {
+      const response = await createItemCategory(location, { name: newCategoryName.trim() });
+      if (response.success) {
+        toast.success("Item category created successfully");
+        setNewCategoryName("");
+        setShowCreateCategoryDialog(false);
+        // Refresh categories list
+        fetchItemCategories();
+        // Set the newly created category as selected
+        handleInputChange("itemCategory", response.data.name);
+      } else {
+        toast.error(response.message || "Failed to create item category");
+      }
+    } catch (error) {
+      toast.error("Failed to create item category");
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
 
   const handleInputChange = (field: keyof ItemFormData, value: string | "Yes" | "No" | "Enable" | "Disable") => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -189,8 +240,8 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
         // Add new item
         // const response = await apiClient.post(`/admin/v2/${location}/user/item`, itemData);
         await new Promise(resolve => setTimeout(resolve, 500));
-        // Generate a new ID (in real app, API would return this)
-        const newId = Math.max(...mockItemData.map(item => item.id), 0) + 1;
+        // Temporary client-side ID (in real app, API would return this)
+        const newId = Date.now();
         const newItem: ItemRow = {
           id: newId,
           ...itemData,
@@ -240,15 +291,28 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
                 <Label htmlFor="itemCategory" className={errors.itemCategory ? "text-red-600 dark:text-red-400" : ""}>
                   Item Category
                 </Label>
-                <SearchableSelect
-                  id="itemCategory"
-                  options={itemCategoryOptions}
-                  value={formData.itemCategory}
-                  onValueChange={(value) => handleInputChange("itemCategory", value)}
-                  placeholder="Select Category"
-                  searchPlaceholder="Search categories..."
-                  className={errors.itemCategory ? "border-red-500" : ""}
-                />
+                <div className="flex gap-2">
+                  <SearchableSelect
+                    id="itemCategory"
+                    options={itemCategoryOptions}
+                    value={formData.itemCategory}
+                    onValueChange={(value) => handleInputChange("itemCategory", value)}
+                    placeholder="Select Category"
+                    searchPlaceholder="Search categories..."
+                    className={errors.itemCategory ? "border-red-500" : ""}
+                    isLoading={itemCategoriesLoading}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowCreateCategoryDialog(true)}
+                    className="shrink-0"
+                    title="Add new category"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
                 {errors.itemCategory && (
                   <p className="text-sm text-red-600 dark:text-red-400">{errors.itemCategory}</p>
                 )}
@@ -402,6 +466,54 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
         confirmLabel="OK"
         cancelLabel="Cancel"
       />
+
+      {/* Create Category Dialog */}
+      <Dialog open={showCreateCategoryDialog} onOpenChange={setShowCreateCategoryDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Create New Category</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newCategoryName">Category Name</Label>
+              <Input
+                id="newCategoryName"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Enter category name"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCreateCategory();
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowCreateCategoryDialog(false);
+                setNewCategoryName("");
+              }}
+              disabled={isCreatingCategory}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateCategory}
+              disabled={isCreatingCategory || !newCategoryName.trim()}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {isCreatingCategory ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

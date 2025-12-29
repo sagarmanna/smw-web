@@ -12,7 +12,7 @@ import {
   setShowAll,
 } from "../itemsListing.slice";
 import { ItemsQuery } from "../itemsListing.api";
-import { SortField } from "../itemsListing.slice";
+import type { SortField } from "../itemsListing.slice";
 
 export function useItemListing(location: string) {
   const dispatch = useAppDispatch();
@@ -41,8 +41,6 @@ export function useItemListing(location: string) {
     location: string;
     page: number;
     pageSize: number;
-    sortBy: SortField | undefined;
-    sortDir: 'asc' | 'desc';
     showAll: boolean;
   } | null>(null);
 
@@ -50,8 +48,6 @@ export function useItemListing(location: string) {
     currentPage: number,
     currentPageSize: number,
     currentColumnFilters: Record<string, unknown>,
-    currentSortBy: SortField | undefined,
-    currentSortDir: 'asc' | 'desc',
     currentShowAll: boolean
   ): ItemsQuery => {
     const query: ItemsQuery = {
@@ -60,17 +56,15 @@ export function useItemListing(location: string) {
       code: currentColumnFilters.code as string | undefined,
       itemCategory: currentColumnFilters.itemCategory as string | undefined,
       description: currentColumnFilters.description as string | undefined,
-      sort: currentSortBy,
-      order: currentSortDir,
     };
 
     return query;
   }, []);
 
   const fetchData = React.useCallback(async () => {
-    const query = buildQuery(page, pageSize, columnFilters, sortBy, sortDir, showAll);
+    const query = buildQuery(page, pageSize, columnFilters, showAll);
     await dispatch(fetchItems({ location, query }));
-  }, [dispatch, location, page, pageSize, columnFilters, sortBy, sortDir, showAll, buildQuery]);
+  }, [dispatch, location, page, pageSize, columnFilters, showAll, buildQuery]);
 
   React.useEffect(() => {
     columnFiltersRef.current = columnFilters;
@@ -88,25 +82,21 @@ export function useItemListing(location: string) {
       prevParamsRef.current.location !== location ||
       prevParamsRef.current.page !== page ||
       prevParamsRef.current.pageSize !== pageSize ||
-      prevParamsRef.current.sortBy !== sortBy ||
-      prevParamsRef.current.sortDir !== sortDir ||
       prevParamsRef.current.showAll !== showAll;
 
     prevParamsRef.current = {
       location,
       page,
       pageSize,
-      sortBy,
-      sortDir,
       showAll,
     };
 
     if (!hasInitialFetchedRef.current || paramsChanged) {
       hasInitialFetchedRef.current = true;
-      const query = buildQuery(page, pageSize, columnFiltersRef.current, sortBy, sortDir, showAll);
+      const query = buildQuery(page, pageSize, columnFiltersRef.current, showAll);
       dispatch(fetchItems({ location, query }));
     }
-  }, [location, page, pageSize, sortBy, sortDir, showAll, dispatch, buildQuery]);
+  }, [location, page, pageSize, showAll, dispatch, buildQuery]);
 
   const handleSetSorting = React.useCallback(
     (newSorting: SortingState) => {
@@ -144,10 +134,10 @@ export function useItemListing(location: string) {
   );
 
   const handleColumnFilterEnter = React.useCallback(() => {
-    const query = buildQuery(1, pageSize, columnFiltersRef.current, sortBy, sortDir, showAll);
+    const query = buildQuery(1, pageSize, columnFiltersRef.current, showAll);
     dispatch(fetchItems({ location, query }));
     dispatch(setPage(1));
-  }, [dispatch, location, pageSize, sortBy, sortDir, showAll, buildQuery]);
+  }, [dispatch, location, pageSize, showAll, buildQuery]);
 
   const handleShowAllChange = React.useCallback(
     (checked: boolean) => {

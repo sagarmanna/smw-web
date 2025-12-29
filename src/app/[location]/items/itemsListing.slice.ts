@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { getItemsList, ItemRow, ItemsQuery } from './itemsListing.api';
-import { mockItemData } from './mockData/itemMockData';
 
 export type SortField = "code" | "description";
 
@@ -36,59 +35,6 @@ const initialState: ItemsListingState = {
   showAll: false,
 };
 
-// Helper function to filter and paginate mock data
-const filterAndPaginateMockData = (
-  data: ItemRow[],
-  query: ItemsQuery
-): { rows: ItemRow[]; total: number; totalPages: number } => {
-  let filteredData = [...data];
-
-  // Apply filters
-  if (query.code) {
-    filteredData = filteredData.filter(row =>
-      row.code.toLowerCase().includes(query.code!.toLowerCase())
-    );
-  }
-
-  if (query.itemCategory) {
-    filteredData = filteredData.filter(row =>
-      row.itemCategory.toLowerCase().includes(query.itemCategory!.toLowerCase())
-    );
-  }
-
-  if (query.description) {
-    filteredData = filteredData.filter(row =>
-      row.description.toLowerCase().includes(query.description!.toLowerCase())
-    );
-  }
-
-  // Apply sorting
-  if (query.sort) {
-    filteredData.sort((a, b) => {
-      const aValue = (a[query.sort as keyof ItemRow] || "") as string;
-      const bValue = (b[query.sort as keyof ItemRow] || "") as string;
-      
-      const comparison = String(aValue).localeCompare(String(bValue));
-      
-      return query.order === "desc" ? -comparison : comparison;
-    });
-  }
-
-  const total = filteredData.length;
-  const page = query.page || 1;
-  const limit = query.limit || 20;
-  const totalPages = Math.ceil(total / limit);
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-
-  return {
-    rows: paginatedData,
-    total,
-    totalPages,
-  };
-};
-
 // Async thunk for fetching items list
 export const fetchItems = createAsyncThunk(
   'itemsListing/fetchItems',
@@ -97,32 +43,17 @@ export const fetchItems = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Use mock data for now
-      const result = filterAndPaginateMockData(mockItemData, query);
-      
+      const response = await getItemsList(location, query);
+
+      if (!response?.success) {
+        return rejectWithValue(response?.message || 'Failed to fetch items');
+      }
+
       return {
-        rows: result.rows,
-        total: result.total,
-        totalPages: result.totalPages,
+        rows: response.data.body,
+        total: response.data.pagination.total,
+        totalPages: response.data.pagination.totalPages,
       };
-
-      // TODO: Uncomment when ready to use real API
-      // const response = await getItemsList(location, query);
-      // 
-      // if (response && response.success) {
-      //   return {
-      //     rows: response.data.body,
-      //     total: response.data.pagination.total,
-      //     totalPages: response.data.pagination.totalPages,
-      //   };
-      // }
-
-      // // Return empty result if API call fails or returns unsuccessful response
-      // return {
-      //   rows: [],
-      //   total: 0,
-      //   totalPages: 0,
-      // };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch items');
     }
@@ -143,7 +74,6 @@ const itemsListingSlice = createSlice({
     setSorting: (state, action: PayloadAction<{ sortBy?: SortField; sortDir: 'asc' | 'desc' }>) => {
       state.sortBy = action.payload.sortBy;
       state.sortDir = action.payload.sortDir;
-      state.page = 1;
     },
     setColumnFilters: (state, action: PayloadAction<Record<string, unknown>>) => {
       state.columnFilters = action.payload;
@@ -163,17 +93,13 @@ const itemsListingSlice = createSlice({
       state.page = 1;
     },
     addItem: (state, action: PayloadAction<ItemRow>) => {
-      // Add item to mock data (in real app, this would be handled by API)
-      mockItemData.push(action.payload);
-      // Refresh will happen on next fetch
+      // Optimistic local update; source of truth remains the API.
+      state.rows = [action.payload, ...state.rows];
+      state.total = state.total + 1;
+      state.totalPages = state.showAll ? 1 : Math.ceil(state.total / state.pageSize);
     },
     updateItem: (state, action: PayloadAction<ItemRow>) => {
-      // Update item in mock data (in real app, this would be handled by API)
-      const index = mockItemData.findIndex(item => item.id === action.payload.id);
-      if (index !== -1) {
-        mockItemData[index] = action.payload;
-      }
-      // Update in current rows if present
+      // Update in current rows if present; source of truth remains the API.
       const rowIndex = state.rows.findIndex(row => row.id === action.payload.id);
       if (rowIndex !== -1) {
         state.rows[rowIndex] = action.payload;
