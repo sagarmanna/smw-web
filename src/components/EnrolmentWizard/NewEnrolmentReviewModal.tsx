@@ -278,7 +278,7 @@ export function NewEnrolmentReviewModal({
                           ) : null)}
                         </td>
                         <td className="px-3 py-2">
-                          {lesson.id && (lesson.conflict || hasConflict) && (
+                          {lesson.id && (
                             <Pencil 
                               className="h-4 w-4 text-blue-600 cursor-pointer hover:text-blue-800" 
                               onClick={(e) => {

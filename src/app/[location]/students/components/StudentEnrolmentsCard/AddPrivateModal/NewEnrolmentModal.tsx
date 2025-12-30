@@ -36,6 +36,7 @@ import {
   type CreateStudentEnrolmentRequest,
 } from "../../../[id]/students-details.api";
 import { toast } from "sonner";
+import { useAppSelector } from "@/redux/hooks";
 
 interface NewEnrolmentModalProps {
   open: boolean;
@@ -151,6 +152,10 @@ export function NewEnrolmentModal({
   const [reviewDetails, setReviewDetails] = React.useState<EnrolmentReviewDetails | undefined>(undefined);
   const [loadingReview, setLoadingReview] = React.useState(false);
   const [createdCourseId, setCreatedCourseId] = React.useState<number | null>(null);
+  
+  // Get user info to check if user is admin (for rate editing permission)
+  const { userInfo } = useAppSelector((state) => state.user);
+  const isAdmin = userInfo?.role === 'administrator';
 
   React.useEffect(() => {
     if (!open) return;
@@ -309,6 +314,8 @@ export function NewEnrolmentModal({
     const newErrors: Record<string, string> = {};
     if (!formData.program?.trim()) newErrors.program = "Program Id cannot be blank.";
     if (!formData.ratePerHour?.trim()) newErrors.ratePerHour = "Program Rate cannot be blank.";
+    if (!formData.duration?.trim()) newErrors.duration = "Duration cannot be blank.";
+    if (!formData.paymentFrequency?.trim()) newErrors.paymentFrequency = "Payment Frequency cannot be blank.";
     if (!formData.numberOfLessons?.trim()) newErrors.numberOfLessons = "Lessons Count cannot be blank.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -364,24 +371,28 @@ export function NewEnrolmentModal({
             </div>
           </div>
 
-          <NumberField id="rate-per-hour" label="Rate (per hour)" value={formData.ratePerHour} onChange={(v) => handleFieldChange("ratePerHour", v)} prefix="$" suffix="/hr" placeholder="0.00" error={errors.ratePerHour} />
+          <NumberField id="rate-per-hour" label="Rate (per hour)" value={formData.ratePerHour} onChange={(v) => handleFieldChange("ratePerHour", v)} prefix="$" suffix="/hr" placeholder="0.00" error={errors.ratePerHour} disabled={!isAdmin} />
 
           <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="duration">Duration</Label>
-            <div className="flex items-center gap-2">
-              <DurationPicker
-                value={formData.duration}
-                onChange={(value) => handleFieldChange("duration", value)}
-              />
-              <span className="text-sm text-muted-foreground">mins.</span>
+            <Label htmlFor="duration" className={cn(errors.duration && "text-red-600 dark:text-red-400")}>Duration</Label>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <DurationPicker
+                  value={formData.duration}
+                  onChange={(value) => handleFieldChange("duration", value)}
+                  error={errors.duration}
+                />
+                <span className="text-sm text-muted-foreground">mins.</span>
+              </div>
+              {errors.duration && <p className="text-xs text-red-500 mt-1">{errors.duration}</p>}
             </div>
           </div>
 
           <NumberField id="rate-per-month" label="Rate (per month)" value={formData.ratePerMonth} onChange={(v) => handleFieldChange("ratePerMonth", v)} prefix="$" suffix="/mn" placeholder="0.00" disabled />
 
           <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="payment-frequency">Payment Frequency</Label>
-            <div className="w-64">
+            <Label htmlFor="payment-frequency" className={cn(errors.paymentFrequency && "text-red-600 dark:text-red-400")}>Payment Frequency</Label>
+            <div className="flex flex-col w-64">
               <SearchableSelect
                 id="payment-frequency"
                 options={paymentFrequencySelectOptions}
@@ -391,8 +402,9 @@ export function NewEnrolmentModal({
                 searchPlaceholder="Search payment frequency..."
                 emptyText="No payment frequencies available"
                 noResultsText="No payment frequencies found"
-                className="w-full"
+                className={cn("w-full", errors.paymentFrequency && "border-red-500")}
               />
+              {errors.paymentFrequency && <p className="text-xs text-red-500 mt-1">{errors.paymentFrequency}</p>}
             </div>
           </div>
 
