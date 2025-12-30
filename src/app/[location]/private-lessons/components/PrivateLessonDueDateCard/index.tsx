@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import {
   SectionCard,
   EditButton,
 } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { PrivateLessonDetails } from "../../types";
+import { EditDueDateModal } from "../modals/EditDueDateModal";
 
 interface PrivateLessonDueDateCardProps {
   details: PrivateLessonDetails | null;
@@ -22,6 +22,8 @@ export const PrivateLessonDueDateCard = React.memo(function PrivateLessonDueDate
   savingDetails = false,
   isLoading = false,
 }: PrivateLessonDueDateCardProps) {
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
     return [
       {
@@ -32,21 +34,41 @@ export const PrivateLessonDueDateCard = React.memo(function PrivateLessonDueDate
   }, [details]);
 
   const handleEditClick = React.useCallback(() => {
-    toast.info("This feature is under process");
+    setIsModalOpen(true);
   }, []);
 
+  const handleClose = React.useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  const handleSubmit = React.useCallback(
+    async (dueDate: string): Promise<boolean> => {
+      return await onSaveDueDate(dueDate);
+    },
+    [onSaveDueDate]
+  );
+
   return (
-    <SectionCard
-      title="Due Date"
-      data={detailRows}
-      isLoading={isLoading}
-      className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
-      headerActions={
-        <>
-          <EditButton onClick={handleEditClick} />
-        </>
-      }
-    />
+    <>
+      <SectionCard
+        title="Due Date"
+        data={detailRows}
+        isLoading={isLoading}
+        className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
+        headerActions={
+          <>
+            <EditButton onClick={handleEditClick} />
+          </>
+        }
+      />
+      <EditDueDateModal
+        open={isModalOpen}
+        onClose={handleClose}
+        dueDate={details?.dueDate || null}
+        onSubmit={handleSubmit}
+        saving={savingDetails}
+      />
+    </>
   );
 });
 

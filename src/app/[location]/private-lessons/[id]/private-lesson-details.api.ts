@@ -238,13 +238,44 @@ export async function getPrivateLessonPayments(
     void location;
     void privateLessonId;
     
-    // Mock data - empty payments for now
+    // Mock data - sample payments
     await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const mockPayments: PrivateLessonPaymentResponseBody[] = [
+      {
+        id: 1,
+        date: "Mar 17, 2025",
+        paymentMethod: "Amex",
+        number: "****1234",
+        amount: "$1.69",
+      },
+      {
+        id: 2,
+        date: "Mar 10, 2025",
+        paymentMethod: "Visa",
+        number: "****5678",
+        amount: "$5.00",
+      },
+      {
+        id: 3,
+        date: "Mar 3, 2025",
+        paymentMethod: "Cash",
+        number: "",
+        amount: "$10.00",
+      },
+      {
+        id: 4,
+        date: "Feb 24, 2025",
+        paymentMethod: "Mastercard",
+        number: "****9012",
+        amount: "$15.00",
+      },
+    ];
     
     return {
       success: true,
       data: {
-        body: [],
+        body: mockPayments,
       },
     };
   } catch (error: unknown) {
@@ -332,7 +363,8 @@ export async function getPrivateLessonHistory(
 export function transformApiResponse(
   apiResponse: PrivateLessonDetailsApiResponse,
   paymentsResponse: PrivateLessonPaymentsApiResponse | null,
-  historyResponse: PrivateLessonHistoryApiResponse | null
+  historyResponse: PrivateLessonHistoryApiResponse | null,
+  commentsResponse: PrivateLessonCommentsApiResponse | null
 ): PrivateLessonInfo {
   const { body } = apiResponse.data;
   
@@ -357,6 +389,16 @@ export function transformApiResponse(
   const history = historyBody.map((item) => ({
     id: item.id,
     message: item.message || "",
+    createdOn: item.createdOn || "",
+  }));
+
+  // Get comments from API response
+  const commentsBody = commentsResponse?.data?.body || [];
+  const comments = commentsBody.map((item) => ({
+    id: item.id,
+    content: item.content || "",
+    createdUser: item.createdUser || "",
+    avatar: item.avatar || "",
     createdOn: item.createdOn || "",
   }));
   
@@ -405,6 +447,7 @@ export function transformApiResponse(
     },
     payments: payments,
     history: history, // History is fetched separately with pagination
+    comments: comments,
   };
 }
 
@@ -631,6 +674,238 @@ export async function updateDueDate(
         dueDate: "",
       },
       message: apiError.response?.data?.message || "Failed to update due date",
+    };
+  }
+}
+
+// Update Discount API Types
+export interface UpdateDiscountRequest {
+  discount: string;
+}
+
+export interface UpdateDiscountResponse {
+  success: boolean;
+  data: {
+    id: number;
+    discount: string;
+  };
+  message?: string;
+}
+
+/**
+ * Updates discount via PUT API
+ * For now, returns mock response
+ */
+export async function updateDiscount(
+  location: string,
+  privateLessonId: string,
+  data: UpdateDiscountRequest
+): Promise<UpdateDiscountResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      data: {
+        id: Number(privateLessonId) || 0,
+        discount: data.discount,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error updating discount:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(privateLessonId) || 0,
+        discount: "",
+      },
+      message: apiError.response?.data?.message || "Failed to update discount",
+    };
+  }
+}
+
+// Update Price (Lesson Rate) API Types
+export interface UpdatePriceRequest {
+  lessonRatePerHour: string;
+}
+
+export interface UpdatePriceResponse {
+  success: boolean;
+  data: {
+    id: number;
+    lessonRatePerHour: string;
+  };
+  message?: string;
+}
+
+/**
+ * Updates lesson rate per hour via PUT API
+ * For now, returns mock response
+ */
+export async function updatePrice(
+  location: string,
+  privateLessonId: string,
+  data: UpdatePriceRequest
+): Promise<UpdatePriceResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      data: {
+        id: Number(privateLessonId) || 0,
+        lessonRatePerHour: data.lessonRatePerHour,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error updating price:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(privateLessonId) || 0,
+        lessonRatePerHour: "",
+      },
+      message: apiError.response?.data?.message || "Failed to update price",
+    };
+  }
+}
+
+// Comments API Response Types
+export interface PrivateLessonCommentResponseBody {
+  id: number;
+  content: string;
+  createdUser: string;
+  avatar: string;
+  createdOn: string;
+}
+
+export interface PrivateLessonCommentsApiResponse {
+  success: boolean;
+  data: {
+    body: PrivateLessonCommentResponseBody[];
+  };
+  message?: string;
+}
+
+/**
+ * Fetches private lesson comments from the API
+ * For now, returns mock data
+ * 
+ * @param location - The location identifier
+ * @param privateLessonId - The private lesson ID
+ * @returns Promise resolving to the comments response or null on error
+ */
+export async function getPrivateLessonComments(
+  location: string,
+  privateLessonId: string
+): Promise<PrivateLessonCommentsApiResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await apiClient.get<PrivateLessonCommentsApiResponse>(
+    //   `/admin/v2/${location}/comments`,
+    //   {
+    //     params: {
+    //       type: 'private-lesson',
+    //       id: privateLessonId,
+    //     },
+    //   }
+    // );
+    // return response.data;
+    
+    void location;
+    void privateLessonId;
+    
+    // Mock data - sample comments
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const mockComments: PrivateLessonCommentResponseBody[] = [
+      {
+        id: 1,
+        content: "Student showed great improvement in today's lesson. Keep practicing the scales.",
+        createdUser: "John Smith",
+        avatar: "",
+        createdOn: "Mar 15, 2025 10:30 AM",
+      },
+      {
+        id: 2,
+        content: "Please remember to bring your music book next time.",
+        createdUser: "Sarah Johnson",
+        avatar: "",
+        createdOn: "Mar 10, 2025 2:15 PM",
+      },
+      {
+        id: 3,
+        content: "Excellent progress! The student is ready for the next level.",
+        createdUser: "Michael Brown",
+        avatar: "",
+        createdOn: "Mar 5, 2025 9:00 AM",
+      },
+    ];
+    
+    return {
+      success: true,
+      data: {
+        body: mockComments,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error fetching private lesson comments:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch private lesson comments",
+    };
+  }
+}
+
+// Delete Private Lesson API Types
+export interface DeletePrivateLessonResponse {
+  success: boolean;
+  message?: string;
+}
+
+/**
+ * Deletes a private lesson via DELETE API
+ * For now, returns mock response
+ * 
+ * @param location - The location identifier
+ * @param privateLessonId - The private lesson ID
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deletePrivateLesson(
+  location: string,
+  privateLessonId: string
+): Promise<DeletePrivateLessonResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await apiClient.delete<DeletePrivateLessonResponse>(
+    //   `/admin/v2/${location}/private-lessons/${privateLessonId}`
+    // );
+    // return response.data;
+    
+    void location;
+    void privateLessonId;
+    
+    // Mock response
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      message: "Private lesson deleted successfully",
+    };
+  } catch (error: unknown) {
+    console.error("Error deleting private lesson:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to delete private lesson",
     };
   }
 }

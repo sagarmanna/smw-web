@@ -55,9 +55,18 @@ export interface PrivateLessonHistory {
   createdOn?: string;
 }
 
+export interface PrivateLessonComment {
+  id: number;
+  content: string;
+  createdUser: string;
+  avatar: string;
+  createdOn: string;
+}
+
 export interface PrivateLessonInfo {
   details: PrivateLessonDetails;
   payments: PrivateLessonPayment[];
   history: PrivateLessonHistory[];
+  comments: PrivateLessonComment[];
 }
 
