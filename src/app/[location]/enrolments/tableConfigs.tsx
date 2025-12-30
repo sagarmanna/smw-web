@@ -1,6 +1,5 @@
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { Checkbox } from "@/components/ui/checkbox";
 import { EnrolmentRow } from "./enrolmentsListing.api";
 
 // Extended interface for rows with selection state
@@ -22,6 +21,7 @@ export const enrolmentColumns: ColumnDef<EnrolmentRow>[] = [
     filter: {
       type: "string"
     },
+    minSize: 180,
     meta: { printable: true, printableName: "Program" },
   } as ColumnDef<EnrolmentRow> & { filter: { type: string } },
   {
@@ -36,6 +36,7 @@ export const enrolmentColumns: ColumnDef<EnrolmentRow>[] = [
     filter: {
       type: "string"
     },
+    minSize: 180,
     meta: { printable: true, printableName: "Student" },
   } as ColumnDef<EnrolmentRow> & { filter: { type: string } },
   {
@@ -50,6 +51,7 @@ export const enrolmentColumns: ColumnDef<EnrolmentRow>[] = [
     filter: {
       type: "string"
     },
+    minSize: 180,
     meta: { 
       printable: true, 
       printableName: "Teacher"
@@ -130,6 +132,7 @@ export const enrolmentColumns: ColumnDef<EnrolmentRow>[] = [
     filter: {
       type: "string"
     },
+    minSize: 160,
     meta: { printable: true, printableName: "Lessons Remaining" },
   } as ColumnDef<EnrolmentRow> & { filter: { type: string } },
 ];
