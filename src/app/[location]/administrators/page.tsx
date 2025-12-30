@@ -1,11 +1,12 @@
-import React from 'react'
+import { AdministratorsListingClient } from "./AdministratorsListingClient";
 
-const AdministratorsPage = () => {
-  return (
-    <div>
-      <h1>Administrators</h1>
-    </div>
-  )
+interface AdministratorsPageProps {
+  params: Promise<{
+    location: string;
+  }>;
 }
 
-export default AdministratorsPage
+export default async function AdministratorsPage({ params }: AdministratorsPageProps) {
+  const { location } = await params;
+  return <AdministratorsListingClient location={location} />;
+}
