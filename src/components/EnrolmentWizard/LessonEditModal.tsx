@@ -394,6 +394,9 @@ export function LessonEditModal({
     selectedDayDate.setDate(calendarMonday.getDate() + daysToAdd);
     selectedDayDate.setHours(selectedHours, selectedMinutes, selectedSeconds, 0);
     
+    // Update both selectedDate and goToDate when user selects a slot in the calendar
+    // This ensures the date is correctly used when building the update request
+    setSelectedDate(selectedDayDate);
     setGoToDate(selectedDayDate);
     
     const hours = String(selectedHours).padStart(2, '0');
@@ -474,23 +477,22 @@ export function LessonEditModal({
   };
 
   const buildUpdateFieldRequest = (targetDate: Date, targetTime: string, targetTeacherId?: number, applyContext?: string): UpdateLessonFieldRequest => {
-    // Format date similar to legacy (MMM dd, yyyy HH:mm AM/PM)
+    // Extract hour and minute from time string
     const [hours, minutes] = targetTime.split(':');
     const hour = parseInt(hours || '0', 10);
     const minute = parseInt(minutes || '0', 10);
     
-    // Format date as "MMM dd, yyyy HH:mm AM/PM" (like legacy)
-    const formattedDate = format(targetDate, "MMM dd, yyyy");
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    const dateStr = `${formattedDate} ${displayHour}:${String(minute).padStart(2, '0')} ${ampm}`;
+    // Format goToDate as "MMM dd, yyyy" - API will use this + hour + minute to build the date
+    // This is more reliable than parsing the date string with time
+    const goToDateStr = format(targetDate, "MMM dd, yyyy");
     
     const request: UpdateLessonFieldRequest = {
       id: lessonId,
-      date: dateStr,
+      // Don't provide date field - let API build it from goToDate + hour + minute
+      // This ensures the date is correctly updated when user changes the calendar date
       hour: String(hour).padStart(2, '0'),
       minute: String(minute).padStart(2, '0'),
-      goToDate: format(targetDate, "MMM dd, yyyy"),
+      goToDate: goToDateStr, // API uses this to build the new date
     };
     
     if (targetTeacherId) {
