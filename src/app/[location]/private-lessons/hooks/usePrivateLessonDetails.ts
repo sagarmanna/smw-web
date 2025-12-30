@@ -10,12 +10,15 @@ import {
   updateAttendanceThunk,
   updateCostThunk,
   updateDueDateThunk,
+  updateDiscountThunk,
+  updatePriceThunk,
 } from "../[id]/private-lesson-details.slice";
 import { toast } from "sonner";
 import {
   PrivateLessonDetails,
   PrivateLessonPayment,
   PrivateLessonHistory,
+  PrivateLessonComment,
 } from "../types";
 
 type PrivateLessonDetailsHookReturn = {
@@ -23,6 +26,7 @@ type PrivateLessonDetailsHookReturn = {
   error: string | null;
   details: PrivateLessonDetails | null;
   payments: PrivateLessonPayment[];
+  comments: PrivateLessonComment[];
   history: PrivateLessonHistory[];
   historyPagination: { page: number; limit: number; total: number; totalPages: number } | null;
   historyLoading: boolean;
@@ -35,6 +39,8 @@ type PrivateLessonDetailsHookReturn = {
   saveAttendance: (present: boolean) => Promise<boolean>;
   saveCost: (data: { costPerHour?: string; cost?: string; price?: string }) => Promise<boolean>;
   saveDueDate: (dueDate: string) => Promise<boolean>;
+  saveDiscount: (discount: string) => Promise<boolean>;
+  savePrice: (lessonRatePerHour: string) => Promise<boolean>;
 };
 
 export function usePrivateLessonDetails(
@@ -68,6 +74,11 @@ export function usePrivateLessonDetails(
   const history: PrivateLessonHistory[] = React.useMemo(() => {
     return historyData;
   }, [historyData]);
+
+  // Get comments from Redux store
+  const comments: PrivateLessonComment[] = React.useMemo(() => {
+    return privateLessonInfo?.comments || [];
+  }, [privateLessonInfo]);
 
   const refresh = React.useCallback(async () => {
     dispatch(fetchPrivateLesson({ location, privateLessonId }));
@@ -186,11 +197,56 @@ export function usePrivateLessonDetails(
     [dispatch, location, privateLessonId]
   );
 
+  const saveDiscount = React.useCallback(
+    async (discount: string): Promise<boolean> => {
+      try {
+        await dispatch(
+          updateDiscountThunk({
+            location,
+            privateLessonId,
+            discount,
+          })
+        ).unwrap();
+        
+        toast.success("Discount updated successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to save discount:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to update discount. Please try again.");
+        return false;
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
+  const savePrice = React.useCallback(
+    async (lessonRatePerHour: string): Promise<boolean> => {
+      try {
+        await dispatch(
+          updatePriceThunk({
+            location,
+            privateLessonId,
+            lessonRatePerHour,
+          })
+        ).unwrap();
+        
+        toast.success("Price updated successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to save price:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to update price. Please try again.");
+        return false;
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
   return {
     loading,
     error,
     details,
     payments,
+    comments,
     history,
     historyPagination,
     historyLoading,
@@ -203,6 +259,8 @@ export function usePrivateLessonDetails(
     saveAttendance,
     saveCost,
     saveDueDate,
+    saveDiscount,
+    savePrice,
   };
 }
 

@@ -5,22 +5,132 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { PrivateLessonComment } from "../../types";
 
 interface PrivateLessonCommentsCardProps {
+  comments?: PrivateLessonComment[];
   isLoading?: boolean;
 }
 
+const CommentItem = ({ comment }: { comment: PrivateLessonComment }) => {
+  const [imageError, setImageError] = React.useState(false);
+
+  // Construct avatar URL - if it's a relative path, prepend legacy base URL
+  const getAvatarUrl = () => {
+    if (!comment.avatar) return null;
+    // If already a full URL, use as-is
+    if (comment.avatar.startsWith('http://') || comment.avatar.startsWith('https://')) {
+      return comment.avatar;
+    }
+    // If relative path, prepend legacy base URL
+    const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || '';
+    return legacyBase && !comment.avatar.startsWith('/') 
+      ? `${legacyBase}/${comment.avatar}`
+      : comment.avatar;
+  };
+
+  const avatarUrl = getAvatarUrl();
+
+  return (
+    <div className="flex items-start space-x-3 pb-4 border-b last:border-b-0">
+      <div className="flex-shrink-0">
+        {avatarUrl && !imageError ? (
+          <img 
+            src={avatarUrl} 
+            alt={comment.createdUser}
+            className="h-8 w-8 rounded-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">{comment.createdUser}</p>
+          <p className="text-xs text-muted-foreground">{comment.createdOn}</p>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">{comment.content}</p>
+      </div>
+    </div>
+  );
+};
+
 export const PrivateLessonCommentsCard = React.memo(function PrivateLessonCommentsCard({
+  comments = [],
   isLoading = false,
 }: PrivateLessonCommentsCardProps) {
   const [message, setMessage] = React.useState("");
+  const [commentError, setCommentError] = React.useState<string | null>(null);
 
   const handleSendMessage = React.useCallback(() => {
+    if (!message.trim()) {
+      setCommentError("Content cannot be blank.");
+      return;
+    }
+
+    // TODO: Implement actual API call
     toast.info("This feature is under process");
     setMessage("");
-  }, []);
+    setCommentError(null);
+  }, [message]);
+
+  const commentsContent = (
+    <div className="space-y-4">
+      {isLoading ? (
+        <div className="text-center py-8 text-muted-foreground">Loading comments...</div>
+      ) : comments.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          No results found.
+        </div>
+      ) : (
+        comments.map((comment) => (
+          <CommentItem key={comment.id} comment={comment} />
+        ))
+      )}
+    </div>
+  );
+
+  const commentsBottomContent = (
+    <>
+      <div className="mt-4 flex items-center space-x-2">
+        <Input
+          type="text"
+          placeholder="Type message"
+          className="flex-grow"
+          value={message}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            if (commentError) setCommentError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && message.trim()) {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white disabled:opacity-50"
+          onClick={handleSendMessage}
+          disabled={!message.trim()}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {commentError && (
+        <div className="text-sm text-red-500 mt-1">
+          {commentError}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <Card>
@@ -30,45 +140,8 @@ export const PrivateLessonCommentsCard = React.memo(function PrivateLessonCommen
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        {isLoading ? (
-          <div role="status" aria-label="Loading comments">
-            <LoadingAnimation 
-              size="md" 
-              text="Loading comments..." 
-              className="py-8"
-            />
-          </div>
-        ) : (
-          <>
-            <div className="mb-4 min-h-[200px] flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <div className="text-4xl mb-2" aria-hidden="true">💬</div>
-                <span className="text-sm font-medium">No results found.</span>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Type message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                className="flex-1"
-              />
-              <Button
-                onClick={handleSendMessage}
-                className="bg-green-600 hover:bg-green-700"
-                disabled={!message.trim()}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </>
-        )}
+        {commentsContent}
+        {commentsBottomContent}
       </CardContent>
     </Card>
   );

@@ -18,6 +18,8 @@ import { PrivateLessonTotalsCard } from "../components/PrivateLessonTotalsCard";
 import { PrivateLessonPaymentsCard } from "../components/PrivateLessonPaymentsCard";
 import { PrivateLessonCommentsCard } from "../components/PrivateLessonCommentsCard";
 import { PrivateLessonHistoryCard } from "../components/PrivateLessonHistoryCard";
+import { DeletePrivateLessonModal } from "../components/modals/DeletePrivateLessonModal";
+import { toast } from "sonner";
 
 interface PrivateLessonDetailClientProps {
   location: string;
@@ -36,6 +38,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   const {
     details,
     payments,
+    comments,
     history,
     historyPagination,
     historyLoading,
@@ -46,6 +49,8 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     saveAttendance,
     saveCost,
     saveDueDate,
+    saveDiscount,
+    savePrice,
   } = usePrivateLessonDetails(location, privateLessonId);
 
   // Fetch history on initial load - optimized dependencies
@@ -73,23 +78,46 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     [location, router]
   );
 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+
+  const handleMailClick = React.useCallback(() => {
+    toast.info("This feature is under process");
+  }, []);
+
+  const handleReceivePaymentClick = React.useCallback(() => {
+    toast.info("This feature is under process");
+  }, []);
+
+  const handleDeleteClick = React.useCallback(() => {
+    setIsDeleteModalOpen(true);
+  }, []);
+
+  const handleDeleteSuccess = React.useCallback(() => {
+    router.push(`/${location}/private-lessons`);
+  }, [location, router]);
+
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
       {
         label: "Action",
         items: [
           {
+            label: "Mail",
+            onClick: handleMailClick,
+          },
+          {
+            label: "Receive Payment",
+            onClick: handleReceivePaymentClick,
+          },
+          {
             label: "Delete",
-            onClick: () => {
-              // TODO: Implement delete private lesson functionality
-              console.log("Delete private lesson");
-            },
+            onClick: handleDeleteClick,
             variant: "destructive",
           },
         ],
       },
     ],
-    []
+    [handleMailClick, handleReceivePaymentClick, handleDeleteClick]
   );
 
   // Error state - show error but still render cards with skeleton
@@ -190,6 +218,9 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
 
               <PrivateLessonTotalsCard
                 details={details}
+                onSaveDiscount={saveDiscount}
+                onSavePrice={savePrice}
+                savingDetails={savingDetails}
                 isLoading={isLoading}
               />
             </div>
@@ -203,6 +234,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <PrivateLessonCommentsCard
+              comments={comments}
               isLoading={isLoading}
             />
 
@@ -217,6 +249,13 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           </div>
         </div>
       </div>
+      <DeletePrivateLessonModal
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        location={location}
+        privateLessonId={privateLessonId}
+        onDeleteSuccess={handleDeleteSuccess}
+      />
     </>
   );
 }

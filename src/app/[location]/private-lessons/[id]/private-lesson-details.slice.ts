@@ -3,14 +3,17 @@ import {
   getPrivateLessonDetails,
   getPrivateLessonPayments,
   getPrivateLessonHistory,
+  getPrivateLessonComments,
   transformApiResponse,
   updatePrivateLessonDetails,
   updateAttendance,
   updateCost,
   updateDueDate,
+  updateDiscount,
+  updatePrice,
   type PaginationInfo,
 } from './private-lesson-details.api';
-import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory } from '../types';
+import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment } from '../types';
 
 interface PrivateLessonState {
   privateLessonInfo: PrivateLessonInfo | null;
@@ -47,11 +50,12 @@ export const fetchPrivateLesson = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch details, payments, and history in parallel, but handle failures gracefully
-      const [detailsResult, paymentsResult, historyResult] = await Promise.allSettled([
+      // Fetch details, payments, history, and comments in parallel, but handle failures gracefully
+      const [detailsResult, paymentsResult, historyResult, commentsResult] = await Promise.allSettled([
         getPrivateLessonDetails(location, privateLessonId),
         getPrivateLessonPayments(location, privateLessonId),
         getPrivateLessonHistory(location, privateLessonId),
+        getPrivateLessonComments(location, privateLessonId),
       ]);
 
       // Details API is required - fail if it doesn't succeed
@@ -82,7 +86,18 @@ export const fetchPrivateLesson = createAsyncThunk(
         console.warn('History API error:', historyResult.reason);
       }
 
-      const transformedData = transformApiResponse(details, payments, history);
+      // Comments API is optional - log error but don't fail the entire fetch
+      let comments: Awaited<ReturnType<typeof getPrivateLessonComments>> = null;
+      if (commentsResult.status === 'fulfilled') {
+        comments = commentsResult.value;
+        if (!comments || !comments.success) {
+          console.warn('Comments API failed:', comments?.message || 'Unknown error');
+        }
+      } else {
+        console.warn('Comments API error:', commentsResult.reason);
+      }
+
+      const transformedData = transformApiResponse(details, payments, history, comments);
 
       return { data: transformedData };
     } catch (error) {
@@ -179,6 +194,48 @@ export const updateDueDateThunk = createAsyncThunk(
       return { data: result.data };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update due date');
+    }
+  }
+);
+
+// Async thunk for updating discount
+export const updateDiscountThunk = createAsyncThunk(
+  'privateLesson/updateDiscount',
+  async (
+    { location, privateLessonId, discount }: { location: string; privateLessonId: string; discount: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await updateDiscount(location, privateLessonId, { discount });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update discount');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update discount');
+    }
+  }
+);
+
+// Async thunk for updating price (lesson rate per hour)
+export const updatePriceThunk = createAsyncThunk(
+  'privateLesson/updatePrice',
+  async (
+    { location, privateLessonId, lessonRatePerHour }: { location: string; privateLessonId: string; lessonRatePerHour: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await updatePrice(location, privateLessonId, { lessonRatePerHour });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update price');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update price');
     }
   }
 );
@@ -344,6 +401,40 @@ const privateLessonSlice = createSlice({
         state.error = null;
       })
       .addCase(updateDueDateThunk.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Update discount reducers
+      .addCase(updateDiscountThunk.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updateDiscountThunk.fulfilled, (state, action) => {
+        state.isSaving = false;
+        if (state.privateLessonInfo && action.payload) {
+          const { data } = action.payload;
+          state.privateLessonInfo.details.totals.discount = data.discount;
+        }
+        state.error = null;
+      })
+      .addCase(updateDiscountThunk.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Update price reducers
+      .addCase(updatePriceThunk.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updatePriceThunk.fulfilled, (state, action) => {
+        state.isSaving = false;
+        if (state.privateLessonInfo && action.payload) {
+          const { data } = action.payload;
+          state.privateLessonInfo.details.totals.lessonRatePerHour = data.lessonRatePerHour;
+        }
+        state.error = null;
+      })
+      .addCase(updatePriceThunk.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       })
