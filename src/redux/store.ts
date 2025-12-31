@@ -25,6 +25,8 @@ import itemsListingReducer from '../app/[location]/items/itemsListing.slice';
 import invoicesListingReducer from '../app/[location]/invoices/invoicesListing.slice';
 import administratorsListingReducer from '../app/[location]/administrators/administratorsListing.slice';
 import staffMembersListingReducer from '../app/[location]/staff-members/staffMembersListing.slice';
+import administratorReducer from '../app/[location]/administrators/[id]/administrators-details.slice';
+import administratorTabsReducer from '../app/[location]/administrators/[id]/administratorTabs.slice';
 
 export const store = configureStore({
   reducer: {
@@ -54,6 +56,8 @@ export const store = configureStore({
     invoicesListing: invoicesListingReducer,
     administratorsListing: administratorsListingReducer,
     staffMembersListing: staffMembersListingReducer,
+    administrator: administratorReducer,
+    administratorTabs: administratorTabsReducer,
   },
 });
 

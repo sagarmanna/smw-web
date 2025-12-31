@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { AdministratorRow } from "./administrators.api";
@@ -19,6 +20,7 @@ interface AdministratorsListingClientProps {
 }
 
 export function AdministratorsListingClient({ location }: AdministratorsListingClientProps) {
+  const router = useRouter();
   const [isAddAdministratorModalOpen, setIsAddAdministratorModalOpen] = React.useState(false);
   const columns = React.useMemo<ColumnDef<AdministratorRow>[]>(() => administratorColumns, []);
 
@@ -121,6 +123,10 @@ export function AdministratorsListingClient({ location }: AdministratorsListingC
           setPageSize(newSize); 
           setPage(1); 
         }}
+        onRowClick={(row: AdministratorRow) => {
+          router.push(`/${location}/administrators/${row.id}`);
+        }}
+        rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
       
       <AddAdministratorModal
