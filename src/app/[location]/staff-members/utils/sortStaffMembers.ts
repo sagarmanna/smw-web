@@ -1,18 +1,18 @@
-import { AdministratorRow } from "../administrators.api";
+import { StaffMemberRow } from "../staffMembers.api";
 import { sortByField, applyActiveFilter as applyActiveFilterUtil, applyTextFilter as applyTextFilterUtil, applyPagination as applyPaginationUtil } from "@/utils/listingUtils";
 
 export type SortField = "firstName" | "lastName" | "email";
 export type SortDirection = "asc" | "desc";
 
 /**
- * Sort administrators by field
+ * Sort staff members by field
  * @deprecated Use sortByField from @/utils/listingUtils instead
  */
-export function sortAdministrators(
-  data: AdministratorRow[],
+export function sortStaffMembers(
+  data: StaffMemberRow[],
   field: SortField,
   direction: SortDirection
-): AdministratorRow[] {
+): StaffMemberRow[] {
   return sortByField(data, field, direction);
 }
 
@@ -21,10 +21,10 @@ export function sortAdministrators(
  * @deprecated Use applyActiveFilter from @/utils/listingUtils instead
  */
 export function applyActiveFilter(
-  data: AdministratorRow[],
+  data: StaffMemberRow[],
   showActive?: boolean,
   showInActive?: boolean
-): AdministratorRow[] {
+): StaffMemberRow[] {
   return applyActiveFilterUtil(data, showActive, showInActive);
 }
 
@@ -33,10 +33,10 @@ export function applyActiveFilter(
  * @deprecated Use applyTextFilter from @/utils/listingUtils instead
  */
 export function applyTextFilter(
-  data: AdministratorRow[],
-  field: keyof Pick<AdministratorRow, 'firstName' | 'lastName' | 'email'>,
+  data: StaffMemberRow[],
+  field: keyof Pick<StaffMemberRow, 'firstName' | 'lastName' | 'email'>,
   searchValue?: string
-): AdministratorRow[] {
+): StaffMemberRow[] {
   return applyTextFilterUtil(data, field, searchValue);
 }
 
@@ -45,10 +45,10 @@ export function applyTextFilter(
  * @deprecated Use applyPagination from @/utils/listingUtils instead
  */
 export function applyPagination(
-  data: AdministratorRow[],
+  data: StaffMemberRow[],
   page: number,
   limit: number
-): { paginatedData: AdministratorRow[]; total: number; totalPages: number } {
+): { paginatedData: StaffMemberRow[]; total: number; totalPages: number } {
   return applyPaginationUtil(data, page, limit);
 }
 
