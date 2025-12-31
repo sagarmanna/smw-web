@@ -114,6 +114,8 @@ export function LessonDetailModal({
   const [isEditDiscountModalOpen, setIsEditDiscountModalOpen] = React.useState(false);
   const [editingLesson, setEditingLesson] = React.useState<LessonDetail | null>(null);
   const [isConfirming, setIsConfirming] = React.useState(false);
+  // Track discount type and value for each edited lesson
+  const [lessonDiscountInfo, setLessonDiscountInfo] = React.useState<Map<string, EditDiscountFormData>>(new Map());
 
   React.useEffect(() => {
     if (!open || !groupEnrolment || !discountData) return;
@@ -163,6 +165,12 @@ export function LessonDetailModal({
             : lesson
         )
       );
+      // Store the discount type and value for this lesson
+      setLessonDiscountInfo((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(editingLesson.id, discountFormData);
+        return newMap;
+      });
       setEditingLesson(null);
     },
     [editingLesson]
@@ -339,10 +347,21 @@ export function LessonDetailModal({
             if (!open) setEditingLesson(null);
           }}
           onSave={handleSaveDiscount}
-          initialData={{
-            discountType: "fixed",
-            discountValue: editingLesson.discount.toFixed(2),
-          }}
+          initialData={(() => {
+            // Check if this lesson has been edited before
+            const editedDiscountInfo = lessonDiscountInfo.get(editingLesson.id);
+            if (editedDiscountInfo) {
+              // Use the stored discount info from previous edit
+              return editedDiscountInfo;
+            }
+            // Otherwise, use the original discount data
+            return {
+              discountType: discountData.discountType,
+              discountValue: discountData.discountType === "percentage"
+                ? discountData.discountValue // Use original percentage value
+                : editingLesson.discount.toFixed(2), // For dollar, use the actual discount amount
+            };
+          })()}
         />
       )}
     </Dialog>

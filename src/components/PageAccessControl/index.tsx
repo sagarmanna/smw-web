@@ -5,39 +5,40 @@ import { useMenuConfig } from "@/hooks/useMenuConfig";
 import type { MenuItem } from "@/config/menuConfig";
 import { useAppSelector } from "@/redux/hooks";
 import AccessDeniedCard from "@/components/AccessDeniedCard";
+import { ALLOWED_PATHS } from "./allowed-paths";
 
 interface PageAccessControlProps {
   children: React.ReactNode;
 }
 
 // Constants for better maintainability
-const ALLOWED_PATHS = [
-  '/dashboard',
-  '/schedule',
-  '/enrolments',
-  '/students',
-  '/customers',
-  '/staffmembers',
-  '/teachers',
-  '/private-lessons',
-  '/group-courses',
-  '/unscheduled-lessons',
-  '/recurring-payments',
-  '/payment-preferences',
-  '/invoices',
-  '/payments',
-  '/release-notes',
-  '/items',
-  '/timeline',
-  '/blogs',
-  '/administrators',
-  '/owners',
-  '/staff-members',
-  '/test-email',
-  '/menu-flags', 
-  '/staffmembers/[id]',
-  '/[location]/report/account-receivable/[id]',
-] as const;
+// const ALLOWED_PATHS = [
+//   '/dashboard',
+//   '/schedule',
+//   '/enrolments',
+//   '/students',
+//   '/customers',
+//   '/staffmembers',
+//   '/teachers',
+//   '/private-lessons',
+//   '/group-courses',
+//   '/unscheduled-lessons',
+//   '/recurring-payments',
+//   '/payment-preferences',
+//   '/invoices',
+//   '/payments',
+//   '/release-notes',
+//   '/items',
+//   '/timeline',
+//   '/blogs',
+//   '/administrators',
+//   '/owners',
+//   '/staff-members',
+//   '/test-email',
+//   '/menu-flags', 
+//   '/staffmembers/[id]',
+//   '/[location]/report/account-receivable/[id]',
+// ] as const;
 
 // Helper function to normalize pathname by replacing dynamic segments
 const normalizePathname = (pathname: string, params: Record<string, string | string[] | undefined>): string => {

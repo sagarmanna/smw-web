@@ -97,11 +97,11 @@ export function EditDiscountModal({
                 </button>
               </div>
 
-              {/* Input Field with Prefix */}
+              {/* Input Field with Prefix/Suffix */}
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {discountType === "fixed" ? "$" : "%"}
-                </span>
+                {discountType === "fixed" && (
+                  <span className="text-sm text-muted-foreground">$</span>
+                )}
                 <Input
                   id="edit-discount"
                   type="number"
@@ -113,6 +113,9 @@ export function EditDiscountModal({
                   step="0.01"
                   max={discountType === "percentage" ? "100" : undefined}
                 />
+                {discountType === "percentage" && (
+                  <span className="text-sm text-muted-foreground">%</span>
+                )}
               </div>
             </div>
           </div>

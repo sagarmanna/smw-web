@@ -26,7 +26,37 @@ yarn dev          # Start development server
 yarn build        # Build for production
 yarn start        # Start production server
 yarn lint         # Run ESLint
+yarn create:page  # Create a new page (see below)
 ```
+
+## 📄 Creating New Pages
+
+Use the `create:page` script to quickly scaffold a new page with automatic path registration:
+
+```bash
+yarn create:page "Page Name"
+```
+
+**What it does:**
+- Creates a new page at `src/app/[location]/page-name/page.tsx`
+- Automatically adds the page path to `allowed-paths.ts` at the first index
+- Converts page name to kebab-case for the folder (e.g., "My New Page" → `my-new-page`)
+- Generates a PascalCase component name (e.g., "My New Page" → `MyNewPagePage`)
+
+**Example:**
+```bash
+yarn create:page "User Settings"
+```
+
+This creates:
+- `src/app/[location]/user-settings/page.tsx`
+- Adds `'/user-settings'` to `allowed-paths.ts`
+
+**Features:**
+- ✅ Automatic path registration in `allowed-paths.ts`
+- ✅ Error handling and validation
+- ✅ Backup and rollback on failure
+- ✅ Prevents duplicate paths
 
 ## 🔧 Pre-commit Hooks
 

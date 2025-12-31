@@ -84,7 +84,7 @@ export function AddGroupEnrolmentModal({
       } else {
         toast.error(response?.message || "Failed to load group courses");
         setGroupEnrolmentOptions([]);
-      }
+    }
     } catch (error) {
       console.error("Error loading group courses:", error);
       toast.error("Failed to load group courses");
@@ -301,23 +301,23 @@ export function AddGroupEnrolmentModal({
                 <p className="text-sm text-muted-foreground">No group courses available.</p>
               </div>
             ) : (
-              <RadioGroup value={selectedId} onValueChange={setSelectedId}>
-                <CustomTable
-                  data={filteredData}
-                  columns={columns}
-                  enableSearch={false}
-                  enableExport={false}
-                  enableFilter={false}
-                  enablePrint={false}
-                  enableSorting={false}
-                  enableRowsPerPage={false}
-                  maxHeight="calc(90vh - 250px)"
-                  onRowClick={handleRowClick}
-                  rowClassName={(row: GroupEnrolmentOption) =>
-                    selectedId === row.id ? "bg-primary/10" : ""
-                  }
-                />
-              </RadioGroup>
+            <RadioGroup value={selectedId} onValueChange={setSelectedId}>
+              <CustomTable
+                data={filteredData}
+                columns={columns}
+                enableSearch={false}
+                enableExport={false}
+                enableFilter={false}
+                enablePrint={false}
+                enableSorting={false}
+                enableRowsPerPage={false}
+                maxHeight="calc(90vh - 250px)"
+                onRowClick={handleRowClick}
+                rowClassName={(row: GroupEnrolmentOption) =>
+                  selectedId === row.id ? "bg-primary/10" : ""
+                }
+              />
+            </RadioGroup>
             )}
           </div>
         </div>
