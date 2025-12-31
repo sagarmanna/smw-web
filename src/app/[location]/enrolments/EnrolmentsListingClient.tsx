@@ -66,36 +66,41 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
         const someSelected = rows.some(row => selectedRows.has(row.id));
         
         return (
-          <Checkbox
-            checked={allSelected}
-            onCheckedChange={(checked: boolean) => {
-              if (checked) {
-                setSelectedRows(new Set(rows.map(row => row.id)));
-              } else {
-                setSelectedRows(new Set());
-              }
-            }}
-            aria-label="Select all"
-            className={someSelected && !allSelected ? "data-[state=indeterminate]:bg-primary" : ""}
-          />
+          <div onClick={(e) => e.stopPropagation()} className="cursor-default">
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={(checked: boolean) => {
+                if (checked) {
+                  setSelectedRows(new Set(rows.map(row => row.id)));
+                } else {
+                  setSelectedRows(new Set());
+                }
+              }}
+              aria-label="Select all"
+              className={`cursor-default ${someSelected && !allSelected ? "data-[state=indeterminate]:bg-primary" : ""}`}
+            />
+          </div>
         );
       },
       cell: ({ row }) => (
-        <Checkbox
-          checked={selectedRows.has(row.original.id)}
-          onCheckedChange={(checked: boolean) => {
-            setSelectedRows(prev => {
-              const newSet = new Set(prev);
-              if (checked) {
-                newSet.add(row.original.id);
-              } else {
-                newSet.delete(row.original.id);
-              }
-              return newSet;
-            });
-          }}
-          aria-label="Select row"
-        />
+        <div onClick={(e) => e.stopPropagation()} className="cursor-default">
+          <Checkbox
+            checked={selectedRows.has(row.original.id)}
+            onCheckedChange={(checked: boolean) => {
+              setSelectedRows(prev => {
+                const newSet = new Set(prev);
+                if (checked) {
+                  newSet.add(row.original.id);
+                } else {
+                  newSet.delete(row.original.id);
+                }
+                return newSet;
+              });
+            }}
+            aria-label="Select row"
+            className="cursor-default"
+          />
+        </div>
       ),
       enableSorting: false,
       enableHiding: false,
@@ -176,7 +181,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
       console.error("Error creating enrolment:", error);
       toast.error("Failed to create enrolment");
     }
-  }, [fetchData, location]);
+  }, [fetchData]);
 
   // Custom toolbar buttons (Edit only - Filter is handled by enableFilter prop)
   const customToolbarButtons = React.useMemo(() => (
@@ -238,7 +243,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
       location={location}
       selectedEnrolmentIds={Array.from(selectedRows)}
     />
-  ), [changeTeacherModalOpen, selectedRows.size, location]);
+  ), [changeTeacherModalOpen, selectedRows, location]);
 
   // Reusable Add Enrolment Button
   const addEnrolmentButton = React.useMemo(() => (
@@ -304,7 +309,8 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
                 program: "Enter program name",
                 student: "Enter student name",
                 teacher: "Enter teacher name",
-                autoRenewal: "Enter auto renewal status",
+                autoRenewal: "Filter",
+                lessonsRemaining: "Enter lessons remaining",
               }}
               manualSorting={true}
               sorting={sorting}
