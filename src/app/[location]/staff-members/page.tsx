@@ -1,11 +1,12 @@
-import React from 'react'
+import { StaffMembersListingClient } from "./StaffMembersListingClient";
 
-const StaffMembersPage = () => {
-  return (
-    <div>
-      <h1>Staff Members</h1>
-    </div>
-  )
+interface StaffMembersPageProps {
+  params: Promise<{
+    location: string;
+  }>;
 }
 
-export default StaffMembersPage
+export default async function StaffMembersPage({ params }: StaffMembersPageProps) {
+  const { location } = await params;
+  return <StaffMembersListingClient location={location} />;
+}

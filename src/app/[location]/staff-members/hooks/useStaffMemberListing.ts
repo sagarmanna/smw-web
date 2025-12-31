@@ -2,19 +2,19 @@
 
 import { useGenericListing } from "@/hooks/useGenericListing";
 import { 
-  fetchAdministrators, 
+  fetchStaffMembers, 
   setPage, 
   setPageSize, 
   setSorting as setSortingAction, 
   setColumnFilters, 
   setActiveFilter 
-} from "../administratorsListing.slice";
-import { AdministratorsQuery, AdministratorRow } from "../administrators.api";
-import { SortField } from "../utils/sortAdministrators";
+} from "../staffMembersListing.slice";
+import { StaffMembersQuery, StaffMemberRow } from "../staffMembers.api";
+import { SortField } from "../utils/sortStaffMembers";
 import { buildActiveFilterFlags } from "@/utils/listingUtils";
 import { PayloadAction } from "@reduxjs/toolkit";
 
-export function useAdministratorListing(location: string) {
+export function useStaffMemberListing(location: string) {
   const buildQuery = (
     page: number,
     pageSize: number,
@@ -22,7 +22,7 @@ export function useAdministratorListing(location: string) {
     activeFilter: string | undefined,
     sortBy: string | undefined,
     sortDir: 'asc' | 'desc'
-  ): AdministratorsQuery => {
+  ): StaffMembersQuery => {
     const { showActive, showInActive } = buildActiveFilterFlags(activeFilter);
 
     return {
@@ -46,9 +46,9 @@ export function useAdministratorListing(location: string) {
     });
   };
 
-  return useGenericListing<AdministratorRow, AdministratorsQuery>({
-    sliceName: 'administratorsListing',
-    fetchThunk: fetchAdministrators,
+  return useGenericListing<StaffMemberRow, StaffMembersQuery>({
+    sliceName: 'staffMembersListing',
+    fetchThunk: fetchStaffMembers,
     actions: {
       setPage,
       setPageSize,
@@ -61,3 +61,4 @@ export function useAdministratorListing(location: string) {
     defaultSortField: 'lastName',
   });
 }
+
