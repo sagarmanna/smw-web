@@ -7,14 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-interface AddAdministratorModalProps {
+interface AddStaffMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
   location: string;
 }
 
-export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _location }: AddAdministratorModalProps) {
+export function AddStaffMemberModal({ isOpen, onClose, onSuccess: _onSuccess, location: _location }: AddStaffMemberModalProps) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -65,11 +65,11 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
     }
 
     // TODO: Implement API call when backend is ready
-    toast.info("Create administrator API is not yet available");
+    toast.info("Create staff member API is not yet available");
     resetForm();
     onClose();
     // TODO: Call onSuccess callback when API is implemented
-    // onSuccess?.();
+    // _onSuccess?.();
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -98,7 +98,7 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Administrators / Add</DialogTitle>
+          <DialogTitle>Staff Members / Add</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,5 +1,5 @@
 /**
- * Administrators API and data types
+ * Staff Members API and data types
  */
 
 import { 
@@ -8,9 +8,9 @@ import {
   applyTextFilter, 
   applyPagination 
 } from "@/utils/listingUtils";
-import { mockAdministratorData } from "./mockData/administratorMockData";
+import { mockStaffMemberData } from "./mockData/staffMemberMockData";
 
-export interface AdministratorRow {
+export interface StaffMemberRow {
   id: number;
   firstName: string;
   lastName: string;
@@ -18,7 +18,7 @@ export interface AdministratorRow {
   isActive: boolean;
 }
 
-export interface AdministratorsQuery {
+export interface StaffMembersQuery {
   page?: number;
   limit?: number;
   firstName?: string;
@@ -30,11 +30,11 @@ export interface AdministratorsQuery {
   showInActive?: boolean;
 }
 
-export interface AdministratorsListResponse {
+export interface StaffMembersListResponse {
   success: boolean;
   message: string;
   data: {
-    body: AdministratorRow[];
+    body: StaffMemberRow[];
     pagination: {
       page: number;
       limit: number;
@@ -44,24 +44,24 @@ export interface AdministratorsListResponse {
   };
 }
 
-// TODO: Add CreateAdministratorRequest and CreateAdministratorResponse interfaces when API is ready
-// export interface CreateAdministratorRequest {
+// TODO: Add CreateStaffMemberRequest and CreateStaffMemberResponse interfaces when API is ready
+// export interface CreateStaffMemberRequest {
 //   firstName: string;
 //   lastName: string;
 //   email: string;
 // }
 //
-// export interface CreateAdministratorResponse {
+// export interface CreateStaffMemberResponse {
 //   success: boolean;
 //   message: string;
-//   data: AdministratorRow;
+//   data: StaffMemberRow;
 // }
 
-// TODO: Implement createAdministrator function when API is ready
-// export async function createAdministrator(
+// TODO: Implement createStaffMember function when API is ready
+// export async function createStaffMember(
 //   location: string,
-//   payload: CreateAdministratorRequest
-// ): Promise<CreateAdministratorResponse> {
+//   payload: CreateStaffMemberRequest
+// ): Promise<CreateStaffMemberResponse> {
 //   // API implementation will go here
 // }
 
@@ -73,19 +73,19 @@ const emptyPagination = {
 };
 
 /**
- * Get administrators list (currently using mock data)
+ * Get staff members list (currently using mock data)
  * This will be replaced with actual API call when backend is ready
  */
-export async function getAdministrators(
+export async function getStaffMembers(
   location: string,
-  query: AdministratorsQuery
-): Promise<AdministratorsListResponse | null> {
+  query: StaffMembersQuery
+): Promise<StaffMembersListResponse | null> {
   try {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Start with all administrators
-    let filteredData = mockAdministratorData;
+    // Start with all staff members
+    let filteredData = mockStaffMemberData;
     
     // Apply active/inactive filter
     filteredData = applyActiveFilter(
@@ -119,7 +119,7 @@ export async function getAdministrators(
     
     return {
       success: true,
-      message: 'Administrators fetched successfully',
+      message: 'Staff members fetched successfully',
       data: {
         body: paginatedData,
         pagination: {
@@ -131,10 +131,10 @@ export async function getAdministrators(
       },
     };
   } catch (error) {
-    console.error("Error fetching administrators:", error);
+    console.error("Error fetching staff members:", error);
     return {
       success: false,
-      message: "Failed to fetch administrators",
+      message: "Failed to fetch staff members",
       data: {
         body: [],
         pagination: emptyPagination,
@@ -142,3 +142,4 @@ export async function getAdministrators(
     };
   }
 }
+

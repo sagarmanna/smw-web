@@ -1,16 +1,16 @@
 /**
- * Administrators table column configurations
+ * Staff Members table column configurations
  */
 
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { AdministratorRow } from "./administrators.api";
+import { StaffMemberRow } from "./staffMembers.api";
 
-export const administratorColumns: ColumnDef<AdministratorRow>[] = [
+export const staffMemberColumns: ColumnDef<StaffMemberRow>[] = [
   {
     accessorKey: "firstName",
     header: () => <span>First Name</span>,
-    cell: ({ row }: { row: { original: AdministratorRow } }) => (
+    cell: ({ row }: { row: { original: StaffMemberRow } }) => (
       <span className="text-sm">{row.original.firstName}</span>
     ),
     enableSorting: true,
@@ -19,11 +19,11 @@ export const administratorColumns: ColumnDef<AdministratorRow>[] = [
       initialValue: "",
     },
     meta: { printable: true, printableName: "First Name" },
-  } as ColumnDef<AdministratorRow> & { filter: { type: string; initialValue?: string } },
+  } as ColumnDef<StaffMemberRow> & { filter: { type: string; initialValue?: string } },
   {
     accessorKey: "lastName",
     header: () => <span>Last Name</span>,
-    cell: ({ row }: { row: { original: AdministratorRow } }) => (
+    cell: ({ row }: { row: { original: StaffMemberRow } }) => (
       <span className="text-sm">{row.original.lastName || ""}</span>
     ),
     enableSorting: true,
@@ -32,11 +32,11 @@ export const administratorColumns: ColumnDef<AdministratorRow>[] = [
       initialValue: "",
     },
     meta: { printable: true, printableName: "Last Name" },
-  } as ColumnDef<AdministratorRow> & { filter: { type: string; initialValue?: string } },
+  } as ColumnDef<StaffMemberRow> & { filter: { type: string; initialValue?: string } },
   {
     accessorKey: "email",
     header: () => <span>Email</span>,
-    cell: ({ row }: { row: { original: AdministratorRow } }) => (
+    cell: ({ row }: { row: { original: StaffMemberRow } }) => (
       <span className="text-sm">{row.original.email}</span>
     ),
     enableSorting: true,
@@ -45,6 +45,6 @@ export const administratorColumns: ColumnDef<AdministratorRow>[] = [
       initialValue: "",
     },
     meta: { printable: true, printableName: "Email" },
-  } as ColumnDef<AdministratorRow> & { filter: { type: string; initialValue?: string } },
+  } as ColumnDef<StaffMemberRow> & { filter: { type: string; initialValue?: string } },
 ];
 
