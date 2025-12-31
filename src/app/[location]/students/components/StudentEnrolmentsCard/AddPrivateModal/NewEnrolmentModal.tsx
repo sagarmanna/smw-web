@@ -492,6 +492,7 @@ export function NewEnrolmentModal({
               multipleEnrolDiscount: combinedData.multipleEnrolDiscount
                 ? Number(combinedData.multipleEnrolDiscount)
                 : undefined,
+              discountedRatePerMonth: Number(combinedData.discountedRatePerMonth || 0),
               lessonsCount: Number(combinedData.numberOfLessons || 0),
               autoRenew: combinedData.autoRenew,
               startDate: combinedData.startDate || "",

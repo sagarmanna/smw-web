@@ -135,6 +135,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
         multipleEnrolDiscount: data.multipleEnrolDiscount
           ? Number(data.multipleEnrolDiscount)
           : undefined,
+        discountedRatePerMonth: Number(data.discountedRatePerMonth || 0),
         lessonsCount: Number(data.numberOfLessons || 0),
         autoRenew: data.autoRenew,
         startDate: data.startDate || "",
