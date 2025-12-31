@@ -98,6 +98,7 @@ export interface CreateStudentEnrolmentRequest {
   paymentFrequency: string;
   paymentFrequencyDiscount?: number;
   multipleEnrolDiscount?: number;
+  discountedRatePerMonth: number; // Discounted rate per month (with all discounts applied)
   lessonsCount: number;
   autoRenew: boolean;
   startDate: string; // YYYY-MM-DD
