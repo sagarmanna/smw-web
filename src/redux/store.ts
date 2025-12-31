@@ -27,6 +27,8 @@ import administratorsListingReducer from '../app/[location]/administrators/admin
 import staffMembersListingReducer from '../app/[location]/staff-members/staffMembersListing.slice';
 import administratorReducer from '../app/[location]/administrators/[id]/administrators-details.slice';
 import administratorTabsReducer from '../app/[location]/administrators/[id]/administratorTabs.slice';
+import staffMemberDetailsReducer from '../app/[location]/staff-members/[id]/staff-members-details.slice';
+import staffMemberTabsReducer from '../app/[location]/staff-members/[id]/staffMembersTabs.slice';
 
 export const store = configureStore({
   reducer: {
@@ -58,6 +60,8 @@ export const store = configureStore({
     staffMembersListing: staffMembersListingReducer,
     administrator: administratorReducer,
     administratorTabs: administratorTabsReducer,
+    staffMemberDetails: staffMemberDetailsReducer,
+    staffMemberTabs: staffMemberTabsReducer,
   },
 });
 
