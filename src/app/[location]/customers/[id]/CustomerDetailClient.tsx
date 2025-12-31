@@ -1516,6 +1516,7 @@ export function CustomerDetailClient({
               number: p.number,
               extension: p.extension?.toString(),
               note: p.note,
+              isPrimary: p.isPrimary,
             }));
             setPhones(formattedPhones);
           }

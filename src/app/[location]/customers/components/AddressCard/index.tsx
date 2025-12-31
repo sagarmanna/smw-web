@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
@@ -14,7 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Pencil, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { DraggableItemRow } from "@/components/DraggableItemRow";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { toast } from "sonner";
 import {
   createCustomerAddress,
@@ -363,6 +365,114 @@ export function AddressCard({
     return currentAddress.cityId.toString();
   };
 
+  const handleReorder = useCallback(
+    async (reorderedAddresses: Address[]) => {
+      // Check if primary status changed
+      const newPrimary = reorderedAddresses.find((a) => a.isPrimary);
+      const oldPrimary = addresses.find((a) => a.isPrimary && a.id !== newPrimary?.id);
+
+      // Update local state first for immediate UI feedback
+      if (onSave) onSave(reorderedAddresses);
+
+      // If primary status changed, persist to API
+      if (newPrimary && newPrimary.id !== oldPrimary?.id) {
+        try {
+          // First, update the new primary address
+          const newPrimaryId = Number(newPrimary.id);
+          const cityName = geoData.city.find((c) => c.id === newPrimary.cityId)?.name || newPrimary.city;
+          const newPrimaryResult = await updateCustomerAddress(
+            location,
+            customerId,
+            {
+              id: newPrimaryId,
+              address: newPrimary.address,
+              postalCode: newPrimary.postalCode,
+              city: cityName,
+              cityId: newPrimary.cityId,
+              provinceId: newPrimary.provinceId,
+              countryId: newPrimary.countryId,
+              note: newPrimary.note,
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary address");
+            if (onSave) onSave(addresses);
+            return;
+          }
+
+          // Then update all other addresses to non-primary
+          const otherAddresses = addresses.filter((a) => a.id !== newPrimary.id);
+          if (otherAddresses.length > 0) {
+            await Promise.all(
+              otherAddresses.map((address) => {
+                const addressId = Number(address.id);
+                const addressCityName = geoData.city.find((c) => c.id === address.cityId)?.name || address.city;
+                return updateCustomerAddress(
+                  location,
+                  customerId,
+                  {
+                    id: addressId,
+                    address: address.address,
+                    postalCode: address.postalCode,
+                    city: addressCityName,
+                    cityId: address.cityId,
+                    provinceId: address.provinceId,
+                    countryId: address.countryId,
+                    note: address.note,
+                    label: address.label,
+                    isPrimary: false,
+                  }
+                );
+              })
+            );
+          }
+
+          // Use the response from the new primary update (should contain all addresses)
+          // Normalize the response - ensure only the new primary is marked as primary
+          if (newPrimaryResult.data) {
+            const formattedAddresses: Address[] = newPrimaryResult.data.map(
+              (addr: AddressData) => ({
+                id: addr.id.toString(),
+                address: addr.address,
+                postalCode: addr.postalCode,
+                city: addr.city,
+                cityId: addr.cityId,
+                provinceId: addr.provinceId,
+                countryId: addr.countryId,
+                note: addr.note,
+                label: addr.label,
+                // Ensure only the new primary is marked as primary
+                isPrimary: addr.id === newPrimaryId,
+              })
+            );
+            if (onSave) onSave(formattedAddresses);
+          }
+        } catch (error) {
+          console.error("Error updating primary address:", error);
+          toast.error("Failed to update primary address");
+          // Revert on error
+          if (onSave) onSave(addresses);
+        }
+      }
+    },
+    [addresses, location, customerId, onSave, geoData]
+  );
+
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<Address>({
+    items: addresses,
+    onReorder: handleReorder,
+    getItemId: (address) => address.id,
+  });
+
   return (
     <>
       <InfoCard
@@ -391,7 +501,7 @@ export function AddressCard({
               ))}
             </>
           ) : addresses.length > 0 ? (
-            addresses.map((address) => {
+            addresses.map((address, index) => {
               // Get province and country names from geoData
               const province = geoData.province.find(p => p.id === address.provinceId)?.name || 'Ontario';
               const country = geoData.country.find(c => c.id === address.countryId)?.name || 'Canada';
@@ -402,35 +512,32 @@ export function AddressCard({
               }`;
               
               return (
-                <div
+                <DraggableItemRow
                   key={address.id}
-                  className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer"
-                  onClick={(e) => handleEditClick(e, address)}
-                >
-                  <KeyValueDisplay
-                    label={address.label}
-                    value={addressValue}
-                    className="justify-start flex-1"
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => handleEditClick(e, address)}
-                      className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                      aria-label="Edit address"
-                      disabled={isSaving}
-                    >
-                      <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteClick(e, address.id)}
-                      className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                      aria-label="Delete address"
-                      disabled={isSaving}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-                    </button>
-                  </div>
-                </div>
+                  item={address}
+                  label={address.label}
+                  value={
+                    <span className="whitespace-pre-line flex items-center gap-2">
+                      <span>{addressValue}</span>
+                      {address.isPrimary && (
+                        <Badge variant="secondary" className="text-xs">
+                          Primary
+                        </Badge>
+                      )}
+                    </span>
+                  }
+                  onEdit={handleEditClick}
+                  onDelete={handleDeleteClick}
+                  getItemId={(item) => item.id}
+                  editAriaLabel="Edit address"
+                  deleteAriaLabel="Delete address"
+                  draggable={true}
+                  onDragStart={(e) => handleDragStart(e, address)}
+                  onDragOver={(e) => handleDragOver(e, address, index)}
+                  onDrop={(e) => handleDrop(e, address, index)}
+                  isDragging={isDragging(address)}
+                  isDragOver={isDragOver(address, index)}
+                />
               );
             })
           ) : (

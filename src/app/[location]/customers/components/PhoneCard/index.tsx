@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
@@ -14,7 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Pencil, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { DraggableItemRow } from "@/components/DraggableItemRow";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createCustomerPhone,
@@ -51,7 +53,7 @@ export function PhoneCard({
   loading = false,
   location,
   customerId,
-}: PhoneCardProps) {
+  }: PhoneCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPhone, setEditingPhone] = useState<PhoneNumber | null>(null);
   const [currentPhone, setCurrentPhone] = useState({
@@ -235,6 +237,112 @@ export function PhoneCard({
     },
   ];
 
+  const formatPhoneDisplay = (phone: PhoneNumber) => {
+    let display = phone.number;
+    if (phone.extension) {
+      display += ` Ext: ${phone.extension}`;
+    }
+    if (phone.note) {
+      display += ` - ${phone.note}`;
+    }
+    return display;
+  };
+
+  const handleReorder = useCallback(
+    async (reorderedPhones: PhoneNumber[]) => {
+      // Check if primary status changed
+      const newPrimary = reorderedPhones.find((p) => p.isPrimary);
+      const oldPrimary = phones.find((p) => p.isPrimary && p.id !== newPrimary?.id);
+
+      // Update local state first for immediate UI feedback
+      if (onSave) onSave(reorderedPhones);
+
+      // If primary status changed, persist to API
+      if (newPrimary && newPrimary.id !== oldPrimary?.id) {
+        try {
+          // First, update the new primary phone
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateCustomerPhone(
+            location,
+            customerId,
+            {
+              id: newPrimaryId,
+              number: newPrimary.number,
+              extension: newPrimary.extension ? parseInt(newPrimary.extension) : undefined,
+              note: newPrimary.note || "",
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary phone");
+            if (onSave) onSave(phones);
+            return;
+          }
+
+          // Then update all other phones to non-primary
+          const otherPhones = phones.filter((p) => p.id !== newPrimary.id);
+          if (otherPhones.length > 0) {
+            await Promise.all(
+              otherPhones.map((phone) => {
+                const phoneId = Number(phone.id);
+                return updateCustomerPhone(
+                  location,
+                  customerId,
+                  {
+                    id: phoneId,
+                    number: phone.number,
+                    extension: phone.extension ? parseInt(phone.extension) : undefined,
+                    note: phone.note || "",
+                    label: phone.label,
+                    isPrimary: false,
+                  }
+                );
+              })
+            );
+          }
+
+          // Use the response from the new primary update (should contain all phones)
+          // Normalize the response - ensure only the first item is primary
+          if (newPrimaryResult.data) {
+            const formattedPhones: PhoneNumber[] = newPrimaryResult.data.map(
+              (phone: PhoneData, index: number) => ({
+                id: phone.id.toString(),
+                label: phone.label,
+                number: phone.number,
+                extension: phone.extension?.toString(),
+                note: phone.note,
+                // Ensure only the first item (the one we dragged to top) is primary
+                // Find the new primary by ID to ensure it's marked as primary
+                isPrimary: phone.id === newPrimaryId,
+              })
+            );
+            if (onSave) onSave(formattedPhones);
+          }
+        } catch (error) {
+          console.error("Error updating primary phone:", error);
+          toast.error("Failed to update primary phone");
+          // Revert on error
+          if (onSave) onSave(phones);
+        }
+      }
+    },
+    [phones, location, customerId, onSave]
+  );
+
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<PhoneNumber>({
+    items: phones,
+    onReorder: handleReorder,
+    getItemId: (phone) => phone.id,
+  });
+
   return (
     <>
       <InfoCard
@@ -263,38 +371,33 @@ export function PhoneCard({
               ))}
             </>
           ) : phones.length > 0 ? (
-            phones.map((phone) => (
-              <div
+            phones.map((phone, index) => (
+              <DraggableItemRow
                 key={phone.id}
-                className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer"
-                onClick={(e) => handleEditClick(e, phone)}
-              >
-                <KeyValueDisplay
-                  label={phone.label}
-                  value={`${phone.number}${
-                    phone.extension ? ` Ext: ${phone.extension}` : ""
-                  }${phone.note ? ` - ${phone.note}` : ""}`}
-                  className="justify-start flex-1"
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => handleEditClick(e, phone)}
-                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                    aria-label="Edit phone"
-                    disabled={isSaving}
-                  >
-                    <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteClick(e, phone.id)}
-                    className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                    aria-label="Delete phone"
-                    disabled={isSaving}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  </button>
-                </div>
-              </div>
+                item={phone}
+                label={phone.label}
+                value={
+                  <span className="flex items-center gap-2">
+                    {formatPhoneDisplay(phone)}
+                    {phone.isPrimary && (
+                      <Badge variant="secondary" className="text-xs">
+                        Primary
+                      </Badge>
+                    )}
+                  </span>
+                }
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
+                getItemId={(item) => item.id}
+                editAriaLabel="Edit phone"
+                deleteAriaLabel="Delete phone"
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, phone)}
+                onDragOver={(e) => handleDragOver(e, phone, index)}
+                onDrop={(e) => handleDrop(e, phone, index)}
+                isDragging={isDragging(phone)}
+                isDragOver={isDragOver(phone, index)}
+              />
             ))
           ) : (
             <span className="text-gray-500 dark:text-gray-400 text-sm">
