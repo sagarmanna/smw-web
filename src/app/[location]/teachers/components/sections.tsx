@@ -5,7 +5,9 @@ import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { DraggableItemRow } from "@/components/DraggableItemRow";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import {
   TeacherAddress,
   TeacherEmail,
@@ -33,57 +35,8 @@ export function ItemListSkeleton({ count = 2 }: { count?: number }) {
   );
 }
 
-// Reusable item row component with edit/delete actions
-interface ItemRowProps<T> {
-  item: T;
-  label: string;
-  value: React.ReactNode;
-  onEdit: (e: React.MouseEvent, item: T) => void;
-  onDelete: (e: React.MouseEvent, id: string) => void;
-  getItemId: (item: T) => string;
-  editAriaLabel: string;
-  deleteAriaLabel: string;
-}
-
-export function ItemRow<T>({
-  item,
-  label,
-  value,
-  onEdit,
-  onDelete,
-  getItemId,
-  editAriaLabel,
-  deleteAriaLabel,
-}: ItemRowProps<T>) {
-  return (
-    <div
-      className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer"
-      onClick={(e) => onEdit(e, item)}
-    >
-      <KeyValueDisplay
-        label={label}
-        value={value}
-        className="justify-start flex-1"
-      />
-      <div className="flex items-center gap-2">
-        <button
-          onClick={(e) => onEdit(e, item)}
-          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-          aria-label={editAriaLabel}
-        >
-          <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-        </button>
-        <button
-          onClick={(e) => onDelete(e, getItemId(item))}
-          className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-          aria-label={deleteAriaLabel}
-        >
-          <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-        </button>
-      </div>
-    </div>
-  );
-}
+// Re-export DraggableItemRow for backward compatibility
+export { DraggableItemRow as ItemRow } from "@/components/DraggableItemRow";
 
 // Reusable empty state component
 export function EmptyState({ message }: { message: string }) {
@@ -108,9 +61,22 @@ interface EmailListProps {
   loading?: boolean;
   onEdit: (e: React.MouseEvent, email: TeacherEmail) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
+  onReorder?: (reorderedEmails: TeacherEmail[]) => void;
 }
 
-export function EmailList({ emails, loading = false, onEdit, onDelete }: EmailListProps) {
+export function EmailList({ emails, loading = false, onEdit, onDelete, onReorder }: EmailListProps) {
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<TeacherEmail>({
+    items: emails,
+    onReorder,
+    getItemId: (email) => email.id,
+  });
+
   if (loading) {
     return <ItemListSkeleton />;
   }
@@ -121,8 +87,8 @@ export function EmailList({ emails, loading = false, onEdit, onDelete }: EmailLi
 
   return (
     <>
-      {emails.map((email) => (
-        <ItemRow
+      {emails.map((email, index) => (
+        <DraggableItemRow
           key={email.id}
           item={email}
           label={email.label}
@@ -141,6 +107,12 @@ export function EmailList({ emails, loading = false, onEdit, onDelete }: EmailLi
           getItemId={(item) => item.id}
           editAriaLabel="Edit email"
           deleteAriaLabel="Delete email"
+          draggable={true}
+          onDragStart={(e) => handleDragStart(e, email)}
+          onDragOver={(e) => handleDragOver(e, email, index)}
+          onDrop={(e) => handleDrop(e, email, index)}
+          isDragging={isDragging(email)}
+          isDragOver={isDragOver(email, index)}
         />
       ))}
     </>
@@ -164,9 +136,22 @@ interface PhoneListProps {
   loading?: boolean;
   onEdit: (e: React.MouseEvent, phone: TeacherPhone) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
+  onReorder?: (reorderedPhones: TeacherPhone[]) => void;
 }
 
-export function PhoneList({ phones, loading = false, onEdit, onDelete }: PhoneListProps) {
+export function PhoneList({ phones, loading = false, onEdit, onDelete, onReorder }: PhoneListProps) {
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<TeacherPhone>({
+    items: phones,
+    onReorder,
+    getItemId: (phone) => phone.id,
+  });
+
   if (loading) {
     return <ItemListSkeleton />;
   }
@@ -177,17 +162,32 @@ export function PhoneList({ phones, loading = false, onEdit, onDelete }: PhoneLi
 
   return (
     <>
-      {phones.map((phone) => (
-        <ItemRow
+      {phones.map((phone, index) => (
+        <DraggableItemRow
           key={phone.id}
           item={phone}
           label={phone.label}
-          value={formatPhoneDisplay(phone)}
+          value={
+            <span className="flex items-center gap-2">
+              {formatPhoneDisplay(phone)}
+              {phone.isPrimary && (
+                <Badge variant="secondary" className="text-xs">
+                  Primary
+                </Badge>
+              )}
+            </span>
+          }
           onEdit={onEdit}
           onDelete={onDelete}
           getItemId={(item) => item.id}
           editAriaLabel="Edit phone"
           deleteAriaLabel="Delete phone"
+          draggable={true}
+          onDragStart={(e) => handleDragStart(e, phone)}
+          onDragOver={(e) => handleDragOver(e, phone, index)}
+          onDrop={(e) => handleDrop(e, phone, index)}
+          isDragging={isDragging(phone)}
+          isDragOver={isDragOver(phone, index)}
         />
       ))}
     </>
@@ -214,9 +214,10 @@ interface AddressListProps {
   loading?: boolean;
   onEdit: (e: React.MouseEvent, address: TeacherAddress) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
+  onReorder?: (reorderedAddresses: TeacherAddress[]) => void;
 }
 
-export function AddressList({ addresses, loading = false, onEdit, onDelete }: AddressListProps) {
+export function AddressList({ addresses, loading = false, onEdit, onDelete, onReorder }: AddressListProps) {
   const [geoData, setGeoData] = React.useState<{
     city: Array<{ id: number; name: string }>;
     province: Array<{ id: number; name: string }>;
@@ -225,7 +226,6 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
   const [loadingGeoData, setLoadingGeoData] = React.useState(false);
   // Track if we've already initiated a fetch to prevent duplicate calls
   const hasFetchedRef = React.useRef(false);
-
   // Only fetch geodata when addresses exist and we haven't fetched yet
   React.useEffect(() => {
     // Skip if loading, no addresses, or already fetched
@@ -257,6 +257,18 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
     fetchGeoData();
   }, [addresses.length, loading]);
 
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<TeacherAddress>({
+    items: addresses,
+    onReorder,
+    getItemId: (address) => address.id,
+  });
+
   if (loading) {
     return <ItemListSkeleton />;
   }
@@ -267,17 +279,24 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
 
   return (
     <>
-      {addresses.map((address) => {
+      {addresses.map((address, index) => {
         // Build the full address value with line breaks (same format as customer AddressCard)
         const addressValue = formatAddressDisplay(address, geoData || undefined);
         
         // Render address value with line breaks (convert \n to <br />)
         const addressDisplay = (
-          <span className="whitespace-pre-line">{addressValue}</span>
+          <span className="whitespace-pre-line flex items-center gap-2">
+            <span>{addressValue}</span>
+            {address.isPrimary && (
+              <Badge variant="secondary" className="text-xs">
+                Primary
+              </Badge>
+            )}
+          </span>
         );
         
         return (
-          <ItemRow
+          <DraggableItemRow
             key={address.id}
             item={address}
             label={address.label}
@@ -287,6 +306,12 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
             getItemId={(item) => item.id}
             editAriaLabel="Edit address"
             deleteAriaLabel="Delete address"
+            draggable={true}
+            onDragStart={(e) => handleDragStart(e, address)}
+            onDragOver={(e) => handleDragOver(e, address, index)}
+            onDrop={(e) => handleDrop(e, address, index)}
+            isDragging={isDragging(address)}
+            isDragOver={isDragOver(address, index)}
           />
         );
       })}

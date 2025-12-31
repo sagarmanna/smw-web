@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { ReusableModal } from "@/components/TablesModals";
@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { DraggableItemRow } from "@/components/DraggableItemRow";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
@@ -312,6 +314,95 @@ export function EmailCard({
     return display;
   };
 
+  const handleReorder = useCallback(
+    async (reorderedEmails: Email[]) => {
+      // Check if primary status changed
+      const newPrimary = reorderedEmails.find((e) => e.isPrimary);
+      const oldPrimary = emails.find((e) => e.isPrimary && e.id !== newPrimary?.id);
+
+      // Update local state first for immediate UI feedback
+      if (onSave) onSave(reorderedEmails);
+
+      // If primary status changed, persist to API
+      if (newPrimary && newPrimary.id !== oldPrimary?.id) {
+        try {
+          // First, update the new primary email
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateCustomerEmail(
+            location,
+            customerId,
+            {
+              id: newPrimaryId,
+              email: newPrimary.email,
+              note: newPrimary.note || "",
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary email");
+            if (onSave) onSave(emails);
+            return;
+          }
+
+          // Then update all other emails to non-primary
+          const otherEmails = emails.filter((e) => e.id !== newPrimary.id);
+          if (otherEmails.length > 0) {
+            await Promise.all(
+              otherEmails.map((email) => {
+                const emailId = Number(email.id);
+                return updateCustomerEmail(
+                  location,
+                  customerId,
+                  {
+                    id: emailId,
+                    email: email.email,
+                    note: email.note || "",
+                    label: email.label,
+                    isPrimary: false,
+                  }
+                );
+              })
+            );
+          }
+
+          // Use the response from the new primary update (should contain all emails)
+          // Normalize the response - ensure only the new primary is marked as primary
+          if (newPrimaryResult.data) {
+            const updatedEmails = newPrimaryResult.data.map((e: EmailData) => ({
+              id: String(e.id),
+              label: e.label,
+              email: e.email,
+              note: e.note || "",
+              // Ensure only the new primary is marked as primary
+              isPrimary: e.id === newPrimaryId,
+            }));
+            if (onSave) onSave(updatedEmails);
+          }
+        } catch (error) {
+          console.error("Error updating primary email:", error);
+          toast.error("Failed to update primary email");
+          // Revert on error
+          if (onSave) onSave(emails);
+        }
+      }
+    },
+    [emails, location, customerId, onSave]
+  );
+
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<Email>({
+    items: emails,
+    onReorder: handleReorder,
+    getItemId: (email) => email.id,
+  });
+
   return (
     <>
       <InfoCard title="Email" onAddClick={handleAddClick} className={className} loading={loading}>
@@ -333,48 +424,33 @@ export function EmailCard({
               ))}
             </>
           ) : emails.length > 0 ? (
-            emails.map(email => (
-              <div
+            emails.map((email, index) => (
+              <DraggableItemRow
                 key={email.id}
-                className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer"
-                onClick={(e) => handleEditClick(e, email)}
-              >
-                <KeyValueDisplay
-                  label={email.label}
-                  value={
-                    <span className="flex items-center gap-2">
-                      {formatEmailDisplay(email)}
-                      {email.isPrimary && (
-                        <Badge variant="secondary" className="text-xs">
-                          Primary
-                        </Badge>
-                      )}
-                    </span>
-                  }
-                  className="justify-start flex-1"
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => handleEditClick(e, email)}
-                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                    aria-label="Edit email"
-                  >
-                    <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteClick(e, email.id)}
-                    className={`p-1.5 rounded ${
-                      email.isPrimary
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:bg-red-100 dark:hover:bg-red-900/30"
-                    }`}
-                    aria-label="Delete email"
-                    disabled={email.isPrimary}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  </button>
-                </div>
-              </div>
+                item={email}
+                label={email.label}
+                value={
+                  <span className="flex items-center gap-2">
+                    {formatEmailDisplay(email)}
+                    {email.isPrimary && (
+                      <Badge variant="secondary" className="text-xs">
+                        Primary
+                      </Badge>
+                    )}
+                  </span>
+                }
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
+                getItemId={(item) => item.id}
+                editAriaLabel="Edit email"
+                deleteAriaLabel="Delete email"
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, email)}
+                onDragOver={(e) => handleDragOver(e, email, index)}
+                onDrop={(e) => handleDrop(e, email, index)}
+                isDragging={isDragging(email)}
+                isDragOver={isDragOver(email, index)}
+              />
             ))
           ) : (
             <span className="text-gray-500 dark:text-gray-400 text-sm">No emails added</span>

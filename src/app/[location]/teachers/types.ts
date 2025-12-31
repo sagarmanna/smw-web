@@ -20,6 +20,7 @@ export interface TeacherPhone {
   number: string;
   extension?: string;
   note?: string;
+  isPrimary?: boolean;
 }
 
 export interface TeacherAddress {

@@ -7,6 +7,8 @@ import { TeacherEmail } from "../../types";
 import { CreateEmailModal } from "../modals/CreateEmailModal";
 import { useEmailHandlers } from "../../hooks/useTeacherItemHandlers";
 import { EmailList } from "../sections";
+import { updateTeacherEmail } from "../../[id]/teachers-details.api";
+import { toast } from "sonner";
 
 interface TeacherEmailCardProps {
   emails: TeacherEmail[];
@@ -81,6 +83,73 @@ export const TeacherEmailCard = React.memo(function TeacherEmailCard({
     setEditingEmail(null);
   }, [setEditingEmail]);
 
+  const handleReorder = React.useCallback(
+    async (reorderedEmails: TeacherEmail[]) => {
+      // Check if primary status changed
+      const newPrimary = reorderedEmails.find((e) => e.isPrimary);
+      const oldPrimary = emails.find((e) => e.isPrimary && e.id !== newPrimary?.id);
+
+      // Update local state first for immediate UI feedback
+      onUpdate(reorderedEmails);
+
+      // If primary status changed, persist to API
+      if (newPrimary && newPrimary.id !== oldPrimary?.id) {
+        try {
+          // Update new primary
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateTeacherEmail(
+            location,
+            teacherId,
+            newPrimaryId,
+            {
+              email: newPrimary.email,
+              note: newPrimary.note || "",
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+
+          // Update old primary if it exists
+          if (oldPrimary) {
+            const oldPrimaryId = Number(oldPrimary.id);
+            await updateTeacherEmail(
+              location,
+              teacherId,
+              oldPrimaryId,
+              {
+                email: oldPrimary.email,
+                note: oldPrimary.note || "",
+                label: oldPrimary.label,
+                isPrimary: false,
+              }
+            );
+          }
+
+          if (newPrimaryResult?.success) {
+            // Refresh to get latest data from server
+            if (onRefresh) {
+              await onRefresh();
+            }
+          } else {
+            toast.error(newPrimaryResult?.message || "Failed to update primary email");
+            // Revert on error
+            if (onRefresh) {
+              await onRefresh();
+            }
+          }
+        } catch (error) {
+          console.error("Error updating primary email:", error);
+          toast.error("Failed to update primary email");
+          // Revert on error
+          if (onRefresh) {
+            await onRefresh();
+          }
+        }
+      }
+    },
+    [onUpdate, emails, location, teacherId, onRefresh]
+  );
+
   return (
     <>
       <InfoCard
@@ -94,6 +163,7 @@ export const TeacherEmailCard = React.memo(function TeacherEmailCard({
             loading={loading}
             onEdit={handleEditClick}
             onDelete={handleDeleteClick}
+            onReorder={handleReorder}
           />
         </div>
       </InfoCard>
