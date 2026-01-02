@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 
@@ -21,6 +22,7 @@ interface OwnersListingClientProps {
 }
 
 export function OwnersListingClient({ location }: OwnersListingClientProps) {
+  const router = useRouter();
   const [isAddOwnerModalOpen, setIsAddOwnerModalOpen] = React.useState(false);
   const columns = React.useMemo<ColumnDef<OwnerRow>[]>(() => ownerColumns, []);
 
@@ -122,6 +124,10 @@ export function OwnersListingClient({ location }: OwnersListingClientProps) {
           setPageSize(newSize);
           setPage(1);
         }}
+        onRowClick={(row: OwnerRow) => {
+          router.push(`/${location}/owners/${row.id}`);
+        }}
+        rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
 
       <AddOwnerModal
