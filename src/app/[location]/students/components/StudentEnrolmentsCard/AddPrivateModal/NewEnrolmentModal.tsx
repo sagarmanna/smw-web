@@ -475,6 +475,9 @@ export function NewEnrolmentModal({
               startTime: detailData.startTime,
               goToDate: detailData.goToDate,
               duration: detailData.duration ?? currentFormData.duration,
+              // Use startDate from detail modal if available (when user selects a time slot),
+              // otherwise fall back to the startDate from EnrolmentStartDateModal
+              startDate: detailData.startDate ?? currentFormData.startDate,
             };
             setCurrentFormData(combinedData);
 
