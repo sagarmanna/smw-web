@@ -18,36 +18,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OwnerAddress } from "../../types";
-import type { GeoData } from "../../../customers/components/AddressCard/address-card.api";
-import { getGeoData } from "../../../customers/components/AddressCard/address-card.api";
-import {
-  addOwnerAddress,
-  updateOwnerAddress,
-} from "../../[id]/owners-details.api";
+import { GenericAddress, GenericBasicDetails } from "../../types/common";
+import { UserDetailsApiAdapter } from "../../types/adapters";
 import { toast } from "sonner";
+import type { GeoData } from "@/app/[location]/customers/components/AddressCard/address-card.api";
+import { getGeoData } from "@/app/[location]/customers/components/AddressCard/address-card.api";
 
-interface CreateAddressModalProps {
+interface CreateAddressModalProps<
+  TEmail,
+  TPhone,
+  TAddress extends GenericAddress
+> {
   open: boolean;
   onClose: () => void;
-  onSubmit?: (address: OwnerAddress) => void;
-  editingAddress?: OwnerAddress | null;
+  onSubmit?: (address: TAddress) => void;
+  editingAddress?: TAddress | null;
   location: string;
-  ownerId: number;
-  onUpdateAddresses?: (addresses: OwnerAddress[]) => void;
+  entityId: number;
+  onUpdateAddresses?: (addresses: TAddress[]) => void;
   onRefresh?: () => Promise<void>;
+  apiAdapter: UserDetailsApiAdapter<GenericBasicDetails, TEmail, TPhone, TAddress>;
 }
 
-export function CreateAddressModal({
+export function CreateAddressModal<
+  TEmail,
+  TPhone,
+  TAddress extends GenericAddress
+>({
   open,
   onClose,
   onSubmit,
   editingAddress = null,
   location,
-  ownerId,
+  entityId,
   onUpdateAddresses,
   onRefresh,
-}: CreateAddressModalProps) {
+  apiAdapter,
+}: CreateAddressModalProps<TEmail, TPhone, TAddress>) {
   const [label, setLabel] = React.useState("Work");
   const [address, setAddress] = React.useState("");
   const [city, setCity] = React.useState("");
@@ -177,95 +184,53 @@ export function CreateAddressModal({
         countryId: countryId || 1,
         label: label.trim() || "Work",
         isPrimary: false,
-      };
+      } as Omit<TAddress, 'id'>;
 
-      const result = editingAddress
-        ? await updateOwnerAddress(
-            location,
-            ownerId,
-            Number(editingAddress.id),
-            addressData
-          )
-        : await addOwnerAddress(location, ownerId, addressData);
+      let result: TAddress;
 
-      if (result?.success && result.data && Array.isArray(result.data)) {
-        toast.success(
-          editingAddress
-            ? "Address updated successfully"
-            : "Address added successfully"
+      if (editingAddress) {
+        const success = await apiAdapter.updateAddress(
+          location,
+          entityId,
+          editingAddress.id,
+          addressData as Partial<TAddress>
         );
-
-        const transformedAddresses: OwnerAddress[] = result.data.map((item: {
-          id: number;
-          address: string;
-          city: string | { name?: string };
-          cityId?: number;
-          provinceId?: number;
-          countryId?: number;
-          postalCode: string;
-          province?: string | { name?: string };
-          country?: string | { name?: string };
-          label?: string;
-          isPrimary?: boolean;
-        }) => {
-          const rawCity = item.city;
-          const normalisedCity =
-            typeof rawCity === "string"
-              ? rawCity
-              : rawCity?.name || addressData.city || city || "";
-
-          const rawProvince = item.province;
-          const normalisedProvince =
-            typeof rawProvince === "string"
-              ? rawProvince
-              : rawProvince?.name || undefined;
-
-          const rawCountry = item.country;
-          const normalisedCountry =
-            typeof rawCountry === "string"
-              ? rawCountry
-              : rawCountry?.name || undefined;
-
-          return {
-            id: item.id?.toString() || String(item.id),
-            label: item.label || "Work",
-            address: item.address || addressData.address,
-            city: normalisedCity,
-            cityId: item.cityId || cityId || addressData.cityId || 0,
-            provinceId: item.provinceId || provinceId || addressData.provinceId || 1,
-            countryId: item.countryId || countryId || addressData.countryId || 1,
-            postalCode: item.postalCode || addressData.postalCode,
-            province: normalisedProvince,
-            country: normalisedCountry,
-            isPrimary: item.isPrimary === true,
-          };
-        });
-
-        if (onUpdateAddresses) {
-          onUpdateAddresses(transformedAddresses);
+        if (!success) {
+          throw new Error("Failed to update address");
         }
-
-        if (onSubmit && transformedAddresses.length > 0) {
-          const latest = transformedAddresses.find(
-            (a) => a.address === addressData.address
-          );
-          if (latest) {
-            onSubmit(latest);
-          }
+        // Fetch updated addresses to get the latest data
+        const updatedAddresses = await apiAdapter.fetchAddresses(location, entityId);
+        const updated = updatedAddresses.find(
+          (a) => a.address === addressData.address
+        );
+        if (!updated) {
+          throw new Error("Failed to get updated address");
         }
-
-        resetForm();
-        onClose();
-
-        if (onRefresh) {
-          await onRefresh();
-        }
+        result = updated as TAddress;
+        toast.success("Address updated successfully");
       } else {
-        toast.error(result?.message || "Failed to save address");
+        result = await apiAdapter.createAddress(location, entityId, addressData);
+        toast.success("Address added successfully");
       }
+
+      if (onUpdateAddresses) {
+        const allAddresses = await apiAdapter.fetchAddresses(location, entityId);
+        onUpdateAddresses(allAddresses as TAddress[]);
+      }
+
+      if (onSubmit) {
+        onSubmit(result);
+      }
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      resetForm();
+      onClose();
     } catch (error) {
       console.error("Error saving address:", error);
-      toast.error("Failed to save address. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to save address. Please try again.");
     } finally {
       setIsSaving(false);
     }

@@ -9,7 +9,8 @@ interface UseEmailHandlersProps {
   emails: OwnerEmail[];
   updateEmails: React.Dispatch<React.SetStateAction<OwnerEmail[]>>;
   location: string;
-  ownerId: number;
+  ownerId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -18,8 +19,10 @@ export function useEmailHandlers({
   updateEmails,
   location,
   ownerId,
+  entityId,
   onRefresh,
 }: UseEmailHandlersProps) {
+  const effectiveOwnerId = ownerId ?? entityId ?? 0;
   const [editingEmail, setEditingEmail] = React.useState<OwnerEmail | null>(null);
   const [emailToDelete, setEmailToDelete] = React.useState<OwnerEmail | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -78,7 +81,7 @@ export function useEmailHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteOwnerEmail(location, ownerId, id);
+      const result = await deleteOwnerEmail(location, effectiveOwnerId, id);
 
       if (result?.success) {
         toast.success("Email deleted successfully");
@@ -119,7 +122,8 @@ interface UsePhoneHandlersProps {
   phones: OwnerPhone[];
   updatePhones: React.Dispatch<React.SetStateAction<OwnerPhone[]>>;
   location: string;
-  ownerId: number;
+  ownerId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -128,8 +132,10 @@ export function usePhoneHandlers({
   updatePhones,
   location,
   ownerId,
+  entityId,
   onRefresh,
 }: UsePhoneHandlersProps) {
+  const effectiveOwnerId = ownerId ?? entityId ?? 0;
   const [editingPhone, setEditingPhone] = React.useState<OwnerPhone | null>(null);
   const [phoneToDelete, setPhoneToDelete] = React.useState<OwnerPhone | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -170,7 +176,7 @@ export function usePhoneHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteOwnerPhone(location, ownerId, id);
+      const result = await deleteOwnerPhone(location, effectiveOwnerId, id);
 
       if (result?.success) {
         toast.success("Phone deleted successfully");
@@ -192,7 +198,7 @@ export function usePhoneHandlers({
       setIsDeleting(false);
       setPhoneToDelete(null);
     }
-  }, [phoneToDelete, location, ownerId, updatePhones, onRefresh]);
+  }, [phoneToDelete, location, effectiveOwnerId, updatePhones, onRefresh]);
 
   return {
     editingPhone,
@@ -211,7 +217,8 @@ interface UseAddressHandlersProps {
   addresses: OwnerAddress[];
   updateAddresses: React.Dispatch<React.SetStateAction<OwnerAddress[]>>;
   location: string;
-  ownerId: number;
+  ownerId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -220,8 +227,10 @@ export function useAddressHandlers({
   updateAddresses,
   location,
   ownerId,
+  entityId,
   onRefresh,
 }: UseAddressHandlersProps) {
+  const effectiveOwnerId = ownerId ?? entityId ?? 0;
   const [editingAddress, setEditingAddress] = React.useState<OwnerAddress | null>(null);
   const [addressToDelete, setAddressToDelete] = React.useState<OwnerAddress | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -262,7 +271,7 @@ export function useAddressHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteOwnerAddress(location, ownerId, id);
+      const result = await deleteOwnerAddress(location, effectiveOwnerId, id);
 
       if (result?.success) {
         toast.success("Address deleted successfully");
@@ -284,7 +293,7 @@ export function useAddressHandlers({
       setIsDeleting(false);
       setAddressToDelete(null);
     }
-  }, [addressToDelete, location, ownerId, updateAddresses, onRefresh]);
+  }, [addressToDelete, location, effectiveOwnerId, updateAddresses, onRefresh]);
 
   return {
     editingAddress,

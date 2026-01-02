@@ -1,12 +1,14 @@
-export interface OwnerBasicDetails {
+// Generic types that all user detail modules can map to
+
+export interface GenericBasicDetails {
   firstName: string;
   lastName: string;
   role?: string;
   picture?: string;
-  [key: string]: unknown; // Allow module-specific fields (required for GenericBasicDetails compatibility)
+  [key: string]: unknown; // Allow module-specific fields
 }
 
-export interface OwnerEmail {
+export interface GenericEmail {
   id: string;
   label: string;
   email: string;
@@ -14,7 +16,7 @@ export interface OwnerEmail {
   isPrimary?: boolean;
 }
 
-export interface OwnerPhone {
+export interface GenericPhone {
   id: string;
   label: string;
   number: string;
@@ -22,7 +24,7 @@ export interface OwnerPhone {
   note?: string;
 }
 
-export interface OwnerAddress {
+export interface GenericAddress {
   id: string;
   label: string;
   address: string;
@@ -34,14 +36,5 @@ export interface OwnerAddress {
   province?: string;
   country?: string;
   isPrimary?: boolean;
-}
-
-export interface OwnerDetailsState {
-  loading: boolean;
-  error: string | null;
-  details: OwnerBasicDetails | null;
-  emails: OwnerEmail[];
-  phones: OwnerPhone[];
-  addresses: OwnerAddress[];
 }
 

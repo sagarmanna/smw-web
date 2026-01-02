@@ -3,28 +3,63 @@
 import * as React from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-import { OwnerEmail } from "../../types";
-import { CreateEmailModal } from "../modals/CreateEmailModal";
-import { useEmailHandlers } from "../../hooks/useOwnerItemHandlers";
-import { EmailList } from "../sections";
+import { GenericEmail } from "../../types/common";
 
-interface OwnerEmailCardProps {
-  emails: OwnerEmail[];
-  onUpdate: React.Dispatch<React.SetStateAction<OwnerEmail[]>>;
+interface UserEmailCardProps<TEmail extends GenericEmail> {
+  emails: TEmail[];
+  onUpdate: React.Dispatch<React.SetStateAction<TEmail[]>>;
   loading?: boolean;
   location: string;
-  ownerId: number;
+  entityId: number;
   onRefresh?: () => Promise<void>;
+  CreateModal: React.ComponentType<{
+    open: boolean;
+    onClose: () => void;
+    onSubmit?: (email: TEmail) => void;
+    editingEmail?: TEmail | null;
+    location: string;
+    entityId: number;
+    onUpdateEmails?: (emails: TEmail[]) => void;
+    currentEmails?: TEmail[];
+    onRefresh?: () => Promise<void>;
+    [key: string]: unknown;
+  }>;
+  EmailList: React.ComponentType<{
+    emails: TEmail[];
+    loading?: boolean;
+    onEdit: (e: React.MouseEvent, email: TEmail) => void;
+    onDelete: (e: React.MouseEvent, id: string) => void;
+  }>;
+  useEmailHandlers: (props: {
+    emails: TEmail[];
+    updateEmails: React.Dispatch<React.SetStateAction<TEmail[]>>;
+    location: string;
+    entityId: number;
+    onRefresh?: () => Promise<void>;
+  }) => {
+    editingEmail: TEmail | null;
+    setEditingEmail: (email: TEmail | null) => void;
+    handleCreate: (email: TEmail) => void;
+    handleEdit: (email: TEmail) => void;
+    requestDelete: (id: string) => void;
+    emailToDelete: TEmail | null;
+    setEmailToDelete: (email: TEmail | null) => void;
+    handleDeleteConfirm: () => Promise<void>;
+    isDeleting: boolean;
+  };
 }
 
-export const OwnerEmailCard = React.memo(function OwnerEmailCard({
+export function UserEmailCard<TEmail extends GenericEmail>({
   emails,
   onUpdate,
   loading = false,
   location,
-  ownerId,
+  entityId,
   onRefresh,
-}: OwnerEmailCardProps) {
+  CreateModal,
+  EmailList,
+  useEmailHandlers,
+}: UserEmailCardProps<TEmail>) {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   
   const {
@@ -41,7 +76,7 @@ export const OwnerEmailCard = React.memo(function OwnerEmailCard({
     emails,
     updateEmails: onUpdate,
     location,
-    ownerId,
+    entityId,
     onRefresh,
   });
 
@@ -51,7 +86,7 @@ export const OwnerEmailCard = React.memo(function OwnerEmailCard({
   }, [setEditingEmail]);
 
   const handleEditClick = React.useCallback(
-    (e: React.MouseEvent, email: OwnerEmail) => {
+    (e: React.MouseEvent, email: TEmail) => {
       e.stopPropagation();
       handleEdit(email);
       setIsAddModalOpen(true);
@@ -68,7 +103,7 @@ export const OwnerEmailCard = React.memo(function OwnerEmailCard({
   );
 
   const handleModalSubmit = React.useCallback(
-    (email: OwnerEmail) => {
+    (email: TEmail) => {
       handleCreate(email);
       setIsAddModalOpen(false);
       setEditingEmail(null);
@@ -98,15 +133,16 @@ export const OwnerEmailCard = React.memo(function OwnerEmailCard({
         </div>
       </InfoCard>
 
-      <CreateEmailModal
+      <CreateModal
         open={isAddModalOpen}
         onClose={handleModalClose}
         onSubmit={handleModalSubmit}
         editingEmail={editingEmail}
         location={location}
-        ownerId={ownerId}
+        entityId={entityId}
         onUpdateEmails={onUpdate}
         currentEmails={emails}
+        onRefresh={onRefresh}
       />
 
       <DeleteConfirmationModal
@@ -123,5 +159,5 @@ export const OwnerEmailCard = React.memo(function OwnerEmailCard({
       />
     </>
   );
-});
+}
 

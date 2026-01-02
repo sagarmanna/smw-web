@@ -19,36 +19,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OwnerEmail } from "../../types";
-import {
-  addOwnerEmail,
-  updateOwnerEmail,
-  validateOwnerEmail,
-} from "../../[id]/owners-details.api";
+import { GenericEmail, GenericBasicDetails } from "../../types/common";
+import { UserDetailsApiAdapter } from "../../types/adapters";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-interface CreateEmailModalProps {
+interface CreateEmailModalProps<
+  TEmail extends GenericEmail,
+  TPhone,
+  TAddress
+> {
   open: boolean;
   onClose: () => void;
-  onSubmit?: (email: OwnerEmail) => void;
-  editingEmail?: OwnerEmail | null;
+  onSubmit?: (email: TEmail) => void;
+  editingEmail?: TEmail | null;
   location: string;
-  ownerId: number;
-  onUpdateEmails?: (emails: OwnerEmail[]) => void;
-  currentEmails?: OwnerEmail[];
+  entityId: number;
+  onUpdateEmails?: (emails: TEmail[]) => void;
+  currentEmails?: TEmail[];
+  onRefresh?: () => Promise<void>;
+  apiAdapter: UserDetailsApiAdapter<GenericBasicDetails, TEmail, TPhone, TAddress>;
+  validateEmail?: (location: string, email: string) => Promise<{ success: boolean; data?: { exists: boolean }; message?: string } | null>;
 }
 
-export function CreateEmailModal({
+export function CreateEmailModal<
+  TEmail extends GenericEmail,
+  TPhone,
+  TAddress
+>({
   open,
   onClose,
   onSubmit,
   editingEmail = null,
   location,
-  ownerId,
+  entityId,
   onUpdateEmails,
   currentEmails = [],
-}: CreateEmailModalProps) {
+  onRefresh,
+  apiAdapter,
+  validateEmail,
+}: CreateEmailModalProps<TEmail, TPhone, TAddress>) {
   const [label, setLabel] = React.useState("Work");
   const [email, setEmail] = React.useState("");
   const [note, setNote] = React.useState("");
@@ -106,12 +116,14 @@ export function CreateEmailModal({
   };
 
   const validateEmailWithAPI = async (value: string) => {
+    if (!validateEmail) return;
+    
     try {
       setIsValidatingEmail(true);
-      const result = await validateOwnerEmail(location, value);
+      const result = await validateEmail(location, value);
 
       if (result?.success) {
-        const { exists } = result.data;
+        const { exists } = result.data || {};
         if (exists) {
           setErrors({
             email: "This email is already registered for a user in this location.",
@@ -127,7 +139,7 @@ export function CreateEmailModal({
         }
       }
     } catch (err) {
-      console.error("Error validating owner email:", err);
+      console.error("Error validating email:", err);
     } finally {
       setIsValidatingEmail(false);
     }
@@ -156,15 +168,17 @@ export function CreateEmailModal({
     if (isEmailDuplicate(trimmed)) {
       setErrors({
         email:
-          "This email is already used on this owner record. Please use a different email.",
+          "This email is already used on this record. Please use a different email.",
       });
       setIsValidatingEmail(false);
       return;
     }
 
-    emailValidationTimerRef.current = setTimeout(() => {
-      validateEmailWithAPI(trimmed);
-    }, 500);
+    if (validateEmail) {
+      emailValidationTimerRef.current = setTimeout(() => {
+        validateEmailWithAPI(trimmed);
+      }, 500);
+    }
   };
 
   const validateForm = () => {
@@ -177,7 +191,7 @@ export function CreateEmailModal({
       newErrors.email = "Please enter a valid email address.";
     } else if (isEmailDuplicate(trimmed)) {
       newErrors.email =
-        "This email is already used on this owner record. Please use a different email.";
+        "This email is already used on this record. Please use a different email.";
     }
 
     setErrors(newErrors);
@@ -200,68 +214,58 @@ export function CreateEmailModal({
       const effectiveIsPrimary =
         !editingEmail && (currentEmails ?? []).length === 0 ? true : isPrimary;
 
-      const baseData = {
+      const emailData = {
         email: email.trim(),
         note: note.trim() || undefined,
         label: label.trim() || "Work",
         isPrimary: effectiveIsPrimary,
-      };
+      } as Omit<TEmail, 'id'>;
 
-      const result = editingEmail
-        ? await updateOwnerEmail(
-            location,
-            ownerId,
-            Number(editingEmail.id),
-            {
-              ...baseData,
-            }
-          )
-        : await addOwnerEmail(location, ownerId, baseData);
+      let result: TEmail;
 
-      if (result?.success && result.data) {
-        toast.success(
-          editingEmail ? "Email updated successfully" : "Email added successfully"
+      if (editingEmail) {
+        const success = await apiAdapter.updateEmail(
+          location,
+          entityId,
+          editingEmail.id,
+          emailData as Partial<TEmail>
         );
-
-        const transformedEmails: OwnerEmail[] = result.data.map(
-          (item: {
-            id: number;
-            email: string;
-            note?: string;
-            label?: string;
-            isPrimary?: boolean;
-          }) => {
-            return {
-              id: item.id?.toString() || String(item.id),
-              label: item.label || "Work",
-              email: item.email,
-              note: item.note || undefined,
-              isPrimary: item.isPrimary === true,
-            };
-          }
+        if (!success) {
+          throw new Error("Failed to update email");
+        }
+        // Fetch updated emails to get the latest data
+        const updatedEmails = await apiAdapter.fetchEmails(location, entityId);
+        const updated = updatedEmails.find(
+          (e) => e.email.toLowerCase() === emailData.email.toLowerCase()
         );
-
-        if (onUpdateEmails) {
-          onUpdateEmails(transformedEmails);
+        if (!updated) {
+          throw new Error("Failed to get updated email");
         }
-
-        if (onSubmit && transformedEmails.length > 0) {
-          const latest = transformedEmails.find(
-            (t) => t.email.toLowerCase() === baseData.email.toLowerCase()
-          );
-          if (latest) {
-            onSubmit(latest);
-          }
-        }
-
-        resetForm();
-        onClose();
+        result = updated as TEmail;
+        toast.success("Email updated successfully");
       } else {
-        setErrors({ email: result?.message || "Failed to save email" });
+        result = await apiAdapter.createEmail(location, entityId, emailData);
+        toast.success("Email added successfully");
       }
+
+      if (onUpdateEmails) {
+        const allEmails = await apiAdapter.fetchEmails(location, entityId);
+        onUpdateEmails(allEmails as TEmail[]);
+      }
+
+      if (onSubmit) {
+        onSubmit(result);
+      }
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      resetForm();
+      onClose();
     } catch (err) {
       console.error("Error saving email:", err);
-      setErrors({ email: "Failed to save email. Please try again." });
+      setErrors({ email: err instanceof Error ? err.message : "Failed to save email. Please try again." });
     } finally {
       setIsSubmitting(false);
     }

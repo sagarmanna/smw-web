@@ -10,13 +10,29 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useOwnerDetails } from "../hooks/useOwnerDetails";
-import { OwnerDetailsCard } from "../components/OwnerDetailsCard";
-import { OwnerEmailCard } from "../components/OwnerEmailCard";
-import { OwnerPhoneCard } from "../components/OwnerPhoneCard";
-import { OwnerAddressCard } from "../components/OwnerAddressCard";
 import { OwnerTabsSection } from "../components/OwnerTabsSection";
 import { deleteOwner } from "./owners-details.api";
 import { formatFullName } from "../utils/nameUtils";
+import { UserDetailsCard } from "@/components/user-details/cards/UserDetailsCard";
+import { UserEmailCard } from "@/components/user-details/cards/UserEmailCard";
+import { UserPhoneCard } from "@/components/user-details/cards/UserPhoneCard";
+import { UserAddressCard } from "@/components/user-details/cards/UserAddressCard";
+import { ownerDetailPageConfig } from "./config/detailPageConfig";
+import { EditUserDetailsModal } from "@/components/user-details/modals/EditUserDetailsModal";
+import { CreateEmailModal } from "@/components/user-details/modals/CreateEmailModal";
+import { CreatePhoneModal } from "@/components/user-details/modals/CreatePhoneModal";
+import { CreateAddressModal } from "@/components/user-details/modals/CreateAddressModal";
+import { EmailList, PhoneList, AddressList } from "../components/sections";
+import { useEmailHandlers, usePhoneHandlers, useAddressHandlers } from "../hooks/useOwnerItemHandlers";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
+import { SetPasswordModal } from "@/components/user-details/modals/SetPasswordModal";
 
 interface OwnerDetailClientProps {
   location: string;
@@ -39,7 +55,6 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
     addresses,
     saveDetails,
     savingDetails,
-    updatePassword,
     updateEmails,
     updatePhones,
     updateAddresses,
@@ -64,6 +79,7 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
 
   const handleDeleteClick = React.useCallback(() => {
     setShowDeleteConfirm(true);
@@ -157,32 +173,79 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
           {/* Left Column */}
           <div className="space-y-3 sm:space-y-4">
-            <OwnerDetailsCard
+            <UserDetailsCard
               details={details}
+              config={{
+                defaultRole: ownerDetailPageConfig.defaultRole,
+                roleLabel: ownerDetailPageConfig.roleLabel,
+              }}
               onSaveDetails={saveDetails}
-              onUpdatePassword={updatePassword}
               savingDetails={savingDetails}
               isLoading={isLoading}
+              EditModal={(props) => (
+                <EditUserDetailsModal
+                  {...props}
+                  title="Edit Owner Details"
+                  defaultRole={ownerDetailPageConfig.defaultRole}
+                />
+              )}
+              formatName={(d) => formatFullName(d?.firstName, d?.lastName) || ""}
+              customActions={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground"
+                      aria-label="More actions"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setIsPasswordModalOpen(true)}>
+                      Set Password
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
             />
 
             {/* Mobile Email and Phone Cards - Only on Mobile */}
             <div className="lg:hidden space-y-3 sm:space-y-4">
-              <OwnerEmailCard
+              <UserEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
                 loading={isLoading}
                 location={location}
-                ownerId={ownerId}
+                entityId={ownerId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreateEmailModal
+                    {...props}
+                    apiAdapter={ownerDetailPageConfig.apiAdapter}
+                    validateEmail={ownerDetailPageConfig.validateEmail}
+                  />
+                )}
+                EmailList={EmailList}
+                useEmailHandlers={useEmailHandlers}
               />
 
-              <OwnerPhoneCard
+              <UserPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
                 loading={isLoading}
                 location={location}
-                ownerId={ownerId}
+                entityId={ownerId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreatePhoneModal
+                    {...props}
+                    apiAdapter={ownerDetailPageConfig.apiAdapter}
+                  />
+                )}
+                PhoneList={PhoneList}
+                usePhoneHandlers={usePhoneHandlers}
               />
             </div>
           </div>
@@ -191,34 +254,59 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
           <div className="space-y-3 sm:space-y-4">
             {/* Desktop Email and Phone Cards */}
             <div className="hidden lg:block">
-              <OwnerEmailCard
+              <UserEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
                 loading={isLoading}
                 location={location}
-                ownerId={ownerId}
+                entityId={ownerId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreateEmailModal
+                    {...props}
+                    apiAdapter={ownerDetailPageConfig.apiAdapter}
+                    validateEmail={ownerDetailPageConfig.validateEmail}
+                  />
+                )}
+                EmailList={EmailList}
+                useEmailHandlers={useEmailHandlers}
               />
             </div>
 
             <div className="hidden lg:block">
-              <OwnerPhoneCard
+              <UserPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
                 loading={isLoading}
                 location={location}
-                ownerId={ownerId}
+                entityId={ownerId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreatePhoneModal
+                    {...props}
+                    apiAdapter={ownerDetailPageConfig.apiAdapter}
+                  />
+                )}
+                PhoneList={PhoneList}
+                usePhoneHandlers={usePhoneHandlers}
               />
             </div>
 
-            <OwnerAddressCard
+            <UserAddressCard
               addresses={addresses}
               onUpdate={updateAddresses}
               loading={isLoading}
               location={location}
-              ownerId={ownerId}
+              entityId={ownerId}
               onRefresh={refresh}
+              CreateModal={(props) => (
+                <CreateAddressModal
+                  {...props}
+                  apiAdapter={ownerDetailPageConfig.apiAdapter}
+                />
+              )}
+              AddressList={AddressList}
+              useAddressHandlers={useAddressHandlers}
             />
           </div>
         </div>
@@ -237,6 +325,25 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
         isDeleting={isDeleting}
         confirmLabel="Delete"
         cancelLabel="Cancel"
+      />
+
+      {/* Set Password Modal */}
+      <SetPasswordModal
+        open={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSubmit={async (password: string, confirmPassword: string) => {
+          const success = await ownerDetailPageConfig.updatePassword(
+            location,
+            ownerId,
+            password,
+            confirmPassword
+          );
+          if (success) {
+            setIsPasswordModalOpen(false);
+          }
+          return success;
+        }}
+        title="Set Owner Password"
       />
     </>
   );

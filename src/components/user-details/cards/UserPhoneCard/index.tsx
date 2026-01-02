@@ -3,28 +3,62 @@
 import * as React from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-import { OwnerPhone } from "../../types";
-import { CreatePhoneModal } from "../modals/CreatePhoneModal";
-import { usePhoneHandlers } from "../../hooks/useOwnerItemHandlers";
-import { PhoneList } from "../sections";
+import { GenericPhone } from "../../types/common";
 
-interface OwnerPhoneCardProps {
-  phones: OwnerPhone[];
-  onUpdate: React.Dispatch<React.SetStateAction<OwnerPhone[]>>;
+interface UserPhoneCardProps<TPhone extends GenericPhone> {
+  phones: TPhone[];
+  onUpdate: React.Dispatch<React.SetStateAction<TPhone[]>>;
   loading?: boolean;
   location: string;
-  ownerId: number;
+  entityId: number;
   onRefresh?: () => Promise<void>;
+  CreateModal: React.ComponentType<{
+    open: boolean;
+    onClose: () => void;
+    onSubmit?: (phone: TPhone) => void;
+    editingPhone?: TPhone | null;
+    location: string;
+    entityId: number;
+    onUpdatePhones?: (phones: TPhone[]) => void;
+    onRefresh?: () => Promise<void>;
+    [key: string]: unknown;
+  }>;
+  PhoneList: React.ComponentType<{
+    phones: TPhone[];
+    loading?: boolean;
+    onEdit: (e: React.MouseEvent, phone: TPhone) => void;
+    onDelete: (e: React.MouseEvent, id: string) => void;
+  }>;
+  usePhoneHandlers: (props: {
+    phones: TPhone[];
+    updatePhones: React.Dispatch<React.SetStateAction<TPhone[]>>;
+    location: string;
+    entityId: number;
+    onRefresh?: () => Promise<void>;
+  }) => {
+    editingPhone: TPhone | null;
+    setEditingPhone: (phone: TPhone | null) => void;
+    handleCreate: (phone: TPhone) => void;
+    handleEdit: (phone: TPhone) => void;
+    requestDelete: (id: string) => void;
+    phoneToDelete: TPhone | null;
+    setPhoneToDelete: (phone: TPhone | null) => void;
+    handleDeleteConfirm: () => Promise<void>;
+    isDeleting: boolean;
+  };
 }
 
-export const OwnerPhoneCard = React.memo(function OwnerPhoneCard({
+export function UserPhoneCard<TPhone extends GenericPhone>({
   phones,
   onUpdate,
   loading = false,
   location,
-  ownerId,
+  entityId,
   onRefresh,
-}: OwnerPhoneCardProps) {
+  CreateModal,
+  PhoneList,
+  usePhoneHandlers,
+}: UserPhoneCardProps<TPhone>) {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   
   const {
@@ -41,7 +75,7 @@ export const OwnerPhoneCard = React.memo(function OwnerPhoneCard({
     phones,
     updatePhones: onUpdate,
     location,
-    ownerId,
+    entityId,
     onRefresh,
   });
 
@@ -51,7 +85,7 @@ export const OwnerPhoneCard = React.memo(function OwnerPhoneCard({
   }, [setEditingPhone]);
 
   const handleEditClick = React.useCallback(
-    (e: React.MouseEvent, phone: OwnerPhone) => {
+    (e: React.MouseEvent, phone: TPhone) => {
       e.stopPropagation();
       handleEdit(phone);
       setIsAddModalOpen(true);
@@ -68,7 +102,7 @@ export const OwnerPhoneCard = React.memo(function OwnerPhoneCard({
   );
 
   const handleModalSubmit = React.useCallback(
-    (phone: OwnerPhone) => {
+    (phone: TPhone) => {
       handleCreate(phone);
       setIsAddModalOpen(false);
       setEditingPhone(null);
@@ -98,13 +132,13 @@ export const OwnerPhoneCard = React.memo(function OwnerPhoneCard({
         </div>
       </InfoCard>
 
-      <CreatePhoneModal
+      <CreateModal
         open={isAddModalOpen}
         onClose={handleModalClose}
         onSubmit={handleModalSubmit}
         editingPhone={editingPhone}
         location={location}
-        ownerId={ownerId}
+        entityId={entityId}
         onUpdatePhones={onUpdate}
         onRefresh={onRefresh}
       />
@@ -123,5 +157,5 @@ export const OwnerPhoneCard = React.memo(function OwnerPhoneCard({
       />
     </>
   );
-});
+}
 

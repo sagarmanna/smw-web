@@ -3,28 +3,62 @@
 import * as React from "react";
 import { InfoCard } from "@/components/InfoCard";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-import { OwnerAddress } from "../../types";
-import { CreateAddressModal } from "../modals/CreateAddressModal";
-import { useAddressHandlers } from "../../hooks/useOwnerItemHandlers";
-import { AddressList } from "../sections";
+import { GenericAddress } from "../../types/common";
 
-interface OwnerAddressCardProps {
-  addresses: OwnerAddress[];
-  onUpdate: React.Dispatch<React.SetStateAction<OwnerAddress[]>>;
+interface UserAddressCardProps<TAddress extends GenericAddress> {
+  addresses: TAddress[];
+  onUpdate: React.Dispatch<React.SetStateAction<TAddress[]>>;
   loading?: boolean;
   location: string;
-  ownerId: number;
+  entityId: number;
   onRefresh?: () => Promise<void>;
+  CreateModal: React.ComponentType<{
+    open: boolean;
+    onClose: () => void;
+    onSubmit?: (address: TAddress) => void;
+    editingAddress?: TAddress | null;
+    location: string;
+    entityId: number;
+    onUpdateAddresses?: (addresses: TAddress[]) => void;
+    onRefresh?: () => Promise<void>;
+    [key: string]: unknown;
+  }>;
+  AddressList: React.ComponentType<{
+    addresses: TAddress[];
+    loading?: boolean;
+    onEdit: (e: React.MouseEvent, address: TAddress) => void;
+    onDelete: (e: React.MouseEvent, id: string) => void;
+  }>;
+  useAddressHandlers: (props: {
+    addresses: TAddress[];
+    updateAddresses: React.Dispatch<React.SetStateAction<TAddress[]>>;
+    location: string;
+    entityId: number;
+    onRefresh?: () => Promise<void>;
+  }) => {
+    editingAddress: TAddress | null;
+    setEditingAddress: (address: TAddress | null) => void;
+    handleCreate: (address: TAddress) => void;
+    handleEdit: (address: TAddress) => void;
+    requestDelete: (id: string) => void;
+    addressToDelete: TAddress | null;
+    setAddressToDelete: (address: TAddress | null) => void;
+    handleDeleteConfirm: () => Promise<void>;
+    isDeleting: boolean;
+  };
 }
 
-export const OwnerAddressCard = React.memo(function OwnerAddressCard({
+export function UserAddressCard<TAddress extends GenericAddress>({
   addresses,
   onUpdate,
   loading = false,
   location,
-  ownerId,
+  entityId,
   onRefresh,
-}: OwnerAddressCardProps) {
+  CreateModal,
+  AddressList,
+  useAddressHandlers,
+}: UserAddressCardProps<TAddress>) {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   
   const {
@@ -41,7 +75,7 @@ export const OwnerAddressCard = React.memo(function OwnerAddressCard({
     addresses,
     updateAddresses: onUpdate,
     location,
-    ownerId,
+    entityId,
     onRefresh,
   });
 
@@ -51,7 +85,7 @@ export const OwnerAddressCard = React.memo(function OwnerAddressCard({
   }, [setEditingAddress]);
 
   const handleEditClick = React.useCallback(
-    (e: React.MouseEvent, address: OwnerAddress) => {
+    (e: React.MouseEvent, address: TAddress) => {
       e.stopPropagation();
       handleEdit(address);
       setIsAddModalOpen(true);
@@ -68,7 +102,7 @@ export const OwnerAddressCard = React.memo(function OwnerAddressCard({
   );
 
   const handleModalSubmit = React.useCallback(
-    (address: OwnerAddress) => {
+    (address: TAddress) => {
       handleCreate(address);
       setIsAddModalOpen(false);
       setEditingAddress(null);
@@ -98,13 +132,13 @@ export const OwnerAddressCard = React.memo(function OwnerAddressCard({
         </div>
       </InfoCard>
 
-      <CreateAddressModal
+      <CreateModal
         open={isAddModalOpen}
         onClose={handleModalClose}
         onSubmit={handleModalSubmit}
         editingAddress={editingAddress}
         location={location}
-        ownerId={ownerId}
+        entityId={entityId}
         onUpdateAddresses={onUpdate}
         onRefresh={onRefresh}
       />
@@ -123,5 +157,5 @@ export const OwnerAddressCard = React.memo(function OwnerAddressCard({
       />
     </>
   );
-});
+}
 

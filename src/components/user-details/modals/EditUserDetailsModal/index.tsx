@@ -11,30 +11,33 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { OwnerBasicDetails } from "../../types";
+import { GenericBasicDetails } from "../../types/common";
 
-interface EditOwnerDetailsModalProps {
+interface EditUserDetailsModalProps<TDetails extends GenericBasicDetails> {
   open: boolean;
   onClose: () => void;
-  details: OwnerBasicDetails | null;
-  onSubmit: (details: OwnerBasicDetails) => Promise<boolean>;
+  details: TDetails | null;
+  onSubmit: (details: TDetails) => Promise<boolean>;
   saving?: boolean;
+  title?: string;
+  defaultRole?: string;
 }
 
-export function EditOwnerDetailsModal({
+export function EditUserDetailsModal<TDetails extends GenericBasicDetails>({
   open,
   onClose,
   details,
   onSubmit,
   saving = false,
-}: EditOwnerDetailsModalProps) {
+  title = "Edit Details",
+  defaultRole = "User",
+}: EditUserDetailsModalProps<TDetails>) {
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   
   // Field-level validation states
   const [firstNameTouched, setFirstNameTouched] = React.useState(false);
   const [lastNameTouched, setLastNameTouched] = React.useState(false);
-  const [showError, setShowError] = React.useState(false);
 
   React.useEffect(() => {
     if (details) {
@@ -49,7 +52,6 @@ export function EditOwnerDetailsModal({
     if (open) {
       setFirstNameTouched(false);
       setLastNameTouched(false);
-      setShowError(false);
     }
   }, [details, open]);
 
@@ -69,15 +71,15 @@ export function EditOwnerDetailsModal({
     setLastNameTouched(true);
 
     if (!isFormValid) {
-      setShowError(true);
       return;
     }
 
-    const updatedDetails: OwnerBasicDetails = {
+    const updatedDetails = {
+      ...details,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      role: details?.role || "Owner",
-    };
+      role: details?.role || defaultRole,
+    } as TDetails;
 
     const success = await onSubmit(updatedDetails);
     if (success) {
@@ -91,7 +93,6 @@ export function EditOwnerDetailsModal({
     setLastName("");
     setFirstNameTouched(false);
     setLastNameTouched(false);
-    setShowError(false);
   };
 
   const handleClose = () => {
@@ -104,7 +105,7 @@ export function EditOwnerDetailsModal({
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Edit Owner Details</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -117,13 +118,9 @@ export function EditOwnerDetailsModal({
                 value={firstName}
                 onChange={(e) => {
                   setFirstName(e.target.value);
-                  if (firstNameTouched) {
-                    setShowError(!isFirstNameValid);
-                  }
                 }}
                 onBlur={() => {
                   setFirstNameTouched(true);
-                  setShowError(!isFormValid);
                 }}
                 placeholder="Enter first name"
                 className={firstNameError ? "border-red-500" : ""}
@@ -142,13 +139,9 @@ export function EditOwnerDetailsModal({
                 value={lastName}
                 onChange={(e) => {
                   setLastName(e.target.value);
-                  if (lastNameTouched) {
-                    setShowError(!isLastNameValid);
-                  }
                 }}
                 onBlur={() => {
                   setLastNameTouched(true);
-                  setShowError(!isFormValid);
                 }}
                 placeholder="Enter last name"
                 className={lastNameError ? "border-red-500" : ""}

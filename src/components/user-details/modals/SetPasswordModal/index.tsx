@@ -13,17 +13,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-interface SetOwnerPasswordModalProps {
+interface SetPasswordModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (password: string, confirmPassword: string) => Promise<boolean>;
+  title?: string;
+  minLength?: number;
+  successMessage?: string;
+  errorMessage?: string;
 }
 
-export function SetOwnerPasswordModal({
+export function SetPasswordModal({
   open,
   onClose,
   onSubmit,
-}: SetOwnerPasswordModalProps) {
+  title = "Set Password",
+  minLength = 6,
+  successMessage = "Password updated successfully",
+  errorMessage = "Failed to update password",
+}: SetPasswordModalProps) {
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -34,6 +42,12 @@ export function SetOwnerPasswordModal({
     setConfirmPassword("");
     setError(null);
   };
+
+  React.useEffect(() => {
+    if (!open) {
+      resetForm();
+    }
+  }, [open]);
 
   const handleClose = () => {
     if (isSubmitting) return;
@@ -49,8 +63,8 @@ export function SetOwnerPasswordModal({
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < minLength) {
+      setError(`Password must be at least ${minLength} characters.`);
       return;
     }
 
@@ -61,15 +75,22 @@ export function SetOwnerPasswordModal({
 
     setIsSubmitting(true);
     setError(null);
-    const success = await onSubmit(password, confirmPassword);
-    setIsSubmitting(false);
-
-    if (success) {
-      toast.success("Password updated successfully");
-      resetForm();
-      onClose();
-    } else {
-      toast.error("Failed to update password");
+    
+    try {
+      const success = await onSubmit(password, confirmPassword);
+      
+      if (success) {
+        toast.success(successMessage);
+        resetForm();
+        onClose();
+      } else {
+        toast.error(errorMessage);
+      }
+    } catch (err) {
+      console.error("Error updating password:", err);
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -77,36 +98,44 @@ export function SetOwnerPasswordModal({
     <Dialog open={open} onOpenChange={(value) => !value && handleClose()}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Set Password</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
               {error}
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="owner-password">Password</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
-                id="owner-password"
+                id="password"
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  if (error) setError(null);
+                }}
                 disabled={isSubmitting}
                 required
+                placeholder="Enter password"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="owner-confirm-password">Confirm Password</Label>
+              <Label htmlFor="confirm-password">Confirm Password</Label>
               <Input
-                id="owner-confirm-password"
+                id="confirm-password"
                 type="password"
                 value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
+                onChange={(event) => {
+                  setConfirmPassword(event.target.value);
+                  if (error) setError(null);
+                }}
                 disabled={isSubmitting}
                 required
+                placeholder="Confirm password"
               />
             </div>
           </div>

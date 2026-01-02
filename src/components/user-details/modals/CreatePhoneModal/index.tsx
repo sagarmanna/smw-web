@@ -19,22 +19,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OwnerPhone } from "../../types";
-import {
-  addOwnerPhone,
-  updateOwnerPhone,
-} from "../../[id]/owners-details.api";
+import { GenericPhone, GenericBasicDetails } from "../../types/common";
+import { UserDetailsApiAdapter } from "../../types/adapters";
 import { toast } from "sonner";
 
-interface CreatePhoneModalProps {
+interface CreatePhoneModalProps<
+  TEmail,
+  TPhone extends GenericPhone,
+  TAddress
+> {
   open: boolean;
   onClose: () => void;
-  onSubmit?: (phone: OwnerPhone) => void;
-  editingPhone?: OwnerPhone | null;
+  onSubmit?: (phone: TPhone) => void;
+  editingPhone?: TPhone | null;
   location: string;
-  ownerId: number;
-  onUpdatePhones?: (phones: OwnerPhone[]) => void;
+  entityId: number;
+  onUpdatePhones?: (phones: TPhone[]) => void;
   onRefresh?: () => Promise<void>;
+  apiAdapter: UserDetailsApiAdapter<GenericBasicDetails, TEmail, TPhone, TAddress>;
 }
 
 const formatPhoneNumber = (value: string) => {
@@ -48,16 +50,21 @@ const formatPhoneNumber = (value: string) => {
   }
 };
 
-export function CreatePhoneModal({
+export function CreatePhoneModal<
+  TEmail,
+  TPhone extends GenericPhone,
+  TAddress
+>({
   open,
   onClose,
   onSubmit,
   editingPhone = null,
   location,
-  ownerId,
+  entityId,
   onUpdatePhones,
   onRefresh,
-}: CreatePhoneModalProps) {
+  apiAdapter,
+}: CreatePhoneModalProps<TEmail, TPhone, TAddress>) {
   const [label, setLabel] = React.useState("Work");
   const [number, setNumber] = React.useState("");
   const [extension, setExtension] = React.useState("");
@@ -143,75 +150,56 @@ export function CreatePhoneModal({
     try {
       const phoneData = {
         number: trimmedNumber,
-        extension: trimmedExtension ? parseInt(trimmedExtension, 10) : undefined,
+        extension: trimmedExtension || undefined,
         note: note.trim() || undefined,
         label: label.trim() || "Work",
-        isPrimary: false,
-      };
+      } as Omit<TPhone, 'id'>;
 
-      const result = editingPhone
-        ? await updateOwnerPhone(
-            location,
-            ownerId,
-            Number(editingPhone.id),
-            phoneData
-          )
-        : await addOwnerPhone(location, ownerId, phoneData);
+      let result: TPhone;
 
-      if (result?.success && result.data && Array.isArray(result.data)) {
-        toast.success(
-          editingPhone
-            ? "Phone number updated successfully"
-            : "Phone number added successfully"
+      if (editingPhone) {
+        const success = await apiAdapter.updatePhone(
+          location,
+          entityId,
+          editingPhone.id,
+          phoneData as Partial<TPhone>
         );
-
-        const transformedPhones: OwnerPhone[] = result.data.map((item: {
-          id: number;
-          number: string;
-          extension?: string | number;
-          note?: string;
-          label?: string;
-        }) => {
-          return {
-            id: item.id?.toString() || String(item.id),
-            label: item.label || "Work",
-            number: item.number || "",
-            extension: item.extension 
-              ? (typeof item.extension === "string" && item.extension.trim() !== "" 
-                  ? item.extension 
-                  : typeof item.extension === "number" 
-                    ? item.extension.toString() 
-                    : undefined)
-              : undefined,
-            note: item.note && item.note.trim() !== "" ? item.note : undefined,
-          };
-        });
-
-        if (onUpdatePhones) {
-          onUpdatePhones(transformedPhones);
+        if (!success) {
+          throw new Error("Failed to update phone");
         }
-
-        if (onSubmit && transformedPhones.length > 0) {
-          const latest = transformedPhones.find(
-            (p) => p.number === phoneData.number
-          );
-          if (latest) {
-            onSubmit(latest);
-          }
+        // Fetch updated phones to get the latest data
+        const updatedPhones = await apiAdapter.fetchPhones(location, entityId);
+        const updated = updatedPhones.find(
+          (p) => p.number === phoneData.number
+        );
+        if (!updated) {
+          throw new Error("Failed to get updated phone");
         }
-
-        resetForm();
-        onClose();
-
-        if (onRefresh) {
-          await onRefresh();
-        }
+        result = updated as TPhone;
+        toast.success("Phone number updated successfully");
       } else {
-        toast.error(result?.message || "Failed to save phone number");
+        result = await apiAdapter.createPhone(location, entityId, phoneData);
+        toast.success("Phone number added successfully");
       }
+
+      if (onUpdatePhones) {
+        const allPhones = await apiAdapter.fetchPhones(location, entityId);
+        onUpdatePhones(allPhones as TPhone[]);
+      }
+
+      if (onSubmit) {
+        onSubmit(result);
+      }
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      resetForm();
+      onClose();
     } catch (err) {
       console.error("Error saving phone:", err);
-      toast.error("Failed to save phone number. Please try again.");
+      toast.error(err instanceof Error ? err.message : "Failed to save phone number. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
