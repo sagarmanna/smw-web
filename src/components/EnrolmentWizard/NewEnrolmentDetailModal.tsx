@@ -411,7 +411,8 @@ export function NewEnrolmentDetailModal({
     selectedDayDate.setDate(calendarMonday.getDate() + daysToAdd);
     selectedDayDate.setHours(selectedHours, selectedMinutes, selectedSeconds, 0);
     
-    // Update goToDate to the selected day's date
+    // Update startDate and goToDate to the selected day's date
+    setStartDate(selectedDayDate);
     setGoToDate(selectedDayDate);
     
     // Format time as HH:mm for the startTime input field
@@ -496,17 +497,22 @@ export function NewEnrolmentDetailModal({
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             {isExpanded && (
               <Button
-                onClick={() => onPreviewLessons?.({
-                  teacherId: selectedTeacherId,
-                  teacherName: selectedTeacherName,
-                  startDate: startDate ? format(startDate, "yyyy-MM-dd") : undefined,
-                  day,
-                  startTime,
-                  goToDate: goToDate ? format(goToDate, "yyyy-MM-dd") : undefined,
-                  showAll,
-                  duration,
-                })}
-                disabled={isLoading}
+                onClick={() => {
+                  // Close modal immediately to prevent unnecessary schedule API calls
+                  onOpenChange(false);
+                  // Then call onPreviewLessons with the form data
+                  onPreviewLessons?.({
+                    teacherId: selectedTeacherId,
+                    teacherName: selectedTeacherName,
+                    startDate: startDate ? format(startDate, "yyyy-MM-dd") : undefined,
+                    day,
+                    startTime,
+                    goToDate: goToDate ? format(goToDate, "yyyy-MM-dd") : undefined,
+                    showAll,
+                    duration,
+                  });
+                }}
+                disabled={isLoading || !day || !startTime}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {nextButtonText}

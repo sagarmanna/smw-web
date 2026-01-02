@@ -186,10 +186,10 @@ export async function getItemCategories(
   location: string
 ): Promise<ItemCategoryOptionsResponse> {
   try {
-    const url = `/admin/v2/training-location/item-categories`;
-    const params = { location };
+    const url = `/admin/v2/${location}/item-categories`;
+    // const params = { location };
 
-    const response = await apiClient.get(url, { params });
+    const response = await apiClient.get(url);
 
     const body = extractBodyArray(response.data);
     const categories = body.map((category: unknown) => {
