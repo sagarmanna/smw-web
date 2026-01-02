@@ -2,14 +2,13 @@
 
 import * as React from "react";
 import { format } from "date-fns";
+import { useDispatch, useSelector } from "react-redux";
 import { ReactBigCalendarWrapper, CalendarWrapperRef } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { 
   getScheduleDetails, 
   getTeacherView, 
   getTeacherViewEvents,
-  getProgramsList,
-  getTeachersList,
   ScheduleDetails,
   TeacherViewResource,
   TeacherViewEvent,
@@ -20,6 +19,8 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { updateLesson, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
+import { AppDispatch, RootState } from "@/redux/store";
+import { fetchTeachersByProgram } from "../scheduleFilters.slice";
 
 interface CalendarEvent {
   id: string;
@@ -90,6 +91,14 @@ function useScheduleViewContext() {
 }
 
 function ScheduleViewProvider({ location, children }: { location: string; children: React.ReactNode }) {
+  const dispatch = useDispatch<AppDispatch>();
+  
+  // Redux state for programs and teachers
+  const programs = useSelector((state: RootState) => state.scheduleFilters.programs);
+  const programsLoading = useSelector((state: RootState) => state.scheduleFilters.programsLoading);
+  const teachersByProgram = useSelector((state: RootState) => state.scheduleFilters.teachersByProgram);
+  const teachersLoading = useSelector((state: RootState) => state.scheduleFilters.teachersLoading);
+  
   const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
   const [showAll, setShowAll] = React.useState<boolean>(false);
   const [isLoadingSchedule, setIsLoadingSchedule] = React.useState<boolean>(false);
@@ -102,20 +111,23 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
   const [updatingEvents, setUpdatingEvents] = React.useState<Set<string>>(new Set());
   const teacherCalendarRef = React.useRef<CalendarWrapperRef>(null);
   
-  // Program and Teacher filter state
-  const [programs, setPrograms] = React.useState<Program[]>([]);
-  const [programsLoading, setProgramsLoading] = React.useState<boolean>(false);
+  // Local filter state (UI state)
   const [selectedProgram, setSelectedProgram] = React.useState<string>("");
-  const [teachers, setTeachers] = React.useState<Teacher[]>([]);
-  const [teachersLoading, setTeachersLoading] = React.useState<boolean>(false);
   const [selectedTeacher, setSelectedTeacher] = React.useState<string>("");
+  
+  // Get teachers for selected program from Redux
+  const teachers = React.useMemo(() => {
+    return selectedProgram ? (teachersByProgram[selectedProgram] || []) : [];
+  }, [selectedProgram, teachersByProgram]);
 
   const safeSelectedDate = React.useMemo(() => {
     return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
   }, [selectedDate]);
 
-  // Fetch schedule details when date changes
+  // Fetch schedule details when date changes (only if location is available)
   React.useEffect(() => {
+    if (!location) return;
+    
     const fetchScheduleDetails = async () => {
       try {
         setScheduleDetailsLoading(true);
@@ -135,50 +147,29 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     fetchScheduleDetails();
   }, [location, safeSelectedDate]);
 
-  // Fetch programs on mount
+  // Programs are already loaded in page.tsx and stored in Redux
+
+  // Fetch teachers by program when program is selected (store in Redux)
   React.useEffect(() => {
-    const fetchPrograms = async () => {
-      try {
-        setProgramsLoading(true);
-        const response = await getProgramsList();
-        
-        if (response?.success) {
-          setPrograms(response.data);
-        }
-      } catch (error) {
-        console.error("Error fetching programs:", error);
-      } finally {
-        setProgramsLoading(false);
-      }
-    };
+    if (!location || !selectedProgram) {
+      // Clear teacher selection when program is cleared
+      setSelectedTeacher("");
+      return;
+    }
 
-    fetchPrograms();
-  }, []);
+    // Check if teachers for this program are already in Redux
+    if (teachersByProgram[selectedProgram]) {
+      return; // Already loaded, no need to fetch again
+    }
 
-  // Fetch teachers on mount
-  React.useEffect(() => {
-    if (!location) return;
-
-    const fetchTeachers = async () => {
-      try {
-        setTeachersLoading(true);
-        const response = await getTeachersList(location);
-        
-        if (response?.success) {
-          setTeachers(response.data);
-        }
-      } catch (error) {
-        console.error("Error fetching teachers:", error);
-      } finally {
-        setTeachersLoading(false);
-      }
-    };
-
-    fetchTeachers();
-  }, [location]);
+    // Fetch teachers by program and store in Redux
+    dispatch(fetchTeachersByProgram({ location, programId: selectedProgram }));
+  }, [location, selectedProgram, teachersByProgram, dispatch]);
 
   // Fetch teacher view data when filters or date change
   React.useEffect(() => {
+    if (!location) return;
+
     const fetchTeacherView = async () => {
       try {
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
@@ -203,6 +194,8 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
 
   // Fetch teacher view events when filters or date change
   React.useEffect(() => {
+    if (!location) return;
+    
     const fetchTeacherViewEvents = async () => {
       try {
         setIsLoadingSchedule(true);
@@ -501,7 +494,13 @@ export function ScheduleViewControls() {
           id="schedule-program-filter"
           options={programs.map(p => ({ value: p.id.toString(), label: p.name }))}
           value={selectedProgram}
-          onValueChange={(value) => setSelectedProgram(value || "")}
+          onValueChange={(value) => {
+            setSelectedProgram(value || "");
+            // Clear teacher selection when program changes
+            if (!value) {
+              setSelectedTeacher("");
+            }
+          }}
           placeholder="Program"
           searchPlaceholder="Search programs..."
           emptyText="No programs available"
@@ -520,13 +519,13 @@ export function ScheduleViewControls() {
           options={teachers.map(t => ({ value: t.id.toString(), label: t.name }))}
           value={selectedTeacher}
           onValueChange={(value) => setSelectedTeacher(value || "")}
-          placeholder="Teacher"
+          placeholder={!selectedProgram ? "Select a program first" : "Teacher"}
           searchPlaceholder="Search teachers..."
           emptyText="No teachers available"
           loadingText="Loading teachers..."
           noResultsText="No teachers found"
           className="h-7 text-xs"
-          disabled={teachersLoading}
+          disabled={!selectedProgram || teachersLoading}
           isLoading={teachersLoading}
         />
       </div>
@@ -578,7 +577,7 @@ export function ScheduleView() {
         onEventClick={handleEventClick}
         onEventDrop={handleEventDrop}
         onEventResize={handleEventResize}
-        editable={true}
+        editable={false}
         showAll={showAll}
         minTime={timeRange.minTime}
         maxTime={timeRange.maxTime}
