@@ -15,6 +15,7 @@ import studentTabsReducer from '../app/[location]/students/[id]/studentTabs.slic
 import studentsListingReducer from '../app/[location]/students/studentsListing.slice';
 import enrolmentsListingReducer from '../app/[location]/enrolments/enrolmentsListing.slice';
 import enrolmentReducer from '../app/[location]/enrolments/[id]/enrolment-details.slice';
+import scheduleFiltersReducer from '../app/[location]/enrolments/scheduleFilters.slice';
 import unscheduledLessonsListingReducer from '../app/[location]/unscheduled-lessons/unscheduledLessonsListing.slice';
 import privateLessonsListingReducer from '../app/[location]/private-lessons/privateLessonsListing.slice';
 import privateLessonReducer from '../app/[location]/private-lessons/[id]/private-lesson-details.slice';
@@ -49,6 +50,7 @@ export const store = configureStore({
     studentsListing: studentsListingReducer,
     enrolmentsListing: enrolmentsListingReducer,
     enrolment: enrolmentReducer,
+    scheduleFilters: scheduleFiltersReducer,
     unscheduledLessonsListing: unscheduledLessonsListingReducer,
     privateLessonsListing: privateLessonsListingReducer,
     privateLesson: privateLessonReducer,
