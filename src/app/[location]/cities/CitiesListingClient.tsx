@@ -7,9 +7,6 @@ import { Plus } from "lucide-react";
 import { CustomTable } from "@/components/CustomTable";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { Button } from "@/components/ui/button";
-import { useExportableData } from "@/hooks/useExportableData";
-import { usePrintReport } from "@/hooks/usePrintReport";
-import { formatLocationName } from "@/utils/textUtils";
 
 import { CityRow } from "./cities.api";
 import { cityColumns } from "./tableConfigs";
@@ -54,15 +51,6 @@ export function CitiesListingClient({ location }: CitiesListingClientProps) {
     setIsAddCityModalOpen(true);
   };
 
-  const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<CityRow>({
-    reportTitle: `Cities list for ${formatLocationName(location)}`,
-    columns,
-    data: rows,
-    location: location,
-  });
-
-  const { handlePrint } = usePrintReport<CityRow>();
-
   return (
     <ReportPageLayout
       title="Cities"
@@ -86,14 +74,7 @@ export function CitiesListingClient({ location }: CitiesListingClientProps) {
         stickyHeader={true}
         enableSearch={false}
         enableFilter={true}
-        enablePrint={true}
-        onPrint={() =>
-          handlePrint({
-            reportTitle: `Cities list for ${formatLocationName(location)}`,
-            columns,
-            data: rows,
-          })
-        }
+        enablePrint={false}
         enableRowsPerPage={true}
         enableColumnFilters={true}
         onColumnFilterChange={handleColumnFilterChange}
@@ -109,17 +90,10 @@ export function CitiesListingClient({ location }: CitiesListingClientProps) {
         showRecordCountInToolbar={true}
         rowsPerPage={pageSize}
         rowsPerPageOptions={[10, 20, 50, 100]}
-        enableExport={true}
-        onExport={{
-          html: exportToHtml,
-          csv: exportToCsv,
-          text: exportToText,
-          excel: exportToExcel,
-          pdf: exportToPdf,
-          json: exportToJson,
-        }}
+        enableExport={false}
         onRowsPerPageChange={(newSize) => {
           setPageSize(newSize);
+          // Explicitly reset page to 1 to ensure effect triggers
           setPage(1);
         }}
         onRowClick={(row) => openEditModal(row)}

@@ -4,6 +4,8 @@
 
 import { apiClient } from "@/lib/api/client";
 
+const FETCH_ALL_LIMIT = 99999;
+
 export interface CityRow {
   id: number;
   name: string;
@@ -59,8 +61,8 @@ export async function getCities(location: string, query: CitiesQuery): Promise<C
 
     const params: Record<string, unknown> = {};
     
-    if (query.page) params.page = query.page;
-    if (query.limit) params.limit = query.limit;
+    if (query.page !== undefined) params.page = query.page;
+    if (query.limit !== undefined) params.limit = query.limit === -1 ? FETCH_ALL_LIMIT : query.limit;
     if (query.name) params.name = query.name;
     if (query.province) params.province = query.province;
     // IMPORTANT: backend rejects unknown query keys (400 BAD_REQUEST)
