@@ -31,6 +31,8 @@ import administratorReducer from '../app/[location]/administrators/[id]/administ
 import administratorTabsReducer from '../app/[location]/administrators/[id]/administratorTabs.slice';
 import staffMemberDetailsReducer from '../app/[location]/staff-members/[id]/staff-members-details.slice';
 import staffMemberTabsReducer from '../app/[location]/staff-members/[id]/staffMembersTabs.slice';
+import ownerDetailsReducer from '../app/[location]/owners/[id]/owners-details.slice';
+import ownerTabsReducer from '../app/[location]/owners/[id]/ownersTabs.slice';
 
 export const store = configureStore({
   reducer: {
@@ -66,6 +68,8 @@ export const store = configureStore({
     administratorTabs: administratorTabsReducer,
     staffMemberDetails: staffMemberDetailsReducer,
     staffMemberTabs: staffMemberTabsReducer,
+    ownerDetails: ownerDetailsReducer,
+    ownerTabs: ownerTabsReducer,
   },
 });
 
