@@ -718,3 +718,61 @@ export async function validateTeacherEmail(
     };
   }
 }
+
+// ---------------------------------------------
+// Teacher Availability Modify API
+// ---------------------------------------------
+
+export interface ModifyTeacherAvailabilityRequest {
+  day: number; // 1-7 (Monday-Sunday)
+  fromTime: string; // Format: "HH:mm:ss" (e.g., "13:00:00")
+  toTime: string; // Format: "HH:mm:ss" (e.g., "14:00:00")
+  classroomId?: number;
+}
+
+export interface ModifyTeacherAvailabilityResponse {
+  success: boolean;
+  data: {
+    success: boolean;
+  };
+  message: string;
+}
+
+/**
+ * Modifies teacher availability (create or update)
+ * Endpoint: POST /admin/v2/{location}/teachers/{teacherId}/availability/modify?availabilityId={availabilityId}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param availabilityId - Availability ID (0 for create, actual ID for update)
+ * @param availabilityData - The availability data
+ * @returns Promise resolving to the modify response or null on error
+ */
+export async function modifyTeacherAvailability(
+  location: string,
+  teacherId: number,
+  availabilityId: number,
+  availabilityData: ModifyTeacherAvailabilityRequest
+): Promise<ModifyTeacherAvailabilityResponse | null> {
+  try {
+    const response = await apiClient.post<ModifyTeacherAvailabilityResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/availability/modify?availabilityId=${availabilityId}`,
+      {
+        day: availabilityData.day,
+        fromTime: availabilityData.fromTime,
+        toTime: availabilityData.toTime,
+        classroomId: availabilityData.classroomId,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error modifying teacher availability:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      data: { success: false },
+      message: apiError.response?.data?.message || 'Failed to modify teacher availability',
+    };
+  }
+}

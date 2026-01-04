@@ -1339,70 +1339,70 @@ function extractTimeComponents(timeStr: string): { hour: string; minute: string;
   };
 }
 
-/**
- * Modify teacher availability (create or update) using the legacy API
- * @param location - Location slug
- * @param teacherId - Teacher ID
- * @param availabilityId - Availability ID (0 for create, actual ID for update)
- * @param availabilityData - The availability data
- * @returns API response with status
- */
-export async function modifyTeacherAvailability(
-  location: string,
-  teacherId: number,
-  availabilityId: number,
-  availabilityData: TeacherAvailabilityModifyData
-): Promise<TeacherAvailabilityModifyResponse> {
-  const formData = new FormData();
+// /**
+//  * Modify teacher availability (create or update) using the legacy API
+//  * @param location - Location slug
+//  * @param teacherId - Teacher ID
+//  * @param availabilityId - Availability ID (0 for create, actual ID for update)
+//  * @param availabilityData - The availability data
+//  * @returns API response with status
+//  */
+// export async function modifyTeacherAvailability(
+//   location: string,
+//   teacherId: number,
+//   availabilityId: number,
+//   availabilityData: TeacherAvailabilityModifyData
+// ): Promise<TeacherAvailabilityModifyResponse> {
+//   const formData = new FormData();
   
-  // Convert times to 12-hour format
-  const fromTime12Hour = convertTimeTo12Hour(availabilityData.fromTime);
-  const toTime12Hour = convertTimeTo12Hour(availabilityData.toTime);
+//   // Convert times to 12-hour format
+//   const fromTime12Hour = convertTimeTo12Hour(availabilityData.fromTime);
+//   const toTime12Hour = convertTimeTo12Hour(availabilityData.toTime);
   
-  // Extract time components for from_time
-  const fromComponents = extractTimeComponents(availabilityData.fromTime);
-  formData.append('hour', fromComponents.hour);
-  formData.append('minute', fromComponents.minute);
-  formData.append('meridian', fromComponents.meridian);
+//   // Extract time components for from_time
+//   const fromComponents = extractTimeComponents(availabilityData.fromTime);
+//   formData.append('hour', fromComponents.hour);
+//   formData.append('minute', fromComponents.minute);
+//   formData.append('meridian', fromComponents.meridian);
   
-  // Add TeacherRoom[from_time] in 12-hour format
-  formData.append('TeacherRoom[from_time]', fromTime12Hour);
+//   // Add TeacherRoom[from_time] in 12-hour format
+//   formData.append('TeacherRoom[from_time]', fromTime12Hour);
   
-  // Extract time components for to_time
-  const toComponents = extractTimeComponents(availabilityData.toTime);
-  formData.append('hour', toComponents.hour);
-  formData.append('minute', toComponents.minute);
-  formData.append('meridian', toComponents.meridian);
+//   // Extract time components for to_time
+//   const toComponents = extractTimeComponents(availabilityData.toTime);
+//   formData.append('hour', toComponents.hour);
+//   formData.append('minute', toComponents.minute);
+//   formData.append('meridian', toComponents.meridian);
   
-  // Add TeacherRoom[to_time] in 12-hour format
-  formData.append('TeacherRoom[to_time]', toTime12Hour);
+//   // Add TeacherRoom[to_time] in 12-hour format
+//   formData.append('TeacherRoom[to_time]', toTime12Hour);
   
-  // Add day and classroomId
-  formData.append('TeacherRoom[day]', availabilityData.day.toString());
-  if (availabilityData.classroomId) {
-    formData.append('TeacherRoom[classroomId]', availabilityData.classroomId.toString());
-  }
+//   // Add day and classroomId
+//   formData.append('TeacherRoom[day]', availabilityData.day.toString());
+//   if (availabilityData.classroomId) {
+//     formData.append('TeacherRoom[classroomId]', availabilityData.classroomId.toString());
+//   }
 
-  const url = `/admin/${location}/teacher-availability/modify?teacherId=${teacherId}&id=${availabilityId}`;
+//   const url = `/admin/${location}/teacher-availability/modify?teacherId=${teacherId}&id=${availabilityId}`;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    });
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       body: formData,
+//       credentials: 'include',
+//       headers: {
+//         'X-Requested-With': 'XMLHttpRequest',
+//         'Accept': 'application/json',
+//       },
+//     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
+//     const data = await response.json();
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }

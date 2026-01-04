@@ -10,9 +10,10 @@ import {
 } from "../../../../[id]/teachers-details-tabs.api";
 import { getClassroomViewResources } from "@/app/[location]/schedule/schedule.api";
 import type { Classroom } from "../../../../[id]/mockAvailabilityData";
-import { modifyTeacherAvailability, deleteTeacherAvailability } from "@/lib/api/legacyApiAdapter";
+import { deleteTeacherAvailability } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { modifyTeacherAvailability } from "@/app/[location]/teachers/[id]/teachers-details.api";
 
 interface AvailabilityCalendarTabProps {
   location: string;
@@ -352,7 +353,7 @@ export function AvailabilityCalendarTab({
         ? editingAvailability.lessonId 
         : 0;
 
-      // Call legacy API to modify teacher availability
+      // Call new API to modify teacher availability
       const response = await modifyTeacherAvailability(
         location,
         teacherId,
@@ -365,7 +366,7 @@ export function AvailabilityCalendarTab({
         }
       );
 
-      if (response.status) {
+      if (response && response.success) {
         toast.success(
           modalMode === "edit" 
             ? "Availability updated successfully" 
@@ -374,11 +375,10 @@ export function AvailabilityCalendarTab({
         await loadData();
         return { success: true };
       } else {
-        // Check if response has errors object
-        if (response.errors) {
-          return { success: false, errors: response.errors };
-        }
-        throw new Error(response.message || "Failed to save availability");
+        // Show error message in toast
+        const errorMessage = response?.message || "Failed to modify teacher availability";
+        toast.error(errorMessage);
+        return { success: false, errors: { _general: [errorMessage] } };
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save availability";
