@@ -10,10 +10,9 @@ import {
 } from "../../../../[id]/teachers-details-tabs.api";
 import { getClassroomViewResources } from "@/app/[location]/schedule/schedule.api";
 import type { Classroom } from "../../../../[id]/mockAvailabilityData";
-import { deleteTeacherAvailability } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { modifyTeacherAvailability } from "@/app/[location]/teachers/[id]/teachers-details.api";
+import { modifyTeacherAvailability, deleteTeacherAvailability } from "@/app/[location]/teachers/[id]/teachers-details.api";
 
 interface AvailabilityCalendarTabProps {
   location: string;
@@ -390,44 +389,26 @@ export function AvailabilityCalendarTab({
   // Handle delete
   const handleDelete = async (id: string) => {
     try {
-      if (!availabilityData) {
-        throw new Error("Availability data not loaded");
+      const availabilityId = parseInt(id);
+      if (isNaN(availabilityId)) {
+        toast.error("Invalid availability ID");
+        return;
       }
 
-      // Find the availability to get its data
-      const existingLesson = availabilityData.lessons.find(
-        (l) => l.lessonId.toString() === id
-      );
-      
-      if (!existingLesson) {
-        throw new Error("Availability not found");
-      }
-
-      // Extract day and times from the existing lesson
-      const day = existingLesson.resourceId;
-      const startTime = new Date(existingLesson.start);
-      const endTime = new Date(existingLesson.end);
-      const fromTime = formatTimeFromDate(startTime);
-      const toTime = formatTimeFromDate(endTime);
-
-      // Call legacy API to delete teacher availability
+      // Call new API to delete teacher availability
       const response = await deleteTeacherAvailability(
         location,
-        parseInt(id),
-        {
-          day,
-          fromTime,
-          toTime,
-          // classroomId is optional and may not be available
-        }
+        teacherId,
+        availabilityId
       );
 
-      if (response.status) {
+      if (response && response.success) {
         toast.success("Availability deleted successfully");
         await loadData();
         setShowModal(false);
       } else {
-        throw new Error(response.message || "Failed to delete availability");
+        const errorMessage = response?.message || "Failed to delete availability";
+        toast.error(errorMessage);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to delete availability";

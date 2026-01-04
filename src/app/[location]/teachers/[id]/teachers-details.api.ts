@@ -776,3 +776,42 @@ export async function modifyTeacherAvailability(
     };
   }
 }
+
+// ---------------------------------------------
+// Teacher Availability Delete API
+// ---------------------------------------------
+
+export interface DeleteTeacherAvailabilityResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Deletes a teacher availability
+ * Endpoint: DELETE /admin/v2/{location}/teachers/{teacherId}/availability/{availabilityId}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param availabilityId - The availability ID to delete
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteTeacherAvailability(
+  location: string,
+  teacherId: number,
+  availabilityId: number
+): Promise<DeleteTeacherAvailabilityResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteTeacherAvailabilityResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/availability/${availabilityId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting teacher availability:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to delete teacher availability',
+    };
+  }
+}
