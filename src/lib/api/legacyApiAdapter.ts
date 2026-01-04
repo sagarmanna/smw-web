@@ -841,51 +841,51 @@ export async function deletePayment(
   }
 }
 
-/**
- * Create a qualification (private or group) using the legacy API
- * @param location - The location string
- * @param teacherId - The teacher/user ID
- * @param type - Qualification type: 1 for private, 2 for group
- * @param qualificationData - The qualification data with programs and rate
- */
-export async function createQualification(
-  location: string,
-  teacherId: string | number,
-  type: 1 | 2, // 1 = private, 2 = group
-  qualificationData: QualificationCreateData
-): Promise<LegacyApiResponse> {
-  const formData = new FormData();
+// /**
+//  * Create a qualification (private or group) using the legacy API
+//  * @param location - The location string
+//  * @param teacherId - The teacher/user ID
+//  * @param type - Qualification type: 1 for private, 2 for group
+//  * @param qualificationData - The qualification data with programs and rate
+//  */
+// export async function createQualification(
+//   location: string,
+//   teacherId: string | number,
+//   type: 1 | 2, // 1 = private, 2 = group
+//   qualificationData: QualificationCreateData
+// ): Promise<LegacyApiResponse> {
+//   const formData = new FormData();
   
-  // Add programs array - the legacy API expects Qualification[programs][] format
-  qualificationData.programs.forEach((programId) => {
-    formData.append('Qualification[programs][]', programId.toString());
-  });
+//   // Add programs array - the legacy API expects Qualification[programs][] format
+//   qualificationData.programs.forEach((programId) => {
+//     formData.append('Qualification[programs][]', programId.toString());
+//   });
   
-  formData.append('Qualification[rate]', qualificationData.rate.toString());
+//   formData.append('Qualification[rate]', qualificationData.rate.toString());
 
-  const url = `/admin/${location}/qualification/create?id=${teacherId}&type=${type}`;
+//   const url = `/admin/${location}/qualification/create?id=${teacherId}&type=${type}`;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    });
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       body: formData,
+//       credentials: 'include',
+//       headers: {
+//         'X-Requested-With': 'XMLHttpRequest',
+//         'Accept': 'application/json',
+//       },
+//     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
+//     const data = await response.json();
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }
 
 /**
  * Update a qualification (private or group) using the legacy API

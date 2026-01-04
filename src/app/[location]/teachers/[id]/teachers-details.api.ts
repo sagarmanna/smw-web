@@ -200,6 +200,61 @@ export async function getTeacherQualifications(
 }
 
 // ---------------------------------------------
+// Qualification Create API
+// ---------------------------------------------
+
+export interface CreateTeacherQualificationRequest {
+  programs: number[];
+  rate?: number;
+}
+
+export interface CreateTeacherQualificationResponse {
+  success: boolean;
+  data: {
+    created: number;
+    updated: number;
+  };
+  message: string;
+}
+
+/**
+ * Creates teacher qualifications from the API
+ * Endpoint: POST /admin/v2/{location}/teachers/{teacherId}/qualifications?type={type}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param type - The qualification type: 1 for private, 2 for group
+ * @param qualificationData - The qualification data with programs array and optional rate
+ * @returns Promise resolving to the create response or null on error
+ */
+export async function createTeacherQualification(
+  location: string,
+  teacherId: number,
+  type: 1 | 2,
+  qualificationData: CreateTeacherQualificationRequest
+): Promise<CreateTeacherQualificationResponse | null> {
+  try {
+    const response = await apiClient.post<CreateTeacherQualificationResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/qualifications?type=${type}`,
+      {
+        programs: qualificationData.programs,
+        rate: qualificationData.rate,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error creating teacher qualification:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      data: { created: 0, updated: 0 },
+      message: apiError.response?.data?.message || 'Failed to create teacher qualification',
+    };
+  }
+}
+
+// ---------------------------------------------
 // Profile API
 // ---------------------------------------------
 
