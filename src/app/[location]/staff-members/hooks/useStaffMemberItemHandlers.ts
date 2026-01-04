@@ -9,7 +9,8 @@ interface UseEmailHandlersProps {
   emails: StaffMemberEmail[];
   updateEmails: React.Dispatch<React.SetStateAction<StaffMemberEmail[]>>;
   location: string;
-  staffMemberId: number;
+  staffMemberId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -18,8 +19,10 @@ export function useEmailHandlers({
   updateEmails,
   location,
   staffMemberId,
+  entityId,
   onRefresh,
 }: UseEmailHandlersProps) {
+  const effectiveStaffMemberId = staffMemberId ?? entityId ?? 0;
   const [editingEmail, setEditingEmail] = React.useState<StaffMemberEmail | null>(null);
   const [emailToDelete, setEmailToDelete] = React.useState<StaffMemberEmail | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -78,7 +81,7 @@ export function useEmailHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteStaffMemberEmail(location, staffMemberId, id);
+      const result = await deleteStaffMemberEmail(location, effectiveStaffMemberId, id);
 
       if (result?.success) {
         toast.success("Email deleted successfully");
@@ -100,7 +103,7 @@ export function useEmailHandlers({
       setIsDeleting(false);
       setEmailToDelete(null);
     }
-  }, [emailToDelete, location, staffMemberId, updateEmails, onRefresh]);
+  }, [emailToDelete, location, effectiveStaffMemberId, updateEmails, onRefresh]);
 
   return {
     editingEmail,
@@ -119,7 +122,8 @@ interface UsePhoneHandlersProps {
   phones: StaffMemberPhone[];
   updatePhones: React.Dispatch<React.SetStateAction<StaffMemberPhone[]>>;
   location: string;
-  staffMemberId: number;
+  staffMemberId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -128,8 +132,10 @@ export function usePhoneHandlers({
   updatePhones,
   location,
   staffMemberId,
+  entityId,
   onRefresh,
 }: UsePhoneHandlersProps) {
+  const effectiveStaffMemberId = staffMemberId ?? entityId ?? 0;
   const [editingPhone, setEditingPhone] = React.useState<StaffMemberPhone | null>(null);
   const [phoneToDelete, setPhoneToDelete] = React.useState<StaffMemberPhone | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -170,7 +176,7 @@ export function usePhoneHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteStaffMemberPhone(location, staffMemberId, id);
+      const result = await deleteStaffMemberPhone(location, effectiveStaffMemberId, id);
 
       if (result?.success) {
         toast.success("Phone deleted successfully");
@@ -192,7 +198,7 @@ export function usePhoneHandlers({
       setIsDeleting(false);
       setPhoneToDelete(null);
     }
-  }, [phoneToDelete, location, staffMemberId, updatePhones, onRefresh]);
+  }, [phoneToDelete, location, effectiveStaffMemberId, updatePhones, onRefresh]);
 
   return {
     editingPhone,
@@ -211,7 +217,8 @@ interface UseAddressHandlersProps {
   addresses: StaffMemberAddress[];
   updateAddresses: React.Dispatch<React.SetStateAction<StaffMemberAddress[]>>;
   location: string;
-  staffMemberId: number;
+  staffMemberId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -220,8 +227,10 @@ export function useAddressHandlers({
   updateAddresses,
   location,
   staffMemberId,
+  entityId,
   onRefresh,
 }: UseAddressHandlersProps) {
+  const effectiveStaffMemberId = staffMemberId ?? entityId ?? 0;
   const [editingAddress, setEditingAddress] = React.useState<StaffMemberAddress | null>(null);
   const [addressToDelete, setAddressToDelete] = React.useState<StaffMemberAddress | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -262,7 +271,7 @@ export function useAddressHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteStaffMemberAddress(location, staffMemberId, id);
+      const result = await deleteStaffMemberAddress(location, effectiveStaffMemberId, id);
 
       if (result?.success) {
         toast.success("Address deleted successfully");
@@ -284,7 +293,7 @@ export function useAddressHandlers({
       setIsDeleting(false);
       setAddressToDelete(null);
     }
-  }, [addressToDelete, location, staffMemberId, updateAddresses, onRefresh]);
+  }, [addressToDelete, location, effectiveStaffMemberId, updateAddresses, onRefresh]);
 
   return {
     editingAddress,
