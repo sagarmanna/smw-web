@@ -5,7 +5,7 @@ import { InfoCard } from "@/components/InfoCard";
 import { TeacherQualification } from "../../types";
 import { AddQualificationModal } from "../modals/AddQualificationModal";
 import { QualificationList } from "../sections";
-import { updateQualification, deleteQualification } from "@/lib/api/legacyApiAdapter";
+import { updateTeacherQualification, deleteTeacherQualification } from "../../[id]/teachers-details.api";
 import { createTeacherQualification } from "../../[id]/teachers-details.api";
 import { toast } from "sonner";
 import { useAppDispatch } from "@/redux/hooks";
@@ -77,15 +77,16 @@ export const TeacherPrivateQualificationCard = React.memo(
               return;
             }
 
-            const response = await updateQualification(
+            const response = await updateTeacherQualification(
               location,
+              teacherId,
               qualificationId,
               {
                 rate: data.rate,
               }
             );
 
-            if (response.status) {
+            if (response && response.success) {
               toast.success("Qualification updated successfully");
               setIsEditModalOpen(false);
               setEditingQualification(null);
@@ -99,9 +100,7 @@ export const TeacherPrivateQualificationCard = React.memo(
               );
             } else {
               const errorMessage =
-                response.message ||
-                response.errors?.join(", ") ||
-                "Failed to update qualification";
+                response?.message || "Failed to update qualification";
               toast.error(errorMessage);
             }
           } catch (error) {
@@ -181,16 +180,13 @@ export const TeacherPrivateQualificationCard = React.memo(
             return;
           }
 
-          // Send empty string as rate for delete (no validation needed)
-          const response = await deleteQualification(
+          const response = await deleteTeacherQualification(
             location,
-            qualificationId,
-            {
-              rate: "",
-            }
+            teacherId,
+            qualificationId
           );
 
-          if (response.status) {
+          if (response && response.success) {
             toast.success("Qualification deleted successfully");
             setEditingQualification(null);
             setIsEditModalOpen(false);
@@ -198,9 +194,7 @@ export const TeacherPrivateQualificationCard = React.memo(
             onUpdate((prev) => prev.filter((qual) => qual.id !== id));
           } else {
             const errorMessage =
-              response.message ||
-              response.errors?.join(", ") ||
-              "Failed to delete qualification";
+              response?.message || "Failed to delete qualification";
             toast.error(errorMessage);
           }
         } catch (error) {
@@ -210,7 +204,7 @@ export const TeacherPrivateQualificationCard = React.memo(
           toast.error(errorMessage);
         }
       },
-      [onUpdate, qualifications, location]
+      [onUpdate, qualifications, location, teacherId]
     );
 
     const handleViewToggle = React.useCallback(() => {

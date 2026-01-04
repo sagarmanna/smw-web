@@ -887,87 +887,87 @@ export async function deletePayment(
 //   }
 // }
 
-/**
- * Update a qualification (private or group) using the legacy API
- * @param location - The location string
- * @param qualificationId - The qualification ID
- * @param qualificationData - The qualification data with rate
- */
-export async function updateQualification(
-  location: string,
-  qualificationId: string | number,
-  qualificationData: QualificationUpdateData
-): Promise<LegacyApiResponse> {
-  const formData = new FormData();
+// /**
+//  * Update a qualification (private or group) using the legacy API
+//  * @param location - The location string
+//  * @param qualificationId - The qualification ID
+//  * @param qualificationData - The qualification data with rate
+//  */
+// export async function updateQualification(
+//   location: string,
+//   qualificationId: string | number,
+//   qualificationData: QualificationUpdateData
+// ): Promise<LegacyApiResponse> {
+//   const formData = new FormData();
   
-  formData.append('Qualification[rate]', qualificationData.rate.toString());
+//   formData.append('Qualification[rate]', qualificationData.rate.toString());
 
-  const url = `/admin/${location}/qualification/update?id=${qualificationId}`;
+//   const url = `/admin/${location}/qualification/update?id=${qualificationId}`;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    });
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       body: formData,
+//       credentials: 'include',
+//       headers: {
+//         'X-Requested-With': 'XMLHttpRequest',
+//         'Accept': 'application/json',
+//       },
+//     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
+//     const data = await response.json();
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }
 
-/**
- * Delete a qualification (private or group) using the legacy API
- * @param location - The location string
- * @param qualificationId - The qualification ID
- * @param qualificationData - The qualification data with rate
- */
-export async function deleteQualification(
-  location: string,
-  qualificationId: string | number,
-  qualificationData: QualificationDeleteData
-): Promise<LegacyApiResponse> {
-  const formData = new FormData();
+// /**
+//  * Delete a qualification (private or group) using the legacy API
+//  * @param location - The location string
+//  * @param qualificationId - The qualification ID
+//  * @param qualificationData - The qualification data with rate
+//  */
+// export async function deleteQualification(
+//   location: string,
+//   qualificationId: string | number,
+//   qualificationData: QualificationDeleteData
+// ): Promise<LegacyApiResponse> {
+//   const formData = new FormData();
   
-  // Handle empty string or number for rate
-  const rateValue = typeof qualificationData.rate === 'string' 
-    ? qualificationData.rate 
-    : qualificationData.rate.toString();
-  formData.append('Qualification[rate]', rateValue);
+//   // Handle empty string or number for rate
+//   const rateValue = typeof qualificationData.rate === 'string' 
+//     ? qualificationData.rate 
+//     : qualificationData.rate.toString();
+//   formData.append('Qualification[rate]', rateValue);
 
-  const url = `/admin/${location}/qualification/delete?id=${qualificationId}`;
+//   const url = `/admin/${location}/qualification/delete?id=${qualificationId}`;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-      },
-    });
+//   try {
+//     const response = await fetch(url, {
+//       method: 'POST',
+//       body: formData,
+//       credentials: 'include',
+//       headers: {
+//         'X-Requested-With': 'XMLHttpRequest',
+//         'Accept': 'application/json',
+//       },
+//     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+//     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Network error');
-  }
-}
+//     const data = await response.json();
+//     return data;
+//   } catch (error) {
+//     throw new Error(error instanceof Error ? error.message : 'Network error');
+//   }
+// }
 
 export interface TeacherBulkRescheduleResponse {
   status: boolean;

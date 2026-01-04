@@ -255,6 +255,93 @@ export async function createTeacherQualification(
 }
 
 // ---------------------------------------------
+// Qualification Update API
+// ---------------------------------------------
+
+export interface UpdateTeacherQualificationRequest {
+  rate: number;
+}
+
+export interface UpdateTeacherQualificationResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Updates a teacher qualification
+ * Endpoint: PUT /admin/v2/{location}/teachers/{teacherId}/qualifications/{qualificationId}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param qualificationId - The qualification ID to update
+ * @param qualificationData - The qualification data with rate
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function updateTeacherQualification(
+  location: string,
+  teacherId: number,
+  qualificationId: number,
+  qualificationData: UpdateTeacherQualificationRequest
+): Promise<UpdateTeacherQualificationResponse | null> {
+  try {
+    const response = await apiClient.put<UpdateTeacherQualificationResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/qualifications/${qualificationId}`,
+      {
+        rate: qualificationData.rate,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating teacher qualification:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to update teacher qualification',
+    };
+  }
+}
+
+// ---------------------------------------------
+// Qualification Delete API
+// ---------------------------------------------
+
+export interface DeleteTeacherQualificationResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Deletes a teacher qualification
+ * Endpoint: DELETE /admin/v2/{location}/teachers/{teacherId}/qualifications/{qualificationId}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param qualificationId - The qualification ID to delete
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteTeacherQualification(
+  location: string,
+  teacherId: number,
+  qualificationId: number
+): Promise<DeleteTeacherQualificationResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteTeacherQualificationResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/qualifications/${qualificationId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting teacher qualification:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to delete teacher qualification',
+    };
+  }
+}
+
+// ---------------------------------------------
 // Profile API
 // ---------------------------------------------
 
