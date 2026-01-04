@@ -5,7 +5,8 @@ import { InfoCard } from "@/components/InfoCard";
 import { TeacherQualification } from "../../types";
 import { AddQualificationModal } from "../modals/AddQualificationModal";
 import { QualificationList } from "../sections";
-import { createQualification, updateQualification, deleteQualification } from "@/lib/api/legacyApiAdapter";
+import { updateTeacherQualification, deleteTeacherQualification } from "../../[id]/teachers-details.api";
+import { createTeacherQualification } from "../../[id]/teachers-details.api";
 import { toast } from "sonner";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchQualifications } from "../../[id]/teachers.slice";
@@ -76,15 +77,16 @@ export const TeacherGroupQualificationCard = React.memo(
               return;
             }
 
-            const response = await updateQualification(
+            const response = await updateTeacherQualification(
               location,
+              teacherId,
               qualificationId,
               {
                 rate: data.rate,
               }
             );
 
-            if (response.status) {
+            if (response && response.success) {
               toast.success("Qualification updated successfully");
               setIsEditModalOpen(false);
               setEditingQualification(null);
@@ -98,9 +100,7 @@ export const TeacherGroupQualificationCard = React.memo(
               );
             } else {
               const errorMessage =
-                response.message ||
-                response.errors?.join(", ") ||
-                "Failed to update qualification";
+                response?.message || "Failed to update qualification";
               toast.error(errorMessage);
             }
           } catch (error) {
@@ -117,7 +117,7 @@ export const TeacherGroupQualificationCard = React.memo(
           }
 
           try {
-            const response = await createQualification(
+            const response = await createTeacherQualification(
               location,
               teacherId,
               2, // type 2 = group qualification
@@ -127,7 +127,7 @@ export const TeacherGroupQualificationCard = React.memo(
               }
             );
 
-            if (response.status) {
+            if (response && response.success) {
               const programCount = data.programs.length;
               toast.success(
                 programCount > 1
@@ -141,9 +141,7 @@ export const TeacherGroupQualificationCard = React.memo(
               await dispatch(fetchQualifications({ location, teacherId }));
             } else {
               const errorMessage =
-                response.message ||
-                response.errors?.join(", ") ||
-                "Failed to create qualification";
+                response?.message || "Failed to create qualification";
               toast.error(errorMessage);
             }
           } catch (error) {
@@ -167,16 +165,10 @@ export const TeacherGroupQualificationCard = React.memo(
 
     const handleDelete = React.useCallback(
       async (id: string) => {
-        // Find the qualification to get its rate
+        // Find the qualification to verify it exists
         const qualificationToDelete = qualifications.find((qual) => qual.id === id);
         if (!qualificationToDelete) {
           toast.error("Qualification not found");
-          return;
-        }
-
-        // Rate is required for delete API
-        if (qualificationToDelete.rate === undefined || qualificationToDelete.rate === null) {
-          toast.error("Rate is required for deletion");
           return;
         }
 
@@ -188,15 +180,13 @@ export const TeacherGroupQualificationCard = React.memo(
             return;
           }
 
-          const response = await deleteQualification(
+          const response = await deleteTeacherQualification(
             location,
-            qualificationId,
-            {
-              rate: qualificationToDelete.rate,
-            }
+            teacherId,
+            qualificationId
           );
 
-          if (response.status) {
+          if (response && response.success) {
             toast.success("Qualification deleted successfully");
             setEditingQualification(null);
             setIsEditModalOpen(false);
@@ -204,9 +194,7 @@ export const TeacherGroupQualificationCard = React.memo(
             onUpdate((prev) => prev.filter((qual) => qual.id !== id));
           } else {
             const errorMessage =
-              response.message ||
-              response.errors?.join(", ") ||
-              "Failed to delete qualification";
+              response?.message || "Failed to delete qualification";
             toast.error(errorMessage);
           }
         } catch (error) {
@@ -216,7 +204,7 @@ export const TeacherGroupQualificationCard = React.memo(
           toast.error(errorMessage);
         }
       },
-      [onUpdate, qualifications, location]
+      [onUpdate, qualifications, location, teacherId]
     );
 
     const handleViewToggle = React.useCallback(() => {

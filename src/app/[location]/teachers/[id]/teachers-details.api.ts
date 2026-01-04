@@ -200,6 +200,148 @@ export async function getTeacherQualifications(
 }
 
 // ---------------------------------------------
+// Qualification Create API
+// ---------------------------------------------
+
+export interface CreateTeacherQualificationRequest {
+  programs: number[];
+  rate?: number;
+}
+
+export interface CreateTeacherQualificationResponse {
+  success: boolean;
+  data: {
+    created: number;
+    updated: number;
+  };
+  message: string;
+}
+
+/**
+ * Creates teacher qualifications from the API
+ * Endpoint: POST /admin/v2/{location}/teachers/{teacherId}/qualifications?type={type}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param type - The qualification type: 1 for private, 2 for group
+ * @param qualificationData - The qualification data with programs array and optional rate
+ * @returns Promise resolving to the create response or null on error
+ */
+export async function createTeacherQualification(
+  location: string,
+  teacherId: number,
+  type: 1 | 2,
+  qualificationData: CreateTeacherQualificationRequest
+): Promise<CreateTeacherQualificationResponse | null> {
+  try {
+    const response = await apiClient.post<CreateTeacherQualificationResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/qualifications?type=${type}`,
+      {
+        programs: qualificationData.programs,
+        rate: qualificationData.rate,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error creating teacher qualification:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      data: { created: 0, updated: 0 },
+      message: apiError.response?.data?.message || 'Failed to create teacher qualification',
+    };
+  }
+}
+
+// ---------------------------------------------
+// Qualification Update API
+// ---------------------------------------------
+
+export interface UpdateTeacherQualificationRequest {
+  rate: number;
+}
+
+export interface UpdateTeacherQualificationResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Updates a teacher qualification
+ * Endpoint: PUT /admin/v2/{location}/teachers/{teacherId}/qualifications/{qualificationId}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param qualificationId - The qualification ID to update
+ * @param qualificationData - The qualification data with rate
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function updateTeacherQualification(
+  location: string,
+  teacherId: number,
+  qualificationId: number,
+  qualificationData: UpdateTeacherQualificationRequest
+): Promise<UpdateTeacherQualificationResponse | null> {
+  try {
+    const response = await apiClient.put<UpdateTeacherQualificationResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/qualifications/${qualificationId}`,
+      {
+        rate: qualificationData.rate,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating teacher qualification:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to update teacher qualification',
+    };
+  }
+}
+
+// ---------------------------------------------
+// Qualification Delete API
+// ---------------------------------------------
+
+export interface DeleteTeacherQualificationResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Deletes a teacher qualification
+ * Endpoint: DELETE /admin/v2/{location}/teachers/{teacherId}/qualifications/{qualificationId}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param qualificationId - The qualification ID to delete
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteTeacherQualification(
+  location: string,
+  teacherId: number,
+  qualificationId: number
+): Promise<DeleteTeacherQualificationResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteTeacherQualificationResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/qualifications/${qualificationId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting teacher qualification:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to delete teacher qualification',
+    };
+  }
+}
+
+// ---------------------------------------------
 // Profile API
 // ---------------------------------------------
 
@@ -573,6 +715,103 @@ export async function validateTeacherEmail(
       data: { exists: false },
       message:
         apiError.response?.data?.message || "Failed to validate teacher email",
+    };
+  }
+}
+
+// ---------------------------------------------
+// Teacher Availability Modify API
+// ---------------------------------------------
+
+export interface ModifyTeacherAvailabilityRequest {
+  day: number; // 1-7 (Monday-Sunday)
+  fromTime: string; // Format: "HH:mm:ss" (e.g., "13:00:00")
+  toTime: string; // Format: "HH:mm:ss" (e.g., "14:00:00")
+  classroomId?: number;
+}
+
+export interface ModifyTeacherAvailabilityResponse {
+  success: boolean;
+  data: {
+    success: boolean;
+  };
+  message: string;
+}
+
+/**
+ * Modifies teacher availability (create or update)
+ * Endpoint: POST /admin/v2/{location}/teachers/{teacherId}/availability/modify?availabilityId={availabilityId}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param availabilityId - Availability ID (0 for create, actual ID for update)
+ * @param availabilityData - The availability data
+ * @returns Promise resolving to the modify response or null on error
+ */
+export async function modifyTeacherAvailability(
+  location: string,
+  teacherId: number,
+  availabilityId: number,
+  availabilityData: ModifyTeacherAvailabilityRequest
+): Promise<ModifyTeacherAvailabilityResponse | null> {
+  try {
+    const response = await apiClient.post<ModifyTeacherAvailabilityResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/availability/modify?availabilityId=${availabilityId}`,
+      {
+        day: availabilityData.day,
+        fromTime: availabilityData.fromTime,
+        toTime: availabilityData.toTime,
+        classroomId: availabilityData.classroomId,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error modifying teacher availability:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      data: { success: false },
+      message: apiError.response?.data?.message || 'Failed to modify teacher availability',
+    };
+  }
+}
+
+// ---------------------------------------------
+// Teacher Availability Delete API
+// ---------------------------------------------
+
+export interface DeleteTeacherAvailabilityResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Deletes a teacher availability
+ * Endpoint: DELETE /admin/v2/{location}/teachers/{teacherId}/availability/{availabilityId}
+ * 
+ * @param location - The location identifier
+ * @param teacherId - The teacher user ID
+ * @param availabilityId - The availability ID to delete
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteTeacherAvailability(
+  location: string,
+  teacherId: number,
+  availabilityId: number
+): Promise<DeleteTeacherAvailabilityResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteTeacherAvailabilityResponse>(
+      `/admin/v2/${location}/teachers/${teacherId}/availability/${availabilityId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting teacher availability:', error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to delete teacher availability',
     };
   }
 }
