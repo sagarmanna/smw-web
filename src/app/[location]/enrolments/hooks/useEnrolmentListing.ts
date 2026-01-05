@@ -107,10 +107,10 @@ export function useEnrolmentListing(location: string) {
       query.showInActive = true;
       query.showAll = false;
     } else {
-      // Show all when activeFilter is undefined
+      // Show all when activeFilter is undefined (default "All Enrolments")
       query.showActive = false;
       query.showInActive = false;
-      query.showAll = false;
+      query.showAll = true;
     }
 
     return query;

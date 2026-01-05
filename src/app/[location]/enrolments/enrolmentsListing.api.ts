@@ -106,15 +106,15 @@ const buildEnrolmentsQueryParams = (query: EnrolmentsQuery): URLSearchParams => 
     params.append("lessonsRemaining", query.lessonsRemaining);
   }
   
-  // Show filters (active/inactive/all) - always include with default "false"
-  const showFilters: Array<{ key: string; value: boolean | undefined }> = [
-    { key: "showActive", value: query.showActive },
-    { key: "showInActive", value: query.showInActive },
-    { key: "showAll", value: query.showAll },
-  ];
-  showFilters.forEach(({ key, value }) => {
-    params.append(key, (value !== undefined ? value : false).toString());
-  });
+  // Show filters (active/inactive/all)
+  // Backend expects at least one of these to be true; default UI state is "All Enrolments".
+  const showActive = query.showActive === true;
+  const showInActive = query.showInActive === true;
+  const showAll = query.showAll === true || (!showActive && !showInActive);
+
+  params.append("showActive", showActive.toString());
+  params.append("showInActive", showInActive.toString());
+  params.append("showAll", showAll.toString());
   
   if (query.sort) {
     params.append("sort", query.sort);
