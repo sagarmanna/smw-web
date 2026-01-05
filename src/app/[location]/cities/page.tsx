@@ -1,11 +1,12 @@
-import React from 'react'
+import { CitiesListingClient } from "./CitiesListingClient";
 
-const CitiesPage = () => {
-  return (
-    <div>
-      <h1>Cities</h1>
-    </div>
-  )
+interface CitiesPageProps {
+  params: Promise<{
+    location: string;
+  }>;
 }
 
-export default CitiesPage
+export default async function CitiesPage({ params }: CitiesPageProps) {
+  const { location } = await params;
+  return <CitiesListingClient location={location} />;
+}
