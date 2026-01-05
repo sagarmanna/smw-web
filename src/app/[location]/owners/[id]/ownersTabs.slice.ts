@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import {
   HistoryData,
-} from '../ownerTabConfigs';
+} from './config/ownerTabConfigs';
 import { getOwnerHistory } from './ownersTabs.api';
 
 export interface OwnerTabsState {

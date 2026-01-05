@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import {
   HistoryData,
-} from '../staffMemberTabConfigs';
+} from './config/staffMemberTabConfigs';
 import { getStaffMemberHistory } from './staffMembersTabs.api';
 
 export interface StaffMemberTabsState {
