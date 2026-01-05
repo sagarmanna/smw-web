@@ -10,13 +10,19 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useStaffMemberDetails } from "../hooks/useStaffMemberDetails";
-import { StaffMemberDetailsCard } from "../components/StaffMemberDetailsCard";
-import { StaffMemberEmailCard } from "../components/StaffMemberEmailCard";
-import { StaffMemberPhoneCard } from "../components/StaffMemberPhoneCard";
-import { StaffMemberAddressCard } from "../components/StaffMemberAddressCard";
 import { StaffMemberTabsSection } from "../components/StaffMemberTabsSection";
-import { deleteUserByRole } from "@/lib/api/user.api";
+import { staffMemberDetailPageConfig } from "./config/detailPageConfig";
 import { formatFullName } from "../utils/nameUtils";
+import { UserDetailsCard } from "@/components/user-details/cards/UserDetailsCard";
+import { UserEmailCard } from "@/components/user-details/cards/UserEmailCard";
+import { UserPhoneCard } from "@/components/user-details/cards/UserPhoneCard";
+import { UserAddressCard } from "@/components/user-details/cards/UserAddressCard";
+import { EditUserDetailsModal } from "@/components/user-details/modals/EditUserDetailsModal";
+import { CreateEmailModal } from "@/components/user-details/modals/CreateEmailModal";
+import { CreatePhoneModal } from "@/components/user-details/modals/CreatePhoneModal";
+import { CreateAddressModal } from "@/components/user-details/modals/CreateAddressModal";
+import { EmailList, PhoneList, AddressList } from "../components/sections";
+import { useEmailHandlers, usePhoneHandlers, useAddressHandlers } from "../hooks/useStaffMemberItemHandlers";
 
 interface StaffMemberDetailClientProps {
   location: string;
@@ -71,14 +77,14 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
   const handleDeleteConfirm = React.useCallback(async () => {
     setIsDeleting(true);
     try {
-      const response = await deleteUserByRole(location, staffMemberId, 'staffmember');
+      const response = await staffMemberDetailPageConfig.deleteEndpoint(location, staffMemberId);
       
-      if (response.success) {
+      if (response?.success) {
         toast.success(response.message || "Staff member deleted successfully");
         // Redirect to staff members list
         router.push(`/${location}/staff-members`);
       } else {
-        toast.error(response.message || "Failed to delete staff member");
+        toast.error(response?.message || "Failed to delete staff member");
       }
     } catch (error: unknown) {
       const errorResponse = error as { errorCode?: string; message?: string };
@@ -156,31 +162,60 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
           {/* Left Column */}
           <div className="space-y-3 sm:space-y-4">
-            <StaffMemberDetailsCard
+            <UserDetailsCard
               details={details}
+              config={{
+                defaultRole: staffMemberDetailPageConfig.defaultRole,
+                roleLabel: staffMemberDetailPageConfig.roleLabel,
+              }}
               onSaveDetails={saveDetails}
               savingDetails={savingDetails}
               isLoading={isLoading}
+              EditModal={(props) => (
+                <EditUserDetailsModal
+                  {...props}
+                  title="Edit Staff Member Details"
+                  defaultRole={staffMemberDetailPageConfig.defaultRole}
+                />
+              )}
+              formatName={(d) => formatFullName(d?.firstName, d?.lastName) || ""}
             />
 
             {/* Mobile Email and Phone Cards - Only on Mobile */}
             <div className="lg:hidden space-y-3 sm:space-y-4">
-              <StaffMemberEmailCard
+              <UserEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
                 loading={isLoading}
                 location={location}
-                staffMemberId={staffMemberId}
+                entityId={staffMemberId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreateEmailModal
+                    {...props}
+                    apiAdapter={staffMemberDetailPageConfig.apiAdapter}
+                    validateEmail={staffMemberDetailPageConfig.validateEmail}
+                  />
+                )}
+                EmailList={EmailList}
+                useEmailHandlers={useEmailHandlers}
               />
 
-              <StaffMemberPhoneCard
+              <UserPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
                 loading={isLoading}
                 location={location}
-                staffMemberId={staffMemberId}
+                entityId={staffMemberId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreatePhoneModal
+                    {...props}
+                    apiAdapter={staffMemberDetailPageConfig.apiAdapter}
+                  />
+                )}
+                PhoneList={PhoneList}
+                usePhoneHandlers={usePhoneHandlers}
               />
             </div>
           </div>
@@ -189,34 +224,59 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
           <div className="space-y-3 sm:space-y-4">
             {/* Desktop Email and Phone Cards */}
             <div className="hidden lg:block">
-              <StaffMemberEmailCard
+              <UserEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
                 loading={isLoading}
                 location={location}
-                staffMemberId={staffMemberId}
+                entityId={staffMemberId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreateEmailModal
+                    {...props}
+                    apiAdapter={staffMemberDetailPageConfig.apiAdapter}
+                    validateEmail={staffMemberDetailPageConfig.validateEmail}
+                  />
+                )}
+                EmailList={EmailList}
+                useEmailHandlers={useEmailHandlers}
               />
             </div>
 
             <div className="hidden lg:block">
-              <StaffMemberPhoneCard
+              <UserPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
                 loading={isLoading}
                 location={location}
-                staffMemberId={staffMemberId}
+                entityId={staffMemberId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreatePhoneModal
+                    {...props}
+                    apiAdapter={staffMemberDetailPageConfig.apiAdapter}
+                  />
+                )}
+                PhoneList={PhoneList}
+                usePhoneHandlers={usePhoneHandlers}
               />
             </div>
 
-            <StaffMemberAddressCard
+            <UserAddressCard
               addresses={addresses}
               onUpdate={updateAddresses}
               loading={isLoading}
               location={location}
-              staffMemberId={staffMemberId}
+              entityId={staffMemberId}
               onRefresh={refresh}
+              CreateModal={(props) => (
+                <CreateAddressModal
+                  {...props}
+                  apiAdapter={staffMemberDetailPageConfig.apiAdapter}
+                />
+              )}
+              AddressList={AddressList}
+              useAddressHandlers={useAddressHandlers}
             />
           </div>
         </div>
@@ -239,4 +299,3 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
     </>
   );
 }
-

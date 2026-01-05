@@ -3,6 +3,7 @@ export interface StaffMemberBasicDetails {
   lastName: string;
   role?: string;
   picture?: string;
+  [key: string]: unknown; // Allow module-specific fields for GenericBasicDetails compatibility
 }
 
 export interface StaffMemberEmail {
