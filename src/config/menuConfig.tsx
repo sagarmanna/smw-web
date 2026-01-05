@@ -306,7 +306,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       id: 'enrolments',
       title: 'Enrolments',
       icon: <BookOpen className="h-4 w-4" />,
-      url: '/enrolment/index?EnrolmentSearch[showAllEnrolments]=0',
+      url: getMenuSource(locationFlags, 'enrolments') === 'legacy' ? '/enrolment/index?EnrolmentSearch[showAllEnrolments]=0' : '/enrolments',
       source: getMenuSource(locationFlags, 'enrolments') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'enrolments') ? ('no' as const) : ('yes' as const),
