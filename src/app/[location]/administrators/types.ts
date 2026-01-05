@@ -3,6 +3,7 @@ export interface AdministratorBasicDetails {
   lastName: string;
   role?: string;
   picture?: string;
+  [key: string]: unknown;
 }
 
 export interface AdministratorEmail {
