@@ -17,10 +17,12 @@ import {
   Teacher,
 } from "../../schedule/schedule.api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Button } from "@/components/ui/button";
 import { updateLesson, formatDateTimeForLegacy, formatDurationForLegacy } from "@/lib/api/legacyApiAdapter";
 import { toast } from "sonner";
 import { AppDispatch, RootState } from "@/redux/store";
-import { fetchTeachersByProgram } from "../scheduleFilters.slice";
+import { fetchTeachersByProgram, fetchAllTeachers } from "../scheduleFilters.slice";
+import { Maximize, Minimize } from "lucide-react";
 
 interface CalendarEvent {
   id: string;
@@ -78,6 +80,9 @@ interface ScheduleViewContextType {
   teachersLoading: boolean;
   selectedTeacher: string;
   setSelectedTeacher: (value: string) => void;
+  // Fullscreen
+  isFullScreen: boolean;
+  setIsFullScreen: (value: boolean) => void;
 }
 
 const ScheduleViewContext = React.createContext<ScheduleViewContextType | null>(null);
@@ -97,10 +102,11 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
   const programs = useSelector((state: RootState) => state.scheduleFilters.programs);
   const programsLoading = useSelector((state: RootState) => state.scheduleFilters.programsLoading);
   const teachersByProgram = useSelector((state: RootState) => state.scheduleFilters.teachersByProgram);
+  const allTeachers = useSelector((state: RootState) => state.scheduleFilters.allTeachers);
   const teachersLoading = useSelector((state: RootState) => state.scheduleFilters.teachersLoading);
   
   const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
-  const [showAll, setShowAll] = React.useState<boolean>(false);
+  const [showAll, setShowAll] = React.useState<boolean>(true);
   const [isLoadingSchedule, setIsLoadingSchedule] = React.useState<boolean>(false);
   const [scheduleDetails, setScheduleDetails] = React.useState<ScheduleDetails | null>(null);
   const [scheduleDetailsLoading, setScheduleDetailsLoading] = React.useState<boolean>(false);
@@ -111,14 +117,20 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
   const [updatingEvents, setUpdatingEvents] = React.useState<Set<string>>(new Set());
   const teacherCalendarRef = React.useRef<CalendarWrapperRef>(null);
   
-  // Local filter state (UI state)
-  const [selectedProgram, setSelectedProgram] = React.useState<string>("");
-  const [selectedTeacher, setSelectedTeacher] = React.useState<string>("");
+  // Local filter state (UI state) - initialize with "all" for both
+  const [selectedProgram, setSelectedProgram] = React.useState<string>("all");
+  const [selectedTeacher, setSelectedTeacher] = React.useState<string>("all");
   
-  // Get teachers for selected program from Redux
+  // Fullscreen state
+  const [isFullScreen, setIsFullScreen] = React.useState<boolean>(false);
+  
+  // Get teachers based on selected program
   const teachers = React.useMemo(() => {
+    if (selectedProgram === "all") {
+      return allTeachers;
+    }
     return selectedProgram ? (teachersByProgram[selectedProgram] || []) : [];
-  }, [selectedProgram, teachersByProgram]);
+  }, [selectedProgram, teachersByProgram, allTeachers]);
 
   const safeSelectedDate = React.useMemo(() => {
     return selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
@@ -149,22 +161,23 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
 
   // Programs are already loaded in page.tsx and stored in Redux
 
-  // Fetch teachers by program when program is selected (store in Redux)
+  // Fetch teachers when program selection changes
   React.useEffect(() => {
-    if (!location || !selectedProgram) {
-      // Clear teacher selection when program is cleared
-      setSelectedTeacher("");
-      return;
-    }
+    if (!location) return;
 
-    // Check if teachers for this program are already in Redux
-    if (teachersByProgram[selectedProgram]) {
-      return; // Already loaded, no need to fetch again
+    if (selectedProgram === "all") {
+      // Fetch all teachers if not already loaded
+      if (allTeachers.length === 0) {
+        dispatch(fetchAllTeachers(location));
+      }
+    } else if (selectedProgram && selectedProgram !== "all") {
+      // Check if teachers for this program are already in Redux
+      if (!teachersByProgram[selectedProgram]) {
+        // Fetch teachers by program and store in Redux
+        dispatch(fetchTeachersByProgram({ location, programId: selectedProgram }));
+      }
     }
-
-    // Fetch teachers by program and store in Redux
-    dispatch(fetchTeachersByProgram({ location, programId: selectedProgram }));
-  }, [location, selectedProgram, teachersByProgram, dispatch]);
+  }, [location, selectedProgram, teachersByProgram, allTeachers, dispatch]);
 
   // Fetch teacher view data when filters or date change
   React.useEffect(() => {
@@ -173,12 +186,16 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     const fetchTeacherView = async () => {
       try {
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
+        // Only pass programId if it's a valid number string (not "all" or empty)
+        const programIdParam = selectedProgram && selectedProgram !== "all" ? selectedProgram : undefined;
+        const teacherIdParam = selectedTeacher && selectedTeacher !== "all" ? selectedTeacher : undefined;
+        
         const response = await getTeacherView(
           location, 
           dateStr, 
           showAll,
-          selectedProgram || undefined,
-          selectedTeacher || undefined
+          programIdParam,
+          teacherIdParam
         );
         
         if (response?.success) {
@@ -201,12 +218,16 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
         setIsLoadingSchedule(true);
         const dateStr = format(safeSelectedDate, "yyyy-MM-dd");
         
+        // Only pass programId if it's a valid number string (not "all" or empty)
+        const programIdParam = selectedProgram && selectedProgram !== "all" ? selectedProgram : undefined;
+        const teacherIdParam = selectedTeacher && selectedTeacher !== "all" ? selectedTeacher : undefined;
+        
         const response = await getTeacherViewEvents(
           location, 
           dateStr, 
           showAll,
-          selectedProgram || undefined,
-          selectedTeacher || undefined
+          programIdParam,
+          teacherIdParam
         );
         
         if (response?.success) {
@@ -416,6 +437,8 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     teachersLoading,
     selectedTeacher,
     setSelectedTeacher,
+    isFullScreen,
+    setIsFullScreen,
   };
 
   return (
@@ -492,14 +515,15 @@ export function ScheduleViewControls() {
       <div className="w-[200px]">
         <SearchableSelect
           id="schedule-program-filter"
-          options={programs.map(p => ({ value: p.id.toString(), label: p.name }))}
+          options={[
+            { value: "all", label: "All Program" },
+            ...programs.map(p => ({ value: p.id.toString(), label: p.name }))
+          ]}
           value={selectedProgram}
           onValueChange={(value) => {
-            setSelectedProgram(value || "");
-            // Clear teacher selection when program changes
-            if (!value) {
-              setSelectedTeacher("");
-            }
+            setSelectedProgram(value || "all");
+            // Reset teacher selection to "all" when program changes
+            setSelectedTeacher("all");
           }}
           placeholder="Program"
           searchPlaceholder="Search programs..."
@@ -516,10 +540,13 @@ export function ScheduleViewControls() {
       <div className="w-[200px]">
         <SearchableSelect
           id="schedule-teacher-filter"
-          options={teachers.map(t => ({ value: t.id.toString(), label: t.name }))}
+          options={[
+            { value: "all", label: "All Teacher" },
+            ...teachers.map(t => ({ value: t.id.toString(), label: t.name }))
+          ]}
           value={selectedTeacher}
-          onValueChange={(value) => setSelectedTeacher(value || "")}
-          placeholder={!selectedProgram ? "Select a program first" : "Teacher"}
+          onValueChange={(value) => setSelectedTeacher(value || "all")}
+          placeholder={selectedProgram === "all" ? "Teacher" : selectedProgram ? "Teacher" : "Select a program first"}
           searchPlaceholder="Search teachers..."
           emptyText="No teachers available"
           loadingText="Loading teachers..."
@@ -546,10 +573,14 @@ export function ScheduleView() {
     handleEventDrop,
     handleEventResize,
     showAll,
+    setShowAll,
     getTimeRange,
     teacherViewAvailability,
     updatingEvents,
     teacherCalendarRef,
+    isFullScreen,
+    setIsFullScreen,
+    scheduleDetails,
   } = useScheduleViewContext();
 
   const timeRange = getTimeRange();
@@ -567,44 +598,147 @@ export function ScheduleView() {
   }
 
   return (
-    <div>
-      <ReactBigCalendarWrapper
-        ref={teacherCalendarRef}
-        events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
-        resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
-        date={selectedDate}
-        onNavigate={setSelectedDate}
-        onEventClick={handleEventClick}
-        onEventDrop={handleEventDrop}
-        onEventResize={handleEventResize}
-        editable={false}
-        showAll={showAll}
-        minTime={timeRange.minTime}
-        maxTime={timeRange.maxTime}
-        availability={teacherViewAvailability}
-        viewType="teacher"
-        updatingEvents={updatingEvents}
-        teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
-        height="75vh"
-      />
-    </div>
+    <>
+      {/* Regular Calendar View */}
+      <div>
+        <ReactBigCalendarWrapper
+          ref={teacherCalendarRef}
+          events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
+          resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
+          date={selectedDate}
+          onNavigate={setSelectedDate}
+          onEventClick={handleEventClick}
+          onEventDrop={handleEventDrop}
+          onEventResize={handleEventResize}
+          editable={false}
+          showAll={showAll}
+          minTime={timeRange.minTime}
+          maxTime={timeRange.maxTime}
+          availability={teacherViewAvailability}
+          viewType="teacher"
+          updatingEvents={updatingEvents}
+          teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
+          height="75vh"
+        />
+      </div>
+
+      {/* Fullscreen Overlay */}
+      {isFullScreen && (
+        <div className="fixed inset-0 z-[100] bg-background p-4 flex flex-col gap-4">
+          {/* Fullscreen Header */}
+          <div className="flex justify-between items-center flex-shrink-0">
+            <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
+              Schedule for {format(selectedDate, "EEEE, MMMM do, yyyy")}
+              {scheduleDetails?.Holiday?.description ? ` - ${scheduleDetails.Holiday.description}` : ''}
+            </h1>
+
+            <div className="flex items-center gap-2">
+              {/* Show All Checkbox */}
+              <div className="flex items-center space-x-1">
+                <input
+                  id="show-all-fullscreen"
+                  type="checkbox"
+                  checked={showAll}
+                  onChange={(e) => setShowAll(e.target.checked)}
+                  className="rounded border-gray-300 h-3 w-3"
+                />
+                <label htmlFor="show-all-fullscreen" className="text-xs font-medium">
+                  Show All
+                </label>
+              </div>
+
+              {/* Exit Fullscreen Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFullScreen(false)}
+                title="Exit Fullscreen"
+                className="h-7 w-7 p-0"
+              >
+                <Minimize className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Fullscreen Calendar */}
+          <div className="flex-1 relative overflow-y-auto">
+            <ReactBigCalendarWrapper
+              ref={teacherCalendarRef}
+              events={convertTeacherViewEventsToCalendar(teacherViewEvents)}
+              resources={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title, description: "" }))}
+              date={selectedDate}
+              onNavigate={setSelectedDate}
+              onEventClick={handleEventClick}
+              onEventDrop={handleEventDrop}
+              onEventResize={handleEventResize}
+              editable={false}
+              showAll={showAll}
+              minTime={timeRange.minTime}
+              maxTime={timeRange.maxTime}
+              availability={teacherViewAvailability}
+              viewType="teacher"
+              updatingEvents={updatingEvents}
+              teachers={teacherViewResources.map(teacher => ({ id: teacher.id, title: teacher.title }))}
+              height="85vh"
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
 // Schedule Header Component
 export function ScheduleHeader() {
-  const { selectedDate, scheduleDetails, scheduleDetailsLoading } = useScheduleViewContext();
+  const {
+    selectedDate,
+    scheduleDetails,
+    scheduleDetailsLoading,
+    showAll,
+    setShowAll,
+    isFullScreen,
+    setIsFullScreen,
+  } = useScheduleViewContext();
 
   const headerTitle = React.useMemo(() => {
     return `Schedule for ${format(selectedDate, "EEEE, MMMM do, yyyy")}${scheduleDetails?.Holiday?.description ? ` - ${scheduleDetails.Holiday.description}` : ''}`;
   }, [selectedDate, scheduleDetails]);
 
   return (
-    <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
-      {headerTitle}
-      {scheduleDetailsLoading && (
-        <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
-      )}
-    </h1>
+    <div className="flex items-center justify-between gap-2 w-full">
+      <h1 className="sm:text-lg md:text-xl font-bold tracking-tight truncate">
+        {headerTitle}
+        {scheduleDetailsLoading && (
+          <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
+        )}
+      </h1>
+
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Show All Checkbox */}
+        <div className="flex items-center space-x-1">
+          <input
+            id="show-all-header"
+            type="checkbox"
+            checked={showAll}
+            onChange={(e) => setShowAll(e.target.checked)}
+            className="rounded border-gray-300 h-3 w-3"
+          />
+          <label htmlFor="show-all-header" className="text-xs font-medium">
+            Show All
+          </label>
+        </div>
+
+        {/* Fullscreen Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsFullScreen(true)}
+          title="Enter Fullscreen"
+          className="h-7 w-7 p-0 hidden md:flex"
+        >
+          <Maximize className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -25,6 +25,7 @@ import { ScheduleView, ScheduleHeader, ScheduleViewControls, ScheduleViewProvide
 import { ChangeTeacherModal } from "./components/ChangeTeacherModal";
 import { NewEnrolmentModal, type EnrolmentFormData } from "./components/NewEnrolmentModal";
 import { toast } from "sonner";
+import { isDev } from "@/utils/env";
 
 interface EnrolmentsListingClientProps {
   location: string;
@@ -205,6 +206,10 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
       <DropdownMenuContent align="end">
         <DropdownMenuItem 
           onClick={() => {
+            if (!isDev()) {
+              toast.info("Change Teacher is in development");
+              return;
+            }
             if (selectedRows.size > 0) {
               setChangeTeacherModalOpen(true);
             }
@@ -248,7 +253,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
   // Reusable Add Enrolment Button
   const addEnrolmentButton = React.useMemo(() => (
     <Button 
-      onClick={() => setIsNewEnrolmentModalOpen(true)} 
+      onClick={() => isDev() ? setIsNewEnrolmentModalOpen(true) : toast.info("Add Enrolments is in development")} 
       className="bg-primary hover:bg-primary/90"
     >
       <Plus className="h-4 w-4 mr-2" />
@@ -335,6 +340,12 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
               }}
               onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
               onRowClick={(row: EnrolmentRow) => {
+                if (!isDev()) {
+                  // /admin/training-location/enrolment/view?id=31202
+                  const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/enrolment/view?id=${row.id}`;
+                  window.location.href = url;
+                  return;
+                }
                 router.push(`/${location}/enrolments/${row.id}`);
               }}
               rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
