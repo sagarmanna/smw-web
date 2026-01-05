@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { getProgramsList, getTeacherView, Program, Teacher } from '../schedule/schedule.api';
+import { getProgramsList, getTeacherView, getTeachersList, Program, Teacher } from '../schedule/schedule.api';
 import { format } from 'date-fns';
 
 interface TeachersByProgram {
@@ -11,6 +11,7 @@ interface ScheduleFiltersState {
   programsLoading: boolean;
   programsError: string | null;
   teachersByProgram: TeachersByProgram;
+  allTeachers: Teacher[];
   teachersLoading: boolean;
   teachersError: string | null;
 }
@@ -20,6 +21,7 @@ const initialState: ScheduleFiltersState = {
   programsLoading: false,
   programsError: null,
   teachersByProgram: {},
+  allTeachers: [],
   teachersLoading: false,
   teachersError: null,
 };
@@ -42,6 +44,24 @@ export const fetchPrograms = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching all teachers
+export const fetchAllTeachers = createAsyncThunk(
+  'scheduleFilters/fetchAllTeachers',
+  async (location: string, { rejectWithValue }) => {
+    try {
+      const response = await getTeachersList(location);
+      
+      if (response?.success) {
+        return response.data;
+      }
+      
+      return rejectWithValue(response?.message || 'Failed to fetch teachers');
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch teachers');
+    }
+  }
+);
+
 // Async thunk for fetching teachers by program
 export const fetchTeachersByProgram = createAsyncThunk(
   'scheduleFilters/fetchTeachersByProgram',
@@ -50,6 +70,11 @@ export const fetchTeachersByProgram = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
+      // Safeguard: Never process "all" as a programId
+      if (programId === "all" || !programId) {
+        return rejectWithValue('Invalid programId: cannot fetch teachers for "all"');
+      }
+      
       // Use today's date for the API call
       const today = new Date();
       const dateString = format(today, "yyyy-MM-dd");
@@ -124,6 +149,20 @@ const scheduleFiltersSlice = createSlice({
         state.teachersError = null;
       })
       .addCase(fetchTeachersByProgram.rejected, (state, action) => {
+        state.teachersLoading = false;
+        state.teachersError = action.payload as string;
+      })
+      // All teachers
+      .addCase(fetchAllTeachers.pending, (state) => {
+        state.teachersLoading = true;
+        state.teachersError = null;
+      })
+      .addCase(fetchAllTeachers.fulfilled, (state, action) => {
+        state.teachersLoading = false;
+        state.allTeachers = action.payload;
+        state.teachersError = null;
+      })
+      .addCase(fetchAllTeachers.rejected, (state, action) => {
         state.teachersLoading = false;
         state.teachersError = action.payload as string;
       });

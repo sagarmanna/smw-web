@@ -1,2 +1,0 @@
-export { HistoryTab } from "./HistoryTab";
-

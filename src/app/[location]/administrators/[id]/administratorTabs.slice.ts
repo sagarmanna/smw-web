@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import {
   HistoryData,
-} from '../administratorTabConfigs';
+} from './config/administratorTabConfigs';
 import { getAdministratorHistory } from './administrators-details-tabs.api';
 
 export interface AdministratorTabsState {

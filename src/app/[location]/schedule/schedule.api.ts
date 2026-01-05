@@ -76,6 +76,7 @@ export interface TeacherViewEvent {
   tooltip: TooltipItem[];
   isOnline: boolean;
   programId: number | null;
+  enrolmentId: number | null;
 }
 
 export interface TeacherViewAvailability {
