@@ -46,6 +46,10 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     legacyUrl: '/user/index?UserSearch%5Brole_name%5D=customer'
   },
   {
+    pattern: /^\/[^/]+\/enrolments$/, // Matches /[location]/enrolments (list page)
+    legacyUrl: '/enrolment/index?EnrolmentSearch%5BshowAllEnrolments%5D=0'
+  },
+  {
     pattern: /^\/[^/]+\/students$/, // Matches /[location]/students (list page)
     legacyUrl: '/student/index?StudentSearch%5BshowAllStudents%5D=0'
   },
