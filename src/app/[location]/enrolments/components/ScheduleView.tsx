@@ -35,6 +35,7 @@ interface CalendarEvent {
   className?: string;
   extendedProps?: {
     lessonId?: string;
+    enrolmentId?: string;
     teacher?: string;
     classroom?: string;
     program?: string;
@@ -83,6 +84,8 @@ interface ScheduleViewContextType {
   // Fullscreen
   isFullScreen: boolean;
   setIsFullScreen: (value: boolean) => void;
+  // Active tab
+  activeTab: "enrolments" | "schedule";
 }
 
 const ScheduleViewContext = React.createContext<ScheduleViewContextType | null>(null);
@@ -95,7 +98,15 @@ function useScheduleViewContext() {
   return context;
 }
 
-function ScheduleViewProvider({ location, children }: { location: string; children: React.ReactNode }) {
+function ScheduleViewProvider({ 
+  location, 
+  activeTab,
+  children 
+}: { 
+  location: string; 
+  activeTab: "enrolments" | "schedule";
+  children: React.ReactNode;
+}) {
   const dispatch = useDispatch<AppDispatch>();
   
   // Redux state for programs and teachers
@@ -106,7 +117,7 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
   const teachersLoading = useSelector((state: RootState) => state.scheduleFilters.teachersLoading);
   
   const [selectedDate, setSelectedDate] = React.useState<Date>(() => new Date());
-  const [showAll, setShowAll] = React.useState<boolean>(true);
+  const [showAll, setShowAll] = React.useState<boolean>(false);
   const [isLoadingSchedule, setIsLoadingSchedule] = React.useState<boolean>(false);
   const [scheduleDetails, setScheduleDetails] = React.useState<ScheduleDetails | null>(null);
   const [scheduleDetailsLoading, setScheduleDetailsLoading] = React.useState<boolean>(false);
@@ -260,6 +271,7 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
         className: event.className,
         extendedProps: {
           lessonId: event.lessonId.toString(),
+          enrolmentId: event.enrolmentId?.toString() || "",
           teacher: tooltip.find(t => t.name === "Teacher")?.value || "",
           classroom: tooltip.find(t => t.name === "Classroom")?.value || "",
           program: tooltip.find(t => t.name === "Program")?.value || "",
@@ -277,13 +289,13 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
   }, []);
 
   const handleEventClick = React.useCallback((event: CalendarEvent) => {
-    const lessonId = event.extendedProps?.lessonId || event.id;
-    if (lessonId) {
+    const enrolmentId = event.extendedProps?.enrolmentId;
+    if (enrolmentId) {
       const baseUrl = process.env.NEXT_PUBLIC_LEGACY_URL;
       if (baseUrl) {
         // Remove any location from baseUrl if it exists, then add the current location
         const cleanBaseUrl = baseUrl.replace(/\/admin\/[^/]+$/, '/admin');
-        const enrolmentUrl = `${cleanBaseUrl}/${location}/enrolment/view?id=${lessonId}`;
+        const enrolmentUrl = `${cleanBaseUrl}/${location}/enrolment/view?id=${enrolmentId}`;
         window.open(enrolmentUrl, '_self');
       }
     }
@@ -439,6 +451,7 @@ function ScheduleViewProvider({ location, children }: { location: string; childr
     setSelectedTeacher,
     isFullScreen,
     setIsFullScreen,
+    activeTab,
   };
 
   return (
@@ -698,6 +711,7 @@ export function ScheduleHeader() {
     setShowAll,
     isFullScreen,
     setIsFullScreen,
+    activeTab,
   } = useScheduleViewContext();
 
   const headerTitle = React.useMemo(() => {
@@ -713,32 +727,35 @@ export function ScheduleHeader() {
         )}
       </h1>
 
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Show All Checkbox */}
-        <div className="flex items-center space-x-1">
-          <input
-            id="show-all-header"
-            type="checkbox"
-            checked={showAll}
-            onChange={(e) => setShowAll(e.target.checked)}
-            className="rounded border-gray-300 h-3 w-3"
-          />
-          <label htmlFor="show-all-header" className="text-xs font-medium">
-            Show All
-          </label>
-        </div>
+      {/* Only show controls when schedule tab is active */}
+      {activeTab === "schedule" && (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Show All Checkbox */}
+          <div className="flex items-center space-x-1">
+            <input
+              id="show-all-header"
+              type="checkbox"
+              checked={showAll}
+              onChange={(e) => setShowAll(e.target.checked)}
+              className="rounded border-gray-300 h-3 w-3"
+            />
+            <label htmlFor="show-all-header" className="text-xs font-medium">
+              Show All
+            </label>
+          </div>
 
-        {/* Fullscreen Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsFullScreen(true)}
-          title="Enter Fullscreen"
-          className="h-7 w-7 p-0 hidden md:flex"
-        >
-          <Maximize className="h-3 w-3" />
-        </Button>
-      </div>
+          {/* Fullscreen Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsFullScreen(true)}
+            title="Enter Fullscreen"
+            className="h-7 w-7 p-0 hidden md:flex"
+          >
+            <Maximize className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -399,7 +399,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
   }
 
   return (
-    <ScheduleViewProvider location={location}>
+    <ScheduleViewProvider location={location} activeTab={activeTab}>
       <div className="min-h-screen flex flex-col">
         {/* Compact Header - Responsive height */}
         <div className="flex-shrink-0 max-h-[200px] md:max-h-[100px] space-y-2">
