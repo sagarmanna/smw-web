@@ -30,7 +30,7 @@ const initialState: EnrolmentsListingState = {
   sortBy: 'program', // Default to sorting by program
   sortDir: 'asc',
   columnFilters: {},
-  activeFilter: undefined, // Default to showing all enrolments
+  activeFilter: "active", // Default to showing active enrolments
 };
 
 // Async thunk for fetching enrolments list
