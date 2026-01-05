@@ -9,7 +9,8 @@ interface UseEmailHandlersProps {
   emails: AdministratorEmail[];
   updateEmails: React.Dispatch<React.SetStateAction<AdministratorEmail[]>>;
   location: string;
-  administratorId: number;
+  administratorId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -18,8 +19,10 @@ export function useEmailHandlers({
   updateEmails,
   location,
   administratorId,
+  entityId,
   onRefresh,
 }: UseEmailHandlersProps) {
+  const effectiveAdministratorId = administratorId ?? entityId ?? 0;
   const [editingEmail, setEditingEmail] = React.useState<AdministratorEmail | null>(null);
   const [emailToDelete, setEmailToDelete] = React.useState<AdministratorEmail | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -78,7 +81,7 @@ export function useEmailHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteAdministratorEmail(location, administratorId, id);
+      const result = await deleteAdministratorEmail(location, effectiveAdministratorId, id);
 
       if (result?.success) {
         toast.success("Email deleted successfully");
@@ -100,7 +103,7 @@ export function useEmailHandlers({
       setIsDeleting(false);
       setEmailToDelete(null);
     }
-  }, [emailToDelete, location, administratorId, updateEmails, onRefresh]);
+  }, [emailToDelete, location, effectiveAdministratorId, updateEmails, onRefresh]);
 
   return {
     editingEmail,
@@ -119,7 +122,8 @@ interface UsePhoneHandlersProps {
   phones: AdministratorPhone[];
   updatePhones: React.Dispatch<React.SetStateAction<AdministratorPhone[]>>;
   location: string;
-  administratorId: number;
+  administratorId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -128,8 +132,10 @@ export function usePhoneHandlers({
   updatePhones,
   location,
   administratorId,
+  entityId,
   onRefresh,
 }: UsePhoneHandlersProps) {
+  const effectiveAdministratorId = administratorId ?? entityId ?? 0;
   const [editingPhone, setEditingPhone] = React.useState<AdministratorPhone | null>(null);
   const [phoneToDelete, setPhoneToDelete] = React.useState<AdministratorPhone | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -170,7 +176,7 @@ export function usePhoneHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteAdministratorPhone(location, administratorId, id);
+      const result = await deleteAdministratorPhone(location, effectiveAdministratorId, id);
 
       if (result?.success) {
         toast.success("Phone deleted successfully");
@@ -192,7 +198,7 @@ export function usePhoneHandlers({
       setIsDeleting(false);
       setPhoneToDelete(null);
     }
-  }, [phoneToDelete, location, administratorId, updatePhones, onRefresh]);
+  }, [phoneToDelete, location, effectiveAdministratorId, updatePhones, onRefresh]);
 
   return {
     editingPhone,
@@ -211,7 +217,8 @@ interface UseAddressHandlersProps {
   addresses: AdministratorAddress[];
   updateAddresses: React.Dispatch<React.SetStateAction<AdministratorAddress[]>>;
   location: string;
-  administratorId: number;
+  administratorId?: number;
+  entityId?: number;
   onRefresh?: () => Promise<void>;
 }
 
@@ -220,8 +227,10 @@ export function useAddressHandlers({
   updateAddresses,
   location,
   administratorId,
+  entityId,
   onRefresh,
 }: UseAddressHandlersProps) {
+  const effectiveAdministratorId = administratorId ?? entityId ?? 0;
   const [editingAddress, setEditingAddress] = React.useState<AdministratorAddress | null>(null);
   const [addressToDelete, setAddressToDelete] = React.useState<AdministratorAddress | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -262,7 +271,7 @@ export function useAddressHandlers({
     setIsDeleting(true);
 
     try {
-      const result = await deleteAdministratorAddress(location, administratorId, id);
+      const result = await deleteAdministratorAddress(location, effectiveAdministratorId, id);
 
       if (result?.success) {
         toast.success("Address deleted successfully");
@@ -284,7 +293,7 @@ export function useAddressHandlers({
       setIsDeleting(false);
       setAddressToDelete(null);
     }
-  }, [addressToDelete, location, administratorId, updateAddresses, onRefresh]);
+  }, [addressToDelete, location, effectiveAdministratorId, updateAddresses, onRefresh]);
 
   return {
     editingAddress,

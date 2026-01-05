@@ -10,12 +10,19 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useAdministratorDetails } from "../hooks/useAdministratorDetails";
-import { AdministratorDetailsCard } from "../components/AdministratorDetailsCard";
-import { AdministratorEmailCard } from "../components/AdministratorEmailCard";
-import { AdministratorPhoneCard } from "../components/AdministratorPhoneCard";
-import { AdministratorAddressCard } from "../components/AdministratorAddressCard";
 import { AdministratorTabsSection } from "../components/AdministratorTabsSection";
-import { deleteUserByRole } from "@/lib/api/user.api";
+import { administratorDetailPageConfig } from "./config/detailPageConfig";
+import { formatFullName } from "../utils/nameUtils";
+import { UserDetailsCard } from "@/components/user-details/cards/UserDetailsCard";
+import { UserEmailCard } from "@/components/user-details/cards/UserEmailCard";
+import { UserPhoneCard } from "@/components/user-details/cards/UserPhoneCard";
+import { UserAddressCard } from "@/components/user-details/cards/UserAddressCard";
+import { EditUserDetailsModal } from "@/components/user-details/modals/EditUserDetailsModal";
+import { CreateEmailModal } from "@/components/user-details/modals/CreateEmailModal";
+import { CreatePhoneModal } from "@/components/user-details/modals/CreatePhoneModal";
+import { CreateAddressModal } from "@/components/user-details/modals/CreateAddressModal";
+import { EmailList, PhoneList, AddressList } from "../components/sections";
+import { useEmailHandlers, usePhoneHandlers, useAddressHandlers } from "../hooks/useAdministratorItemHandlers";
 
 interface AdministratorDetailClientProps {
   location: string;
@@ -47,7 +54,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
   // All hooks must be called before any early returns
   const pageTitle = React.useMemo(() => {
     if (!details) return `Administrator #${id}`;
-    return `${details.firstName} ${details.lastName}`.trim() || `Administrator #${id}`;
+    return formatFullName(details.firstName, details.lastName) || `Administrator #${id}`;
   }, [details, id]);
 
   const breadcrumbItems = React.useMemo(
@@ -70,14 +77,14 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
   const handleDeleteConfirm = React.useCallback(async () => {
     setIsDeleting(true);
     try {
-      const response = await deleteUserByRole(location, administratorId, 'administrator');
+      const response = await administratorDetailPageConfig.deleteEndpoint(location, administratorId);
       
-      if (response.success) {
+      if (response?.success) {
         toast.success(response.message || "Administrator deleted successfully");
         // Redirect to administrators list
         router.push(`/${location}/administrators`);
       } else {
-        toast.error(response.message || "Failed to delete administrator");
+        toast.error(response?.message || "Failed to delete administrator");
       }
     } catch (error: unknown) {
       const errorResponse = error as { errorCode?: string; message?: string };
@@ -155,31 +162,60 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
           {/* Left Column */}
           <div className="space-y-3 sm:space-y-4">
-            <AdministratorDetailsCard
+            <UserDetailsCard
               details={details}
+              config={{
+                defaultRole: administratorDetailPageConfig.defaultRole,
+                roleLabel: administratorDetailPageConfig.roleLabel,
+              }}
               onSaveDetails={saveDetails}
               savingDetails={savingDetails}
               isLoading={isLoading}
+              EditModal={(props) => (
+                <EditUserDetailsModal
+                  {...props}
+                  title="Edit Administrator Details"
+                  defaultRole={administratorDetailPageConfig.defaultRole}
+                />
+              )}
+              formatName={(d) => formatFullName(d?.firstName, d?.lastName) || ""}
             />
 
             {/* Mobile Email and Phone Cards - Only on Mobile */}
             <div className="lg:hidden space-y-3 sm:space-y-4">
-              <AdministratorEmailCard
+              <UserEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
                 loading={isLoading}
                 location={location}
-                administratorId={administratorId}
+                entityId={administratorId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreateEmailModal
+                    {...props}
+                    apiAdapter={administratorDetailPageConfig.apiAdapter}
+                    validateEmail={administratorDetailPageConfig.validateEmail}
+                  />
+                )}
+                EmailList={EmailList}
+                useEmailHandlers={useEmailHandlers}
               />
 
-              <AdministratorPhoneCard
+              <UserPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
                 loading={isLoading}
                 location={location}
-                administratorId={administratorId}
+                entityId={administratorId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreatePhoneModal
+                    {...props}
+                    apiAdapter={administratorDetailPageConfig.apiAdapter}
+                  />
+                )}
+                PhoneList={PhoneList}
+                usePhoneHandlers={usePhoneHandlers}
               />
             </div>
           </div>
@@ -188,34 +224,59 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
           <div className="space-y-3 sm:space-y-4">
             {/* Desktop Email and Phone Cards */}
             <div className="hidden lg:block">
-              <AdministratorEmailCard
+              <UserEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
                 loading={isLoading}
                 location={location}
-                administratorId={administratorId}
+                entityId={administratorId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreateEmailModal
+                    {...props}
+                    apiAdapter={administratorDetailPageConfig.apiAdapter}
+                    validateEmail={administratorDetailPageConfig.validateEmail}
+                  />
+                )}
+                EmailList={EmailList}
+                useEmailHandlers={useEmailHandlers}
               />
             </div>
 
             <div className="hidden lg:block">
-              <AdministratorPhoneCard
+              <UserPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
                 loading={isLoading}
                 location={location}
-                administratorId={administratorId}
+                entityId={administratorId}
                 onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreatePhoneModal
+                    {...props}
+                    apiAdapter={administratorDetailPageConfig.apiAdapter}
+                  />
+                )}
+                PhoneList={PhoneList}
+                usePhoneHandlers={usePhoneHandlers}
               />
             </div>
 
-            <AdministratorAddressCard
+            <UserAddressCard
               addresses={addresses}
               onUpdate={updateAddresses}
               loading={isLoading}
               location={location}
-              administratorId={administratorId}
+              entityId={administratorId}
               onRefresh={refresh}
+              CreateModal={(props) => (
+                <CreateAddressModal
+                  {...props}
+                  apiAdapter={administratorDetailPageConfig.apiAdapter}
+                />
+              )}
+              AddressList={AddressList}
+              useAddressHandlers={useAddressHandlers}
             />
           </div>
         </div>
