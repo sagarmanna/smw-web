@@ -16,57 +16,64 @@ export interface PrivateLessonRow {
 }
 
 // PrivateLessonsQuery interface for API queries
+export type PrivateLessonStatusCode = "1" | "2" | "3" | "4" | "5" | "No";
+export type OwingStatusCode = "1" | "3";
+export type OnlineStatus = "Yes" | "No";
+
 export interface PrivateLessonsQuery {
   page?: number;
   limit?: number;
-  dateFrom?: string; // Date range filter for date
-  dateTo?: string;
+  /**
+   * Backend expects: YYYY-MM-DD (e.g. "2026-01-01")
+   */
+  fromDate?: string;
+  /**
+   * Backend expects: YYYY-MM-DD (e.g. "2026-02-28")
+   */
+  toDate?: string;
   student?: string;
   program?: string;
   teacher?: string;
-  duration?: string;
-  online?: string;
-  status?: string;
-  payment?: string;
-  price?: string;
-  sort?: "date" | "student" | "program" | "teacher";
+  onlineStatus?: OnlineStatus;
+  lessonStatus?: PrivateLessonStatusCode;
+  owingStatus?: OwingStatusCode;
+  showAll?: boolean;
+  sort?: "dueDate" | "student" | "program" | "teacher";
   order?: "asc" | "desc";
 }
 
-// API response structure
+interface PrivateLessonsPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+// API response structure (current API returns `{ success, data: { body } }`;
+// pagination/message may be present depending on backend version)
 interface PrivateLessonsListApiResponse {
   success: boolean;
-  message: string;
+  message?: string;
   data: {
     body: PrivateLessonRow[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
+    pagination?: PrivateLessonsPagination;
   };
 }
 
 // PrivateLessonsListResponse interface (internal representation)
 export interface PrivateLessonsListResponse {
   success: boolean;
-  message: string;
+  message?: string;
   data: {
     body: PrivateLessonRow[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
+    pagination?: PrivateLessonsPagination;
   };
 }
 
 // Constants for default pagination
 const DEFAULT_PAGINATION = {
   page: 1,
-  limit: 20,
+  limit: 200,
   total: 0,
   totalPages: 1,
 } as const;
@@ -84,16 +91,15 @@ const buildPrivateLessonsQueryParams = (query: PrivateLessonsQuery): URLSearchPa
       query.limit === -1 ? FETCH_ALL_LIMIT.toString() : query.limit.toString()
     );
   }
-  if (query.dateFrom) params.append("dateFrom", query.dateFrom);
-  if (query.dateTo) params.append("dateTo", query.dateTo);
+  if (query.fromDate) params.append("fromDate", query.fromDate);
+  if (query.toDate) params.append("toDate", query.toDate);
   if (query.student) params.append("student", query.student);
   if (query.program) params.append("program", query.program);
   if (query.teacher) params.append("teacher", query.teacher);
-  if (query.duration) params.append("duration", query.duration);
-  if (query.online) params.append("online", query.online);
-  if (query.status) params.append("status", query.status);
-  if (query.payment) params.append("payment", query.payment);
-  if (query.price) params.append("price", query.price);
+  if (query.onlineStatus) params.append("onlineStatus", query.onlineStatus);
+  if (query.lessonStatus) params.append("lessonStatus", query.lessonStatus);
+  if (query.owingStatus) params.append("owingStatus", query.owingStatus);
+  if (typeof query.showAll === "boolean") params.append("showAll", query.showAll.toString());
   if (query.sort) {
     params.append("sort", query.sort);
     // Always include order when sort is provided
@@ -123,7 +129,7 @@ export async function getPrivateLessonsList(
     const params = buildPrivateLessonsQueryParams(query);
 
     const response = await apiClient.get<PrivateLessonsListApiResponse>(
-      `/admin/v2/${location}/user/list/private-lessons`,
+      `/admin/v2/${location}/private-lessons/list`,
       { params }
     );
 

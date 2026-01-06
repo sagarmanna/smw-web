@@ -138,15 +138,14 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
           sorting={sorting}
           onSortingChange={(s) => {
             setSorting(s);
-            setPage(1);
           }}
           serverSidePagination={{ page, limit: pageSize, total, totalPages }}
           onServerSidePageChange={(newPage) => setPage(newPage)}
           hideRecordCount={true}
           showRecordCountInToolbar={true}
           rowsPerPage={pageSize}
-          rowsPerPageOptions={[10, 20, 50, 100]}
-          onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+          rowsPerPageOptions={[10, 20, 50, 100, 200]}
+          onRowsPerPageChange={(newSize) => { setPageSize(newSize); }}
           onRowClick={handlers.handleRowClick}
           rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         />

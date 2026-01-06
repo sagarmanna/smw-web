@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { SortingState } from "@tanstack/react-table";
-import { format } from "date-fns";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { 
   fetchPrivateLessons, 
@@ -10,10 +9,17 @@ import {
   setPageSize, 
   setSorting, 
   setColumnFilters,
-  setActiveFilter
+  setShowAll
 } from "../privateLessonsListing.slice";
 import { PrivateLessonsQuery } from "../privateLessonsListing.api";
 import { SortField } from "../utils/sortPrivateLessons";
+import {
+  mapLessonStatusFilterToApi,
+  mapOwingStatusFilterToApi,
+  mapOnlineStatusFilterToApi,
+  mapDateRangeFilterToApi,
+  mapSortFieldToApiSort,
+} from "../utils/privateLessonsQueryMapper";
 import { 
   isDateRange, 
   serializeDateRange, 
@@ -35,7 +41,7 @@ export function usePrivateLessonsListing(location: string) {
   const sortBy = useAppSelector((state) => state.privateLessonsListing.sortBy);
   const sortDir = useAppSelector((state) => state.privateLessonsListing.sortDir);
   const columnFilters = useAppSelector((state) => state.privateLessonsListing.columnFilters);
-  const activeFilter = useAppSelector((state) => state.privateLessonsListing.activeFilter);
+  const showAll = useAppSelector((state) => state.privateLessonsListing.showAll);
 
   // Convert Redux sorting state to TanStack Table format
   const sorting: SortingState = React.useMemo(() => {
@@ -54,7 +60,7 @@ export function usePrivateLessonsListing(location: string) {
     location: string;
     page: number;
     pageSize: number;
-    activeFilter: string | undefined;
+    showAll: boolean;
     sortBy: SortField | undefined;
     sortDir: 'asc' | 'desc';
   } | null>(null);
@@ -65,42 +71,33 @@ export function usePrivateLessonsListing(location: string) {
     currentPage: number,
     currentPageSize: number,
     currentColumnFilters: Record<string, unknown>,
-    currentActiveFilter: string | undefined,
+    currentShowAll: boolean,
     currentSortBy: SortField | undefined,
     currentSortDir: 'asc' | 'desc'
   ): PrivateLessonsQuery => {
     const query: PrivateLessonsQuery = {
       page: currentPage,
       limit: currentPageSize,
+      ...mapDateRangeFilterToApi(currentColumnFilters.date),
       student: currentColumnFilters.student as string | undefined,
       program: currentColumnFilters.program as string | undefined,
       teacher: currentColumnFilters.teacher as string | undefined,
-      online: currentColumnFilters.online as string | undefined,
-      status: currentColumnFilters.status as string | undefined,
-      payment: currentColumnFilters.payment as string | undefined,
-      sort: currentSortBy,
+      onlineStatus: mapOnlineStatusFilterToApi(currentColumnFilters.online),
+      lessonStatus: mapLessonStatusFilterToApi(currentColumnFilters.status),
+      owingStatus: mapOwingStatusFilterToApi(currentColumnFilters.payment),
+      showAll: currentShowAll,
+      sort: mapSortFieldToApiSort(currentSortBy),
       order: currentSortDir,
     };
-
-    // Handle Date range filter (convert from ISO strings or Date objects)
-    const dateFilter = currentColumnFilters.date;
-    if (isDateRange(dateFilter) && dateFilter.from && dateFilter.to) {
-      const fromDate = typeof dateFilter.from === 'string' ? new Date(dateFilter.from) : dateFilter.from;
-      const toDate = typeof dateFilter.to === 'string' ? new Date(dateFilter.to) : dateFilter.to;
-      if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
-        query.dateFrom = format(fromDate, 'yyyy-MM-dd');
-        query.dateTo = format(toDate, 'yyyy-MM-dd');
-      }
-    }
 
     return query;
   }, []);
 
   // Fetch data function - stable reference, reads latest values from refs/state
   const fetchData = React.useCallback(async () => {
-    const query = buildQuery(page, pageSize, columnFilters, activeFilter, sortBy, sortDir);
+    const query = buildQuery(page, pageSize, columnFilters, showAll, sortBy, sortDir);
     await dispatch(fetchPrivateLessons({ location, query }));
-  }, [dispatch, location, page, pageSize, columnFilters, activeFilter, sortBy, sortDir, buildQuery]);
+  }, [dispatch, location, page, pageSize, columnFilters, showAll, sortBy, sortDir, buildQuery]);
 
   // Keep columnFilters ref in sync
   React.useEffect(() => {
@@ -123,7 +120,7 @@ export function usePrivateLessonsListing(location: string) {
       prevParamsRef.current.location !== location ||
       prevParamsRef.current.page !== page ||
       prevParamsRef.current.pageSize !== pageSize ||
-      prevParamsRef.current.activeFilter !== activeFilter ||
+      prevParamsRef.current.showAll !== showAll ||
       prevParamsRef.current.sortBy !== sortBy ||
       prevParamsRef.current.sortDir !== sortDir;
 
@@ -132,7 +129,7 @@ export function usePrivateLessonsListing(location: string) {
       location,
       page,
       pageSize,
-      activeFilter,
+      showAll,
       sortBy,
       sortDir,
     };
@@ -140,10 +137,10 @@ export function usePrivateLessonsListing(location: string) {
     // Fetch if initial load OR if any param changed
     if (!hasInitialFetchedRef.current || paramsChanged) {
       hasInitialFetchedRef.current = true;
-      const query = buildQuery(page, pageSize, columnFiltersRef.current, activeFilter, sortBy, sortDir);
+      const query = buildQuery(page, pageSize, columnFiltersRef.current, showAll, sortBy, sortDir);
       dispatch(fetchPrivateLessons({ location, query }));
     }
-  }, [location, page, pageSize, activeFilter, sortBy, sortDir, dispatch, buildQuery]);
+  }, [location, page, pageSize, showAll, sortBy, sortDir, dispatch, buildQuery]);
 
   const handleSetSorting = React.useCallback(
     (newSorting: SortingState) => {
@@ -195,27 +192,39 @@ export function usePrivateLessonsListing(location: string) {
       const isClearing = filterValue === null || filterValue === '' || filterValue === undefined || filterValue === "all";
       
       if (isDropdownFilter || isDateRangeFilter || isClearing) {
-        // Trigger API call immediately for dropdown selections, date range selections, or when clearing filters
-        const query = buildQuery(1, pageSize, newFilters, activeFilter, sortBy, sortDir);
-        dispatch(fetchPrivateLessons({ location, query }));
-        // Also reset page to 1 when filtering
-        dispatch(setPage(1));
+        /**
+         * De-dupe: `setColumnFilters` reducer already resets `page` to 1.
+         * - If we're currently on a page other than 1, the `page` change will trigger the main effect to fetch.
+         * - If we're already on page 1, we need to fetch manually because the effect won't run.
+         */
+        if (page === 1) {
+          const query = buildQuery(1, pageSize, newFilters, showAll, sortBy, sortDir);
+          dispatch(fetchPrivateLessons({ location, query }));
+        }
       }
     },
-    [dispatch, location, pageSize, activeFilter, sortBy, sortDir, buildQuery]
+    [dispatch, location, page, pageSize, showAll, sortBy, sortDir, buildQuery]
   );
 
   const handleColumnFilterEnter = React.useCallback(() => {
-    // Immediately fetch when Enter is pressed, bypassing debounce
-    const query = buildQuery(1, pageSize, columnFiltersRef.current, activeFilter, sortBy, sortDir);
+    /**
+     * De-dupe: when leaving page != 1, reset to page 1 and let the main effect fetch.
+     * If we're already on page 1, fetch immediately.
+     */
+    if (page !== 1) {
+      dispatch(setPage(1));
+      return;
+    }
+
+    const query = buildQuery(1, pageSize, columnFiltersRef.current, showAll, sortBy, sortDir);
     dispatch(fetchPrivateLessons({ location, query }));
-    dispatch(setPage(1));
-  }, [dispatch, location, pageSize, activeFilter, sortBy, sortDir, buildQuery]);
+  }, [dispatch, location, page, pageSize, showAll, sortBy, sortDir, buildQuery]);
 
 
   const handleServerSideFilterChange = React.useCallback(
     (filterKey: string | undefined) => {
-      dispatch(setActiveFilter(filterKey));
+      // UI uses a string key; Redux stores a boolean.
+      dispatch(setShowAll(filterKey === "show past lessons"));
     },
     [dispatch]
   );
@@ -238,7 +247,7 @@ export function usePrivateLessonsListing(location: string) {
     pageSize,
     setPageSize: handleSetPageSize,
     columnFilters: columnFiltersForComponents, // Return converted filters with Date objects
-    activeFilter,
+    activeFilter: showAll ? "show past lessons" : undefined,
     fetchData,
     handleColumnFilterChange,
     handleColumnFilterEnter,
