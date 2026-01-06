@@ -1,11 +1,12 @@
-import React from 'react'
+import { TaxCodesListingClient } from "./TaxCodesListingClient";
 
-const TaxesPage = () => {
-  return (
-    <div>
-      <h1>Taxes</h1>
-    </div>
-  )
+interface TaxesPageProps {
+  params: Promise<{
+    location: string;
+  }>;
 }
 
-export default TaxesPage
+export default async function TaxesPage({ params }: TaxesPageProps) {
+  const { location } = await params;
+  return <TaxCodesListingClient location={location} />;
+}

@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { GenericCrudModal, CrudModalConfig } from "@/components/GenericCrudModal";
 import { getGeoData, GeoData } from "@/app/[location]/customers/components/AddressCard/address-card.api";
 import { convertToDate } from "@/utils/dateUtils";
-import { format } from "date-fns";
 
 import {
   createTaxCode,
@@ -20,6 +19,9 @@ import {
   updateTaxCode,
   UpdateTaxCodeRequest,
 } from "../../taxes.api";
+import { getTaxTypeIdByName, getTaxTypeNameOptions } from "../../taxTypes";
+import { formatDateToApiDisplay, normalizeStartDateValue, resolveStartDateForApi } from "../../utils/taxCodeUtils";
+import { toTwoDecimalNumber, validateRateInput } from "../../utils/taxRateUtils";
 
 interface AddTaxCodeModalProps {
   isOpen: boolean;
@@ -28,7 +30,6 @@ interface AddTaxCodeModalProps {
   location: string;
   initialData?: TaxCodeRow | null;
   mode?: "add" | "edit";
-  taxNameOptions?: string[];
 }
 
 type TaxCodeFormData = {
@@ -39,43 +40,6 @@ type TaxCodeFormData = {
   startDate: string;
 };
 
-const DEFAULT_TAX_NAMES = ["HST", "GST", "NO TAX"];
-
-const TAX_TYPE_ID_BY_NAME: Record<string, number> = {
-  HST: 1,
-  GST: 2,
-  "NO TAX": 3,
-};
-
-// Business rule: if Start Date is not provided, backend should use this default.
-// Also used to normalize odd "year 0002" values some backends return for "empty" dates.
-const DEFAULT_EMPTY_START_DATE = "Dec 02, 2002";
-
-const normalizeStartDateValue = (value?: string): string => {
-  if (!value) return DEFAULT_EMPTY_START_DATE;
-  // Handles odd values like "Dec 02, 0002" or ISO-like "0002-12-02"
-  if (value.includes("0002")) return DEFAULT_EMPTY_START_DATE;
-  return value;
-};
-
-const toTwoDecimalNumber = (value: string): number => {
-  const num = Number(value);
-  // caller should validate numeric; keep safe fallback
-  if (Number.isNaN(num)) return NaN;
-  return Math.round(num * 100) / 100;
-};
-
-const hasAtMostTwoDecimals = (value: string): boolean => {
-  // Accept integers and up to 2 decimal places
-  // e.g. "18", "18.0", "18.00" => ok; "18.123" => not ok
-  return /^-?\d+(\.\d{1,2})?$/.test(value.trim());
-};
-
-const formatDateToApiDisplay = (date: Date): string => {
-  // Backend examples: "Dec 29, 2025"
-  return format(date, "MMM dd, yyyy");
-};
-
 export function AddTaxCodeModal({
   isOpen,
   onClose,
@@ -83,7 +47,6 @@ export function AddTaxCodeModal({
   location,
   initialData = null,
   mode = "add",
-  taxNameOptions = [],
 }: AddTaxCodeModalProps) {
   const [geoData, setGeoData] = useState<GeoData>({
     city: [],
@@ -92,10 +55,7 @@ export function AddTaxCodeModal({
   });
   const [loadingGeoData, setLoadingGeoData] = useState(false);
 
-  const resolvedTaxNameOptions = useMemo(() => {
-    const unique = Array.from(new Set([...taxNameOptions, ...DEFAULT_TAX_NAMES].filter(Boolean)));
-    return unique.length > 0 ? unique : DEFAULT_TAX_NAMES;
-  }, [taxNameOptions]);
+  const taxNameOptions = useMemo(() => getTaxTypeNameOptions(), []);
 
   // Load provinces when modal opens
   useEffect(() => {
@@ -115,20 +75,20 @@ export function AddTaxCodeModal({
     onUpdate: updateTaxCode,
     onDelete: deleteTaxCode,
     buildCreateRequest: (formData) => ({
-      taxTypeId: TAX_TYPE_ID_BY_NAME[formData.taxName] ?? 0,
+      taxTypeId: getTaxTypeIdByName(formData.taxName) ?? 0,
       provinceId: Number(formData.provinceId),
       code: formData.code.trim(),
       rate: toTwoDecimalNumber(formData.rate),
       // If startDate is empty, send the agreed default to avoid backend using an invalid sentinel date.
-      startDate: formData.startDate ? formData.startDate : DEFAULT_EMPTY_START_DATE,
+      startDate: resolveStartDateForApi(formData.startDate),
     }),
     buildUpdateRequest: (formData, id) => ({
       id,
-      taxTypeId: TAX_TYPE_ID_BY_NAME[formData.taxName] ?? 0,
+      taxTypeId: getTaxTypeIdByName(formData.taxName) ?? 0,
       provinceId: Number(formData.provinceId),
       code: formData.code.trim(),
       rate: toTwoDecimalNumber(formData.rate),
-      startDate: formData.startDate ? formData.startDate : DEFAULT_EMPTY_START_DATE,
+      startDate: resolveStartDateForApi(formData.startDate),
     }),
     initializeFormData: (row) => {
       let provinceId = row.provinceId ? String(row.provinceId) : "";
@@ -140,7 +100,7 @@ export function AddTaxCodeModal({
         provinceId = String(geoData.province[0].id);
       }
 
-      const taxName = row.taxName || resolvedTaxNameOptions[0] || "";
+      const taxName = row.taxName || taxNameOptions[0] || "";
 
       return {
         taxName,
@@ -152,7 +112,7 @@ export function AddTaxCodeModal({
       };
     },
     getDefaultFormData: () => ({
-      taxName: resolvedTaxNameOptions[0] || "",
+      taxName: taxNameOptions[0] || "",
       provinceId: geoData.province?.[0]?.id?.toString() || "",
       code: "",
       rate: "",
@@ -162,7 +122,7 @@ export function AddTaxCodeModal({
       const errors: Record<string, string> = {};
 
       if (!formData.taxName) errors.taxName = "Tax Name cannot be blank.";
-      if (formData.taxName && !TAX_TYPE_ID_BY_NAME[formData.taxName]) {
+      if (formData.taxName && !getTaxTypeIdByName(formData.taxName)) {
         errors.taxName = "Invalid Tax Name.";
       }
       if (!formData.provinceId) errors.provinceId = "Province cannot be blank.";
@@ -171,18 +131,8 @@ export function AddTaxCodeModal({
         errors.code = "Code cannot be blank.";
       }
 
-      if (formData.rate === "" || formData.rate === null || formData.rate === undefined) {
-        errors.rate = "Rate cannot be blank.";
-      } else {
-        const num = Number(formData.rate);
-        if (Number.isNaN(num)) {
-          errors.rate = "Rate must be a number.";
-        } else if (!hasAtMostTwoDecimals(formData.rate)) {
-          errors.rate = "Rate must have at most 2 decimal places.";
-        } else if (num < 0 || num > 100) {
-          errors.rate = "Rate must be between 0 and 100.";
-        }
-      }
+      const rateError = validateRateInput(formData.rate);
+      if (rateError) errors.rate = rateError;
 
       return errors;
     },
@@ -219,7 +169,7 @@ export function AddTaxCodeModal({
                   <SelectValue placeholder="Select tax name" />
                 </SelectTrigger>
                 <SelectContent>
-                  {resolvedTaxNameOptions.map((name) => (
+                  {taxNameOptions.map((name) => (
                     <SelectItem key={name} value={name}>
                       {name}
                     </SelectItem>

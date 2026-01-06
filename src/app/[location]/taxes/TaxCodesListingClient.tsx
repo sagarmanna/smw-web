@@ -17,11 +17,6 @@ interface TaxCodesListingClientProps {
   location: string;
 }
 
-const getTaxNameOptionsFromRows = (rows: TaxCodeRow[]): string[] => {
-  const names = rows.map((r) => r.taxName).filter(Boolean);
-  return Array.from(new Set(names));
-};
-
 export function TaxCodesListingClient({ location }: TaxCodesListingClientProps) {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [modalMode, setModalMode] = React.useState<"add" | "edit">("add");
@@ -41,8 +36,6 @@ export function TaxCodesListingClient({ location }: TaxCodesListingClientProps) 
     setPageSize,
     fetchData,
   } = useTaxCodesListing(location);
-
-  const taxNameOptions = React.useMemo(() => getTaxNameOptionsFromRows(rows), [rows]);
 
   const openAddModal = () => {
     setSelectedRow(null);
@@ -103,7 +96,6 @@ export function TaxCodesListingClient({ location }: TaxCodesListingClientProps) 
         location={location}
         mode={modalMode}
         initialData={selectedRow}
-        taxNameOptions={taxNameOptions}
       />
     </ReportPageLayout>
   );

@@ -19,7 +19,7 @@ export function useTaxCodesListing(location: string) {
     (
       page: number,
       pageSize: number,
-      columnFilters: Record<string, unknown>,
+      _columnFilters: Record<string, unknown>,
       _activeFilter: string | undefined,
       _sortBy: string | undefined,
       _sortDir: "asc" | "desc"
@@ -27,9 +27,6 @@ export function useTaxCodesListing(location: string) {
       return {
         page,
         limit: pageSize,
-        taxName: columnFilters.taxName as string | undefined,
-        provinceName: columnFilters.provinceName as string | undefined,
-        code: columnFilters.code as string | undefined,
       };
     },
     []
