@@ -346,6 +346,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
                   window.location.href = url;
                   return;
                 }
+                // Navigate to enrolment details - type will be determined from Redux or details API
                 router.push(`/${location}/enrolments/${row.id}`);
               }}
               rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"

@@ -4,6 +4,9 @@ import { use, useEffect, useRef } from 'react';
 import { useAppDispatch } from '@/redux/hooks';
 import { fetchEnrolment, clearEnrolment } from './enrolment-details.slice';
 import { EnrolmentDetailClient } from "./EnrolmentDetailClient";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ENROLMENT_MESSAGES } from "../utils/constants";
 
 interface EnrolmentDetailPageProps {
   params: Promise<{
@@ -49,6 +52,29 @@ export default function EnrolmentDetailPage({ params }: EnrolmentDetailPageProps
   }, [location, enrolmentId, dispatch]);
 
   // Render the client component that displays the details
-  return <EnrolmentDetailClient location={location} id={id} />;
+  // Wrap in ErrorBoundary to catch and handle any React errors gracefully
+  return (
+    <ErrorBoundary
+      fallback={
+        <div className="flex items-center justify-center min-h-[600px] px-4">
+          <div className="text-center space-y-4 max-w-md">
+            <h2 className="text-xl font-semibold text-destructive">
+              {ENROLMENT_MESSAGES.ERROR_TITLE}
+            </h2>
+            <p className="text-muted-foreground">
+              {ENROLMENT_MESSAGES.ERROR_FALLBACK}
+            </p>
+          </div>
+        </div>
+      }
+      onReset={() => {
+        // Clear enrolment state and refetch on reset
+        dispatch(clearEnrolment());
+        dispatch(fetchEnrolment({ location, enrolmentId: id }));
+      }}
+    >
+      <EnrolmentDetailClient location={location} id={id} />
+    </ErrorBoundary>
+  );
 }
 

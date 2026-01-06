@@ -4,6 +4,7 @@ import { apiClient } from '@/lib/api/client';
 export interface EnrolmentRow {
   id: number;
   program: string;
+  programType?: string; // "Private" | "Group" - from API
   student: string;
   teacher: string;
   autoRenewal: string; // "Enabled" | "Disabled"
