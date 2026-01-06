@@ -16,6 +16,8 @@ interface DetailHeaderWithProfileProps {
   actionButtonAriaLabel: string;
   showProfileIcon?: boolean;
   profileIconSize?: "sm" | "md" | "lg" | "xl";
+  leftContent?: React.ReactNode;
+  rightContent?: React.ReactNode;
 }
 
 export function DetailHeaderWithProfile({
@@ -26,6 +28,8 @@ export function DetailHeaderWithProfile({
   actionButtonAriaLabel,
   showProfileIcon = true,
   profileIconSize = "md",
+  leftContent,
+  rightContent,
 }: DetailHeaderWithProfileProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [iconLeft, setIconLeft] = React.useState<number | null>(null);
@@ -76,6 +80,8 @@ export function DetailHeaderWithProfile({
         loading={loading}
         actionMenuGroups={actionMenuGroups}
         actionButtonAriaLabel={actionButtonAriaLabel}
+        leftContent={leftContent}
+        rightContent={rightContent}
       />
       {showProfileIcon && iconLeft !== null && (
         <div 

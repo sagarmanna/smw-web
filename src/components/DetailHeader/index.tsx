@@ -46,6 +46,9 @@ export interface DetailHeaderProps {
   actionMenuGroups?: ActionMenuGroup[];
   actionButtonAriaLabel?: string;
   
+  // Optional left-side custom content (e.g., status badge)
+  leftContent?: React.ReactNode;
+  
   // Optional right-side custom content (e.g., a print button)
   rightContent?: React.ReactNode;
   
@@ -60,11 +63,19 @@ export function DetailHeader({
   actionMenuGroups = [],
   actionButtonAriaLabel = "Action",
   showActions = true,
+  leftContent,
   rightContent,
   className = "",
 }: DetailHeaderProps) {
   return (
     <div className={`flex items-center justify-between py-3 sm:py-4 ${className}`}>
+      {/* Left Content Section */}
+      {leftContent && (
+        <div className="flex-shrink-0 mr-4">
+          {leftContent}
+        </div>
+      )}
+      
       {/* Breadcrumb Section */}
       <div className="flex-1 min-w-0">
         <Breadcrumb>

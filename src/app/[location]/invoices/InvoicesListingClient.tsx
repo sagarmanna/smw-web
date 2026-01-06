@@ -164,9 +164,8 @@ export function InvoicesListingClient({ location }: InvoicesListingClientProps) 
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row: InvoiceRow) => {
-          // Redirect to legacy invoice view page
-          const legacyUrl = `${legacyBaseUrl}/${location}/invoice/view?id=${row.id}`;
-          window.location.href = legacyUrl;
+          // Navigate to invoice detail page
+          router.push(`/${location}/invoices/${row.id}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
