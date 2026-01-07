@@ -1,8 +1,6 @@
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { GroupCourseRow } from "./types";
-import { formatCurrency } from "@/utils/formatCurrency";
-import { formatDisplayDate } from "@/utils/dateUtils";
 
 // Column definitions for group courses table
 export const groupCourseColumns: ColumnDef<GroupCourseRow>[] = [
@@ -33,7 +31,7 @@ export const groupCourseColumns: ColumnDef<GroupCourseRow>[] = [
     header: () => <span>Rate</span>,
     cell: ({ row }: { row: { original: GroupCourseRow } }) => (
       <div className="text-right">
-        {formatCurrency(row.original.rate)}
+        {row.original.rate || "-"}
       </div>
     ),
     enableSorting: true,
@@ -66,7 +64,7 @@ export const groupCourseColumns: ColumnDef<GroupCourseRow>[] = [
     header: () => <span>Start Date</span>,
     cell: ({ row }: { row: { original: GroupCourseRow } }) => (
       <span className="truncate block max-w-[150px]" title={row.original.startDate}>
-        {formatDisplayDate(row.original.startDate)}
+        {row.original.startDate || "-"}
       </span>
     ),
     enableSorting: true,
@@ -77,7 +75,7 @@ export const groupCourseColumns: ColumnDef<GroupCourseRow>[] = [
     header: () => <span>End Date</span>,
     cell: ({ row }: { row: { original: GroupCourseRow } }) => (
       <span className="truncate block max-w-[150px]" title={row.original.endDate}>
-        {formatDisplayDate(row.original.endDate)}
+        {row.original.endDate || "-"}
       </span>
     ),
     enableSorting: true,

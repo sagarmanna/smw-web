@@ -11,8 +11,8 @@ import {
   setColumnFilters, 
   setActiveFilter 
 } from "../groupCoursesListing.slice";
-import { GroupCoursesQuery } from "../groupCourses.api";
 import { SortField } from "../utils/sortGroupCourses";
+import { buildGroupCoursesQuery } from "../utils/buildGroupCoursesQuery";
 
 export function useGroupCourseListing(location: string) {
   const dispatch = useAppDispatch();
@@ -47,40 +47,18 @@ export function useGroupCourseListing(location: string) {
     location: string;
     page: number;
     pageSize: number;
-    activeFilter: string | undefined;
+    activeFilter: 'active' | 'inactive';
     sortBy: SortField | undefined;
     sortDir: 'asc' | 'desc';
   } | null>(null);
 
-  // Build query function - not memoized to avoid unnecessary recreations
-  const buildQuery = React.useCallback((
-    currentPage: number,
-    currentPageSize: number,
-    currentColumnFilters: Record<string, unknown>,
-    currentActiveFilter: string | undefined,
-    currentSortBy: SortField | undefined,
-    currentSortDir: 'asc' | 'desc'
-  ): GroupCoursesQuery => {
-    const showActive = currentActiveFilter === 'inactive' ? false : true;
-    const showInActive = currentActiveFilter === 'active' ? false : true;
+  // Build query using centralized utility (no dependencies needed)
 
-    return {
-      page: currentPage,
-      limit: currentPageSize,
-      course: currentColumnFilters.course as string | undefined,
-      teacher: currentColumnFilters.teacher as string | undefined,
-      showActive,
-      showInActive,
-      sort: currentSortBy,
-      order: currentSortDir,
-    };
-  }, []);
-
-  // Fetch data function - stable reference, reads latest values from refs/state
+  // Fetch data function - stable reference
   const fetchData = React.useCallback(async () => {
-    const query = buildQuery(page, pageSize, columnFilters, activeFilter, sortBy, sortDir);
+    const query = buildGroupCoursesQuery(page, pageSize, columnFilters, activeFilter, sortBy, sortDir);
     await dispatch(fetchGroupCourses({ location, query }));
-  }, [dispatch, location, page, pageSize, columnFilters, activeFilter, sortBy, sortDir, buildQuery]);
+  }, [dispatch, location, page, pageSize, columnFilters, activeFilter, sortBy, sortDir]);
 
   // Keep columnFilters ref in sync
   React.useEffect(() => {
@@ -120,10 +98,10 @@ export function useGroupCourseListing(location: string) {
     // Fetch if initial load OR if any param changed
     if (!hasInitialFetchedRef.current || paramsChanged) {
       hasInitialFetchedRef.current = true;
-      const query = buildQuery(page, pageSize, columnFiltersRef.current, activeFilter, sortBy, sortDir);
+      const query = buildGroupCoursesQuery(page, pageSize, columnFiltersRef.current, activeFilter, sortBy, sortDir);
       dispatch(fetchGroupCourses({ location, query }));
     }
-  }, [location, page, pageSize, activeFilter, sortBy, sortDir, dispatch, buildQuery]);
+  }, [location, page, pageSize, activeFilter, sortBy, sortDir, dispatch]);
 
   const handleSetSorting = React.useCallback(
     (newSorting: SortingState) => {
@@ -163,40 +141,28 @@ export function useGroupCourseListing(location: string) {
         // Update ref immediately for the API call
         columnFiltersRef.current = newFilters;
         // Trigger API call with cleared filter
-        const query = buildQuery(1, pageSize, newFilters, activeFilter, sortBy, sortDir);
+        const query = buildGroupCoursesQuery(1, pageSize, newFilters, activeFilter, sortBy, sortDir);
         dispatch(fetchGroupCourses({ location, query }));
         // Also reset page to 1 when clearing filter
         dispatch(setPage(1));
       }
     },
-    [dispatch, location, pageSize, activeFilter, sortBy, sortDir, buildQuery]
+    [dispatch, location, pageSize, activeFilter, sortBy, sortDir]
   );
 
   const handleColumnFilterEnter = React.useCallback(() => {
     // Immediately fetch when Enter is pressed, bypassing debounce
-    // Map active filter to API parameters:
-    // all (undefined): showActive=true, showInActive=true
-    // active: showActive=true, showInActive=false
-    // inactive: showActive=false, showInActive=true
-    const showActive = activeFilter === 'inactive' ? false : true;
-    const showInActive = activeFilter === 'active' ? false : true;
-
-    const query: GroupCoursesQuery = {
-      page: 1, // Reset to first page when filtering
-      limit: pageSize,
-      course: columnFilters.course as string | undefined,
-      teacher: columnFilters.teacher as string | undefined,
-      showActive,
-      showInActive,
-      sort: sortBy,
-      order: sortDir,
-    };
+    // Reset to first page when filtering
+    const query = buildGroupCoursesQuery(1, pageSize, columnFilters, activeFilter, sortBy, sortDir);
     dispatch(fetchGroupCourses({ location, query }));
+    dispatch(setPage(1));
   }, [dispatch, location, pageSize, columnFilters, activeFilter, sortBy, sortDir]);
 
   const handleServerSideFilterChange = React.useCallback(
     (filterKey: string | undefined) => {
-      dispatch(setActiveFilter(filterKey));
+      // Ensure filter is always 'active' or 'inactive' (no undefined)
+      const validFilter: 'active' | 'inactive' = filterKey === 'inactive' ? 'inactive' : 'active';
+      dispatch(setActiveFilter(validFilter));
     },
     [dispatch]
   );
