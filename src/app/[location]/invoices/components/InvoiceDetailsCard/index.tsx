@@ -7,7 +7,7 @@ import {
 } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { InvoiceDetail } from "../../mockData/invoiceDetailMockData";
-import { EditInvoiceDetailsModal } from "../EditInvoiceDetailsModal";
+import { EditInvoiceDetailsModal } from "../modals/EditInvoiceDetailsModal";
 
 interface InvoiceDetailsCardProps {
   invoice: InvoiceDetail;

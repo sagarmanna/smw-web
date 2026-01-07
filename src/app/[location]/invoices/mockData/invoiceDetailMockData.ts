@@ -4,8 +4,16 @@ import { mockInvoiceData } from "./invoiceMockData";
 // Invoice Item interface
 export interface InvoiceItem {
   id: string;
+  code?: string;
+  royalty?: string;
+  free?: string;
   description: string;
   qty: number;
+  discount?: number;
+  taxStatus?: string;
+  tax?: number;
+  unitPrice?: number;
+  cost?: number;
   price: number;
 }
 
@@ -84,9 +92,16 @@ export function generateInvoiceDetail(invoice: InvoiceRow): InvoiceDetail {
   const items: InvoiceItem[] = [
     {
       id: "1",
-      description: `xPiano Core for ${invoice.student} with Teacher Name on ${invoice.date}`,
-      qty: 0.5,
-      price: invoice.total,
+      royalty: "No",
+      free: "",
+      description: `xGuitar Core for ${invoice.customer} with Teacher Name on ${invoice.date}`,
+      qty: isReturned ? -0.5 : 0.5,
+      discount: isReturned ? -0.86 : 0,
+      taxStatus: "No Tax",
+      tax: 0,
+      unitPrice: 57.50,
+      cost: 11.00,
+      price: isReturned ? -invoice.total : invoice.total,
     },
   ];
 

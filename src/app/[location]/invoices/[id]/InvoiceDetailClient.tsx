@@ -14,13 +14,13 @@ import { InvoiceTotalsCard } from "../components/InvoiceTotalsCard";
 import { InvoiceMessageCard } from "../components/InvoiceMessageCard";
 import { InvoiceCommentsCard } from "../components/InvoiceCommentsCard";
 import { InvoiceHistoryCard } from "../components/InvoiceHistoryCard";
-import { ReturnInvoiceModal } from "../components/ReturnInvoiceModal";
-import { getMockInvoiceDetail, InvoiceDetail } from "../mockData/invoiceDetailMockData";
+import { ReturnInvoiceModal } from "../components/modals/ReturnInvoiceModal";
+import { InvoiceDiscountWarningBanner } from "../components/InvoiceDiscountWarningBanner";
+import { useInvoiceDetails } from "../hooks/useInvoiceDetails";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Mail, Printer, Settings, ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -37,32 +37,23 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const router = useRouter();
   const invoiceId = Number(id);
   
-  const [invoiceDetail, setInvoiceDetail] = React.useState<InvoiceDetail | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
   const [showReturnModal, setShowReturnModal] = React.useState(false);
-  const [isReturning, setIsReturning] = React.useState(false);
 
-  React.useEffect(() => {
-    // Simulate API call with mock data
-    setIsLoading(true);
-    setError(null);
-    
-    setTimeout(() => {
-      try {
-        const detail = getMockInvoiceDetail(invoiceId);
-        if (detail) {
-          setInvoiceDetail(detail);
-        } else {
-          setError("Invoice not found");
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load invoice");
-      } finally {
-        setIsLoading(false);
-      }
-    }, 300);
-  }, [invoiceId]);
+  // Use main invoice details hook
+  const {
+    loading: isLoading,
+    error,
+    invoiceDetail,
+    handleSaveDetails,
+    handleCustomerChange,
+    handleSaveDiscount,
+    handleSaveItem,
+    handleDeleteItem,
+    handleReturnConfirm,
+    isReturning,
+    showDiscountWarning,
+    setShowDiscountWarning,
+  } = useInvoiceDetails(location, invoiceId);
 
   const pageTitle = React.useMemo(() => {
     if (!invoiceDetail) return `Invoice #${id}`;
@@ -88,134 +79,11 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     setShowReturnModal(true);
   }, []);
 
-  const handleSaveDetails = React.useCallback(
-    async (updatedInvoice: Partial<InvoiceDetail>): Promise<boolean> => {
-      if (!invoiceDetail) {
-        toast.error("Invoice not found");
-        return false;
-      }
-
-      try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        setInvoiceDetail((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            ...updatedInvoice,
-          };
-        });
-
-        toast.success("Invoice date updated successfully");
-        return true;
-      } catch (error) {
-        console.error("Failed to save invoice details:", error);
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "Failed to save invoice details. Please try again.";
-        toast.error(errorMessage);
-        return false;
-      }
-    },
-    [invoiceDetail]
-  );
-
-  const handleCustomerChange = React.useCallback(
-    (customer: {
-      name: string;
-      phone: string;
-      email: string;
-      customerId?: number;
-    }) => {
-      if (!invoiceDetail) return;
-
-      setInvoiceDetail((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          customer: {
-            name: customer.name,
-            phone: customer.phone,
-            email: customer.email,
-            customerId: customer.customerId,
-          },
-        };
-      });
-
-      toast.success("Customer updated successfully");
-    },
-    [invoiceDetail]
-  );
-
-  const handleReturnConfirm = React.useCallback(() => {
-    if (!invoiceDetail) return;
-    
-    setIsReturning(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setInvoiceDetail((prev) => {
-        if (!prev) return null;
-        
-        // Update status to Returned
-        const updatedStatus = "Returned";
-        
-        // Make all values negative for returned invoice
-        const updatedItems = prev.items.map((item) => ({
-          ...item,
-          qty: -Math.abs(item.qty),
-          price: -Math.abs(item.price),
-        }));
-        
-        // Update payments - if already paid, keep existing payments but make amounts negative
-        // If not paid, add a new payment entry
-        const updatedPayments = prev.payments.length > 0 
-          ? prev.payments.map((payment) => ({
-              ...payment,
-              amount: -Math.abs(payment.amount),
-            }))
-          : [
-              {
-                id: "1",
-                date: (() => {
-                  const now = new Date();
-                  const month = now.toLocaleDateString("en-US", { month: "short" });
-                  const day = now.getDate().toString().padStart(2, "0");
-                  const year = now.getFullYear();
-                  return `${month} ${day}, ${year}`;
-                })(),
-                type: "Credit Used",
-                ref: `I-${prev.id - 26}`,
-                notes: "",
-                amount: -Math.abs(prev.totals.total),
-              },
-            ];
-        
-        // Update totals to negative
-        const updatedTotals = {
-          discounts: -Math.abs(prev.totals.discounts),
-          subtotal: -Math.abs(prev.totals.subtotal),
-          tax: prev.totals.tax,
-          total: -Math.abs(prev.totals.total),
-          paid: -Math.abs(prev.totals.total),
-          balance: 0,
-        };
-        
-        return {
-          ...prev,
-          status: updatedStatus,
-          items: updatedItems,
-          payments: updatedPayments,
-          totals: updatedTotals,
-        };
-      });
-      
-      setIsReturning(false);
-      setShowReturnModal(false);
-    }, 500);
-  }, [invoiceDetail]);
+  // Wrap return confirm to close modal
+  const handleReturnConfirmWithClose = React.useCallback(() => {
+    handleReturnConfirm();
+    setShowReturnModal(false);
+  }, [handleReturnConfirm]);
 
   const isReturned = invoiceDetail?.status === "Returned";
 
@@ -299,7 +167,6 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                         className="h-8 w-8 text-gray-500 hover:text-gray-700"
                         onClick={() => {
                           // TODO: Implement email functionality
-                          console.log("Email invoice");
                         }}
                         aria-label="Email invoice"
                       >
@@ -347,7 +214,6 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                   className="h-8 w-8"
                   onClick={() => {
                     // TODO: Implement settings menu
-                    console.log("Settings");
                   }}
                   aria-label="Settings"
                 >
@@ -360,6 +226,12 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
         {/* Main Content */}
         <div className="space-y-3 sm:space-y-4 mt-4">
+          {/* Discount Warning Banner */}
+          <InvoiceDiscountWarningBanner
+            show={showDiscountWarning}
+            onDismiss={() => setShowDiscountWarning(false)}
+          />
+
           {/* Top Row - Details and Customer Cards Side by Side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <InvoiceDetailsCard
@@ -380,6 +252,9 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
           <InvoiceItemsCard
             items={invoiceDetail.items}
             isLoading={isLoading}
+            onSaveDiscount={handleSaveDiscount}
+            onSaveItem={handleSaveItem}
+            onDeleteItem={handleDeleteItem}
           />
 
           {/* Payments and Totals Side by Side */}
@@ -419,7 +294,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
       <ReturnInvoiceModal
         open={showReturnModal}
         onOpenChange={setShowReturnModal}
-        onConfirm={handleReturnConfirm}
+        onConfirm={handleReturnConfirmWithClose}
         isReturning={isReturning}
       />
     </>
