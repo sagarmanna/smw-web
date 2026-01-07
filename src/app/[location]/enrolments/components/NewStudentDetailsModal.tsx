@@ -27,6 +27,10 @@ interface NewStudentDetailsModalProps {
    * Used to pre-fill first/last name while still validating locally.
    */
   initialData?: Partial<StudentDetailsFormData>;
+  /**
+   * Loading state for when APIs are being called
+   */
+  isLoading?: boolean;
 }
 
 export interface StudentDetailsFormData {
@@ -51,6 +55,7 @@ export function NewStudentDetailsModal({
   onBack,
   onNext,
   initialData,
+  isLoading = false,
 }: NewStudentDetailsModalProps) {
   const [formData, setFormData] = React.useState<StudentDetailsFormData>({
     ...defaultFormData,
@@ -227,10 +232,12 @@ export function NewStudentDetailsModal({
           </div>
         </div>
         <DialogFooter className="!flex !flex-row !justify-between !items-center gap-2">
-          <Button onClick={onBack}>Back</Button>
+          <Button onClick={onBack} disabled={isLoading}>Back</Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleNext}>Preview Lessons</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>Cancel</Button>
+            <Button onClick={handleNext} disabled={isLoading}>
+              {isLoading ? "Loading..." : "Preview Lessons"}
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>

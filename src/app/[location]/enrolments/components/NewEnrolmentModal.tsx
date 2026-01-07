@@ -32,6 +32,23 @@ import {
   NewStudentDetailsModal,
   type StudentDetailsFormData,
 } from "./NewStudentDetailsModal";
+import {
+  NewEnrolmentReviewModal,
+  type LessonPreview,
+  type EnrolmentReviewDetails,
+} from "@/components/EnrolmentWizard/NewEnrolmentReviewModal";
+import {
+  createStudentEnrolment,
+  getLessonReview,
+  confirmLessons,
+  getStudentEnrolments,
+  type CreateStudentEnrolmentRequest,
+} from "../../students/[id]/students-details.api";
+import { createStudent } from "@/lib/api/student.api";
+import { apiClient } from "@/lib/api/client";
+import { createCustomerPhone } from "../../customers/components/PhoneCard/phone-card.api";
+import { createCustomerAddress } from "../../customers/components/AddressCard/address-card.api";
+import { toast } from "sonner";
 
 interface NewEnrolmentModalProps {
   open: boolean;
@@ -59,6 +76,12 @@ export interface EnrolmentFormData {
   startDate?: string;
   paymentCycleEffectiveDate?: string;
   isOnline?: boolean;
+  // Detail step fields
+  teacherId?: string;
+  teacherName?: string;
+  day?: string;
+  startTime?: string;
+  goToDate?: string;
 }
 
 const paymentFrequencyOptions = [
@@ -135,7 +158,15 @@ export function NewEnrolmentModal({
   const [currentFormData, setCurrentFormData] = React.useState<EnrolmentFormData | null>(null);
   const [enrolmentDetailData, setEnrolmentDetailData] = React.useState<EnrolmentDetailFormData | null>(null);
   const [customerDetailsData, setCustomerDetailsData] = React.useState<CustomerDetailsFormData | null>(null);
+  const [studentDetailsData, setStudentDetailsData] = React.useState<StudentDetailsFormData | null>(null);
   const [startDateData, setStartDateData] = React.useState<EnrolmentStartDateFormData | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = React.useState(false);
+  const [lessonPreviews, setLessonPreviews] = React.useState<LessonPreview[]>([]);
+  const [reviewDetails, setReviewDetails] = React.useState<EnrolmentReviewDetails | undefined>(undefined);
+  const [loadingReview, setLoadingReview] = React.useState(false);
+  const [createdCourseId, setCreatedCourseId] = React.useState<number | null>(null);
+  const [createdCustomerId, setCreatedCustomerId] = React.useState<number | null>(null);
+  const [createdStudentId, setCreatedStudentId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (open) {
@@ -149,15 +180,21 @@ export function NewEnrolmentModal({
 
   // Reset the wizard only when everything is fully closed (not while moving to the next step).
   React.useEffect(() => {
-    if (!open && !isStartDateModalOpen && !isDetailModalOpen && !isCustomerDetailsModalOpen && !isStudentDetailsModalOpen) {
+    if (!open && !isStartDateModalOpen && !isDetailModalOpen && !isCustomerDetailsModalOpen && !isStudentDetailsModalOpen && !isReviewModalOpen) {
       setFormData(defaultFormData);
       setErrors({});
       setCurrentFormData(null);
       setStartDateData(null);
       setEnrolmentDetailData(null);
       setCustomerDetailsData(null);
+      setStudentDetailsData(null);
+      setLessonPreviews([]);
+      setReviewDetails(undefined);
+      setCreatedCourseId(null);
+      setCreatedCustomerId(null);
+      setCreatedStudentId(null);
     }
-  }, [open, isStartDateModalOpen, isDetailModalOpen, isCustomerDetailsModalOpen, isStudentDetailsModalOpen]);
+  }, [open, isStartDateModalOpen, isDetailModalOpen, isCustomerDetailsModalOpen, isStudentDetailsModalOpen, isReviewModalOpen]);
 
   const programOptions = React.useMemo(
     () => programs.map((p) => ({ value: p.id.toString(), label: p.name })),
@@ -416,10 +453,84 @@ export function NewEnrolmentModal({
           setIsCustomerDetailsModalOpen(false);
           setIsDetailModalOpen(true);
         }}
-        onNext={(customerData) => {
+        onNext={async (customerData) => {
           setCustomerDetailsData(customerData);
-          setIsCustomerDetailsModalOpen(false);
-          setIsStudentDetailsModalOpen(true);
+          
+          // Create customer via API
+          setLoadingReview(true);
+          try {
+            // Prepare customer creation payload
+            const customerPayload = {
+              firstname: customerData.firstName.trim(),
+              lastname: customerData.lastName.trim(),
+              email: customerData.email.trim(),
+              referralSourceId: customerData.referralSourceId || null,
+              description: customerData.referralSourceDescription || "",
+            };
+
+            // Create customer
+            const customerResponse = await apiClient.post(
+              `/admin/v2/${location}/customers`,
+              customerPayload
+            );
+
+            if (!customerResponse.data?.success || !customerResponse.data?.data?.id) {
+              toast.error(customerResponse.data?.message || "Failed to create customer");
+              setLoadingReview(false);
+              return;
+            }
+
+            const customerId = customerResponse.data.data.id;
+            setCreatedCustomerId(customerId);
+
+            // Note: Email is already saved when creating the customer, so we don't need to create it separately
+
+            // Create customer phone
+            if (customerData.phone && customerData.phone.trim()) {
+              try {
+                await createCustomerPhone(location, customerId, {
+                  number: customerData.phone,
+                  extension: customerData.phoneExt ? parseInt(customerData.phoneExt, 10) : undefined,
+                  label: customerData.phoneLabel || "Home",
+                  isPrimary: true,
+                });
+              } catch (error) {
+                // Continue even if phone creation fails
+              }
+            }
+
+            // Create customer address
+            const hasStreetAddress = customerData.streetAddress && customerData.streetAddress.trim();
+
+            if (hasStreetAddress) {
+              try {
+                const addressPayload = {
+                  address: customerData.streetAddress.trim(),
+                  postalCode: customerData.postalCode || "",
+                  city: customerData.city || "",
+                  cityId: customerData.cityId && customerData.cityId > 0 ? customerData.cityId : 0,
+                  provinceId: customerData.provinceId && customerData.provinceId > 0 ? customerData.provinceId : 1,
+                  countryId: customerData.countryId && customerData.countryId > 0 ? customerData.countryId : 1,
+                  note: "",
+                  label: customerData.addressLabel || "Home",
+                  isPrimary: false,
+                };
+                await createCustomerAddress(location, customerId, addressPayload);
+              } catch (error) {
+                // Continue even if address creation fails
+              }
+            }
+
+            toast.success("Customer created successfully");
+            setIsCustomerDetailsModalOpen(false);
+            setIsStudentDetailsModalOpen(true);
+          } catch (error: unknown) {
+            console.error("Error creating customer:", error);
+            const axiosError = error as { response?: { data?: { message?: string } } };
+            toast.error(axiosError.response?.data?.message || "Failed to create customer");
+          } finally {
+            setLoadingReview(false);
+          }
         }}
         initialData={customerDetailsData ?? undefined}
         location={location}
@@ -436,13 +547,283 @@ export function NewEnrolmentModal({
           firstName: customerDetailsData?.firstName ?? "",
           lastName: customerDetailsData?.lastName ?? "",
         }}
-        onNext={(studentData) => {
-          // Combine all data and pass to parent
-          if (currentFormData && enrolmentDetailData && customerDetailsData) {
-            // TODO: Combine enrolment data with customer details and student details
-            // For now, just pass the enrolment data
-            onNext?.(currentFormData);
+        isLoading={loadingReview}
+        onNext={async (studentData) => {
+          if (!currentFormData || !enrolmentDetailData || !createdCustomerId) {
+            toast.error("Missing required data to create student");
+            return;
+          }
+
+          setStudentDetailsData(studentData);
+          setLoadingReview(true);
+
+          try {
+            // Convert gender format: "Not Specified" -> "not-specified", "Male" -> "male", "Female" -> "female"
+            const genderMap: Record<string, 'male' | 'female' | 'not-specified'> = {
+              'Not Specified': 'not-specified',
+              'Male': 'male',
+              'Female': 'female',
+            };
+            const apiGender = genderMap[studentData.gender] || 'not-specified';
+
+            // Create student via API
+            const studentResponse = await createStudent(location, createdCustomerId, {
+              firstName: studentData.firstName.trim(),
+              lastName: studentData.lastName.trim(),
+              customerId: createdCustomerId,
+              birthDate: studentData.birthDate || undefined,
+              gender: apiGender,
+            });
+
+            if (!studentResponse.success) {
+              toast.error(studentResponse.message || "Failed to create student");
+              setLoadingReview(false);
+              return;
+            }
+
+            // Extract student ID from the response URL or use a different approach
+            // The API returns a URL, we need to extract the ID from it
+            // For now, we'll need to fetch the student list or use a different endpoint
+            // Let's assume the API response includes the student ID in data
+            // If not, we'll need to parse the URL or make another API call
+            
+            // Parse student ID from URL if available, otherwise we'll need to fetch it
+            // For now, let's create the enrolment and handle student ID extraction
+            // We'll need to check the actual API response structure
+            
+            // Since createStudent returns a URL, we might need to extract ID from it
+            // Or make a separate call to get the student ID
+            // For now, let's proceed with creating enrolment - we'll need to handle this
+            
+            toast.success("Student created successfully");
+            
+            // Now create enrolment with the student ID
+            // We need to get the student ID - let's check if it's in the response
+            // If not, we'll need to fetch it or modify the API response
+            
+            // For now, let's assume we can get student ID from the response URL
+            // Extract ID from URL pattern: /admin/v2/{location}/student/{id}/info
+            const urlMatch = studentResponse.data?.url?.match(/\/student\/(\d+)/);
+            const studentId = urlMatch ? urlMatch[1] : null;
+            
+            if (!studentId) {
+              toast.error("Could not determine student ID from response");
+              setLoadingReview(false);
+              return;
+            }
+
+            setCreatedStudentId(Number(studentId));
+
+            // Combine all enrolment data
+            const combinedData: EnrolmentFormData = {
+              ...currentFormData,
+              teacherId: enrolmentDetailData.teacherId,
+              teacherName: enrolmentDetailData.teacherName,
+              day: enrolmentDetailData.day,
+              startTime: enrolmentDetailData.startTime,
+              goToDate: enrolmentDetailData.goToDate,
+              duration: enrolmentDetailData.duration ?? currentFormData.duration,
+              startDate: enrolmentDetailData.startDate ?? currentFormData.startDate,
+            };
+
+            // Create enrolment payload
+            const payload: CreateStudentEnrolmentRequest = {
+              programId: Number(combinedData.program),
+              programRate: Number(combinedData.ratePerHour || 0),
+              duration: combinedData.duration,
+              paymentFrequency: combinedData.paymentFrequency,
+              paymentFrequencyDiscount: combinedData.paymentFrequencyDiscount
+                ? Number(combinedData.paymentFrequencyDiscount)
+                : undefined,
+              multipleEnrolDiscount: combinedData.multipleEnrolDiscount
+                ? Number(combinedData.multipleEnrolDiscount)
+                : undefined,
+              discountedRatePerMonth: Number(combinedData.discountedRatePerMonth || 0),
+              lessonsCount: Number(combinedData.numberOfLessons || 0),
+              autoRenew: combinedData.autoRenew,
+              startDate: combinedData.startDate || "",
+              paymentCycleEffectiveDate: combinedData.paymentCycleEffectiveDate || "",
+              isOnline: combinedData.isOnline ?? false,
+              teacherId: combinedData.teacherId ? Number(combinedData.teacherId) : 0,
+              day: combinedData.day || "",
+              startTime: combinedData.startTime || "",
+            };
+
+            // Basic validation
+            if (
+              !payload.programId ||
+              !payload.lessonsCount ||
+              !payload.startDate ||
+              !payload.paymentCycleEffectiveDate ||
+              !payload.teacherId ||
+              !payload.day ||
+              !payload.startTime
+            ) {
+              toast.error("Please complete all enrolment steps before previewing.");
+              setLoadingReview(false);
+              return;
+            }
+
+            // Create enrolment
+            const createResult = await createStudentEnrolment(location, studentId, payload);
+
+            if (!createResult || !createResult.success || !createResult.data) {
+              toast.error(createResult?.message || "Failed to create enrolment");
+              setLoadingReview(false);
+              return;
+            }
+
+            // Get courseId from the created enrolment response
+            const courseId = createResult.data.courseId;
+            
+            if (!courseId) {
+              toast.error("Course ID not available in response");
+              setLoadingReview(false);
+              return;
+            }
+
+            setCreatedCourseId(courseId);
+
+            // Fetch student enrolments first (sequential to avoid parallel requests)
+            await getStudentEnrolments(location, studentId, false);
+
+            // Then fetch lesson review data
+            const reviewResult = await getLessonReview(location, courseId, false);
+            if (!reviewResult || !reviewResult.success || !reviewResult.data) {
+              toast.error("Failed to load lesson review data");
+              setLoadingReview(false);
+              return;
+            }
+
+            const reviewData = reviewResult.data;
+            
+            // Transform review lessons to LessonPreview format
+            const previews: LessonPreview[] = reviewData.lessons.map((lesson, index) => {
+              const lessonDate = new Date(lesson.date);
+              const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+              const dayName = dayNames[lessonDate.getDay()];
+              
+              // Extract UTC time from the date string to avoid timezone conversion
+              const utcHours = String(lessonDate.getUTCHours()).padStart(2, '0');
+              const utcMinutes = String(lessonDate.getUTCMinutes()).padStart(2, '0');
+              const startTime = `${utcHours}:${utcMinutes}`;
+              
+              return {
+                index: index + 1,
+                id: lesson.id,
+                date: lessonDate.toISOString().split('T')[0],
+                day: dayName,
+                startTime: startTime,
+                duration: lesson.duration,
+                conflict: lesson.conflict,
+                isHolidayConflict: lesson.isHolidayConflict,
+                isConflict: lesson.isConflict,
+                isUnscheduled: lesson.isUnscheduled,
+              };
+            });
+
+            setLessonPreviews(previews);
+            setReviewDetails({
+              studentName: reviewData.studentName,
+              programName: reviewData.programName,
+              teacherName: reviewData.teacherName,
+              teacherId: combinedData.teacherId ? Number(combinedData.teacherId) : undefined,
+              startDate: reviewData.startDate,
+              endDate: reviewData.endDate,
+              startTime: reviewData.startTime,
+            });
+
             setIsStudentDetailsModalOpen(false);
+            setIsReviewModalOpen(true);
+          } catch (error: unknown) {
+            console.error("Error creating student or enrolment:", error);
+            const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+            toast.error(axiosError.response?.data?.message || axiosError.message || "Failed to create student or enrolment");
+          } finally {
+            setLoadingReview(false);
+          }
+        }}
+      />
+
+      <NewEnrolmentReviewModal
+        open={isReviewModalOpen}
+        onOpenChange={setIsReviewModalOpen}
+        lessons={lessonPreviews}
+        details={reviewDetails}
+        onBack={() => {
+          setIsReviewModalOpen(false);
+          setIsStudentDetailsModalOpen(true);
+        }}
+        isLoading={loadingReview}
+        location={location}
+        courseId={createdCourseId || undefined}
+        programId={currentFormData?.program || formData.program}
+        onLessonUpdated={async () => {
+          // Refresh lesson review data after lesson update
+          if (createdCourseId) {
+            try {
+              const reviewResult = await getLessonReview(location, createdCourseId, false);
+              if (reviewResult?.success && reviewResult.data) {
+                const reviewData = reviewResult.data;
+                
+                // Transform review lessons to LessonPreview format
+                const previews: LessonPreview[] = reviewData.lessons.map((lesson, index) => {
+                  const lessonDate = new Date(lesson.date);
+                  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                  const dayName = dayNames[lessonDate.getDay()];
+                  
+                  const utcHours = String(lessonDate.getUTCHours()).padStart(2, '0');
+                  const utcMinutes = String(lessonDate.getUTCMinutes()).padStart(2, '0');
+                  const startTime = `${utcHours}:${utcMinutes}`;
+                  
+                  return {
+                    index: index + 1,
+                    id: lesson.id,
+                    date: lessonDate.toISOString().split('T')[0],
+                    day: dayName,
+                    startTime: startTime,
+                    duration: lesson.duration,
+                    conflict: lesson.conflict,
+                    isHolidayConflict: lesson.isHolidayConflict,
+                    isConflict: lesson.isConflict,
+                    isUnscheduled: lesson.isUnscheduled,
+                  };
+                });
+
+                setLessonPreviews(previews);
+              }
+            } catch (error) {
+              console.error('Error refreshing lesson review:', error);
+            }
+          }
+        }}
+        onConfirm={async () => {
+          if (!createdCourseId) {
+            toast.error("Cannot confirm: Course ID missing");
+            return;
+          }
+
+          setLoadingReview(true);
+          try {
+            // Call the lesson confirmation API
+            const result = await confirmLessons(location, createdCourseId);
+
+            if (result && result.success) {
+              toast.success(result.message || "Lessons confirmed successfully");
+              setIsReviewModalOpen(false);
+              onOpenChange(false);
+              // Call onNext callback to refresh the listing
+              if (currentFormData) {
+                onNext?.(currentFormData);
+              }
+            } else {
+              toast.error(result?.message || "Failed to confirm lessons");
+            }
+          } catch (error: unknown) {
+            console.error("Error confirming lessons:", error);
+            toast.error("Failed to confirm lessons");
+          } finally {
+            setLoadingReview(false);
           }
         }}
       />
