@@ -2,92 +2,100 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { InvoiceDetail } from "../mockData/invoiceDetailMockData";
+import { AppDispatch } from "@/redux/store";
+import { InvoiceDetail, InvoiceStatus } from "../mockData/invoiceDetailMockData";
+import { updateInvoiceDetail } from "../[id]/invoices-details.slice";
+import { API_DELAY, TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceReturnHandlersProps {
   invoiceDetail: InvoiceDetail | null;
-  updateInvoiceDetail: (updater: (prev: InvoiceDetail | null) => InvoiceDetail | null) => void;
+  dispatch: AppDispatch;
   onReturnComplete?: () => void;
 }
 
 export function useInvoiceReturnHandlers({
   invoiceDetail,
-  updateInvoiceDetail,
+  dispatch,
   onReturnComplete,
 }: UseInvoiceReturnHandlersProps) {
   const [isReturning, setIsReturning] = React.useState(false);
 
-  const handleReturnConfirm = React.useCallback(() => {
-    if (!invoiceDetail) return;
+  const handleReturnConfirm = React.useCallback(async () => {
+    if (!invoiceDetail) {
+      toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
+      return;
+    }
 
     setIsReturning(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      updateInvoiceDetail((prev) => {
-        if (!prev) return null;
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, API_DELAY.MEDIUM));
 
-        // Update status to Returned
-        const updatedStatus = "Returned";
+      // Update status to Returned
+      const updatedStatus: InvoiceStatus = "Returned";
 
-        // Make all values negative for returned invoice
-        const updatedItems = prev.items.map((item) => ({
-          ...item,
-          qty: -Math.abs(item.qty),
-          price: -Math.abs(item.price),
-        }));
+      // Make all values negative for returned invoice
+      const updatedItems = invoiceDetail.items.map((item) => ({
+        ...item,
+        qty: -Math.abs(item.qty),
+        price: -Math.abs(item.price),
+      }));
 
-        // Update payments - if already paid, keep existing payments but make amounts negative
-        // If not paid, add a new payment entry
-        const updatedPayments =
-          prev.payments.length > 0
-            ? prev.payments.map((payment) => ({
-                ...payment,
-                amount: -Math.abs(payment.amount),
-              }))
-            : [
-                {
-                  id: "1",
-                  date: (() => {
-                    const now = new Date();
-                    const month = now.toLocaleDateString("en-US", { month: "short" });
-                    const day = now.getDate().toString().padStart(2, "0");
-                    const year = now.getFullYear();
-                    return `${month} ${day}, ${year}`;
-                  })(),
-                  type: "Credit Used",
-                  ref: `I-${prev.id - 26}`,
-                  notes: "",
-                  amount: -Math.abs(prev.totals.total),
-                },
-              ];
+      // Update payments - if already paid, keep existing payments but make amounts negative
+      // If not paid, add a new payment entry
+      const updatedPayments =
+        invoiceDetail.payments.length > 0
+          ? invoiceDetail.payments.map((payment) => ({
+              ...payment,
+              amount: -Math.abs(payment.amount),
+            }))
+          : [
+              {
+                id: "1",
+                date: (() => {
+                  const now = new Date();
+                  const month = now.toLocaleDateString("en-US", { month: "short" });
+                  const day = now.getDate().toString().padStart(2, "0");
+                  const year = now.getFullYear();
+                  return `${month} ${day}, ${year}`;
+                })(),
+                type: "Credit Used",
+                ref: `I-${invoiceDetail.id - 26}`,
+                notes: "",
+                amount: -Math.abs(invoiceDetail.totals.total),
+              },
+            ];
 
-        // Update totals to negative
-        const updatedTotals = {
-          discounts: -Math.abs(prev.totals.discounts),
-          subtotal: -Math.abs(prev.totals.subtotal),
-          tax: prev.totals.tax,
-          total: -Math.abs(prev.totals.total),
-          paid: -Math.abs(prev.totals.total),
-          balance: 0,
-        };
+      // Update totals to negative
+      const updatedTotals = {
+        discounts: -Math.abs(invoiceDetail.totals.discounts),
+        subtotal: -Math.abs(invoiceDetail.totals.subtotal),
+        tax: invoiceDetail.totals.tax,
+        total: -Math.abs(invoiceDetail.totals.total),
+        paid: -Math.abs(invoiceDetail.totals.total),
+        balance: 0,
+      };
 
-        return {
-          ...prev,
-          status: updatedStatus,
-          items: updatedItems,
-          payments: updatedPayments,
-          totals: updatedTotals,
-        };
-      });
+      // Update Redux state
+      dispatch(updateInvoiceDetail({
+        status: updatedStatus,
+        items: updatedItems,
+        payments: updatedPayments,
+        totals: updatedTotals,
+      }));
 
       setIsReturning(false);
       if (onReturnComplete) {
         onReturnComplete();
       }
-      toast.success("Invoice returned successfully");
-    }, 500);
-  }, [invoiceDetail, updateInvoiceDetail, onReturnComplete]);
+      toast.success(TOAST_MESSAGES.SUCCESS.INVOICE_RETURNED);
+    } catch (error) {
+      console.error("Failed to return invoice:", error);
+      setIsReturning(false);
+      toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
+    }
+  }, [invoiceDetail, dispatch, onReturnComplete]);
 
   return {
     handleReturnConfirm,

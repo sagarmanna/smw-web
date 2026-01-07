@@ -2,95 +2,81 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { AppDispatch } from "@/redux/store";
 import { InvoiceItem, InvoiceDetail } from "../mockData/invoiceDetailMockData";
+import { updateItems, updateTotals } from "../[id]/invoices-details.slice";
+import { recalculateTotals } from "../utils/totalsCalculator";
+import { TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceItemHandlersProps {
   invoiceDetail: InvoiceDetail | null;
-  updateInvoiceDetail: (updater: (prev: InvoiceDetail | null) => InvoiceDetail | null) => void;
+  dispatch: AppDispatch;
 }
 
 export function useInvoiceItemHandlers({
   invoiceDetail,
-  updateInvoiceDetail,
+  dispatch,
 }: UseInvoiceItemHandlersProps) {
   const handleSaveItem = React.useCallback(
     (updatedItem: InvoiceItem) => {
-      if (!invoiceDetail) return;
+      if (!invoiceDetail) {
+        toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
+        return;
+      }
 
-      updateInvoiceDetail((prev) => {
-        if (!prev) return null;
-
-        const updatedItems = prev.items.map((item) =>
+      try {
+        const updatedItems = invoiceDetail.items.map((item) =>
           item.id === updatedItem.id ? updatedItem : item
         );
 
-        // Recalculate totals
-        const subtotal = updatedItems.reduce((sum, item) => sum + item.price, 0);
-        const totalDiscounts = updatedItems.reduce(
-          (sum, item) => sum + (item.discount || 0),
-          0
+        // Recalculate totals using utility function
+        const totals = recalculateTotals(
+          updatedItems,
+          invoiceDetail.totals.tax,
+          invoiceDetail.totals.paid
         );
-        const tax = prev.totals.tax; // Keep existing tax
-        const total = subtotal + tax;
-        const paid = prev.totals.paid; // Keep existing paid amount
-        const balance = total - paid;
 
-        return {
-          ...prev,
-          items: updatedItems,
-          totals: {
-            discounts: totalDiscounts,
-            subtotal,
-            tax,
-            total,
-            paid,
-            balance,
-          },
-        };
-      });
+        // Update Redux state
+        dispatch(updateItems(updatedItems));
+        dispatch(updateTotals(totals));
 
-      toast.success("Line item updated successfully");
+        toast.success(TOAST_MESSAGES.SUCCESS.ITEM_UPDATED);
+      } catch (error) {
+        console.error("Failed to save item:", error);
+        toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
+      }
     },
-    [invoiceDetail, updateInvoiceDetail]
+    [invoiceDetail, dispatch]
   );
 
   const handleDeleteItem = React.useCallback(
     (itemId: string) => {
-      if (!invoiceDetail) return;
+      if (!invoiceDetail) {
+        toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
+        return;
+      }
 
-      updateInvoiceDetail((prev) => {
-        if (!prev) return null;
+      try {
+        const updatedItems = invoiceDetail.items.filter((item) => item.id !== itemId);
 
-        const updatedItems = prev.items.filter((item) => item.id !== itemId);
-
-        // Recalculate totals
-        const subtotal = updatedItems.reduce((sum, item) => sum + item.price, 0);
-        const totalDiscounts = updatedItems.reduce(
-          (sum, item) => sum + (item.discount || 0),
-          0
+        // Recalculate totals using utility function
+        const totals = recalculateTotals(
+          updatedItems,
+          invoiceDetail.totals.tax,
+          invoiceDetail.totals.paid
         );
-        const tax = prev.totals.tax; // Keep existing tax
-        const total = subtotal + tax;
-        const paid = prev.totals.paid; // Keep existing paid amount
-        const balance = total - paid;
 
-        return {
-          ...prev,
-          items: updatedItems,
-          totals: {
-            discounts: totalDiscounts,
-            subtotal,
-            tax,
-            total,
-            paid,
-            balance,
-          },
-        };
-      });
+        // Update Redux state
+        dispatch(updateItems(updatedItems));
+        dispatch(updateTotals(totals));
 
-      toast.success("Line item deleted successfully");
+        toast.success(TOAST_MESSAGES.SUCCESS.ITEM_DELETED);
+      } catch (error) {
+        console.error("Failed to delete item:", error);
+        toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
+      }
     },
-    [invoiceDetail, updateInvoiceDetail]
+    [invoiceDetail, dispatch]
   );
 
   return {
