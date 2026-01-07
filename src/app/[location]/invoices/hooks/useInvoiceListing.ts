@@ -76,7 +76,21 @@ export function useInvoiceListing(location: string) {
       customer: currentColumnFilters.customer as string | undefined,
       student: currentColumnFilters.student as string | undefined,
       phone: currentColumnFilters.phone as string | undefined,
-      status: currentColumnFilters.status as string | undefined,
+      status: (() => {
+        const statusValue = currentColumnFilters.status;
+        // Handle empty/null/undefined or old string values
+        if (!statusValue || statusValue === "" || statusValue === "all" || statusValue === "All") {
+          return undefined;
+        }
+        // Convert string to number if it's a numeric string (e.g., "1", "2", "6")
+        // Status values: 1=Owing, 2=Paid, 3=Credit, 5=Void, 6=All
+        if (typeof statusValue === 'string') {
+          const numValue = parseInt(statusValue, 10);
+          return isNaN(numValue) ? statusValue : numValue;
+        }
+        // If already a number, return as-is
+        return statusValue as number;
+      })(),
       sort: currentSortBy,
       order: currentSortDir,
     };
@@ -87,8 +101,8 @@ export function useInvoiceListing(location: string) {
       const fromDate = typeof dateFilter.from === 'string' ? new Date(dateFilter.from) : dateFilter.from;
       const toDate = typeof dateFilter.to === 'string' ? new Date(dateFilter.to) : dateFilter.to;
       if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
-        query.dateFrom = format(fromDate, 'yyyy-MM-dd');
-        query.dateTo = format(toDate, 'yyyy-MM-dd');
+        query.fromDate = format(fromDate, 'yyyy-MM-dd');
+        query.toDate = format(toDate, 'yyyy-MM-dd');
       }
     }
 
@@ -173,7 +187,7 @@ export function useInvoiceListing(location: string) {
       let serializedValue = filterValue;
       if (columnKey === 'date' && isDateRange(filterValue)) {
         serializedValue = serializeDateRange(filterValue);
-      } else if (filterValue === "all" || filterValue === "" || filterValue === null) {
+      } else if (filterValue === "all" || filterValue === "" || filterValue === null || filterValue === undefined) {
         serializedValue = undefined;
       }
 
