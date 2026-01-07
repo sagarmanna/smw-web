@@ -18,7 +18,7 @@ export interface PrivateLessonRow {
 // PrivateLessonsQuery interface for API queries
 export type PrivateLessonStatusCode = "1" | "2" | "3" | "4" | "5" | "No";
 export type OwingStatusCode = "1" | "3";
-export type OnlineStatus = "Yes" | "No";
+export type IsOnlineFlag = "1" | "0";
 
 export interface PrivateLessonsQuery {
   page?: number;
@@ -34,7 +34,13 @@ export interface PrivateLessonsQuery {
   student?: string;
   program?: string;
   teacher?: string;
-  onlineStatus?: OnlineStatus;
+  /**
+   * Backend expects:
+   * - 1 = online
+   * - 0 = in-class
+   * - omitted/empty = all
+   */
+  isOnline?: IsOnlineFlag;
   lessonStatus?: PrivateLessonStatusCode;
   owingStatus?: OwingStatusCode;
   showAll?: boolean;
@@ -96,7 +102,7 @@ const buildPrivateLessonsQueryParams = (query: PrivateLessonsQuery): URLSearchPa
   if (query.student) params.append("student", query.student);
   if (query.program) params.append("program", query.program);
   if (query.teacher) params.append("teacher", query.teacher);
-  if (query.onlineStatus) params.append("onlineStatus", query.onlineStatus);
+  if (query.isOnline) params.append("isOnline", query.isOnline);
   if (query.lessonStatus) params.append("lessonStatus", query.lessonStatus);
   if (query.owingStatus) params.append("owingStatus", query.owingStatus);
   if (typeof query.showAll === "boolean") params.append("showAll", query.showAll.toString());

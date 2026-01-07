@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import type { SortField } from "./sortPrivateLessons";
 import type {
-  OnlineStatus,
+  IsOnlineFlag,
   OwingStatusCode,
   PrivateLessonStatusCode,
   PrivateLessonsQuery,
@@ -60,14 +60,16 @@ export function mapLessonStatusFilterToApi(value: unknown): PrivateLessonStatusC
   }
 }
 
-export function mapOnlineStatusFilterToApi(value: unknown): OnlineStatus | undefined {
+export function mapIsOnlineFilterToApi(value: unknown): IsOnlineFlag | undefined {
+  // Backend expects: 1 = online, 0 = in-class (omit = all)
   if (typeof value !== "string") return undefined;
   const v = value.trim();
   if (!v) return undefined;
 
   const lower = v.toLowerCase();
-  if (lower === "yes") return "Yes";
-  if (lower === "no") return "No";
+  if (lower === "yes" || lower === "online") return "1";
+  if (lower === "no" || lower === "in-class" || lower === "inclass" || lower === "in class") return "0";
+  if (lower === "1" || lower === "0") return lower as IsOnlineFlag;
 
   return undefined;
 }

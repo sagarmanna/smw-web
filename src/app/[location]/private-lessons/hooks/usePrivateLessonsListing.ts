@@ -16,7 +16,7 @@ import { SortField } from "../utils/sortPrivateLessons";
 import {
   mapLessonStatusFilterToApi,
   mapOwingStatusFilterToApi,
-  mapOnlineStatusFilterToApi,
+  mapIsOnlineFilterToApi,
   mapDateRangeFilterToApi,
   mapSortFieldToApiSort,
 } from "../utils/privateLessonsQueryMapper";
@@ -82,7 +82,7 @@ export function usePrivateLessonsListing(location: string) {
       student: currentColumnFilters.student as string | undefined,
       program: currentColumnFilters.program as string | undefined,
       teacher: currentColumnFilters.teacher as string | undefined,
-      onlineStatus: mapOnlineStatusFilterToApi(currentColumnFilters.online),
+      isOnline: mapIsOnlineFilterToApi(currentColumnFilters.online),
       lessonStatus: mapLessonStatusFilterToApi(currentColumnFilters.status),
       owingStatus: mapOwingStatusFilterToApi(currentColumnFilters.payment),
       showAll: currentShowAll,
