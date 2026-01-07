@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Mail, Printer, Settings, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -86,6 +87,40 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const handleReturnClick = React.useCallback(() => {
     setShowReturnModal(true);
   }, []);
+
+  const handleSaveDetails = React.useCallback(
+    async (updatedInvoice: Partial<InvoiceDetail>): Promise<boolean> => {
+      if (!invoiceDetail) {
+        toast.error("Invoice not found");
+        return false;
+      }
+
+      try {
+        // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        setInvoiceDetail((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            ...updatedInvoice,
+          };
+        });
+
+        toast.success("Invoice date updated successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to save invoice details:", error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to save invoice details. Please try again.";
+        toast.error(errorMessage);
+        return false;
+      }
+    },
+    [invoiceDetail]
+  );
 
   const handleReturnConfirm = React.useCallback(() => {
     if (!invoiceDetail) return;
@@ -303,6 +338,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             <InvoiceDetailsCard
               invoice={invoiceDetail}
               isLoading={isLoading}
+              onSaveDetails={handleSaveDetails}
             />
 
             <InvoiceCustomerCard
