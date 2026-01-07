@@ -18,10 +18,12 @@ import { InvoiceItem } from "../../mockData/invoiceDetailMockData";
 import { InvoiceDiscountModal, DiscountData } from "../modals/InvoiceDiscountModal";
 import { EditLineItemModal } from "../modals/EditLineItemModal";
 import { toast } from "sonner";
+import { TOAST_MESSAGES } from "../../utils/constants";
 
 interface InvoiceItemsCardProps {
   items: InvoiceItem[];
   isLoading?: boolean;
+  isVoided?: boolean;
   onSaveDiscount?: (selectedItemIds: string[], discountData: DiscountData) => void;
   onSaveItem?: (item: InvoiceItem) => void;
   onDeleteItem?: (itemId: string) => void;
@@ -30,6 +32,7 @@ interface InvoiceItemsCardProps {
 export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
   items,
   isLoading = false,
+  isVoided = false,
   onSaveDiscount,
   onSaveItem,
   onDeleteItem,
@@ -63,19 +66,21 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
   }, []);
 
   const handleOpenDiscountModal = React.useCallback(() => {
+    if (isVoided) return;
     if (selectedItems.size === 0) {
-      toast.error("Please select at least one item to edit discount!");
+      toast.error(TOAST_MESSAGES.ERROR.ITEM_SELECTION_REQUIRED);
       return;
     }
     setIsDiscountModalOpen(true);
-  }, [selectedItems]);
+  }, [selectedItems, isVoided]);
 
   const handleRowClick = React.useCallback(
     (item: InvoiceItem) => {
+      if (isVoided) return;
       setSelectedItem(item);
       setIsEditLineItemModalOpen(true);
     },
-    []
+    [isVoided]
   );
 
   const handleSaveItem = React.useCallback(
@@ -262,7 +267,10 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem disabled>Add Item...</DropdownMenuItem>
               <DropdownMenuItem disabled>Edit Tax...</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleOpenDiscountModal}>
+              <DropdownMenuItem 
+                onClick={handleOpenDiscountModal}
+                disabled={isVoided}
+              >
                 Edit Discount...
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -299,8 +307,8 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
           hideRecordCount={true}
           stickyHeader={isExpanded}
           maxHeight={isExpanded ? "400px" : undefined}
-          onRowClick={handleRowClick}
-          rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          onRowClick={isVoided ? undefined : handleRowClick}
+          rowClassName={isVoided ? "" : "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"}
         />
       </div>
       <InvoiceDiscountModal

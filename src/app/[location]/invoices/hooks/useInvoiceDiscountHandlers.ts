@@ -1,41 +1,45 @@
 "use client";
 
 import * as React from "react";
+import { AppDispatch } from "@/redux/store";
 import { InvoiceDetail, InvoiceItem } from "../mockData/invoiceDetailMockData";
 import { DiscountData } from "../components/modals/InvoiceDiscountModal";
+import { updateItems, updateTotals } from "../[id]/invoices-details.slice";
+import { recalculateTotals } from "../utils/totalsCalculator";
+import { TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceDiscountHandlersProps {
   invoiceDetail: InvoiceDetail | null;
-  updateInvoiceDetail: (updater: (prev: InvoiceDetail | null) => InvoiceDetail | null) => void;
+  dispatch: AppDispatch;
   onDiscountWarning?: (show: boolean) => void;
 }
 
 export function useInvoiceDiscountHandlers({
   invoiceDetail,
-  updateInvoiceDetail,
+  dispatch,
   onDiscountWarning,
 }: UseInvoiceDiscountHandlersProps) {
   const handleSaveDiscount = React.useCallback(
     (selectedItemIds: string[], discountData: DiscountData) => {
-      if (!invoiceDetail) return;
-
-      // Check if any discount value is non-zero (non-approved discount)
-      const hasNonApprovedDiscount =
-        discountData.paymentFrequencyDiscountPercent > 0 ||
-        discountData.customerDiscountPercent > 0 ||
-        discountData.multipleEnrollmentDiscountAmount > 0 ||
-        discountData.lineItemDiscountValue > 0;
-
-      // Show warning banner if there's a non-approved discount
-      if (hasNonApprovedDiscount && onDiscountWarning) {
-        onDiscountWarning(true);
+      if (!invoiceDetail) {
+        return;
       }
 
-      // Update selected items with the discount
-      updateInvoiceDetail((prev) => {
-        if (!prev) return null;
+      try {
+        // Check if any discount value is non-zero (non-approved discount)
+        const hasNonApprovedDiscount =
+          discountData.paymentFrequencyDiscountPercent > 0 ||
+          discountData.customerDiscountPercent > 0 ||
+          discountData.multipleEnrollmentDiscountAmount > 0 ||
+          discountData.lineItemDiscountValue > 0;
 
-        const updatedItems = prev.items.map((item) => {
+        // Show warning banner if there's a non-approved discount
+        if (hasNonApprovedDiscount && onDiscountWarning) {
+          onDiscountWarning(true);
+        }
+
+        // Update selected items with the discount
+        const updatedItems = invoiceDetail.items.map((item) => {
           if (!selectedItemIds.includes(item.id)) {
             return item;
           }
@@ -90,32 +94,22 @@ export function useInvoiceDiscountHandlers({
           };
         });
 
-        // Recalculate totals
-        const subtotal = updatedItems.reduce((sum, item) => sum + item.price, 0);
-        const totalDiscounts = updatedItems.reduce(
-          (sum, item) => sum + (item.discount || 0),
-          0
+        // Recalculate totals using utility function
+        const totals = recalculateTotals(
+          updatedItems,
+          invoiceDetail.totals.tax,
+          invoiceDetail.totals.paid
         );
-        const tax = prev.totals.tax; // Keep existing tax
-        const total = subtotal + tax;
-        const paid = prev.totals.paid; // Keep existing paid amount
-        const balance = total - paid;
 
-        return {
-          ...prev,
-          items: updatedItems,
-          totals: {
-            discounts: totalDiscounts,
-            subtotal,
-            tax,
-            total,
-            paid,
-            balance,
-          },
-        };
-      });
+        // Update Redux state
+        dispatch(updateItems(updatedItems));
+        dispatch(updateTotals(totals));
+      } catch (error) {
+        console.error("Failed to apply discount:", error);
+        // Error toast is handled by the component calling this
+      }
     },
-    [invoiceDetail, updateInvoiceDetail, onDiscountWarning]
+    [invoiceDetail, dispatch, onDiscountWarning]
   );
 
   return {

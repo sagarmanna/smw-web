@@ -27,12 +27,24 @@ export interface InvoicePayment {
   amount: number;
 }
 
+// Invoice Comment interface
+export interface InvoiceComment {
+  id: number;
+  content: string;
+  createdUser: string;
+  avatar?: string;
+  createdOn: string;
+}
+
+// Invoice Status type
+export type InvoiceStatus = "Owing" | "Paid" | "Cancelled" | "Returned" | "Voided";
+
 // Invoice Detail interface
 export interface InvoiceDetail {
   id: number;
   number: string;
   date: string;
-  status: string; // "Owing" | "Paid" | "Cancelled" | "Returned"
+  status: InvoiceStatus;
   customer: {
     name: string;
     phone: string;
@@ -50,7 +62,7 @@ export interface InvoiceDetail {
     balance: number;
   };
   message?: string;
-  comments?: string;
+  comments?: InvoiceComment[];
   history?: Array<{
     createdOn: string;
     message: string;
@@ -145,7 +157,7 @@ export function generateInvoiceDetail(invoice: InvoiceRow): InvoiceDetail {
     id: invoice.id,
     number: invoice.number,
     date: invoice.date,
-    status: invoice.status,
+    status: invoice.status as InvoiceStatus,
     customer: customerData,
     items,
     payments,
@@ -158,7 +170,7 @@ export function generateInvoiceDetail(invoice: InvoiceRow): InvoiceDetail {
       balance,
     },
     message: "",
-    comments: "",
+    comments: [],
     history: [
       {
         createdOn: invoice.date,

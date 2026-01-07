@@ -1,14 +1,31 @@
 "use client";
 
 import * as React from "react";
-import { getMockInvoiceDetail, InvoiceDetail } from "../mockData/invoiceDetailMockData";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { 
+  fetchInvoice,
+  clearCache,
+  updateInvoiceDetail,
+  updateCustomer,
+  updateItems,
+  updateTotals,
+  updateMessage,
+  addComment,
+  addHistoryEntry,
+} from "../[id]/invoices-details.slice";
+import { InvoiceDetail, InvoiceItem, InvoiceComment, InvoiceStatus } from "../mockData/invoiceDetailMockData";
 import { useInvoiceItemHandlers } from "./useInvoiceItemHandlers";
 import { useInvoiceDiscountHandlers } from "./useInvoiceDiscountHandlers";
 import { useInvoiceDetailsHandlers } from "./useInvoiceDetailsHandlers";
 import { useInvoiceCustomerHandlers } from "./useInvoiceCustomerHandlers";
 import { useInvoiceReturnHandlers } from "./useInvoiceReturnHandlers";
-import { InvoiceItem } from "../mockData/invoiceDetailMockData";
+import { useInvoiceTaxHandlers } from "./useInvoiceTaxHandlers";
+import { useInvoiceMessageHandlers } from "./useInvoiceMessageHandlers";
+import { useInvoiceCommentsHandlers } from "./useInvoiceCommentsHandlers";
+import { useInvoiceVoidHandlers } from "./useInvoiceVoidHandlers";
 import { DiscountData } from "../components/modals/InvoiceDiscountModal";
+import { TaxAdjustmentData } from "../components/modals/AdjustTaxModal";
+import { DISCOUNT_WARNING_DURATION, TOAST_MESSAGES } from "../utils/constants";
 
 type InvoiceDetailsHookReturn = {
   loading: boolean;
@@ -25,8 +42,13 @@ type InvoiceDetailsHookReturn = {
   handleSaveDiscount: (selectedItemIds: string[], discountData: DiscountData) => void;
   handleSaveItem: (updatedItem: InvoiceItem) => void;
   handleDeleteItem: (itemId: string) => void;
+  handleAdjustTax: (adjustmentData: TaxAdjustmentData) => void;
+  handleSaveMessage: (message: string) => void;
+  handleAddComment: (content: string) => Promise<void>;
   handleReturnConfirm: () => void;
   isReturning: boolean;
+  handleVoidConfirm: () => void;
+  isVoiding: boolean;
   showDiscountWarning: boolean;
   setShowDiscountWarning: (show: boolean) => void;
 };
@@ -35,78 +57,79 @@ export function useInvoiceDetails(
   location: string,
   invoiceId: number
 ): InvoiceDetailsHookReturn {
-  const [invoiceDetail, setInvoiceDetail] = React.useState<InvoiceDetail | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const dispatch = useAppDispatch();
+  
+  // Get invoice data from Redux store
+  const invoiceDetail = useAppSelector((state) => state.invoice.invoiceDetail);
+  const isLoading = useAppSelector((state) => state.invoice.isLoading);
+  const error = useAppSelector((state) => state.invoice.error);
+  
   const [showDiscountWarning, setShowDiscountWarning] = React.useState(false);
 
-  // Fetch invoice details
-  const fetchInvoiceDetail = React.useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Simulate API call with mock data
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const detail = getMockInvoiceDetail(invoiceId);
-      if (detail) {
-        setInvoiceDetail(detail);
-      } else {
-        setError("Invoice not found");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load invoice");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [invoiceId]);
-
-  // Initial fetch
-  React.useEffect(() => {
-    fetchInvoiceDetail();
-  }, [fetchInvoiceDetail]);
-
-  // Auto-dismiss discount warning banner after 15 seconds
+  // Auto-dismiss discount warning banner after configured duration
   React.useEffect(() => {
     if (showDiscountWarning) {
       const timer = setTimeout(() => {
         setShowDiscountWarning(false);
-      }, 15000); // 15 seconds
+      }, DISCOUNT_WARNING_DURATION);
 
       return () => clearTimeout(timer);
     }
   }, [showDiscountWarning]);
 
-  // Use reusable hooks for all handlers
+  // Use reusable hooks for all handlers - now they use Redux dispatch
   const { handleSaveDetails } = useInvoiceDetailsHandlers({
     invoiceDetail,
-    updateInvoiceDetail: setInvoiceDetail,
+    dispatch,
+    location,
+    invoiceId,
   });
 
   const { handleCustomerChange } = useInvoiceCustomerHandlers({
     invoiceDetail,
-    updateInvoiceDetail: setInvoiceDetail,
+    dispatch,
   });
 
   const { handleSaveDiscount } = useInvoiceDiscountHandlers({
     invoiceDetail,
-    updateInvoiceDetail: setInvoiceDetail,
+    dispatch,
     onDiscountWarning: setShowDiscountWarning,
   });
 
   const { handleSaveItem, handleDeleteItem } = useInvoiceItemHandlers({
     invoiceDetail,
-    updateInvoiceDetail: setInvoiceDetail,
+    dispatch,
+  });
+
+  const { handleAdjustTax } = useInvoiceTaxHandlers({
+    invoiceDetail,
+    dispatch,
+  });
+
+  const { handleSaveMessage } = useInvoiceMessageHandlers({
+    invoiceDetail,
+    dispatch,
+  });
+
+  const { handleAddComment } = useInvoiceCommentsHandlers({
+    invoiceDetail,
+    dispatch,
   });
 
   const { handleReturnConfirm, isReturning } = useInvoiceReturnHandlers({
     invoiceDetail,
-    updateInvoiceDetail: setInvoiceDetail,
+    dispatch,
+  });
+
+  const { handleVoidConfirm, isVoiding } = useInvoiceVoidHandlers({
+    invoiceDetail,
+    dispatch,
   });
 
   const refresh = React.useCallback(async () => {
-    await fetchInvoiceDetail();
-  }, [fetchInvoiceDetail]);
+    dispatch(clearCache());
+    await dispatch(fetchInvoice({ location, invoiceId })).unwrap();
+  }, [dispatch, location, invoiceId]);
 
   return {
     loading: isLoading,
@@ -118,10 +141,14 @@ export function useInvoiceDetails(
     handleSaveDiscount,
     handleSaveItem,
     handleDeleteItem,
+    handleAdjustTax,
+    handleSaveMessage,
+    handleAddComment,
     handleReturnConfirm,
     isReturning,
+    handleVoidConfirm,
+    isVoiding,
     showDiscountWarning,
     setShowDiscountWarning,
   };
 }
-

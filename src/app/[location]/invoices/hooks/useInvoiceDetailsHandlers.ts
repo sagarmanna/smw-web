@@ -2,49 +2,59 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { AppDispatch } from "@/redux/store";
 import { InvoiceDetail } from "../mockData/invoiceDetailMockData";
+import { updateInvoice, updateInvoiceDetail } from "../[id]/invoices-details.slice";
+import { TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceDetailsHandlersProps {
   invoiceDetail: InvoiceDetail | null;
-  updateInvoiceDetail: (updater: (prev: InvoiceDetail | null) => InvoiceDetail | null) => void;
+  dispatch: AppDispatch;
+  location: string;
+  invoiceId: number;
 }
 
 export function useInvoiceDetailsHandlers({
   invoiceDetail,
-  updateInvoiceDetail,
+  dispatch,
+  location,
+  invoiceId,
 }: UseInvoiceDetailsHandlersProps) {
   const handleSaveDetails = React.useCallback(
     async (updatedInvoice: Partial<InvoiceDetail>): Promise<boolean> => {
       if (!invoiceDetail) {
-        toast.error("Invoice not found");
+        toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
         return false;
       }
 
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Dispatch updateInvoice thunk (which will call API)
+        await dispatch(
+          updateInvoice({
+            location,
+            invoiceId,
+            data: {
+              date: updatedInvoice.date,
+              status: updatedInvoice.status,
+              customer: updatedInvoice.customer,
+              message: updatedInvoice.message,
+            },
+          })
+        ).unwrap();
 
-        updateInvoiceDetail((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            ...updatedInvoice,
-          };
-        });
-
-        toast.success("Invoice date updated successfully");
+        toast.success(TOAST_MESSAGES.SUCCESS.INVOICE_UPDATED);
         return true;
       } catch (error) {
         console.error("Failed to save invoice details:", error);
         const errorMessage =
           error instanceof Error
             ? error.message
-            : "Failed to save invoice details. Please try again.";
+            : TOAST_MESSAGES.ERROR.FAILED_TO_SAVE;
         toast.error(errorMessage);
         return false;
       }
     },
-    [invoiceDetail, updateInvoiceDetail]
+    [invoiceDetail, dispatch, location, invoiceId]
   );
 
   return {

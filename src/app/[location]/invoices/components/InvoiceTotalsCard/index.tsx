@@ -1,11 +1,21 @@
 "use client";
 
 import * as React from "react";
+import { ChevronDown } from "lucide-react";
 import {
   SectionCard,
 } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AdjustTaxModal, TaxAdjustmentData } from "../modals/AdjustTaxModal";
+import { InvoiceItem } from "../../mockData/invoiceDetailMockData";
 
 interface InvoiceTotalsCardProps {
   totals: {
@@ -16,13 +26,26 @@ interface InvoiceTotalsCardProps {
     paid: number;
     balance: number;
   };
+  items?: InvoiceItem[];
   isLoading?: boolean;
+  isVoided?: boolean;
+  onAdjustTax?: (adjustmentData: TaxAdjustmentData) => void;
 }
 
 export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
   totals,
+  items = [],
   isLoading = false,
+  isVoided = false,
+  onAdjustTax,
 }: InvoiceTotalsCardProps) {
+  const [isAdjustTaxModalOpen, setIsAdjustTaxModalOpen] = React.useState(false);
+
+  // Calculate tax from items (sum of all item taxes)
+  const taxCalculated = React.useMemo(() => {
+    return items.reduce((sum, item) => sum + (item.tax || 0), 0);
+  }, [items]);
+
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
     return [
       {
@@ -56,13 +79,54 @@ export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
     ];
   }, [totals]);
 
+  const handleOpenAdjustTaxModal = React.useCallback(() => {
+    if (isVoided) return;
+    setIsAdjustTaxModalOpen(true);
+  }, [isVoided]);
+
+  const handleSaveTaxAdjustment = React.useCallback(
+    (adjustmentData: TaxAdjustmentData) => {
+      if (onAdjustTax) {
+        onAdjustTax(adjustmentData);
+      }
+      setIsAdjustTaxModalOpen(false);
+    },
+    [onAdjustTax]
+  );
+
   return (
-    <SectionCard
-      title="Totals"
-      data={detailRows}
-      isLoading={isLoading}
-      className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
-    />
+    <>
+      <SectionCard
+        title="Totals"
+        data={detailRows}
+        isLoading={isLoading}
+        className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
+        headerActions={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={handleOpenAdjustTaxModal}
+                disabled={isVoided}
+              >
+                Adjust Tax...
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      />
+      <AdjustTaxModal
+        open={isAdjustTaxModalOpen}
+        onClose={() => setIsAdjustTaxModalOpen(false)}
+        onSave={onAdjustTax ? handleSaveTaxAdjustment : undefined}
+        taxCalculated={taxCalculated}
+        currentTax={totals.tax}
+      />
+    </>
   );
 });
 

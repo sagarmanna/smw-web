@@ -2,16 +2,19 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { AppDispatch } from "@/redux/store";
 import { InvoiceDetail } from "../mockData/invoiceDetailMockData";
+import { updateCustomer } from "../[id]/invoices-details.slice";
+import { TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceCustomerHandlersProps {
   invoiceDetail: InvoiceDetail | null;
-  updateInvoiceDetail: (updater: (prev: InvoiceDetail | null) => InvoiceDetail | null) => void;
+  dispatch: AppDispatch;
 }
 
 export function useInvoiceCustomerHandlers({
   invoiceDetail,
-  updateInvoiceDetail,
+  dispatch,
 }: UseInvoiceCustomerHandlersProps) {
   const handleCustomerChange = React.useCallback(
     (customer: {
@@ -20,24 +23,27 @@ export function useInvoiceCustomerHandlers({
       email: string;
       customerId?: number;
     }) => {
-      if (!invoiceDetail) return;
+      if (!invoiceDetail) {
+        toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
+        return;
+      }
 
-      updateInvoiceDetail((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          customer: {
-            name: customer.name,
-            phone: customer.phone,
-            email: customer.email,
-            customerId: customer.customerId,
-          },
-        };
-      });
+      try {
+        // Update Redux state
+        dispatch(updateCustomer({
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email,
+          customerId: customer.customerId,
+        }));
 
-      toast.success("Customer updated successfully");
+        toast.success(TOAST_MESSAGES.SUCCESS.CUSTOMER_UPDATED);
+      } catch (error) {
+        console.error("Failed to update customer:", error);
+        toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
+      }
     },
-    [invoiceDetail, updateInvoiceDetail]
+    [invoiceDetail, dispatch]
   );
 
   return {

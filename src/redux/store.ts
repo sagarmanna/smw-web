@@ -24,6 +24,7 @@ import groupCourseReducer from '../app/[location]/group-courses/[id]/groupCourse
 import groupCourseTabsReducer from '../app/[location]/group-courses/[id]/groupCourseTabs.slice';
 import itemsListingReducer from '../app/[location]/items/itemsListing.slice';
 import invoicesListingReducer from '../app/[location]/invoices/invoicesListing.slice';
+import invoiceReducer from '../app/[location]/invoices/[id]/invoices-details.slice';
 import administratorsListingReducer from '../app/[location]/administrators/administratorsListing.slice';
 import staffMembersListingReducer from '../app/[location]/staff-members/staffMembersListing.slice';
 import ownersListingReducer from '../app/[location]/owners/ownersListing.slice';
@@ -65,6 +66,7 @@ export const store = configureStore({
     groupCourseTabs: groupCourseTabsReducer,
     itemsListing: itemsListingReducer,
     invoicesListing: invoicesListingReducer,
+    invoice: invoiceReducer,
     administratorsListing: administratorsListingReducer,
     staffMembersListing: staffMembersListingReducer,
     ownersListing: ownersListingReducer,

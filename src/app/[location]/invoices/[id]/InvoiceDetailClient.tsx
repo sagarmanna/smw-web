@@ -15,6 +15,7 @@ import { InvoiceMessageCard } from "../components/InvoiceMessageCard";
 import { InvoiceCommentsCard } from "../components/InvoiceCommentsCard";
 import { InvoiceHistoryCard } from "../components/InvoiceHistoryCard";
 import { ReturnInvoiceModal } from "../components/modals/ReturnInvoiceModal";
+import { VoidInvoiceModal } from "../components/modals/VoidInvoiceModal";
 import { InvoiceDiscountWarningBanner } from "../components/InvoiceDiscountWarningBanner";
 import { useInvoiceDetails } from "../hooks/useInvoiceDetails";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { TOAST_MESSAGES } from "../utils/constants";
 
 interface InvoiceDetailClientProps {
   location: string;
@@ -38,6 +47,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const invoiceId = Number(id);
   
   const [showReturnModal, setShowReturnModal] = React.useState(false);
+  const [showVoidModal, setShowVoidModal] = React.useState(false);
 
   // Use main invoice details hook
   const {
@@ -49,8 +59,13 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     handleSaveDiscount,
     handleSaveItem,
     handleDeleteItem,
+    handleAdjustTax,
+    handleSaveMessage,
+    handleAddComment,
     handleReturnConfirm,
     isReturning,
+    handleVoidConfirm,
+    isVoiding,
     showDiscountWarning,
     setShowDiscountWarning,
   } = useInvoiceDetails(location, invoiceId);
@@ -85,7 +100,14 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     setShowReturnModal(false);
   }, [handleReturnConfirm]);
 
+  // Wrap void confirm to close modal
+  const handleVoidConfirmWithClose = React.useCallback(() => {
+    handleVoidConfirm();
+    setShowVoidModal(false);
+  }, [handleVoidConfirm]);
+
   const isReturned = invoiceDetail?.status === "Returned";
+  const isVoided = invoiceDetail?.status === "Voided";
 
   if (isLoading) {
     return (
@@ -138,7 +160,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                   <Badge className="bg-green-600 hover:bg-green-700 text-white">
                     Returned
                   </Badge>
-                ) : (
+                ) : !isVoided ? (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -157,7 +179,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                )}
+                ) : null}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -166,7 +188,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                         size="icon"
                         className="h-8 w-8 text-gray-500 hover:text-gray-700"
                         onClick={() => {
-                          // TODO: Implement email functionality
+                          toast.info(TOAST_MESSAGES.INFO.FEATURE_UNDER_PROCESS);
                         }}
                         aria-label="Email invoice"
                       >
@@ -203,22 +225,46 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                   <span className="text-sm font-semibold ml-2">
                     {isReturned ? "PAID" : invoiceDetail.status} {formatCurrency(invoiceDetail.totals.total)}
                   </span>
+                ) : isVoided ? (
+                  <span className="text-sm font-semibold ml-2">
+                    VOIDED {formatCurrency(invoiceDetail.totals.total)}
+                  </span>
                 ) : (
                   <span className="text-sm font-semibold ml-2">
                     OWING {formatCurrency(invoiceDetail.totals.balance)}
                   </span>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    // TODO: Implement settings menu
-                  }}
-                  aria-label="Settings"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label="Settings"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        toast.info("This feature is under process");
+                      }}
+                    >
+                      Receive Payment
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (!isVoided) {
+                          setShowVoidModal(true);
+                        }
+                      }}
+                      disabled={isVoided}
+                    >
+                      Void
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )
           }
@@ -252,6 +298,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
           <InvoiceItemsCard
             items={invoiceDetail.items}
             isLoading={isLoading}
+            isVoided={isVoided}
             onSaveDiscount={handleSaveDiscount}
             onSaveItem={handleSaveItem}
             onDeleteItem={handleDeleteItem}
@@ -266,7 +313,10 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
             <InvoiceTotalsCard
               totals={invoiceDetail.totals}
+              items={invoiceDetail.items}
               isLoading={isLoading}
+              isVoided={isVoided}
+              onAdjustTax={handleAdjustTax}
             />
           </div>
 
@@ -275,11 +325,13 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             <InvoiceMessageCard
               message={invoiceDetail.message}
               isLoading={isLoading}
+              onSaveMessage={handleSaveMessage}
             />
 
             <InvoiceCommentsCard
               comments={invoiceDetail.comments}
               isLoading={isLoading}
+              onAddComment={handleAddComment}
             />
 
             <InvoiceHistoryCard
@@ -296,6 +348,14 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
         onOpenChange={setShowReturnModal}
         onConfirm={handleReturnConfirmWithClose}
         isReturning={isReturning}
+      />
+
+      {/* Void Invoice Modal */}
+      <VoidInvoiceModal
+        open={showVoidModal}
+        onOpenChange={setShowVoidModal}
+        onConfirm={handleVoidConfirmWithClose}
+        isVoiding={isVoiding}
       />
     </>
   );

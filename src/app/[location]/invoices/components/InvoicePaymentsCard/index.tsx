@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { SectionCard, AddButton } from "@/components/SectionCard";
+import { SectionCard } from "@/components/SectionCard";
 import { CustomTable } from "@/components/CustomTable";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { InvoicePayment } from "../../mockData/invoiceDetailMockData";
@@ -48,11 +48,6 @@ export const InvoicePaymentsCard = React.memo(function InvoicePaymentsCard({
       title="Payments"
       isLoading={isLoading}
       className="[&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1"
-      headerActions={
-        <>
-          <AddButton onClick={() => {}} />
-        </>
-      }
     >
       <div className="px-4 pb-2">
         <CustomTable

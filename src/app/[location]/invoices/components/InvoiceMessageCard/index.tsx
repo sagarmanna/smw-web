@@ -5,35 +5,62 @@ import {
   SectionCard,
   AddButton,
 } from "@/components/SectionCard";
+import { EditMessageModal } from "../modals/EditMessageModal";
 
 interface InvoiceMessageCardProps {
   message?: string;
   isLoading?: boolean;
+  onSaveMessage?: (message: string) => void;
 }
 
 export const InvoiceMessageCard = React.memo(function InvoiceMessageCard({
   message,
   isLoading = false,
+  onSaveMessage,
 }: InvoiceMessageCardProps) {
-  return (
-    <SectionCard
-      title="Message"
-      isLoading={isLoading}
-      className="[&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1"
-      headerActions={
-        <>
-          <AddButton onClick={() => {}} />
-        </>
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+
+  const handleOpenModal = React.useCallback(() => {
+    setIsModalOpen(true);
+  }, []);
+
+  const handleSaveMessage = React.useCallback(
+    (newMessage: string) => {
+      if (onSaveMessage) {
+        onSaveMessage(newMessage);
       }
-    >
-      <div className="px-4 pb-2">
-        {message ? (
-          <p className="text-sm text-foreground">{message}</p>
-        ) : (
-          <p className="text-sm text-muted-foreground">No message</p>
-        )}
-      </div>
-    </SectionCard>
+      setIsModalOpen(false);
+    },
+    [onSaveMessage]
+  );
+
+  return (
+    <>
+      <SectionCard
+        title="Message"
+        isLoading={isLoading}
+        className="[&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1"
+        headerActions={
+          <>
+            <AddButton onClick={handleOpenModal} />
+          </>
+        }
+      >
+        <div className="px-4 pb-2">
+          {message ? (
+            <p className="text-sm text-foreground whitespace-pre-wrap">{message}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">No message</p>
+          )}
+        </div>
+      </SectionCard>
+      <EditMessageModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={onSaveMessage ? handleSaveMessage : undefined}
+        currentMessage={message}
+      />
+    </>
   );
 });
 
