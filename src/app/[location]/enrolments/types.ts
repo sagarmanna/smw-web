@@ -30,11 +30,13 @@ export interface EnrolmentDetails {
   customer: string;
   customerId?: number;
   online: boolean;
+  type?: "private" | "group"; // Normalized type: "private" | "group"
 }
 
 export interface EnrolmentDiscounts {
-  pfDiscount: string;
-  multipleEnrolDiscount: string;
+  pfDiscount?: string; // For private enrolments
+  multipleEnrolDiscount?: string; // For private enrolments
+  discount?: string; // For group enrolments (single discount field)
 }
 
 export interface EnrolmentPaymentFrequency {

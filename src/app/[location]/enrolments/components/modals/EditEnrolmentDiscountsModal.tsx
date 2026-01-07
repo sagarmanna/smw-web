@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle } from "lucide-react";
 import { EnrolmentDiscounts, EnrolmentSchedule, EnrolmentDetails } from "../../types";
+import { ENROLMENT_CONSTANTS } from "../../utils/constants";
 
 interface EditEnrolmentDiscountsModalProps {
   open: boolean;
@@ -22,6 +23,7 @@ interface EditEnrolmentDiscountsModalProps {
   details?: EnrolmentDetails | null;
   onSubmit: (discounts: Partial<EnrolmentDiscounts>) => Promise<boolean>;
   saving?: boolean;
+  enrolmentType?: "private" | "group"; // Pass enrolment type for conditional rendering
 }
 
 export function EditEnrolmentDiscountsModal({
@@ -32,51 +34,90 @@ export function EditEnrolmentDiscountsModal({
   details,
   onSubmit,
   saving = false,
+  enrolmentType = "private", // Default to private if not provided
 }: EditEnrolmentDiscountsModalProps) {
+  // For group enrolments, use single discount field; for private, use two fields
   const [formData, setFormData] = React.useState({
     pfDiscount: "",
     multipleEnrolDiscount: "",
+    discount: "",
   });
 
   const [initialData, setInitialData] = React.useState({
     pfDiscount: "",
     multipleEnrolDiscount: "",
+    discount: "",
   });
 
+  /**
+   * Initializes form data based on enrolment type and discounts
+   * Extracted to reduce code duplication
+   */
+  const initializeFormData = React.useCallback(
+    (discounts: EnrolmentDiscounts | null, type: "private" | "group") => {
+      const emptyData = {
+        pfDiscount: "",
+        multipleEnrolDiscount: "",
+        discount: "",
+      };
+
+      if (!discounts) {
+        return { formData: emptyData, initialData: emptyData };
+      }
+
+      if (type === "group") {
+        // For group enrolments, use single discount field
+        const discountValue =
+          discounts.discount && discounts.discount !== ENROLMENT_CONSTANTS.DEFAULT_NOT_SET
+            ? discounts.discount
+            : "";
+        const data = {
+          pfDiscount: "",
+          multipleEnrolDiscount: "",
+          discount: discountValue,
+        };
+        return { formData: data, initialData: data };
+      }
+
+      // For private enrolments, use PF Discount and Multiple Enrol. Discount
+      const pfValue =
+        discounts.pfDiscount && discounts.pfDiscount !== ENROLMENT_CONSTANTS.DEFAULT_NOT_SET
+          ? discounts.pfDiscount
+          : "";
+      const multipleValue =
+        discounts.multipleEnrolDiscount &&
+        discounts.multipleEnrolDiscount !== ENROLMENT_CONSTANTS.DEFAULT_NOT_SET
+          ? discounts.multipleEnrolDiscount
+          : "";
+      const data = {
+        pfDiscount: pfValue,
+        multipleEnrolDiscount: multipleValue,
+        discount: "",
+      };
+      return { formData: data, initialData: data };
+    },
+    []
+  );
+
   React.useEffect(() => {
-    if (discounts) {
-      // Convert "Not set" to empty string for display in input fields
-      const pfValue = discounts.pfDiscount && discounts.pfDiscount !== "Not set" ? discounts.pfDiscount : "";
-      const multipleValue = discounts.multipleEnrolDiscount && discounts.multipleEnrolDiscount !== "Not set" ? discounts.multipleEnrolDiscount : "";
-      
-      setFormData({
-        pfDiscount: pfValue,
-        multipleEnrolDiscount: multipleValue,
-      });
-      
-      setInitialData({
-        pfDiscount: pfValue,
-        multipleEnrolDiscount: multipleValue,
-      });
-    } else {
-      setFormData({
-        pfDiscount: "",
-        multipleEnrolDiscount: "",
-      });
-      setInitialData({
-        pfDiscount: "",
-        multipleEnrolDiscount: "",
-      });
-    }
-  }, [discounts, open]);
+    const { formData: newFormData, initialData: newInitialData } = initializeFormData(
+      discounts,
+      enrolmentType
+    );
+    setFormData(newFormData);
+    setInitialData(newInitialData);
+  }, [discounts, open, enrolmentType, initializeFormData]);
 
   // Check if there are changes
   const hasChanges = React.useMemo(() => {
+    if (enrolmentType === "group") {
+      return formData.discount !== initialData.discount;
+    }
     return (
       formData.pfDiscount !== initialData.pfDiscount ||
       formData.multipleEnrolDiscount !== initialData.multipleEnrolDiscount
     );
-  }, [formData, initialData]);
+  }, [formData, initialData, enrolmentType]);
 
   // Get date range for preview
   const dateRange = React.useMemo(() => {
@@ -94,10 +135,15 @@ export function EditEnrolmentDiscountsModal({
     
     if (!discounts) return;
     
-    const success = await onSubmit({
-      pfDiscount: formData.pfDiscount || "",
-      multipleEnrolDiscount: formData.multipleEnrolDiscount || "",
-    });
+    // Submit different fields based on enrolment type
+    const submitData = enrolmentType === "group"
+      ? { discount: formData.discount || "" }
+      : {
+          pfDiscount: formData.pfDiscount || "",
+          multipleEnrolDiscount: formData.multipleEnrolDiscount || "",
+        };
+    
+    const success = await onSubmit(submitData);
     
     if (success) {
       onClose();
@@ -121,36 +167,52 @@ export function EditEnrolmentDiscountsModal({
             </p>
           </div>
 
-          {/* Input Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Input Fields - Conditional based on enrolment type */}
+          {enrolmentType === "group" ? (
             <div className="space-y-2">
-              <Label htmlFor="pf-discount" className="text-green-600 dark:text-green-400 font-semibold">
-                Payment Frequency Discount
+              <Label htmlFor="discount" className="text-green-600 dark:text-green-400 font-semibold">
+                Discount
               </Label>
               <Input
-                id="pf-discount"
+                id="discount"
                 type="text"
-                value={formData.pfDiscount}
-                onChange={(e) => setFormData((prev) => ({ ...prev, pfDiscount: e.target.value }))}
+                value={formData.discount}
+                onChange={(e) => setFormData((prev) => ({ ...prev, discount: e.target.value }))}
                 placeholder="Enter discount"
                 className="border-green-500 focus:ring-2 focus:ring-green-500"
               />
             </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pf-discount" className="text-green-600 dark:text-green-400 font-semibold">
+                  Payment Frequency Discount
+                </Label>
+                <Input
+                  id="pf-discount"
+                  type="text"
+                  value={formData.pfDiscount}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, pfDiscount: e.target.value }))}
+                  placeholder="Enter discount"
+                  className="border-green-500 focus:ring-2 focus:ring-green-500"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="multiple-enrol-discount" className="font-semibold">
-                Multiple Enrolment Discount
-              </Label>
-              <Input
-                id="multiple-enrol-discount"
-                type="text"
-                value={formData.multipleEnrolDiscount}
-                onChange={(e) => setFormData((prev) => ({ ...prev, multipleEnrolDiscount: e.target.value }))}
-                placeholder="Enter discount"
-                className="border-green-500 focus:ring-2 focus:ring-green-500"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="multiple-enrol-discount" className="font-semibold">
+                  Multiple Enrolment Discount
+                </Label>
+                <Input
+                  id="multiple-enrol-discount"
+                  type="text"
+                  value={formData.multipleEnrolDiscount}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, multipleEnrolDiscount: e.target.value }))}
+                  placeholder="Enter discount"
+                  className="border-green-500 focus:ring-2 focus:ring-green-500"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Enrolment Edit Preview */}
           {hasChanges && dateRange && (

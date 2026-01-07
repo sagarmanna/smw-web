@@ -9,8 +9,9 @@ export interface EnrolmentRate {
 }
 
 export interface EnrolmentDiscountsResponse {
-  pfDiscount: string;
-  multipleEnrolDiscount: string;
+  pfDiscount?: string; // For private enrolments
+  multipleEnrolDiscount?: string; // For private enrolments
+  discount?: string; // For group enrolments (single discount field)
 }
 
 export interface EnrolmentDetailsResponseBody {
@@ -18,6 +19,7 @@ export interface EnrolmentDetailsResponseBody {
   studentId?: number;
   customerId?: number;
   program: string;
+  programType?: string; // "Private" | "Group" - from API
   teacher: string;
   rates: EnrolmentRate[];
   discounts: EnrolmentDiscountsResponse;
@@ -97,6 +99,7 @@ export async function getEnrolmentDetails(
         body: {
           id: Number(enrolmentId) || 0,
           program: "",
+          programType: "Private",
           teacher: "",
           rates: [],
           discounts: {
@@ -347,6 +350,13 @@ export async function getEnrolmentHistory(
 /**
  * Transforms API response to match the EnrolmentInfo interface
  * Maps API response fields directly to UI state (no calculations, only type conversions)
+ * 
+ * @param apiResponse - The enrolment details API response
+ * @param scheduleResponse - The schedule API response (nullable)
+ * @param scheduleHistoryResponse - The schedule history API response (nullable)
+ * @param paymentFrequencyResponse - The payment frequency API response (nullable)
+ * @param lessonsResponse - The lessons API response (nullable)
+ * @returns Transformed EnrolmentInfo object ready for UI consumption
  */
 export function transformApiResponse(
   apiResponse: EnrolmentDetailsApiResponse,
@@ -394,6 +404,19 @@ export function transformApiResponse(
     online: item.online === "Yes",
   }));
   
+  // Normalize programType from API ("Private"/"Group") to lowercase type ("private"/"group")
+  // Validate and normalize the type to ensure type safety
+  const normalizedType: "private" | "group" | undefined = (() => {
+    if (!body.programType) return undefined;
+    const lowercased = body.programType.toLowerCase();
+    if (lowercased === "private" || lowercased === "group") {
+      return lowercased as "private" | "group";
+    }
+    // Log unexpected values for debugging but don't throw
+    console.warn(`Unexpected programType value: "${body.programType}". Defaulting to undefined.`);
+    return undefined;
+  })();
+
   return {
     details: {
       id: body.id,
@@ -414,10 +437,12 @@ export function transformApiResponse(
       customer: body.customer || "",
       customerId: body.customerId,
       online: onlineBoolean,
+      type: normalizedType,
     },
     discounts: {
-      pfDiscount: body.discounts?.pfDiscount || "",
-      multipleEnrolDiscount: body.discounts?.multipleEnrolDiscount || "",
+      pfDiscount: body.discounts?.pfDiscount,
+      multipleEnrolDiscount: body.discounts?.multipleEnrolDiscount,
+      discount: body.discounts?.discount,
     },
     paymentFrequency: {
       paymentFrequency: paymentFrequencyBody?.paymentFrequency || "",
@@ -810,6 +835,39 @@ export async function updateEnrolmentPaymentFrequency(
         effectiveDate: "",
       },
       message: apiError.response?.data?.message || "Failed to update enrolment payment frequency",
+    };
+  }
+}
+
+// Delete Enrolment API Types
+export interface DeleteEnrolmentResponse {
+  success: boolean;
+  message?: string;
+}
+
+/**
+ * Deletes an enrolment via DELETE API
+ * Endpoint: DELETE /admin/v2/{location}/enrolments/{enrolmentId}
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteEnrolment(
+  location: string,
+  enrolmentId: string
+): Promise<DeleteEnrolmentResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteEnrolmentResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error deleting enrolment:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to delete enrolment",
     };
   }
 }

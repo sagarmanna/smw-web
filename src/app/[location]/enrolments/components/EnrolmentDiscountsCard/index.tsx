@@ -8,6 +8,7 @@ import {
 import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { EnrolmentDiscounts, EnrolmentSchedule, EnrolmentDetails } from "../../types";
 import { EditEnrolmentDiscountsModal } from "../modals/EditEnrolmentDiscountsModal";
+import { ENROLMENT_CONSTANTS } from "../../utils/constants";
 
 interface EnrolmentDiscountsCardProps {
   discounts: EnrolmentDiscounts | null;
@@ -16,6 +17,7 @@ interface EnrolmentDiscountsCardProps {
   onSaveDiscounts: (discounts: Partial<EnrolmentDiscounts>) => Promise<boolean>;
   savingDiscounts?: boolean;
   isLoading?: boolean;
+  enrolmentType?: "private" | "group"; // Pass enrolment type for conditional rendering
 }
 
 export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard({
@@ -25,21 +27,33 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
   onSaveDiscounts,
   savingDiscounts = false,
   isLoading = false,
+  enrolmentType = "private", // Default to private if not provided
 }: EnrolmentDiscountsCardProps) {
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
+    // For group enrolments, show single "Discount" field
+    if (enrolmentType === "group") {
+      return [
+        {
+          label: "Discount",
+          value: discounts?.discount || ENROLMENT_CONSTANTS.DEFAULT_NOT_SET,
+        },
+      ];
+    }
+    
+    // For private enrolments, show PF Discount and Multiple Enrol. Discount
     return [
       {
         label: "PF Discount",
-        value: discounts?.pfDiscount || "",
+        value: discounts?.pfDiscount || ENROLMENT_CONSTANTS.DEFAULT_NOT_SET,
       },
       {
         label: "Multiple Enrol. Discount",
-        value: discounts?.multipleEnrolDiscount || "",
+        value: discounts?.multipleEnrolDiscount || ENROLMENT_CONSTANTS.DEFAULT_NOT_SET,
       },
     ];
-  }, [discounts]);
+  }, [discounts, enrolmentType]);
 
   const handleSave = React.useCallback(
     async (data: Partial<EnrolmentDiscounts>): Promise<boolean> => {
@@ -76,6 +90,7 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
         details={details}
         onSubmit={handleSave}
         saving={savingDiscounts}
+        enrolmentType={enrolmentType}
       />
     </>
   );
