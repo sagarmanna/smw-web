@@ -14,7 +14,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { ChooseCustomerModal } from "../ChooseCustomerModal";
+import { ChooseCustomerModal } from "../modals/ChooseCustomerModal";
 
 interface InvoiceCustomerCardProps {
   customer: {

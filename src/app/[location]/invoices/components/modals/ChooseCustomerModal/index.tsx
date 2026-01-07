@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/CustomTable";
-import { mockInvoiceData } from "../../mockData/invoiceMockData";
+import { mockInvoiceData } from "../../../mockData/invoiceMockData";
 
 interface CustomerOption {
   firstName: string;
