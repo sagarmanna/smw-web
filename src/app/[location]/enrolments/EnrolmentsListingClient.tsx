@@ -253,7 +253,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
   // Reusable Add Enrolment Button
   const addEnrolmentButton = React.useMemo(() => (
     <Button 
-      onClick={() => isDev() ? setIsNewEnrolmentModalOpen(true) : toast.info("Add Enrolments is in development")} 
+      onClick={() => setIsNewEnrolmentModalOpen(true)} 
       className="bg-primary hover:bg-primary/90"
     >
       <Plus className="h-4 w-4 mr-2" />
