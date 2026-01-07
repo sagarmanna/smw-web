@@ -223,6 +223,10 @@ export function NewCustomerDetailsModal({
     if (!formData.email?.trim()) newErrors.email = "Email cannot be blank.";
     if (!formData.phone?.trim()) newErrors.phone = "Number cannot be blank.";
     if (!formData.streetAddress?.trim()) newErrors.streetAddress = "Address cannot be blank.";
+    // Validate city selection if street address is provided
+    if (formData.streetAddress?.trim() && (!formData.cityId || formData.cityId <= 0)) {
+      newErrors.cityId = "City must be selected.";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -392,22 +396,25 @@ export function NewCustomerDetailsModal({
           )}
           <div className="flex items-center gap-4">
             <div className="w-40"></div>
-            <Select
-              value={formData.cityId > 0 ? formData.cityId.toString() : ""}
-              onValueChange={handleCityChange}
-              disabled={loadingGeoData}
-            >
-              <SelectTrigger id="city" className="flex-1">
-                <SelectValue placeholder={loadingGeoData ? "Loading..." : "Toronto"} />
-              </SelectTrigger>
-              <SelectContent>
-                {geoData.city.map((city) => (
-                  <SelectItem key={city.id} value={city.id.toString()}>
-                    {city.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex-1 flex flex-col">
+              <Select
+                value={formData.cityId > 0 ? formData.cityId.toString() : ""}
+                onValueChange={handleCityChange}
+                disabled={loadingGeoData}
+              >
+                <SelectTrigger id="city" className={cn("flex-1", errors.cityId && "border-red-500")}>
+                  <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select city"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {geoData.city.map((city) => (
+                    <SelectItem key={city.id} value={city.id.toString()}>
+                      {city.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.cityId && <p className="text-xs text-red-500 mt-1">{errors.cityId}</p>}
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="w-40"></div>
