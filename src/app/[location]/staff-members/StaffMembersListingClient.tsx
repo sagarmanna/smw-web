@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { StaffMemberRow } from "./staffMembers.api";
@@ -19,6 +20,7 @@ interface StaffMembersListingClientProps {
 }
 
 export function StaffMembersListingClient({ location }: StaffMembersListingClientProps) {
+  const router = useRouter();
   const [isAddStaffMemberModalOpen, setIsAddStaffMemberModalOpen] = React.useState(false);
   const columns = React.useMemo<ColumnDef<StaffMemberRow>[]>(() => staffMemberColumns, []);
 
@@ -121,6 +123,10 @@ export function StaffMembersListingClient({ location }: StaffMembersListingClien
           setPageSize(newSize); 
           setPage(1); 
         }}
+        onRowClick={(row: StaffMemberRow) => {
+          router.push(`/${location}/staff-members/${row.id}`);
+        }}
+        rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
       
       <AddStaffMemberModal
