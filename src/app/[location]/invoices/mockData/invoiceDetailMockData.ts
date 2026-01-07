@@ -49,11 +49,36 @@ export interface InvoiceDetail {
   }>;
 }
 
+/**
+ * Generates a consistent customerId from customer name using djb2 hash algorithm.
+ * This ensures the same customer always gets the same ID across different invoice generations.
+ * 
+ * @param customerName - The customer's name to generate an ID for
+ * @returns A positive number between 1000 and 99999, or 0 if the name is empty
+ */
+function generateCustomerId(customerName: string): number {
+  // Handle empty or whitespace-only names
+  const trimmedName = customerName.trim();
+  if (!trimmedName) {
+    return 0;
+  }
+
+  // Use djb2 hash algorithm variant for better distribution
+  let hash = 5381;
+  for (let i = 0; i < trimmedName.length; i++) {
+    hash = ((hash << 5) + hash) + trimmedName.charCodeAt(i);
+    // Convert to 32-bit integer
+    hash = hash | 0;
+  }
+  
+  // Return a positive number between 1000 and 99999
+  return Math.abs(hash % 99000) + 1000;
+}
+
 // Generate mock invoice detail data based on listing data
 export function generateInvoiceDetail(invoice: InvoiceRow): InvoiceDetail {
   const isPaid = invoice.status === "Paid";
   const isReturned = invoice.status === "Returned";
-  const isCancelled = invoice.status === "Cancelled";
   
   // Generate items based on invoice
   const items: InvoiceItem[] = [
@@ -87,16 +112,26 @@ export function generateInvoiceDetail(invoice: InvoiceRow): InvoiceDetail {
   const paid = isPaid ? invoice.total : 0;
   const balance = total - paid;
 
+  // Generate customerId for consistent customer linking
+  const customerId = generateCustomerId(invoice.customer);
+  
+  // Only include customerId if it's valid (non-zero)
+  const customerData: InvoiceDetail["customer"] = {
+    name: invoice.customer,
+    phone: invoice.phone,
+    email: `${invoice.customer.toLowerCase().replace(/\s+/g, "")}@example.com`,
+  };
+  
+  if (customerId > 0) {
+    customerData.customerId = customerId;
+  }
+
   return {
     id: invoice.id,
     number: invoice.number,
     date: invoice.date,
     status: invoice.status,
-    customer: {
-      name: invoice.customer,
-      phone: invoice.phone,
-      email: `${invoice.customer.toLowerCase().replace(/\s+/g, "")}@example.com`,
-    },
+    customer: customerData,
     items,
     payments,
     totals: {

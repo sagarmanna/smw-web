@@ -122,6 +122,33 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     [invoiceDetail]
   );
 
+  const handleCustomerChange = React.useCallback(
+    (customer: {
+      name: string;
+      phone: string;
+      email: string;
+      customerId?: number;
+    }) => {
+      if (!invoiceDetail) return;
+
+      setInvoiceDetail((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          customer: {
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+            customerId: customer.customerId,
+          },
+        };
+      });
+
+      toast.success("Customer updated successfully");
+    },
+    [invoiceDetail]
+  );
+
   const handleReturnConfirm = React.useCallback(() => {
     if (!invoiceDetail) return;
     
@@ -345,6 +372,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
               customer={invoiceDetail.customer}
               location={location}
               isLoading={isLoading}
+              onCustomerChange={handleCustomerChange}
             />
           </div>
 
