@@ -104,7 +104,7 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
         getSearchValue={(r) => `${r.course} ${r.teacher} ${r.program || ''}`}
         enableFilter={true}
         enableRowsPerPage={true}
-        enablePrint={true}
+        enablePrint={false}
         onPrint={() => handlePrint({
           reportTitle: `Group Courses list for ${formatLocationName(location)}`,
           columns,
@@ -127,7 +127,7 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
         ]}
         activeServerSideFilter={activeFilter}
         onServerSideFilterChange={handleServerSideFilterChange}
-        defaultFilterLabel="All Group Courses"
+        showAllServerSideFilterOption={false}
         hideRecordCount={true}
         showRecordCountInToolbar={true}
         rowsPerPage={pageSize}

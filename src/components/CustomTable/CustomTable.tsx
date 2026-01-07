@@ -74,6 +74,11 @@ export interface CustomTableProps<TData, TValue> {
   activeServerSideFilter?: string;
   onServerSideFilterChange?: (filterKey: string | undefined) => void;
   defaultFilterLabel?: string;
+  /**
+   * Controls whether the "All" server-side filter option is shown in the filter dropdown.
+   * Defaults to true for backwards compatibility.
+   */
+  showAllServerSideFilterOption?: boolean;
   
   // Export configuration
   onExport?: {
@@ -175,6 +180,7 @@ export function CustomTable<TData, TValue>({
   activeServerSideFilter,
   onServerSideFilterChange,
   defaultFilterLabel,
+  showAllServerSideFilterOption = true,
   
   // Export configuration
   onExport,
@@ -452,6 +458,7 @@ export function CustomTable<TData, TValue>({
             activeServerSideFilter={activeServerSideFilter}
             onServerSideFilterChange={onServerSideFilterChange}
             defaultFilterLabel={defaultFilterLabel}
+            showAllServerSideFilterOption={showAllServerSideFilterOption}
             customHeaderComponent={customHeaderComponent}
             showRecordCount={showRecordCountInToolbar}
             recordCountInfo={recordCountInfo}
