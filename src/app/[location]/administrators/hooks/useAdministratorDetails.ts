@@ -31,6 +31,7 @@ type AdministratorDetailsHookReturn = {
 };
 
 export function useAdministratorDetails(
+  // location, administratorId - Reserved for future API integration
   location: string,
   administratorId: number
 ): AdministratorDetailsHookReturn {

@@ -15,11 +15,8 @@ interface UseEmailHandlersProps {
 export function useEmailHandlers({
   emails,
   updateEmails,
-  location,
-  administratorId,
-  entityId,
+  // location, administratorId, entityId - Reserved for future API integration
 }: UseEmailHandlersProps) {
-  const effectiveAdministratorId = administratorId ?? entityId ?? 0;
   const [editingEmail, setEditingEmail] = React.useState<AdministratorEmail | null>(null);
   const [emailToDelete, setEmailToDelete] = React.useState<AdministratorEmail | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -109,11 +106,8 @@ interface UsePhoneHandlersProps {
 export function usePhoneHandlers({
   phones,
   updatePhones,
-  location,
-  administratorId,
-  entityId,
+  // location, administratorId, entityId - Reserved for future API integration
 }: UsePhoneHandlersProps) {
-  const effectiveAdministratorId = administratorId ?? entityId ?? 0;
   const [editingPhone, setEditingPhone] = React.useState<AdministratorPhone | null>(null);
   const [phoneToDelete, setPhoneToDelete] = React.useState<AdministratorPhone | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -185,11 +179,8 @@ interface UseAddressHandlersProps {
 export function useAddressHandlers({
   addresses,
   updateAddresses,
-  location,
-  administratorId,
-  entityId,
+  // location, administratorId, entityId - Reserved for future API integration
 }: UseAddressHandlersProps) {
-  const effectiveAdministratorId = administratorId ?? entityId ?? 0;
   const [editingAddress, setEditingAddress] = React.useState<AdministratorAddress | null>(null);
   const [addressToDelete, setAddressToDelete] = React.useState<AdministratorAddress | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);

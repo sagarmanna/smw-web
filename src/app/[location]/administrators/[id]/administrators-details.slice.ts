@@ -10,7 +10,6 @@ import type {
   AdministratorPhone, 
   AdministratorAddress
 } from '../types';
-import type { RootState } from '@/redux/store';
 
 interface AdministratorState {
   administratorInfo: AdministratorInfo | null;

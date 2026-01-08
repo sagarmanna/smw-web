@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { useAppSelector } from "@/redux/hooks";
 import { toast } from "sonner";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
@@ -40,6 +40,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
   const administratorInfo = useAppSelector((state) => state.administrator.administratorInfo);
 
   // Create config with Redux-aware adapter (uses Redux state instead of making GET requests)
+  // Memoized with empty deps - config is stable and only depends on store.getState which is stable
   const administratorDetailPageConfig = React.useMemo(
     () => createAdministratorDetailPageConfig(() => store.getState()),
     []
@@ -83,7 +84,8 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
   const handleDeleteConfirm = React.useCallback(async () => {
     setIsDeleting(true);
     try {
-      const response = await administratorDetailPageConfig.deleteEndpoint(location, administratorId);
+      const deleteEndpoint = administratorDetailPageConfig.deleteEndpoint;
+      const response = await deleteEndpoint(location, administratorId);
       
       if (response?.success) {
         toast.success(response.message || "Administrator deleted successfully");
@@ -100,6 +102,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
       setIsDeleting(false);
       setShowDeleteConfirm(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location, administratorId, router]);
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
