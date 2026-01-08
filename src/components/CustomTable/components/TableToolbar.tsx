@@ -55,6 +55,11 @@ interface TableToolbarProps<TData> {
   activeServerSideFilter?: string;
   onServerSideFilterChange?: (filterKey: string | undefined) => void;
   defaultFilterLabel?: string;
+  /**
+   * Controls whether the "All" option is shown for server-side filters.
+   * Defaults to true for backwards compatibility.
+   */
+  showAllServerSideFilterOption?: boolean;
   
   // Custom header component
   customHeaderComponent?: React.ReactNode;
@@ -92,6 +97,7 @@ export function TableToolbar<TData>({
   activeServerSideFilter,
   onServerSideFilterChange,
   defaultFilterLabel = "All",
+  showAllServerSideFilterOption = true,
   customHeaderComponent,
   showRecordCount = false,
   recordCountInfo,
@@ -287,21 +293,24 @@ export function TableToolbar<TData>({
             {/* Server-Side Filter Options - Clean Select Style */}
             {serverSideFilterOptions && serverSideFilterOptions.length > 0 && (
               <>
-                <DropdownMenuItem 
-                  onClick={() => onServerSideFilterChange?.(undefined)}
-                  className={`cursor-pointer ${
-                    !activeServerSideFilter 
-                      ? 'bg-primary/10 text-primary font-medium' 
-                      : ''
-                  }`}
-                >
-                  <span className="flex items-center justify-between w-full">
-                    <span>{defaultFilterLabel}</span>
-                    {!activeServerSideFilter && (
-                      <Check className="h-4 w-4 ml-auto" />
-                    )}
-                  </span>
-                </DropdownMenuItem>
+                {/* Render "All" option only when enabled */}
+                {showAllServerSideFilterOption && defaultFilterLabel && (
+                  <DropdownMenuItem 
+                    onClick={() => onServerSideFilterChange?.(undefined)}
+                    className={`cursor-pointer ${
+                      !activeServerSideFilter 
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : ''
+                    }`}
+                  >
+                    <span className="flex items-center justify-between w-full">
+                      <span>{defaultFilterLabel}</span>
+                      {!activeServerSideFilter && (
+                        <Check className="h-4 w-4 ml-auto" />
+                      )}
+                    </span>
+                  </DropdownMenuItem>
+                )}
                 {serverSideFilterOptions.map((option) => (
                   <DropdownMenuItem 
                     key={option.key}

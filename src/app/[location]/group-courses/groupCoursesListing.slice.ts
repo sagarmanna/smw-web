@@ -17,7 +17,7 @@ interface GroupCoursesListingState {
   sortDir: 'asc' | 'desc';
   // Filters
   columnFilters: Record<string, unknown>;
-  activeFilter?: string;
+  activeFilter: 'active' | 'inactive'; // Only active or inactive, no 'all' option
 }
 
 const initialState: GroupCoursesListingState = {
@@ -84,7 +84,7 @@ const groupCoursesListingSlice = createSlice({
       state.columnFilters = action.payload;
       state.page = 1; // Reset to first page when filters change
     },
-    setActiveFilter: (state, action: PayloadAction<string | undefined>) => {
+    setActiveFilter: (state, action: PayloadAction<'active' | 'inactive'>) => {
       state.activeFilter = action.payload;
       state.page = 1; // Reset to first page when filter changes
     },
