@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useCallback } from "react";
 import { useGenericListing } from "@/hooks/useGenericListing";
 import { 
   fetchAdministrators, 
@@ -36,11 +36,7 @@ import { PayloadAction } from "@reduxjs/toolkit";
  * ```
  */
 export function useAdministratorListing(location: string) {
-  /**
-   * Builds query object from UI state (pagination, filters, sorting)
-   * Memoized to prevent unnecessary re-renders and function recreations
-   */
-  const buildQuery = React.useCallback((
+  const buildQuery = useCallback((
     page: number,
     pageSize: number,
     columnFilters: Record<string, unknown>,
@@ -62,7 +58,7 @@ export function useAdministratorListing(location: string) {
       sort: sortBy as SortField | undefined,
       order: sortDir,
     };
-  }, []); // Empty deps array - function is pure and doesn't depend on any props/state
+  }, []);
 
   /**
    * Wrapper function to adapt setSorting to match generic hook's expected signature

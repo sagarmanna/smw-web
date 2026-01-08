@@ -19,6 +19,7 @@ export interface ListingState<TData> {
   sortBy?: string;
   sortDir: "asc" | "desc";
   columnFilters: Record<string, unknown>;
+  activeFilter?: string;
 }
 
 /**
@@ -70,6 +71,7 @@ export function createListingSlice<TData, TQuery>(config: ListingSliceConfig<TDa
     sortBy: undefined,
     sortDir: "asc",
     columnFilters: {},
+    activeFilter: undefined,
   };
 
   // Create async thunk for fetching data
@@ -115,8 +117,8 @@ export function createListingSlice<TData, TQuery>(config: ListingSliceConfig<TDa
         state.columnFilters = action.payload;
         state.page = 1;
       },
-      setActiveFilter: (state, _action: PayloadAction<string | undefined>) => {
-        // Dummy reducer required by useGenericListing
+      setActiveFilter: (state, action: PayloadAction<string | undefined>) => {
+        state.activeFilter = action.payload;
         state.page = 1;
       },
       clearError: (state) => {
