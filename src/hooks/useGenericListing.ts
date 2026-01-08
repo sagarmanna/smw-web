@@ -200,6 +200,7 @@ export function useGenericListing<TData, TQuery>(
     activeFilter: string | undefined;
     sortBy: string | undefined;
     sortDir: 'asc' | 'desc';
+    buildQueryRef: UseGenericListingConfig<TData, TQuery>["buildQuery"];
   } | null>(null);
 
   // Fetch data function - stable reference, reads latest values from refs/state
@@ -231,7 +232,8 @@ export function useGenericListing<TData, TQuery>(
       prevParamsRef.current.pageSize !== pageSize ||
       prevParamsRef.current.activeFilter !== activeFilter ||
       prevParamsRef.current.sortBy !== sortBy ||
-      prevParamsRef.current.sortDir !== sortDir;
+      prevParamsRef.current.sortDir !== sortDir ||
+      prevParamsRef.current.buildQueryRef !== buildQuery;
 
     // Update previous params
     prevParamsRef.current = {
@@ -241,6 +243,7 @@ export function useGenericListing<TData, TQuery>(
       activeFilter,
       sortBy,
       sortDir,
+      buildQueryRef: buildQuery,
     };
 
     // Fetch if initial load OR if any param changed
