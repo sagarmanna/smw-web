@@ -44,8 +44,8 @@ export default function AdministratorDetailPage({ params }: AdministratorDetailP
     // Update the ref to track this fetch
     prevKeyRef.current = currentKey;
     
-    // Always fetch when administratorId/location changes - the thunk will handle caching
-    // This ensures we get fresh data when switching between administrators
+    // Fetch administrator details once on initial page load
+    // No caching - always fetches fresh data from API
     dispatch(fetchAdministrator({ location, administratorId }));
     
     // eslint-disable-next-line react-hooks/exhaustive-deps

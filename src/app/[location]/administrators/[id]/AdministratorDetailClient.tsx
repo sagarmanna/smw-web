@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { toast } from "sonner";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
@@ -11,7 +11,8 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useAdministratorDetails } from "../hooks/useAdministratorDetails";
 import { AdministratorTabsSection } from "../components/AdministratorTabsSection";
-import { administratorDetailPageConfig } from "./config/detailPageConfig";
+import { createAdministratorDetailPageConfig } from "./config/detailPageConfig";
+import { store } from "@/redux/store";
 import { formatFullName } from "../utils/nameUtils";
 import { UserDetailsCard } from "@/components/user-details/cards/UserDetailsCard";
 import { UserEmailCard } from "@/components/user-details/cards/UserEmailCard";
@@ -38,6 +39,12 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
   const error = useAppSelector((state) => state.administrator.error);
   const administratorInfo = useAppSelector((state) => state.administrator.administratorInfo);
 
+  // Create config with Redux-aware adapter (uses Redux state instead of making GET requests)
+  const administratorDetailPageConfig = React.useMemo(
+    () => createAdministratorDetailPageConfig(() => store.getState()),
+    []
+  );
+
   const {
     details,
     emails,
@@ -48,7 +55,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
     updateEmails,
     updatePhones,
     updateAddresses,
-    refresh,
   } = useAdministratorDetails(location, administratorId);
 
   // All hooks must be called before any early returns
@@ -189,7 +195,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
-                onRefresh={refresh}
                 CreateModal={(props) => (
                   <CreateEmailModal
                     {...props}
@@ -207,7 +212,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
-                onRefresh={refresh}
                 CreateModal={(props) => (
                   <CreatePhoneModal
                     {...props}
@@ -230,7 +234,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
-                onRefresh={refresh}
                 CreateModal={(props) => (
                   <CreateEmailModal
                     {...props}
@@ -250,7 +253,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
-                onRefresh={refresh}
                 CreateModal={(props) => (
                   <CreatePhoneModal
                     {...props}
@@ -268,7 +270,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
               loading={isLoading}
               location={location}
               entityId={administratorId}
-              onRefresh={refresh}
               CreateModal={(props) => (
                 <CreateAddressModal
                   {...props}
