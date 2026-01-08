@@ -292,6 +292,24 @@ export interface RecurringPaymentCreateData {
   isRecurringPaymentEnabled: boolean;
 }
 
+const buildRecurringPaymentEnrolmentQuery = (
+  enrolmentIds?: Array<string | number>
+): string => {
+  if (!enrolmentIds || enrolmentIds.length === 0) {
+    return "";
+  }
+
+  const params = new URLSearchParams();
+  enrolmentIds.forEach((id) => {
+    params.append(
+      "CustomerRecurringPaymentEnrolment[enrolmentIds][]",
+      id.toString()
+    );
+  });
+
+  return params.toString();
+};
+
 /**
  * Update a recurring payment using the legacy API
  */
@@ -299,7 +317,8 @@ export async function updateRecurringPayment(
   location: string,
   customerId: string | number,
   recurringPaymentId: string | number,
-  paymentData: RecurringPaymentCreateData
+  paymentData: RecurringPaymentCreateData,
+  enrolmentIds?: Array<string | number>
 ): Promise<LegacyApiResponse> {
   const formData = new FormData();
   // Note: customerId is not needed in form data for update, only in the URL path
@@ -320,7 +339,9 @@ export async function updateRecurringPayment(
   formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', '0');
   formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', paymentData.isRecurringPaymentEnabled ? '1' : '0');
 
-  const url = `/admin/${location}/customer-recurring-payment/update?id=${recurringPaymentId}`;
+  const enrolmentQuery = buildRecurringPaymentEnrolmentQuery(enrolmentIds);
+  const urlBase = `/admin/${location}/customer-recurring-payment/update?id=${recurringPaymentId}`;
+  const url = enrolmentQuery ? `${urlBase}&${enrolmentQuery}` : urlBase;
 
   try {
     const response = await fetch(url, {
@@ -402,7 +423,8 @@ export async function deleteRecurringPayment(
 export async function createRecurringPayment(
   location: string,
   customerId: string | number,
-  paymentData: RecurringPaymentCreateData
+  paymentData: RecurringPaymentCreateData,
+  enrolmentIds?: Array<string | number>
 ): Promise<LegacyApiResponse> {
   const formData = new FormData();
   formData.append('CustomerRecurringPayment[customerId]', paymentData.customerId.toString());
@@ -423,7 +445,9 @@ export async function createRecurringPayment(
   formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', '0');
   formData.append('CustomerRecurringPayment[isRecurringPaymentEnabled]', paymentData.isRecurringPaymentEnabled ? '1' : '0');
 
-  const url = `/admin/${location}/customer-recurring-payment/create?id=${customerId}`;
+  const enrolmentQuery = buildRecurringPaymentEnrolmentQuery(enrolmentIds);
+  const urlBase = `/admin/${location}/customer-recurring-payment/create?id=${customerId}`;
+  const url = enrolmentQuery ? `${urlBase}&${enrolmentQuery}` : urlBase;
 
   try {
     const response = await fetch(url, {
