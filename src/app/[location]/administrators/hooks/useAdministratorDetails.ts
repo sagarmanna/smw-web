@@ -3,12 +3,9 @@
 import * as React from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { 
-  updateAdministratorDetailsThunk, 
   updateEmails, 
   updatePhones, 
   updateAddresses,
-  fetchAdministrator,
-  clearCache,
   updateDetails,
 } from "../[id]/administrators-details.slice";
 import { toast } from "sonner";
@@ -26,8 +23,6 @@ type AdministratorDetailsHookReturn = {
   emails: AdministratorEmail[];
   phones: AdministratorPhone[];
   addresses: AdministratorAddress[];
-  refresh: () => Promise<void>;
-  forceRefresh: () => Promise<void>;
   saveDetails: (next: AdministratorBasicDetails) => Promise<boolean>;
   updateEmails: React.Dispatch<React.SetStateAction<AdministratorEmail[]>>;
   updatePhones: React.Dispatch<React.SetStateAction<AdministratorPhone[]>>;
@@ -36,6 +31,7 @@ type AdministratorDetailsHookReturn = {
 };
 
 export function useAdministratorDetails(
+  // location, administratorId - Reserved for future API integration
   location: string,
   administratorId: number
 ): AdministratorDetailsHookReturn {
@@ -64,46 +60,14 @@ export function useAdministratorDetails(
   const phones = React.useMemo(() => administratorInfo?.phone || [], [administratorInfo?.phone]);
   const addresses = React.useMemo(() => administratorInfo?.addresses || [], [administratorInfo?.addresses]);
 
-  const refresh = React.useCallback(async () => {
-    dispatch(fetchAdministrator({ location, administratorId }));
-  }, [dispatch, location, administratorId]);
-
-  // Force refresh by clearing cache first
-  const forceRefresh = React.useCallback(async () => {
-    dispatch(clearCache());
-    dispatch(fetchAdministrator({ location, administratorId }));
-  }, [dispatch, location, administratorId]);
-
   const saveDetails = React.useCallback(
     async (next: AdministratorBasicDetails) => {
-      try {
-        // Optimistic update
-        dispatch(updateDetails(next));
-        
-        await dispatch(
-          updateAdministratorDetailsThunk({
-            location,
-            administratorId,
-            data: {
-              firstName: next.firstName,
-              lastName: next.lastName,
-            },
-          })
-        ).unwrap();
-        
-        toast.success("Administrator details updated successfully");
-        
-        // Refresh data from server to ensure consistency
-        await refresh();
-        
-        return true;
-      } catch (error) {
-        console.error("Failed to save administrator details:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to update administrator details. Please try again.");
-        return false;
-      }
+      // Optimistic update only - API not ready yet
+      dispatch(updateDetails(next));
+      toast.success("Administrator details updated locally");
+      return true;
     },
-    [dispatch, location, administratorId, refresh]
+    [dispatch]
   );
 
   const handleUpdateEmails = React.useCallback(
@@ -143,8 +107,6 @@ export function useAdministratorDetails(
     emails,
     phones,
     addresses,
-    refresh,
-    forceRefresh,
     saveDetails,
     updateEmails: handleUpdateEmails,
     updatePhones: handleUpdatePhones,

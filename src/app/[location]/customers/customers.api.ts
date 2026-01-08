@@ -592,10 +592,13 @@ export interface RecurringPaymentInfoResponse {
         isEnabled: boolean;
       };
       enrolments: Array<{
+        id: number;
         programName: string;
         paymentFrequency: string;
         studentName: string;
         teacherName: string;
+        dueAmount?: number;
+        isSelected?: boolean;
       }>;
       paymentMethods: Array<{
         id: number;
@@ -623,10 +626,13 @@ export interface RecurringPaymentInfoData {
     isEnabled: boolean;
   };
   enrolments: Array<{
+    id: number;
     programName: string;
     paymentFrequency: string;
     studentName: string;
     teacherName: string;
+    dueAmount?: number;
+    isSelected?: boolean;
   }>;
   paymentMethods: Array<{
     id: number;

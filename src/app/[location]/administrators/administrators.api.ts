@@ -1,35 +1,50 @@
 /**
  * Administrators API and data types
+ * Handles server-side fetching of administrators with pagination, sorting, and filtering
  */
 
-import { 
-  sortByField, 
-  applyActiveFilter, 
-  applyTextFilter, 
-  applyPagination 
-} from "@/utils/listingUtils";
-import { mockAdministratorData } from "./mockData/administratorMockData";
+import { apiClient } from '@/lib/api/client';
+import { FETCH_ALL_LIMIT } from '@/utils/api/createCrudApi';
 
+/**
+ * Administrator data row structure from API response
+ */
 export interface AdministratorRow {
-  id: number;
+  userId: number;
   firstName: string;
   lastName: string;
   email: string;
   isActive: boolean;
 }
 
+/**
+ * Query parameters for fetching administrators list
+ * All parameters are optional for flexible filtering
+ */
 export interface AdministratorsQuery {
+  /** Page number for pagination (1-indexed) */
   page?: number;
+  /** Number of items per page. Use -1 to fetch all records */
   limit?: number;
+  /** Filter by first name (partial match) */
   firstName?: string;
+  /** Filter by last name (partial match) */
   lastName?: string;
+  /** Filter by email address (partial match) */
   email?: string;
+  /** Sort field */
   sort?: "firstName" | "lastName" | "email";
+  /** Sort direction */
   order?: "asc" | "desc";
+  /** Show only active administrators */
   showActive?: boolean;
+  /** Show only inactive administrators */
   showInActive?: boolean;
 }
 
+/**
+ * API response structure for administrators list
+ */
 export interface AdministratorsListResponse {
   success: boolean;
   message: string;
@@ -44,101 +59,74 @@ export interface AdministratorsListResponse {
   };
 }
 
-// TODO: Add CreateAdministratorRequest and CreateAdministratorResponse interfaces when API is ready
-// export interface CreateAdministratorRequest {
-//   firstName: string;
-//   lastName: string;
-//   email: string;
-// }
-//
-// export interface CreateAdministratorResponse {
-//   success: boolean;
-//   message: string;
-//   data: AdministratorRow;
-// }
+/**
+ * Builds URL search parameters from query object
+ * Filters out empty values and converts -1 limit to FETCH_ALL_LIMIT
+ * @param query - Query parameters object
+ * @returns URLSearchParams ready for API call
+ */
+const buildAdministratorsQueryParams = (query: AdministratorsQuery): URLSearchParams => {
+  const params = new URLSearchParams();
 
-// TODO: Implement createAdministrator function when API is ready
-// export async function createAdministrator(
-//   location: string,
-//   payload: CreateAdministratorRequest
-// ): Promise<CreateAdministratorResponse> {
-//   // API implementation will go here
-// }
+  if (query.page) params.append("page", query.page.toString());
+  if (query.limit) {
+    // Convert -1 (UI "All" option) to FETCH_ALL_LIMIT for API
+    params.append(
+      "limit",
+      query.limit === -1 ? FETCH_ALL_LIMIT.toString() : query.limit.toString()
+    );
+  }
+  // Only append non-empty, trimmed filter values to avoid unnecessary params
+  if (query.firstName?.trim()) params.append("firstName", query.firstName.trim());
+  if (query.lastName?.trim()) params.append("lastName", query.lastName.trim());
+  if (query.email?.trim()) params.append("email", query.email.trim());
+  if (query.showActive !== undefined) {
+    params.append("showActive", query.showActive.toString());
+  }
+  if (query.showInActive !== undefined) {
+    params.append("showInActive", query.showInActive.toString());
+  }
+  if (query.sort) params.append("sort", query.sort);
+  if (query.order) params.append("order", query.order);
 
-const emptyPagination = {
-  page: 1,
-  limit: 20,
-  total: 0,
-  totalPages: 0,
+  return params;
 };
 
 /**
- * Get administrators list (currently using mock data)
- * This will be replaced with actual API call when backend is ready
+ * Fetches administrators list from the API with server-side pagination, sorting, and filtering
+ * 
+ * @param location - The location slug for the API endpoint
+ * @param query - Query parameters including pagination, filters, and sorting options
+ * @returns Promise resolving to AdministratorsListResponse on success, or null on error
+ * 
+ * @example
+ * ```typescript
+ * const response = await getAdministrators('maple', {
+ *   page: 1,
+ *   limit: 20,
+ *   sort: 'lastName',
+ *   order: 'asc',
+ *   showActive: true
+ * });
+ * ```
  */
 export async function getAdministrators(
   location: string,
   query: AdministratorsQuery
 ): Promise<AdministratorsListResponse | null> {
   try {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Start with all administrators
-    let filteredData = mockAdministratorData;
-    
-    // Apply active/inactive filter
-    filteredData = applyActiveFilter(
-      filteredData,
-      query.showActive,
-      query.showInActive
+    const params = buildAdministratorsQueryParams(query);
+
+    const response = await apiClient.get<AdministratorsListResponse>(
+      `/admin/v2/${location}/user/list/administrator`,
+      { params }
     );
-    
-    // Apply column filters
-    filteredData = applyTextFilter(filteredData, 'firstName', query.firstName);
-    filteredData = applyTextFilter(filteredData, 'lastName', query.lastName);
-    filteredData = applyTextFilter(filteredData, 'email', query.email);
-    
-    // Apply sorting
-    if (query.sort) {
-      filteredData = sortByField(
-        filteredData,
-        query.sort,
-        query.order || 'asc'
-      );
-    }
-    
-    // Apply pagination
-    const page = query.page || 1;
-    const limit = query.limit || 20;
-    const { paginatedData, total, totalPages } = applyPagination(
-      filteredData,
-      page,
-      limit
-    );
-    
-    return {
-      success: true,
-      message: 'Administrators fetched successfully',
-      data: {
-        body: paginatedData,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-        },
-      },
-    };
-  } catch (error) {
+
+    return response.data;
+  } catch (error: unknown) {
     console.error("Error fetching administrators:", error);
-    return {
-      success: false,
-      message: "Failed to fetch administrators",
-      data: {
-        body: [],
-        pagination: emptyPagination,
-      },
-    };
+    // Return null on error - let Redux slice handle empty state and error display
+    // This follows the pattern used in other listing APIs (teachers, students, etc.)
+    return null;
   }
 }

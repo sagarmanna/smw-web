@@ -15,6 +15,26 @@ import { SortField } from "../utils/sortAdministrators";
 import { buildActiveFilterFlags } from "@/utils/listingUtils";
 import { PayloadAction } from "@reduxjs/toolkit";
 
+/**
+ * Custom hook for administrators listing with server-side pagination, sorting, and filtering
+ * 
+ * This hook manages the state and API calls for the administrators listing page.
+ * It uses the generic listing hook pattern for consistency across listing pages.
+ * 
+ * @param location - The location slug for API calls
+ * @returns Object containing listing state and handlers for pagination, sorting, filtering
+ * 
+ * @example
+ * ```typescript
+ * const {
+ *   rows,
+ *   isLoading,
+ *   page,
+ *   setPage,
+ *   handleColumnFilterEnter
+ * } = useAdministratorListing('maple');
+ * ```
+ */
 export function useAdministratorListing(location: string) {
   const buildQuery = useCallback((
     page: number,
@@ -24,6 +44,7 @@ export function useAdministratorListing(location: string) {
     sortBy: string | undefined,
     sortDir: 'asc' | 'desc'
   ): AdministratorsQuery => {
+    // Convert UI filter string to API boolean flags
     const { showActive, showInActive } = buildActiveFilterFlags(activeFilter);
 
     return {
@@ -39,7 +60,10 @@ export function useAdministratorListing(location: string) {
     };
   }, []);
 
-  // Wrapper function to adapt setSorting to match generic hook's expected signature
+  /**
+   * Wrapper function to adapt setSorting to match generic hook's expected signature
+   * Maps string sort field to typed SortField
+   */
   const setSorting = (payload: { sortBy?: string; sortDir: 'asc' | 'desc' }): PayloadAction<{ sortBy?: SortField; sortDir: 'asc' | 'desc' }> => {
     return setSortingAction({
       sortBy: payload.sortBy as SortField | undefined,
