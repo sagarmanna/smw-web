@@ -16,9 +16,21 @@ import { formatLocationName } from "@/utils/textUtils";
 import { AddAdministratorModal } from "./components/modals/AddAdministratorModal";
 
 interface AdministratorsListingClientProps {
+  /** Location slug for the administrators listing */
   location: string;
 }
 
+/**
+ * Client component for administrators listing page
+ * Handles the UI for displaying, filtering, sorting, and managing administrators
+ * 
+ * Features:
+ * - Server-side pagination, sorting, and filtering
+ * - Export to multiple formats (CSV, PDF, Excel, etc.)
+ * - Print functionality
+ * - Add new administrator modal
+ * - Row click navigation to administrator details
+ */
 export function AdministratorsListingClient({ location }: AdministratorsListingClientProps) {
   const router = useRouter();
   const [isAddAdministratorModalOpen, setIsAddAdministratorModalOpen] = React.useState(false);
@@ -124,7 +136,7 @@ export function AdministratorsListingClient({ location }: AdministratorsListingC
           setPage(1); 
         }}
         onRowClick={(row: AdministratorRow) => {
-          router.push(`/${location}/administrators/${row.id}`);
+          router.push(`/${location}/administrators/${row.userId}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
@@ -133,7 +145,7 @@ export function AdministratorsListingClient({ location }: AdministratorsListingC
         isOpen={isAddAdministratorModalOpen}
         onClose={() => setIsAddAdministratorModalOpen(false)}
         onSuccess={() => {
-          // Refresh the data after successful administrator creation
+          // Refresh the listing data after successful administrator creation
           fetchData();
         }}
         location={location}

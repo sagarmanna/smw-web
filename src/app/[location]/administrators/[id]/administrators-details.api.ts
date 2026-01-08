@@ -1,7 +1,5 @@
 // import { apiClient } from "@/lib/api/client"; // Uncomment when API is ready
 
-import { mockAdministratorData } from "../mockData/administratorMockData";
-
 // ---------------------------------------------
 // Shared response types for administrator details
 // ---------------------------------------------
@@ -112,58 +110,19 @@ function initializeMockData(administratorId: number): AdministratorDetailsRespon
     return mockDataStore.get(administratorId)!;
   }
 
-  // Find the administrator in the listing mock data
-  const admin = mockAdministratorData.find((a) => a.id === administratorId);
-
-  if (!admin) {
-    return null;
-  }
-
-  // Generate mock detail data based on the administrator
-  const fullName = `${admin.firstName} ${admin.lastName}`.trim();
-
+  // Initialize with default mock data structure for detail page
+  // When detail API is integrated, this will be replaced with real API call
+  // Listing now uses real API, so no dependency on listing mock data
   const mockData: AdministratorDetailsResponseBody = {
     profile: {
-      name: fullName,
+      name: "Administrator",
       role: "Administrator",
-      status: admin.isActive ? "Active" : "Inactive",
-      birthDate: administratorId === 1 ? "1990-01-15" : "",
+      status: "Active",
+      birthDate: "",
     },
-    email: [
-      {
-        id: administratorId * 100 + 1,
-        email: admin.email,
-        note: "",
-        label: "Home",
-        isPrimary: true,
-      },
-    ],
-    phone: administratorId === 1
-      ? [
-          {
-            id: administratorId * 100 + 1,
-            number: "(416) 555-1234",
-            extension: "",
-            note: "",
-            label: "Home",
-            isPrimary: false,
-          },
-        ]
-      : [],
-    addresses: administratorId === 1
-      ? [
-          {
-            id: administratorId * 100 + 1,
-            address: "123 Main Street",
-            city: "Toronto",
-            province: "Ontario",
-            country: "Canada",
-            postalCode: "M5H 2N2",
-            label: "Home",
-            isPrimary: false,
-          },
-        ]
-      : [],
+    email: [],
+    phone: [],
+    addresses: [],
   };
 
   mockDataStore.set(administratorId, mockData);
@@ -827,26 +786,19 @@ export async function validateAdministratorEmail(
 
     void location; // Suppress unused parameter warning
 
-    // Mock validation - check if email exists in mock data
+    // Mock validation - check if email exists in detail mock data
+    // Listing now uses real API, so we only check detail page mock data
     let emailExists = false;
-    for (const admin of mockAdministratorData) {
-      if (admin.email.toLowerCase() === email.toLowerCase()) {
+    
+    // Check all stored detail mock data for email conflicts
+    mockDataStore.forEach((details) => {
+      const found = details.email.some(
+        (e) => e.email.toLowerCase() === email.toLowerCase()
+      );
+      if (found) {
         emailExists = true;
-        break;
       }
-      
-      // Also check in detail emails if available
-      const details = getCurrentMockData(admin.id);
-      if (details) {
-        const found = details.email.some(
-          (e) => e.email.toLowerCase() === email.toLowerCase()
-        );
-        if (found) {
-          emailExists = true;
-          break;
-        }
-      }
-    }
+    });
 
     const mockResponse: ValidateAdministratorEmailResponse = {
       success: true,
