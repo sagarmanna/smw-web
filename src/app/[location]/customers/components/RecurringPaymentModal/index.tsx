@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getCustomerRecurringPaymentInfo, RecurringPaymentInfoData } from "../../customers.api";
+import { getCustomerRecurringPaymentInfo } from "../../customers.api";
 import { 
   createRecurringPayment, 
   updateRecurringPayment,
@@ -25,7 +25,7 @@ import { toast } from "sonner";
 
 // Data interfaces
 interface EnrolmentData {
-  id: string;
+  id: number;
   program: string;
   paymentFrequency: string;
   student: string;
@@ -49,7 +49,7 @@ interface RecurringPaymentFormData {
 interface RecurringPaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave?: (data: RecurringPaymentFormData & { selectedEnrolments: string[] }) => void;
+  onSave?: (data: RecurringPaymentFormData & { selectedEnrolments: number[] }) => void;
   onDelete?: () => void;
   customerName?: string;
   location?: string;
@@ -127,22 +127,25 @@ export function RecurringPaymentModal({
             enabled: payment.isEnabled,
           });
 
-          // Map enrolments - in edit mode, only the first enrolment is selected by default
+          // Map enrolments - keep selection based on linked enrolments from API
           const mappedEnrolments: EnrolmentData[] = data.enrolments.map((enrolment, index) => {
-            const extra = enrolment as unknown as Partial<{ dueAmount: number | string; owing: number | string; balanceDue: number | string }>;
-            const rawDue = extra.dueAmount ?? extra.owing ?? extra.balanceDue ?? 0;
+            const { owing, balanceDue } = enrolment as unknown as { owing?: number | string; balanceDue?: number | string };
+            const rawDue = enrolment.dueAmount ?? owing ?? balanceDue ?? 0;
             const dueAmount = typeof rawDue === "string" ? parseFloat(rawDue.replace(/[$,]/g, "")) : Number(rawDue) || 0;
+            const enrolmentId = typeof enrolment.id === "number" ? enrolment.id : index;
+            const isLinkedToPayment = Boolean(enrolment.isSelected);
             return {
-              id: `enrolment-${index}`,
+              id: enrolmentId,
               program: enrolment.programName,
               paymentFrequency: enrolment.paymentFrequency || "",
               student: enrolment.studentName,
               teacher: enrolment.teacherName,
               dueAmount,
-              selected: isEditMode && index === 0, // In edit mode, only select the first enrolment
+              selected: isLinkedToPayment,
             };
           });
           setEnrolments(mappedEnrolments);
+          recalcAmountFromSelected(mappedEnrolments);
 
           // Set payment methods and frequencies
           setPaymentMethods(data.paymentMethods);
@@ -168,7 +171,7 @@ export function RecurringPaymentModal({
         
         return (
           <Checkbox
-            checked={allSelected}
+            checked={allSelected ? true : someSelected ? "indeterminate" : false}
             onCheckedChange={(value) => {
               const isChecked = Boolean(value);
               const newSelected = enrolments.map(enrolment => ({
@@ -185,7 +188,7 @@ export function RecurringPaymentModal({
       },
       cell: ({ row }) => (
         <Checkbox
-          checked={row.original.selected}
+          checked={!!row.original.selected}
           onCheckedChange={(checked) => {
             handleEnrolmentSelect(row.original.id, checked as boolean);
           }}
@@ -224,7 +227,7 @@ export function RecurringPaymentModal({
     }));
   };
 
-  const handleEnrolmentSelect = (enrolmentId: string, selected: boolean) => {
+  const handleEnrolmentSelect = (enrolmentId: number, selected: boolean) => {
     setEnrolments(prev => {
       const updated = prev.map(enrolment =>
         enrolment.id === enrolmentId
@@ -273,6 +276,10 @@ export function RecurringPaymentModal({
 
     setSaving(true);
     try {
+      const selectedEnrolmentIds = enrolments
+        .filter(enrolment => enrolment.selected)
+        .map(enrolment => enrolment.id);
+
       const paymentData: RecurringPaymentCreateData = {
         customerId: customerId,
         startDate: formattedStartDate,
@@ -286,15 +293,11 @@ export function RecurringPaymentModal({
       };
 
       const response = isEditMode && recurringPaymentId
-        ? await updateRecurringPayment(location, customerId, recurringPaymentId, paymentData)
-        : await createRecurringPayment(location, customerId, paymentData);
+        ? await updateRecurringPayment(location, customerId, recurringPaymentId, paymentData, selectedEnrolmentIds)
+        : await createRecurringPayment(location, customerId, paymentData, selectedEnrolmentIds);
 
       if (response.status) {
         // Success - call the onSave callback if provided
-        const selectedEnrolmentIds = enrolments
-          .filter(enrolment => enrolment.selected)
-          .map(enrolment => enrolment.id);
-        
         onSave?.({
           ...formData,
           selectedEnrolments: selectedEnrolmentIds,
