@@ -1,23 +1,42 @@
-import { administratorApiAdapter } from '../../adapters/apiAdapter';
+import { createAdministratorApiAdapter } from '../../adapters/apiAdapter';
 import { administratorDataAdapter } from '../../adapters/dataAdapter';
 import { AdministratorBasicDetails, AdministratorEmail, AdministratorPhone, AdministratorAddress } from '../../types';
 import { deleteUserByRole } from '@/lib/api/user.api';
-import { validateAdministratorEmail } from '../administrators-details.api';
+import type { RootState } from '@/redux/store';
 
-export const administratorDetailPageConfig = {
-  moduleName: 'Administrators',
-  roleLabel: 'Role',
-  defaultRole: 'Administrator',
-  breadcrumbLabel: 'Administrators',
-  apiAdapter: administratorApiAdapter,
-  dataAdapter: administratorDataAdapter,
-  deleteEndpoint: async (location: string, id: number) => {
-    return await deleteUserByRole(location, id, 'administrator');
-  },
-  validateEmail: async (location: string, email: string) => {
-    return await validateAdministratorEmail(location, email);
-  },
-} as const;
+/**
+ * Creates the administrator detail page config with Redux-aware adapter
+ * This ensures fetchEmails/fetchPhones/fetchAddresses use Redux state instead of making GET requests
+ */
+export function createAdministratorDetailPageConfig(getState?: () => RootState) {
+  return {
+    moduleName: 'Administrators',
+    roleLabel: 'Role',
+    defaultRole: 'Administrator',
+    breadcrumbLabel: 'Administrators',
+    apiAdapter: createAdministratorApiAdapter(
+      getState
+        ? () => {
+            const state = getState();
+            return {
+              administratorInfo: state.administrator.administratorInfo,
+            };
+          }
+        : undefined
+    ),
+    dataAdapter: administratorDataAdapter,
+    deleteEndpoint: async (location: string, id: number) => {
+      return await deleteUserByRole(location, id, 'administrator');
+    },
+    validateEmail: async () => {
+      // Email validation API not ready
+      return { success: false, data: { exists: false }, message: 'Email validation API not ready' };
+    },
+  } as const;
+}
+
+// Default export for backwards compatibility (without Redux access)
+export const administratorDetailPageConfig = createAdministratorDetailPageConfig();
 
 // Type exports for convenience
 export type AdministratorDetailsConfig = typeof administratorDetailPageConfig;

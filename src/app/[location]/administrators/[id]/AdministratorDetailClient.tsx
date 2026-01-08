@@ -11,7 +11,8 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useAdministratorDetails } from "../hooks/useAdministratorDetails";
 import { AdministratorTabsSection } from "../components/AdministratorTabsSection";
-import { administratorDetailPageConfig } from "./config/detailPageConfig";
+import { createAdministratorDetailPageConfig } from "./config/detailPageConfig";
+import { store } from "@/redux/store";
 import { formatFullName } from "../utils/nameUtils";
 import { UserDetailsCard } from "@/components/user-details/cards/UserDetailsCard";
 import { UserEmailCard } from "@/components/user-details/cards/UserEmailCard";
@@ -38,6 +39,13 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
   const error = useAppSelector((state) => state.administrator.error);
   const administratorInfo = useAppSelector((state) => state.administrator.administratorInfo);
 
+  // Create config with Redux-aware adapter (uses Redux state instead of making GET requests)
+  // Memoized with empty deps - config is stable and only depends on store.getState which is stable
+  const administratorDetailPageConfig = React.useMemo(
+    () => createAdministratorDetailPageConfig(() => store.getState()),
+    []
+  );
+
   const {
     details,
     emails,
@@ -48,7 +56,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
     updateEmails,
     updatePhones,
     updateAddresses,
-    refresh,
   } = useAdministratorDetails(location, administratorId);
 
   // All hooks must be called before any early returns
@@ -77,7 +84,8 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
   const handleDeleteConfirm = React.useCallback(async () => {
     setIsDeleting(true);
     try {
-      const response = await administratorDetailPageConfig.deleteEndpoint(location, administratorId);
+      const deleteEndpoint = administratorDetailPageConfig.deleteEndpoint;
+      const response = await deleteEndpoint(location, administratorId);
       
       if (response?.success) {
         toast.success(response.message || "Administrator deleted successfully");
@@ -94,6 +102,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
       setIsDeleting(false);
       setShowDeleteConfirm(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location, administratorId, router]);
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
@@ -189,7 +198,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
-                onRefresh={refresh}
                 CreateModal={(props) => (
                   <CreateEmailModal
                     {...props}
@@ -207,7 +215,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
-                onRefresh={refresh}
                 CreateModal={(props) => (
                   <CreatePhoneModal
                     {...props}
@@ -230,7 +237,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
-                onRefresh={refresh}
                 CreateModal={(props) => (
                   <CreateEmailModal
                     {...props}
@@ -250,7 +256,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
-                onRefresh={refresh}
                 CreateModal={(props) => (
                   <CreatePhoneModal
                     {...props}
@@ -268,7 +273,6 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
               loading={isLoading}
               location={location}
               entityId={administratorId}
-              onRefresh={refresh}
               CreateModal={(props) => (
                 <CreateAddressModal
                   {...props}
