@@ -1,54 +1,5 @@
-import { AdministratorRow } from "../administrators.api";
-import { sortByField, applyActiveFilter as applyActiveFilterUtil, applyTextFilter as applyTextFilterUtil, applyPagination as applyPaginationUtil } from "@/utils/listingUtils";
-
+/**
+ * Sort field type for administrators listing
+ */
 export type SortField = "firstName" | "lastName" | "email";
-export type SortDirection = "asc" | "desc";
-
-/**
- * Sort administrators by field
- * @deprecated Use sortByField from @/utils/listingUtils instead
- */
-export function sortAdministrators(
-  data: AdministratorRow[],
-  field: SortField,
-  direction: SortDirection
-): AdministratorRow[] {
-  return sortByField(data, field, direction);
-}
-
-/**
- * Apply active/inactive filter to data
- * @deprecated Use applyActiveFilter from @/utils/listingUtils instead
- */
-export function applyActiveFilter(
-  data: AdministratorRow[],
-  showActive?: boolean,
-  showInActive?: boolean
-): AdministratorRow[] {
-  return applyActiveFilterUtil(data, showActive, showInActive);
-}
-
-/**
- * Apply text filter to a specific field
- * @deprecated Use applyTextFilter from @/utils/listingUtils instead
- */
-export function applyTextFilter(
-  data: AdministratorRow[],
-  field: keyof Pick<AdministratorRow, 'firstName' | 'lastName' | 'email'>,
-  searchValue?: string
-): AdministratorRow[] {
-  return applyTextFilterUtil(data, field, searchValue);
-}
-
-/**
- * Apply pagination to data
- * @deprecated Use applyPagination from @/utils/listingUtils instead
- */
-export function applyPagination(
-  data: AdministratorRow[],
-  page: number,
-  limit: number
-): { paginatedData: AdministratorRow[]; total: number; totalPages: number } {
-  return applyPaginationUtil(data, page, limit);
-}
 
