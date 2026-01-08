@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { PayloadAction } from "@reduxjs/toolkit";
 
 import { useGenericListing } from "@/hooks/useGenericListing";
@@ -10,7 +11,7 @@ import { fetchOwners, setActiveFilter, setColumnFilters, setPage, setPageSize, s
 import { SortField } from "../utils/sortOwners";
 
 export function useOwnerListing(location: string) {
-  const buildQuery = (
+  const buildQuery = useCallback((
     page: number,
     pageSize: number,
     columnFilters: Record<string, unknown>,
@@ -31,7 +32,7 @@ export function useOwnerListing(location: string) {
       sort: sortBy as SortField | undefined,
       order: sortDir,
     };
-  };
+  }, []);
 
   const setSorting = (payload: {
     sortBy?: string;

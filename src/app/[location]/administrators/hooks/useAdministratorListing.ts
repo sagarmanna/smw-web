@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useGenericListing } from "@/hooks/useGenericListing";
 import { 
   fetchAdministrators, 
@@ -15,7 +16,7 @@ import { buildActiveFilterFlags } from "@/utils/listingUtils";
 import { PayloadAction } from "@reduxjs/toolkit";
 
 export function useAdministratorListing(location: string) {
-  const buildQuery = (
+  const buildQuery = useCallback((
     page: number,
     pageSize: number,
     columnFilters: Record<string, unknown>,
@@ -36,7 +37,7 @@ export function useAdministratorListing(location: string) {
       sort: sortBy as SortField | undefined,
       order: sortDir,
     };
-  };
+  }, []);
 
   // Wrapper function to adapt setSorting to match generic hook's expected signature
   const setSorting = (payload: { sortBy?: string; sortDir: 'asc' | 'desc' }): PayloadAction<{ sortBy?: SortField; sortDir: 'asc' | 'desc' }> => {

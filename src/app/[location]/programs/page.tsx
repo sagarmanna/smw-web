@@ -1,11 +1,12 @@
-import React from 'react'
+import { ProgramsListingClient } from "./ProgramsListingClient";
 
-const ProgramsPage = () => {
-  return (
-    <div>
-      <h1>Programs</h1>
-    </div>
-  )
+interface ProgramsPageProps {
+  params: Promise<{
+    location: string;
+  }>;
 }
 
-export default ProgramsPage
+export default async function ProgramsPage({ params }: ProgramsPageProps) {
+  const { location } = await params;
+  return <ProgramsListingClient location={location} />;
+}
