@@ -76,7 +76,7 @@ resource "kubernetes_deployment_v1" "web_deployment" {
               path = "/admin/v2/api/health"
               port = var.web_port
             }
-            initial_delay_seconds = 300
+            initial_delay_seconds = 30
             period_seconds        = 30
             timeout_seconds       = 5
           }
@@ -86,8 +86,8 @@ resource "kubernetes_deployment_v1" "web_deployment" {
               path = "/admin/v2/api/health"
               port = var.web_port
             }
-            initial_delay_seconds = 300
-            period_seconds        = 30
+            initial_delay_seconds = 30
+            period_seconds        = 10
             timeout_seconds       = 5
           }
         }
