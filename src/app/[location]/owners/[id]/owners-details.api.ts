@@ -1,5 +1,4 @@
-// import { apiClient } from "@/lib/api/client"; // Uncomment when API is ready
-
+import { apiClient } from "@/lib/api/client";
 import { mockOwnerData } from "../mockData/ownerMockData";
 
 // ---------------------------------------------
@@ -11,6 +10,7 @@ export interface OwnerProfileResponse {
   role: string;
   status: string;
   birthDate: string;
+  referralSource?: string;
 }
 
 export interface OwnerEmailResponse {
@@ -365,9 +365,30 @@ async function ownerInfoMutation<TItem, TBody>(
 // ---------------------------------------------
 
 /**
+ * Helper to create empty owner details response - DRY principle
+ */
+const createEmptyOwnerDetailsResponse = (): OwnerDetailsApiResponse => ({
+  success: false,
+  message: "Failed to fetch owner details",
+  data: {
+    body: {
+      profile: {
+        name: "",
+        role: "Owner",
+        status: "Inactive",
+        birthDate: "",
+        referralSource: "",
+      },
+      email: [],
+      phone: [],
+      addresses: [],
+    },
+  },
+});
+
+/**
  * Fetches detailed owner information from the API
  * Endpoint: GET /admin/v2/{location}/user/{id}/info/owner
- * Currently using mock data - will be replaced with actual API call when backend is ready
  * 
  * @param location - The location identifier
  * @param ownerId - The owner user ID
@@ -378,64 +399,18 @@ export async function getOwnerDetails(
   ownerId: number
 ): Promise<OwnerDetailsApiResponse> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const response = await apiClient.get<OwnerDetailsApiResponse>(
+      `/admin/v2/${location}/user/${ownerId}/info/owner`
+    );
 
-    void location; // Suppress unused parameter warning
-
-    // Get mock data from in-memory store
-    const mockData = initializeMockData(ownerId);
-    
-    if (!mockData) {
-      // Fallback if owner not found in mock data
-      console.warn(`Owner ${ownerId} not found in mock data`);
-      return {
-        success: false,
-        message: "Owner not found",
-        data: {
-          body: {
-            profile: {
-              name: "",
-              role: "Owner",
-              status: "Inactive",
-              birthDate: "",
-            },
-            email: [],
-            phone: [],
-            addresses: [],
-          },
-        },
-      };
-    }
-
-    return {
-      success: true,
-      message: "Owner details fetched successfully",
-      data: {
-        body: mockData,
-      },
-    };
-  } catch (error) {
+    return response.data;
+  } catch (error: unknown) {
     console.error("Error fetching owner details:", error);
-    // Return error response instead of null
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Failed to fetch owner details",
-      data: {
-        body: {
-          profile: {
-            name: "",
-            role: "Owner",
-            status: "Inactive",
-            birthDate: "",
-          },
-          email: [],
-          phone: [],
-          addresses: [],
-        },
-      },
-    };
+    const apiError = error as { response?: { data?: { message?: string } } };
+    const emptyResponse = createEmptyOwnerDetailsResponse();
+    emptyResponse.message =
+      apiError.response?.data?.message || "Failed to fetch owner details";
+    return emptyResponse;
   }
 }
 

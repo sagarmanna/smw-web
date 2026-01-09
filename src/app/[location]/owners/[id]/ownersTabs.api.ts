@@ -1,6 +1,4 @@
-// import { apiClient } from "@/lib/api/client"; // Uncomment when API is ready
-
-import { generateOwnerHistory } from "../mockData/ownerDetailMockData";
+import { apiClient } from "@/lib/api/client";
 
 // ---------------------------------------------
 // History API Response Types
@@ -33,52 +31,56 @@ export interface HistoryApiResponse {
 // ---------------------------------------------
 
 /**
- * Fetches history data for an owner
- * Endpoint: GET /admin/v2/{location}/user/{ownerId}/history
- * Currently using mock data - will be replaced with actual API call when backend is ready
+ * Helper to create empty history response - DRY principle
+ */
+const createEmptyHistoryResponse = (): HistoryApiResponse => ({
+  success: false,
+  message: "Failed to fetch owner history",
+  data: {
+    body: [],
+    pagination: {
+      page: 1,
+      limit: 20,
+      total: 0,
+      totalPages: 0,
+    },
+  },
+});
+
+/**
+ * Fetches history data for an owner with pagination
+ * Endpoint: GET /admin/v2/{location}/history?type=user&id={ownerId}&page={page}
+ * 
+ * @param location - The location identifier
+ * @param ownerId - The owner user ID
+ * @param page - The page number for pagination (default: 1)
+ * @returns Promise resolving to HistoryApiResponse (always returns structured response, never null)
  */
 export async function getOwnerHistory(
   location: string,
-  ownerId: number
-): Promise<HistoryApiResponse | null> {
+  ownerId: number,
+  page: number = 1
+): Promise<HistoryApiResponse> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    void location; // Suppress unused parameter warning
-
-    // Generate mock history data
-    const historyData = generateOwnerHistory(ownerId);
-
-    const mockHistory: HistoryApiResponse = {
-      success: true,
-      message: "History fetched successfully",
-      data: {
-        body: historyData,
-        pagination: {
-          page: 1,
-          limit: 20,
-          total: historyData.length,
-          totalPages: 1,
+    const response = await apiClient.get<HistoryApiResponse>(
+      `/admin/v2/${location}/history`,
+      {
+        params: {
+          type: 'user',
+          id: ownerId,
+          page,
         },
-      },
-    };
+      }
+    );
 
-    return mockHistory;
-
-    // Uncomment when API is ready:
-    // const url = `/admin/v2/${location}/user/${ownerId}/history`;
-    // const response = await apiClient.get<HistoryApiResponse>(url);
-    // return response.data;
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching owner history:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
-    console.error(
-      "API Error:",
-      apiError.response?.data?.message || "Failed to fetch owner history"
-    );
-    return null;
+    const emptyResponse = createEmptyHistoryResponse();
+    emptyResponse.message =
+      apiError.response?.data?.message || "Failed to fetch owner history";
+    return emptyResponse;
   }
 }
 
