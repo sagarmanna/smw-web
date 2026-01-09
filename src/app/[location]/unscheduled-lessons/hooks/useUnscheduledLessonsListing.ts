@@ -36,7 +36,7 @@ export function useUnscheduledLessonsListing(location: string) {
     location: string;
     page: number;
     pageSize: number;
-    activeFilter: string | undefined;
+    activeFilter: 'active' | 'inactive';
   } | null>(null);
 
   // Build query function - not memoized to avoid unnecessary recreations
@@ -150,7 +150,9 @@ export function useUnscheduledLessonsListing(location: string) {
 
   const handleServerSideFilterChange = React.useCallback(
     (filterKey: string | undefined) => {
-      dispatch(setActiveFilter(filterKey));
+      // Ensure filter is always 'active' or 'inactive' (no undefined)
+      const validFilter: 'active' | 'inactive' = filterKey === 'inactive' ? 'inactive' : 'active';
+      dispatch(setActiveFilter(validFilter));
     },
     [dispatch]
   );
