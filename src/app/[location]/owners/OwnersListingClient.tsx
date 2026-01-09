@@ -96,8 +96,13 @@ export function OwnersListingClient({ location }: OwnersListingClientProps) {
           lastName: "Enter last name",
           email: "Enter email address",
         }}
+        // Sorting and pagination (server-side)
+        manualSorting={true}
         sorting={sorting}
-        onSortingChange={setSorting}
+        onSortingChange={(s) => {
+          setSorting(s);
+          setPage(1);
+        }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
         serverSideFilterOptions={[
@@ -125,7 +130,7 @@ export function OwnersListingClient({ location }: OwnersListingClientProps) {
           setPage(1);
         }}
         onRowClick={(row: OwnerRow) => {
-          router.push(`/${location}/owners/${row.id}`);
+          router.push(`/${location}/owners/${row.userId}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />

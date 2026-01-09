@@ -108,7 +108,7 @@ function initializeMockData(ownerId: number): OwnerDetailsResponseBody | null {
   }
 
   // Find the owner in the listing mock data
-  const owner = mockOwnerData.find((o) => o.id === ownerId);
+  const owner = mockOwnerData.find((o) => o.userId === ownerId);
 
   if (!owner) {
     return null;
@@ -368,11 +368,15 @@ async function ownerInfoMutation<TItem, TBody>(
  * Fetches detailed owner information from the API
  * Endpoint: GET /admin/v2/{location}/user/{id}/info/owner
  * Currently using mock data - will be replaced with actual API call when backend is ready
+ * 
+ * @param location - The location identifier
+ * @param ownerId - The owner user ID
+ * @returns Promise resolving to OwnerDetailsApiResponse (always returns structured response, never null)
  */
 export async function getOwnerDetails(
   location: string,
   ownerId: number
-): Promise<OwnerDetailsApiResponse | null> {
+): Promise<OwnerDetailsApiResponse> {
   try {
     // TODO: Replace with actual API call when backend is ready
     // Simulate API delay
@@ -830,7 +834,7 @@ export async function validateOwnerEmail(
       }
       
       // Also check in detail emails if available
-      const details = getCurrentMockData(owner.id);
+      const details = getCurrentMockData(owner.userId);
       if (details) {
         const found = details.email.some(
           (e) => e.email.toLowerCase() === email.toLowerCase()
@@ -923,7 +927,7 @@ export async function setOwnerPassword(
     }
 
     // Check if owner exists in mock data
-    const ownerExists = mockOwnerData.some((o) => o.id === ownerId);
+    const ownerExists = mockOwnerData.some((o) => o.userId === ownerId);
     if (!ownerExists) {
       return {
         success: false,
@@ -988,7 +992,7 @@ export async function deleteOwner(
     void location; // Suppress unused parameter warning
 
     // Check if owner exists in mock data
-    const ownerExists = mockOwnerData.some((o) => o.id === ownerId);
+    const ownerExists = mockOwnerData.some((o) => o.userId === ownerId);
     if (!ownerExists) {
       return {
         success: false,
