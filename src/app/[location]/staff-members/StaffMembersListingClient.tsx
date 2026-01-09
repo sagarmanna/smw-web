@@ -53,12 +53,26 @@ export function StaffMembersListingClient({ location }: StaffMembersListingClien
 
   const { handlePrint } = usePrintReport<StaffMemberRow>();
 
+  if (error) {
+    return (
+      <ReportPageLayout
+        title="Staff Members"
+        subtitle="Manage staff members"
+        isLoading={isLoading}
+        error={error}
+        onRetry={fetchData}
+      >
+        <div />
+      </ReportPageLayout>
+    );
+  }
+
   return (
     <ReportPageLayout
       title="Staff Members"
       subtitle="Manage staff members"
       isLoading={isLoading}
-      error={error}
+      error={null}
       onRetry={fetchData}
       actions={
         <Button 
@@ -95,8 +109,13 @@ export function StaffMembersListingClient({ location }: StaffMembersListingClien
           lastName: "Enter last name",
           email: "Enter email address",
         }}
+        // Sorting and pagination (server-side)
+        manualSorting={true}
         sorting={sorting}
-        onSortingChange={setSorting}
+        onSortingChange={(s) => {
+          setSorting(s);
+          setPage(1);
+        }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
         serverSideFilterOptions={[
@@ -124,7 +143,7 @@ export function StaffMembersListingClient({ location }: StaffMembersListingClien
           setPage(1); 
         }}
         onRowClick={(row: StaffMemberRow) => {
-          router.push(`/${location}/staff-members/${row.id}`);
+          router.push(`/${location}/staff-members/${row.userId}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />

@@ -113,7 +113,7 @@ function initializeMockData(staffMemberId: number): StaffMemberDetailsResponseBo
   }
 
   // Find the staff member in the listing mock data
-  const staffMember = mockStaffMemberData.find((s) => s.id === staffMemberId);
+  const staffMember = mockStaffMemberData.find((s) => s.userId === staffMemberId);
 
   if (!staffMember) {
     return null;
@@ -807,7 +807,7 @@ export async function validateStaffMemberEmail(
       }
       
       // Also check in detail emails if available
-      const details = getCurrentMockData(staffMember.id);
+      const details = getCurrentMockData(staffMember.userId);
       if (details) {
         const found = details.email.some(
           (e) => e.email.toLowerCase() === email.toLowerCase()

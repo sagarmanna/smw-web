@@ -19,6 +19,10 @@ interface StaffMembersListingState {
   activeFilter?: string;
 }
 
+/**
+ * Initial state for staff members listing
+ * Defaults to showing all staff members, sorted by last name ascending
+ */
 const initialState: StaffMembersListingState = {
   rows: [],
   total: 0,
@@ -33,7 +37,10 @@ const initialState: StaffMembersListingState = {
   activeFilter: undefined, // Default to showing all staff members
 };
 
-// Async thunk for fetching staff members list
+/**
+ * Async thunk for fetching staff members list from API
+ * Returns empty result if API call fails or returns unsuccessful response
+ */
 export const fetchStaffMembers = createAsyncThunk(
   'staffMembersListing/fetchStaffMembers',
   async (
