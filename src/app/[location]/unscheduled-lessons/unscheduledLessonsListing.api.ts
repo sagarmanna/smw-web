@@ -18,7 +18,16 @@ export interface UnscheduledLessonsQuery {
   student?: string;
   program?: string;
   teacher?: string;
+  showAll?: boolean;
+  showInactive?: boolean;
 }
+
+type UnscheduledLessonsPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
 
 // API response structure
 interface UnscheduledLessonsListApiResponse {
@@ -26,12 +35,7 @@ interface UnscheduledLessonsListApiResponse {
   message: string;
   data: {
     body: UnscheduledLessonRow[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
+    pagination?: UnscheduledLessonsPagination;
   };
 }
 
@@ -41,12 +45,7 @@ export interface UnscheduledLessonsListResponse {
   message: string;
   data: {
     body: UnscheduledLessonRow[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
+    pagination: UnscheduledLessonsPagination;
   };
 }
 
@@ -60,20 +59,35 @@ const DEFAULT_PAGINATION = {
 
 const FETCH_ALL_LIMIT = 99999;
 
+const getRequestedPagination = (query: UnscheduledLessonsQuery) => {
+  // showAll=true means "return all items without pagination".
+  // Also treat limit=-1 (rows-per-page "All") as fetch-all mode.
+  const fetchAll = query.showAll === true || query.limit === -1;
+
+  const page = fetchAll ? 1 : (query.page ?? DEFAULT_PAGINATION.page);
+  const limit = fetchAll ? FETCH_ALL_LIMIT : (query.limit ?? DEFAULT_PAGINATION.limit);
+  const showAll = fetchAll; // Ensure backend gets showAll=true in fetch-all mode
+
+  return { fetchAll, page, limit, showAll };
+};
+
 // Helper to build query parameters - DRY principle
 const buildUnscheduledLessonsQueryParams = (query: UnscheduledLessonsQuery): URLSearchParams => {
   const params = new URLSearchParams();
 
-  if (query.page) params.append("page", query.page.toString());
-  if (query.limit) {
-    params.append(
-      "limit",
-      query.limit === -1 ? FETCH_ALL_LIMIT.toString() : query.limit.toString()
-    );
-  }
-  if (query.student) params.append("student", query.student);
-  if (query.program) params.append("program", query.program);
-  if (query.teacher) params.append("teacher", query.teacher);
+  const { page, limit, showAll } = getRequestedPagination(query);
+
+  params.append("page", page.toString());
+  params.append("limit", limit.toString());
+  // Backend expects these keys even when values are empty
+  params.append("student", query.student ?? "");
+  params.append("program", query.program ?? "");
+  params.append("teacher", query.teacher ?? "");
+
+  const showInactive = typeof query.showInactive === "boolean" ? query.showInactive : false;
+
+  params.append("showAll", showAll.toString());
+  params.append("showInactive", showInactive.toString());
 
   return params;
 };
@@ -96,16 +110,25 @@ export async function getUnscheduledLessonsList(
     const params = buildUnscheduledLessonsQueryParams(query);
 
     const response = await apiClient.get<UnscheduledLessonsListApiResponse>(
-      `/admin/v2/${location}/user/list/unscheduled-lesson`,
+      `/admin/v2/${location}/unscheduled-lessons/list`,
       { params }
     );
+
+    const { page, limit } = getRequestedPagination(query);
+    const safePagination: UnscheduledLessonsPagination = response.data.data.pagination ?? {
+      ...DEFAULT_PAGINATION,
+      page,
+      limit,
+      total: response.data.data.body.length,
+      totalPages: 1,
+    };
 
     return {
       success: response.data.success,
       message: response.data.message,
       data: {
         body: response.data.data.body,
-        pagination: response.data.data.pagination,
+        pagination: safePagination,
       },
     };
   } catch (error: unknown) {

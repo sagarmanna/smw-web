@@ -125,7 +125,7 @@ export function UnscheduledLessonsListingClient({ location }: UnscheduledLessons
             ]}
             activeServerSideFilter={activeFilter}
             onServerSideFilterChange={handleServerSideFilterChange}
-            defaultFilterLabel="All Unscheduled Lessons"
+            showAllServerSideFilterOption={false}
             enablePrint={false}
             enableRowsPerPage={true}
             enableColumnFilters={true}

@@ -1,9 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { UnscheduledLessonRow, UnscheduledLessonsQuery } from './unscheduledLessonsListing.api';
-import { mockUnscheduledLessonData } from './mockData/unscheduledLessonMockData';
-import { isLessonActive } from './utils/dateUtils';
-// TODO: Uncomment when ready to use real API
-// import { getUnscheduledLessonsList } from './unscheduledLessonsListing.api';
+import { getUnscheduledLessonsList, UnscheduledLessonRow, UnscheduledLessonsQuery } from './unscheduledLessonsListing.api';
 
 interface UnscheduledLessonsListingState {
   rows: UnscheduledLessonRow[];
@@ -16,7 +12,7 @@ interface UnscheduledLessonsListingState {
   pageSize: number;
   // Filters
   columnFilters: Record<string, unknown>;
-  activeFilter?: string;
+  activeFilter: 'active' | 'inactive'; // Only active or inactive, no 'all' option
 }
 
 const initialState: UnscheduledLessonsListingState = {
@@ -28,92 +24,40 @@ const initialState: UnscheduledLessonsListingState = {
   page: 1,
   pageSize: 20,
   columnFilters: {},
-  activeFilter: undefined, // Default to showing all unscheduled lessons
-};
-
-// Helper function to filter and paginate mock data
-const filterAndPaginateMockData = (
-  data: UnscheduledLessonRow[],
-  query: UnscheduledLessonsQuery,
-  activeFilter?: string
-): { rows: UnscheduledLessonRow[]; total: number; totalPages: number } => {
-  let filteredData = [...data];
-
-  // Apply active/inactive filter
-  if (activeFilter === "active") {
-    filteredData = filteredData.filter(row => isLessonActive(row.expiryDate));
-  } else if (activeFilter === "inactive") {
-    filteredData = filteredData.filter(row => !isLessonActive(row.expiryDate));
-  }
-
-  // Apply column filters
-  if (query.student) {
-    filteredData = filteredData.filter(row => 
-      row.student.toLowerCase().includes(query.student!.toLowerCase())
-    );
-  }
-  if (query.program) {
-    filteredData = filteredData.filter(row => 
-      row.program.toLowerCase().includes(query.program!.toLowerCase())
-    );
-  }
-  if (query.teacher) {
-    filteredData = filteredData.filter(row => 
-      row.teacher.toLowerCase().includes(query.teacher!.toLowerCase())
-    );
-  }
-
-  const total = filteredData.length;
-  const page = query.page || 1;
-  const limit = query.limit || 20;
-  const totalPages = Math.ceil(total / limit);
-
-  // Apply pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-
-  return {
-    rows: paginatedData,
-    total,
-    totalPages,
-  };
+  activeFilter: 'active', // Default to showing only active lessons
 };
 
 // Async thunk for fetching unscheduled lessons list
 export const fetchUnscheduledLessons = createAsyncThunk(
   'unscheduledLessonsListing/fetchUnscheduledLessons',
   async (
-    { location, query, activeFilter }: { location: string; query: UnscheduledLessonsQuery; activeFilter?: string },
+    { location, query, activeFilter }: { location: string; query: UnscheduledLessonsQuery; activeFilter: 'active' | 'inactive' },
     { rejectWithValue }
   ) => {
     try {
-      // Use mock data for now
-      const result = filterAndPaginateMockData(mockUnscheduledLessonData, query, activeFilter);
-      
+      // active/inactive filter controls ONLY the inactive inclusion flag.
+      // showAll=true is reserved for "fetch all items without pagination" mode.
+      const showInactive = activeFilter === "inactive";
+
+      const response = await getUnscheduledLessonsList(location, {
+        ...query,
+        showInactive,
+      });
+
+      if (response && response.success) {
+        return {
+          rows: response.data.body,
+          total: response.data.pagination.total,
+          totalPages: response.data.pagination.totalPages,
+        };
+      }
+
+      // Return empty result if API call fails or returns unsuccessful response
       return {
-        rows: result.rows,
-        total: result.total,
-        totalPages: result.totalPages,
+        rows: [],
+        total: 0,
+        totalPages: 0,
       };
-
-      // TODO: Uncomment when ready to use real API
-      // const response = await getUnscheduledLessonsList(location, query);
-      // 
-      // if (response && response.success) {
-      //   return {
-      //     rows: response.data.body,
-      //     total: response.data.pagination.total,
-      //     totalPages: response.data.pagination.totalPages,
-      //   };
-      // }
-
-      // // Return empty result if API call fails or returns unsuccessful response
-      // return {
-      //   rows: [],
-      //   total: 0,
-      //   totalPages: 0,
-      // };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch unscheduled lessons');
     }
@@ -135,7 +79,7 @@ const unscheduledLessonsListingSlice = createSlice({
       state.columnFilters = action.payload;
       state.page = 1; // Reset to first page when filters change
     },
-    setActiveFilter: (state, action: PayloadAction<string | undefined>) => {
+    setActiveFilter: (state, action: PayloadAction<'active' | 'inactive'>) => {
       state.activeFilter = action.payload;
       state.page = 1; // Reset to first page when filter changes
     },
