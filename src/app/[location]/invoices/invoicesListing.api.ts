@@ -20,11 +20,12 @@ export interface InvoicesQuery {
   customer?: string;
   student?: string;
   phone?: string;
-  status?: string;
-  dateFrom?: string; // Date range filter for date
-  dateTo?: string;
+  status?: number | string; // Numeric status: 1=Owing, 2=Paid, 3=Credit, 5=Void, 6=All
+  fromDate?: string; // Date range filter for date
+  toDate?: string;
   sort?: "number" | "date" | "customer" | "student";
   order?: "asc" | "desc";
+  showAll?: boolean;
 }
 
 // API response structure
@@ -82,9 +83,12 @@ const buildInvoicesQueryParams = (query: InvoicesQuery): URLSearchParams => {
   if (query.customer) params.append("customer", query.customer);
   if (query.student) params.append("student", query.student);
   if (query.phone) params.append("phone", query.phone);
-  if (query.status) params.append("status", query.status);
-  if (query.dateFrom) params.append("dateFrom", query.dateFrom);
-  if (query.dateTo) params.append("dateTo", query.dateTo);
+  if (query.status !== undefined && query.status !== null && query.status !== "") {
+    params.append("status", query.status.toString());
+  }
+  if (query.fromDate) params.append("fromDate", query.fromDate);
+  if (query.toDate) params.append("toDate", query.toDate);
+  if (query.showAll !== undefined) params.append("showAll", query.showAll.toString());
   if (query.sort) {
     params.append("sort", query.sort);
     // Always include order when sort is provided
@@ -114,7 +118,7 @@ export async function getInvoicesList(
     const params = buildInvoicesQueryParams(query);
 
     const response = await apiClient.get<InvoicesListApiResponse>(
-      `/admin/v2/${location}/user/list/invoice`,
+      `/admin/v2/${location}/invoices/list`,
       { params }
     );
 

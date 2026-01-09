@@ -81,7 +81,21 @@ export function InvoicesListingClient({ location }: InvoicesListingClientProps) 
       {
         accessorKey: "total",
         header: "Total",
-        cell: ({ getValue }) => formatCurrency(getValue() as number),
+        cell: ({ row }: { row: { original: InvoiceRow } }) => {
+          const totalValue = row.original.total;
+          // Handle different data types from API (same logic as tableConfigs)
+          // TypeScript may receive string from API even though interface says number
+          let numericTotal = 0;
+          if (totalValue === null || totalValue === undefined) {
+            numericTotal = 0;
+          } else if (typeof totalValue === 'string') {
+            const cleanedValue = (totalValue as string).replace(/[$,]/g, '').trim();
+            numericTotal = parseFloat(cleanedValue) || 0;
+          } else if (typeof totalValue === 'number') {
+            numericTotal = isNaN(totalValue) ? 0 : totalValue;
+          }
+          return formatCurrency(numericTotal);
+        },
         meta: { printable: true, printableName: "Total" },
       },
     ];

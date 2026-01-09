@@ -115,11 +115,11 @@ export const invoiceColumns: ColumnDef<InvoiceRow>[] = [
     filter: {
       type: "dropdown",
       options: [
-        { value: "All", label: "All" },
-        { value: "Credit", label: "Credit" },
-        { value: "Owing", label: "Owing" },
-        { value: "Paid", label: "Paid" },
-        { value: "Voided", label: "Voided" },
+        { value: "6", label: "All" },
+        { value: "1", label: "Owing" },
+        { value: "2", label: "Paid" },
+        { value: "3", label: "Credit" },
+        { value: "5", label: "Voided" },
       ]
     },
     meta: { printable: true, printableName: "Status" },
@@ -127,11 +127,26 @@ export const invoiceColumns: ColumnDef<InvoiceRow>[] = [
   {
     accessorKey: "total",
     header: () => <span>Total</span>,
-    cell: ({ getValue }) => {
-      const total = getValue() as number;
+    cell: ({ row }: { row: { original: InvoiceRow } }) => {
+      // API may return string even though interface says number
+      const totalValue: number | string | null | undefined = row.original.total as unknown as number | string | null | undefined;
+      
+      // Handle different data types from API
+      let numericTotal = 0;
+      
+      if (totalValue === null || totalValue === undefined) {
+        numericTotal = 0;
+      } else if (typeof totalValue === 'string') {
+        // Remove any currency symbols or commas before parsing
+        const cleanedValue = totalValue.replace(/[$,]/g, '').trim();
+        numericTotal = parseFloat(cleanedValue) || 0;
+      } else if (typeof totalValue === 'number') {
+        numericTotal = isNaN(totalValue) ? 0 : totalValue;
+      }
+      
       return (
         <span className="truncate block max-w-[100px] font-medium">
-          {formatCurrency(total)}
+          {formatCurrency(numericTotal)}
         </span>
       );
     },
