@@ -22,7 +22,7 @@ web_resource_config = {
     memory = "4Gi"
   }
   requests = {
-    cpu    = "2000m"
+    cpu    = "1000m"
     memory = "2Gi"
   }
 }
