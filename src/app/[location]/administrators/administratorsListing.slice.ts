@@ -47,7 +47,7 @@ const initialState: AdministratorsListingState = {
 
 /**
  * Async thunk for fetching administrators list from API
- * Handles both success and error cases, rejecting with error message on failure
+ * Returns empty result if API call fails or returns unsuccessful response
  */
 export const fetchAdministrators = createAsyncThunk(
   'administratorsListing/fetchAdministrators',
@@ -66,10 +66,13 @@ export const fetchAdministrators = createAsyncThunk(
         };
       }
 
-      // API returned null or unsuccessful response - reject with error message
-      return rejectWithValue('Failed to fetch administrators');
+      // Return empty result if API call fails or returns unsuccessful response
+      return {
+        rows: [],
+        total: 0,
+        totalPages: 0,
+      };
     } catch (error) {
-      // Handle thrown errors
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch administrators');
     }
   }

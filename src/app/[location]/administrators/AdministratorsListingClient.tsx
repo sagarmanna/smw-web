@@ -65,12 +65,26 @@ export function AdministratorsListingClient({ location }: AdministratorsListingC
 
   const { handlePrint } = usePrintReport<AdministratorRow>();
 
+  if (error) {
+    return (
+      <ReportPageLayout
+        title="Administrators"
+        subtitle="Manage system administrators"
+        isLoading={isLoading}
+        error={error}
+        onRetry={fetchData}
+      >
+        <div />
+      </ReportPageLayout>
+    );
+  }
+
   return (
     <ReportPageLayout
       title="Administrators"
       subtitle="Manage system administrators"
       isLoading={isLoading}
-      error={error}
+      error={null}
       onRetry={fetchData}
       actions={
         <Button 
@@ -107,8 +121,13 @@ export function AdministratorsListingClient({ location }: AdministratorsListingC
           lastName: "Enter last name",
           email: "Enter email address",
         }}
+        // Sorting and pagination (server-side)
+        manualSorting={true}
         sorting={sorting}
-        onSortingChange={setSorting}
+        onSortingChange={(s) => {
+          setSorting(s);
+          setPage(1);
+        }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
         serverSideFilterOptions={[
