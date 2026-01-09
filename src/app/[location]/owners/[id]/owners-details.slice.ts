@@ -106,8 +106,8 @@ export const fetchOwner = createAsyncThunk(
 
       const response = await getOwnerDetails(location, ownerId);
       
-      if (!response || !response.success) {
-        return rejectWithValue('Failed to fetch owner details');
+      if (!response.success) {
+        return rejectWithValue(response.message || 'Failed to fetch owner details');
       }
 
       const transformedData = transformApiResponse(response);

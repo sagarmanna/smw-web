@@ -49,6 +49,15 @@ export const ownerHistorySelectors = {
     const ownerState = state as { ownerTabs: { historyOwnerId: number | null } };
     return ownerState.ownerTabs.historyOwnerId;
   },
+  selectPagination: (state: unknown): {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  } | null => {
+    const ownerState = state as { ownerTabs: { historyPagination: { page: number; limit: number; total: number; totalPages: number } | null } };
+    return ownerState.ownerTabs.historyPagination;
+  },
 };
 
 /**

@@ -13,6 +13,12 @@ export interface OwnerTabsState {
   historyLoading: boolean;
   historyError: string | null;
   historyOwnerId: number | null;
+  historyPagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  } | null;
 }
 
 const initialState: OwnerTabsState = {
@@ -23,6 +29,7 @@ const initialState: OwnerTabsState = {
   historyLoading: false,
   historyError: null,
   historyOwnerId: null,
+  historyPagination: null,
 };
 
 // Transform API response to HistoryData
@@ -34,29 +41,30 @@ function transformHistoryData(apiData: { id: number; message: string; createdOn:
   }));
 }
 
-// Async thunk for fetching history data
+// Async thunk for fetching history data with pagination
 export const fetchHistoryData = createAsyncThunk(
   'ownerTabs/fetchHistoryData',
   async (
-    { location, ownerId }: { location: string; ownerId: number },
+    { location, ownerId, page = 1 }: { location: string; ownerId: number; page?: number },
     { rejectWithValue }
   ) => {
     try {
-      const response = await getOwnerHistory(location, ownerId);
+      const apiResult = await getOwnerHistory(location, ownerId, page);
       
-      if (response && response.success && response.data?.body) {
-        return {
-          data: transformHistoryData(response.data.body),
-          ownerId,
-        };
+      if (!apiResult.success) {
+        throw new Error(apiResult.message || 'Failed to fetch history');
       }
 
       return {
-        data: [],
+        data: transformHistoryData(apiResult.data.body || []),
+        pagination: apiResult.data.pagination,
         ownerId,
       };
     } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch owner history');
+      console.error('Error in fetchHistoryData:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch owner history'
+      );
     }
   }
 );
@@ -69,6 +77,7 @@ const ownerTabsSlice = createSlice({
       state.historyData = [];
       state.currentOwnerId = null;
       state.historyOwnerId = null;
+      state.historyPagination = null;
       state.error = null;
       state.historyError = null;
     },
@@ -83,6 +92,7 @@ const ownerTabsSlice = createSlice({
       .addCase(fetchHistoryData.fulfilled, (state, action) => {
         state.historyLoading = false;
         state.historyData = action.payload.data;
+        state.historyPagination = action.payload.pagination;
         state.historyOwnerId = action.payload.ownerId;
         state.historyError = null;
       })
