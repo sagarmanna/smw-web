@@ -21,7 +21,7 @@ interface StaffMembersListingState {
 
 /**
  * Initial state for staff members listing
- * Defaults to showing all staff members, sorted by last name ascending
+ * Defaults to showing active staff members, sorted by last name ascending
  */
 const initialState: StaffMembersListingState = {
   rows: [],
@@ -34,7 +34,7 @@ const initialState: StaffMembersListingState = {
   sortBy: 'lastName',
   sortDir: 'asc',
   columnFilters: {},
-  activeFilter: undefined, // Default to showing all staff members
+  activeFilter: 'active', // Default to showing only active staff members
 };
 
 /**

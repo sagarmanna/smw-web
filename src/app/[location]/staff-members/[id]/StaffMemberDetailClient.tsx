@@ -11,8 +11,9 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useStaffMemberDetails } from "../hooks/useStaffMemberDetails";
 import { StaffMemberTabsSection } from "../components/StaffMemberTabsSection";
-import { staffMemberDetailPageConfig } from "./config/detailPageConfig";
+import { createStaffMemberDetailPageConfig } from "./config/detailPageConfig";
 import { formatFullName } from "../utils/nameUtils";
+import { store } from "@/redux/store";
 import { UserDetailsCard } from "@/components/user-details/cards/UserDetailsCard";
 import { UserEmailCard } from "@/components/user-details/cards/UserEmailCard";
 import { UserPhoneCard } from "@/components/user-details/cards/UserPhoneCard";
@@ -37,6 +38,13 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
   const isLoading = useAppSelector((state) => state.staffMemberDetails.isLoading);
   const error = useAppSelector((state) => state.staffMemberDetails.error);
   const staffMemberInfo = useAppSelector((state) => state.staffMemberDetails.staffMemberInfo);
+
+  // Create config with Redux-aware adapter (uses Redux state instead of making GET requests)
+  // Memoized with empty deps - config is stable and only depends on store.getState which is stable
+  const staffMemberDetailPageConfig = React.useMemo(
+    () => createStaffMemberDetailPageConfig(() => store.getState()),
+    []
+  );
 
   const {
     details,
@@ -77,7 +85,8 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
   const handleDeleteConfirm = React.useCallback(async () => {
     setIsDeleting(true);
     try {
-      const response = await staffMemberDetailPageConfig.deleteEndpoint(location, staffMemberId);
+      const deleteEndpoint = staffMemberDetailPageConfig.deleteEndpoint;
+      const response = await deleteEndpoint(location, staffMemberId);
       
       if (response?.success) {
         toast.success(response.message || "Staff member deleted successfully");
@@ -94,7 +103,8 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
       setIsDeleting(false);
       setShowDeleteConfirm(false);
     }
-  }, [location, staffMemberId, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, staffMemberId, router]); // staffMemberDetailPageConfig is stable (memoized with empty deps)
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
