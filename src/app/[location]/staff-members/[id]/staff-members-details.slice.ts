@@ -1,8 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   getStaffMemberDetails, 
-  StaffMemberDetailsApiResponse,
-  updateStaffMemberProfile
+  StaffMemberDetailsApiResponse
 } from './staff-members-details.api';
 import type { StaffMemberInfo } from './staff-members-details.interface';
 import type { 
@@ -12,34 +11,23 @@ import type {
   StaffMemberAddress
 } from '../types';
 
-export interface UpdateStaffMemberDetailsData {
-  firstName: string;
-  lastName: string;
-}
-
 interface StaffMemberState {
   staffMemberInfo: StaffMemberInfo | null;
   isLoading: boolean;
-  isSaving: boolean;
   error: string | null;
-  lastFetched: number | null;
   currentStaffMemberId: number | null;
 }
-
-// Cache configuration - data is considered fresh for 5 minutes (300000ms)
-const STALE_TIME_MS = 5 * 60 * 1000;
 
 const initialState: StaffMemberState = {
   staffMemberInfo: null,
   isLoading: false,
-  isSaving: false,
   error: null,
-  lastFetched: null,
   currentStaffMemberId: null,
 };
 
 /**
  * Transforms API response to match the StaffMemberInfo interface
+ * Handles empty strings by converting them to undefined for optional fields
  */
 function transformApiResponse(apiResponse: StaffMemberDetailsApiResponse): StaffMemberInfo {
   const { body } = apiResponse.data;
@@ -48,22 +36,23 @@ function transformApiResponse(apiResponse: StaffMemberDetailsApiResponse): Staff
     profile: {
       name: body.profile.name,
       role: body.profile.role,
-      birthDate: body.profile.birthDate || undefined,
+      // Convert empty string to undefined for optional fields
+      birthDate: body.profile.birthDate?.trim() || undefined,
       picture: undefined,
     },
     email: body.email.map((email) => ({
       id: email.id.toString(),
       label: email.label,
       email: email.email,
-      note: email.note || undefined,
+      note: email.note?.trim() || undefined,
       isPrimary: email.isPrimary,
     })),
     phone: body.phone.map((phone) => ({
       id: phone.id.toString(),
       label: phone.label,
       number: phone.number,
-      extension: phone.extension || undefined,
-      note: phone.note || undefined,
+      extension: phone.extension?.trim() || undefined,
+      note: phone.note?.trim() || undefined,
     })),
     addresses: body.addresses.map((address) => ({
       id: address.id.toString(),
@@ -74,8 +63,8 @@ function transformApiResponse(apiResponse: StaffMemberDetailsApiResponse): Staff
       countryId: 0,
       cityId: 0,
       postalCode: address.postalCode,
-      province: address.province || undefined,
-      country: address.country || undefined,
+      province: address.province?.trim() || undefined,
+      country: address.country?.trim() || undefined,
       isPrimary: address.isPrimary,
     })),
   };
@@ -83,27 +72,16 @@ function transformApiResponse(apiResponse: StaffMemberDetailsApiResponse): Staff
 
 /**
  * Async thunk to fetch staff member details
+ * Called once in page.tsx during initial page load
+ * No caching - always fetches fresh data from API
  */
 export const fetchStaffMember = createAsyncThunk(
-  'staffMember/fetchStaffMember',
+  'staffMemberDetails/fetchStaffMember',
   async (
     { location, staffMemberId }: { location: string; staffMemberId: number },
-    { getState, rejectWithValue }
+    { rejectWithValue }
   ) => {
     try {
-      const state = getState() as { staffMemberDetails: StaffMemberState };
-      const { staffMemberInfo, lastFetched, currentStaffMemberId } = state.staffMemberDetails;
-
-      // Check if we have fresh cached data for this staff member
-      if (
-        staffMemberInfo &&
-        currentStaffMemberId === staffMemberId &&
-        lastFetched &&
-        Date.now() - lastFetched < STALE_TIME_MS
-      ) {
-        return { staffMemberInfo, fromCache: true };
-      }
-
       const response = await getStaffMemberDetails(location, staffMemberId);
       
       if (!response || !response.success) {
@@ -111,62 +89,25 @@ export const fetchStaffMember = createAsyncThunk(
       }
 
       const transformedData = transformApiResponse(response);
-      return { staffMemberInfo: transformedData, fromCache: false };
+      return { staffMemberInfo: transformedData };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch staff member details');
     }
   }
 );
 
-/**
- * Async thunk to update staff member profile
- */
-export const updateStaffMemberDetailsThunk = createAsyncThunk(
-  'staffMember/updateStaffMemberDetails',
-  async (
-    {
-      location,
-      staffMemberId,
-      data,
-    }: {
-      location: string;
-      staffMemberId: number;
-      data: UpdateStaffMemberDetailsData;
-    },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await updateStaffMemberProfile(location, staffMemberId, {
-        firstname: data.firstName,
-        lastname: data.lastName,
-      });
-
-      if (!response || !response.success) {
-        return rejectWithValue(response?.message || 'Failed to update staff member details');
-      }
-
-      return { data };
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update staff member details');
-    }
-  }
-);
 
 const staffMemberSlice = createSlice({
-  name: 'staffMember',
+  name: 'staffMemberDetails',
   initialState,
   reducers: {
     clearStaffMember: (state) => {
       state.staffMemberInfo = null;
       state.currentStaffMemberId = null;
-      state.lastFetched = null;
       state.error = null;
     },
     clearError: (state) => {
       state.error = null;
-    },
-    clearCache: (state) => {
-      state.lastFetched = null;
     },
     updateDetails: (state, action: PayloadAction<Partial<StaffMemberBasicDetails>>) => {
       if (state.staffMemberInfo) {
@@ -199,9 +140,9 @@ const staffMemberSlice = createSlice({
       // Fetch staff member
       .addCase(fetchStaffMember.pending, (state, action) => {
         const { staffMemberId } = action.meta.arg as { location: string; staffMemberId: number };
+        // Clear data if fetching a different staff member
         if (state.currentStaffMemberId !== null && state.currentStaffMemberId !== staffMemberId) {
           state.staffMemberInfo = null;
-          state.lastFetched = null;
         }
         state.currentStaffMemberId = staffMemberId;
         state.isLoading = true;
@@ -210,30 +151,10 @@ const staffMemberSlice = createSlice({
       .addCase(fetchStaffMember.fulfilled, (state, action) => {
         state.isLoading = false;
         state.staffMemberInfo = action.payload.staffMemberInfo;
-        if (!action.payload.fromCache) {
-          state.lastFetched = Date.now();
-        }
+        state.error = null;
       })
       .addCase(fetchStaffMember.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
-      })
-      // Update staff member details
-      .addCase(updateStaffMemberDetailsThunk.pending, (state) => {
-        state.isSaving = true;
-        state.error = null;
-      })
-      .addCase(updateStaffMemberDetailsThunk.fulfilled, (state, action) => {
-        state.isSaving = false;
-        if (state.staffMemberInfo) {
-          // Update profile name from firstName and lastName
-          const fullName = `${action.payload.data.firstName} ${action.payload.data.lastName}`.trim();
-          state.staffMemberInfo.profile.name = fullName;
-        }
-        state.error = null;
-      })
-      .addCase(updateStaffMemberDetailsThunk.rejected, (state, action) => {
-        state.isSaving = false;
         state.error = action.payload as string;
       });
   },
@@ -242,7 +163,6 @@ const staffMemberSlice = createSlice({
 export const { 
   clearStaffMember, 
   clearError, 
-  clearCache,
   updateDetails,
   updateEmails, 
   updatePhones, 

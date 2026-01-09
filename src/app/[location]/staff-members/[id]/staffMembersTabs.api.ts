@@ -1,6 +1,4 @@
-// import { apiClient } from "@/lib/api/client"; // Uncomment when API is ready
-
-import { generateStaffMemberHistory } from "../mockData/staffMemberDetailMockData";
+import { apiClient } from "@/lib/api/client";
 
 // ---------------------------------------------
 // History API Response Types
@@ -34,50 +32,30 @@ export interface HistoryApiResponse {
 
 /**
  * Fetches history data for a staff member
- * Endpoint: GET /admin/v2/{location}/user/{staffMemberId}/history
- * Currently using mock data - will be replaced with actual API call when backend is ready
+ * Endpoint: GET /admin/v2/{location}/history?type=user&id={staffMemberId}
+ * Example: /admin/v2/training-location/history?type=user&id=11455
+ *
+ * @param location - The location identifier
+ * @param staffMemberId - The staff member user ID
+ * @returns Promise resolving to the history response or null on error
  */
 export async function getStaffMemberHistory(
   location: string,
   staffMemberId: number
 ): Promise<HistoryApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    void location; // Suppress unused parameter warning
-
-    // Generate mock history data
-    const historyData = generateStaffMemberHistory(staffMemberId);
-
-    const mockHistory: HistoryApiResponse = {
-      success: true,
-      message: "History fetched successfully",
-      data: {
-        body: historyData,
-        pagination: {
-          page: 1,
-          limit: 20,
-          total: historyData.length,
-          totalPages: 1,
-        },
-      },
-    };
-
-    return mockHistory;
-
-    // Uncomment when API is ready:
-    // const url = `/admin/v2/${location}/user/${staffMemberId}/history`;
-    // const response = await apiClient.get<HistoryApiResponse>(url);
-    // return response.data;
+    const url = `/admin/v2/${location}/history`;
+    const params = new URLSearchParams({
+      type: 'user',
+      id: staffMemberId.toString(),
+    });
+    
+    const response = await apiClient.get<HistoryApiResponse>(
+      `${url}?${params.toString()}`
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching staff member history:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
-    console.error(
-      "API Error:",
-      apiError.response?.data?.message || "Failed to fetch staff member history"
-    );
     return null;
   }
 }

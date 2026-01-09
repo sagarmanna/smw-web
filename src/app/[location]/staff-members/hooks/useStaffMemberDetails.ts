@@ -3,12 +3,10 @@
 import * as React from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { 
-  updateStaffMemberDetailsThunk, 
   updateEmails, 
   updatePhones, 
   updateAddresses,
   fetchStaffMember,
-  clearCache,
   updateDetails,
 } from "../[id]/staff-members-details.slice";
 import { toast } from "sonner";
@@ -45,7 +43,8 @@ export function useStaffMemberDetails(
   const staffMemberInfo = useAppSelector((state) => state.staffMemberDetails.staffMemberInfo);
   const loading = useAppSelector((state) => state.staffMemberDetails.isLoading);
   const error = useAppSelector((state) => state.staffMemberDetails.error);
-  const savingDetails = useAppSelector((state) => state.staffMemberDetails.isSaving);
+  // TODO: Add isSaving state when mutations are integrated
+  const savingDetails = false;
 
   // Transform Redux state to hook return format
   const details: StaffMemberBasicDetails | null = React.useMemo(() => {
@@ -68,42 +67,20 @@ export function useStaffMemberDetails(
     dispatch(fetchStaffMember({ location, staffMemberId }));
   }, [dispatch, location, staffMemberId]);
 
-  // Force refresh by clearing cache first
+  // Force refresh - no cache, always fetches fresh
   const forceRefresh = React.useCallback(async () => {
-    dispatch(clearCache());
     dispatch(fetchStaffMember({ location, staffMemberId }));
   }, [dispatch, location, staffMemberId]);
 
+  // TODO: Implement when PUT/POST/DELETE APIs are integrated
   const saveDetails = React.useCallback(
     async (next: StaffMemberBasicDetails) => {
-      try {
-        // Optimistic update
-        dispatch(updateDetails(next));
-        
-        await dispatch(
-          updateStaffMemberDetailsThunk({
-            location,
-            staffMemberId,
-            data: {
-              firstName: next.firstName,
-              lastName: next.lastName,
-            },
-          })
-        ).unwrap();
-        
-        toast.success("Staff member details updated successfully");
-        
-        // Refresh data from server to ensure consistency
-        await refresh();
-        
-        return true;
-      } catch (error) {
-        console.error("Failed to save staff member details:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to update staff member details. Please try again.");
-        return false;
-      }
+      // Optimistic update for now
+      dispatch(updateDetails(next));
+      toast.success("Staff member details updated (API integration pending)");
+      return true;
     },
-    [dispatch, location, staffMemberId, refresh]
+    [dispatch]
   );
 
   const handleUpdateEmails = React.useCallback(
