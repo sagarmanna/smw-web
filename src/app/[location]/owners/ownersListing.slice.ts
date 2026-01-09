@@ -19,6 +19,10 @@ interface OwnersListingState {
   activeFilter?: string;
 }
 
+/**
+ * Initial state for owners listing
+ * Defaults to showing active owners, sorted by last name ascending
+ */
 const initialState: OwnersListingState = {
   rows: [],
   total: 0,
@@ -30,7 +34,7 @@ const initialState: OwnersListingState = {
   sortBy: "lastName",
   sortDir: "asc",
   columnFilters: {},
-  activeFilter: undefined,
+  activeFilter: 'active', // Default to showing only active owners
 };
 
 export const fetchOwners = createAsyncThunk(
