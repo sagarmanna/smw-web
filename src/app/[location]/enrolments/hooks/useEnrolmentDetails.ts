@@ -105,7 +105,7 @@ export function useEnrolmentDetails(
   // Force refresh by clearing cache first
   const forceRefresh = React.useCallback(async () => {
     dispatch(clearCache());
-    dispatch(fetchEnrolment({ location, enrolmentId }));
+    await dispatch(fetchEnrolment({ location, enrolmentId })).unwrap();
   }, [dispatch, location, enrolmentId]);
 
   // Fetch history with pagination
@@ -130,6 +130,7 @@ export function useEnrolmentDetails(
   const saveDetails = React.useCallback(
     async (details: Partial<EnrolmentDetails>): Promise<boolean> => {
       try {
+        console.log('Saving enrolment details...', details);
         await dispatch(
           updateEnrolment({
             location,
@@ -137,6 +138,12 @@ export function useEnrolmentDetails(
             data: details,
           })
         ).unwrap();
+        
+        console.log('Update successful, refreshing data...');
+        // Force refresh enrolment data to get updated rates and other details from server
+        // This clears cache and fetches fresh data
+        await forceRefresh();
+        console.log('Data refresh completed');
         
         toast.success("Enrolment details updated successfully");
         return true;
@@ -146,7 +153,7 @@ export function useEnrolmentDetails(
         return false;
       }
     },
-    [dispatch, location, enrolmentId]
+    [dispatch, location, enrolmentId, forceRefresh]
   );
 
   const adjustScheduleEndDate = React.useCallback(

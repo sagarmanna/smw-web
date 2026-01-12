@@ -465,6 +465,7 @@ export function transformApiResponse(
 // Update Enrolment Details API Types
 export interface UpdateEnrolmentDetailsRequest {
   rate?: string;
+  rates?: Array<{ amount: string; fromDate: string; toDate: string }>;
   autoRenewal?: string;
   online?: boolean;
 }
@@ -481,8 +482,8 @@ export interface UpdateEnrolmentDetailsResponse {
 }
 
 /**
- * Updates enrolment details via PUT API
- * For now, returns mock response
+ * Updates enrolment details via POST API
+ * POST /admin/v2/:location/enrolments/:id/edit-program-rate
  * 
  * @param location - The location identifier
  * @param enrolmentId - The enrolment ID
@@ -495,28 +496,119 @@ export async function updateEnrolmentDetails(
   data: UpdateEnrolmentDetailsRequest
 ): Promise<UpdateEnrolmentDetailsResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.put<UpdateEnrolmentDetailsResponse>(
-    //   `/admin/v2/${location}/enrolment/${enrolmentId}/details`,
-    //   data
-    // );
-    // return response.data;
+    // Debug: Log incoming data
+    console.log('API: Received data:', data);
+    console.log('API: data.rates:', data.rates);
+    console.log('API: data.rate:', data.rate);
     
-    // For now, return mock response - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Transform frontend data to API format (matches legacy: CourseProgramRate[$key][programRate])
+    const requestBody: {
+      rate?: number;
+      courseProgramRates?: Array<{ programRate: number }>;
+      isAutoRenew?: boolean;
+      isOnline?: boolean;
+    } = {};
+
+    // Handle multiple rates (matches legacy: loops through all courseProgramRates)
+    // Priority: rates array > single rate
+    if (data.rates && data.rates.length > 0) {
+      // Debug: Log incoming rates
+      console.log('API: Processing rates:', data.rates);
+      
+      // Map all rates to API format - preserve all rates (backend will handle validation)
+      const mappedRates = data.rates
+        .map((rate, index) => {
+          console.log(`API: Processing rate ${index}:`, rate);
+          
+          if (!rate.amount || rate.amount.trim() === "") {
+            // Skip rates with completely empty amounts
+            console.warn(`API: Rate ${index} skipped - empty amount`);
+            return null;
+          }
+          
+          // Extract numeric value from formatted string (e.g., "$20.00" -> 20.00)
+          // Handle both formatted "$20.00" and plain "20.00" formats
+          const rateValue = parseFloat(rate.amount.replace(/[^0-9.]/g, ""));
+          console.log(`API: Rate ${index} parsed value:`, rateValue, 'from:', rate.amount);
+          
+          // Include rate if it's a valid number (including 0)
+          if (!isNaN(rateValue) && rateValue >= 0) {
+            return { programRate: rateValue };
+          }
+          
+          console.warn(`API: Rate ${index} skipped - invalid value:`, rateValue);
+          return null;
+        })
+        .filter((rate): rate is { programRate: number } => rate !== null);
+      
+      console.log('API: Mapped rates:', mappedRates);
+      
+      // Set courseProgramRates if we have at least one valid rate
+      // This ensures we send the array even if some rates are invalid
+      if (mappedRates.length > 0) {
+        requestBody.courseProgramRates = mappedRates;
+        console.log('API: Setting courseProgramRates in requestBody');
+      } else {
+        // Debug: Log if all rates were filtered out
+        console.warn('API: All rates were filtered out. Original rates:', data.rates);
+      }
+    }
     
-    return {
-      success: true,
+    // Fallback to single rate only if rates array is not provided or all rates were invalid
+    if (!requestBody.courseProgramRates && data.rate) {
+      const rateValue = parseFloat(data.rate.replace(/[^0-9.]/g, ""));
+      if (!isNaN(rateValue) && rateValue > 0) {
+        requestBody.rate = rateValue;
+      }
+    }
+
+    // Convert autoRenewal string to boolean
+    if (data.autoRenewal !== undefined) {
+      requestBody.isAutoRenew = data.autoRenewal === "Enabled";
+    }
+
+    // Convert online boolean
+    if (data.online !== undefined) {
+      requestBody.isOnline = data.online;
+    }
+
+    const response = await apiClient.post<{
+      success: boolean;
       data: {
-        id: Number(enrolmentId) || 0,
-        rate: data.rate || "",
-        autoRenewal: data.autoRenewal || "",
-        online: data.online !== undefined ? data.online : false,
-      },
-    };
+        message: string;
+      };
+      message?: string;
+    }>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/edit-program-rate`,
+      requestBody
+    );
+
+    if (response.data.success) {
+      return {
+        success: true,
+        data: {
+          id: Number(enrolmentId) || 0,
+          rate: data.rate || "",
+          autoRenewal: data.autoRenewal || "",
+          online: data.online !== undefined ? data.online : false,
+        },
+        message: response.data.data?.message || response.data.message,
+      };
+    } else {
+      return {
+        success: false,
+        data: {
+          id: Number(enrolmentId) || 0,
+          rate: "",
+          autoRenewal: "",
+          online: false,
+        },
+        message: response.data.message || "Failed to update enrolment details",
+      };
+    }
   } catch (error: unknown) {
     console.error("Error updating enrolment details:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
     return {
       success: false,
       data: {
