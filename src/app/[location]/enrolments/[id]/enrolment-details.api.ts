@@ -16,6 +16,7 @@ export interface EnrolmentDiscountsResponse {
 
 export interface EnrolmentDetailsResponseBody {
   id: number;
+  programId?: number;
   studentId?: number;
   customerId?: number;
   program: string;
@@ -215,6 +216,7 @@ export interface EnrolmentLessonsApiResponse {
   success: boolean;
   data: {
     body: EnrolmentLessonResponseBody[];
+    pagination?: PaginationInfo;
   };
   message?: string;
 }
@@ -292,6 +294,52 @@ export async function getEnrolmentLessons(
     const response = await apiClient.get<EnrolmentLessonsApiResponse>(
       `/admin/v2/${location}/enrolments/${enrolmentId}/lessons`
     );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching enrolment lessons:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch enrolment lessons",
+    };
+  }
+}
+
+/**
+ * Fetches enrolment lessons from the API with pagination (for group enrolments only)
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/lessons?page={page}&limit={limit}
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param page - The page number for pagination (default: 1)
+ * @param limit - The number of items per page (default: 10)
+ * @returns Promise resolving to the lessons response or null on error
+ */
+export async function getEnrolmentLessonsWithPagination(
+  location: string,
+  enrolmentId: string,
+  page: number = 1,
+  limit: number = 10
+): Promise<EnrolmentLessonsApiResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentLessonsApiResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/lessons`,
+      {
+        params: {
+          page,
+          limit: limit === -1 ? 99999 : limit,
+        },
+      }
+    );
+    
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
     return response.data;
   } catch (error: unknown) {
     console.error("Error fetching enrolment lessons:", error);
@@ -422,6 +470,7 @@ export function transformApiResponse(
   return {
     details: {
       id: body.id,
+      programId: body.programId,
       program: body.program || "",
       teacher: body.teacher || "",
       rate: firstRate?.amount || "",

@@ -46,11 +46,15 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     schedule,
     scheduleHistory,
     lessons,
+    lessonsPagination,
+    lessonsLoading,
+    lessonsError,
     history,
     historyPagination,
     historyLoading,
     historyError,
     fetchHistory,
+    fetchLessons,
     saveDetails,
     savingDetails,
     adjustScheduleEndDate,
@@ -137,6 +141,16 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     // fetchHistory is stable from useCallback, so we can safely omit it from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, location]);
+
+  // Fetch lessons with pagination on initial load - ONLY for group enrolments
+  React.useEffect(() => {
+    // Only fetch paginated lessons for group enrolments
+    if (id && location && !isPrivateEnrolment && !lessonsPagination && !lessonsLoading) {
+      fetchLessons(1, 10);
+    }
+    // fetchLessons is stable from useCallback, so we can safely omit it from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, location, isPrivateEnrolment]);
 
   // All hooks must be called before any early returns
   const pageTitle = React.useMemo(() => {
@@ -358,6 +372,16 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
           <EnrolmentLessonsCard
             lessons={lessons}
             isLoading={isLoading}
+            isGroupEnrolment={!isPrivateEnrolment}
+            pagination={lessonsPagination}
+            lessonsLoading={lessonsLoading}
+            lessonsError={lessonsError}
+            onPageChange={fetchLessons}
+            studentId={details?.studentId}
+            studentName={details?.student}
+            programId={details?.programId}
+            location={location}
+            autoRenewal={details?.autoRenewal}
           />
 
           <EnrolmentHistoryCard

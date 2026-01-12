@@ -5,6 +5,7 @@ import {
   getEnrolmentScheduleHistory,
   getEnrolmentPaymentFrequency,
   getEnrolmentLessons,
+  getEnrolmentLessonsWithPagination,
   getEnrolmentHistory,
   transformApiResponse,
   updateEnrolmentDetails,
@@ -14,7 +15,7 @@ import {
   updateEnrolmentPaymentFrequency,
   type PaginationInfo,
 } from './enrolment-details.api';
-import type { EnrolmentInfo, EnrolmentDetails, EnrolmentDiscounts, EnrolmentPaymentFrequency, EnrolmentHistory } from '../types';
+import type { EnrolmentInfo, EnrolmentDetails, EnrolmentDiscounts, EnrolmentPaymentFrequency, EnrolmentHistory, EnrolmentLesson } from '../types';
 
 interface EnrolmentState {
   enrolmentInfo: EnrolmentInfo | null;
@@ -28,6 +29,11 @@ interface EnrolmentState {
   historyPagination: PaginationInfo | null;
   historyLoading: boolean;
   historyError: string | null;
+  // Lessons state with pagination (only for group enrolments)
+  lessonsData: EnrolmentLesson[];
+  lessonsPagination: PaginationInfo | null;
+  lessonsLoading: boolean;
+  lessonsError: string | null;
 }
 
 const initialState: EnrolmentState = {
@@ -41,6 +47,10 @@ const initialState: EnrolmentState = {
   historyPagination: null,
   historyLoading: false,
   historyError: null,
+  lessonsData: [],
+  lessonsPagination: null,
+  lessonsLoading: false,
+  lessonsError: null,
 };
 
 // Async thunk for fetching enrolment info
@@ -51,20 +61,32 @@ export const fetchEnrolment = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch details, schedule, schedule history, payment frequency, and lessons in parallel, but handle failures gracefully
-      const [detailsResult, scheduleResult, scheduleHistoryResult, paymentFrequencyResult, lessonsResult] = await Promise.allSettled([
-        getEnrolmentDetails(location, enrolmentId),
+      // First, fetch details to determine enrolment type
+      const detailsResult = await getEnrolmentDetails(location, enrolmentId);
+      
+      // Details API is required - fail if it doesn't succeed
+      if (!detailsResult || !detailsResult.success) {
+        throw new Error(detailsResult?.message || 'Failed to fetch enrolment info');
+      }
+
+      // Check if it's a group enrolment - if so, skip lessons fetch (will be fetched with pagination)
+      const isGroupEnrolment = detailsResult.data?.body?.programType?.toLowerCase() === 'group';
+      
+      // Fetch schedule, schedule history, payment frequency, and lessons (conditionally) in parallel
+      const [scheduleResult, scheduleHistoryResult, paymentFrequencyResult, lessonsResult] = await Promise.allSettled([
         getEnrolmentSchedule(location, enrolmentId),
         getEnrolmentScheduleHistory(location, enrolmentId),
         getEnrolmentPaymentFrequency(location, enrolmentId),
-        getEnrolmentLessons(location, enrolmentId),
-      ]);
-
-      // Details API is required - fail if it doesn't succeed
-      const details = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
-      if (!details || !details.success) {
-        throw new Error(details?.message || 'Failed to fetch enrolment info');
-      }
+        // Only fetch lessons for private enrolments (group enrolments use paginated endpoint)
+        ...(isGroupEnrolment ? [Promise.resolve(null)] : [getEnrolmentLessons(location, enrolmentId)]),
+      ]) as [
+        PromiseSettledResult<Awaited<ReturnType<typeof getEnrolmentSchedule>>>,
+        PromiseSettledResult<Awaited<ReturnType<typeof getEnrolmentScheduleHistory>>>,
+        PromiseSettledResult<Awaited<ReturnType<typeof getEnrolmentPaymentFrequency>>>,
+        PromiseSettledResult<Awaited<ReturnType<typeof getEnrolmentLessons>> | null>
+      ];
+      
+      const details = detailsResult;
 
       // Schedule API is optional - log error but don't fail the entire fetch
       let schedule: Awaited<ReturnType<typeof getEnrolmentSchedule>> = null;
@@ -99,16 +121,21 @@ export const fetchEnrolment = createAsyncThunk(
         console.warn('Payment Frequency API error:', paymentFrequencyResult.reason);
       }
 
-      // Lessons API is optional - log error but don't fail the entire fetch
+      // Lessons API is optional - only fetch for private enrolments
+      // Group enrolments will use paginated lessons endpoint separately
       let lessons: Awaited<ReturnType<typeof getEnrolmentLessons>> = null;
-      if (lessonsResult.status === 'fulfilled') {
-        lessons = lessonsResult.value;
-        if (!lessons || !lessons.success) {
-          console.warn('Lessons API failed:', lessons?.message || 'Unknown error');
+      if (!isGroupEnrolment && lessonsResult) {
+        // Only process lessons result if we actually fetched it (private enrolments)
+        if (lessonsResult.status === 'fulfilled' && lessonsResult.value !== null) {
+          lessons = lessonsResult.value;
+          if (!lessons || !lessons.success) {
+            console.warn('Lessons API failed:', lessons?.message || 'Unknown error');
+          }
+        } else if (lessonsResult.status === 'rejected') {
+          console.warn('Lessons API error:', lessonsResult.reason);
         }
-      } else {
-        console.warn('Lessons API error:', lessonsResult.reason);
       }
+      // For group enrolments, lessons will be null (fetched separately with pagination)
 
       const transformedData = transformApiResponse(details, schedule, scheduleHistory, paymentFrequency, lessons);
 
@@ -243,6 +270,44 @@ export const fetchEnrolmentHistory = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching enrolment lessons with pagination (for group enrolments only)
+export const fetchEnrolmentLessons = createAsyncThunk(
+  'enrolment/fetchEnrolmentLessons',
+  async (
+    { location, enrolmentId, page = 1, limit = 10 }: { location: string; enrolmentId: string; page?: number; limit?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getEnrolmentLessonsWithPagination(location, enrolmentId, page, limit);
+      
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch enrolment lessons');
+      }
+
+      const lessonsData = apiResult.data.body || [];
+      
+      // Create default pagination if API doesn't provide it
+      const defaultPagination = {
+        page,
+        limit,
+        total: lessonsData.length,
+        totalPages: 1,
+      };
+
+      return {
+        data: lessonsData,
+        pagination: apiResult.data.pagination || defaultPagination,
+        enrolmentId,
+      };
+    } catch (error) {
+      console.error('Error in fetchEnrolmentLessons:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch enrolment lessons data'
+      );
+    }
+  }
+);
+
 // Async thunk for updating enrolment payment frequency
 export const updatePaymentFrequency = createAsyncThunk(
   'enrolment/updatePaymentFrequency',
@@ -276,6 +341,9 @@ const enrolmentSlice = createSlice({
       state.historyData = [];
       state.historyPagination = null;
       state.historyError = null;
+      state.lessonsData = [];
+      state.lessonsPagination = null;
+      state.lessonsError = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -310,6 +378,10 @@ const enrolmentSlice = createSlice({
         if (state.currentEnrolmentId !== null && state.currentEnrolmentId !== enrolmentId) {
           state.enrolmentInfo = null;
           state.lastFetched = null;
+          // Clear paginated lessons data when switching enrolments to avoid stale data
+          state.lessonsData = [];
+          state.lessonsPagination = null;
+          state.lessonsError = null;
         }
         
         state.currentEnrolmentId = enrolmentId;
@@ -331,7 +403,7 @@ const enrolmentSlice = createSlice({
         state.isSaving = true;
         state.error = null;
       })
-      .addCase(updateEnrolment.fulfilled, (state, action) => {
+      .addCase(updateEnrolment.fulfilled, (state) => {
         state.isSaving = false;
         // Note: We don't update state here because fetchEnrolment will be called
         // to refresh the complete enrolment data including updated rates
@@ -445,6 +517,30 @@ const enrolmentSlice = createSlice({
       .addCase(fetchEnrolmentHistory.rejected, (state, action) => {
         state.historyLoading = false;
         state.historyError = action.payload as string;
+      })
+      // Fetch enrolment lessons reducers (for group enrolments only)
+      .addCase(fetchEnrolmentLessons.pending, (state) => {
+        state.lessonsLoading = true;
+        state.lessonsError = null;
+      })
+      .addCase(fetchEnrolmentLessons.fulfilled, (state, action) => {
+        state.lessonsLoading = false;
+        state.lessonsData = action.payload.data.map((item) => ({
+          id: item.id,
+          dueDate: item.dueDate || "",
+          date: item.date || "",
+          duration: item.duration || "",
+          status: item.status || "",
+          price: item.price || "",
+          owing: item.owing || "",
+          online: item.online === "Yes" || item.online === "true",
+        }));
+        state.lessonsPagination = action.payload.pagination || null;
+        state.lessonsError = null;
+      })
+      .addCase(fetchEnrolmentLessons.rejected, (state, action) => {
+        state.lessonsLoading = false;
+        state.lessonsError = action.payload as string;
       });
   },
 });
