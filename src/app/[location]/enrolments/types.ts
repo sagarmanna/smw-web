@@ -17,6 +17,7 @@ export interface EnrolmentRate {
 
 export interface EnrolmentDetails {
   id: number;
+  programId?: number;
   program: string;
   teacher: string;
   rate: string;
