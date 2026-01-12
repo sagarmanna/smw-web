@@ -789,11 +789,12 @@ export interface UpdateEnrolmentPaymentFrequencyResponse {
     effectiveDate: string;
   };
   message?: string;
+  errorCode?: string;
 }
 
 /**
  * Updates enrolment payment frequency via PUT API
- * For now, returns mock response
+ * Endpoint: PUT /admin/v2/{location}/enrolments/{enrolmentId}/payment-frequency
  * 
  * @param location - The location identifier
  * @param enrolmentId - The enrolment ID
@@ -806,27 +807,14 @@ export async function updateEnrolmentPaymentFrequency(
   data: UpdateEnrolmentPaymentFrequencyRequest
 ): Promise<UpdateEnrolmentPaymentFrequencyResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.put<UpdateEnrolmentPaymentFrequencyResponse>(
-    //   `/admin/v2/${location}/enrolment/${enrolmentId}/payment-frequency`,
-    //   data
-    // );
-    // return response.data;
-    
-    // For now, return mock response - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        id: Number(enrolmentId) || 0,
-        paymentFrequency: data.paymentFrequency,
-        effectiveDate: data.effectiveDate,
-      },
-    };
+    const response = await apiClient.put<UpdateEnrolmentPaymentFrequencyResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/payment-frequency`,
+      data
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error updating enrolment payment frequency:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
     return {
       success: false,
       data: {
