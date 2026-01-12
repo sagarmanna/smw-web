@@ -232,6 +232,10 @@ export function useEnrolmentDetails(
           })
         ).unwrap();
         
+        // Force refresh enrolment data to get updated lessons with new due dates
+        // This clears cache and fetches fresh data including lessons
+        await forceRefresh();
+        
         toast.success("Payment frequency updated successfully");
         return true;
       } catch (error) {
@@ -241,7 +245,7 @@ export function useEnrolmentDetails(
         return false;
       }
     },
-    [dispatch, location, enrolmentId]
+    [dispatch, location, enrolmentId, forceRefresh]
   );
 
   return {

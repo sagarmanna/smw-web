@@ -51,25 +51,44 @@ export const fetchEnrolment = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch details, schedule, schedule history, payment frequency, and lessons in parallel, but handle failures gracefully
-      const [detailsResult, scheduleResult, scheduleHistoryResult, paymentFrequencyResult, lessonsResult] = await Promise.allSettled([
-        getEnrolmentDetails(location, enrolmentId),
+      // First fetch details to determine enrolment type (required)
+      const detailsResult = await getEnrolmentDetails(location, enrolmentId);
+      if (!detailsResult || !detailsResult.success) {
+        throw new Error(detailsResult?.message || 'Failed to fetch enrolment info');
+      }
+
+      // Determine enrolment type from details
+      const programType = detailsResult.data?.body?.programType;
+      const isPrivateEnrolment = programType?.toLowerCase() === 'private';
+
+      // Build array of parallel API calls - conditionally include payment frequency
+      const parallelCalls: Promise<unknown>[] = [
         getEnrolmentSchedule(location, enrolmentId),
         getEnrolmentScheduleHistory(location, enrolmentId),
-        getEnrolmentPaymentFrequency(location, enrolmentId),
         getEnrolmentLessons(location, enrolmentId),
-      ]);
+      ];
 
-      // Details API is required - fail if it doesn't succeed
-      const details = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
-      if (!details || !details.success) {
-        throw new Error(details?.message || 'Failed to fetch enrolment info');
+      // Only fetch payment frequency for private enrolments
+      if (isPrivateEnrolment) {
+        parallelCalls.push(getEnrolmentPaymentFrequency(location, enrolmentId));
       }
+
+      // Fetch remaining APIs in parallel, but handle failures gracefully
+      const parallelResults = await Promise.allSettled(parallelCalls);
+
+      // Details API is required - already fetched and validated above
+      const details = detailsResult;
+
+      // Extract results from parallel calls (order: schedule, scheduleHistory, lessons, [paymentFrequency if private])
+      const scheduleResult = parallelResults[0];
+      const scheduleHistoryResult = parallelResults[1];
+      const lessonsResult = parallelResults[2];
+      const paymentFrequencyResult = isPrivateEnrolment ? parallelResults[3] : undefined;
 
       // Schedule API is optional - log error but don't fail the entire fetch
       let schedule: Awaited<ReturnType<typeof getEnrolmentSchedule>> = null;
       if (scheduleResult.status === 'fulfilled') {
-        schedule = scheduleResult.value;
+        schedule = scheduleResult.value as Awaited<ReturnType<typeof getEnrolmentSchedule>>;
         if (!schedule || !schedule.success) {
           console.warn('Schedule API failed:', schedule?.message || 'Unknown error');
         }
@@ -80,7 +99,7 @@ export const fetchEnrolment = createAsyncThunk(
       // Schedule History API is optional - log error but don't fail the entire fetch
       let scheduleHistory: Awaited<ReturnType<typeof getEnrolmentScheduleHistory>> = null;
       if (scheduleHistoryResult.status === 'fulfilled') {
-        scheduleHistory = scheduleHistoryResult.value;
+        scheduleHistory = scheduleHistoryResult.value as Awaited<ReturnType<typeof getEnrolmentScheduleHistory>>;
         if (!scheduleHistory || !scheduleHistory.success) {
           console.warn('Schedule History API failed:', scheduleHistory?.message || 'Unknown error');
         }
@@ -88,21 +107,23 @@ export const fetchEnrolment = createAsyncThunk(
         console.warn('Schedule History API error:', scheduleHistoryResult.reason);
       }
 
-      // Payment Frequency API is optional - log error but don't fail the entire fetch
+      // Payment Frequency API is optional - only fetched for private enrolments
       let paymentFrequency: Awaited<ReturnType<typeof getEnrolmentPaymentFrequency>> = null;
-      if (paymentFrequencyResult.status === 'fulfilled') {
-        paymentFrequency = paymentFrequencyResult.value;
-        if (!paymentFrequency || !paymentFrequency.success) {
-          console.warn('Payment Frequency API failed:', paymentFrequency?.message || 'Unknown error');
+      if (isPrivateEnrolment && paymentFrequencyResult) {
+        if (paymentFrequencyResult.status === 'fulfilled') {
+          paymentFrequency = paymentFrequencyResult.value as Awaited<ReturnType<typeof getEnrolmentPaymentFrequency>>;
+          if (!paymentFrequency || !paymentFrequency.success) {
+            console.warn('Payment Frequency API failed:', paymentFrequency?.message || 'Unknown error');
+          }
+        } else {
+          console.warn('Payment Frequency API error:', paymentFrequencyResult.reason);
         }
-      } else {
-        console.warn('Payment Frequency API error:', paymentFrequencyResult.reason);
       }
 
       // Lessons API is optional - log error but don't fail the entire fetch
       let lessons: Awaited<ReturnType<typeof getEnrolmentLessons>> = null;
       if (lessonsResult.status === 'fulfilled') {
-        lessons = lessonsResult.value;
+        lessons = lessonsResult.value as Awaited<ReturnType<typeof getEnrolmentLessons>>;
         if (!lessons || !lessons.success) {
           console.warn('Lessons API failed:', lessons?.message || 'Unknown error');
         }
