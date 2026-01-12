@@ -3,8 +3,6 @@
 import * as React from "react";
 
 import { ReportPageLayout } from "@/components/ReportPageLayout";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { ReminderNotesTable } from "./components/ReminderNotesTable";
 import { EditReminderNoteModal } from "./components/modals/EditReminderNoteModal";
 import { DeleteReminderNoteModal } from "./components/modals/DeleteReminderNoteModal";
@@ -26,10 +24,8 @@ export function ReminderNotesClient({ location }: ReminderNotesClientProps) {
     toggleSort,
 
     isEditOpen,
-    editingNoteId,
     draftHtml,
     setDraftHtml,
-    openCreate,
     openEdit,
     closeEdit,
     saveEdit,
@@ -49,12 +45,6 @@ export function ReminderNotesClient({ location }: ReminderNotesClientProps) {
           isLoading={isLoading}
           error={error}
           onRetry={fetchNotes}
-          actions={
-            <Button onClick={openCreate} className="bg-primary hover:bg-primary/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Note
-            </Button>
-          }
         >
           <div className="px-2 sm:px-0">
             <ReminderNotesTable
@@ -74,8 +64,6 @@ export function ReminderNotesClient({ location }: ReminderNotesClientProps) {
             onChange={setDraftHtml}
             onUpdate={saveEdit}
             isSaving={isSaving}
-            title={editingNoteId ? "Update Reminder Notes" : "Add Reminder Note"}
-            submitLabel={editingNoteId ? "Update" : "Create"}
           />
 
           <DeleteReminderNoteModal

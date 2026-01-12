@@ -22,8 +22,6 @@ interface EditReminderNoteModalProps {
   onChange: (html: string) => void;
   onUpdate: () => void;
   isSaving?: boolean;
-  title?: string;
-  submitLabel?: string;
 }
 
 export function EditReminderNoteModal({
@@ -34,14 +32,12 @@ export function EditReminderNoteModal({
   onChange,
   onUpdate,
   isSaving = false,
-  title = "Update Reminder Notes",
-  submitLabel = "Update",
 }: EditReminderNoteModalProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : undefined)}>
       <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle>Update Reminder Notes</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-2">
@@ -58,7 +54,7 @@ export function EditReminderNoteModal({
             Cancel
           </Button>
           <Button onClick={onUpdate} disabled={isSaving}>
-            {submitLabel}
+            Update
           </Button>
         </DialogFooter>
       </DialogContent>

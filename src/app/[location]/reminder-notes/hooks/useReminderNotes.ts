@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  createReminderNote,
   deleteReminderNote,
   getReminderNotes,
   updateReminderNote,
@@ -91,12 +90,6 @@ export function useReminderNotes(options: UseReminderNotesOptions) {
   const [editingNoteId, setEditingNoteId] = React.useState<string | null>(null);
   const [draftHtml, setDraftHtml] = React.useState("");
 
-  const openCreate = React.useCallback(() => {
-    setEditingNoteId(null);
-    setDraftHtml("");
-    setIsEditOpen(true);
-  }, []);
-
   const openEdit = React.useCallback((note: ReminderNote) => {
     setEditingNoteId(note.id);
     setDraftHtml(note.html);
@@ -110,40 +103,31 @@ export function useReminderNotes(options: UseReminderNotesOptions) {
   }, []);
 
   const saveEdit = React.useCallback(() => {
+    if (!editingNoteId) return;
+
     setIsSaving(true);
     setError(null);
 
     (async () => {
       try {
-        const isCreate = !editingNoteId;
-        const response = isCreate
-          ? await createReminderNote(location, { notes: draftHtml })
-          : await updateReminderNote(location, editingNoteId, { notes: draftHtml });
-
+        const response = await updateReminderNote(location, editingNoteId, { notes: draftHtml });
         if (!response.success) {
           const msg =
             response?.message ||
-            (isCreate ? "Failed to create reminder note" : "Failed to update reminder note");
+            "Failed to update reminder note";
           setError(msg);
           toast.error(msg);
           return;
         }
 
-        toast.success(
-          response.message ||
-            (isCreate
-              ? "Reminder note created successfully"
-              : "Reminder note updated successfully")
-        );
+        toast.success(response.message || "Reminder note updated successfully");
         closeEdit();
         await fetchNotes();
       } catch (e) {
         const msg =
           e instanceof Error
             ? e.message
-            : editingNoteId
-              ? "Failed to update reminder note"
-              : "Failed to create reminder note";
+            : "Failed to update reminder note";
         setError(msg);
         toast.error(msg);
       } finally {
@@ -208,10 +192,8 @@ export function useReminderNotes(options: UseReminderNotesOptions) {
 
     // edit modal
     isEditOpen,
-    editingNoteId,
     draftHtml,
     setDraftHtml,
-    openCreate,
     openEdit,
     closeEdit,
     saveEdit,
