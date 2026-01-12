@@ -18,6 +18,7 @@ interface EnrolmentDetailsCardProps {
   location: string;
   studentId?: number;
   customerId?: number;
+  enrolmentType?: "private" | "group";
 }
 
 export const EnrolmentDetailsCard = React.memo(function EnrolmentDetailsCard({
@@ -28,6 +29,7 @@ export const EnrolmentDetailsCard = React.memo(function EnrolmentDetailsCard({
   location,
   studentId,
   customerId,
+  enrolmentType = "private",
 }: EnrolmentDetailsCardProps) {
   const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
@@ -160,9 +162,11 @@ export const EnrolmentDetailsCard = React.memo(function EnrolmentDetailsCard({
         isLoading={isLoading}
         className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
         headerActions={
-          <>
-            <EditButton onClick={() => setIsEditModalOpen(true)} />
-          </>
+          enrolmentType === "private" ? (
+            <>
+              <EditButton onClick={() => setIsEditModalOpen(true)} />
+            </>
+          ) : undefined
         }
       />
 

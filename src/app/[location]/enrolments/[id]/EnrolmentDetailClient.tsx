@@ -323,6 +323,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                 location={location}
                 studentId={details?.studentId}
                 customerId={details?.customerId}
+                enrolmentType={enrolmentType}
               />
 
               <EnrolmentDiscountsCard
@@ -356,6 +357,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                 onChangeSchedulePermanently={changeSchedulePermanently}
                 saving={savingDetails}
                 isLoading={isLoading}
+                enrolmentType={enrolmentType}
               />
 
               {/* Schedule History - Only show for private enrolments */}
