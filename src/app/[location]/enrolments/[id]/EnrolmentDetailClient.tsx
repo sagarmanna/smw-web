@@ -328,6 +328,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                   onSavePaymentFrequency={savePaymentFrequency}
                   savingPaymentFrequency={savingDetails}
                   location={location}
+                  enrolmentId={id}
                 />
               )}
             </div>

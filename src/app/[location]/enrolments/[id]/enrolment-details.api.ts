@@ -188,6 +188,7 @@ export async function getEnrolmentScheduleHistory(
 export interface EnrolmentPaymentFrequencyResponseBody {
   id: number;
   paymentFrequency: string;
+  effectiveDate?: string; // Format: "MMM dd, yyyy" (e.g., "Mar 01, 2025")
 }
 
 export interface EnrolmentPaymentFrequencyApiResponse {
@@ -267,6 +268,7 @@ export async function getEnrolmentPaymentFrequency(
         body: {
           id: Number(enrolmentId) || 0,
           paymentFrequency: "",
+          effectiveDate: undefined,
         },
       },
       message: apiError.response?.data?.message || "Failed to fetch enrolment payment frequency",
@@ -446,6 +448,7 @@ export function transformApiResponse(
     },
     paymentFrequency: {
       paymentFrequency: paymentFrequencyBody?.paymentFrequency || "",
+      effectiveDate: paymentFrequencyBody?.effectiveDate,
     },
     schedule: {
       day: scheduleBody?.day || "",
@@ -778,7 +781,7 @@ export async function getPaymentFrequencyOptions(
 // Update Enrolment Payment Frequency API Types
 export interface UpdateEnrolmentPaymentFrequencyRequest {
   paymentFrequency: string;
-  effectiveDate: string;
+  effectiveDate: string; // Format: "MMM dd, yyyy" (e.g., "Dec 01, 2025") - will be converted to 1st day of selected month
 }
 
 export interface UpdateEnrolmentPaymentFrequencyResponse {

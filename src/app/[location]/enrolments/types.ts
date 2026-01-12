@@ -41,6 +41,7 @@ export interface EnrolmentDiscounts {
 
 export interface EnrolmentPaymentFrequency {
   paymentFrequency: string;
+  effectiveDate?: string; // Format: "MMM dd, yyyy" (e.g., "Mar 01, 2025")
 }
 
 export interface EnrolmentSchedule {
