@@ -129,6 +129,7 @@ export const updateEnrolment = createAsyncThunk(
     try {
       const updateData = {
         rate: data.rate,
+        rates: data.rates, // Include rates array for multiple rates support
         autoRenewal: data.autoRenewal,
         online: data.online,
       };
@@ -332,16 +333,9 @@ const enrolmentSlice = createSlice({
       })
       .addCase(updateEnrolment.fulfilled, (state, action) => {
         state.isSaving = false;
-        // Update state from API response
-        if (state.enrolmentInfo && action.payload) {
-          const { data } = action.payload;
-          state.enrolmentInfo.details = {
-            ...state.enrolmentInfo.details,
-            rate: data.rate,
-            autoRenewal: data.autoRenewal,
-            online: data.online,
-          };
-        }
+        // Note: We don't update state here because fetchEnrolment will be called
+        // to refresh the complete enrolment data including updated rates
+        // This ensures we have the latest data from the server
         state.error = null;
       })
       .addCase(updateEnrolment.rejected, (state, action) => {

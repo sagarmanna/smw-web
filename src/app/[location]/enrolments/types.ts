@@ -33,6 +33,11 @@ export interface EnrolmentDetails {
   type?: "private" | "group"; // Normalized type: "private" | "group"
 }
 
+// Extended for update requests
+export interface UpdateEnrolmentDetails extends Partial<EnrolmentDetails> {
+  rates?: EnrolmentRate[];
+}
+
 export interface EnrolmentDiscounts {
   pfDiscount?: string; // For private enrolments
   multipleEnrolDiscount?: string; // For private enrolments
@@ -41,6 +46,7 @@ export interface EnrolmentDiscounts {
 
 export interface EnrolmentPaymentFrequency {
   paymentFrequency: string;
+  effectiveDate?: string; // Format: "MMM dd, yyyy" (e.g., "Mar 01, 2025")
 }
 
 export interface EnrolmentSchedule {

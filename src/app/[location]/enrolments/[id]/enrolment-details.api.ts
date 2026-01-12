@@ -188,6 +188,7 @@ export async function getEnrolmentScheduleHistory(
 export interface EnrolmentPaymentFrequencyResponseBody {
   id: number;
   paymentFrequency: string;
+  effectiveDate?: string; // Format: "MMM dd, yyyy" (e.g., "Mar 01, 2025")
 }
 
 export interface EnrolmentPaymentFrequencyApiResponse {
@@ -267,6 +268,7 @@ export async function getEnrolmentPaymentFrequency(
         body: {
           id: Number(enrolmentId) || 0,
           paymentFrequency: "",
+          effectiveDate: undefined,
         },
       },
       message: apiError.response?.data?.message || "Failed to fetch enrolment payment frequency",
@@ -446,6 +448,7 @@ export function transformApiResponse(
     },
     paymentFrequency: {
       paymentFrequency: paymentFrequencyBody?.paymentFrequency || "",
+      effectiveDate: paymentFrequencyBody?.effectiveDate,
     },
     schedule: {
       day: scheduleBody?.day || "",
@@ -462,6 +465,7 @@ export function transformApiResponse(
 // Update Enrolment Details API Types
 export interface UpdateEnrolmentDetailsRequest {
   rate?: string;
+  rates?: Array<{ amount: string; fromDate: string; toDate: string }>;
   autoRenewal?: string;
   online?: boolean;
 }
@@ -478,8 +482,8 @@ export interface UpdateEnrolmentDetailsResponse {
 }
 
 /**
- * Updates enrolment details via PUT API
- * For now, returns mock response
+ * Updates enrolment details via POST API
+ * POST /admin/v2/:location/enrolments/:id/edit-program-rate
  * 
  * @param location - The location identifier
  * @param enrolmentId - The enrolment ID
@@ -492,28 +496,99 @@ export async function updateEnrolmentDetails(
   data: UpdateEnrolmentDetailsRequest
 ): Promise<UpdateEnrolmentDetailsResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.put<UpdateEnrolmentDetailsResponse>(
-    //   `/admin/v2/${location}/enrolment/${enrolmentId}/details`,
-    //   data
-    // );
-    // return response.data;
+    // Transform frontend data to API format (matches legacy: CourseProgramRate[$key][programRate])
+    const requestBody: {
+      rate?: number;
+      courseProgramRates?: Array<{ programRate: number }>;
+      isAutoRenew?: boolean;
+      isOnline?: boolean;
+    } = {};
+
+    // Handle multiple rates (matches legacy: loops through all courseProgramRates)
+    // Priority: rates array > single rate
+    if (data.rates && data.rates.length > 0) {
+      // Map all rates to API format - preserve all rates (backend will handle validation)
+      const mappedRates = data.rates
+        .map((rate) => {
+          if (!rate.amount || rate.amount.trim() === "") {
+            // Skip rates with completely empty amounts
+            return null;
+          }
+          
+          // Extract numeric value from formatted string (e.g., "$20.00" -> 20.00)
+          // Handle both formatted "$20.00" and plain "20.00" formats
+          const rateValue = parseFloat(rate.amount.replace(/[^0-9.]/g, ""));
+          
+          // Include rate if it's a valid number (including 0)
+          if (!isNaN(rateValue) && rateValue >= 0) {
+            return { programRate: rateValue };
+          }
+          
+          return null;
+        })
+        .filter((rate): rate is { programRate: number } => rate !== null);
+      
+      // Set courseProgramRates if we have at least one valid rate
+      if (mappedRates.length > 0) {
+        requestBody.courseProgramRates = mappedRates;
+      }
+    }
     
-    // For now, return mock response - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
+    // Fallback to single rate only if rates array is not provided or all rates were invalid
+    if (!requestBody.courseProgramRates && data.rate) {
+      const rateValue = parseFloat(data.rate.replace(/[^0-9.]/g, ""));
+      if (!isNaN(rateValue) && rateValue > 0) {
+        requestBody.rate = rateValue;
+      }
+    }
+
+    // Convert autoRenewal string to boolean
+    if (data.autoRenewal !== undefined) {
+      requestBody.isAutoRenew = data.autoRenewal === "Enabled";
+    }
+
+    // Convert online boolean
+    if (data.online !== undefined) {
+      requestBody.isOnline = data.online;
+    }
+
+    const response = await apiClient.post<{
+      success: boolean;
       data: {
-        id: Number(enrolmentId) || 0,
-        rate: data.rate || "",
-        autoRenewal: data.autoRenewal || "",
-        online: data.online !== undefined ? data.online : false,
-      },
-    };
+        message: string;
+      };
+      message?: string;
+    }>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/edit-program-rate`,
+      requestBody
+    );
+
+    if (response.data.success) {
+      return {
+        success: true,
+        data: {
+          id: Number(enrolmentId) || 0,
+          rate: data.rate || "",
+          autoRenewal: data.autoRenewal || "",
+          online: data.online !== undefined ? data.online : false,
+        },
+        message: response.data.data?.message || response.data.message,
+      };
+    } else {
+      return {
+        success: false,
+        data: {
+          id: Number(enrolmentId) || 0,
+          rate: "",
+          autoRenewal: "",
+          online: false,
+        },
+        message: response.data.message || "Failed to update enrolment details",
+      };
+    }
   } catch (error: unknown) {
     console.error("Error updating enrolment details:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
     return {
       success: false,
       data: {
@@ -778,7 +853,7 @@ export async function getPaymentFrequencyOptions(
 // Update Enrolment Payment Frequency API Types
 export interface UpdateEnrolmentPaymentFrequencyRequest {
   paymentFrequency: string;
-  effectiveDate: string;
+  effectiveDate: string; // Format: "MMM dd, yyyy" (e.g., "Dec 01, 2025") - will be converted to 1st day of selected month
 }
 
 export interface UpdateEnrolmentPaymentFrequencyResponse {
@@ -789,11 +864,12 @@ export interface UpdateEnrolmentPaymentFrequencyResponse {
     effectiveDate: string;
   };
   message?: string;
+  errorCode?: string;
 }
 
 /**
  * Updates enrolment payment frequency via PUT API
- * For now, returns mock response
+ * Endpoint: PUT /admin/v2/{location}/enrolments/{enrolmentId}/payment-frequency
  * 
  * @param location - The location identifier
  * @param enrolmentId - The enrolment ID
@@ -806,27 +882,14 @@ export async function updateEnrolmentPaymentFrequency(
   data: UpdateEnrolmentPaymentFrequencyRequest
 ): Promise<UpdateEnrolmentPaymentFrequencyResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.put<UpdateEnrolmentPaymentFrequencyResponse>(
-    //   `/admin/v2/${location}/enrolment/${enrolmentId}/payment-frequency`,
-    //   data
-    // );
-    // return response.data;
-    
-    // For now, return mock response - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        id: Number(enrolmentId) || 0,
-        paymentFrequency: data.paymentFrequency,
-        effectiveDate: data.effectiveDate,
-      },
-    };
+    const response = await apiClient.put<UpdateEnrolmentPaymentFrequencyResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/payment-frequency`,
+      data
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error updating enrolment payment frequency:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
     return {
       success: false,
       data: {
