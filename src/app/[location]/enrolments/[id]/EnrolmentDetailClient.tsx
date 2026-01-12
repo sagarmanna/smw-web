@@ -164,13 +164,14 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
         label: ENROLMENT_MESSAGES.ACTION_RECEIVE_PAYMENT,
         onClick: () => {
           // Placeholder for receive payment - will be implemented in future
-          toast.info("Receive payment functionality coming soon");
+          toast.info("This feature is in development.");
         },
       },
       {
         label: ENROLMENT_MESSAGES.ACTION_DELETE,
         onClick: () => {
-          setIsDeleteModalOpen(true);
+          toast.info("This feature is in development.");
+          // setIsDeleteModalOpen(true);
         },
         variant: "destructive" as const,
       },
@@ -188,8 +189,8 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
               label: ENROLMENT_MESSAGES.ACTION_MAIL,
               onClick: () => {
                 // Placeholder for mail - will be implemented in future
-                toast.info("Mail functionality coming soon");
-              },
+                  toast.info("Mail functionality coming soon");
+                },
             },
           ]
         : [
@@ -198,7 +199,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
               label: ENROLMENT_MESSAGES.ACTION_FULL_DELETE,
               onClick: () => {
                 // Placeholder for full delete - will be implemented in future
-                toast.info("Full delete functionality coming soon");
+                toast.info("This feature is in development.");
               },
               variant: "destructive" as const,
             },
