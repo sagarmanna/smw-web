@@ -40,6 +40,11 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     legacyUrl: (params) => 
       `/user/view?UserSearch%5Brole_name%5D=teacher&id=${params.id || ''}`
   },
+  {
+    pattern: /^\/[^/]+\/enrolments\/[^/]+$/, // Matches /[location]/enrolments/[id]
+    legacyUrl: (params) => 
+      `/enrolment/view?id=${params.id || ''}`
+  },
   // Static routes (string patterns)
   {
     pattern: /^\/[^/]+\/customers$/, // Matches /[location]/customers (list page)

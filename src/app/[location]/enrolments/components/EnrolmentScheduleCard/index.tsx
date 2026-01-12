@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AdjustEndDateModal } from "../modals/AdjustEndDateModal";
 import { PermanentScheduleChangeModal } from "../modals/PermanentScheduleChangeModal";
+import { isDev } from "@/utils/env";
+import { toast } from "sonner";
 
 interface EnrolmentScheduleCardProps {
   schedule: EnrolmentSchedule | null;
@@ -93,10 +95,10 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsAdjustEndDateModalOpen(true)}>
+              <DropdownMenuItem onClick={() => isDev() ? setIsAdjustEndDateModalOpen(true) : toast.info("This feature is in development.")}>
                 Adjust enddate...
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsPermanentChangeModalOpen(true)}>
+              <DropdownMenuItem onClick={() => isDev() ? setIsPermanentChangeModalOpen(true) : toast.info("This feature is in development.")}>
                 Permanent Schedule Change...
               </DropdownMenuItem>
             </DropdownMenuContent>
