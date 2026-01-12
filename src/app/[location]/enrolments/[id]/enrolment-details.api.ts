@@ -496,11 +496,6 @@ export async function updateEnrolmentDetails(
   data: UpdateEnrolmentDetailsRequest
 ): Promise<UpdateEnrolmentDetailsResponse | null> {
   try {
-    // Debug: Log incoming data
-    console.log('API: Received data:', data);
-    console.log('API: data.rates:', data.rates);
-    console.log('API: data.rate:', data.rate);
-    
     // Transform frontend data to API format (matches legacy: CourseProgramRate[$key][programRate])
     const requestBody: {
       rate?: number;
@@ -512,45 +507,30 @@ export async function updateEnrolmentDetails(
     // Handle multiple rates (matches legacy: loops through all courseProgramRates)
     // Priority: rates array > single rate
     if (data.rates && data.rates.length > 0) {
-      // Debug: Log incoming rates
-      console.log('API: Processing rates:', data.rates);
-      
       // Map all rates to API format - preserve all rates (backend will handle validation)
       const mappedRates = data.rates
-        .map((rate, index) => {
-          console.log(`API: Processing rate ${index}:`, rate);
-          
+        .map((rate) => {
           if (!rate.amount || rate.amount.trim() === "") {
             // Skip rates with completely empty amounts
-            console.warn(`API: Rate ${index} skipped - empty amount`);
             return null;
           }
           
           // Extract numeric value from formatted string (e.g., "$20.00" -> 20.00)
           // Handle both formatted "$20.00" and plain "20.00" formats
           const rateValue = parseFloat(rate.amount.replace(/[^0-9.]/g, ""));
-          console.log(`API: Rate ${index} parsed value:`, rateValue, 'from:', rate.amount);
           
           // Include rate if it's a valid number (including 0)
           if (!isNaN(rateValue) && rateValue >= 0) {
             return { programRate: rateValue };
           }
           
-          console.warn(`API: Rate ${index} skipped - invalid value:`, rateValue);
           return null;
         })
         .filter((rate): rate is { programRate: number } => rate !== null);
       
-      console.log('API: Mapped rates:', mappedRates);
-      
       // Set courseProgramRates if we have at least one valid rate
-      // This ensures we send the array even if some rates are invalid
       if (mappedRates.length > 0) {
         requestBody.courseProgramRates = mappedRates;
-        console.log('API: Setting courseProgramRates in requestBody');
-      } else {
-        // Debug: Log if all rates were filtered out
-        console.warn('API: All rates were filtered out. Original rates:', data.rates);
       }
     }
     

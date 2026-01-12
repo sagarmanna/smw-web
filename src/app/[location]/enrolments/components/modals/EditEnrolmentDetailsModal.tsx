@@ -156,17 +156,6 @@ export function EditEnrolmentDetailsModal({
         submitData.rate = details.rate;
       }
     }
-    
-    // Debug: Log what we're sending (remove in production)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Submitting enrolment details:', {
-        hasRatesInFormData,
-        hasRatesInDetails,
-        ratesCount: rates.length,
-        submitDataRates: submitData.rates?.length,
-        submitDataRate: submitData.rate,
-      });
-    }
 
     const success = await onSubmit(submitData);
     

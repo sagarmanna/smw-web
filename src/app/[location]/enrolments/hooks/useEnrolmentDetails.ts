@@ -130,7 +130,6 @@ export function useEnrolmentDetails(
   const saveDetails = React.useCallback(
     async (details: Partial<EnrolmentDetails>): Promise<boolean> => {
       try {
-        console.log('Saving enrolment details...', details);
         await dispatch(
           updateEnrolment({
             location,
@@ -139,11 +138,9 @@ export function useEnrolmentDetails(
           })
         ).unwrap();
         
-        console.log('Update successful, refreshing data...');
         // Force refresh enrolment data to get updated rates and other details from server
         // This clears cache and fetches fresh data
         await forceRefresh();
-        console.log('Data refresh completed');
         
         toast.success("Enrolment details updated successfully");
         return true;
