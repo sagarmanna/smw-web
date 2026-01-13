@@ -165,13 +165,14 @@ export function AddLocationModal({
 
       if (isBlank(formData.name)) errors.name = "Name cannot be blank.";
       if (isBlank(formData.address)) errors.address = "Address cannot be blank.";
+      if (isBlank(formData.phoneNumber)) errors.phoneNumber = "Phone Number cannot be blank.";
       if (isBlank(formData.email)) errors.email = "Email cannot be blank.";
       if (isBlank(formData.cityId)) errors.cityId = "City cannot be blank.";
       if (isBlank(formData.provinceId)) errors.provinceId = "Province cannot be blank.";
       if (isBlank(formData.countryId)) errors.countryId = "Country cannot be blank.";
       if (isBlank(formData.postalCode)) errors.postalCode = "Postal Code cannot be blank.";
 
-      // Phone is optional, but if provided, it must be a valid 10-digit number
+      // Phone is required and must be a valid 10-digit number
       if (!isBlank(formData.phoneNumber) && !validatePhoneNumber(formData.phoneNumber)) {
         errors.phoneNumber = "Phone Number must be 10 digits.";
       }
