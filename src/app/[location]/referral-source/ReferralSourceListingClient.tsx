@@ -111,7 +111,7 @@ export function ReferralSourceListingClient({ location }: ReferralSourceListingC
         size="compact"
         variant="default"
         stickyHeader={true}
-        headerClassName="first:[&_th]:text-left first:[&_th>div]:justify-start first:[&_th>div>div+svg]:hidden"
+        headerClassName="[&_th]:text-left [&_th>div]:justify-start [&_th>div>svg]:hidden"
         enableSearch={false}
         enableFilter={false}
         enablePrint={false}
