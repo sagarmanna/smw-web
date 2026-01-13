@@ -1,6 +1,7 @@
 // Constants for better maintainability
 export const ALLOWED_PATHS: string[] = [
     '/locations',
+    '/reminder-notes',
     '/terms-of-service',
     '/calendar-event-color',
     '/taxes',

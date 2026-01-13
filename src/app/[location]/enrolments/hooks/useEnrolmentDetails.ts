@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { 
   fetchEnrolment,
   fetchEnrolmentHistory,
+  fetchEnrolmentLessons,
   clearCache,
   updateEnrolment,
   adjustEndDate,
@@ -32,6 +33,9 @@ type EnrolmentDetailsHookReturn = {
   schedule: EnrolmentSchedule | null;
   scheduleHistory: EnrolmentScheduleHistory[];
   lessons: EnrolmentLesson[];
+  lessonsPagination: { page: number; limit: number; total: number; totalPages: number } | null;
+  lessonsLoading: boolean;
+  lessonsError: string | null;
   history: EnrolmentHistory[];
   historyPagination: { page: number; limit: number; total: number; totalPages: number } | null;
   historyLoading: boolean;
@@ -39,6 +43,7 @@ type EnrolmentDetailsHookReturn = {
   refresh: () => Promise<void>;
   forceRefresh: () => Promise<void>;
   fetchHistory: (page?: number) => Promise<void>;
+  fetchLessons: (page?: number, limit?: number) => Promise<void>;
   saveDetails: (details: Partial<EnrolmentDetails>) => Promise<boolean>;
   savingDetails: boolean;
   adjustScheduleEndDate: (endDate: string) => Promise<boolean>;
@@ -64,6 +69,12 @@ export function useEnrolmentDetails(
   const historyPagination = useAppSelector((state) => state.enrolment?.historyPagination);
   const historyLoading = useAppSelector((state) => state.enrolment?.historyLoading || false);
   const historyError = useAppSelector((state) => state.enrolment?.historyError);
+  
+  // Get lessons data from Redux store (separate from enrolmentInfo, only for group enrolments)
+  const lessonsData = useAppSelector((state) => state.enrolment?.lessonsData || []);
+  const lessonsPagination = useAppSelector((state) => state.enrolment?.lessonsPagination);
+  const lessonsLoading = useAppSelector((state) => state.enrolment?.lessonsLoading || false);
+  const lessonsError = useAppSelector((state) => state.enrolment?.lessonsError);
 
   // Transform Redux state to hook return format
   const details: EnrolmentDetails | null = React.useMemo(() => {
@@ -90,9 +101,24 @@ export function useEnrolmentDetails(
     return enrolmentInfo?.scheduleHistory || [];
   }, [enrolmentInfo]);
 
-  const lessons: EnrolmentLesson[] = React.useMemo(() => {
-    return enrolmentInfo?.lessons || [];
+  // Determine enrolment type to decide which lessons data to use
+  const enrolmentType = React.useMemo(() => {
+    return enrolmentInfo?.details?.type || null;
   }, [enrolmentInfo]);
+
+  // Use paginated lessons data for group enrolments, enrolmentInfo lessons for private enrolments
+  const lessons: EnrolmentLesson[] = React.useMemo(() => {
+    // For group enrolments, use paginated lessons data
+    if (enrolmentType === 'group' && lessonsData.length > 0) {
+      return lessonsData;
+    }
+    // For private enrolments, always use lessons from enrolmentInfo (all lessons from main fetch)
+    if (enrolmentType === 'private') {
+      return enrolmentInfo?.lessons || [];
+    }
+    // Fallback: if type is unknown, prefer enrolmentInfo lessons (for initial load or edge cases)
+    return enrolmentInfo?.lessons || [];
+  }, [lessonsData, enrolmentInfo, enrolmentType]);
 
   const history: EnrolmentHistory[] = React.useMemo(() => {
     return historyData;
@@ -121,6 +147,26 @@ export function useEnrolmentDetails(
         ).unwrap();
       } catch (error) {
         console.error("Failed to fetch history:", error);
+        // Error is already handled in Redux state
+      }
+    },
+    [dispatch, location, enrolmentId]
+  );
+
+  // Fetch lessons with pagination (only for group enrolments)
+  const fetchLessons = React.useCallback(
+    async (page: number = 1, limit: number = 10): Promise<void> => {
+      try {
+        await dispatch(
+          fetchEnrolmentLessons({
+            location,
+            enrolmentId,
+            page,
+            limit,
+          })
+        ).unwrap();
+      } catch (error) {
+        console.error("Failed to fetch lessons:", error);
         // Error is already handled in Redux state
       }
     },
@@ -257,6 +303,9 @@ export function useEnrolmentDetails(
     schedule,
     scheduleHistory,
     lessons,
+    lessonsPagination,
+    lessonsLoading,
+    lessonsError,
     history,
     historyPagination,
     historyLoading,
@@ -264,6 +313,7 @@ export function useEnrolmentDetails(
     refresh,
     forceRefresh,
     fetchHistory,
+    fetchLessons,
     saveDetails,
     savingDetails,
     adjustScheduleEndDate,
