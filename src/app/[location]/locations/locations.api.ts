@@ -31,6 +31,28 @@ export interface LocationsQuery {
 
 export type LocationsListResponse = StandardListResponse<LocationRow>;
 
+export interface LocationDetails {
+  id?: number;
+  name?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  country?: string;
+  postalCode?: string;
+  phoneNumber?: string;
+  email?: string;
+  hstRegistrationNo?: string;
+  royaltyPercent?: number;
+  advertisementPercent?: number;
+  conversionDate?: string;
+}
+
+export interface LocationDetailsResponse {
+  success: boolean;
+  message?: string;
+  data: LocationDetails;
+}
+
 const emptyResponse: LocationsListResponse = {
   success: false,
   message: "Failed to fetch locations",
