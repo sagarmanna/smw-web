@@ -40,6 +40,7 @@ import staffMemberDetailsReducer from '../app/[location]/staff-members/[id]/staf
 import staffMemberTabsReducer from '../app/[location]/staff-members/[id]/staffMembersTabs.slice';
 import ownerDetailsReducer from '../app/[location]/owners/[id]/owners-details.slice';
 import ownerTabsReducer from '../app/[location]/owners/[id]/ownersTabs.slice';
+import referralSourceListingReducer from '../app/[location]/referral-source/referralSourceListing.slice';
 
 export const store = configureStore({
   reducer: {
@@ -84,6 +85,7 @@ export const store = configureStore({
     staffMemberTabs: staffMemberTabsReducer,
     ownerDetails: ownerDetailsReducer,
     ownerTabs: ownerTabsReducer,
+    referralSourceListing: referralSourceListingReducer,
   },
 });
 
