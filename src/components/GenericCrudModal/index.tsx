@@ -74,6 +74,11 @@ export interface GenericCrudModalProps<TRow, TFormData, TCreateRequest = unknown
   mode?: "add" | "edit";
   config: CrudModalConfig<TRow, TFormData, TCreateRequest, TUpdateRequest>;
   title?: string;
+  /**
+   * Optional className to control DialogContent width/spacing for complex forms.
+   * Example: "sm:max-w-[900px]"
+   */
+  dialogClassName?: string;
   deleteTitle?: string;
   deleteDescription?: React.ReactNode;
   children: (props: {
@@ -94,6 +99,7 @@ export function GenericCrudModal<TRow extends { id: number }, TFormData extends 
   mode = "add",
   config,
   title,
+  dialogClassName,
   deleteTitle,
   deleteDescription,
   children,
@@ -216,7 +222,7 @@ export function GenericCrudModal<TRow extends { id: number }, TFormData extends 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className={dialogClassName || "sm:max-w-[425px]"}>
           <DialogHeader>
             <DialogTitle>{title || entityName}</DialogTitle>
           </DialogHeader>
