@@ -9,6 +9,8 @@ import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { EnrolmentDiscounts, EnrolmentSchedule, EnrolmentDetails } from "../../types";
 import { EditEnrolmentDiscountsModal } from "../modals/EditEnrolmentDiscountsModal";
 import { ENROLMENT_CONSTANTS } from "../../utils/constants";
+import { toast } from "sonner";
+import { isDev } from "@/utils/env";
 
 interface EnrolmentDiscountsCardProps {
   discounts: EnrolmentDiscounts | null;
@@ -77,7 +79,7 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
         className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
         headerActions={
           <>
-            <EditButton onClick={() => setIsEditModalOpen(true)} />
+            <EditButton onClick={() => isDev() ? setIsEditModalOpen(true) : toast.info("This feature is in development.")} />
           </>
         }
       />

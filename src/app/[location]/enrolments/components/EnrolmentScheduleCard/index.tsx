@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AdjustEndDateModal } from "../modals/AdjustEndDateModal";
 import { PermanentScheduleChangeModal } from "../modals/PermanentScheduleChangeModal";
+import { isDev } from "@/utils/env";
+import { toast } from "sonner";
 
 interface EnrolmentScheduleCardProps {
   schedule: EnrolmentSchedule | null;
@@ -23,6 +25,7 @@ interface EnrolmentScheduleCardProps {
   onChangeSchedulePermanently: (startingDate: string) => Promise<boolean>;
   saving?: boolean;
   isLoading?: boolean;
+  enrolmentType?: "private" | "group";
 }
 
 export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
@@ -31,6 +34,7 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
   onChangeSchedulePermanently,
   saving = false,
   isLoading = false,
+  enrolmentType = "private",
 }: EnrolmentScheduleCardProps) {
   const [isAdjustEndDateModalOpen, setIsAdjustEndDateModalOpen] = React.useState(false);
   const [isPermanentChangeModalOpen, setIsPermanentChangeModalOpen] = React.useState(false);
@@ -93,12 +97,14 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsAdjustEndDateModalOpen(true)}>
+              <DropdownMenuItem onClick={() => isDev() ? setIsAdjustEndDateModalOpen(true) : toast.info("This feature is in development.")}>
                 Adjust enddate...
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsPermanentChangeModalOpen(true)}>
-                Permanent Schedule Change...
-              </DropdownMenuItem>
+              {enrolmentType === "private" && (
+                <DropdownMenuItem onClick={() => isDev() ? setIsPermanentChangeModalOpen(true) : toast.info("This feature is in development.")}>
+                  Permanent Schedule Change...
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         }

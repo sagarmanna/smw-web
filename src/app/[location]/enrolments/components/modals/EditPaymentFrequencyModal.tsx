@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { DatePicker } from "@/components/ui/date-picker";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import { EnrolmentPaymentFrequency } from "../../types";
 
@@ -40,36 +40,42 @@ export function EditPaymentFrequencyModal({
   saving = false,
 }: EditPaymentFrequencyModalProps) {
   const [selectedFrequency, setSelectedFrequency] = React.useState<string>("");
-  const [effectiveDate, setEffectiveDate] = React.useState<Date | undefined>(undefined);
+  const [effectiveDate, setEffectiveDate] = React.useState<Date>(new Date());
   const [error, setError] = React.useState<string>("");
 
   // Parse date string to Date object
-  const parseDate = (dateString: string): Date | undefined => {
-    if (!dateString) return undefined;
-    try {
-      // Try parsing common date formats
-      const date = new Date(dateString);
-      return isNaN(date.getTime()) ? undefined : date;
-    } catch {
-      return undefined;
+  const parseDateString = (dateString: string | undefined): Date => {
+    if (!dateString) {
+      // Default to current month's first day
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), 1);
     }
-  };
-
-  // Format Date to string (MMM dd, yyyy format like "Dec 01, 2025")
-  const formatDateToString = (date: Date | undefined): string => {
-    if (!date) return "";
-    return format(date, "MMM dd, yyyy");
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        // Invalid date, default to current month's first day
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+      // Return the date (it's already the 1st day from backend)
+      return date;
+    } catch {
+      // Default to current month's first day
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+    }
   };
 
   React.useEffect(() => {
     if (open && paymentFrequency) {
       setSelectedFrequency(paymentFrequency.paymentFrequency || "");
-      // Set effective date to today if not provided
-      setEffectiveDate(new Date());
+      // Load effective date from paymentFrequency, or default to current month's first day
+      const effectiveDateFromApi = parseDateString(paymentFrequency.effectiveDate);
+      setEffectiveDate(effectiveDateFromApi);
       setError("");
     } else if (!open) {
       setSelectedFrequency("");
-      setEffectiveDate(undefined);
+      setEffectiveDate(new Date());
       setError("");
     }
   }, [open, paymentFrequency]);
@@ -88,10 +94,14 @@ export function EditPaymentFrequencyModal({
     }
 
     setError("");
-    const dateString = formatDateToString(effectiveDate);
+    
+    // Convert selected date to first day of that month and year
+    const firstDayOfMonth = new Date(effectiveDate.getFullYear(), effectiveDate.getMonth(), 1);
+    const effectiveDateString = format(firstDayOfMonth, "MMM dd, yyyy");
+    
     const success = await onSubmit({
       paymentFrequency: selectedFrequency,
-      effectiveDate: dateString,
+      effectiveDate: effectiveDateString,
     });
     
     if (success) {
@@ -135,15 +145,20 @@ export function EditPaymentFrequencyModal({
               id="effective-date"
               value={effectiveDate}
               onSelect={(date) => {
-                setEffectiveDate(date);
-                setError("");
+                if (date) {
+                  // Convert selected date to first day of that month and year
+                  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+                  setEffectiveDate(firstDayOfMonth);
+                  setError("");
+                }
               }}
-              placeholder="Pick a date"
+              placeholder="Select month and year"
               fromYear={2005}
               toYear={2125}
-              error={!!error && !effectiveDate}
-              errorMessage={error && !effectiveDate ? error : undefined}
             />
+            <p className="text-xs text-muted-foreground">
+              Select any day in the month. The effective date will be set to the 1st day of the selected month and year.
+            </p>
           </div>
 
           {error && (

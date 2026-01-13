@@ -340,12 +340,12 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
               }}
               onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
               onRowClick={(row: EnrolmentRow) => {
-                if (!isDev()) {
-                  // /admin/training-location/enrolment/view?id=31202
-                  const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/enrolment/view?id=${row.id}`;
-                  window.location.href = url;
-                  return;
-                }
+                // if (!isDev()) {
+                //   // /admin/training-location/enrolment/view?id=31202
+                //   const url = `${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/enrolment/view?id=${row.id}`;
+                //   window.location.href = url;
+                //   return;
+                // }
                 // Navigate to enrolment details - type will be determined from Redux or details API
                 router.push(`/${location}/enrolments/${row.id}`);
               }}

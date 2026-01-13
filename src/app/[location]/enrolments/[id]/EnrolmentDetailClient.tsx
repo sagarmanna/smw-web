@@ -46,11 +46,15 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     schedule,
     scheduleHistory,
     lessons,
+    lessonsPagination,
+    lessonsLoading,
+    lessonsError,
     history,
     historyPagination,
     historyLoading,
     historyError,
     fetchHistory,
+    fetchLessons,
     saveDetails,
     savingDetails,
     adjustScheduleEndDate,
@@ -138,6 +142,16 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, location]);
 
+  // Fetch lessons with pagination on initial load - ONLY for group enrolments
+  React.useEffect(() => {
+    // Only fetch paginated lessons for group enrolments
+    if (id && location && !isPrivateEnrolment && !lessonsPagination && !lessonsLoading) {
+      fetchLessons(1, 10);
+    }
+    // fetchLessons is stable from useCallback, so we can safely omit it from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, location, isPrivateEnrolment]);
+
   // All hooks must be called before any early returns
   const pageTitle = React.useMemo(() => {
     if (!details) return `Enrolment #${id}`;
@@ -164,13 +178,14 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
         label: ENROLMENT_MESSAGES.ACTION_RECEIVE_PAYMENT,
         onClick: () => {
           // Placeholder for receive payment - will be implemented in future
-          toast.info("Receive payment functionality coming soon");
+          toast.info("This feature is in development.");
         },
       },
       {
         label: ENROLMENT_MESSAGES.ACTION_DELETE,
         onClick: () => {
-          setIsDeleteModalOpen(true);
+          toast.info("This feature is in development.");
+          // setIsDeleteModalOpen(true);
         },
         variant: "destructive" as const,
       },
@@ -188,8 +203,8 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
               label: ENROLMENT_MESSAGES.ACTION_MAIL,
               onClick: () => {
                 // Placeholder for mail - will be implemented in future
-                toast.info("Mail functionality coming soon");
-              },
+                  toast.info("Mail functionality coming soon");
+                },
             },
           ]
         : [
@@ -198,7 +213,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
               label: ENROLMENT_MESSAGES.ACTION_FULL_DELETE,
               onClick: () => {
                 // Placeholder for full delete - will be implemented in future
-                toast.info("Full delete functionality coming soon");
+                toast.info("This feature is in development.");
               },
               variant: "destructive" as const,
             },
@@ -308,6 +323,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                 location={location}
                 studentId={details?.studentId}
                 customerId={details?.customerId}
+                enrolmentType={enrolmentType}
               />
 
               <EnrolmentDiscountsCard
@@ -328,6 +344,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                   onSavePaymentFrequency={savePaymentFrequency}
                   savingPaymentFrequency={savingDetails}
                   location={location}
+                  enrolmentId={id}
                 />
               )}
             </div>
@@ -340,6 +357,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                 onChangeSchedulePermanently={changeSchedulePermanently}
                 saving={savingDetails}
                 isLoading={isLoading}
+                enrolmentType={enrolmentType}
               />
 
               {/* Schedule History - Only show for private enrolments */}
@@ -356,6 +374,16 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
           <EnrolmentLessonsCard
             lessons={lessons}
             isLoading={isLoading}
+            isGroupEnrolment={!isPrivateEnrolment}
+            pagination={lessonsPagination}
+            lessonsLoading={lessonsLoading}
+            lessonsError={lessonsError}
+            onPageChange={fetchLessons}
+            studentId={details?.studentId}
+            studentName={details?.student}
+            programId={details?.programId}
+            location={location}
+            autoRenewal={details?.autoRenewal}
           />
 
           <EnrolmentHistoryCard

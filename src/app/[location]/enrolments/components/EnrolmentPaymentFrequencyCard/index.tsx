@@ -8,7 +8,7 @@ import {
 import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { EnrolmentPaymentFrequency } from "../../types";
 import { EditPaymentFrequencyModal } from "../modals/EditPaymentFrequencyModal";
-import { getPaymentFrequencyOptions, PaymentFrequencyOption } from "../../[id]/enrolment-details.api";
+import { getPaymentFrequencyOptions, getEnrolmentPaymentFrequency, PaymentFrequencyOption } from "../../[id]/enrolment-details.api";
 
 interface EnrolmentPaymentFrequencyCardProps {
   paymentFrequency: EnrolmentPaymentFrequency | null;
@@ -16,6 +16,7 @@ interface EnrolmentPaymentFrequencyCardProps {
   onSavePaymentFrequency: (data: { paymentFrequency: string; effectiveDate: string }) => Promise<boolean>;
   savingPaymentFrequency?: boolean;
   location: string;
+  enrolmentId: string;
 }
 
 export const EnrolmentPaymentFrequencyCard = React.memo(function EnrolmentPaymentFrequencyCard({
@@ -24,29 +25,53 @@ export const EnrolmentPaymentFrequencyCard = React.memo(function EnrolmentPaymen
   onSavePaymentFrequency,
   savingPaymentFrequency = false,
   location,
+  enrolmentId,
 }: EnrolmentPaymentFrequencyCardProps) {
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [paymentFrequencyOptions, setPaymentFrequencyOptions] = React.useState<PaymentFrequencyOption[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = React.useState(false);
+  const [currentPaymentFrequency, setCurrentPaymentFrequency] = React.useState<EnrolmentPaymentFrequency | null>(paymentFrequency);
+  const [isLoadingPaymentFrequency, setIsLoadingPaymentFrequency] = React.useState(false);
 
-  // Fetch payment frequency options when modal opens
+  // Fetch payment frequency data and options when modal opens
   React.useEffect(() => {
-    if (isEditModalOpen && paymentFrequencyOptions.length === 0) {
-      setIsLoadingOptions(true);
-      getPaymentFrequencyOptions(location)
+    if (isEditModalOpen) {
+      // Fetch current payment frequency data (including effective date)
+      setIsLoadingPaymentFrequency(true);
+      getEnrolmentPaymentFrequency(location, enrolmentId)
         .then((response) => {
-          if (response?.success && response.data) {
-            setPaymentFrequencyOptions(response.data);
+          if (response?.success && response.data?.body) {
+            setCurrentPaymentFrequency({
+              paymentFrequency: response.data.body.paymentFrequency || "",
+              effectiveDate: response.data.body.effectiveDate,
+            });
           }
         })
         .catch((error) => {
-          console.error("Failed to fetch payment frequency options:", error);
+          console.error("Failed to fetch payment frequency:", error);
         })
         .finally(() => {
-          setIsLoadingOptions(false);
+          setIsLoadingPaymentFrequency(false);
         });
+
+      // Fetch payment frequency options
+      if (paymentFrequencyOptions.length === 0) {
+        setIsLoadingOptions(true);
+        getPaymentFrequencyOptions(location)
+          .then((response) => {
+            if (response?.success && response.data) {
+              setPaymentFrequencyOptions(response.data);
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to fetch payment frequency options:", error);
+          })
+          .finally(() => {
+            setIsLoadingOptions(false);
+          });
+      }
     }
-  }, [isEditModalOpen, location, paymentFrequencyOptions.length]);
+  }, [isEditModalOpen, location, enrolmentId, paymentFrequencyOptions.length]);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
     return [
@@ -81,9 +106,9 @@ export const EnrolmentPaymentFrequencyCard = React.memo(function EnrolmentPaymen
       <EditPaymentFrequencyModal
         open={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        paymentFrequency={paymentFrequency}
+        paymentFrequency={currentPaymentFrequency}
         paymentFrequencyOptions={paymentFrequencyOptions}
-        isLoadingOptions={isLoadingOptions}
+        isLoadingOptions={isLoadingOptions || isLoadingPaymentFrequency}
         onSubmit={handleSave}
         saving={savingPaymentFrequency}
       />
