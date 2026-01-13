@@ -86,6 +86,8 @@ interface ReactBigCalendarWrapperProps {
   selectedTeacher?: string;
   minTime?: string; // Format: "HH:mm:ss"
   maxTime?: string; // Format: "HH:mm:ss"
+  stepMinutes?: number; // Minutes per time group (gutter interval) = stepMinutes * timeslots
+  timeslots?: number; // Number of slots per time group
   availability?: AvailabilityData[]; // Teacher availability data
   viewType?: 'teacher' | 'classroom' | 'availability'; // Add view type to distinguish between teacher, classroom, and availability views
   updatingEvents?: Set<string>; // Events currently being updated
@@ -230,6 +232,8 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   selectedTeacher,
   minTime = "08:00:00",
   maxTime = "20:00:00",
+  stepMinutes = 15,
+  timeslots = 2,
   availability = [],
   viewType = 'teacher',
   updatingEvents = new Set(),
@@ -333,7 +337,8 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
 
   // Dynamically set calendar height based on the number of time slots
   const durationMinutes = (maxDate.getTime() - minDate.getTime()) / (1000 * 60);
-  const numberOfRows = durationMinutes / 30; // Each time slot is 30 mins as per timeslots={2}
+  const minutesPerRow = stepMinutes * timeslots;
+  const numberOfRows = durationMinutes / minutesPerRow;
   const calendarHeight = numberOfRows > 16 ? '100%' : '100vh';
 
   // Filter events based on filters and timeline visibility
@@ -878,8 +883,8 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
                 : (props: ResourceHeaderProps<CalendarResource>) => <ResourceHeader {...props} date={date} viewType={viewType} />,
               toolbar: () => null
             }}
-            step={15} // 15-minute intervals
-            timeslots={2} // 2 slots per 30 minutes
+            step={stepMinutes}
+            timeslots={timeslots}
             min={minDate}
             max={maxDate}
             eventPropGetter={eventPropGetter}

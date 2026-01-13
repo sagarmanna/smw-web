@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { CustomTable } from "@/components/CustomTable";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
@@ -18,9 +19,8 @@ interface LocationsListingClientProps {
 }
 
 export function LocationsListingClient({ location }: LocationsListingClientProps) {
+  const router = useRouter();
   const [isAddLocationModalOpen, setIsAddLocationModalOpen] = React.useState(false);
-  const [modalMode, setModalMode] = React.useState<"add" | "edit">("add");
-  const [selectedLocation, setSelectedLocation] = React.useState<LocationRow | null>(null);
   const columns = React.useMemo<ColumnDef<LocationRow>[]>(() => locationColumns, []);
 
   const {
@@ -39,15 +39,26 @@ export function LocationsListingClient({ location }: LocationsListingClientProps
   } = useLocationListing(location);
 
   const openAddModal = () => {
-    setSelectedLocation(null);
-    setModalMode("add");
     setIsAddLocationModalOpen(true);
   };
 
-  const openEditModal = (row: LocationRow) => {
-    setSelectedLocation(row);
-    setModalMode("edit");
-    setIsAddLocationModalOpen(true);
+  const openDetailPage = (row: LocationRow) => {
+    const slugOrId = row.slug?.trim() ? row.slug.trim() : String(row.id);
+    // API not ready: store row data for the detail page (keep URL clean).
+    try {
+      const key = `smw.locationDetail:${location}:${slugOrId}`;
+      sessionStorage.setItem(
+        key,
+        JSON.stringify({
+          name: row.name,
+          address: row.address,
+          email: row.email,
+        })
+      );
+    } catch {
+      // ignore (storage may be unavailable)
+    }
+    router.push(`/${location}/locations/${encodeURIComponent(slugOrId)}`);
   };
 
   return (
@@ -93,7 +104,7 @@ export function LocationsListingClient({ location }: LocationsListingClientProps
           setPageSize(newSize);
           setPage(1);
         }}
-        onRowClick={(row) => openEditModal(row)}
+        onRowClick={openDetailPage}
       />
 
       <AddLocationModal
@@ -103,8 +114,6 @@ export function LocationsListingClient({ location }: LocationsListingClientProps
           fetchData();
         }}
         location={location}
-        mode={modalMode}
-        initialData={selectedLocation}
       />
     </ReportPageLayout>
   );
