@@ -36,7 +36,8 @@ import {
   type CreateStudentEnrolmentRequest,
 } from "../../../[id]/students-details.api";
 import { toast } from "sonner";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { fetchStudentEnrolments } from "../../../[id]/students-details.slice";
 
 interface NewEnrolmentModalProps {
   open: boolean;
@@ -156,6 +157,7 @@ export function NewEnrolmentModal({
   // Get user info to check if user is admin (for rate editing permission)
   const { userInfo } = useAppSelector((state) => state.user);
   const isAdmin = userInfo?.role === 'administrator';
+  const dispatch = useAppDispatch();
 
   React.useEffect(() => {
     if (!open) return;
@@ -676,9 +678,23 @@ export function NewEnrolmentModal({
               toast.success(result.message || "Lessons confirmed successfully");
               setIsReviewModalOpen(false);
               onOpenChange(false);
-              // Refresh enrolments list if onNext is available
-          if (currentFormData) {
-            onNext?.(currentFormData);
+              
+              // Refresh enrolments list by calling the API
+              if (studentId) {
+                try {
+                  await dispatch(fetchStudentEnrolments({ 
+                    location, 
+                    studentId: studentId.toString(), 
+                    showAll: false 
+                  })).unwrap();
+                } catch (error) {
+                  console.error("Failed to refresh enrolments:", error);
+                }
+              }
+              
+              // Call onNext callback if available (for backward compatibility)
+              if (currentFormData) {
+                onNext?.(currentFormData);
               }
             } else {
               toast.error(result?.message || "Failed to confirm lessons");
