@@ -120,7 +120,7 @@ export async function getGroupCourses(
     const params = buildGroupCoursesQueryParams(query);
 
     const response = await apiClient.get<GroupCoursesListApiResponse>(
-      `/admin/v2/${location}/group-course/list`,
+      `/admin/v2/${location}/course/list`,
       { params }
     );
 
