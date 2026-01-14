@@ -2,13 +2,13 @@
  * Holidays API and data types
  */
 
-import { apiClient } from "@/lib/api/client";
 import {
+  createCrudApi,
+  StandardListResponse,
   StandardCrudResponse,
   StandardDeleteResponse,
-  extractErrorMessage,
+  FETCH_ALL_LIMIT,
 } from "@/utils/api/createCrudApi";
-import { format, parse } from "date-fns";
 
 export interface HolidayRow {
   id: number;
@@ -26,19 +26,7 @@ export interface HolidayQuery {
 /**
  * Response structure for paginated holidays list API
  */
-export interface HolidayListResponse {
-  success: boolean;
-  data: {
-    body: HolidayRow[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
-  };
-  message?: string;
-}
+export type HolidayListResponse = StandardListResponse<HolidayRow>;
 
 export interface CreateHolidayRequest {
   date: string; // ISO format: "YYYY-MM-DD"
@@ -51,223 +39,65 @@ export interface UpdateHolidayRequest {
   description: string;
 }
 
-/**
- * Builds query parameters for holidays API
- * 
- * @param query - Optional query parameters for pagination and sorting
- * @returns Record of query parameters to send to API
- */
-function buildHolidayQueryParams(query?: HolidayQuery): Record<string, unknown> {
-  const params: Record<string, unknown> = {};
-  
-  if (query?.page !== undefined) {
-    params.page = query.page;
-  }
-  
-  if (query?.limit !== undefined) {
-    params.limit = query.limit;
-  }
-  
-  if (query?.sort) {
-    params.sort = query.sort;
-    if (query.order) {
-      params.order = query.order;
-    }
-  }
-  
-  return params;
-}
+export type CreateHolidayResponse = StandardCrudResponse<
+  HolidayRow & { createdByUserId?: number }
+>;
+export type UpdateHolidayResponse = StandardCrudResponse<
+  HolidayRow & { updatedByUserId?: number }
+>;
+export type DeleteHolidayResponse = StandardDeleteResponse;
 
-/**
- * Converts display date format (MMM dd, yyyy) to ISO format (YYYY-MM-DD)
- * 
- * @param displayDate - Date string in display format (e.g., "Dec 25, 2017")
- * @returns ISO format date string (e.g., "2017-12-25")
- */
-export function convertDisplayDateToISO(displayDate: string): string {
-  try {
-    // Parse display format: "Dec 25, 2017"
-    const date = parse(displayDate, "MMM dd, yyyy", new Date());
-    if (isNaN(date.getTime())) {
-      throw new Error("Invalid date format");
-    }
-    // Convert to ISO format: "YYYY-MM-DD"
-    return format(date, "yyyy-MM-dd");
-  } catch {
-    // If parsing fails, try to parse as ISO format directly
-    try {
-      const date = new Date(displayDate);
-      if (isNaN(date.getTime())) {
-        throw new Error("Invalid date");
+// Create CRUD API functions using the factory
+const holidaysApi = createCrudApi<
+  HolidayRow,
+  HolidayQuery,
+  CreateHolidayRequest,
+  UpdateHolidayRequest
+>({
+  endpoint: "/admin/v2/holidays",
+  entityName: "holiday",
+  buildQueryParams: (query) => {
+    const params: Record<string, unknown> = {};
+    if (query.page !== undefined) params.page = query.page;
+    if (query.limit !== undefined)
+      params.limit = query.limit === -1 ? FETCH_ALL_LIMIT : query.limit;
+    if (query.sort) {
+      params.sort = query.sort;
+      if (query.order) {
+        params.order = query.order;
       }
-      return format(date, "yyyy-MM-dd");
-    } catch {
-      return displayDate; // Return as-is if all parsing fails
     }
-  }
-}
+    return params;
+  },
+});
 
-/**
- * Converts ISO date format (YYYY-MM-DD) to display format (MMM dd, yyyy)
- * 
- * @param isoDate - Date string in ISO format (e.g., "2017-12-25")
- * @returns Display format date string (e.g., "Dec 25, 2017")
- */
-export function convertISODateToDisplay(isoDate: string): string {
-  try {
-    const date = new Date(isoDate);
-    if (isNaN(date.getTime())) {
-      return isoDate;
-    }
-    return format(date, "MMM dd, yyyy");
-  } catch {
-    return isoDate;
-  }
-}
-
-/**
- * Get paginated holidays list
- * 
- * @param _location - Location parameter (not used in endpoint, kept for consistency)
- * @param query - Optional query parameters for pagination and sorting
- * @returns Promise resolving to paginated holidays list response
- */
-export async function getHolidays(
-  _location: string,
+// Export typed functions
+export const getHolidays = async (
+  location: string,
   query?: HolidayQuery
-): Promise<HolidayListResponse> {
-  try {
-    const params = buildHolidayQueryParams(query);
+): Promise<HolidayListResponse | null> => {
+  return holidaysApi.getList(location, query || {}) as Promise<
+    HolidayListResponse | null
+  >;
+};
 
-    const response = await apiClient.get<HolidayListResponse>(
-      "/admin/v2/holidays",
-      { params }
-    );
-
-    if (response.data && response.data.success) {
-      return response.data;
-    }
-
-    return {
-      success: false,
-      data: {
-        body: [],
-        pagination: {
-          page: query?.page || 1,
-          limit: query?.limit || 10,
-          total: 0,
-          totalPages: 0,
-        },
-      },
-      message: response.data?.message || "Failed to fetch holidays",
-    };
-  } catch (error: unknown) {
-    const apiError = error as {
-      response?: { status?: number; statusText?: string };
-    };
-    const msg = extractErrorMessage(error);
-    return {
-      success: false,
-      data: {
-        body: [],
-        pagination: {
-          page: query?.page || 1,
-          limit: query?.limit || 10,
-          total: 0,
-          totalPages: 0,
-        },
-      },
-      message: msg || `${apiError.response?.status}: ${apiError.response?.statusText}` || "Failed to fetch holidays",
-    };
-  }
-}
-
-/**
- * Create a new holiday
- * 
- * @param _location - Location parameter (not used in endpoint, kept for consistency)
- * @param payload - Holiday data to create (date in ISO format)
- * @returns Promise resolving to create response with created holiday
- */
-export async function createHoliday(
-  _location: string,
+export const createHoliday = async (
+  location: string,
   payload: CreateHolidayRequest
-): Promise<StandardCrudResponse<HolidayRow & { createdByUserId?: number }>> {
-  try {
-    const response = await apiClient.post<StandardCrudResponse<HolidayRow & { createdByUserId?: number }>>(
-      "/admin/v2/holidays",
-      payload
-    );
+): Promise<CreateHolidayResponse> => {
+  return holidaysApi.create(location, payload) as Promise<CreateHolidayResponse>;
+};
 
-    return response.data;
-  } catch (error: unknown) {
-    const apiError = error as {
-      response?: { status?: number; statusText?: string };
-    };
-    const msg = extractErrorMessage(error);
-    return {
-      success: false,
-      message: msg || `${apiError.response?.status}: ${apiError.response?.statusText}` || "Failed to create holiday",
-    };
-  }
-}
-
-/**
- * Update an existing holiday
- * 
- * @param _location - Location parameter (not used in endpoint, kept for consistency)
- * @param payload - Holiday data to update (includes id, date in ISO format)
- * @returns Promise resolving to update response with updated holiday
- */
-export async function updateHoliday(
-  _location: string,
+export const updateHoliday = async (
+  location: string,
   payload: UpdateHolidayRequest
-): Promise<StandardCrudResponse<HolidayRow & { updatedByUserId?: number }>> {
-  try {
-    const { id, ...body } = payload;
-    const response = await apiClient.put<StandardCrudResponse<HolidayRow & { updatedByUserId?: number }>>(
-      `/admin/v2/holidays/${id}`,
-      body
-    );
+): Promise<UpdateHolidayResponse> => {
+  return holidaysApi.update(location, payload) as Promise<UpdateHolidayResponse>;
+};
 
-    return response.data;
-  } catch (error: unknown) {
-    const apiError = error as {
-      response?: { status?: number; statusText?: string };
-    };
-    const msg = extractErrorMessage(error);
-    return {
-      success: false,
-      message: msg || `${apiError.response?.status}: ${apiError.response?.statusText}` || "Failed to update holiday",
-    };
-  }
-}
-
-/**
- * Delete a holiday
- * 
- * @param _location - Location parameter (not used in endpoint, kept for consistency)
- * @param id - ID of the holiday to delete
- * @returns Promise resolving to delete response
- */
-export async function deleteHoliday(
-  _location: string,
+export const deleteHoliday = async (
+  location: string,
   id: number
-): Promise<StandardDeleteResponse> {
-  try {
-    const response = await apiClient.delete<StandardDeleteResponse>(
-      `/admin/v2/holidays/${id}`
-    );
-
-    return response.data;
-  } catch (error: unknown) {
-    const apiError = error as {
-      response?: { status?: number; statusText?: string };
-    };
-    const msg = extractErrorMessage(error);
-    return {
-      success: false,
-      message: msg || `${apiError.response?.status}: ${apiError.response?.statusText}` || "Failed to delete holiday",
-    };
-  }
-}
+): Promise<DeleteHolidayResponse> => {
+  return holidaysApi.delete(location, id) as Promise<DeleteHolidayResponse>;
+};

@@ -46,9 +46,6 @@ export function useHolidaysListing(location: string) {
     sortDir: "asc" | "desc";
   } | null>(null);
 
-  // Track if initial fetch has been done
-  const hasInitialFetchedRef = useRef(false);
-
   /**
    * Builds query parameters for API call
    * Only includes sort parameters if sortBy is defined
@@ -78,46 +75,29 @@ export function useHolidaysListing(location: string) {
 
   // Fetch data on initial load and when parameters change
   useEffect(() => {
-    // Check if location changed
-    const locationChanged = prevParamsRef.current !== null && prevParamsRef.current.location !== location;
-    if (locationChanged) {
-      hasInitialFetchedRef.current = false;
-      prevParamsRef.current = null;
-    }
+    // Check if any parameter changed (null means initial mount)
+    const isInitialMount = prevParamsRef.current === null;
+    const paramsChanged =
+      isInitialMount ||
+      (prevParamsRef.current !== null &&
+        (prevParamsRef.current.location !== location ||
+          prevParamsRef.current.page !== page ||
+          prevParamsRef.current.pageSize !== pageSize ||
+          prevParamsRef.current.sortBy !== sortBy ||
+          prevParamsRef.current.sortDir !== sortDir));
 
-    // Check if any parameter changed
-    const paramsChanged = prevParamsRef.current === null ||
-      prevParamsRef.current.location !== location ||
-      prevParamsRef.current.page !== page ||
-      prevParamsRef.current.pageSize !== pageSize ||
-      prevParamsRef.current.sortBy !== sortBy ||
-      prevParamsRef.current.sortDir !== sortDir;
-
-    // Update previous params
-    prevParamsRef.current = {
-      location,
-      page,
-      pageSize,
-      sortBy,
-      sortDir,
-    };
-
-    // Fetch if initial load OR if any param changed
-    // Skip if data is already loaded and this is the initial mount (prevents duplicate fetch from page.tsx)
-    const isInitialMount = !hasInitialFetchedRef.current;
-    const hasData = rows.length > 0 || total > 0;
-    
-    if (isInitialMount && hasData && !paramsChanged) {
-      // Data already loaded (likely from page.tsx), just mark as fetched
-      hasInitialFetchedRef.current = true;
-      return;
-    }
-
-    if (!hasInitialFetchedRef.current || paramsChanged) {
-      hasInitialFetchedRef.current = true;
+    // Fetch if parameters changed (including initial mount)
+    if (paramsChanged) {
+      prevParamsRef.current = {
+        location,
+        page,
+        pageSize,
+        sortBy,
+        sortDir,
+      };
       fetchData();
     }
-  }, [location, page, pageSize, sortBy, sortDir, fetchData, rows.length, total]);
+  }, [location, page, pageSize, sortBy, sortDir, fetchData]);
 
   /**
    * Handler for sorting changes

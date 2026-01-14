@@ -9,9 +9,9 @@ import {
   HolidayRow,
   CreateHolidayRequest,
   UpdateHolidayRequest,
-  convertDisplayDateToISO,
-  convertISODateToDisplay,
 } from "../../holidays.api";
+import { parseDateString } from "@/utils/dateUtils";
+import { format } from "date-fns";
 import { useAppDispatch } from "@/redux/hooks";
 import {
   addHoliday,
@@ -116,8 +116,8 @@ export function HolidayModal({
       if (!formData.date) {
         throw new Error("Date is required");
       }
-      // Convert Date object to ISO format (YYYY-MM-DD)
-      const isoDate = formData.date.toISOString().split("T")[0];
+      // Convert Date object to ISO format (YYYY-MM-DD) using local timezone
+      const isoDate = format(formData.date, "yyyy-MM-dd");
       return {
         date: isoDate,
         description: formData.description.trim(),
@@ -127,8 +127,8 @@ export function HolidayModal({
       if (!formData.date) {
         throw new Error("Date is required");
       }
-      // Convert Date object to ISO format (YYYY-MM-DD)
-      const isoDate = formData.date.toISOString().split("T")[0];
+      // Convert Date object to ISO format (YYYY-MM-DD) using local timezone
+      const isoDate = format(formData.date, "yyyy-MM-dd");
       return {
         id,
         date: isoDate,
@@ -136,18 +136,8 @@ export function HolidayModal({
       };
     },
     initializeFormData: (row: HolidayRow): HolidayFormData => {
-      // Convert display date format to Date object
-      let date: Date | undefined;
-      try {
-        // Try parsing display format first (e.g., "Dec 25, 2017")
-        const isoDate = convertDisplayDateToISO(row.date);
-        date = new Date(isoDate);
-        if (isNaN(date.getTime())) {
-          date = undefined;
-        }
-      } catch {
-        date = undefined;
-      }
+      // Parse display date format directly to Date object (e.g., "Dec 25, 2017")
+      const date = parseDateString(row.date) || undefined;
       
       return {
         date,
@@ -156,7 +146,7 @@ export function HolidayModal({
     },
     getDefaultFormData: (): HolidayFormData => ({
       date: undefined,
-      description: "",
+      description: "Holiday",
     }),
     validateForm: (formData: HolidayFormData): Record<string, string> => {
       const errors: Record<string, string> = {};

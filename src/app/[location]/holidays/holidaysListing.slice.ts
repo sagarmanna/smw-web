@@ -9,6 +9,7 @@ import {
   CreateHolidayRequest,
   UpdateHolidayRequest,
 } from "./holidays.api";
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE } from "./constants";
 
 interface HolidaysListingState {
   rows: HolidayRow[];
@@ -28,8 +29,8 @@ const initialState: HolidaysListingState = {
   rows: [],
   isLoading: false,
   error: null,
-  page: 1,
-  pageSize: 10,
+  page: DEFAULT_PAGE,
+  pageSize: DEFAULT_PAGE_SIZE,
   total: 0,
   totalPages: 0,
   sortBy: undefined,
@@ -179,12 +180,12 @@ const holidaysListingSlice = createSlice({
     },
     setPageSize: (state, action: PayloadAction<number>) => {
       state.pageSize = action.payload;
-      state.page = 1; // Reset to first page when page size changes
+      state.page = DEFAULT_PAGE; // Reset to first page when page size changes
     },
     setSorting: (state, action: PayloadAction<{ sortBy?: string; sortDir: "asc" | "desc" }>) => {
       state.sortBy = action.payload.sortBy;
       state.sortDir = action.payload.sortDir;
-      state.page = 1; // Reset to first page when sorting changes
+      state.page = DEFAULT_PAGE; // Reset to first page when sorting changes
     },
     clearError: (state) => {
       state.error = null;
@@ -193,7 +194,7 @@ const holidaysListingSlice = createSlice({
       state.rows = [];
       state.total = 0;
       state.totalPages = 0;
-      state.page = 1;
+      state.page = DEFAULT_PAGE;
     },
   },
   extraReducers: (builder) => {
