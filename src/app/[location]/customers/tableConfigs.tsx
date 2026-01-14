@@ -30,7 +30,7 @@ export interface EquipmentRentalData {
   startDate: string;
   returnDate: string;
   rentalTerm: string;
-  depositAmount: number;
+  depositAmount: string | number;
   equipmentReturned: string;
   equipmentReturnedDate: string;
 }
@@ -173,9 +173,11 @@ export const equipmentRentalColumns: ColumnDef<EquipmentRentalData>[] = [
   {
     accessorKey: "depositAmount",
     header: "Deposit Amount",
-    cell: ({ row }) => (
-      <div className="text-right">{formatCurrency(row.getValue("depositAmount"))}</div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue("depositAmount") as string | number;
+      // Display API response as-is (no conversion, no dollar sign)
+      return <div className="text-right">{String(value)}</div>;
+    },
   },
   {
     accessorKey: "equipmentReturned",
