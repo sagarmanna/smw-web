@@ -480,10 +480,7 @@ export async function getCustomerEquipmentRentals(
         startDate: rental.startDate,
         returnDate: rental.returnDate,
         rentalTerm: rental.rentalTerm,
-        depositAmount:
-          typeof rental.depositAmount === "string"
-            ? parseFloat(rental.depositAmount.replace(/[$,]/g, ""))
-            : rental.depositAmount,
+        depositAmount: rental.depositAmount,
         equipmentReturned: rental.equipmentReturned,
         equipmentReturnedDate: rental.equipmentReturnedDate,
       }));
