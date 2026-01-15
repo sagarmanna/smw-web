@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { Loader2, Pencil } from "lucide-react";
 import { LessonEditModal } from "./LessonEditModal";
 
@@ -139,12 +139,22 @@ export function NewEnrolmentReviewModal({
   };
 
   // Format period (start date to end date)
+  // Extracts date portion from UTC datetime strings to avoid timezone conversion issues
   const formatPeriod = (startDate?: string, endDate?: string): string => {
     if (!startDate || !endDate) return '';
     try {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      // Extract date portion (YYYY-MM-DD) from ISO datetime string
+      // Handles both "2026-01-20T18:30:00.000Z" and "2026-01-20" formats
+      const startDateStr = startDate.split('T')[0];
+      const endDateStr = endDate.split('T')[0];
+      
+      // Parse dates using date-fns parse (parses as local date, which is what we want for display)
+      const start = parse(startDateStr, 'yyyy-MM-dd', new Date());
+      const end = parse(endDateStr, 'yyyy-MM-dd', new Date());
+      
       if (isNaN(start.getTime()) || isNaN(end.getTime())) return '';
+      
+      // Format using date-fns format
       return `${format(start, "MMM dd, yyyy")} to ${format(end, "MMM dd, yyyy")}`;
     } catch {
       return '';
