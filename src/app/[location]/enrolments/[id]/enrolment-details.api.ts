@@ -666,8 +666,8 @@ export interface AdjustEndDateResponse {
 }
 
 /**
- * Adjusts enrolment end date via PUT API
- * For now, returns mock response
+ * Adjusts enrolment end date via POST API
+ * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/adjust-end-date
  * 
  * @param location - The location identifier
  * @param enrolmentId - The enrolment ID
@@ -680,26 +680,39 @@ export async function adjustEnrolmentEndDate(
   data: AdjustEndDateRequest
 ): Promise<AdjustEndDateResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.put<AdjustEndDateResponse>(
-    //   `/admin/v2/${location}/enrolment/${enrolmentId}/schedule/end-date`,
-    //   data
-    // );
-    // return response.data;
-    
-    // For now, return mock response - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
+    const response = await apiClient.post<{
+      success: boolean;
       data: {
-        id: Number(enrolmentId) || 0,
-        endDate: data.endDate,
-      },
-    };
+        message: string;
+      };
+      message?: string;
+    }>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/adjust-end-date`,
+      data
+    );
+    
+    if (response.data.success) {
+      return {
+        success: true,
+        data: {
+          id: Number(enrolmentId) || 0,
+          endDate: data.endDate,
+        },
+        message: response.data.data?.message || response.data.message,
+      };
+    } else {
+      return {
+        success: false,
+        data: {
+          id: Number(enrolmentId) || 0,
+          endDate: "",
+        },
+        message: response.data.message || "Failed to adjust enrolment end date",
+      };
+    }
   } catch (error: unknown) {
     console.error("Error adjusting enrolment end date:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
     return {
       success: false,
       data: {
