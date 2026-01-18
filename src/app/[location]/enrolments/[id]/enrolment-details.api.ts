@@ -666,7 +666,7 @@ export interface AdjustEndDateResponse {
 }
 
 /**
- * Adjusts enrolment end date via POST API
+ * Adjusts private enrolment end date via POST API
  * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/adjust-end-date
  * 
  * @param location - The location identifier
@@ -720,6 +720,65 @@ export async function adjustEnrolmentEndDate(
         endDate: "",
       },
       message: apiError.response?.data?.message || "Failed to adjust enrolment end date",
+    };
+  }
+}
+
+/**
+ * Adjusts group enrolment end date via POST API
+ * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/adjust-group-end-date
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param data - The end date data
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function adjustGroupEnrolmentEndDate(
+  location: string,
+  enrolmentId: string,
+  data: AdjustEndDateRequest
+): Promise<AdjustEndDateResponse | null> {
+  try {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        message: string;
+      };
+      message?: string;
+    }>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/adjust-group-end-date`,
+      data
+    );
+    
+    if (response.data.success) {
+      return {
+        success: true,
+        data: {
+          id: Number(enrolmentId) || 0,
+          endDate: data.endDate,
+        },
+        message: response.data.data?.message || response.data.message,
+      };
+    } else {
+      return {
+        success: false,
+        data: {
+          id: Number(enrolmentId) || 0,
+          endDate: "",
+        },
+        message: response.data.message || "Failed to adjust group enrolment end date",
+      };
+    }
+  } catch (error: unknown) {
+    console.error("Error adjusting group enrolment end date:", error);
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(enrolmentId) || 0,
+        endDate: "",
+      },
+      message: apiError.response?.data?.message || "Failed to adjust group enrolment end date",
     };
   }
 }

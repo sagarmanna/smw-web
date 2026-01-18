@@ -353,7 +353,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
             <div className="space-y-3 sm:space-y-4">
               <EnrolmentScheduleCard
                 schedule={schedule}
-                onAdjustEndDate={adjustScheduleEndDate}
+                onAdjustEndDate={(endDate) => adjustScheduleEndDate(endDate, enrolmentType)}
                 onChangeSchedulePermanently={changeSchedulePermanently}
                 saving={savingDetails}
                 isLoading={isLoading}
