@@ -9,6 +9,7 @@ import {
   clearCache,
   updateEnrolment,
   adjustEndDate,
+  adjustGroupEndDate,
   changeSchedulePermanently as changeSchedulePermanentlyThunk,
   updateDiscounts,
   updatePaymentFrequency as updatePaymentFrequencyThunk,
@@ -46,7 +47,7 @@ type EnrolmentDetailsHookReturn = {
   fetchLessons: (page?: number, limit?: number) => Promise<void>;
   saveDetails: (details: Partial<EnrolmentDetails>) => Promise<boolean>;
   savingDetails: boolean;
-  adjustScheduleEndDate: (endDate: string) => Promise<boolean>;
+  adjustScheduleEndDate: (endDate: string, enrolmentType?: "private" | "group") => Promise<boolean>;
   changeSchedulePermanently: (startingDate: string) => Promise<boolean>;
   saveDiscounts: (discounts: Partial<EnrolmentDiscounts>) => Promise<boolean>;
   savePaymentFrequency: (data: { paymentFrequency: string; effectiveDate: string }) => Promise<boolean>;
@@ -200,15 +201,26 @@ export function useEnrolmentDetails(
   );
 
   const adjustScheduleEndDate = React.useCallback(
-    async (endDate: string): Promise<boolean> => {
+    async (endDate: string, enrolmentType?: "private" | "group"): Promise<boolean> => {
       try {
-        await dispatch(
-          adjustEndDate({
-            location,
-            enrolmentId,
-            endDate,
-          })
-        ).unwrap();
+        // Use appropriate thunk based on enrolment type
+        if (enrolmentType === "group") {
+          await dispatch(
+            adjustGroupEndDate({
+              location,
+              enrolmentId,
+              endDate,
+            })
+          ).unwrap();
+        } else {
+          await dispatch(
+            adjustEndDate({
+              location,
+              enrolmentId,
+              endDate,
+            })
+          ).unwrap();
+        }
         
         toast.success("End date adjusted successfully");
         return true;

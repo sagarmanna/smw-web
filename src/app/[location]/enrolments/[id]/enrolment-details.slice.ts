@@ -10,6 +10,7 @@ import {
   transformApiResponse,
   updateEnrolmentDetails,
   adjustEnrolmentEndDate,
+  adjustGroupEnrolmentEndDate,
   permanentScheduleChange,
   updateEnrolmentDiscounts,
   updateEnrolmentPaymentFrequency,
@@ -189,7 +190,7 @@ export const updateEnrolment = createAsyncThunk(
   }
 );
 
-// Async thunk for adjusting enrolment end date
+// Async thunk for adjusting private enrolment end date
 export const adjustEndDate = createAsyncThunk(
   'enrolment/adjustEndDate',
   async (
@@ -206,6 +207,27 @@ export const adjustEndDate = createAsyncThunk(
       return { data: result.data };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to adjust enrolment end date');
+    }
+  }
+);
+
+// Async thunk for adjusting group enrolment end date
+export const adjustGroupEndDate = createAsyncThunk(
+  'enrolment/adjustGroupEndDate',
+  async (
+    { location, enrolmentId, endDate }: { location: string; enrolmentId: string; endDate: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await adjustGroupEnrolmentEndDate(location, enrolmentId, { endDate });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to adjust group enrolment end date');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to adjust group enrolment end date');
     }
   }
 );
@@ -447,6 +469,27 @@ const enrolmentSlice = createSlice({
         state.error = null;
       })
       .addCase(adjustEndDate.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Adjust group end date reducers
+      .addCase(adjustGroupEndDate.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(adjustGroupEndDate.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // Update schedule end date from API response (API returns formatted date)
+        if (state.enrolmentInfo && action.payload) {
+          const { data } = action.payload;
+          state.enrolmentInfo.schedule = {
+            ...state.enrolmentInfo.schedule,
+            endDate: data.endDate || state.enrolmentInfo.schedule.endDate,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(adjustGroupEndDate.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       })

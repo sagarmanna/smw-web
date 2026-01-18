@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import { EnrolmentSchedule } from "../../types";
+import { toast } from "sonner";
 
 interface AdjustEndDateModalProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface AdjustEndDateModalProps {
   schedule: EnrolmentSchedule | null;
   onSubmit: (endDate: string) => Promise<boolean>;
   saving?: boolean;
+  enrolmentType?: "private" | "group";
 }
 
 export function AdjustEndDateModal({
@@ -27,6 +29,7 @@ export function AdjustEndDateModal({
   schedule,
   onSubmit,
   saving = false,
+  enrolmentType = "private",
 }: AdjustEndDateModalProps) {
   const [endDate, setEndDate] = React.useState<Date | undefined>(undefined);
   const [error, setError] = React.useState<string>("");
@@ -68,6 +71,15 @@ export function AdjustEndDateModal({
       return;
     }
 
+    // For group enrolments: validate that new end date <= current end date (can only shrink)
+    if (enrolmentType === "group" && schedule?.endDate) {
+      const currentEndDate = parseDate(schedule.endDate);
+      if (currentEndDate && endDate > currentEndDate) {
+        toast.error("You can't extend group enrolments");
+        return;
+      }
+    }
+
     setError("");
     const dateString = formatDateToString(endDate);
     const success = await onSubmit(dateString);
@@ -90,6 +102,18 @@ export function AdjustEndDateModal({
             value={endDate}
             onSelect={(date) => {
               setEndDate(date);
+              
+              // For group enrolments: validate that new end date <= current end date (can only shrink)
+              if (enrolmentType === "group" && schedule?.endDate && date) {
+                const currentEndDate = parseDate(schedule.endDate);
+                if (currentEndDate && date > currentEndDate) {
+                  toast.error("You can't extend group enrolments");
+                  // Reset to current end date to prevent invalid selection
+                  setEndDate(currentEndDate);
+                  return;
+                }
+              }
+              
               setError("");
             }}
             placeholder="Pick a date"

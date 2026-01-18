@@ -97,7 +97,7 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => isDev() ? setIsAdjustEndDateModalOpen(true) : toast.info("This feature is in development.")}>
+              <DropdownMenuItem onClick={() => setIsAdjustEndDateModalOpen(true)}>
                 Adjust enddate...
               </DropdownMenuItem>
               {enrolmentType === "private" && (
@@ -116,6 +116,7 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
         schedule={schedule}
         onSubmit={handleAdjustEndDate}
         saving={saving}
+        enrolmentType={enrolmentType}
       />
 
       <PermanentScheduleChangeModal
