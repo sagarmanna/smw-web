@@ -42,6 +42,7 @@ import ownerDetailsReducer from '../app/[location]/owners/[id]/owners-details.sl
 import ownerTabsReducer from '../app/[location]/owners/[id]/ownersTabs.slice';
 import referralSourceListingReducer from '../app/[location]/referral-source/referralSourceListing.slice';
 import holidaysListingReducer from '../app/[location]/holidays/holidaysListing.slice';
+import emailTemplateListingReducer from '../app/[location]/email-template/emailTemplateListing.slice';
 
 export const store = configureStore({
   reducer: {
@@ -88,6 +89,7 @@ export const store = configureStore({
     ownerTabs: ownerTabsReducer,
     referralSourceListing: referralSourceListingReducer,
     holidaysListing: holidaysListingReducer,
+    emailTemplateListing: emailTemplateListingReducer,
   },
 });
 
