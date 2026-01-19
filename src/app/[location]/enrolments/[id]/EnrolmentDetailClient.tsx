@@ -16,6 +16,7 @@ import { EnrolmentScheduleHistoryCard } from "../components/EnrolmentScheduleHis
 import { EnrolmentLessonsCard } from "../components/EnrolmentLessonsCard";
 import { EnrolmentHistoryCard } from "../components/EnrolmentHistoryCard";
 import { DeleteEnrolmentModal } from "../components/modals/DeleteEnrolmentModal";
+import { FullDeleteEnrolmentModal } from "../components/modals/FullDeleteEnrolmentModal";
 import { toast } from "sonner";
 import { Lock, Users } from "lucide-react";
 import {
@@ -79,6 +80,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
 
   // Delete modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [isFullDeleteModalOpen, setIsFullDeleteModalOpen] = React.useState(false);
 
   // Memoize formatted lessons for print to avoid recalculation
   const formattedLessonsForPrint = React.useMemo(() => {
@@ -211,8 +213,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
             {
               label: ENROLMENT_MESSAGES.ACTION_FULL_DELETE,
               onClick: () => {
-                // Placeholder for full delete - will be implemented in future
-                toast.info("This feature is in development.");
+                setIsFullDeleteModalOpen(true);
               },
               variant: "destructive" as const,
             },
@@ -404,6 +405,17 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
         enrolmentId={id}
         enrolmentType={enrolmentType}
       />
+
+      {/* Full Delete Modal */}
+      {isPrivateEnrolment && (
+        <FullDeleteEnrolmentModal
+          open={isFullDeleteModalOpen}
+          onOpenChange={setIsFullDeleteModalOpen}
+          location={location}
+          enrolmentId={id}
+          studentId={details?.studentId}
+        />
+      )}
     </>
   );
 }

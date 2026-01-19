@@ -1088,3 +1088,81 @@ export async function deleteGroupEnrolment(
   }
 }
 
+// Delete Preview Types
+export interface DeletePreviewItem {
+  objects: string;
+  action: string;
+  date_range: string;
+}
+
+export interface DeletePreviewPayment {
+  amount: number;
+  type: string;
+  reference: string | null;
+}
+
+export interface EnrolmentDeletePreviewResponse {
+  success: boolean;
+  data?: {
+    previewItems: DeletePreviewItem[];
+    payments: DeletePreviewPayment[];
+    dateRange: string;
+  };
+  message?: string;
+}
+
+/**
+ * Gets the delete preview for an enrolment
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/delete-preview
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the delete preview response
+ */
+export async function getEnrolmentDeletePreview(
+  location: string,
+  enrolmentId: string
+): Promise<EnrolmentDeletePreviewResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentDeletePreviewResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/delete-preview`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error getting delete preview:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to get delete preview",
+    };
+  }
+}
+
+/**
+ * Full delete enrolment - deletes enrolment with all transactional data
+ * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/full-delete
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteEnrolmentFull(
+  location: string,
+  enrolmentId: string
+): Promise<DeleteEnrolmentResponse | null> {
+  try {
+    const response = await apiClient.post<DeleteEnrolmentResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/full-delete`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to fully delete enrolment",
+    };
+  }
+}
+
