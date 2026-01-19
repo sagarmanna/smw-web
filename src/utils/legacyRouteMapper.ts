@@ -63,6 +63,14 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     legacyUrl: '/user/index?UserSearch%5Brole_name%5D=teacher'
   },
   {
+    pattern: /^\/[^/]+\/group-courses$/, // Matches /[location]/group-courses (list page)
+    legacyUrl: '/course/index?CourseSearch%5Btype%5D=2'
+  },
+  {
+    pattern: /^\/[^/]+\/unscheduled-lessons$/, // Matches /[location]/unscheduled-lessons (list page)
+    legacyUrl: '/unscheduled-lesson/index?UnscheduledLessonSearch%5BshowAll%5D=0'
+  },
+  {
     pattern: '/dashboard',
     legacyUrl: '/dashboard'
   },
