@@ -1,26 +1,7 @@
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import DOMPurify from "dompurify";
 import { BlogRow } from "./blogs.api";
-
-/**
- * Sanitizes HTML content to prevent XSS attacks
- * Allows only safe HTML tags: p, br, strong, em, u, a, span, div
- */
-const sanitizeHtml = (html: string): string => {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'span', 'div', 'b', 'i'],
-    ALLOWED_ATTR: ['href', 'target', 'rel'],
-    ALLOW_DATA_ATTR: false,
-  });
-};
-
-/**
- * Strips HTML tags to get plain text for preview/tooltip
- */
-const stripHtmlTags = (html: string): string => {
-  return html.replace(/<[^>]*>/g, '').trim();
-};
+import { sanitizeBasicHtml, stripHtmlTags } from "@/utils/sanitizeHtml";
 
 // Column definitions for blogs table
 export const blogColumns: ColumnDef<BlogRow>[] = [
@@ -66,7 +47,7 @@ export const blogColumns: ColumnDef<BlogRow>[] = [
     cell: ({ row }: { row: { original: BlogRow } }) => {
       const content = row.original.content || "";
       // Sanitize HTML to prevent XSS attacks
-      const sanitizedContent = sanitizeHtml(content);
+      const sanitizedContent = sanitizeBasicHtml(content);
       // Strip HTML tags for text preview in tooltip
       const textContent = stripHtmlTags(content);
       const truncatedText = textContent.length > 100 
