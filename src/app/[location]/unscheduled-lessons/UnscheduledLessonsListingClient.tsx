@@ -34,6 +34,12 @@ export function UnscheduledLessonsListingClient({ location }: UnscheduledLessons
     handleServerSideFilterChange,
   } = useUnscheduledLessonsListing(location);
 
+  const handleRowClick = React.useCallback((row: UnscheduledLessonRow) => {
+    const legacyBaseUrl = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+    const legacyUrl = `${legacyBaseUrl}/${location}/lesson/view?id=${row.id}`;
+    window.location.href = legacyUrl;
+  }, [location]);
+
   // Create export-specific columns
   const exportColumns = React.useMemo((): ColumnDef<UnscheduledLessonRow>[] => {
     return [
@@ -155,6 +161,8 @@ export function UnscheduledLessonsListingClient({ location }: UnscheduledLessons
               json: exportToJson,
             }}
             onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+            onRowClick={handleRowClick}
+            rowClassName="cursor-pointer"
           />
         </ReportPageLayout>
       </div>
