@@ -4,6 +4,21 @@ import { apiClient } from '@/lib/api/client';
  * Represents a single blog row in the listing table
  */
 export interface BlogRow {
+  /**
+   * Blog identifier (may be omitted by some list endpoints)
+   */
+  id?: number;
+  userName: string | null;
+  title: string;
+  content: string;
+  date: string;
+}
+
+/**
+ * Represents a single blog item (full detail)
+ */
+export interface BlogDetails {
+  id: number;
   userName: string | null;
   title: string;
   content: string;
@@ -35,6 +50,14 @@ export interface BlogsQuery {
   limit?: number;
 }
 
+type ApiErrorShape = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+};
+
 // Constants for default pagination
 const DEFAULT_PAGINATION = {
   page: 1,
@@ -50,10 +73,9 @@ const DEFAULT_PAGINATION = {
 const buildBlogsQueryParams = (query: BlogsQuery): URLSearchParams => {
   const params = new URLSearchParams();
 
-  if (query.page) params.append("page", query.page.toString());
-  if (query.limit) {
-    params.append("limit", query.limit.toString());
-  }
+  // Always include page/limit for predictable backend behavior
+  params.append("page", (query.page ?? DEFAULT_PAGINATION.page).toString());
+  params.append("limit", (query.limit ?? DEFAULT_PAGINATION.limit).toString());
 
   return params;
 };
@@ -102,7 +124,7 @@ export async function getBlogs(
 
     return response.data;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as ApiErrorShape;
     console.error("Error fetching blogs:", error);
     const emptyResponse = createEmptyBlogsResponse();
     emptyResponse.message =
@@ -134,6 +156,40 @@ export interface CreateBlogResponse {
 }
 
 /**
+ * Response structure from get blog by id API endpoint
+ */
+export interface GetBlogByIdResponse {
+  success: boolean;
+  message: string;
+  data?: BlogDetails;
+}
+
+/**
+ * Request payload for updating a blog
+ */
+export interface UpdateBlogRequest {
+  title: string;
+  content: string;
+}
+
+/**
+ * Response structure from update blog API endpoint
+ */
+export interface UpdateBlogResponse {
+  success: boolean;
+  message: string;
+  data?: BlogDetails;
+}
+
+/**
+ * Response structure from delete blog API endpoint
+ */
+export interface DeleteBlogResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
  * Creates a new blog post
  * 
  * @param location - Location parameter (currently unused but kept for consistency)
@@ -149,7 +205,7 @@ export interface CreateBlogResponse {
  * ```
  */
 export async function createBlog(
-  location: string,
+  _location: string, // Prefixed with _ to indicate intentionally unused
   data: CreateBlogRequest
 ): Promise<CreateBlogResponse> {
   try {
@@ -164,6 +220,88 @@ export async function createBlog(
     throw {
       message: apiError.response?.data?.message || "Failed to create blog",
       errorCode: apiError.response?.data?.success === false ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+    };
+  }
+}
+
+/**
+ * Fetches a single blog by id
+ *
+ * @param _location - Location parameter (currently unused but kept for consistency)
+ * @param blogId - Blog id
+ * @returns Promise resolving to blog detail response (or an unsuccessful response on error)
+ */
+export async function getBlogById(
+  _location: string,
+  blogId: number
+): Promise<GetBlogByIdResponse> {
+  try {
+    const response = await apiClient.get<GetBlogByIdResponse>(
+      `/admin/v2/blogs/${blogId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as ApiErrorShape;
+    console.error("Error fetching blog by id:", error);
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to fetch blog",
+      data: undefined,
+    };
+  }
+}
+
+/**
+ * Updates an existing blog
+ *
+ * @param _location - Location parameter (currently unused but kept for consistency)
+ * @param blogId - Blog id
+ * @param data - Updated blog data
+ * @returns Promise resolving to update blog response
+ */
+export async function updateBlog(
+  _location: string,
+  blogId: number,
+  data: UpdateBlogRequest
+): Promise<UpdateBlogResponse> {
+  try {
+    const response = await apiClient.put<UpdateBlogResponse>(
+      `/admin/v2/blogs/${blogId}`,
+      data
+    );
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: UpdateBlogResponse } };
+    console.error("Error updating blog:", error);
+    throw {
+      message: apiError.response?.data?.message || "Failed to update blog",
+      errorCode: apiError.response?.data?.success === false ? "BAD_REQUEST" : "INTERNAL_SERVER_ERROR",
+    };
+  }
+}
+
+/**
+ * Deletes an existing blog
+ *
+ * @param _location - Location parameter (currently unused but kept for consistency)
+ * @param blogId - Blog id
+ * @returns Promise resolving to delete blog response
+ */
+export async function deleteBlog(
+  _location: string,
+  blogId: number
+): Promise<DeleteBlogResponse> {
+  try {
+    const response = await apiClient.delete<DeleteBlogResponse>(
+      `/admin/v2/blogs/${blogId}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: DeleteBlogResponse } };
+    console.error("Error deleting blog:", error);
+    throw {
+      message: apiError.response?.data?.message || "Failed to delete blog",
+      errorCode: apiError.response?.data?.success === false ? "BAD_REQUEST" : "INTERNAL_SERVER_ERROR",
     };
   }
 }

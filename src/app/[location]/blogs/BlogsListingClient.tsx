@@ -9,7 +9,8 @@ import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useBlogListing } from "./hooks/useBlogListing";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { AddBlogModal } from "./components/modals/AddBlogModal";
+import { toast } from "sonner";
+import { BlogCrudModal } from "./components/modals/BlogCrudModal";
 
 interface BlogsClientProps {
   location: string;
@@ -28,7 +29,9 @@ interface BlogsClientProps {
 export function BlogsListingClient({ location }: BlogsClientProps) {
   // Static columns don't need memoization
   const columns = blogColumns;
-  const [isAddBlogModalOpen, setIsAddBlogModalOpen] = React.useState(false);
+  const [isBlogModalOpen, setIsBlogModalOpen] = React.useState(false);
+  const [blogModalMode, setBlogModalMode] = React.useState<"add" | "edit">("add");
+  const [selectedBlog, setSelectedBlog] = React.useState<(BlogRow & { id: number }) | null>(null);
 
   const {
     rows,
@@ -68,7 +71,11 @@ export function BlogsListingClient({ location }: BlogsClientProps) {
       onRetry={fetchData}
       actions={
         <Button 
-          onClick={() => setIsAddBlogModalOpen(true)} 
+          onClick={() => {
+            setBlogModalMode("add");
+            setSelectedBlog(null);
+            setIsBlogModalOpen(true);
+          }}
           className="bg-primary hover:bg-primary/90"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -80,6 +87,15 @@ export function BlogsListingClient({ location }: BlogsClientProps) {
         data={rows}
         columns={columns}
         isLoading={isLoading}
+        onRowClick={(row) => {
+          if (!row?.id) {
+            toast.error("This blog cannot be edited because it has no id.");
+            return;
+          }
+          setSelectedBlog(row as BlogRow & { id: number });
+          setBlogModalMode("edit");
+          setIsBlogModalOpen(true);
+        }}
 
         // Visual configuration
         size="compact"
@@ -111,15 +127,20 @@ export function BlogsListingClient({ location }: BlogsClientProps) {
         enableExport={false}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
       />
-      
-      <AddBlogModal
-        isOpen={isAddBlogModalOpen}
-        onClose={() => setIsAddBlogModalOpen(false)}
+
+      <BlogCrudModal
+        isOpen={isBlogModalOpen}
+        onClose={() => {
+          setIsBlogModalOpen(false);
+          setSelectedBlog(null);
+          setBlogModalMode("add");
+        }}
         onSuccess={() => {
-          // Refresh the data after successful blog creation
           fetchData();
         }}
         location={location}
+        mode={blogModalMode}
+        initialData={selectedBlog}
       />
     </ReportPageLayout>
   );
