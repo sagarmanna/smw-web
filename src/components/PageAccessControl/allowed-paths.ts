@@ -1,5 +1,6 @@
 // Constants for better maintainability
 export const ALLOWED_PATHS: string[] = [
+    '/email-template',
     '/holidays',
     '/referral-source',
     '/locations',
