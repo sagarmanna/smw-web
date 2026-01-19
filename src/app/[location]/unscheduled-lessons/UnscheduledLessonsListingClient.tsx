@@ -9,6 +9,7 @@ import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
 import { useUnscheduledLessonsListing } from "./hooks/useUnscheduledLessonsListing";
 import { formatLocationName } from "@/utils/textUtils";
+import { buildLegacyAdminUrl } from "@/utils/buildLegacyAdminUrl";
 
 interface UnscheduledLessonsListingClientProps {
   location: string;
@@ -33,6 +34,15 @@ export function UnscheduledLessonsListingClient({ location }: UnscheduledLessons
     handleColumnFilterEnter,
     handleServerSideFilterChange,
   } = useUnscheduledLessonsListing(location);
+
+  const handleRowClick = React.useCallback((row: UnscheduledLessonRow) => {
+    const legacyUrl = buildLegacyAdminUrl({
+      location,
+      // Legacy "lesson view" page (unscheduled lessons open in legacy lesson/view)
+      pathAndQuery: `/lesson/view?id=${row.id}`,
+    });
+    window.location.href = legacyUrl;
+  }, [location]);
 
   // Create export-specific columns
   const exportColumns = React.useMemo((): ColumnDef<UnscheduledLessonRow>[] => {
@@ -155,6 +165,8 @@ export function UnscheduledLessonsListingClient({ location }: UnscheduledLessons
               json: exportToJson,
             }}
             onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+            onRowClick={handleRowClick}
+            rowClassName="cursor-pointer"
           />
         </ReportPageLayout>
       </div>
