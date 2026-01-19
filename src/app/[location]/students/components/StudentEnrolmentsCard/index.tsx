@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   SectionCard,
 } from "@/components/SectionCard";
@@ -57,6 +58,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
   customerId,
   onRefresh,
 }: StudentEnrolmentsCardProps) {
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const [showAll, setShowAll] = React.useState(false);
   const [isNewEnrolmentModalOpen, setIsNewEnrolmentModalOpen] = React.useState(false);
@@ -233,11 +235,9 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
 
   const handleRowClick = React.useCallback(
     (enrolment: StudentEnrolment) => {
-      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
-      const url = `${legacyBase}/${location}/enrolment/view?id=${enrolment.id}`;
-      window.location.href = url;
+      router.push(`/${location}/enrolments/${enrolment.id}`);
     },
-    [location]
+    [location, router]
   );
 
   return (
