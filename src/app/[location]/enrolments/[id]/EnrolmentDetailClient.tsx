@@ -358,6 +358,8 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                 saving={savingDetails}
                 isLoading={isLoading}
                 enrolmentType={enrolmentType}
+                location={location}
+                enrolmentId={id}
               />
 
               {/* Schedule History - Only show for private enrolments */}

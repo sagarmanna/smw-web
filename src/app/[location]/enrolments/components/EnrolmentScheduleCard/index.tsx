@@ -26,6 +26,8 @@ interface EnrolmentScheduleCardProps {
   saving?: boolean;
   isLoading?: boolean;
   enrolmentType?: "private" | "group";
+  location: string;
+  enrolmentId: string;
 }
 
 export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
@@ -35,6 +37,8 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
   saving = false,
   isLoading = false,
   enrolmentType = "private",
+  location,
+  enrolmentId,
 }: EnrolmentScheduleCardProps) {
   const [isAdjustEndDateModalOpen, setIsAdjustEndDateModalOpen] = React.useState(false);
   const [isPermanentChangeModalOpen, setIsPermanentChangeModalOpen] = React.useState(false);
@@ -117,6 +121,8 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
         onSubmit={handleAdjustEndDate}
         saving={saving}
         enrolmentType={enrolmentType}
+        location={location}
+        enrolmentId={enrolmentId}
       />
 
       <PermanentScheduleChangeModal
