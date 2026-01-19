@@ -27,6 +27,8 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'students': 'students',
     'release-notes': 'releaseNotes',
     'enrolments': 'enrolments',
+    'group-courses': 'groupCourses',
+    'unscheduled-lessons': 'unscheduledLessons',
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -58,6 +60,8 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     students: `/student/index?StudentSearch%5BshowAllStudents%5D=0`,
     releaseNotes: `/release-notes/index`,
     enrolments: `/enrolment/index?EnrolmentSearch%5BshowAllEnrolments%5D=0`,
+    groupCourses: `/course/index?CourseSearch%5Btype%5D=2`,
+    unscheduledLessons: `/unscheduled-lesson/index?UnscheduledLessonSearch%5BshowAll%5D=0`,
   };
     
   const legacyPath = featureToUrlMap[feature] || '/dashboard';
