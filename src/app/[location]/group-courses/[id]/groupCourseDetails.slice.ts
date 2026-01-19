@@ -2,19 +2,14 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   getCourseInfo,
   getCourseLessons,
-  getCourseStudents,
-  getCourseHistory,
   CourseInfoResponse,
   CourseLesson,
-  CourseStudent,
-  CourseHistory,
 } from './groupCourseDetails.api';
 
 interface GroupCourseState {
   courseInfoData: CourseInfoResponse | null; // Course info from /info endpoint
   courseLessons: CourseLesson[]; // Lessons from /lessons endpoint
-  courseStudents: CourseStudent[]; // Students from /students endpoint
-  courseHistory: CourseHistory[]; // History from /history endpoint
+  // Note: Students and history are managed in groupCourseTabs slice (lazy loaded when tabs open)
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -25,8 +20,6 @@ interface GroupCourseState {
 const initialState: GroupCourseState = {
   courseInfoData: null,
   courseLessons: [],
-  courseStudents: [],
-  courseHistory: [],
   isLoading: false,
   isSaving: false,
   error: null,
@@ -35,8 +28,9 @@ const initialState: GroupCourseState = {
 };
 
 /**
- * Fetches course info, lessons, students, and history from the API
+ * Fetches course info and lessons from the API
  * Called once in page.tsx during initial page load
+ * Note: Students and history are fetched separately when their tabs are opened (lazy loading)
  * Uses Promise.allSettled for graceful error handling - allows partial failures
  */
 export const fetchGroupCourse = createAsyncThunk(
@@ -46,20 +40,17 @@ export const fetchGroupCourse = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch course info, lessons, students, and history in parallel with graceful error handling
+      // Fetch course info and lessons in parallel with graceful error handling
+      // Note: Students and history are fetched separately when their tabs are opened (lazy loading)
       const parallelResults = await Promise.allSettled([
         getCourseInfo(location, courseId),
         getCourseLessons(location, courseId),
-        getCourseStudents(location, courseId),
-        getCourseHistory(location, courseId),
       ]);
 
       // Extract results from parallel calls
-      // Order: info, lessons, students, history
+      // Order: info, lessons
       const infoResult = parallelResults[0];
       const lessonsResult = parallelResults[1];
-      const studentsResult = parallelResults[2];
-      const historyResult = parallelResults[3];
 
       // Course Info API is required - fail if it fails
       let courseInfoData: CourseInfoResponse | null = null;
@@ -89,38 +80,10 @@ export const fetchGroupCourse = createAsyncThunk(
         console.warn('[groupCourse] Course Lessons API error:', lessonsResult.reason);
       }
 
-      // Students API is optional - log error but don't fail the entire fetch
-      let courseStudents: CourseStudent[] = [];
-      if (studentsResult.status === 'fulfilled') {
-        const students = studentsResult.value;
-        if (students && students.success && students.data?.body) {
-          courseStudents = students.data.body;
-        } else {
-          console.warn('[groupCourse] Course Students API failed:', students?.message || 'Unknown error');
-        }
-      } else {
-        console.warn('[groupCourse] Course Students API error:', studentsResult.reason);
-      }
-
-      // History API is optional - log error but don't fail the entire fetch
-      let courseHistory: CourseHistory[] = [];
-      if (historyResult.status === 'fulfilled') {
-        const history = historyResult.value;
-        if (history && history.success && history.data?.body) {
-          courseHistory = history.data.body;
-        } else {
-          console.warn('[groupCourse] Course History API failed:', history?.message || 'Unknown error');
-        }
-      } else {
-        console.warn('[groupCourse] Course History API error:', historyResult.reason);
-      }
-
       // Use API responses as-is (no recalculation)
       return {
         courseInfoData,
         courseLessons,
-        courseStudents,
-        courseHistory,
         fetchedAt: Date.now(),
       };
     } catch (error) {
@@ -136,8 +99,6 @@ const groupCourseSlice = createSlice({
     clearGroupCourse: (state) => {
       state.courseInfoData = null;
       state.courseLessons = [];
-      state.courseStudents = [];
-      state.courseHistory = [];
       state.error = null;
       state.lastFetched = null;
       state.currentCourseId = null;
@@ -156,8 +117,6 @@ const groupCourseSlice = createSlice({
         if (state.currentCourseId !== null && state.currentCourseId !== courseId) {
           state.courseInfoData = null;
           state.courseLessons = [];
-          state.courseStudents = [];
-          state.courseHistory = [];
           state.lastFetched = null;
         }
         
@@ -169,8 +128,6 @@ const groupCourseSlice = createSlice({
         state.isLoading = false;
         state.courseInfoData = action.payload.courseInfoData;
         state.courseLessons = action.payload.courseLessons;
-        state.courseStudents = action.payload.courseStudents;
-        state.courseHistory = action.payload.courseHistory;
         state.lastFetched = action.payload.fetchedAt;
         // Use courseId from action meta arg
         const { courseId } = action.meta.arg as { location: string; courseId: number };

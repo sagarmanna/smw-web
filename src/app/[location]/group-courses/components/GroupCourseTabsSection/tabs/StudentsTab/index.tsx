@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
 import { Plus, Mail, Printer } from "lucide-react";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { StudentData } from "../../../../[id]/groupCourseTabConfigs";
-import { fetchGroupCourseTabsData } from "../../../../[id]/groupCourseTabs.slice";
+import { fetchGroupCourseStudents } from "../../../../[id]/groupCourseTabs.slice";
 import { GroupCourseStudentEnrolmentModal } from "../../../modals/GroupCourseStudentEnrolmentModal";
+import { EditStudentDiscountModal, parseDiscountFromApi, type EditDiscountFormData } from "../../../modals/EditStudentDiscountModal";
+import { toast } from "sonner";
 
 interface StudentsTabProps {
   location: string;
@@ -21,17 +25,17 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const data = useAppSelector((state) => state.groupCourseTabs.studentData);
-  const isLoading = useAppSelector((state) => state.groupCourseTabs.isLoading);
-  const error = useAppSelector((state) => state.groupCourseTabs.error);
-  const currentCourseId = useAppSelector((state) => state.groupCourseTabs.currentCourseId);
+  const pagination = useAppSelector((state) => state.groupCourseTabs.studentPagination);
+  const isLoading = useAppSelector((state) => state.groupCourseTabs.studentsLoading);
+  const error = useAppSelector((state) => state.groupCourseTabs.studentsError);
   const [isEnrolmentModalOpen, setIsEnrolmentModalOpen] = useState(false);
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
-  useEffect(() => {
-    // Only fetch if we don't have data for this course yet
-    if (currentCourseId !== courseId) {
-      dispatch(fetchGroupCourseTabsData({ location, courseId }));
-    }
-  }, [location, courseId, dispatch, currentCourseId]);
+  const currentPage = pagination?.page || 1;
+  const totalPages = pagination?.totalPages || 1;
+  const totalRows = pagination?.total || data.length;
+  const rowsPerPage = pagination?.limit || data.length || 10;
 
   const baseColumns: ColumnDef<StudentData>[] = useMemo(
     () => [
@@ -96,8 +100,8 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               size="sm"
               className="h-8"
               onClick={() => {
-                // TODO: Implement edit discount
-                console.log("Edit discount for", row.original.studentName);
+                setSelectedStudent(row.original);
+                setIsDiscountModalOpen(true);
               }}
             >
               Edit Discount
@@ -166,6 +170,13 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               enableFilter={false}
               className="border-0 w-full"
               isLoading={isLoading}
+              customLoadingState={
+                <LoadingAnimation
+                  size="md"
+                  text="Loading students..."
+                  className="py-8"
+                />
+              }
               customEmptyState={
                 !isLoading && data.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
@@ -176,12 +187,77 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               }
             />
           )}
+
+          {/* Server-side style pagination controls (driven by API pagination) */}
+          {totalRows > 0 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows} entries
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    if (currentPage > 1 && !isLoading) {
+                      dispatch(fetchGroupCourseStudents({ location, courseId, page: currentPage - 1 }));
+                    }
+                  }}
+                  disabled={currentPage === 1 || isLoading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    if (currentPage < totalPages && !isLoading) {
+                      dispatch(fetchGroupCourseStudents({ location, courseId, page: currentPage + 1 }));
+                    }
+                  }}
+                  disabled={currentPage >= totalPages || isLoading}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <GroupCourseStudentEnrolmentModal
         open={isEnrolmentModalOpen}
         onOpenChange={setIsEnrolmentModalOpen}
+      />
+
+      <EditStudentDiscountModal
+        open={isDiscountModalOpen}
+        onOpenChange={setIsDiscountModalOpen}
+        onSave={(discountData: EditDiscountFormData) => {
+          // TODO: Implement API call when backend is ready
+          console.log("Discount update data:", {
+            studentId: selectedStudent?.studentId,
+            courseId,
+            location,
+            discount: discountData.discountValue,
+            discountType: discountData.discountType,
+          });
+          
+          toast.info("Discount update functionality will be available when API is ready");
+          setIsDiscountModalOpen(false);
+          setSelectedStudent(null);
+        }}
+        initialData={
+          selectedStudent
+            ? parseDiscountFromApi(selectedStudent.discount)
+            : undefined
+        }
+        saving={false}
       />
     </>
   );

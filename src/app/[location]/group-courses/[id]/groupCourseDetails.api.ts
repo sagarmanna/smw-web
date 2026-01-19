@@ -76,10 +76,18 @@ export interface CourseStudent {
   discount: string;
 }
 
+interface CourseStudentsApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface CourseStudentsApiResponse {
   success: boolean;
   data: {
     body: CourseStudent[];
+    pagination: CourseStudentsApiResponsePagination;
   };
   message?: string;
 }
@@ -91,7 +99,7 @@ export interface CourseHistory {
   createdOn: string;
 }
 
-interface CourseHistoryApiResponsePagination {
+export interface CourseHistoryApiResponsePagination {
   page: number;
   limit: number;
   total: number;
@@ -180,20 +188,30 @@ export async function getCourseLessons(
 }
 
 /**
- * Fetches course students from the API
- * Endpoint: GET /admin/v2/{location}/course/{courseId}/students
+ * Fetches course students from the API with pagination
+ * Endpoint: GET /admin/v2/{location}/course/{courseId}/students?page={page}&limit={limit}
  * 
  * @param location - The location identifier 
  * @param courseId - The course ID
+ * @param page - The page number for pagination (default: 1)
+ * @param limit - The number of items per page (default: 20)
  * @returns Promise resolving to the students response or null on error
  */
 export async function getCourseStudents(
   location: string,
-  courseId: number
+  courseId: number,
+  page: number = 1,
+  limit: number = 20
 ): Promise<CourseStudentsApiResponse | null> {
   try {
     const response = await apiClient.get<CourseStudentsApiResponse>(
-      `/admin/v2/${location}/course/${courseId}/students`
+      `/admin/v2/${location}/course/${courseId}/students`,
+      {
+        params: {
+          page,
+          limit,
+        },
+      }
     );
     
     if (!response.data.success || !response.data.data?.body) {
@@ -205,13 +223,11 @@ export async function getCourseStudents(
   } catch (error: unknown) {
     console.error("Error fetching course students:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
-    return {
-      success: false,
-      data: {
-        body: [],
-      },
-      message: apiError.response?.data?.message || "Failed to fetch course students",
-    };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch course students"
+    );
+    return null;
   }
 }
 

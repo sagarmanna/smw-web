@@ -1,23 +1,51 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { LessonData, StudentData, HistoryData } from './groupCourseTabConfigs';
-import type { CourseLesson, CourseStudent, CourseHistory } from './groupCourseDetails.api';
+import {
+  getCourseStudents,
+  getCourseHistory,
+  type CourseLesson,
+  type CourseHistory,
+  type CourseHistoryApiResponsePagination,
+} from './groupCourseDetails.api';
 
 interface GroupCourseTabsState {
   lessonData: LessonData[];
   studentData: StudentData[];
+  studentPagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  } | null;
+  studentCourseId: number | null;
   historyData: HistoryData[];
+  historyPagination: CourseHistoryApiResponsePagination | null;
+  historyCourseId: number | null;
   isLoading: boolean;
   error: string | null;
   currentCourseId: number | null;
+  // Individual tab loading states
+  studentsLoading: boolean;
+  studentsError: string | null;
+  historyLoading: boolean;
+  historyError: string | null;
 }
 
 const initialState: GroupCourseTabsState = {
   lessonData: [],
   studentData: [],
+  studentPagination: null,
+  studentCourseId: null,
   historyData: [],
+  historyPagination: null,
+  historyCourseId: null,
   isLoading: false,
   error: null,
   currentCourseId: null,
+  studentsLoading: false,
+  studentsError: null,
+  historyLoading: false,
+  historyError: null,
 };
 
 /**
@@ -33,22 +61,6 @@ const transformCourseLessonsToLessonData = (courseLessons: CourseLesson[]): Less
 };
 
 /**
- * Transforms CourseStudent from API to StudentData format
- * Uses API response as-is (no recalculation)
- */
-const transformCourseStudentsToStudentData = (courseStudents: CourseStudent[]): StudentData[] => {
-  return courseStudents.map((student) => ({
-    id: student.id.toString(),
-    studentName: student.studentName || "N/A",
-    customerName: student.customerName || "N/A",
-    discount: student.discount || "Not set",
-    // Preserve raw IDs for navigation to details pages
-    studentId: student.studentId,
-    customerId: student.customerId,
-  }));
-};
-
-/**
  * Transforms CourseHistory from API to HistoryData format
  * Uses API message as-is for display (no extra formatting)
  */
@@ -60,28 +72,24 @@ const transformCourseHistoryToHistoryData = (courseHistory: CourseHistory[]): Hi
 };
 
 /**
- * Fetches group course tabs data
- * Uses courseLessons, courseStudents, and courseHistory from groupCourseDetails slice (already fetched in page.tsx)
+ * Fetches group course lessons data
+ * Uses courseLessons from groupCourseDetails slice (already fetched in page.tsx)
  */
 export const fetchGroupCourseTabsData = createAsyncThunk(
   'groupCourseTabs/fetchGroupCourseTabsData',
   async (
-    { location, courseId }: { location: string; courseId: number },
+    { courseId }: { location: string; courseId: number },
     { getState, rejectWithValue }
   ) => {
     try {
-      // Get courseLessons, courseStudents, and courseHistory from groupCourseDetails slice (already fetched in page.tsx)
-      const state = getState() as { 
-        groupCourse: { 
-          courseLessons: CourseLesson[]; 
-          courseStudents: CourseStudent[];
-          courseHistory: CourseHistory[];
+      // Get courseLessons from groupCourseDetails slice (already fetched in page.tsx)
+      const state = getState() as {
+        groupCourse: {
+          courseLessons: CourseLesson[];
           currentCourseId: number | null;
-        } 
+        };
       };
       const courseLessons = state.groupCourse.courseLessons;
-      const courseStudents = state.groupCourse.courseStudents;
-      const courseHistory = state.groupCourse.courseHistory;
       const currentCourseId = state.groupCourse.currentCourseId;
 
       // Only use lessons if they're for the current course
@@ -90,26 +98,68 @@ export const fetchGroupCourseTabsData = createAsyncThunk(
         lessonData = transformCourseLessonsToLessonData(courseLessons);
       }
 
-      // Only use students if they're for the current course
-      let studentData: StudentData[] = [];
-      if (courseStudents && courseStudents.length > 0 && currentCourseId === courseId) {
-        studentData = transformCourseStudentsToStudentData(courseStudents);
-      }
-
-      // Only use history if it's for the current course
-      let historyData: HistoryData[] = [];
-      if (courseHistory && courseHistory.length > 0 && currentCourseId === courseId) {
-        historyData = transformCourseHistoryToHistoryData(courseHistory);
-      }
-
       return {
         lessonData,
-        studentData,
-        historyData,
         courseId,
       };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch group course tabs data');
+    }
+  }
+);
+
+// Fetch students data with pagination for a specific course
+export const fetchGroupCourseStudents = createAsyncThunk(
+  'groupCourseTabs/fetchGroupCourseStudents',
+  async (
+    { location, courseId, page = 1 }: { location: string; courseId: number; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getCourseStudents(location, courseId, page);
+
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch course students');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+        courseId,
+      };
+    } catch (error) {
+      console.error('Error in fetchGroupCourseStudents:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch course students data'
+      );
+    }
+  }
+);
+
+// Fetch history data with pagination for a specific course
+export const fetchGroupCourseHistory = createAsyncThunk(
+  'groupCourseTabs/fetchGroupCourseHistory',
+  async (
+    { location, courseId, page = 1 }: { location: string; courseId: number; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getCourseHistory(location, courseId, page);
+
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch course history');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+        courseId,
+      };
+    } catch (error) {
+      console.error('Error in fetchGroupCourseHistory:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch course history data'
+      );
     }
   }
 );
@@ -136,14 +186,52 @@ const groupCourseTabsSlice = createSlice({
       .addCase(fetchGroupCourseTabsData.fulfilled, (state, action) => {
         state.isLoading = false;
         state.lessonData = action.payload.lessonData;
-        state.studentData = action.payload.studentData;
-        state.historyData = action.payload.historyData;
         state.currentCourseId = action.payload.courseId;
         state.error = null;
       })
       .addCase(fetchGroupCourseTabsData.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+      })
+      // Students tab data
+      .addCase(fetchGroupCourseStudents.pending, (state) => {
+        state.studentsLoading = true;
+        state.studentsError = null;
+      })
+      .addCase(fetchGroupCourseStudents.fulfilled, (state, action) => {
+        state.studentsLoading = false;
+        // Map API response to StudentData, preserving IDs for navigation
+        state.studentData = action.payload.data.map((student) => ({
+          id: student.id.toString(),
+          studentName: student.studentName || "N/A",
+          customerName: student.customerName || "N/A",
+          discount: student.discount || "Not set",
+          studentId: student.studentId,
+          customerId: student.customerId,
+        }));
+        state.studentPagination = action.payload.pagination;
+        state.studentCourseId = action.payload.courseId;
+        state.studentsError = null;
+      })
+      .addCase(fetchGroupCourseStudents.rejected, (state, action) => {
+        state.studentsLoading = false;
+        state.studentsError = action.payload as string;
+      })
+      // History tab data
+      .addCase(fetchGroupCourseHistory.pending, (state) => {
+        state.historyLoading = true;
+        state.historyError = null;
+      })
+      .addCase(fetchGroupCourseHistory.fulfilled, (state, action) => {
+        state.historyLoading = false;
+        state.historyData = transformCourseHistoryToHistoryData(action.payload.data);
+        state.historyPagination = action.payload.pagination;
+        state.historyCourseId = action.payload.courseId;
+        state.historyError = null;
+      })
+      .addCase(fetchGroupCourseHistory.rejected, (state, action) => {
+        state.historyLoading = false;
+        state.historyError = action.payload as string;
       });
   },
 });
