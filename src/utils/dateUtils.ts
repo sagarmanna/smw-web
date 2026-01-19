@@ -226,4 +226,3 @@ export function convertToISOFormat(dateStr: string): string {
   const date = new Date(dateStr);
   return !isNaN(date.getTime()) ? formatDateToISO(date) : "";
 }
-

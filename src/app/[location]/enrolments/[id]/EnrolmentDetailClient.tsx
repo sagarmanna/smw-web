@@ -184,8 +184,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
       {
         label: ENROLMENT_MESSAGES.ACTION_DELETE,
         onClick: () => {
-          toast.info("This feature is in development.");
-          // setIsDeleteModalOpen(true);
+          setIsDeleteModalOpen(true);
         },
         variant: "destructive" as const,
       },
@@ -403,6 +402,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
         onOpenChange={setIsDeleteModalOpen}
         location={location}
         enrolmentId={id}
+        enrolmentType={enrolmentType}
       />
     </>
   );
