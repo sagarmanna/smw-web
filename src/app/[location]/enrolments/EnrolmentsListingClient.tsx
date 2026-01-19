@@ -300,7 +300,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
               enableRowsPerPage={true}
               customHeaderComponent={customToolbarButtons}
               serverSideFilterOptions={[
-                { key: "active", label: "Active" },
+                { key: "active", label: "Active & Future" },
                 { key: "inactive", label: "Inactive" },
               ]}
               activeServerSideFilter={activeFilter}
