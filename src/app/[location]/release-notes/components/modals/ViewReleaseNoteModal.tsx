@@ -154,7 +154,7 @@ export function ViewReleaseNoteModal({ isOpen, onClose, location, releaseNoteId 
                   </dt>
                   <dd className="text-sm text-gray-700 dark:text-gray-300">
                     <div
-                      className="prose prose-sm max-w-none [&_p]:mb-2 [&_p]:last-child]:mb-0 [&_p]:leading-relaxed [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:mb-1 [&_mark]:rounded [&_mark]:px-0.5"
+                      className="prose prose-sm max-w-none release-notes-content [&_p]:mb-2 [&_p]:last-child]:mb-0 [&_p]:leading-relaxed [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:mb-1 [&_mark]:rounded [&_mark]:px-0.5"
                       dangerouslySetInnerHTML={{ __html: sanitizedNotes }}
                     />
                   </dd>
