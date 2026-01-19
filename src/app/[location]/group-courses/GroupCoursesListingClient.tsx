@@ -15,6 +15,8 @@ import { useGroupCourseListing } from "./hooks/useGroupCourseListing";
 import { formatLocationName } from "@/utils/textUtils";
 import { AddGroupCourseModal } from "./components/modals/AddGroupCourseModal";
 import { AddGroupCourseScheduleModal } from "./components/modals/AddGroupCourseScheduleModal";
+import { isDev } from "@/utils/env";
+import { toast } from "sonner";
 
 interface GroupCoursesClientProps {
   location: string;
@@ -80,7 +82,7 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
       onRetry={fetchData}
       actions={
         <Button 
-          onClick={() => setIsAddCourseModalOpen(true)} 
+          onClick={() => isDev() ? setIsAddCourseModalOpen(true) : toast.info("This feature is in development.")} 
           className="bg-primary hover:bg-primary/90"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -143,7 +145,11 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row: GroupCourseRow) => {
-          router.push(`/${location}/group-courses/${row.id}`);
+          if(isDev()) {
+            router.push(`/${location}/group-courses/${row.id}`);
+          } else {
+            router.push(`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/course/view?id=${row.id}`);
+          }
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       />
