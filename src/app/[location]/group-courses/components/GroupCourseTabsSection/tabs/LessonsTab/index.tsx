@@ -15,7 +15,6 @@ import {
 import { ChevronDown } from "lucide-react";
 import { lessonColumns, LessonData } from "../../../../[id]/groupCourseTabConfigs";
 import { fetchGroupCourseTabsData, updateLessonsOnlineStatus } from "../../../../[id]/groupCourseTabs.slice";
-import { formatDisplayDate } from "@/utils/dateUtils";
 import { SubstituteTeacherModal } from "../../../modals/SubstituteTeacherModal";
 import { EditOnlineTypeModal } from "../../../modals/EditOnlineTypeModal";
 import { toast } from "sonner";
@@ -43,27 +42,13 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
     }
   }, [location, courseId, dispatch, currentCourseId]);
 
+  // Use API response as-is - no formatting
   const formattedData = useMemo(() => {
-    return data.map((lesson) => {
-      // Format: "YYYY-MM-DD HH:MM AM/PM" -> "MMM dd, yyyy @ HH:MM AM/PM"
-      if (!lesson.date) return { ...lesson, date: "N/A" };
-      
-      try {
-        // Check if date includes time (format: "YYYY-MM-DD HH:MM AM/PM")
-        const parts = lesson.date.split(' ');
-        if (parts.length >= 3) {
-          const datePart = parts[0];
-          const timePart = parts.slice(1).join(' ');
-          const formattedDate = formatDisplayDate(datePart);
-          return { ...lesson, date: `${formattedDate} @ ${timePart}` };
-        } else {
-          // Just date, format normally
-          return { ...lesson, date: formatDisplayDate(lesson.date) };
-        }
-      } catch {
-        return { ...lesson, date: lesson.date };
-      }
-    });
+    return data.map((lesson) => ({
+      ...lesson,
+      // Use date from API response as-is (no modification)
+      date: lesson.date || "N/A",
+    }));
   }, [data]);
 
   const selectedLessons = useMemo(() => {

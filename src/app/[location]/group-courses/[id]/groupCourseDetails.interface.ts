@@ -3,6 +3,12 @@ export type {
   GroupCourseRow,
 } from '../types';
 
+// Re-export API response types
+export type {
+  CourseInfoResponse,
+  CourseLesson,
+} from './groupCourseDetails.api';
+
 // Group course detail specific interfaces
 export interface GroupCourseInfo {
   id: number;

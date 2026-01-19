@@ -3,20 +3,20 @@
 import * as React from "react";
 import { SectionCard } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
-import { GroupCourseDetailsResponse } from "../../[id]/groupCourseDetails.api";
+import { CourseInfoResponse } from "../../[id]/groupCourseDetails.api";
 import { formatCurrency } from "@/utils/formatCurrency";
 
 interface GroupCourseDetailsCardProps {
-  courseInfo: GroupCourseDetailsResponse | null;
+  courseInfoData: CourseInfoResponse | null;
   isLoading?: boolean;
 }
 
 export const GroupCourseDetailsCard = React.memo(function GroupCourseDetailsCard({
-  courseInfo,
+  courseInfoData,
   isLoading = false,
 }: GroupCourseDetailsCardProps) {
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
-    if (!courseInfo) {
+    if (!courseInfoData || !courseInfoData.course) {
       return [
         { label: "Program", value: "N/A" },
         { label: "Teacher", value: "N/A" },
@@ -25,25 +25,27 @@ export const GroupCourseDetailsCard = React.memo(function GroupCourseDetailsCard
       ];
     }
 
+    const course = courseInfoData.course;
+
     return [
       {
         label: "Program",
-        value: courseInfo.program || "N/A",
+        value: course.program || "N/A",
       },
       {
         label: "Teacher",
-        value: courseInfo.teacher || "N/A",
+        value: course.teacher || "N/A",
       },
       {
         label: "Rate",
-        value: formatCurrency(courseInfo.rate),
+        value: course.rate || "N/A",
       },
       {
         label: "Online",
-        value: courseInfo.isOnline ? "Yes" : "No",
+        value: course.online || "No",
       },
     ];
-  }, [courseInfo]);
+  }, [courseInfoData]);
 
   return (
     <SectionCard
