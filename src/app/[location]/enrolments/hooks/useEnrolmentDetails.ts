@@ -222,6 +222,15 @@ export function useEnrolmentDetails(
           ).unwrap();
         }
         
+        // Force refresh enrolment data to show all updated data (schedule, lessons, etc.)
+        // This clears cache and fetches fresh data
+        await forceRefresh();
+        
+        // For group enrolments, also refresh the lessons list separately
+        if (enrolmentType === "group") {
+          await fetchLessons(1, 10);
+        }
+        
         toast.success("End date adjusted successfully");
         return true;
       } catch (error) {
@@ -230,7 +239,7 @@ export function useEnrolmentDetails(
         return false;
       }
     },
-    [dispatch, location, enrolmentId]
+    [dispatch, location, enrolmentId, forceRefresh, fetchLessons]
   );
 
   const changeSchedulePermanently = React.useCallback(
