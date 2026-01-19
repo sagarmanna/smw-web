@@ -104,15 +104,13 @@ export function BlogsListingClient({ location }: BlogsClientProps) {
 
         // Features
         enableSearch={false}
-        searchPlaceholder="Search blogs..."
-        getSearchValue={(r) => `${r.userName || ''} ${r.title} ${r.content}`}
         enableFilter={false}
         enableRowsPerPage={true}
         enablePrint={false}
         enableColumnFilters={false}
 
         // Sorting and pagination (server-side)
-        manualSorting={false}
+        manualSorting={true}
         sorting={sorting}
         onSortingChange={(s) => {
           setSorting(s);

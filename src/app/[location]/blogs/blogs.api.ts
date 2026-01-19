@@ -48,7 +48,16 @@ export interface BlogsListResponse {
 export interface BlogsQuery {
   page?: number;
   limit?: number;
+  sort?: string;
+  order?: "ASC" | "DESC";
 }
+
+type ValidatedBlogsQuery = {
+  page: number;
+  limit: number;
+  sort?: string;
+  order?: "ASC" | "DESC";
+};
 
 type ApiErrorShape = {
   response?: {
@@ -70,12 +79,15 @@ const DEFAULT_PAGINATION = {
  * Builds URL search parameters from query object
  * Validates and sanitizes input values
  */
-const buildBlogsQueryParams = (query: BlogsQuery): URLSearchParams => {
+const buildBlogsQueryParams = (query: ValidatedBlogsQuery): URLSearchParams => {
   const params = new URLSearchParams();
 
   // Always include page/limit for predictable backend behavior
-  params.append("page", (query.page ?? DEFAULT_PAGINATION.page).toString());
-  params.append("limit", (query.limit ?? DEFAULT_PAGINATION.limit).toString());
+  params.append("page", query.page.toString());
+  params.append("limit", query.limit.toString());
+
+  if (query.sort) params.append("sort", query.sort);
+  if (query.order) params.append("order", query.order);
 
   return params;
 };
@@ -107,12 +119,14 @@ const createEmptyBlogsResponse = (): BlogsListResponse => ({
 export async function getBlogs(
   _location: string, // Prefixed with _ to indicate intentionally unused
   query: BlogsQuery
-): Promise<BlogsListResponse | null> {
+): Promise<BlogsListResponse> {
   try {
     // Validate query parameters
-    const validatedQuery: BlogsQuery = {
+    const validatedQuery: ValidatedBlogsQuery = {
       page: query.page && query.page > 0 ? query.page : 1,
       limit: query.limit && query.limit > 0 && query.limit <= 100 ? query.limit : 20,
+      sort: query.sort?.trim() ? query.sort.trim() : undefined,
+      order: query.order,
     };
 
     const params = buildBlogsQueryParams(validatedQuery);

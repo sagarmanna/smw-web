@@ -40,7 +40,7 @@ export const fetchBlogs = createAsyncThunk(
     try {
       const response = await getBlogs(location, query);
       
-      if (response && response.success) {
+      if (response.success) {
         return {
           rows: response.data.body,
           total: response.data.pagination.total,
