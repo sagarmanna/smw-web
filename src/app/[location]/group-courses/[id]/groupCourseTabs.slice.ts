@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { LessonData, StudentData, HistoryData } from './groupCourseTabConfigs';
+import type { CourseLesson } from './groupCourseDetails.api';
 
 interface GroupCourseTabsState {
   lessonData: LessonData[];
@@ -19,28 +20,16 @@ const initialState: GroupCourseTabsState = {
   currentCourseId: null,
 };
 
-// Mock data generator
-const generateMockLessons = (courseId: number): LessonData[] => {
-  const lessons: LessonData[] = [];
-  const startDate = new Date("2025-10-18");
-  const time = "07:30 PM"; // Default time from course schedule
-  
-  for (let i = 0; i < 12; i++) {
-    const lessonDate = new Date(startDate);
-    lessonDate.setDate(startDate.getDate() + (i * 7)); // Weekly lessons
-    
-    // Store date and time together for display
-    const dateStr = lessonDate.toISOString().split('T')[0];
-    
-    lessons.push({
-      id: `lesson-${i + 1}`,
-      date: `${dateStr} ${time}`, // Store date with time
-      status: "Completed",
-      isOnline: false,
-    });
-  }
-  
-  return lessons;
+/**
+ * Transforms CourseLesson from API to LessonData format
+ */
+const transformCourseLessonsToLessonData = (courseLessons: CourseLesson[]): LessonData[] => {
+  return courseLessons.map((lesson) => ({
+    id: lesson.id.toString(),
+    date: lesson.date || "N/A",
+    status: lesson.status || "N/A",
+    isOnline: lesson.online === "Yes" || lesson.online === "yes",
+  }));
 };
 
 const generateMockStudents = (): StudentData[] => {
@@ -96,20 +85,29 @@ const generateMockHistory = (): HistoryData[] => {
 };
 
 /**
- * Fetches group course tabs data (mock implementation)
+ * Fetches group course tabs data
+ * Uses courseLessons from groupCourseDetails slice (already fetched in page.tsx)
  */
 export const fetchGroupCourseTabsData = createAsyncThunk(
   'groupCourseTabs/fetchGroupCourseTabsData',
   async (
     { location, courseId }: { location: string; courseId: number },
-    { rejectWithValue }
+    { getState, rejectWithValue }
   ) => {
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Get courseLessons from groupCourseDetails slice (already fetched in page.tsx)
+      const state = getState() as { groupCourse: { courseLessons: CourseLesson[]; currentCourseId: number | null } };
+      const courseLessons = state.groupCourse.courseLessons;
+      const currentCourseId = state.groupCourse.currentCourseId;
+
+      // Only use lessons if they're for the current course
+      let lessonData: LessonData[] = [];
+      if (courseLessons && courseLessons.length > 0 && currentCourseId === courseId) {
+        lessonData = transformCourseLessonsToLessonData(courseLessons);
+      }
 
       return {
-        lessonData: generateMockLessons(courseId),
+        lessonData,
         studentData: generateMockStudents(),
         historyData: generateMockHistory(),
         courseId,

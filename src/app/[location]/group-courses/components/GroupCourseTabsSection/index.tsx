@@ -32,16 +32,22 @@ export function GroupCourseTabsSection({ location, courseId }: GroupCourseTabsSe
   const error = useAppSelector((state) => state.groupCourseTabs.error);
   const currentCourseId = useAppSelector((state) => state.groupCourseTabs.currentCourseId);
   const hasData = useAppSelector((state) => state.groupCourseTabs.lessonData.length > 0);
+  // Get courseLessons from main slice to sync tabs data
+  const courseLessons = useAppSelector((state) => state.groupCourse.courseLessons);
+  const mainCourseId = useAppSelector((state) => state.groupCourse.currentCourseId);
+  const mainIsLoading = useAppSelector((state) => state.groupCourse.isLoading);
 
   // Fetch tabs data only if we don't have data for this course in Redux
+  // Also sync when main course data is loaded
   useEffect(() => {
-    if (location && courseId) {
+    if (location && courseId && !mainIsLoading) {
       // Only fetch if we don't have data or it's a different course
-      if (currentCourseId !== courseId || !hasData) {
+      // Or if main course data has been loaded and we need to sync lessons
+      if (currentCourseId !== courseId || (!hasData && courseLessons.length > 0 && mainCourseId === courseId)) {
         dispatch(fetchGroupCourseTabsData({ location, courseId }));
       }
     }
-  }, [location, courseId, dispatch, currentCourseId, hasData]);
+  }, [location, courseId, dispatch, currentCourseId, hasData, courseLessons.length, mainCourseId, mainIsLoading]);
 
   return (
     <div className="mt-8">

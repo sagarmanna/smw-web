@@ -3,20 +3,19 @@
 import * as React from "react";
 import { SectionCard } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
-import { GroupCourseDetailsResponse } from "../../[id]/groupCourseDetails.api";
-import { formatDisplayDate } from "@/utils/dateUtils";
+import { CourseInfoResponse } from "../../[id]/groupCourseDetails.api";
 
 interface GroupCourseScheduleCardProps {
-  courseInfo: GroupCourseDetailsResponse | null;
+  courseInfoData: CourseInfoResponse | null;
   isLoading?: boolean;
 }
 
 export const GroupCourseScheduleCard = React.memo(function GroupCourseScheduleCard({
-  courseInfo,
+  courseInfoData,
   isLoading = false,
 }: GroupCourseScheduleCardProps) {
   const scheduleRows = React.useMemo<SectionCardDataRow[]>(() => {
-    if (!courseInfo) {
+    if (!courseInfoData || !courseInfoData.schedule) {
       return [
         { label: "Duration", value: "N/A" },
         { label: "Time", value: "N/A" },
@@ -24,25 +23,23 @@ export const GroupCourseScheduleCard = React.memo(function GroupCourseScheduleCa
       ];
     }
 
-    const period = courseInfo.startDate && courseInfo.endDate
-      ? `${formatDisplayDate(courseInfo.startDate)} to ${formatDisplayDate(courseInfo.endDate)}`
-      : "N/A";
+    const schedule = courseInfoData.schedule;
 
     return [
       {
         label: "Duration",
-        value: courseInfo.duration || "N/A",
+        value: schedule.duration || "N/A",
       },
       {
         label: "Time",
-        value: courseInfo.fromTime || "N/A",
+        value: schedule.time || "N/A",
       },
       {
         label: "Period",
-        value: period,
+        value: schedule.period || "N/A",
       },
     ];
-  }, [courseInfo]);
+  }, [courseInfoData]);
 
   return (
     <SectionCard

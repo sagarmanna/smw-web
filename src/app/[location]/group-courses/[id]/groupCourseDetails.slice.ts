@@ -1,12 +1,14 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
-  getGroupCourseDetails, 
-  GroupCourseDetailsApiResponse,
+  getCourseInfo,
+  getCourseLessons,
+  CourseInfoResponse,
+  CourseLesson,
 } from './groupCourseDetails.api';
-import type { GroupCourseDetailsResponse } from './groupCourseDetails.api';
 
 interface GroupCourseState {
-  courseInfo: GroupCourseDetailsResponse | null;
+  courseInfoData: CourseInfoResponse | null; // Course info from /info endpoint
+  courseLessons: CourseLesson[]; // Lessons from /lessons endpoint
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -14,11 +16,9 @@ interface GroupCourseState {
   currentCourseId: number | null;
 }
 
-// Cache configuration - data is considered fresh for 5 minutes (300000ms)
-const STALE_TIME_MS = 5 * 60 * 1000;
-
 const initialState: GroupCourseState = {
-  courseInfo: null,
+  courseInfoData: null,
+  courseLessons: [],
   isLoading: false,
   isSaving: false,
   error: null,
@@ -27,7 +27,9 @@ const initialState: GroupCourseState = {
 };
 
 /**
- * Fetches group course details from the API
+ * Fetches course info and lessons from the API
+ * Called once in page.tsx during initial page load
+ * Uses Promise.allSettled for graceful error handling - allows partial failures
  */
 export const fetchGroupCourse = createAsyncThunk(
   'groupCourse/fetchGroupCourse',
@@ -36,16 +38,51 @@ export const fetchGroupCourse = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await getGroupCourseDetails(location, courseId);
-      
-      if (response && response.success) {
-        return {
-          courseInfo: response.data.body,
-          fetchedAt: Date.now(),
-        };
+      // Fetch course info and lessons in parallel with graceful error handling
+      const parallelResults = await Promise.allSettled([
+        getCourseInfo(location, courseId),
+        getCourseLessons(location, courseId),
+      ]);
+
+      // Extract results from parallel calls
+      // Order: info, lessons
+      const infoResult = parallelResults[0];
+      const lessonsResult = parallelResults[1];
+
+      // Course Info API is required - fail if it fails
+      let courseInfoData: CourseInfoResponse | null = null;
+      if (infoResult.status === 'fulfilled') {
+        const info = infoResult.value;
+        if (info && info.success && info.data?.body) {
+          courseInfoData = info.data.body;
+        } else {
+          throw new Error(info?.message || 'Failed to fetch course info');
+        }
+      } else {
+        throw new Error(infoResult.reason instanceof Error 
+          ? infoResult.reason.message 
+          : 'Failed to fetch course info');
       }
 
-      return rejectWithValue(response?.message || 'Failed to fetch group course details');
+      // Lessons API is optional - log error but don't fail the entire fetch
+      let courseLessons: CourseLesson[] = [];
+      if (lessonsResult.status === 'fulfilled') {
+        const lessons = lessonsResult.value;
+        if (lessons && lessons.success && lessons.data?.body) {
+          courseLessons = lessons.data.body;
+        } else {
+          console.warn('Course Lessons API failed:', lessons?.message || 'Unknown error');
+        }
+      } else {
+        console.warn('Course Lessons API error:', lessonsResult.reason);
+      }
+
+      // Use API responses as-is (no recalculation)
+      return {
+        courseInfoData,
+        courseLessons,
+        fetchedAt: Date.now(),
+      };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch group course details');
     }
@@ -57,7 +94,8 @@ const groupCourseSlice = createSlice({
   initialState,
   reducers: {
     clearGroupCourse: (state) => {
-      state.courseInfo = null;
+      state.courseInfoData = null;
+      state.courseLessons = [];
       state.error = null;
       state.lastFetched = null;
       state.currentCourseId = null;
@@ -68,15 +106,29 @@ const groupCourseSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchGroupCourse.pending, (state) => {
+      .addCase(fetchGroupCourse.pending, (state, action) => {
+        // Track which course we're loading
+        const { courseId } = action.meta.arg as { location: string; courseId: number };
+        
+        // If switching to a different course, clear old data
+        if (state.currentCourseId !== null && state.currentCourseId !== courseId) {
+          state.courseInfoData = null;
+          state.courseLessons = [];
+          state.lastFetched = null;
+        }
+        
+        state.currentCourseId = courseId;
         state.isLoading = true;
         state.error = null;
       })
       .addCase(fetchGroupCourse.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.courseInfo = action.payload.courseInfo;
+        state.courseInfoData = action.payload.courseInfoData;
+        state.courseLessons = action.payload.courseLessons;
         state.lastFetched = action.payload.fetchedAt;
-        state.currentCourseId = action.payload.courseInfo.id;
+        // Use courseId from action meta arg
+        const { courseId } = action.meta.arg as { location: string; courseId: number };
+        state.currentCourseId = courseId;
         state.error = null;
       })
       .addCase(fetchGroupCourse.rejected, (state, action) => {

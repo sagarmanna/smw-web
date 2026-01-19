@@ -29,16 +29,17 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
   // Get loading and error from Redux - single source of truth
   const isLoading = useAppSelector((state) => state.groupCourse.isLoading);
   const error = useAppSelector((state) => state.groupCourse.error);
-  const courseInfo = useAppSelector((state) => state.groupCourse.courseInfo);
+  const courseInfoData = useAppSelector((state) => state.groupCourse.courseInfoData);
+  const courseLessons = useAppSelector((state) => state.groupCourse.courseLessons);
   const lessonData = useAppSelector((state) => state.groupCourseTabs.lessonData);
   
   const { handlePrint: printReport } = usePrintReport();
 
   // All hooks must be called before any early returns
   const pageTitle = React.useMemo(() => {
-    if (!courseInfo) return `Group Course #${id}`;
-    return courseInfo.course;
-  }, [courseInfo, id]);
+    if (!courseInfoData || !courseInfoData.course) return `Group Course #${id}`;
+    return courseInfoData.course.program || `Group Course #${id}`;
+  }, [courseInfoData, id]);
 
   const breadcrumbItems = React.useMemo(
     () => [
@@ -80,12 +81,13 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
   }, [location, courseId, router]);
 
   const handlePrint = React.useCallback(() => {
-    if (!courseInfo) return;
+    if (!courseInfoData || !courseInfoData.course) return;
 
-    // Format date range
-    const dateRange = courseInfo.startDate && courseInfo.endDate
-      ? `${formatDisplayDate(courseInfo.startDate)}-${formatDisplayDate(courseInfo.endDate)}`
-      : "";
+    const course = courseInfoData.course;
+    const schedule = courseInfoData.schedule;
+
+    // Format date range from schedule period
+    const dateRange = schedule?.period || "";
 
     // Format lessons data for printing - just date without time
     const formattedLessons = lessonData.map((lesson) => {
@@ -102,7 +104,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
       }
 
       return {
-        teacherName: courseInfo.teacher,
+        teacherName: course.teacher || "N/A",
         date: formattedDate,
         status: lesson.status,
       };
@@ -131,7 +133,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Group Course - ${courseInfo.course}</title>
+          <title>Group Course - ${course.program || "N/A"}</title>
           <style>
             @page { size: A4; margin: 0.5in; }
             body { 
@@ -176,10 +178,10 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
         </head>
         <body>
           <div class="course-header">
-            <h1>${courseInfo.course}</h1>
+            <h1>${course.program || "N/A"}</h1>
             <div class="course-details">${dateRange}</div>
-            <div class="course-details"><strong>Duration:</strong> ${courseInfo.duration}</div>
-            <div class="course-details"><strong>Time:</strong> ${courseInfo.fromTime}</div>
+            <div class="course-details"><strong>Duration:</strong> ${schedule?.duration || "N/A"}</div>
+            <div class="course-details"><strong>Time:</strong> ${schedule?.time || "N/A"}</div>
           </div>
           <table>
             <thead>
@@ -206,7 +208,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
 
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-  }, [courseInfo, lessonData, toast]);
+  }, [courseInfoData, lessonData, toast]);
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
@@ -229,9 +231,9 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
   );
 
   // Error state - show error but still render cards with skeleton
-  const showError = error && !courseInfo;
+  const showError = error && !courseInfoData;
 
-  if (isLoading && !courseInfo) {
+  if (isLoading && !courseInfoData) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <LoadingAnimation size="xl" text="Loading group course..." className="text-center" />
@@ -239,7 +241,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
     );
   }
 
-  if (!courseInfo && !isLoading) {
+  if (!courseInfoData && !isLoading) {
     return (
       <div className="space-y-4 bg-white px-2 sm:px-3">
         <ErrorDisplay
@@ -277,12 +279,12 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
         <div className="space-y-3 sm:space-y-4 mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <GroupCourseDetailsCard
-              courseInfo={courseInfo}
+              courseInfoData={courseInfoData}
               isLoading={isLoading}
             />
 
             <GroupCourseScheduleCard
-              courseInfo={courseInfo}
+              courseInfoData={courseInfoData}
               isLoading={isLoading}
             />
           </div>
@@ -296,7 +298,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
         title="Are you sure you want to delete this group course?"
-        description={`This will permanently delete the group course "${courseInfo?.course}". This action cannot be undone.`}
+        description={`This will permanently delete the group course "${courseInfoData?.course?.program || `#${id}`}". This action cannot be undone.`}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
       />
