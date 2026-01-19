@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { LessonData, StudentData, HistoryData } from './groupCourseTabConfigs';
-import type { CourseLesson } from './groupCourseDetails.api';
+import type { CourseLesson, CourseStudent, CourseHistory } from './groupCourseDetails.api';
 
 interface GroupCourseTabsState {
   lessonData: LessonData[];
@@ -32,61 +32,36 @@ const transformCourseLessonsToLessonData = (courseLessons: CourseLesson[]): Less
   }));
 };
 
-const generateMockStudents = (): StudentData[] => {
-  return [
-    {
-      id: "1",
-      studentName: "Aisha Lee",
-      customerName: "Aisha Lee",
-      discount: "Not set",
-    },
-    {
-      id: "2",
-      studentName: "Astudent A",
-      customerName: "Acustomer A",
-      discount: "$10",
-    },
-    {
-      id: "3",
-      studentName: "Hero 123",
-      customerName: "1234 123",
-      discount: "Not set",
-    },
-    {
-      id: "4",
-      studentName: "Anna Winston",
-      customerName: "Anna Winston",
-      discount: "$5",
-    },
-    {
-      id: "5",
-      studentName: "Alicia Jones",
-      customerName: "Alicia Jones",
-      discount: "Not set",
-    },
-  ];
+/**
+ * Transforms CourseStudent from API to StudentData format
+ * Uses API response as-is (no recalculation)
+ */
+const transformCourseStudentsToStudentData = (courseStudents: CourseStudent[]): StudentData[] => {
+  return courseStudents.map((student) => ({
+    id: student.id.toString(),
+    studentName: student.studentName || "N/A",
+    customerName: student.customerName || "N/A",
+    discount: student.discount || "Not set",
+    // Preserve raw IDs for navigation to details pages
+    studentId: student.studentId,
+    customerId: student.customerId,
+  }));
 };
 
-const generateMockHistory = (): HistoryData[] => {
-  return [
-    {
-      id: "1",
-      message: "Group course created on Oct 18, 2025",
-    },
-    {
-      id: "2",
-      message: "Schedule updated on Oct 20, 2025",
-    },
-    {
-      id: "3",
-      message: "Student Aisha Lee enrolled on Oct 22, 2025",
-    },
-  ];
+/**
+ * Transforms CourseHistory from API to HistoryData format
+ * Uses API message as-is for display (no extra formatting)
+ */
+const transformCourseHistoryToHistoryData = (courseHistory: CourseHistory[]): HistoryData[] => {
+  return courseHistory.map((item) => ({
+    id: item.id.toString(),
+    message: item.message || "",
+  }));
 };
 
 /**
  * Fetches group course tabs data
- * Uses courseLessons from groupCourseDetails slice (already fetched in page.tsx)
+ * Uses courseLessons, courseStudents, and courseHistory from groupCourseDetails slice (already fetched in page.tsx)
  */
 export const fetchGroupCourseTabsData = createAsyncThunk(
   'groupCourseTabs/fetchGroupCourseTabsData',
@@ -95,9 +70,18 @@ export const fetchGroupCourseTabsData = createAsyncThunk(
     { getState, rejectWithValue }
   ) => {
     try {
-      // Get courseLessons from groupCourseDetails slice (already fetched in page.tsx)
-      const state = getState() as { groupCourse: { courseLessons: CourseLesson[]; currentCourseId: number | null } };
+      // Get courseLessons, courseStudents, and courseHistory from groupCourseDetails slice (already fetched in page.tsx)
+      const state = getState() as { 
+        groupCourse: { 
+          courseLessons: CourseLesson[]; 
+          courseStudents: CourseStudent[];
+          courseHistory: CourseHistory[];
+          currentCourseId: number | null;
+        } 
+      };
       const courseLessons = state.groupCourse.courseLessons;
+      const courseStudents = state.groupCourse.courseStudents;
+      const courseHistory = state.groupCourse.courseHistory;
       const currentCourseId = state.groupCourse.currentCourseId;
 
       // Only use lessons if they're for the current course
@@ -106,10 +90,22 @@ export const fetchGroupCourseTabsData = createAsyncThunk(
         lessonData = transformCourseLessonsToLessonData(courseLessons);
       }
 
+      // Only use students if they're for the current course
+      let studentData: StudentData[] = [];
+      if (courseStudents && courseStudents.length > 0 && currentCourseId === courseId) {
+        studentData = transformCourseStudentsToStudentData(courseStudents);
+      }
+
+      // Only use history if it's for the current course
+      let historyData: HistoryData[] = [];
+      if (courseHistory && courseHistory.length > 0 && currentCourseId === courseId) {
+        historyData = transformCourseHistoryToHistoryData(courseHistory);
+      }
+
       return {
         lessonData,
-        studentData: generateMockStudents(),
-        historyData: generateMockHistory(),
+        studentData,
+        historyData,
         courseId,
       };
     } catch (error) {

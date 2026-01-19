@@ -7,6 +7,8 @@ export type {
 export type {
   CourseInfoResponse,
   CourseLesson,
+  CourseStudent,
+  CourseHistory,
 } from './groupCourseDetails.api';
 
 // Group course detail specific interfaces

@@ -66,6 +66,47 @@ export interface CourseLessonsApiResponse {
   message?: string;
 }
 
+// Course Students API Response Types
+export interface CourseStudent {
+  id: number;
+  studentId: number;
+  customerId: number;
+  studentName: string;
+  customerName: string;
+  discount: string;
+}
+
+export interface CourseStudentsApiResponse {
+  success: boolean;
+  data: {
+    body: CourseStudent[];
+  };
+  message?: string;
+}
+
+// Course History API Response Types
+export interface CourseHistory {
+  id: number;
+  message: string;
+  createdOn: string;
+}
+
+interface CourseHistoryApiResponsePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface CourseHistoryApiResponse {
+  success: boolean;
+  data: {
+    body: CourseHistory[];
+    pagination: CourseHistoryApiResponsePagination;
+  };
+  message?: string;
+}
+
 /**
  * Fetches course info from the API
  * Endpoint: GET /admin/v2/${location}/course/{courseId}/info
@@ -138,48 +179,82 @@ export async function getCourseLessons(
   }
 }
 
-// Mock implementation - replace with actual API call
-export async function getGroupCourseDetails(
+/**
+ * Fetches course students from the API
+ * Endpoint: GET /admin/v2/{location}/course/{courseId}/students
+ * 
+ * @param location - The location identifier 
+ * @param courseId - The course ID
+ * @returns Promise resolving to the students response or null on error
+ */
+export async function getCourseStudents(
   location: string,
   courseId: number
-): Promise<GroupCourseDetailsApiResponse | null> {
+): Promise<CourseStudentsApiResponse | null> {
   try {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Mock data - in real implementation, fetch from API
-    const mockCourse: GroupCourseDetailsResponse = {
-      id: courseId,
-      course: "Band",
-      teacher: "Daniel Clain",
-      teacherId: 1,
-      rate: 450.00,
-      fromTime: "07:30 PM",
-      duration: "01:30",
-      startDate: "2025-10-18",
-      endDate: "2026-01-03",
-      program: "Band",
-      programId: 1,
-      status: "Active",
-      isOnline: false,
-    };
-
-    return {
-      success: true,
-      message: "Group course details fetched successfully",
-      data: {
-        body: mockCourse,
-      },
-    };
+    const response = await apiClient.get<CourseStudentsApiResponse>(
+      `/admin/v2/${location}/course/${courseId}/students`
+    );
+    
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+    
+    return response.data;
   } catch (error: unknown) {
-    console.error("Error fetching group course details:", error);
+    console.error("Error fetching course students:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
-      message: "Failed to fetch group course details",
       data: {
-        body: {} as GroupCourseDetailsResponse,
+        body: [],
       },
+      message: apiError.response?.data?.message || "Failed to fetch course students",
     };
+  }
+}
+
+/**
+ * Fetches course history from the API
+ * Endpoint: GET /admin/v2/{location}/history?type=course&id={courseId}&page={page}
+ *
+ * @param location - The location identifier
+ * @param courseId - The course ID
+ * @param page - The page number for pagination (default: 1)
+ * @returns Promise resolving to the history response or null on error
+ */
+export async function getCourseHistory(
+  location: string,
+  courseId: number,
+  page: number = 1
+): Promise<CourseHistoryApiResponse | null> {
+  try {
+    const response = await apiClient.get<CourseHistoryApiResponse>(
+      `/admin/v2/${location}/history`,
+      {
+        params: {
+          type: "course",
+          id: courseId,
+          page,
+        },
+      }
+    );
+
+    if (!response.data.success || !response.data.data?.body) {
+      console.error("API returned unsuccessful response:", response.data);
+      return null;
+    }
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching course history:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    console.error(
+      "API Error:",
+      apiError.response?.data?.message || "Failed to fetch course history"
+    );
+    return null;
   }
 }
 

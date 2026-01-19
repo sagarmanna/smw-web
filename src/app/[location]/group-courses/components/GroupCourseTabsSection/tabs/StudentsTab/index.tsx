@@ -1,12 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ColumnDef } from "@tanstack/react-table";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
 import { Plus, Mail, Printer } from "lucide-react";
-import { studentColumns, StudentData } from "../../../../[id]/groupCourseTabConfigs";
+import { StudentData } from "../../../../[id]/groupCourseTabConfigs";
 import { fetchGroupCourseTabsData } from "../../../../[id]/groupCourseTabs.slice";
 import { GroupCourseStudentEnrolmentModal } from "../../../modals/GroupCourseStudentEnrolmentModal";
 
@@ -17,6 +19,7 @@ interface StudentsTabProps {
 
 export function StudentsTab({ location, courseId }: StudentsTabProps) {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const data = useAppSelector((state) => state.groupCourseTabs.studentData);
   const isLoading = useAppSelector((state) => state.groupCourseTabs.isLoading);
   const error = useAppSelector((state) => state.groupCourseTabs.error);
@@ -30,52 +33,105 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
     }
   }, [location, courseId, dispatch, currentCourseId]);
 
-  const columnsWithActions = [
-    ...studentColumns,
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }: { row: { original: StudentData } }) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => {
-              // TODO: Implement edit discount
-              console.log("Edit discount for", row.original.studentName);
-            }}
-          >
-            Edit Discount
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => {
-              // TODO: Implement email
-              console.log("Email", row.original.studentName);
-            }}
-          >
-            <Mail className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => {
-              // TODO: Implement print
-              console.log("Print", row.original.studentName);
-            }}
-          >
-            <Printer className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-      size: 200,
-      enableSorting: false,
-    },
-  ];
+  const baseColumns: ColumnDef<StudentData>[] = useMemo(
+    () => [
+      {
+        accessorKey: "studentName",
+        header: "Student Name",
+        cell: ({ row }) => {
+          const { studentName, studentId } = row.original;
+
+          if (!studentId) {
+            return studentName || "N/A";
+          }
+
+          return (
+            <span
+              onClick={() => router.push(`/${location}/students/${studentId}`)}
+              className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+            >
+              {studentName}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "customerName",
+        header: "Customer Name",
+        cell: ({ row }) => {
+          const { customerName, customerId } = row.original;
+
+          if (!customerId) {
+            return customerName || "N/A";
+          }
+
+          return (
+            <span
+              onClick={() => router.push(`/${location}/customers/${customerId}`)}
+              className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+            >
+              {customerName}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "discount",
+        header: "Discount",
+      },
+    ],
+    [router, location]
+  );
+
+  const columnsWithActions: ColumnDef<StudentData>[] = useMemo(
+    () => [
+      ...baseColumns,
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }: { row: { original: StudentData } }) => (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => {
+                // TODO: Implement edit discount
+                console.log("Edit discount for", row.original.studentName);
+              }}
+            >
+              Edit Discount
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                // TODO: Implement email
+                console.log("Email", row.original.studentName);
+              }}
+            >
+              <Mail className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                // TODO: Implement print
+                console.log("Print", row.original.studentName);
+              }}
+            >
+              <Printer className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+        size: 200,
+        enableSorting: false,
+      },
+    ],
+    [baseColumns]
+  );
 
   return (
     <>
