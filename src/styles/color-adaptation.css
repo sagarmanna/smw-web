@@ -1,0 +1,81 @@
+/**
+ * Color Adaptation Styles
+ * 
+ * Automatically fixes invisible text colors in dark/light mode.
+ * This ensures text remains readable regardless of theme.
+ * 
+ * Applied globally to all elements with inline color styles.
+ */
+
+/* ============================================
+   DARK MODE: Adjust very dark colors to be visible
+   ============================================ */
+
+/* Black text → Light gray */
+.dark [style*="color: rgb(0, 0, 0)"],
+.dark [style*="color:#000"],
+.dark [style*="color: #000"],
+.dark [style*="color:rgb(0,0,0)"],
+.dark [style*="color:#000000"],
+.dark [style*="color: #000000"],
+.dark span[style*="color: rgb(0, 0, 0)"],
+.dark span[style*="color:#000"],
+.dark span[style*="color: #000"],
+.dark span[style*="color:#000000"],
+.dark span[style*="color: #000000"] {
+  color: #E5E7EB !important; /* gray-200 */
+}
+
+/* Dark blue → Light blue */
+.dark [style*="color: rgb(0, 0, 128)"],
+.dark [style*="color:#000080"],
+.dark [style*="color: #000080"] {
+  color: #60A5FA !important; /* blue-400 */
+}
+
+/* Dark red → Light red */
+.dark [style*="color: rgb(128, 0, 0)"],
+.dark [style*="color:#800000"],
+.dark [style*="color: #800000"] {
+  color: #F87171 !important; /* red-400 */
+}
+
+/* Dark green → Light green */
+.dark [style*="color: rgb(0, 128, 0)"],
+.dark [style*="color:#008000"],
+.dark [style*="color: #008000"] {
+  color: #34D399 !important; /* green-400 */
+}
+
+/* ============================================
+   LIGHT MODE: Adjust very light colors to be visible
+   ============================================ */
+
+/* White text → Dark gray */
+.light [style*="color: rgb(255, 255, 255)"],
+.light [style*="color:#fff"],
+.light [style*="color: #fff"],
+.light [style*="color:#ffffff"],
+.light [style*="color: #ffffff"],
+.light [style*="color:rgb(255,255,255)"],
+.light span[style*="color: rgb(255, 255, 255)"],
+.light span[style*="color:#fff"],
+.light span[style*="color: #fff"],
+.light span[style*="color:#ffffff"],
+.light span[style*="color: #ffffff"] {
+  color: #374151 !important; /* gray-700 */
+}
+
+/* Light gray → Medium gray */
+.light [style*="color: rgb(192, 192, 192)"],
+.light [style*="color:#c0c0c0"],
+.light [style*="color: #c0c0c0"] {
+  color: #6B7280 !important; /* gray-500 */
+}
+
+/* Yellow → Amber */
+.light [style*="color: rgb(255, 255, 0)"],
+.light [style*="color:#ffff00"],
+.light [style*="color: #ffff00"] {
+  color: #F59E0B !important; /* amber-500 */
+}

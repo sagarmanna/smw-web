@@ -191,7 +191,7 @@ export const getReleaseNoteColumns = (
       return (
         <div className="py-2.5 align-top" role="textbox" aria-label="Notes">
           <div
-            className="text-sm text-muted-foreground [&_strong]:font-semibold [&_p]:mb-2 [&_p:last-child]:mb-0 [&_p]:leading-[1.6] break-words whitespace-normal [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:mt-1.5 [&_ol]:mb-1.5 [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mt-1.5 [&_ul]:mb-1.5 [&_li]:mb-1 [&_li]:leading-[1.6] [&_li]:pl-1 [&_mark]:rounded [&_mark]:px-0.5"
+            className="text-sm text-muted-foreground release-notes-content [&_strong]:font-semibold [&_p]:mb-2 [&_p:last-child]:mb-0 [&_p]:leading-[1.6] break-words whitespace-normal [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:mt-1.5 [&_ol]:mb-1.5 [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mt-1.5 [&_ul]:mb-1.5 [&_li]:mb-1 [&_li]:leading-[1.6] [&_li]:pl-1 [&_mark]:rounded [&_mark]:px-0.5"
             dangerouslySetInnerHTML={{ __html: sanitizedContent }}
             title={textContent}
             aria-label={textContent}

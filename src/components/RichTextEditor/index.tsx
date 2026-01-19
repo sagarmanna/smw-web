@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Underline } from "@tiptap/extension-underline";
@@ -57,9 +58,30 @@ const commonColors = [
   "#800000", "#008000", "#000080", "#808000", "#800080", "#008080", "#C0C0C0", "#808080",
 ];
 
+// Colors that should be hidden in dark mode (too dark to be visible)
+const darkModeHiddenColors = ["#000000", "#000080", "#800000", "#008000", "#808000"];
+
+// Colors that should be hidden in light mode (too light to be visible)
+const lightModeHiddenColors = ["#FFFFFF", "#C0C0C0", "#FFFF00", "#00FFFF"];
+
+/**
+ * Gets a filtered color palette based on current theme
+ * Filters out colors that would be invisible in the current theme
+ */
+const getFilteredColors = (isDarkMode: boolean): string[] => {
+  if (isDarkMode) {
+    // Hide very dark colors in dark mode
+    return commonColors.filter((color) => !darkModeHiddenColors.includes(color));
+  } else {
+    // Hide very light colors in light mode
+    return commonColors.filter((color) => !lightModeHiddenColors.includes(color));
+  }
+};
+
 export function RichTextEditor({
   value,
   onChange,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   mode = "simple", // Kept for backward compatibility
   placeholder = "Start typing...",
   minHeight = "200px",
@@ -68,12 +90,25 @@ export function RichTextEditor({
   errorMessage,
   disabled = false,
 }: RichTextEditorProps) {
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [textColor, setTextColor] = useState("#000000");
   const [bgColor, setBgColor] = useState("#ffffff");
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+
+  // Determine if we're in dark mode
+  const isDarkMode = mounted && (resolvedTheme === "dark" || theme === "dark");
+
+  // Get filtered colors based on theme
+  const filteredColors = getFilteredColors(isDarkMode);
+
+  // Handle mount to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Use value directly - no conversion needed for simplified editor
   const convertedValue = value;
@@ -245,7 +280,7 @@ export function RichTextEditor({
             <PopoverContent className="w-64 p-3">
               <div className="text-xs font-medium mb-2 text-muted-foreground">Text Color</div>
               <div className="grid grid-cols-8 gap-1.5 mb-3">
-                {commonColors.map((color) => (
+                {filteredColors.map((color) => (
                   <button
                     key={color}
                     type="button"
@@ -264,6 +299,11 @@ export function RichTextEditor({
                   onChange={(e) => setTextColorValue(e.target.value)}
                   className="h-10 w-full cursor-pointer"
                 />
+                <p className="text-xs text-muted-foreground">
+                  {isDarkMode 
+                    ? "Tip: Avoid very dark colors in dark mode" 
+                    : "Tip: Avoid very light colors in light mode"}
+                </p>
               </div>
             </PopoverContent>
           </Popover>
