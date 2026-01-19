@@ -30,6 +30,7 @@ import { useLocationAccess } from "@/hooks/useLocationAccess";
 import { useLocationFeatures } from "@/hooks/useLocationFeatures";
 import { getCurrentPageFeature, getLegacyUrl } from "@/utils/pageFeatureDetection";
 import { getLegacyUrl as getLegacyUrlForRoute } from "@/utils/legacyRouteMapper";
+import { isDev } from "@/utils/env";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -355,7 +356,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </Button>
 
           {/* Latest Features & Updates */}
-          <TooltipProvider>
+          {isDev() && (
+            <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 w-8 px-0" asChild>
@@ -369,6 +371,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          )}
 
           {/* User Profile Section */}
           <DropdownMenu>

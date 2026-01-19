@@ -665,6 +665,153 @@ export interface AdjustEndDateResponse {
   message?: string;
 }
 
+// Adjust End Date Preview API Types
+export interface PreviewItem {
+  objects: string;
+  action: string;
+  date_range: string;
+}
+
+export interface AdjustEndDatePreviewResponse {
+  success: boolean;
+  data: {
+    action: 'shrink' | 'extend' | null;
+    dateRange: string | null;
+    previewItems: PreviewItem[];
+  };
+  message?: string;
+}
+
+/**
+ * Gets preview of what will be affected when adjusting private enrolment end date
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/adjust-end-date-preview?endDate=YYYY-MM-DD
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param endDate - The new end date in YYYY-MM-DD format
+ * @returns Promise resolving to the preview response or null on error
+ */
+export async function getAdjustEndDatePreview(
+  location: string,
+  enrolmentId: string,
+  endDate: string
+): Promise<AdjustEndDatePreviewResponse | null> {
+  try {
+    const url = `/admin/v2/${location}/enrolments/${enrolmentId}/adjust-end-date-preview`;
+    console.log("Calling preview API:", url, "with endDate:", endDate);
+    const response = await apiClient.get<AdjustEndDatePreviewResponse>(
+      url,
+      {
+        params: {
+          endDate,
+        },
+      }
+    );
+    console.log("Preview API response:", response.data);
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error getting adjust end date preview:", error);
+    const apiError = error as { 
+      response?: { 
+        data?: { message?: string };
+        status?: number;
+        statusText?: string;
+      };
+      message?: string;
+      code?: string;
+    };
+    
+    // Log more details about the error
+    if (apiError.response) {
+      console.error("API Error Response:", {
+        status: apiError.response.status,
+        statusText: apiError.response.statusText,
+        data: apiError.response.data,
+      });
+    } else {
+      console.error("Network Error Details:", {
+        message: apiError.message,
+        code: apiError.code,
+      });
+    }
+    
+    return {
+      success: false,
+      data: {
+        action: null,
+        dateRange: null,
+        previewItems: [],
+      },
+      message: apiError.response?.data?.message || apiError.message || "Failed to get preview",
+    };
+  }
+}
+
+/**
+ * Gets preview of what will be affected when adjusting group enrolment end date
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/adjust-group-end-date-preview?endDate=YYYY-MM-DD
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param endDate - The new end date in YYYY-MM-DD format
+ * @returns Promise resolving to the preview response or null on error
+ */
+export async function getGroupAdjustEndDatePreview(
+  location: string,
+  enrolmentId: string,
+  endDate: string
+): Promise<AdjustEndDatePreviewResponse | null> {
+  try {
+    const url = `/admin/v2/${location}/enrolments/${enrolmentId}/adjust-group-end-date-preview`;
+    console.log("Calling group preview API:", url, "with endDate:", endDate);
+    const response = await apiClient.get<AdjustEndDatePreviewResponse>(
+      url,
+      {
+        params: {
+          endDate,
+        },
+      }
+    );
+    console.log("Group preview API response:", response.data);
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error getting group adjust end date preview:", error);
+    const apiError = error as { 
+      response?: { 
+        data?: { message?: string };
+        status?: number;
+        statusText?: string;
+      };
+      message?: string;
+      code?: string;
+    };
+    
+    // Log more details about the error
+    if (apiError.response) {
+      console.error("API Error Response:", {
+        status: apiError.response.status,
+        statusText: apiError.response.statusText,
+        data: apiError.response.data,
+      });
+    } else {
+      console.error("Network Error Details:", {
+        message: apiError.message,
+        code: apiError.code,
+      });
+    }
+    
+    return {
+      success: false,
+      data: {
+        action: null,
+        dateRange: null,
+        previewItems: [],
+      },
+      message: apiError.response?.data?.message || apiError.message || "Failed to get preview",
+    };
+  }
+}
+
 /**
  * Adjusts private enrolment end date via POST API
  * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/adjust-end-date
@@ -1084,6 +1231,84 @@ export async function deleteGroupEnrolment(
     return {
       success: false,
       message: apiError.response?.data?.message || "Failed to delete group enrolment",
+    };
+  }
+}
+
+// Delete Preview Types
+export interface DeletePreviewItem {
+  objects: string;
+  action: string;
+  date_range: string;
+}
+
+export interface DeletePreviewPayment {
+  amount: number;
+  type: string;
+  reference: string | null;
+}
+
+export interface EnrolmentDeletePreviewResponse {
+  success: boolean;
+  data?: {
+    previewItems: DeletePreviewItem[];
+    payments: DeletePreviewPayment[];
+    dateRange: string;
+  };
+  message?: string;
+}
+
+/**
+ * Gets the delete preview for an enrolment
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/delete-preview
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the delete preview response
+ */
+export async function getEnrolmentDeletePreview(
+  location: string,
+  enrolmentId: string
+): Promise<EnrolmentDeletePreviewResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentDeletePreviewResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/delete-preview`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error getting delete preview:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to get delete preview",
+    };
+  }
+}
+
+/**
+ * Full delete enrolment - deletes enrolment with all transactional data
+ * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/full-delete
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteEnrolmentFull(
+  location: string,
+  enrolmentId: string
+): Promise<DeleteEnrolmentResponse | null> {
+  try {
+    const response = await apiClient.post<DeleteEnrolmentResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/full-delete`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to fully delete enrolment",
     };
   }
 }
