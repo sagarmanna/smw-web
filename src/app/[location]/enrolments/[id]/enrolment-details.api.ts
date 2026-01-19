@@ -1026,6 +1026,11 @@ export async function updateEnrolmentPaymentFrequency(
 // Delete Enrolment API Types
 export interface DeleteEnrolmentResponse {
   success: boolean;
+  data?: {
+    status: boolean;
+    url?: string;
+    message?: string;
+  };
   message?: string;
 }
 
@@ -1045,13 +1050,40 @@ export async function deleteEnrolment(
     const response = await apiClient.delete<DeleteEnrolmentResponse>(
       `/admin/v2/${location}/enrolments/${enrolmentId}`
     );
+    
     return response.data;
   } catch (error: unknown) {
-    console.error("Error deleting enrolment:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
       message: apiError.response?.data?.message || "Failed to delete enrolment",
+    };
+  }
+}
+
+/**
+ * Deletes a group enrolment via DELETE API
+ * Endpoint: DELETE /admin/v2/{location}/enrolments/{enrolmentId}/group
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteGroupEnrolment(
+  location: string,
+  enrolmentId: string
+): Promise<DeleteEnrolmentResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteEnrolmentResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/group`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to delete group enrolment",
     };
   }
 }
