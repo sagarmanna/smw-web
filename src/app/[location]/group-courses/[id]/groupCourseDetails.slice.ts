@@ -9,6 +9,7 @@ import {
 interface GroupCourseState {
   courseInfoData: CourseInfoResponse | null; // Course info from /info endpoint
   courseLessons: CourseLesson[]; // Lessons from /lessons endpoint
+  // Note: Students and history are managed in groupCourseTabs slice (lazy loaded when tabs open)
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -29,6 +30,7 @@ const initialState: GroupCourseState = {
 /**
  * Fetches course info and lessons from the API
  * Called once in page.tsx during initial page load
+ * Note: Students and history are fetched separately when their tabs are opened (lazy loading)
  * Uses Promise.allSettled for graceful error handling - allows partial failures
  */
 export const fetchGroupCourse = createAsyncThunk(
@@ -39,6 +41,7 @@ export const fetchGroupCourse = createAsyncThunk(
   ) => {
     try {
       // Fetch course info and lessons in parallel with graceful error handling
+      // Note: Students and history are fetched separately when their tabs are opened (lazy loading)
       const parallelResults = await Promise.allSettled([
         getCourseInfo(location, courseId),
         getCourseLessons(location, courseId),
@@ -71,10 +74,10 @@ export const fetchGroupCourse = createAsyncThunk(
         if (lessons && lessons.success && lessons.data?.body) {
           courseLessons = lessons.data.body;
         } else {
-          console.warn('Course Lessons API failed:', lessons?.message || 'Unknown error');
+          console.warn('[groupCourse] Course Lessons API failed:', lessons?.message || 'Unknown error');
         }
       } else {
-        console.warn('Course Lessons API error:', lessonsResult.reason);
+        console.warn('[groupCourse] Course Lessons API error:', lessonsResult.reason);
       }
 
       // Use API responses as-is (no recalculation)

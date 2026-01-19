@@ -14,6 +14,14 @@ export interface StudentData {
   studentName: string;
   customerName: string;
   discount: string;
+  /**
+   * Raw studentId from the API (used for navigation)
+   */
+  studentId?: number;
+  /**
+   * Raw customerId from the API (used for navigation)
+   */
+  customerId?: number;
 }
 
 export interface HistoryData {
