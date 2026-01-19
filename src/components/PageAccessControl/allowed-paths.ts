@@ -1,6 +1,7 @@
 // Constants for better maintainability
 export const ALLOWED_PATHS: string[] = [
     '/referral-source',
+    '/latest-updates',
     '/locations',
     '/reminder-notes',
     '/terms-of-service',

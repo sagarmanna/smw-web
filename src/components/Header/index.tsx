@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Menu, User, LogOut, Sun, Moon, MapPin } from "lucide-react";
+import { Menu, User, LogOut, Sun, Moon, MapPin, Newspaper } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Image from "next/image";
 import Link from "next/link";
@@ -353,6 +353,22 @@ export default function Header({ onMenuClick }: HeaderProps) {
             )}
             <span className="sr-only">Toggle theme</span>
           </Button>
+
+          {/* Latest Features & Updates */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 px-0" asChild>
+                  <Link href={`/${location}/latest-updates`} aria-label="SMW Latest Features & Updates">
+                    <Newspaper className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Latest Features &amp; Updates</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* User Profile Section */}
           <DropdownMenu>
