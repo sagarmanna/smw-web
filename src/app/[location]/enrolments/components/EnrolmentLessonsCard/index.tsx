@@ -68,6 +68,19 @@ export const EnrolmentLessonsCard = React.memo(function EnrolmentLessonsCard({
     const url = `${legacyBase}/${location}/lesson/index?LessonSearch[studentId]=${studentId}&LessonSearch[programId]=${programId}&LessonSearch[type]=1&LessonSearch[student]=${encodedStudentName}&LessonSearch[isSeeMore]=1`;
     window.location.href = url;
   }, [location, studentId, programId, studentName]);
+
+  // Handle row click to redirect to legacy lesson view
+  const handleRowClick = React.useCallback(
+    (row: EnrolmentLesson) => {
+      if (!location || !row.id) return;
+      
+      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      const url = `${legacyBase}/${location}/lesson/view?id=${row.id}`;
+      window.location.href = url;
+    },
+    [location]
+  );
+
   const columns = React.useMemo<ColumnDef<EnrolmentLesson>[]>(() => [
     {
       accessorKey: "dueDate",
@@ -156,6 +169,8 @@ export const EnrolmentLessonsCard = React.memo(function EnrolmentLessonsCard({
             enableRowsPerPage={false}
             enablePrint={false}
             isLoading={isLoading || lessonsLoading}
+            onRowClick={handleRowClick}
+            rowClassName="cursor-pointer"
             customLoadingState={
               <div role="status" aria-label="Loading lessons data">
                 <LoadingAnimation 
