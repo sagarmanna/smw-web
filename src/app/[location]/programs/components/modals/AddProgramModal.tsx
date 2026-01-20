@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GenericCrudModal, CrudModalConfig } from "@/components/GenericCrudModal";
 import { createProgram, updateProgram, deleteProgram, ProgramRow, CreateProgramRequest, UpdateProgramRequest } from "../../programs.api";
+import { parseRateInputToNumber, programStatusApiToUi, programStatusUiToApi, programTypeUiToApi } from "../../utils/programsUtils";
 
 interface AddProgramModalProps {
   isOpen: boolean;
@@ -57,33 +58,29 @@ export function AddProgramModal({
     onUpdate: updateProgram,
     onDelete: deleteProgram,
     buildCreateRequest: (formData: ProgramFormData): CreateProgramRequest => {
-      const rate = parseFloat(formData.rate) || 0;
       return {
         name: formData.name.trim(),
-        ...(programType === "PRIVATE" ? { ratePerHour: rate } : { ratePerCourse: rate }),
-        type: programType,
-        isActive: formData.status === "active",
+        rate: parseRateInputToNumber(formData.rate),
+        status: programStatusUiToApi(formData.status as "active" | "inactive"),
+        type: programTypeUiToApi(programType),
       };
     },
     buildUpdateRequest: (formData: ProgramFormData, id: number): UpdateProgramRequest => {
-      const rate = parseFloat(formData.rate) || 0;
       return {
         id,
         name: formData.name.trim(),
-        ...(programType === "PRIVATE" ? { ratePerHour: rate } : { ratePerCourse: rate }),
-        type: programType,
-        isActive: formData.status === "active",
+        rate: parseRateInputToNumber(formData.rate),
+        status: programStatusUiToApi(formData.status as "active" | "inactive"),
+        type: programTypeUiToApi(programType),
       };
     },
     initializeFormData: (row: ProgramRow): ProgramFormData => {
-      const rate = programType === "PRIVATE" 
-        ? (row.ratePerHour?.toString() || "") 
-        : (row.ratePerCourse?.toString() || "");
-      
+      const rate = row.rate || "";
+
       return {
         name: row.name || "",
         rate,
-        status: row.isActive === false ? "inactive" : "active",
+        status: programStatusApiToUi(row.status),
       };
     },
     getDefaultFormData: (): ProgramFormData => ({
@@ -96,7 +93,7 @@ export function AddProgramModal({
       if (!formData.name.trim()) {
         errors.name = "Name cannot be blank.";
       }
-      if (!formData.rate || parseFloat(formData.rate) <= 0) {
+      if (parseRateInputToNumber(formData.rate) <= 0) {
         errors.rate = "Rate cannot be blank.";
       }
       return errors;
@@ -114,7 +111,7 @@ export function AddProgramModal({
       config={config}
     >
       {({ formData, errors, isBusy, handleInputChange }) => {
-        const rate = parseFloat(formData.rate) || 0;
+        const rate = parseRateInputToNumber(formData.rate);
         
         // Calculate lesson rates and monthly costs
         let calculations: {
