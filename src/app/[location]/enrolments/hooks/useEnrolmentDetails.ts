@@ -268,13 +268,26 @@ export function useEnrolmentDetails(
   const saveDiscounts = React.useCallback(
     async (discounts: Partial<EnrolmentDiscounts>): Promise<boolean> => {
       try {
+        // Get enrolment type to determine which API endpoint to use
+        const currentEnrolmentType = enrolmentInfo?.details?.type || 'private';
+        
         await dispatch(
           updateDiscounts({
             location,
             enrolmentId,
             data: discounts,
+            enrolmentType: currentEnrolmentType as 'private' | 'group',
           })
         ).unwrap();
+        
+        // Force refresh enrolment data to get updated lesson prices after discount changes
+        // This clears cache and fetches fresh data including lessons with updated prices
+        await forceRefresh();
+        
+        // For group enrolments, also refresh the lessons list separately
+        if (currentEnrolmentType === "group") {
+          await fetchLessons(1, 10);
+        }
         
         toast.success("Discounts updated successfully");
         return true;
@@ -285,7 +298,7 @@ export function useEnrolmentDetails(
         return false;
       }
     },
-    [dispatch, location, enrolmentId]
+    [dispatch, location, enrolmentId, forceRefresh, fetchLessons, enrolmentInfo]
   );
 
   const savePaymentFrequency = React.useCallback(

@@ -20,6 +20,8 @@ interface EnrolmentDiscountsCardProps {
   savingDiscounts?: boolean;
   isLoading?: boolean;
   enrolmentType?: "private" | "group"; // Pass enrolment type for conditional rendering
+  location: string;
+  enrolmentId: string;
 }
 
 export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard({
@@ -30,6 +32,8 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
   savingDiscounts = false,
   isLoading = false,
   enrolmentType = "private", // Default to private if not provided
+  location,
+  enrolmentId,
 }: EnrolmentDiscountsCardProps) {
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
 
@@ -70,6 +74,49 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
     [onSaveDiscounts]
   );
 
+  const handleEditClick = React.useCallback(async () => {
+    if (!isDev()) {
+      toast.info("This feature is in development.");
+      return;
+    }
+
+    // Check validation before opening modal - call preview endpoint
+    // If preview fails with validation error, show error message
+    try {
+      const { getEnrolmentDiscountPreview } = await import('../../[id]/enrolment-details.api');
+      const previewResponse = await getEnrolmentDiscountPreview(location, enrolmentId);
+      
+      if (!previewResponse?.success) {
+        // Check if it's a validation error
+        const errorMessage = previewResponse?.message || "You can't edit discounts.";
+        if (errorMessage.includes("can't edit discounts")) {
+          toast.error(errorMessage);
+          return;
+        }
+      }
+      
+      // Validation passed, open modal
+      setIsEditModalOpen(true);
+    } catch (error: unknown) {
+      const apiError = error as {
+        response?: {
+          data?: { message?: string; errorCode?: string };
+          status?: number;
+        };
+        message?: string;
+      };
+      
+      const errorMessage = apiError.response?.data?.message || apiError.message || "You can't edit discounts.";
+      if (errorMessage.includes("can't edit discounts") || apiError.response?.status === 400) {
+        toast.error(errorMessage);
+        return;
+      }
+      
+      // Other errors - still open modal (might be network issue)
+      setIsEditModalOpen(true);
+    }
+  }, [location, enrolmentId]);
+
   return (
     <>
       <SectionCard
@@ -79,7 +126,7 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
         className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
         headerActions={
           <>
-            <EditButton onClick={() => isDev() ? setIsEditModalOpen(true) : toast.info("This feature is in development.")} />
+            <EditButton onClick={handleEditClick} />
           </>
         }
       />
@@ -93,6 +140,8 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
         onSubmit={handleSave}
         saving={savingDiscounts}
         enrolmentType={enrolmentType}
+        location={location}
+        enrolmentId={enrolmentId}
       />
     </>
   );

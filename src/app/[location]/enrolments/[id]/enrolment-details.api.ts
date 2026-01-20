@@ -12,6 +12,7 @@ export interface EnrolmentDiscountsResponse {
   pfDiscount?: string; // For private enrolments
   multipleEnrolDiscount?: string; // For private enrolments
   discount?: string; // For group enrolments (single discount field)
+  discountType?: number; // For group enrolments: 0 = percentage, 1 = dollar
 }
 
 export interface EnrolmentDetailsResponseBody {
@@ -1006,9 +1007,25 @@ export interface UpdateEnrolmentDiscountsResponse {
   message?: string;
 }
 
+// Update Group Enrolment Discount API Types
+export interface UpdateGroupEnrolmentDiscountRequest {
+  discount?: string;
+  discountType?: number; // 0 = percentage, 1 = dollar
+}
+
+export interface UpdateGroupEnrolmentDiscountResponse {
+  success: boolean;
+  data: {
+    id: number;
+    discount: string;
+    discountType: number;
+  };
+  message?: string;
+}
+
 /**
- * Updates enrolment discounts via PUT API
- * For now, returns mock response
+ * Updates enrolment discounts via POST API
+ * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/discounts
  * 
  * @param location - The location identifier
  * @param enrolmentId - The enrolment ID
@@ -1021,27 +1038,42 @@ export async function updateEnrolmentDiscounts(
   data: UpdateEnrolmentDiscountsRequest
 ): Promise<UpdateEnrolmentDiscountsResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.put<UpdateEnrolmentDiscountsResponse>(
-    //   `/admin/v2/${location}/enrolment/${enrolmentId}/discounts`,
-    //   data
-    // );
-    // return response.data;
-    
-    // For now, return mock response - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
+    const response = await apiClient.post<{
+      success: boolean;
       data: {
-        id: Number(enrolmentId) || 0,
-        pfDiscount: data.pfDiscount || "",
-        multipleEnrolDiscount: data.multipleEnrolDiscount || "",
-      },
-    };
+        status: boolean;
+        message?: string;
+      };
+      message?: string;
+    }>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/discounts`,
+      data
+    );
+    
+    if (response.data.success && response.data.data?.status) {
+      return {
+        success: true,
+        data: {
+          id: Number(enrolmentId) || 0,
+          pfDiscount: data.pfDiscount || "",
+          multipleEnrolDiscount: data.multipleEnrolDiscount || "",
+        },
+        message: response.data.data?.message || response.data.message,
+      };
+    } else {
+      return {
+        success: false,
+        data: {
+          id: Number(enrolmentId) || 0,
+          pfDiscount: "",
+          multipleEnrolDiscount: "",
+        },
+        message: response.data.data?.message || response.data.message || "Failed to update enrolment discounts",
+      };
+    }
   } catch (error: unknown) {
     console.error("Error updating enrolment discounts:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
     return {
       success: false,
       data: {
@@ -1050,6 +1082,69 @@ export async function updateEnrolmentDiscounts(
         multipleEnrolDiscount: "",
       },
       message: apiError.response?.data?.message || "Failed to update enrolment discounts",
+    };
+  }
+}
+
+/**
+ * Updates group enrolment discount via POST API
+ * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/group-discount
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param data - The discount data to update (discount, discountType)
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function updateGroupEnrolmentDiscount(
+  location: string,
+  enrolmentId: string,
+  data: UpdateGroupEnrolmentDiscountRequest
+): Promise<UpdateGroupEnrolmentDiscountResponse | null> {
+  try {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        status: boolean;
+        message?: string;
+      };
+      message?: string;
+    }>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/group-discount`,
+      data
+    );
+    
+    if (response.data.success && response.data.data?.status) {
+      return {
+        success: true,
+        data: {
+          id: Number(enrolmentId) || 0,
+          discount: data.discount || "",
+          discountType: data.discountType ?? 1,
+        },
+        message: response.data.data?.message || response.data.message,
+      };
+    } else {
+      return {
+        success: false,
+        data: {
+          id: Number(enrolmentId) || 0,
+          discount: "",
+          discountType: 1,
+        },
+        message: response.data.data?.message || response.data.message || "Failed to update group enrolment discount",
+      };
+    }
+  } catch (error: unknown) {
+    console.error("Error updating group enrolment discount:", error);
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(enrolmentId) || 0,
+        discount: "",
+        discountType: 1,
+      },
+      message: apiError.response?.data?.message || "Failed to update group enrolment discount",
     };
   }
 }
@@ -1309,6 +1404,55 @@ export async function deleteEnrolmentFull(
     return {
       success: false,
       message: apiError.response?.data?.message || "Failed to fully delete enrolment",
+    };
+  }
+}
+
+// Enrolment Discount Preview API Types
+export interface EnrolmentDiscountPreviewResponse {
+  success: boolean;
+  data?: {
+    previewItems: PreviewItem[];
+  };
+  message?: string;
+}
+
+/**
+ * Gets preview of what will be affected when editing enrolment discounts
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/discount-preview
+ * 
+ * @param location - The location identifier (e.g., "training-location")
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the preview response or null on error
+ */
+export async function getEnrolmentDiscountPreview(
+  location: string,
+  enrolmentId: string
+): Promise<EnrolmentDiscountPreviewResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentDiscountPreviewResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/discount-preview`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error getting enrolment discount preview:", error);
+    const apiError = error as { 
+      response?: { 
+        data?: { message?: string };
+        status?: number;
+        statusText?: string;
+      };
+      message?: string;
+      code?: string;
+    };
+    
+    return {
+      success: false,
+      data: {
+        previewItems: [],
+      },
+      message: apiError.response?.data?.message || apiError.message || "Failed to get preview",
     };
   }
 }
