@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -14,6 +14,9 @@ import { StudentData } from "../../../../[id]/groupCourseTabConfigs";
 import { fetchGroupCourseStudents } from "../../../../[id]/groupCourseTabs.slice";
 import { GroupCourseStudentEnrolmentModal } from "../../../modals/GroupCourseStudentEnrolmentModal";
 import { EditStudentDiscountModal, parseDiscountFromApi, type EditDiscountFormData } from "../../../modals/EditStudentDiscountModal";
+import { EmailModal, type EmailFormData } from "@/components/EmailModal";
+import { sendEmail } from "@/lib/api/legacyApiAdapter";
+import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
 import { toast } from "sonner";
 
 interface StudentsTabProps {
@@ -31,11 +34,41 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
   const [isEnrolmentModalOpen, setIsEnrolmentModalOpen] = useState(false);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailModalStudent, setEmailModalStudent] = useState<StudentData | null>(null);
+  const [customerEmails, setCustomerEmails] = useState<string[]>([]);
+  const [isLoadingEmails, setIsLoadingEmails] = useState(false);
 
   const currentPage = pagination?.page || 1;
   const totalPages = pagination?.totalPages || 1;
   const totalRows = pagination?.total || data.length;
   const rowsPerPage = pagination?.limit || data.length || 10;
+
+  // Fetch customer emails when email modal opens
+  useEffect(() => {
+    const fetchCustomerEmails = async () => {
+      if (isEmailModalOpen && emailModalStudent?.customerId) {
+        setIsLoadingEmails(true);
+        try {
+          const emails = await getCustomerEmailAddresses(
+            location,
+            emailModalStudent.customerId
+          );
+          setCustomerEmails(emails);
+        } catch (error) {
+          console.error("Error fetching customer emails:", error);
+          setCustomerEmails([]);
+        } finally {
+          setIsLoadingEmails(false);
+        }
+      } else if (!isEmailModalOpen) {
+        // Reset emails when modal closes
+        setCustomerEmails([]);
+      }
+    };
+
+    fetchCustomerEmails();
+  }, [isEmailModalOpen, emailModalStudent?.customerId, location]);
 
   const baseColumns: ColumnDef<StudentData>[] = useMemo(
     () => [
@@ -111,8 +144,8 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => {
-                // TODO: Implement email
-                console.log("Email", row.original.studentName);
+                setEmailModalStudent(row.original);
+                setIsEmailModalOpen(true);
               }}
             >
               <Mail className="h-4 w-4" />
@@ -258,6 +291,47 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
             : undefined
         }
         saving={false}
+      />
+
+      <EmailModal
+        open={isEmailModalOpen}
+        onOpenChange={setIsEmailModalOpen}
+        onSend={async (emailData: EmailFormData) => {
+          if (!emailModalStudent?.studentId) {
+            toast.error("Student ID is required to send email");
+            return;
+          }
+
+          try {
+            // Send email using legacy API
+            // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
+            const response = await sendEmail(location, {
+              objectId: 8, // Customer Statement
+              userId: emailModalStudent.studentId,
+              to: emailData.recipients,
+              subject: emailData.subject,
+              content: emailData.content,
+            });
+
+            if (response.status) {
+              toast.success("Email sent successfully");
+              setIsEmailModalOpen(false);
+              setEmailModalStudent(null);
+            } else {
+              const errorMessage = response.message || "Failed to send email";
+              toast.error(errorMessage);
+            }
+          } catch (error) {
+            console.error("Error sending email:", error);
+            const errorMessage =
+              error instanceof Error ? error.message : "Failed to send email";
+            toast.error(errorMessage);
+          }
+        }}
+        recipientEmails={customerEmails}
+        locationName={location}
+        initialSubject="Group Course Statement from Arcadia Academy of Music"
+        localStorageKey={`group-course-student-email-${courseId}-${emailModalStudent?.studentId || 'default'}`}
       />
     </>
   );
