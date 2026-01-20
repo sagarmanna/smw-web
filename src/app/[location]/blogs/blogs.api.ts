@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/client';
+import { FETCH_ALL_LIMIT } from "@/utils/api/createCrudApi";
 
 /**
  * Represents a single blog row in the listing table
@@ -121,10 +122,13 @@ export async function getBlogs(
   query: BlogsQuery
 ): Promise<BlogsListResponse> {
   try {
+    const isFetchAll = query.limit === -1;
+
     // Validate query parameters
     const validatedQuery: ValidatedBlogsQuery = {
       page: query.page && query.page > 0 ? query.page : 1,
-      limit: query.limit && query.limit > 0 && query.limit <= 100 ? query.limit : 20,
+      // Support CustomTable's "All" option which passes limit = -1
+      limit: isFetchAll ? FETCH_ALL_LIMIT : (query.limit && query.limit > 0 && query.limit <= 100 ? query.limit : 20),
       sort: query.sort?.trim() ? query.sort.trim() : undefined,
       order: query.order,
     };
