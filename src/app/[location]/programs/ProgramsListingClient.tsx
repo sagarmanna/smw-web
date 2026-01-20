@@ -34,6 +34,8 @@ export function ProgramsListingClient({ location }: ProgramsListingClientProps) 
     totalPages,
     isLoading,
     error,
+    sorting,
+    setSorting,
     page,
     setPage,
     pageSize,
@@ -52,6 +54,13 @@ export function ProgramsListingClient({ location }: ProgramsListingClientProps) 
   const handleTypeChange = (value: string) => {
     setActiveType(value as "PRIVATE" | "GROUP");
   };
+
+  const handleProgramsServerSideFilterChange = React.useCallback(
+    (nextFilter: string | undefined) => {
+      handleServerSideFilterChange(nextFilter);
+    },
+    [handleServerSideFilterChange]
+  );
 
   const openAddModal = () => {
     setSelectedProgram(null);
@@ -112,6 +121,12 @@ export function ProgramsListingClient({ location }: ProgramsListingClientProps) 
           size="compact"
           variant="default"
           stickyHeader={true}
+          manualSorting={true}
+          sorting={sorting}
+          onSortingChange={(s) => {
+            setSorting(s);
+            setPage(1);
+          }}
           enableSearch={false}
           enableFilter={true}
           serverSideFilterOptions={[
@@ -119,7 +134,7 @@ export function ProgramsListingClient({ location }: ProgramsListingClientProps) 
             { key: "inactive", label: "Inactive" },
           ]}
           activeServerSideFilter={activeFilter}
-          onServerSideFilterChange={handleServerSideFilterChange}
+          onServerSideFilterChange={handleProgramsServerSideFilterChange}
           enablePrint={false}
           enableRowsPerPage={true}
           enableColumnFilters={false}
