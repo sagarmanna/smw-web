@@ -8,7 +8,6 @@ import {
   setPage, 
   setPageSize, 
   setSorting, 
-  setColumnFilters,
   resetBlogsState
 } from "../blogsListing.slice";
 import { BlogsQuery } from "../blogs.api";
@@ -55,8 +54,6 @@ export function useBlogListing(location: string) {
   const hasInitialFetchedRef = React.useRef(false);
   // Track last location to detect location changes
   const lastLocationRef = React.useRef<string | null>(null);
-  // Store latest columnFilters in ref to avoid dependency in callbacks
-  const columnFiltersRef = React.useRef(columnFilters);
   // Track previous values to detect changes
   const prevParamsRef = React.useRef<{
     location: string;
@@ -79,8 +76,10 @@ export function useBlogListing(location: string) {
     return {
       page: currentPage,
       limit: currentPageSize,
+      sort: sortBy,
+      order: sortBy ? (sortDir === "asc" ? "ASC" : "DESC") : undefined,
     };
-  }, []);
+  }, [sortBy, sortDir]);
 
   /**
    * Manually triggers a data fetch (useful for retry scenarios)
@@ -92,11 +91,6 @@ export function useBlogListing(location: string) {
     const requestKey = `${location}-${page}-${pageSize}-${sortBy}-${sortDir}`;
     lastFetchRef.current = requestKey;
   }, [dispatch, location, page, pageSize, sortBy, sortDir]);
-
-  // Keep columnFilters ref in sync
-  React.useEffect(() => {
-    columnFiltersRef.current = columnFilters;
-  }, [columnFilters]);
 
   /**
    * Main effect for fetching data on mount and when dependencies change

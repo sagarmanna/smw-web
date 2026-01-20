@@ -83,7 +83,8 @@ export const blogColumns: ColumnDef<BlogRow>[] = [
         {row.original.date}
       </span>
     ),
-    enableSorting: false,
+    // Only Date column should be sortable
+    enableSorting: true,
     filter: {
       type: "string"
     },
