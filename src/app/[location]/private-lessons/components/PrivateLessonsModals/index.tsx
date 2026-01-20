@@ -9,7 +9,7 @@ import { EditOnlineTypeModal } from "../EditOnlineTypeModal";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { UnscheduleReasonModal } from "../UnscheduleReasonModal";
 import { BulkRescheduleModal } from "../BulkRescheduleModal";
-import EmailStatementModal, { type EmailFormData } from "@/app/[location]/customers/components/EmailStatementModal/index";
+import { EmailModal, type EmailFormData } from "@/components/EmailModal";
 
 interface PrivateLessonsModalsProps {
   location: string;
@@ -111,13 +111,12 @@ export function PrivateLessonsModals({
         cancelLabel="Cancel"
       />
 
-      <EmailStatementModal
+      <EmailModal
         open={modalState.isEmailModalOpen}
         onOpenChange={modalState.setIsEmailModalOpen}
         onSend={saveHandlers.handleSendEmail}
-        customerName={selectedLessons.length === 1 ? selectedLessons[0]?.student : undefined}
-        customerEmails={[]}
-        locationName=""
+        recipientEmails={[]}
+        locationName={location}
         initialSubject="Message from Arcadia Academy of Music"
         initialContent="<div></div>"
         privateLessonDueData={[]}
