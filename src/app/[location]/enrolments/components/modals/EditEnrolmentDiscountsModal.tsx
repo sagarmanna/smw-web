@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle } from "lucide-react";
 import { EnrolmentDiscounts, EnrolmentSchedule, EnrolmentDetails } from "../../types";
 import { ENROLMENT_CONSTANTS } from "../../utils/constants";
+import { getEnrolmentDiscountPreview, type PreviewItem } from "../../[id]/enrolment-details.api";
 
 interface EditEnrolmentDiscountsModalProps {
   open: boolean;
@@ -24,6 +25,8 @@ interface EditEnrolmentDiscountsModalProps {
   onSubmit: (discounts: Partial<EnrolmentDiscounts>) => Promise<boolean>;
   saving?: boolean;
   enrolmentType?: "private" | "group"; // Pass enrolment type for conditional rendering
+  location: string;
+  enrolmentId: string;
 }
 
 export function EditEnrolmentDiscountsModal({
@@ -35,6 +38,8 @@ export function EditEnrolmentDiscountsModal({
   onSubmit,
   saving = false,
   enrolmentType = "private", // Default to private if not provided
+  location,
+  enrolmentId,
 }: EditEnrolmentDiscountsModalProps) {
   // For group enrolments, use single discount field; for private, use two fields
   const [formData, setFormData] = React.useState({
@@ -48,6 +53,19 @@ export function EditEnrolmentDiscountsModal({
     multipleEnrolDiscount: "",
     discount: "",
   });
+
+  // Preview data state
+  const [previewData, setPreviewData] = React.useState<PreviewItem[] | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
+
+  /**
+   * Strips currency and percentage symbols from discount values for input display
+   */
+  const stripDiscountSymbols = React.useCallback((value: string): string => {
+    if (!value) return "";
+    // Remove $, %, and any whitespace
+    return value.replace(/[$%\s]/g, "").trim();
+  }, []);
 
   /**
    * Initializes form data based on enrolment type and discounts
@@ -69,7 +87,7 @@ export function EditEnrolmentDiscountsModal({
         // For group enrolments, use single discount field
         const discountValue =
           discounts.discount && discounts.discount !== ENROLMENT_CONSTANTS.DEFAULT_NOT_SET
-            ? discounts.discount
+            ? stripDiscountSymbols(discounts.discount)
             : "";
         const data = {
           pfDiscount: "",
@@ -80,14 +98,15 @@ export function EditEnrolmentDiscountsModal({
       }
 
       // For private enrolments, use PF Discount and Multiple Enrol. Discount
+      // Strip % from PF discount and $ from Multiple Enrolment discount
       const pfValue =
         discounts.pfDiscount && discounts.pfDiscount !== ENROLMENT_CONSTANTS.DEFAULT_NOT_SET
-          ? discounts.pfDiscount
+          ? stripDiscountSymbols(discounts.pfDiscount)
           : "";
       const multipleValue =
         discounts.multipleEnrolDiscount &&
         discounts.multipleEnrolDiscount !== ENROLMENT_CONSTANTS.DEFAULT_NOT_SET
-          ? discounts.multipleEnrolDiscount
+          ? stripDiscountSymbols(discounts.multipleEnrolDiscount)
           : "";
       const data = {
         pfDiscount: pfValue,
@@ -96,7 +115,7 @@ export function EditEnrolmentDiscountsModal({
       };
       return { formData: data, initialData: data };
     },
-    []
+    [stripDiscountSymbols]
   );
 
   React.useEffect(() => {
@@ -119,16 +138,33 @@ export function EditEnrolmentDiscountsModal({
     );
   }, [formData, initialData, enrolmentType]);
 
-  // Get date range for preview
-  const dateRange = React.useMemo(() => {
-    if (schedule?.startDate && schedule?.endDate) {
-      return `within ${schedule.startDate} - ${schedule.endDate}`;
+  // Fetch preview only once when modal opens
+  React.useEffect(() => {
+    if (!open) {
+      setPreviewData(null);
+      return;
     }
-    if (details?.rateFromDate && details?.rateToDate) {
-      return `within ${details.rateFromDate} - ${details.rateToDate}`;
-    }
-    return null;
-  }, [schedule, details]);
+
+    const fetchPreview = async () => {
+      setIsLoadingPreview(true);
+      try {
+        const response = await getEnrolmentDiscountPreview(location, enrolmentId);
+        if (response?.success && response.data?.previewItems) {
+          setPreviewData(response.data.previewItems);
+        } else {
+          setPreviewData(null);
+        }
+      } catch (error) {
+        console.error("Error loading discount preview:", error);
+        setPreviewData(null);
+      } finally {
+        setIsLoadingPreview(false);
+      }
+    };
+
+    // Fetch preview only once when modal opens
+    fetchPreview();
+  }, [open, location, enrolmentId]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -186,7 +222,7 @@ export function EditEnrolmentDiscountsModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pf-discount" className="text-green-600 dark:text-green-400 font-semibold">
-                  Payment Frequency Discount
+                  Payment Frequency Discount (%)
                 </Label>
                 <Input
                   id="pf-discount"
@@ -200,7 +236,7 @@ export function EditEnrolmentDiscountsModal({
 
               <div className="space-y-2">
                 <Label htmlFor="multiple-enrol-discount" className="font-semibold">
-                  Multiple Enrolment Discount
+                  Multiple Enrolment Discount ($)
                 </Label>
                 <Input
                   id="multiple-enrol-discount"
@@ -215,33 +251,37 @@ export function EditEnrolmentDiscountsModal({
           )}
 
           {/* Enrolment Edit Preview */}
-          {hasChanges && dateRange && (
+          {hasChanges && (
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Enrolment Edit Preview</h3>
-              <div className="border rounded-md overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium">Objects</th>
-                      <th className="px-3 py-2 text-left font-medium">Action</th>
-                      <th className="px-3 py-2 text-left font-medium">Date Range</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t">
-                      <td className="px-3 py-2 text-blue-600 dark:text-blue-400">
-                        Lessons&apos; Discount
-                      </td>
-                      <td className="px-3 py-2">
-                        will be modified
-                      </td>
-                      <td className="px-3 py-2 text-blue-600 dark:text-blue-400">
-                        {dateRange}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <label className="text-sm font-medium mb-2 block">Enrolment Edit Preview</label>
+              {isLoadingPreview ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">Loading preview...</div>
+              ) : previewData && previewData.length > 0 ? (
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left font-medium">Objects</th>
+                        <th className="px-4 py-2 text-left font-medium">Action</th>
+                        <th className="px-4 py-2 text-left font-medium">Date Range</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewData.map((item, index) => (
+                        <tr key={index} className="border-t dark:border-gray-700">
+                          <td className="px-4 py-2">{item.objects}</td>
+                          <td className="px-4 py-2">{item.action}</td>
+                          <td className="px-4 py-2">{item.date_range}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Unable to load preview
+                </div>
+              )}
             </div>
           )}
 

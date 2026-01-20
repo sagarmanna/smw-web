@@ -334,6 +334,8 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                 savingDiscounts={savingDetails}
                 isLoading={isLoading}
                 enrolmentType={enrolmentType}
+                location={location}
+                enrolmentId={id}
               />
 
               {/* Payment Frequency - Only show for private enrolments */}

@@ -276,6 +276,16 @@ export function useEnrolmentDetails(
           })
         ).unwrap();
         
+        // Force refresh enrolment data to get updated lesson prices after discount changes
+        // This clears cache and fetches fresh data including lessons with updated prices
+        await forceRefresh();
+        
+        // For group enrolments, also refresh the lessons list separately
+        const enrolmentType = enrolmentInfo?.details?.type;
+        if (enrolmentType === "group") {
+          await fetchLessons(1, 10);
+        }
+        
         toast.success("Discounts updated successfully");
         return true;
       } catch (error) {
@@ -285,7 +295,7 @@ export function useEnrolmentDetails(
         return false;
       }
     },
-    [dispatch, location, enrolmentId]
+    [dispatch, location, enrolmentId, forceRefresh, fetchLessons, enrolmentInfo]
   );
 
   const savePaymentFrequency = React.useCallback(
