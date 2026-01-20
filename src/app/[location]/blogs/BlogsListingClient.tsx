@@ -48,6 +48,8 @@ export function BlogsListingClient({ location }: BlogsClientProps) {
     fetchData,
   } = useBlogListing(location);
 
+  const isShowingAllRows = pageSize === -1;
+
   if (error) {
     return (
       <ReportPageLayout
@@ -117,7 +119,8 @@ export function BlogsListingClient({ location }: BlogsClientProps) {
           setPage(1);
         }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
-        onServerSidePageChange={(newPage) => setPage(newPage)}
+        // When showing "All", hide pagination controls (still fetches all data via limit=-1).
+        onServerSidePageChange={isShowingAllRows ? undefined : (newPage) => setPage(newPage)}
         hideRecordCount={true}
         showRecordCountInToolbar={true}
         rowsPerPage={pageSize}
