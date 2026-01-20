@@ -12,6 +12,7 @@ export interface EnrolmentDiscountsResponse {
   pfDiscount?: string; // For private enrolments
   multipleEnrolDiscount?: string; // For private enrolments
   discount?: string; // For group enrolments (single discount field)
+  discountType?: number; // For group enrolments: 0 = percentage, 1 = dollar
 }
 
 export interface EnrolmentDetailsResponseBody {
@@ -1006,6 +1007,22 @@ export interface UpdateEnrolmentDiscountsResponse {
   message?: string;
 }
 
+// Update Group Enrolment Discount API Types
+export interface UpdateGroupEnrolmentDiscountRequest {
+  discount?: string;
+  discountType?: number; // 0 = percentage, 1 = dollar
+}
+
+export interface UpdateGroupEnrolmentDiscountResponse {
+  success: boolean;
+  data: {
+    id: number;
+    discount: string;
+    discountType: number;
+  };
+  message?: string;
+}
+
 /**
  * Updates enrolment discounts via POST API
  * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/discounts
@@ -1065,6 +1082,69 @@ export async function updateEnrolmentDiscounts(
         multipleEnrolDiscount: "",
       },
       message: apiError.response?.data?.message || "Failed to update enrolment discounts",
+    };
+  }
+}
+
+/**
+ * Updates group enrolment discount via POST API
+ * Endpoint: POST /admin/v2/{location}/enrolments/{enrolmentId}/group-discount
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @param data - The discount data to update (discount, discountType)
+ * @returns Promise resolving to the update response or null on error
+ */
+export async function updateGroupEnrolmentDiscount(
+  location: string,
+  enrolmentId: string,
+  data: UpdateGroupEnrolmentDiscountRequest
+): Promise<UpdateGroupEnrolmentDiscountResponse | null> {
+  try {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        status: boolean;
+        message?: string;
+      };
+      message?: string;
+    }>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/group-discount`,
+      data
+    );
+    
+    if (response.data.success && response.data.data?.status) {
+      return {
+        success: true,
+        data: {
+          id: Number(enrolmentId) || 0,
+          discount: data.discount || "",
+          discountType: data.discountType ?? 1,
+        },
+        message: response.data.data?.message || response.data.message,
+      };
+    } else {
+      return {
+        success: false,
+        data: {
+          id: Number(enrolmentId) || 0,
+          discount: "",
+          discountType: 1,
+        },
+        message: response.data.data?.message || response.data.message || "Failed to update group enrolment discount",
+      };
+    }
+  } catch (error: unknown) {
+    console.error("Error updating group enrolment discount:", error);
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(enrolmentId) || 0,
+        discount: "",
+        discountType: 1,
+      },
+      message: apiError.response?.data?.message || "Failed to update group enrolment discount",
     };
   }
 }

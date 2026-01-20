@@ -43,6 +43,7 @@ export interface EnrolmentDiscounts {
   pfDiscount?: string; // For private enrolments
   multipleEnrolDiscount?: string; // For private enrolments
   discount?: string; // For group enrolments (single discount field)
+  discountType?: number; // For group enrolments: 0 = percentage, 1 = dollar
 }
 
 export interface EnrolmentPaymentFrequency {

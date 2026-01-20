@@ -13,6 +13,7 @@ import {
   adjustGroupEnrolmentEndDate,
   permanentScheduleChange,
   updateEnrolmentDiscounts,
+  updateGroupEnrolmentDiscount,
   updateEnrolmentPaymentFrequency,
   type PaginationInfo,
 } from './enrolment-details.api';
@@ -257,22 +258,35 @@ export const changeSchedulePermanently = createAsyncThunk(
 export const updateDiscounts = createAsyncThunk(
   'enrolment/updateDiscounts',
   async (
-    { location, enrolmentId, data }: { location: string; enrolmentId: string; data: Partial<EnrolmentDiscounts> },
+    { location, enrolmentId, data, enrolmentType }: { location: string; enrolmentId: string; data: Partial<EnrolmentDiscounts>; enrolmentType?: 'private' | 'group' },
     { rejectWithValue }
   ) => {
     try {
-      const updateData = {
-        pfDiscount: data.pfDiscount,
-        multipleEnrolDiscount: data.multipleEnrolDiscount,
-      };
+      let result;
       
-      const result = await updateEnrolmentDiscounts(location, enrolmentId, updateData);
+      if (enrolmentType === 'group') {
+        // Use group enrolment discount API
+        const updateData = {
+          discount: data.discount,
+          discountType: data.discountType,
+        };
+        result = await updateGroupEnrolmentDiscount(location, enrolmentId, updateData);
+      } else {
+        // Use private enrolment discount API
+        const updateData = {
+          pfDiscount: data.pfDiscount,
+          multipleEnrolDiscount: data.multipleEnrolDiscount,
+        };
+        result = await updateEnrolmentDiscounts(location, enrolmentId, updateData);
+      }
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update enrolment discounts');
       }
 
-      return { data: result.data };
+      // Return enrolmentType so reducer can handle it properly if needed
+      // Note: Discounts are refreshed via forceRefresh() in the hook, so we don't need to return discount data
+      return { data: result.data, enrolmentType };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update enrolment discounts');
     }
@@ -521,15 +535,8 @@ const enrolmentSlice = createSlice({
       })
       .addCase(updateDiscounts.fulfilled, (state, action) => {
         state.isSaving = false;
-        // Update discounts from API response
-        if (state.enrolmentInfo && action.payload) {
-          const { data } = action.payload;
-          state.enrolmentInfo.discounts = {
-            ...state.enrolmentInfo.discounts,
-            pfDiscount: data.pfDiscount,
-            multipleEnrolDiscount: data.multipleEnrolDiscount,
-          };
-        }
+        // Note: Discounts are refreshed via forceRefresh() in the hook,
+        // so we don't need to update them here from the API response
         state.error = null;
       })
       .addCase(updateDiscounts.rejected, (state, action) => {
