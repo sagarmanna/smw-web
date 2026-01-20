@@ -1,0 +1,408 @@
+/* TipTap Email Editor Styles */
+
+/* Editor Content Wrapper */
+.tiptap-editor-wrapper {
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+/* Fullscreen variant */
+.tiptap-editor-wrapper.fullscreen {
+  max-height: calc(100vh - 300px);
+}
+
+/* Editor Content */
+.tiptap-editor-content {
+  padding: 1rem;
+  min-height: 300px;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #111827;
+}
+
+.dark .tiptap-editor-content {
+  color: #f9fafb;
+}
+
+.tiptap-editor-content:focus {
+  outline: none;
+}
+
+/* Text Elements */
+.tiptap-editor-content p {
+  margin: 0.75em 0;
+}
+
+.tiptap-editor-content h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+  line-height: 1.2;
+}
+
+.tiptap-editor-content h2 {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+  line-height: 1.3;
+}
+
+.tiptap-editor-content h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 1em 0 0.5em;
+  line-height: 1.4;
+}
+
+.tiptap-editor-content h4 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 1em 0 0.5em;
+}
+
+.tiptap-editor-content strong {
+  font-weight: 600;
+}
+
+.tiptap-editor-content em {
+  font-style: italic;
+}
+
+.tiptap-editor-content u {
+  text-decoration: underline;
+}
+
+.tiptap-editor-content s {
+  text-decoration: line-through;
+}
+
+/* Lists */
+.tiptap-editor-content ul,
+.tiptap-editor-content ol {
+  padding-left: 1.5rem;
+  margin: 0.75em 0;
+}
+
+.tiptap-editor-content ul {
+  list-style-type: disc;
+}
+
+.tiptap-editor-content ol {
+  list-style-type: decimal;
+}
+
+.tiptap-editor-content li {
+  margin: 0.25em 0;
+}
+
+.tiptap-editor-content li p {
+  margin: 0;
+}
+
+/* Blockquote */
+.tiptap-editor-content blockquote {
+  border-left: 4px solid #d1d5db;
+  padding-left: 1rem;
+  margin: 1em 0;
+  font-style: italic;
+  color: #6b7280;
+}
+
+.dark .tiptap-editor-content blockquote {
+  border-left-color: #4b5563;
+  color: #9ca3af;
+}
+
+/* Code Block */
+.tiptap-editor-content pre {
+  background: #f3f4f6;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.875rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.dark .tiptap-editor-content pre {
+  background: #1f2937;
+}
+
+.tiptap-editor-content pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Inline Code */
+.tiptap-editor-content code {
+  background: #f3f4f6;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.875em;
+  color: #dc2626;
+}
+
+.dark .tiptap-editor-content code {
+  background: #374151;
+  color: #fca5a5;
+}
+
+/* Links */
+.tiptap-editor-content a.email-link {
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tiptap-editor-content a.email-link:hover {
+  color: #1d4ed8;
+}
+
+.dark .tiptap-editor-content a.email-link {
+  color: #60a5fa;
+}
+
+.dark .tiptap-editor-content a.email-link:hover {
+  color: #93c5fd;
+}
+
+/* Tables - THE KEY FEATURE! */
+/* Target ALL tables in TipTap editor */
+.tiptap-editor-content table,
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5em 0;
+  border: 2px solid #d1d5db !important;
+  table-layout: auto;
+}
+
+.dark .tiptap-editor-content table,
+.dark .ProseMirror table {
+  border-color: #4b5563 !important;
+}
+
+.tiptap-editor-content table th,
+.ProseMirror table th {
+  background-color: #f3f4f6 !important;
+  font-weight: 600 !important;
+  text-align: left;
+  padding: 10px 12px !important;
+  border: 1px solid #d1d5db !important;
+  color: #374151 !important;
+  min-width: 50px;
+}
+
+.dark .tiptap-editor-content table th,
+.dark .ProseMirror table th {
+  background-color: #374151 !important;
+  border-color: #4b5563 !important;
+  color: #f3f4f6 !important;
+}
+
+.tiptap-editor-content table td,
+.ProseMirror table td {
+  padding: 10px 12px !important;
+  border: 1px solid #d1d5db !important;
+  color: #111827;
+  vertical-align: top;
+  min-width: 50px;
+}
+
+.dark .tiptap-editor-content table td,
+.dark .ProseMirror table td {
+  border-color: #4b5563 !important;
+  color: #f9fafb;
+}
+
+/* Right-align last two numeric columns for statement tables */
+.tiptap-editor-content table.email-statement th:nth-last-child(-n+2),
+.tiptap-editor-content table.email-statement td:nth-last-child(-n+2),
+.ProseMirror table.email-statement th:nth-last-child(-n+2),
+.ProseMirror table.email-statement td:nth-last-child(-n+2) {
+  text-align: right !important;
+}
+
+/* Ensure total row aligns right in value cell */
+.tiptap-editor-content table.email-statement-total td:last-child,
+.ProseMirror table.email-statement-total td:last-child {
+  text-align: right !important;
+}
+
+/* Fallback: if classes are stripped, still right-align last two columns */
+.tiptap-editor-content table th:nth-last-child(-n+2),
+.tiptap-editor-content table td:nth-last-child(-n+2),
+.ProseMirror table th:nth-last-child(-n+2),
+.ProseMirror table td:nth-last-child(-n+2) {
+  text-align: right !important;
+}
+
+.tiptap-editor-content table tbody tr:hover,
+.ProseMirror table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.dark .tiptap-editor-content table tbody tr:hover,
+.dark .ProseMirror table tbody tr:hover {
+  background-color: #1f2937;
+}
+
+/* Table headers for better visibility */
+.tiptap-editor-content table thead,
+.ProseMirror table thead {
+  border-bottom: 2px solid #d1d5db !important;
+}
+
+.dark .tiptap-editor-content table thead,
+.dark .ProseMirror table thead {
+  border-bottom-color: #4b5563 !important;
+}
+
+/* Selected Cell */
+.tiptap-editor-content .selectedCell,
+.ProseMirror .selectedCell {
+  background-color: #dbeafe !important;
+}
+
+.dark .tiptap-editor-content .selectedCell,
+.dark .ProseMirror .selectedCell {
+  background-color: #1e3a8a !important;
+}
+
+/* Table Cell Focus */
+.tiptap-editor-content table th:focus,
+.tiptap-editor-content table td:focus,
+.ProseMirror table th:focus,
+.ProseMirror table td:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* Ensure table wrapper doesn't hide borders */
+.tiptap-editor-content .tableWrapper,
+.ProseMirror .tableWrapper {
+  overflow-x: auto;
+  margin: 1em 0;
+  padding: 1px; /* Prevents border clipping */
+}
+
+/* Horizontal Rule */
+.tiptap-editor-content hr {
+  border: none;
+  border-top: 2px solid #e5e7eb;
+  margin: 2rem 0;
+}
+
+.dark .tiptap-editor-content hr {
+  border-top-color: #374151;
+}
+
+/* Images */
+.tiptap-editor-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1em 0;
+}
+
+/* Placeholder */
+.tiptap-editor-content p.is-editor-empty:first-child::before {
+  color: #9ca3af;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Selection */
+.tiptap-editor-content ::selection {
+  background-color: #bfdbfe;
+}
+
+.dark .tiptap-editor-content ::selection {
+  background-color: #1e40af;
+}
+
+/* Scrollbar Styling */
+.tiptap-editor-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tiptap-editor-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.dark .tiptap-editor-wrapper::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.tiptap-editor-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark .tiptap-editor-wrapper::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.tiptap-editor-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark .tiptap-editor-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Resize Cursor for Tables */
+.tiptap-editor-content .column-resize-handle,
+.ProseMirror .column-resize-handle {
+  background-color: #3b82f6;
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 4px;
+}
+
+/* Align Utilities */
+.tiptap-editor-content [style*="text-align: left"] {
+  text-align: left;
+}
+
+.tiptap-editor-content [style*="text-align: center"] {
+  text-align: center;
+}
+
+.tiptap-editor-content [style*="text-align: right"] {
+  text-align: right;
+}
+
+.tiptap-editor-content [style*="text-align: justify"] {
+  text-align: justify;
+}
+
+/* Print Styles */
+@media print {
+  .tiptap-toolbar {
+    display: none !important;
+  }
+  
+  .tiptap-editor-content table,
+  .ProseMirror table {
+    border: 1px solid #000 !important;
+  }
+  
+  .tiptap-editor-content table th,
+  .tiptap-editor-content table td,
+  .ProseMirror table th,
+  .ProseMirror table td {
+    border: 1px solid #000 !important;
+    padding: 8px !important;
+  }
+}
