@@ -7,6 +7,9 @@ import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/D
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { EmailModal, type EmailFormData } from "@/components/EmailModal";
+import { sendEmail } from "@/lib/api/legacyApiAdapter";
+import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
 import { useEnrolmentDetails } from "../hooks/useEnrolmentDetails";
 import { EnrolmentDetailsCard } from "../components/EnrolmentDetailsCard";
 import { EnrolmentDiscountsCard } from "../components/EnrolmentDiscountsCard";
@@ -64,6 +67,11 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     savePaymentFrequency,
   } = useEnrolmentDetails(location, id);
 
+  // Email modal state - only used for group enrolments (statements)
+  const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
+  const [customerEmails, setCustomerEmails] = React.useState<string[]>([]);
+  const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
+
   // Determine enrolment type from API response (single source of truth)
   // Backend provides programType which is normalized to details.type in transformApiResponse
   // Default to "private" if undefined (defensive programming)
@@ -81,6 +89,28 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
   // Delete modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isFullDeleteModalOpen, setIsFullDeleteModalOpen] = React.useState(false);
+
+  // Fetch customer email addresses when email modal opens
+  React.useEffect(() => {
+    const fetchCustomerEmails = async () => {
+      if (isEmailModalOpen && details?.customerId) {
+        setIsLoadingEmails(true);
+        try {
+          const emails = await getCustomerEmailAddresses(location, details.customerId);
+          setCustomerEmails(emails);
+        } catch (error) {
+          console.error("Error fetching customer emails:", error);
+          setCustomerEmails([]);
+        } finally {
+          setIsLoadingEmails(false);
+        }
+      } else if (!isEmailModalOpen) {
+        setCustomerEmails([]);
+      }
+    };
+
+    fetchCustomerEmails();
+  }, [isEmailModalOpen, details?.customerId, location]);
 
   // Memoize formatted lessons for print to avoid recalculation
   const formattedLessonsForPrint = React.useMemo(() => {
@@ -203,9 +233,9 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
             {
               label: ENROLMENT_MESSAGES.ACTION_MAIL,
               onClick: () => {
-                // Placeholder for mail - will be implemented in future
-                  toast.info("Mail functionality coming soon");
-                },
+                // Open email modal for group enrolment statements
+                setIsEmailModalOpen(true);
+              },
             },
           ]
         : [
@@ -416,6 +446,48 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
           location={location}
           enrolmentId={id}
           studentId={details?.studentId}
+        />
+      )}
+
+      {/* Email Modal - group enrolment customer statement */}
+      {!isPrivateEnrolment && (
+        <EmailModal
+          open={isEmailModalOpen}
+          onOpenChange={setIsEmailModalOpen}
+          onSend={async (emailData: EmailFormData) => {
+            if (!details?.studentId) {
+              toast.error("Student ID is required to send email");
+              return;
+            }
+
+            try {
+              // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
+              const response = await sendEmail(location, {
+                objectId: 8,
+                userId: details.studentId,
+                to: emailData.recipients,
+                subject: emailData.subject,
+                content: emailData.content,
+              });
+
+              if (response.status) {
+                toast.success("Email sent successfully");
+                setIsEmailModalOpen(false);
+              } else {
+                const errorMessage = response.message || "Failed to send email";
+                toast.error(errorMessage);
+              }
+            } catch (error) {
+              console.error("Error sending email:", error);
+              const errorMessage =
+                error instanceof Error ? error.message : "Failed to send email";
+              toast.error(errorMessage);
+            }
+          }}
+          recipientEmails={customerEmails}
+          locationName={location}
+          initialSubject="Enrolment Statement from Arcadia Academy of Music"
+          localStorageKey={`enrolment-email-${id}-${details?.studentId || "default"}`}
         />
       )}
     </>
