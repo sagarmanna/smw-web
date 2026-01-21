@@ -1,3 +1,4 @@
+import { isDev } from "@/utils/env";
 import { 
   Home, 
   Calendar, 
@@ -281,7 +282,7 @@ export const filterMenusByRole = (menus: MenuItem[], userRole: string, userPermi
 
 // Main menu configuration
 export const getSideMenus = (location: string, locationFlags: { [key: string]: string } = {}, userRole?: string, userPermissions?: string[], dashboardPermissions?: { [key: string]: boolean }): MenuItem[] => {
-  const isDev = ENV_FLAGS.isDev;
+  // const isDev = ();
   
   const allMenus = [
     {
@@ -646,7 +647,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
           icon: <Mail className="h-4 w-4" />,
           url: '/test-email/index',
           source: getMenuSource(locationFlags, 'testEmail') as 'legacy' | 'modern',
-          hidden: (isDev && isMenuEnabled(locationFlags, 'testEmail')) ? ('no' as const) : ('yes' as const),
+          hidden: (isDev() && isMenuEnabled(locationFlags, 'testEmail')) ? ('no' as const) : ('yes' as const),
         },
         {
           id: 'termsOfService',
