@@ -16,7 +16,7 @@ import {
   updateLessonsStatus,
 } from "../privateLessonsListing.slice";
 import { calculateDiscountedPricesForLessons } from "../utils/discountCalculations";
-import type { EmailFormData } from "@/app/[location]/customers/components/EmailStatementModal/index";
+import type { EmailFormData } from "@/components/EmailModal";
 import type { LessonDiscountData } from "../privateLessonsListing.slice";
 
 interface UsePrivateLessonsHandlersProps {

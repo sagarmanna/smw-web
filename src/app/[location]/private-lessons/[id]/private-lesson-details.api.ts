@@ -1,29 +1,46 @@
 import { apiClient } from "@/lib/api/client";
 import type { PrivateLessonInfo } from "../types";
 
-// API Response Types
+// API Response Types - supports both nested (lesson/student) and flat structures
 export interface PrivateLessonDetailsResponseBody {
-  id: number;
-  program: string;
-  classroom: string;
-  status: string;
-  colorCode: string;
-  online: string; // "Yes" | "No"
-  student: string;
+  // New nested structure (from actual API)
+  lesson?: {
+    id: number;
+    programName: string;
+    classroomName: string;
+    status: string;
+    colorCode: string;
+    isOnline: string; // "Yes" | "No"
+  };
+  student?: {
+    studentId: number;
+    customerId: number;
+    studentName: string;
+    customerName: string;
+    phoneNumber: string;
+  };
+  // Legacy/flat structure (for backward compatibility with mock data)
+  id?: number;
+  program?: string;
+  classroom?: string;
+  status?: string;
+  colorCode?: string;
+  online?: string; // "Yes" | "No"
+  studentName?: string; // Legacy flat student name
   studentId?: number;
-  customer: string;
+  customer?: string;
   customerId?: number;
-  phone: string;
-  attendance: {
+  phone?: string;
+  attendance?: {
     present: string; // "Yes" | "No"
   };
-  cost: {
+  cost?: {
     costPerHour: string;
     cost: string;
     price: string;
     profit: string;
   };
-  schedule: {
+  schedule?: {
     teacher: string;
     teacherId?: number;
     scheduledDate: string;
@@ -31,8 +48,8 @@ export interface PrivateLessonDetailsResponseBody {
     duration: string;
     expiryDate: string;
   };
-  dueDate: string;
-  totals: {
+  dueDate?: string;
+  totals?: {
     lessonRatePerHour: string;
     qty: string;
     lessonPrice: string;
@@ -106,65 +123,10 @@ export async function getPrivateLessonDetails(
   privateLessonId: string
 ): Promise<PrivateLessonDetailsApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.get<PrivateLessonDetailsApiResponse>(
-    //   `/admin/v2/${location}/private-lessons/${privateLessonId}/info`
-    // );
-    // return response.data;
-    
-    void location;
-    void privateLessonId;
-    
-    // Mock data based on the image
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        body: {
-          id: Number(privateLessonId) || 4927684,
-          program: "40th Anniversary Piano",
-          classroom: "None",
-          status: "Scheduled",
-          colorCode: "#3B82F6", // Blue color
-          online: "No",
-          student: "alicia ad",
-          studentId: 1,
-          customer: "John Fedrick",
-          customerId: 1,
-          phone: "(415) 789-6325",
-          attendance: {
-            present: "Yes",
-          },
-          cost: {
-            costPerHour: "$10.00",
-            cost: "$5.00",
-            price: "$10.00",
-            profit: "$5.00",
-          },
-          schedule: {
-            teacher: "Thomas karenshia",
-            teacherId: 1,
-            scheduledDate: "Monday, December 29th, 2025",
-            time: "10:00 AM",
-            duration: "00:30",
-            expiryDate: "Mar 29, 2026",
-          },
-          dueDate: "Nov 15, 2025",
-          totals: {
-            lessonRatePerHour: "$20.00",
-            qty: "0.5",
-            lessonPrice: "$10.00",
-            discount: "$0.00",
-            subTotal: "$10.00",
-            tax: "$0.00",
-            total: "$10.00",
-            paid: "$0.00",
-            balance: "$10.00",
-          },
-        },
-      },
-    };
+    const response = await apiClient.get<PrivateLessonDetailsApiResponse>(
+      `/admin/v2/${location}/lesson/details/${privateLessonId}`
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching private lesson details:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
@@ -173,42 +135,6 @@ export async function getPrivateLessonDetails(
       data: {
         body: {
           id: Number(privateLessonId) || 0,
-          program: "",
-          classroom: "",
-          status: "",
-          colorCode: "",
-          online: "No",
-          student: "",
-          customer: "",
-          phone: "",
-          attendance: {
-            present: "No",
-          },
-          cost: {
-            costPerHour: "",
-            cost: "",
-            price: "",
-            profit: "",
-          },
-          schedule: {
-            teacher: "",
-            scheduledDate: "",
-            time: "",
-            duration: "",
-            expiryDate: "",
-          },
-          dueDate: "",
-          totals: {
-            lessonRatePerHour: "",
-            qty: "",
-            lessonPrice: "",
-            discount: "",
-            subTotal: "",
-            tax: "",
-            total: "",
-            paid: "",
-            balance: "",
-          },
         },
       },
       message: apiError.response?.data?.message || "Failed to fetch private lesson details",
@@ -368,11 +294,35 @@ export function transformApiResponse(
 ): PrivateLessonInfo {
   const { body } = apiResponse.data;
   
+  // Handle both nested structure (lesson/student) and flat structure
+  const lessonData = body.lesson;
+  const studentData = body.student;
+  
+  // Extract customerId from nested student object if available, otherwise from flat structure
+  const customerId = (studentData && typeof studentData === 'object' && 'customerId' in studentData && typeof studentData.customerId === 'number') 
+    ? studentData.customerId 
+    : (body.customerId ?? undefined);
+  const studentId = (studentData && typeof studentData === 'object' && 'studentId' in studentData && typeof studentData.studentId === 'number')
+    ? studentData.studentId
+    : (body.studentId ?? undefined);
+  const studentName = (studentData && typeof studentData === 'object' && 'studentName' in studentData)
+    ? String(studentData.studentName)
+    : (body.studentName || '');
+  const customerName = (studentData && typeof studentData === 'object' && 'customerName' in studentData)
+    ? String(studentData.customerName)
+    : (body.customer || '');
+  const phone = (studentData && typeof studentData === 'object' && 'phoneNumber' in studentData)
+    ? String(studentData.phoneNumber)
+    : (body.phone || '');
+  
   // Convert online string "Yes"/"No" to boolean
-  const onlineBoolean = body.online === "Yes";
+  const onlineString = (lessonData && 'isOnline' in lessonData) 
+    ? lessonData.isOnline 
+    : (body.online ?? "No");
+  const onlineBoolean = onlineString === "Yes";
   
   // Convert attendance present string "Yes"/"No" to boolean
-  const attendancePresent = body.attendance.present === "Yes";
+  const attendancePresent = body.attendance?.present === "Yes";
   
   // Get payments from API response
   const paymentsBody = paymentsResponse?.data?.body || [];
@@ -404,45 +354,45 @@ export function transformApiResponse(
   
   return {
     details: {
-      id: body.id,
-      program: body.program || "",
-      classroom: body.classroom || "",
-      status: body.status || "",
-      colorCode: body.colorCode || "",
+      id: (lessonData?.id ?? body.id) || 0,
+      program: (lessonData?.programName ?? body.program) || "",
+      classroom: (lessonData?.classroomName ?? body.classroom) || "",
+      status: (lessonData?.status ?? body.status) || "",
+      colorCode: (lessonData?.colorCode ?? body.colorCode) || "",
       online: onlineBoolean,
-      student: body.student || "",
-      studentId: body.studentId,
-      customer: body.customer || "",
-      customerId: body.customerId,
-      phone: body.phone || "",
+      student: studentName,
+      studentId: studentId,
+      customer: customerName,
+      customerId: customerId,
+      phone: phone,
       attendance: {
         present: attendancePresent,
       },
       cost: {
-        costPerHour: body.cost.costPerHour || "",
-        cost: body.cost.cost || "",
-        price: body.cost.price || "",
-        profit: body.cost.profit || "",
+        costPerHour: body.cost?.costPerHour || "",
+        cost: body.cost?.cost || "",
+        price: body.cost?.price || "",
+        profit: body.cost?.profit || "",
       },
       schedule: {
-        teacher: body.schedule.teacher || "",
-        teacherId: body.schedule.teacherId,
-        scheduledDate: body.schedule.scheduledDate || "",
-        time: body.schedule.time || "",
-        duration: body.schedule.duration || "",
-        expiryDate: body.schedule.expiryDate || "",
+        teacher: body.schedule?.teacher || "",
+        teacherId: body.schedule?.teacherId,
+        scheduledDate: body.schedule?.scheduledDate || "",
+        time: body.schedule?.time || "",
+        duration: body.schedule?.duration || "",
+        expiryDate: body.schedule?.expiryDate || "",
       },
       dueDate: body.dueDate || "",
       totals: {
-        lessonRatePerHour: body.totals.lessonRatePerHour || "",
-        qty: body.totals.qty || "",
-        lessonPrice: body.totals.lessonPrice || "",
-        discount: body.totals.discount || "",
-        subTotal: body.totals.subTotal || "",
-        tax: body.totals.tax || "",
-        total: body.totals.total || "",
-        paid: body.totals.paid || "",
-        balance: body.totals.balance || "",
+        lessonRatePerHour: body.totals?.lessonRatePerHour || "",
+        qty: body.totals?.qty || "",
+        lessonPrice: body.totals?.lessonPrice || "",
+        discount: body.totals?.discount || "",
+        subTotal: body.totals?.subTotal || "",
+        tax: body.totals?.tax || "",
+        total: body.totals?.total || "",
+        paid: body.totals?.paid || "",
+        balance: body.totals?.balance || "",
       },
     },
     payments: payments,

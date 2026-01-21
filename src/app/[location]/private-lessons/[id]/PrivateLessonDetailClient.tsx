@@ -7,6 +7,9 @@ import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/D
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { EmailModal, type EmailFormData } from "@/components/EmailModal";
+import { sendEmail } from "@/lib/api/legacyApiAdapter";
+import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
 import { usePrivateLessonDetails } from "../hooks/usePrivateLessonDetails";
 import { PrivateLessonDetailsCard } from "../components/PrivateLessonDetailsCard";
 import { PrivateLessonStudentCard } from "../components/PrivateLessonStudentCard";
@@ -53,6 +56,43 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     savePrice,
   } = usePrivateLessonDetails(location, privateLessonId);
 
+  // Email modal state for sending private lesson statements
+  const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
+  const [customerEmails, setCustomerEmails] = React.useState<string[]>([]);
+  const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
+
+  // Fetch customer email addresses when email modal opens
+  React.useEffect(() => {
+    const fetchCustomerEmails = async () => {
+      if (isEmailModalOpen && details?.customerId) {
+        setIsLoadingEmails(true);
+        try {
+          const customerId = typeof details.customerId === 'number' 
+            ? details.customerId 
+            : Number(details.customerId);
+          
+          if (customerId && !isNaN(customerId)) {
+            const emails = await getCustomerEmailAddresses(location, customerId);
+            setCustomerEmails(emails);
+          } else {
+            console.warn("Invalid customerId:", details.customerId);
+            setCustomerEmails([]);
+          }
+        } catch (error) {
+          console.error("Error fetching customer emails:", error);
+          setCustomerEmails([]);
+        } finally {
+          setIsLoadingEmails(false);
+        }
+      } else if (!isEmailModalOpen) {
+        // Reset emails when modal closes
+        setCustomerEmails([]);
+      }
+    };
+
+    fetchCustomerEmails();
+  }, [isEmailModalOpen, details?.customerId, location]);
+
   // Fetch history on initial load - optimized dependencies
   React.useEffect(() => {
     // Only fetch if we have valid IDs and haven't loaded history yet
@@ -81,7 +121,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
 
   const handleMailClick = React.useCallback(() => {
-    toast.info("This feature is under process");
+    setIsEmailModalOpen(true);
   }, []);
 
   const handleReceivePaymentClick = React.useCallback(() => {
@@ -255,6 +295,46 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
         location={location}
         privateLessonId={privateLessonId}
         onDeleteSuccess={handleDeleteSuccess}
+      />
+
+      {/* Email Modal - private lesson statement */}
+      <EmailModal
+        open={isEmailModalOpen}
+        onOpenChange={setIsEmailModalOpen}
+        onSend={async (emailData: EmailFormData) => {
+          if (!details?.studentId) {
+            toast.error("Student ID is required to send email");
+            return;
+          }
+
+          try {
+            // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
+            const response = await sendEmail(location, {
+              objectId: 8,
+              userId: details.studentId,
+              to: emailData.recipients,
+              subject: emailData.subject,
+              content: emailData.content,
+            });
+
+            if (response.status) {
+              toast.success("Email sent successfully");
+              setIsEmailModalOpen(false);
+            } else {
+              const errorMessage = response.message || "Failed to send email";
+              toast.error(errorMessage);
+            }
+          } catch (error) {
+            console.error("Error sending email:", error);
+            const errorMessage =
+              error instanceof Error ? error.message : "Failed to send email";
+            toast.error(errorMessage);
+          }
+        }}
+        recipientEmails={customerEmails}
+        locationName={location}
+        initialSubject="Private Lesson Statement from Arcadia Academy of Music"
+        localStorageKey={`private-lesson-email-${id}-${details?.studentId || "default"}`}
       />
     </>
   );
