@@ -185,44 +185,44 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
           </Button>
         </CardHeader>
         <CardContent className="pt-0">
-          {error ? (
-            <div className="text-center py-8 text-red-500">
-              <p className="font-medium">Error loading data</p>
-              <p className="text-sm">{error}</p>
-            </div>
-          ) : (
-            <CustomTable
-              data={data as StudentData[]}
-              columns={columnsWithActions}
-              size="compact"
-              variant="striped"
-              enableSorting={true}
-              enableExport={false}
-              enablePrint={false}
-              enableSearch={false}
-              enableFilter={false}
-              className="border-0 w-full"
-              isLoading={isLoading}
-              customLoadingState={
-                <LoadingAnimation
-                  size="md"
-                  text="Loading students..."
-                  className="py-8"
-                />
-              }
-              customEmptyState={
-                !isLoading && data.length === 0 ? (
+          <CustomTable
+            data={data as StudentData[]}
+            columns={columnsWithActions}
+            size="compact"
+            variant="striped"
+            enableSorting={true}
+            enableExport={false}
+            enablePrint={false}
+            enableSearch={false}
+            enableFilter={false}
+            className="border-0 w-full"
+            isLoading={isLoading}
+            customLoadingState={
+              <LoadingAnimation
+                size="md"
+                text="Loading students..."
+                className="py-8"
+              />
+            }
+            customEmptyState={
+              !isLoading ? (
+                error ? (
+                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
+                    <div className="text-4xl">⚠️</div>
+                    <span className="text-sm font-medium">{error}</span>
+                  </div>
+                ) : data.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
                     <div className="text-4xl">👥</div>
                     <span className="text-sm font-medium">No students found</span>
                   </div>
                 ) : undefined
-              }
-            />
-          )}
+              ) : undefined
+            }
+          />
 
           {/* Server-side style pagination controls (driven by API pagination) */}
-          {totalRows > 0 && (
+          {!error && totalRows > 0 && (
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
                 Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows} entries

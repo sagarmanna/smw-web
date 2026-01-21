@@ -90,6 +90,7 @@ export interface CourseStudentsApiResponse {
     pagination: CourseStudentsApiResponsePagination;
   };
   message?: string;
+  errorCode?: string;
 }
 
 // Course History API Response Types
@@ -113,6 +114,7 @@ export interface CourseHistoryApiResponse {
     pagination: CourseHistoryApiResponsePagination;
   };
   message?: string;
+  errorCode?: string;
 }
 
 /**
@@ -214,20 +216,50 @@ export async function getCourseStudents(
       }
     );
     
-    if (!response.data.success || !response.data.data?.body) {
+    // Handle API responses that indicate failure (even with 200 status)
+    if (!response.data.success) {
+      // Return the error response so it can be handled properly
+      return response.data;
+    }
+    
+    if (!response.data.data?.body) {
       console.error("API returned unsuccessful response:", response.data);
-      return null;
+      return response.data;
     }
     
     return response.data;
   } catch (error: unknown) {
     console.error("Error fetching course students:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
-    console.error(
-      "API Error:",
-      apiError.response?.data?.message || "Failed to fetch course students"
-    );
-    return null;
+    const apiError = error as { 
+      response?: { 
+        status?: number;
+        data?: { 
+          message?: string;
+          errorCode?: string;
+          success?: boolean;
+        } 
+      } 
+    };
+    
+    // Extract error message from API response
+    const errorMessage = apiError.response?.data?.message || "Failed to fetch course students";
+    const errorCode = apiError.response?.data?.errorCode;
+    
+    // Return error response structure that matches API format
+    return {
+      success: false,
+      data: {
+        body: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+        },
+      },
+      message: errorMessage,
+      ...(errorCode && { errorCode }),
+    };
   }
 }
 
@@ -257,20 +289,50 @@ export async function getCourseHistory(
       }
     );
 
-    if (!response.data.success || !response.data.data?.body) {
+    // Handle API responses that indicate failure (even with 200 status)
+    if (!response.data.success) {
+      // Return the error response so it can be handled properly
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
       console.error("API returned unsuccessful response:", response.data);
-      return null;
+      return response.data;
     }
 
     return response.data;
   } catch (error: unknown) {
     console.error("Error fetching course history:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
-    console.error(
-      "API Error:",
-      apiError.response?.data?.message || "Failed to fetch course history"
-    );
-    return null;
+    const apiError = error as { 
+      response?: { 
+        status?: number;
+        data?: { 
+          message?: string;
+          errorCode?: string;
+          success?: boolean;
+        } 
+      } 
+    };
+    
+    // Extract error message from API response
+    const errorMessage = apiError.response?.data?.message || "Failed to fetch course history";
+    const errorCode = apiError.response?.data?.errorCode;
+    
+    // Return error response structure that matches API format
+    return {
+      success: false,
+      data: {
+        body: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+        },
+      },
+      message: errorMessage,
+      ...(errorCode && { errorCode }),
+    };
   }
 }
 
