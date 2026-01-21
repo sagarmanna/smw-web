@@ -18,6 +18,7 @@ import { EmailModal, type EmailFormData } from "@/components/EmailModal";
 import { sendEmail } from "@/lib/api/legacyApiAdapter";
 import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
 import { toast } from "sonner";
+import { isDev } from "@/utils/env";
 
 interface StudentsTabProps {
   location: string;
@@ -133,8 +134,12 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               size="sm"
               className="h-8"
               onClick={() => {
-                setSelectedStudent(row.original);
-                setIsDiscountModalOpen(true);
+                if(isDev()) {
+                  setSelectedStudent(row.original);
+                  setIsDiscountModalOpen(true);
+                } else {
+                  toast.info("This feature is in development.");
+                }
               }}
             >
               Edit Discount
@@ -144,8 +149,12 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => {
-                setEmailModalStudent(row.original);
-                setIsEmailModalOpen(true);
+                if(isDev()) {
+                  setEmailModalStudent(row.original);
+                  setIsEmailModalOpen(true);
+                } else {
+                  toast.info("This feature is in development.");
+                }
               }}
             >
               <Mail className="h-4 w-4" />
@@ -155,8 +164,12 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => {
-                // TODO: Implement print
-                console.log("Print", row.original.studentName);
+                if(isDev()) {
+                  // TODO: Implement print
+                  console.log("Print", row.original.studentName);
+                } else {
+                  toast.info("This feature is in development.");
+                }
               }}
             >
               <Printer className="h-4 w-4" />
@@ -179,7 +192,13 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setIsEnrolmentModalOpen(true)}
+            onClick={() => {
+              if(isDev()) {
+                setIsEnrolmentModalOpen(true);
+              } else {
+                toast.info("This feature is in development.");
+              }
+            }}
           >
             <Plus className="h-4 w-4" />
           </Button>
