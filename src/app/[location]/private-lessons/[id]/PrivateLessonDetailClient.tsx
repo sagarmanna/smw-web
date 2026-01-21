@@ -22,6 +22,7 @@ import { PrivateLessonPaymentsCard } from "../components/PrivateLessonPaymentsCa
 import { PrivateLessonCommentsCard } from "../components/PrivateLessonCommentsCard";
 import { PrivateLessonHistoryCard } from "../components/PrivateLessonHistoryCard";
 import { DeletePrivateLessonModal } from "../components/modals/DeletePrivateLessonModal";
+import { ReceivePaymentModal, type ReceivePaymentData } from "@/components/modal/ReceivePaymentModal";
 import { toast } from "sonner";
 
 interface PrivateLessonDetailClientProps {
@@ -60,6 +61,9 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
   const [customerEmails, setCustomerEmails] = React.useState<string[]>([]);
   const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
+
+  // Receive payment modal state
+  const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
 
   // Fetch customer email addresses when email modal opens
   React.useEffect(() => {
@@ -125,8 +129,169 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   }, []);
 
   const handleReceivePaymentClick = React.useCallback(() => {
-    toast.info("This feature is under process");
+    setIsReceivePaymentModalOpen(true);
   }, []);
+
+  // Handle receiving payment
+  const handleReceivePayment = React.useCallback(async (paymentData: ReceivePaymentData) => {
+    if (!details?.customerId) {
+      toast.error("Customer ID is required to receive payment");
+      return;
+    }
+
+    try {
+      // Import the legacy API function
+      const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
+      const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
+
+      // Helper function to format numbers to 2 decimal places
+      const formatToTwoDecimals = (value: number): number => {
+        return Math.round(value * 100) / 100;
+      };
+
+      // Calculate amount needed (sum of all selected items)
+      const lessonPaymentsTotal = Object.values(
+        paymentData.lessonPayments || {}
+      ).reduce((sum, val) => sum + val, 0);
+      const groupLessonPaymentsTotal = Object.values(
+        paymentData.groupLessonPayments || {}
+      ).reduce((sum, val) => sum + val, 0);
+      const invoicePaymentsTotal = Object.values(
+        paymentData.invoicePayments || {}
+      ).reduce((sum, val) => sum + val, 0);
+      const amountNeeded = formatToTwoDecimals(
+        lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal
+      );
+      const amountToDistribute = formatToTwoDecimals(amountNeeded);
+
+      // Prepare lesson payments array (IDs are already numeric from API)
+      const lessonPaymentsArray = paymentData.lessonPayments
+        ? Object.entries(paymentData.lessonPayments)
+            .filter(([, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare group lesson payments array (IDs are already numeric from API)
+      const groupLessonPaymentsArray = paymentData.groupLessonPayments
+        ? Object.entries(paymentData.groupLessonPayments)
+            .filter(([, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare invoice payments array (IDs are already numeric from API, no "I-" prefix needed)
+      const invoicePaymentsArray = paymentData.invoicePayments
+        ? Object.entries(paymentData.invoicePayments)
+            .filter(([, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare payment credits array (IDs are already numeric from API)
+      const paymentCreditsArray = paymentData.paymentCredits
+        ? Object.entries(paymentData.paymentCredits)
+            .filter(([, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Prepare invoice credits array (IDs are already numeric from API)
+      const invoiceCreditsArray = paymentData.invoiceCredits
+        ? Object.entries(paymentData.invoiceCredits)
+            .filter(([, value]) => value > 0)
+            .map(([id, value]) => ({
+              id: Number(id),
+              value: formatToTwoDecimals(value),
+            }))
+            .filter(({ id }) => !isNaN(id) && id > 0)
+        : [];
+
+      // Calculate selected credit value (sum of all selected credits)
+      const selectedCreditValue = formatToTwoDecimals(
+        paymentCreditsArray.reduce((sum, c) => sum + c.value, 0) +
+          invoiceCreditsArray.reduce((sum, c) => sum + c.value, 0)
+      );
+
+      // Calculate amount received following legacy logic
+      const amountAfterCredits = amountNeeded - selectedCreditValue;
+      let calculatedAmount: number;
+      if (amountAfterCredits < 0) {
+        // Credits exceed amount needed
+        calculatedAmount = amountNeeded > 0 ? 0.0 : amountAfterCredits;
+      } else {
+        // Credits don't fully cover amount needed (or exactly match)
+        calculatedAmount = amountAfterCredits;
+      }
+
+      // Use the calculated amount when credits are present (matching legacy auto-calculation behavior)
+      // When no credits are used, use the user-entered amount
+      const finalAmount =
+        selectedCreditValue > 0
+          ? formatToTwoDecimals(calculatedAmount)
+          : formatToTwoDecimals(paymentData.amountReceived);
+
+      // Prepare payment data for legacy API
+      const legacyPaymentData = {
+        userId: details.customerId,
+        date: paymentData.date, // Already in "MMM dd, yyyy" format
+        paymentMethodId: paymentMethodId,
+        reference: paymentData.reference || "",
+        amount: finalAmount,
+        amountNeeded: amountNeeded,
+        selectedCreditValue: selectedCreditValue,
+        amountToDistribute: amountToDistribute,
+        notes: paymentData.notes || "",
+        lessonPayments:
+          lessonPaymentsArray.length > 0 ? lessonPaymentsArray : undefined,
+        groupLessonPayments:
+          groupLessonPaymentsArray.length > 0
+            ? groupLessonPaymentsArray
+            : undefined,
+        invoicePayments:
+          invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        paymentCredits:
+          paymentCreditsArray.length > 0 ? paymentCreditsArray : undefined,
+        invoiceCredits:
+          invoiceCreditsArray.length > 0 ? invoiceCreditsArray : undefined,
+        canUsePaymentCredits: paymentCreditsArray.length > 0 ? 1 : 0,
+        canUseInvoiceCredits: invoiceCreditsArray.length > 0 ? 1 : 0,
+        prId: "",
+      };
+
+      // Call legacy API
+      const response = await receivePayment(location, legacyPaymentData);
+
+      if (response.status) {
+        // Success - close receive payment modal
+        setIsReceivePaymentModalOpen(false);
+        toast.success(`Payment of $${finalAmount.toFixed(2)} received successfully`);
+        
+        // Optionally refresh private lesson data here if needed
+        // You might want to refetch private lesson details to reflect the payment
+      } else {
+        const errorMessage = response.message || "Failed to receive payment";
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error receiving payment:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to receive payment";
+      toast.error(errorMessage);
+    }
+  }, [details?.customerId, location]);
 
   const handleDeleteClick = React.useCallback(() => {
     setIsDeleteModalOpen(true);
@@ -336,6 +501,18 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
         initialSubject="Private Lesson Statement from Arcadia Academy of Music"
         localStorageKey={`private-lesson-email-${id}-${details?.studentId || "default"}`}
       />
+
+      {/* Receive Payment Modal */}
+      {details?.customerId && (
+        <ReceivePaymentModal
+          open={isReceivePaymentModalOpen}
+          onOpenChange={setIsReceivePaymentModalOpen}
+          onSave={handleReceivePayment}
+          location={location}
+          customerId={details.customerId.toString()}
+          customerName={details.customer || ""}
+        />
+      )}
     </>
   );
 }
