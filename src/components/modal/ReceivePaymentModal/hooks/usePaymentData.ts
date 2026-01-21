@@ -256,8 +256,9 @@ export const usePaymentData = (
     try {
       setCustomerIdState(newCustomerId);
       
-      // Load customer name if in customer route
-      if (isCustomerRoute && newCustomerId > 0) {
+      // Always load customer name when customer changes (needed for dropdown display)
+      // Global component always uses dropdown mode, so we need customer name
+      if (newCustomerId > 0) {
         const customerData = await getCustomerView(location, newCustomerId);
         if (customerData) {
           setCustomerName(customerData.fullName);
@@ -273,7 +274,7 @@ export const usePaymentData = (
     } finally {
       setIsLoading(false);
     }
-  }, [location, loadPaymentData, isCustomerRoute]);
+  }, [location, loadPaymentData]);
 
   // Reload only lessons by a specific date range for a given customer.
   // Other entities (group lessons, invoices, credits) are NOT reloaded.
