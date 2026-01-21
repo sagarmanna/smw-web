@@ -909,3 +909,19 @@ export function PaymentReceiptModalUI(props: PaymentReceiptModalUIProps) {
     </>
   );
 }
+
+// Re-export container component and API functions
+export { PaymentReceiptModalContainer } from './PaymentReceiptModalContainer';
+export {
+  getPaymentReceiptData,
+  getPaymentReceiptInfo,
+  getPaymentUsedLessons,
+  getPaymentGroupLessons,
+  getPaymentInvoices,
+  getPaymentMethods,
+  type LocationDetails,
+  type PaymentUsedLesson,
+  type PaymentGroupLesson,
+  type PaymentInvoice,
+  type PaymentMethod,
+} from './api/receipt-payment.api';
