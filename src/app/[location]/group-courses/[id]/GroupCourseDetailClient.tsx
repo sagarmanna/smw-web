@@ -16,6 +16,7 @@ import { formatLocationName } from "@/utils/textUtils";
 import { formatDisplayDate } from "@/utils/dateUtils";
 import { toast } from "sonner";
 import { ColumnDef } from "@tanstack/react-table";
+import { isDev } from "@/utils/env";
 
 interface GroupCourseDetailClientProps {
   location: string;
@@ -217,11 +218,11 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
         items: [
           {
             label: "Print",
-            onClick: handlePrint,
+            onClick: isDev() ? handlePrint : () => toast.info("This feature is in development."),
           },
           {
             label: "Delete",
-            onClick: handleDeleteClick,
+            onClick: isDev() ? handleDeleteClick : () => toast.info("This feature is in development."),
             variant: "destructive",
           },
         ],

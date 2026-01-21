@@ -18,6 +18,7 @@ import { fetchGroupCourseTabsData, updateLessonsOnlineStatus } from "../../../..
 import { SubstituteTeacherModal } from "../../../modals/SubstituteTeacherModal";
 import { EditOnlineTypeModal } from "../../../modals/EditOnlineTypeModal";
 import { toast } from "sonner";
+import { isDev } from "@/utils/env";
 
 interface LessonsTabProps {
   location: string;
@@ -152,10 +153,10 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleSubstituteTeacher}>
+                <DropdownMenuItem onClick={isDev() ? handleSubstituteTeacher : () => toast.info("This feature is in development.")}>
                   Substitute Teacher
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleEditOnlineType}>
+                <DropdownMenuItem onClick={isDev() ? handleEditOnlineType : () => toast.info("This feature is in development.")}>
                   Edit Online Type
                 </DropdownMenuItem>
               </DropdownMenuContent>
