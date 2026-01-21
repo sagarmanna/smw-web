@@ -7,6 +7,7 @@ import {
   getEnrolmentLessons,
   getEnrolmentLessonsWithPagination,
   getEnrolmentHistory,
+  getEnrolmentEmailStatement,
   transformApiResponse,
   updateEnrolmentDetails,
   adjustEnrolmentEndDate,
@@ -16,6 +17,7 @@ import {
   updateGroupEnrolmentDiscount,
   updateEnrolmentPaymentFrequency,
   type PaginationInfo,
+  type EnrolmentEmailStatementBody,
 } from './enrolment-details.api';
 import type { EnrolmentInfo, EnrolmentDetails, EnrolmentDiscounts, EnrolmentPaymentFrequency, EnrolmentHistory, EnrolmentLesson } from '../types';
 
@@ -36,6 +38,10 @@ interface EnrolmentState {
   lessonsPagination: PaginationInfo | null;
   lessonsLoading: boolean;
   lessonsError: string | null;
+  // Email statement state (for group enrolments)
+  emailStatement: EnrolmentEmailStatementBody | null;
+  emailStatementLoading: boolean;
+  emailStatementError: string | null;
 }
 
 const initialState: EnrolmentState = {
@@ -53,6 +59,9 @@ const initialState: EnrolmentState = {
   lessonsPagination: null,
   lessonsLoading: false,
   lessonsError: null,
+  emailStatement: null,
+  emailStatementLoading: false,
+  emailStatementError: null,
 };
 
 // Async thunk for fetching enrolment info
@@ -380,6 +389,31 @@ export const updatePaymentFrequency = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching enrolment email statement (for group enrolments)
+export const fetchEmailStatement = createAsyncThunk(
+  'enrolment/fetchEmailStatement',
+  async (
+    { location, enrolmentId }: { location: string; enrolmentId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getEnrolmentEmailStatement(location, enrolmentId);
+
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch enrolment email statement');
+      }
+
+      return {
+        data: apiResult.data.body,
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch enrolment email statement'
+      );
+    }
+  }
+);
+
 const enrolmentSlice = createSlice({
   name: 'enrolment',
   initialState,
@@ -395,6 +429,8 @@ const enrolmentSlice = createSlice({
       state.lessonsData = [];
       state.lessonsPagination = null;
       state.lessonsError = null;
+      state.emailStatement = null;
+      state.emailStatementError = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -606,6 +642,20 @@ const enrolmentSlice = createSlice({
       .addCase(fetchEnrolmentLessons.rejected, (state, action) => {
         state.lessonsLoading = false;
         state.lessonsError = action.payload as string;
+      })
+      // Fetch email statement reducers
+      .addCase(fetchEmailStatement.pending, (state) => {
+        state.emailStatementLoading = true;
+        state.emailStatementError = null;
+      })
+      .addCase(fetchEmailStatement.fulfilled, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatement = action.payload.data;
+        state.emailStatementError = null;
+      })
+      .addCase(fetchEmailStatement.rejected, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatementError = action.payload as string;
       });
   },
 });

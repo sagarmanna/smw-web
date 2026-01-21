@@ -296,6 +296,9 @@ export function EmailModal({
       setContent("");
       setErrors({});
       setIsContentExpanded(false);
+      // Reset refs for tracking prop changes
+      prevInitialSubjectRef.current = "";
+      prevInitialContentRef.current = "";
     }
   }, [open, initialSubject, locationName, initialContent, generateCompleteEmailHTML, recipientEmails]);
 
@@ -328,6 +331,46 @@ export function EmailModal({
       }
     }
   }, [open, recipientEmails]);
+
+  // Update subject and content when initialSubject/initialContent props change (e.g., after async API call completes)
+  // This handles the case where data is fetched asynchronously after modal opens
+  const prevInitialSubjectRef = React.useRef<string>("");
+  const prevInitialContentRef = React.useRef<string>("");
+  
+  React.useEffect(() => {
+    if (open) {
+      // Update subject if initialSubject is provided and has changed
+      if (initialSubject && initialSubject.trim() !== "" && initialSubject !== prevInitialSubjectRef.current) {
+        prevInitialSubjectRef.current = initialSubject;
+        setSubject(initialSubject);
+      }
+      
+      // Update content if initialContent is provided and contains HTML (table, div, h2, etc.)
+      if (initialContent && initialContent.trim() !== "" && initialContent !== prevInitialContentRef.current) {
+        // Check for any HTML tags (table, div, h2, p with style, etc.)
+        const hasHTMLTags = /<[a-z][\s\S]*>/i.test(initialContent);
+        const hasTable = /<table[\s>]/i.test(initialContent) || initialContent.includes("<table");
+        const hasDiv = /<div[\s>]/i.test(initialContent) || initialContent.includes("<div");
+        const hasHeading = /<h[1-6][\s>]/i.test(initialContent);
+        const hasStyledParagraph = /<p[\s>][\s\S]*style/i.test(initialContent);
+        
+        const shouldUseInitialContentAsIs = hasHTMLTags || hasTable || hasDiv || hasHeading || hasStyledParagraph ||
+          initialContent.includes("payment-receipt") ||
+          initialContent.includes("invoice-lineitem-listing") ||
+          initialContent.includes("credit-lineitem-listing") ||
+          initialContent.includes("email-statement");
+
+        if (shouldUseInitialContentAsIs) {
+          // Use complete HTML as-is (e.g., email statement with table, title, schedule)
+          prevInitialContentRef.current = initialContent;
+          console.log("Updating email content from API (first 500 chars):", initialContent.substring(0, 500));
+          setContent(initialContent);
+        } else {
+          console.log("Initial content does not contain HTML tags, skipping update:", initialContent.substring(0, 100));
+        }
+      }
+    }
+  }, [open, initialSubject, initialContent]);
 
   const editorTemplates = React.useMemo(() => ([
     {

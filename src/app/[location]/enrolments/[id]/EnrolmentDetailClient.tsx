@@ -2,15 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { fetchEmailStatement } from "./enrolment-details.slice";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmailModal, type EmailFormData } from "@/components/EmailModal";
 import { sendEmail } from "@/lib/api/legacyApiAdapter";
-import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
 import { useEnrolmentDetails } from "../hooks/useEnrolmentDetails";
+import { generateEmailContent } from "./utils/emailStatementHtmlGenerator";
 import { EnrolmentDetailsCard } from "../components/EnrolmentDetailsCard";
 import { EnrolmentDiscountsCard } from "../components/EnrolmentDiscountsCard";
 import { EnrolmentPaymentFrequencyCard } from "../components/EnrolmentPaymentFrequencyCard";
@@ -38,6 +39,7 @@ interface EnrolmentDetailClientProps {
 
 export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
   // Get loading and error from Redux - single source of truth
   const isLoading = useAppSelector((state) => state.enrolment?.isLoading || false);
@@ -70,8 +72,25 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
 
   // Email modal state - only used for group enrolments (statements)
   const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
-  const [customerEmails, setCustomerEmails] = React.useState<string[]>([]);
-  const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
+  
+  // Get email statement data from Redux
+  const emailStatement = useAppSelector((state) => state.enrolment?.emailStatement);
+  const emailStatementLoading = useAppSelector((state) => state.enrolment?.emailStatementLoading || false);
+  const emailStatementError = useAppSelector((state) => state.enrolment?.emailStatementError);
+  
+  // Generate email content from Redux state
+  const emailSubject = React.useMemo(() => {
+    return emailStatement?.emailTemplate?.subject || "";
+  }, [emailStatement]);
+
+  const emailContent = React.useMemo(() => {
+    if (!emailStatement) return "";
+    return generateEmailContent(emailStatement);
+  }, [emailStatement]);
+
+  const customerEmails = React.useMemo(() => {
+    return emailStatement?.emails || [];
+  }, [emailStatement]);
 
   // Determine enrolment type from API response (single source of truth)
   // Backend provides programType which is normalized to details.type in transformApiResponse
@@ -129,7 +148,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
       // Prepare lesson payments array (IDs are already numeric from API)
       const lessonPaymentsArray = paymentData.lessonPayments
         ? Object.entries(paymentData.lessonPayments)
-            .filter(([_, value]) => value > 0)
+            .filter(([, value]) => value > 0)
             .map(([id, value]) => ({
               id: Number(id),
               value: formatToTwoDecimals(value),
@@ -140,7 +159,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
       // Prepare group lesson payments array (IDs are already numeric from API)
       const groupLessonPaymentsArray = paymentData.groupLessonPayments
         ? Object.entries(paymentData.groupLessonPayments)
-            .filter(([_, value]) => value > 0)
+            .filter(([, value]) => value > 0)
             .map(([id, value]) => ({
               id: Number(id),
               value: formatToTwoDecimals(value),
@@ -151,7 +170,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
       // Prepare invoice payments array (IDs are already numeric from API, no "I-" prefix needed)
       const invoicePaymentsArray = paymentData.invoicePayments
         ? Object.entries(paymentData.invoicePayments)
-            .filter(([_, value]) => value > 0)
+            .filter(([, value]) => value > 0)
             .map(([id, value]) => ({
               id: Number(id),
               value: formatToTwoDecimals(value),
@@ -162,7 +181,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
       // Prepare payment credits array (IDs are already numeric from API)
       const paymentCreditsArray = paymentData.paymentCredits
         ? Object.entries(paymentData.paymentCredits)
-            .filter(([_, value]) => value > 0)
+            .filter(([, value]) => value > 0)
             .map(([id, value]) => ({
               id: Number(id),
               value: formatToTwoDecimals(value),
@@ -173,7 +192,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
       // Prepare invoice credits array (IDs are already numeric from API)
       const invoiceCreditsArray = paymentData.invoiceCredits
         ? Object.entries(paymentData.invoiceCredits)
-            .filter(([_, value]) => value > 0)
+            .filter(([, value]) => value > 0)
             .map(([id, value]) => ({
               id: Number(id),
               value: formatToTwoDecimals(value),
@@ -255,27 +274,20 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     }
   }, [details?.customerId, location]);
 
-  // Fetch customer email addresses when email modal opens
-  React.useEffect(() => {
-    const fetchCustomerEmails = async () => {
-      if (isEmailModalOpen && details?.customerId) {
-        setIsLoadingEmails(true);
-        try {
-          const emails = await getCustomerEmailAddresses(location, details.customerId);
-          setCustomerEmails(emails);
-        } catch (error) {
-          console.error("Error fetching customer emails:", error);
-          setCustomerEmails([]);
-        } finally {
-          setIsLoadingEmails(false);
-        }
-      } else if (!isEmailModalOpen) {
-        setCustomerEmails([]);
-      }
-    };
+  // Handle email modal open - fetch data if not already loaded
+  const handleEmailModalOpen = React.useCallback(() => {
+    // Fetch email statement if not already loaded or loading
+    if (!emailStatement && !emailStatementLoading) {
+      dispatch(fetchEmailStatement({ location, enrolmentId: id }));
+    }
+    // Open modal - loading/error states will be handled by overlays
+    setIsEmailModalOpen(true);
+  }, [emailStatement, emailStatementLoading, dispatch, location, id]);
 
-    fetchCustomerEmails();
-  }, [isEmailModalOpen, details?.customerId, location]);
+  // Handle retry for email statement
+  const handleRetryEmailStatement = React.useCallback(() => {
+    dispatch(fetchEmailStatement({ location, enrolmentId: id }));
+  }, [dispatch, location, id]);
 
   // Memoize formatted lessons for print to avoid recalculation
   const formattedLessonsForPrint = React.useMemo(() => {
@@ -396,10 +408,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
             },
             {
               label: ENROLMENT_MESSAGES.ACTION_MAIL,
-              onClick: () => {
-                // Open email modal for group enrolment statements
-                setIsEmailModalOpen(true);
-              },
+              onClick: handleEmailModalOpen,
             },
           ]
         : [
@@ -419,7 +428,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
         items: groupSpecificItems,
       },
     ];
-  }, [enrolmentType, handlePrint]);
+  }, [enrolmentType, handlePrint, handleEmailModalOpen]);
 
   // Error state - show error but still render cards with skeleton
   const showError = error && !enrolmentInfo;
@@ -617,44 +626,80 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
 
       {/* Email Modal - group enrolment customer statement */}
       {!isPrivateEnrolment && (
-        <EmailModal
-          open={isEmailModalOpen}
-          onOpenChange={setIsEmailModalOpen}
-          onSend={async (emailData: EmailFormData) => {
-            if (!details?.studentId) {
-              toast.error("Student ID is required to send email");
-              return;
-            }
+        <>
+          {/* Loading overlay - show when modal is open and data is loading */}
+          {isEmailModalOpen && emailStatementLoading && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+                <LoadingAnimation size="md" text="Loading email statement..." />
+              </div>
+            </div>
+          )}
+          {/* Error overlay - show when modal is open and there's an error */}
+          {isEmailModalOpen && emailStatementError && !emailStatementLoading && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-md">
+                <ErrorDisplay
+                  error={emailStatementError}
+                  title="Failed to Load Email Statement"
+                  fallbackMessage="Unable to load email statement data. Please try again."
+                />
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={handleRetryEmailStatement}
+                    className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    onClick={() => setIsEmailModalOpen(false)}
+                    className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Email Modal - show when modal is open and data is ready */}
+          <EmailModal
+            open={isEmailModalOpen && !emailStatementLoading && !!emailStatement && !emailStatementError}
+            onOpenChange={setIsEmailModalOpen}
+            onSend={async (emailData: EmailFormData) => {
+              if (!details?.studentId) {
+                toast.error("Student ID is required to send email");
+                return;
+              }
 
-            try {
-              // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
-              const response = await sendEmail(location, {
-                objectId: 8,
-                userId: details.studentId,
-                to: emailData.recipients,
-                subject: emailData.subject,
-                content: emailData.content,
-              });
+              try {
+                const response = await sendEmail(location, {
+                  objectId: ENROLMENT_CONSTANTS.EMAIL_OBJECT_CUSTOMER_STATEMENT,
+                  userId: details.studentId,
+                  to: emailData.recipients,
+                  subject: emailData.subject,
+                  content: emailData.content,
+                });
 
-              if (response.status) {
-                toast.success("Email sent successfully");
-                setIsEmailModalOpen(false);
-              } else {
-                const errorMessage = response.message || "Failed to send email";
+                if (response.status) {
+                  toast.success("Email sent successfully");
+                  setIsEmailModalOpen(false);
+                } else {
+                  const errorMessage = response.message || "Failed to send email";
+                  toast.error(errorMessage);
+                }
+              } catch (error) {
+                const errorMessage =
+                  error instanceof Error ? error.message : "Failed to send email";
                 toast.error(errorMessage);
               }
-            } catch (error) {
-              console.error("Error sending email:", error);
-              const errorMessage =
-                error instanceof Error ? error.message : "Failed to send email";
-              toast.error(errorMessage);
-            }
-          }}
-          recipientEmails={customerEmails}
-          locationName={location}
-          initialSubject="Enrolment Statement from Arcadia Academy of Music"
-          localStorageKey={`enrolment-email-${id}-${details?.studentId || "default"}`}
-        />
+            }}
+            recipientEmails={customerEmails}
+            locationName={location}
+            initialSubject={emailSubject}
+            initialContent={emailContent}
+            localStorageKey={`enrolment-email-${id}-${details?.studentId || "default"}`}
+          />
+        </>
       )}
 
       {/* Receive Payment Modal */}

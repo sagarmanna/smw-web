@@ -19,6 +19,12 @@ export const ENROLMENT_CONSTANTS = {
   // Enrolment types
   ENROLMENT_TYPE_PRIVATE: "private" as const,
   ENROLMENT_TYPE_GROUP: "group" as const,
+  
+  // Email object types
+  EMAIL_OBJECT_CUSTOMER_STATEMENT: 8,
+  
+  // Modal z-index
+  MODAL_Z_INDEX: 50,
 } as const;
 
 export const ENROLMENT_MESSAGES = {
