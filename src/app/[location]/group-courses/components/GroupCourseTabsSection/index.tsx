@@ -152,11 +152,9 @@ export function GroupCourseTabsSection({ location, courseId }: GroupCourseTabsSe
                 <div className="flex items-center justify-center h-[400px]">
                   <div className="text-gray-500">Loading...</div>
                 </div>
-              ) : tabError && activeTab === tabKey ? (
-                <div className="flex items-center justify-center h-[400px]">
-                  <div className="text-red-500">{tabError}</div>
-                </div>
               ) : (
+                // Let tab components handle their own errors (students/history tabs show errors in table area)
+                // Only lessons tab shows full-page error since it doesn't have a table
                 <TabComponent location={location} courseId={courseId} />
               )}
             </TabsContent>

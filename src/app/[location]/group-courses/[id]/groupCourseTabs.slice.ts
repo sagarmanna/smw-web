@@ -118,8 +118,11 @@ export const fetchGroupCourseStudents = createAsyncThunk(
     try {
       const apiResult = await getCourseStudents(location, courseId, page);
 
+      // Handle API error responses (including 404 with error messages)
       if (!apiResult || !apiResult.success) {
-        throw new Error(apiResult?.message || 'Failed to fetch course students');
+        // Extract error message from API response
+        const errorMessage = apiResult?.message || 'Failed to fetch course students';
+        return rejectWithValue(errorMessage);
       }
 
       return {
@@ -146,8 +149,11 @@ export const fetchGroupCourseHistory = createAsyncThunk(
     try {
       const apiResult = await getCourseHistory(location, courseId, page);
 
+      // Handle API error responses (including 404 with error messages)
       if (!apiResult || !apiResult.success) {
-        throw new Error(apiResult?.message || 'Failed to fetch course history');
+        // Extract error message from API response
+        const errorMessage = apiResult?.message || 'Failed to fetch course history';
+        return rejectWithValue(errorMessage);
       }
 
       return {
