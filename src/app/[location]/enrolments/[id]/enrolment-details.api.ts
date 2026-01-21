@@ -1457,3 +1457,113 @@ export async function getEnrolmentDiscountPreview(
   }
 }
 
+// Enrolment Email Statement API Types
+export interface EnrolmentEmailTemplate {
+  id: number;
+  subject: string;
+  header: string;
+  footer: string;
+}
+
+export interface EnrolmentEmailLesson {
+  id: number;
+  teacherName: string;
+  date: string;
+  status: string;
+}
+
+export interface EnrolmentEmailStatementBody {
+  enrolment: {
+    id: number;
+    studentId: number;
+    studentName: string;
+    customerId: number;
+    customerName: string;
+    courseId: number;
+    programName: string;
+    teacherName: string;
+    startDate: string;
+    endDate: string;
+  };
+  emails: string[];
+  emailTemplate: EnrolmentEmailTemplate;
+  lessons: EnrolmentEmailLesson[];
+  schedules: Array<{
+    id: number;
+    day: number;
+    dayName: string;
+    fromTime: string;
+    duration: string;
+  }>;
+  totalLessons: number;
+  remainingLessons: number;
+}
+
+export interface EnrolmentEmailStatementApiResponse {
+  success: boolean;
+  data: {
+    body: EnrolmentEmailStatementBody;
+  };
+  message?: string;
+}
+
+/**
+ * Fetches enrolment email statement data from the API
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/email-statement
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the email statement response or null on error
+ */
+export async function getEnrolmentEmailStatement(
+  location: string,
+  enrolmentId: string
+): Promise<EnrolmentEmailStatementApiResponse | null> {
+  try {
+    const response = await apiClient.get<EnrolmentEmailStatementApiResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/email-statement`
+    );
+    
+    if (!response.data.success || !response.data.data?.body) {
+      // Return response with error message if available, otherwise null
+      return response.data.success === false ? response.data : null;
+    }
+    
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    // Return error response object with API error message
+    return {
+      success: false,
+      data: {
+        body: {
+          enrolment: {
+            id: Number(enrolmentId) || 0,
+            studentId: 0,
+            studentName: "",
+            customerId: 0,
+            customerName: "",
+            courseId: 0,
+            programName: "",
+            teacherName: "",
+            startDate: "",
+            endDate: "",
+          },
+          emails: [],
+          emailTemplate: {
+            id: 0,
+            subject: "",
+            header: "",
+            footer: "",
+          },
+          lessons: [],
+          schedules: [],
+          totalLessons: 0,
+          remainingLessons: 0,
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to fetch enrolment email statement",
+    };
+  }
+}
+
