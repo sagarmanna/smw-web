@@ -10,7 +10,6 @@ import {
   updateEnrolment,
   adjustEndDate,
   adjustGroupEndDate,
-  changeSchedulePermanently as changeSchedulePermanentlyThunk,
   updateDiscounts,
   updatePaymentFrequency as updatePaymentFrequencyThunk,
 } from "../[id]/enrolment-details.slice";
@@ -48,7 +47,6 @@ type EnrolmentDetailsHookReturn = {
   saveDetails: (details: Partial<EnrolmentDetails>) => Promise<boolean>;
   savingDetails: boolean;
   adjustScheduleEndDate: (endDate: string, enrolmentType?: "private" | "group") => Promise<boolean>;
-  changeSchedulePermanently: (startingDate: string) => Promise<boolean>;
   saveDiscounts: (discounts: Partial<EnrolmentDiscounts>) => Promise<boolean>;
   savePaymentFrequency: (data: { paymentFrequency: string; effectiveDate: string }) => Promise<boolean>;
 };
@@ -243,26 +241,12 @@ export function useEnrolmentDetails(
   );
 
   const changeSchedulePermanently = React.useCallback(
-    async (startingDate: string): Promise<boolean> => {
-      try {
-        await dispatch(
-          changeSchedulePermanentlyThunk({
-            location,
-            enrolmentId,
-            startingDate,
-          })
-        ).unwrap();
-        
-        toast.success("Schedule changed successfully");
-        return true;
-      } catch (error) {
-        console.error("Failed to change schedule:", error);
-        const errorMessage = error instanceof Error ? error.message : "Failed to change schedule. Please try again.";
-        toast.error(errorMessage);
-        return false;
-      }
+    async (_startingDate: string): Promise<boolean> => {
+      // This legacy hook path is no longer used by the UI.
+      toast.info("Permanent schedule change now runs from the modal flow.");
+      return false;
     },
-    [dispatch, location, enrolmentId]
+    []
   );
 
   const saveDiscounts = React.useCallback(
@@ -351,7 +335,6 @@ export function useEnrolmentDetails(
     saveDetails,
     savingDetails,
     adjustScheduleEndDate,
-    changeSchedulePermanently,
     saveDiscounts,
     savePaymentFrequency,
   };

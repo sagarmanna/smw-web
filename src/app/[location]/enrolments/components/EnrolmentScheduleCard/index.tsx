@@ -16,29 +16,27 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AdjustEndDateModal } from "../modals/AdjustEndDateModal";
 import { PermanentScheduleChangeModal } from "../modals/PermanentScheduleChangeModal";
-import { isDev } from "@/utils/env";
-import { toast } from "sonner";
 
 interface EnrolmentScheduleCardProps {
   schedule: EnrolmentSchedule | null;
   onAdjustEndDate: (endDate: string) => Promise<boolean>;
-  onChangeSchedulePermanently: (startingDate: string) => Promise<boolean>;
   saving?: boolean;
   isLoading?: boolean;
   enrolmentType?: "private" | "group";
   location: string;
   enrolmentId: string;
+  onRefresh?: () => Promise<void>;
 }
 
 export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
   schedule,
   onAdjustEndDate,
-  onChangeSchedulePermanently,
   saving = false,
   isLoading = false,
   enrolmentType = "private",
   location,
   enrolmentId,
+  onRefresh,
 }: EnrolmentScheduleCardProps) {
   const [isAdjustEndDateModalOpen, setIsAdjustEndDateModalOpen] = React.useState(false);
   const [isPermanentChangeModalOpen, setIsPermanentChangeModalOpen] = React.useState(false);
@@ -76,14 +74,13 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
   );
 
   const handlePermanentChange = React.useCallback(
-    async (startingDate: string): Promise<boolean> => {
-      const success = await onChangeSchedulePermanently(startingDate);
-      if (success) {
-        setIsPermanentChangeModalOpen(false);
+    async () => {
+      if (onRefresh) {
+        await onRefresh();
       }
-      return success;
+      setIsPermanentChangeModalOpen(false);
     },
-    [onChangeSchedulePermanently]
+    [onRefresh]
   );
 
   return (
@@ -105,7 +102,7 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
                 Adjust enddate...
               </DropdownMenuItem>
               {enrolmentType === "private" && (
-                <DropdownMenuItem onClick={() => isDev() ? setIsPermanentChangeModalOpen(true) : toast.info("This feature is in development.")}>
+                <DropdownMenuItem onClick={() => setIsPermanentChangeModalOpen(true)}>
                   Permanent Schedule Change...
                 </DropdownMenuItem>
               )}
@@ -129,8 +126,10 @@ export const EnrolmentScheduleCard = React.memo(function EnrolmentScheduleCard({
         open={isPermanentChangeModalOpen}
         onClose={() => setIsPermanentChangeModalOpen(false)}
         schedule={schedule}
-        onSubmit={handlePermanentChange}
+        onSuccess={handlePermanentChange}
         saving={saving}
+        location={location}
+        enrolmentId={enrolmentId}
       />
     </>
   );

@@ -933,60 +933,273 @@ export async function adjustGroupEnrolmentEndDate(
 
 // Permanent Schedule Change API Types
 export interface PermanentScheduleChangeRequest {
-  startingDate: string;
+  startMonth?: string; // YYYY-MM
 }
 
-export interface PermanentScheduleChangeResponse {
+export interface PermanentScheduleChangePreviewBody {
+  courseId: number;
+  currentTeacherId: number;
+  currentTeacherName: string;
+  currentDayTime: string;
+  currentDuration: string;
+  teachers: Array<{ id: number; name: string }>;
+  dateToChangeSchedule?: string; // Format: "YYYY-MM" (only when startMonth is provided)
+  rescheduleBeginDate?: string; // Format: "MMM D, Y" (set after calendar selection)
+}
+
+// Alias for backward compatibility - merged into PreviewBody
+export type PermanentScheduleChangeDetailBody = PermanentScheduleChangePreviewBody;
+
+export interface PermanentScheduleChangeRescheduleBody {
+  courseId: number;
+  rescheduleBeginDate: string; // "MMM D, Y"
+  rescheduleEndDate: string;   // "MMM D, Y"
+  isTeacherOnlyChanged: boolean;
+}
+
+export interface PermanentScheduleChangePreviewResponse {
   success: boolean;
   data: {
-    id: number;
-    startingDate: string;
+    body: PermanentScheduleChangePreviewBody;
+  };
+  message?: string;
+}
+
+export interface PermanentScheduleChangeDetailResponse {
+  success: boolean;
+  data: {
+    body: PermanentScheduleChangeDetailBody;
+  };
+  message?: string;
+}
+
+export interface PermanentScheduleChangeRescheduleRequest {
+  dateToChangeSchedule: string; // YYYY-MM
+  teacherId: number;
+  dayTime: string; // "dddd hh:mm A"
+  duration: string; // "HH:mm"
+  rescheduleBeginDate: string; // "MMM D, Y"
+}
+
+export interface PermanentScheduleChangeRescheduleResponse {
+  success: boolean;
+  data: {
+    body: PermanentScheduleChangeRescheduleBody;
   };
   message?: string;
 }
 
 /**
- * Performs permanent schedule change via PUT API
- * For now, returns mock response
- * 
- * @param location - The location identifier
- * @param enrolmentId - The enrolment ID
- * @param data - The starting date data
- * @returns Promise resolving to the update response or null on error
+ * Preview permanent schedule change (Step 1)
  */
-export async function permanentScheduleChange(
+export async function getPermanentScheduleChangePreview(
   location: string,
   enrolmentId: string,
-  data: PermanentScheduleChangeRequest
-): Promise<PermanentScheduleChangeResponse | null> {
+  startMonth?: string
+): Promise<PermanentScheduleChangePreviewResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.put<PermanentScheduleChangeResponse>(
-    //   `/admin/v2/${location}/enrolment/${enrolmentId}/schedule/permanent-change`,
-    //   data
-    // );
-    // return response.data;
-    
-    // For now, return mock response - simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    const response = await apiClient.get<PermanentScheduleChangePreviewResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/permanent-schedule-change/preview`,
+      {
+        params: startMonth ? { startMonth } : undefined,
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching permanent schedule change preview:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
     return {
-      success: true,
+      success: false,
       data: {
-        id: Number(enrolmentId) || 0,
-        startingDate: data.startingDate,
+        body: {
+          courseId: Number(enrolmentId) || 0,
+          currentTeacherId: 0,
+          currentTeacherName: "",
+          currentDayTime: "",
+          currentDuration: "",
+          teachers: [],
+          ...(startMonth && { dateToChangeSchedule: startMonth }),
+        },
       },
+      message: apiError.response?.data?.message || "Failed to fetch data",
     };
+  }
+}
+
+
+/**
+ * Reschedule lessons (Step 3)
+ */
+export async function postPermanentScheduleChangeReschedule(
+  location: string,
+  enrolmentId: string,
+  data: PermanentScheduleChangeRescheduleRequest
+): Promise<PermanentScheduleChangeRescheduleResponse | null> {
+  try {
+    const response = await apiClient.post<PermanentScheduleChangeRescheduleResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/permanent-schedule-change/reschedule`,
+      data
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error performing permanent schedule change:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
       data: {
-        id: Number(enrolmentId) || 0,
-        startingDate: "",
+        body: {
+          courseId: Number(enrolmentId) || 0,
+          rescheduleBeginDate: data.rescheduleBeginDate,
+          rescheduleEndDate: "",
+          isTeacherOnlyChanged: false,
+        },
       },
       message: apiError.response?.data?.message || "Failed to perform permanent schedule change",
+    };
+  }
+}
+
+// Permanent Schedule Change Review API Types (reusing LessonReview types from students API)
+export interface PermanentScheduleChangeLessonReviewItem {
+  id: number;
+  date: string;
+  duration: string;
+  conflict?: string;
+  isHolidayConflict?: boolean;
+  isConflict?: boolean;
+  isUnscheduled?: boolean;
+}
+
+export interface PermanentScheduleChangeLessonReviewData {
+  courseId: number;
+  programName: string;
+  teacherName: string;
+  studentName: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  lessons: PermanentScheduleChangeLessonReviewItem[];
+  unscheduledLessons?: PermanentScheduleChangeLessonReviewItem[]; // Old confirmed lessons that became unscheduled
+  rescheduledLessons?: PermanentScheduleChangeLessonReviewItem[]; // Old confirmed lessons that were rescheduled
+  summary: {
+    holidayConflicted: number;
+    conflicted: number;
+    unscheduled: number;
+    scheduled: number;
+    total: number;
+  };
+}
+
+export interface PermanentScheduleChangeLessonReviewResponse {
+  success: boolean;
+  data: PermanentScheduleChangeLessonReviewData;
+  message: string;
+}
+
+export interface PermanentScheduleChangeReviewRequest {
+  courseId: number;
+  rescheduleBeginDate?: string; // Format: "MMM D, Y" (e.g., "Feb 1, 2026") or "d-m-Y" (e.g., "01-02-2026")
+  rescheduleEndDate?: string; // Format: "MMM D, Y" (e.g., "Feb 15, 2026") or "d-m-Y" (e.g., "15-02-2026")
+  isTeacherOnlyChanged?: boolean;
+  showAllReviewLessons?: boolean;
+}
+
+/**
+ * Get lesson review for permanent schedule change
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/permanent-schedule-change/review
+ * Matches legacy: GET /lesson/review with rescheduleBeginDate and rescheduleEndDate
+ */
+export async function getPermanentScheduleChangeReview(
+  location: string,
+  enrolmentId: string,
+  data: PermanentScheduleChangeReviewRequest
+): Promise<PermanentScheduleChangeLessonReviewResponse | null> {
+  try {
+    const response = await apiClient.get<PermanentScheduleChangeLessonReviewResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/permanent-schedule-change/review`,
+      {
+        params: {
+          courseId: data.courseId,
+          ...(data.rescheduleBeginDate && { rescheduleBeginDate: data.rescheduleBeginDate }),
+          ...(data.rescheduleEndDate && { rescheduleEndDate: data.rescheduleEndDate }),
+          ...(data.isTeacherOnlyChanged !== undefined && { isTeacherOnlyChanged: data.isTeacherOnlyChanged ? '1' : '0' }),
+          ...(data.showAllReviewLessons !== undefined && { showAllReviewLessons: data.showAllReviewLessons ? '1' : '0' }),
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching permanent schedule change review:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        courseId: data.courseId,
+        programName: "",
+        teacherName: "",
+        studentName: "",
+        startDate: "",
+        endDate: "",
+        startTime: "",
+        lessons: [],
+        summary: {
+          holidayConflicted: 0,
+          conflicted: 0,
+          unscheduled: 0,
+          scheduled: 0,
+          total: 0,
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to fetch permanent schedule change review",
+    };
+  }
+}
+
+/**
+ * Confirm lessons for permanent schedule change
+ * Endpoint: POST /admin/v2/{location}/lesson/confirm?courseId=X&rescheduleBeginDate=...&rescheduleEndDate=...
+ * Matches legacy: POST /lesson/confirm?LessonConfirm[courseId]=X&LessonConfirm[rescheduleBeginDate]=...&LessonConfirm[rescheduleEndDate]=...
+ */
+export interface ConfirmLessonsRequest {
+  courseId: number;
+  rescheduleBeginDate?: string; // Format: "d-m-Y" (e.g., "01-02-2026")
+  rescheduleEndDate?: string; // Format: "d-m-Y" (e.g., "17-02-2026")
+}
+
+export interface ConfirmLessonsResponse {
+  success: boolean;
+  data: {
+    enrolmentId: number | null;
+  };
+  message?: string;
+}
+
+export async function confirmLessons(
+  location: string,
+  data: ConfirmLessonsRequest
+): Promise<ConfirmLessonsResponse | null> {
+  try {
+    const response = await apiClient.post<ConfirmLessonsResponse>(
+      `/admin/v2/${location}/lesson/confirm`,
+      {},
+      {
+        params: {
+          courseId: data.courseId,
+          ...(data.rescheduleBeginDate && { rescheduleBeginDate: data.rescheduleBeginDate }),
+          ...(data.rescheduleEndDate && { rescheduleEndDate: data.rescheduleEndDate }),
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error confirming lessons:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        enrolmentId: null,
+      },
+      message: apiError.response?.data?.message || "Failed to confirm lessons",
     };
   }
 }

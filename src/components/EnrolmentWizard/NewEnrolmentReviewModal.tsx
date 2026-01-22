@@ -48,6 +48,9 @@ interface NewEnrolmentReviewModalProps {
   location?: string; // Location slug for API calls
   courseId?: number; // Course ID for refreshing review data
   programId?: string; // Program ID for filtering teachers
+  unscheduledLessons?: LessonPreview[]; // Old confirmed lessons that became unscheduled
+  rescheduledLessons?: LessonPreview[]; // Old confirmed lessons that were rescheduled
+  isPermanentScheduleChange?: boolean; // Whether this is a permanent schedule change flow
 }
 
 export function NewEnrolmentReviewModal({
@@ -62,6 +65,9 @@ export function NewEnrolmentReviewModal({
   location,
   courseId,
   programId,
+  unscheduledLessons = [],
+  rescheduledLessons = [],
+  isPermanentScheduleChange = false,
 }: NewEnrolmentReviewModalProps) {
   const [editingLesson, setEditingLesson] = React.useState<{
     id: number;
@@ -169,7 +175,7 @@ export function NewEnrolmentReviewModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Details and Summary Section - Side by side */}
+          {/* Details and Summary/Unscheduled-Rescheduled Section - Side by side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Details Section - Left */}
             <div className="border rounded-md p-4 bg-muted/50">
@@ -216,38 +222,182 @@ export function NewEnrolmentReviewModal({
               )}
             </div>
 
-            {/* Summary Section - Right */}
-            <div className="border rounded-md p-4 bg-muted/50">
-              <h3 className="text-sm font-semibold mb-3">Review Lessons Summary</h3>
-              {lessons.length > 0 ? (
-                <dl className="space-y-2 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground text-xs">Unscheduled Lesson(s)</dt>
-                    <dt className="text-muted-foreground text-xs">due to holiday conflict</dt>
-                    <dd className="text-lg font-semibold">{summary.holidayConflicted}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground text-xs">Unscheduled Lessons</dt>
-                    <dd className="text-lg font-semibold">{summary.unscheduled}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground text-xs">Scheduled Lessons</dt>
-                    <dd className="text-lg font-semibold">{summary.scheduled}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground text-xs">Conflicted Lesson(s)</dt>
-                    <dd className="text-lg font-semibold">{summary.conflicted}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground text-xs">Total Lessons</dt>
-                    <dd className="text-lg font-semibold">{summary.total}</dd>
-                  </div>
-                </dl>
-              ) : (
-                <p className="text-xs text-muted-foreground">No lessons to summarize</p>
-              )}
-            </div>
+            {/* Summary Section - Right (only for non-permanent schedule change) */}
+            {!isPermanentScheduleChange && (
+              <div className="border rounded-md p-4 bg-muted/50">
+                <h3 className="text-sm font-semibold mb-3">Review Lessons Summary</h3>
+                {lessons.length > 0 ? (
+                  <dl className="space-y-2 text-sm">
+                    <div>
+                      <dt className="text-muted-foreground text-xs">Unscheduled Lesson(s)</dt>
+                      <dt className="text-muted-foreground text-xs">due to holiday conflict</dt>
+                      <dd className="text-lg font-semibold">{summary.holidayConflicted}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground text-xs">Unscheduled Lessons</dt>
+                      <dd className="text-lg font-semibold">{summary.unscheduled}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground text-xs">Scheduled Lessons</dt>
+                      <dd className="text-lg font-semibold">{summary.scheduled}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground text-xs">Conflicted Lesson(s)</dt>
+                      <dd className="text-lg font-semibold">{summary.conflicted}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground text-xs">Total Lessons</dt>
+                      <dd className="text-lg font-semibold">{summary.total}</dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No lessons to summarize</p>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Unscheduled and Rescheduled Lessons Sections - For permanent schedule change, show instead of Summary */}
+          {isPermanentScheduleChange && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Unscheduled Lessons Section */}
+              <div className="border rounded-md overflow-hidden">
+                <div className="bg-muted px-4 py-2 border-b">
+                  <h3 className="text-sm font-semibold">Unscheduled Lessons</h3>
+                </div>
+                {unscheduledLessons.length > 0 ? (
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-xs">Date/Time</th>
+                        <th className="px-3 py-2 text-left font-semibold text-xs">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {unscheduledLessons.map((lesson, index) => {
+                        const dateTime = formatDateTime(lesson.date, lesson.startTime);
+                        const duration = formatDuration(lesson.duration);
+                        return (
+                          <tr key={index} className="border-t hover:bg-muted/50">
+                            <td className="px-3 py-2">{dateTime}</td>
+                            <td className="px-3 py-2">{duration}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground">No Unscheduled Lessons</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Rescheduled Lessons Section */}
+              <div className="border rounded-md overflow-hidden">
+                <div className="bg-muted px-4 py-2 border-b">
+                  <h3 className="text-sm font-semibold">Rescheduled Lessons</h3>
+                </div>
+                {rescheduledLessons.length > 0 ? (
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-xs">Date/Time</th>
+                        <th className="px-3 py-2 text-left font-semibold text-xs">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rescheduledLessons.map((lesson, index) => {
+                        const dateTime = formatDateTime(lesson.date, lesson.startTime);
+                        const duration = formatDuration(lesson.duration);
+                        return (
+                          <tr key={index} className="border-t hover:bg-muted/50">
+                            <td className="px-3 py-2">{dateTime}</td>
+                            <td className="px-3 py-2">{duration}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground">No Rescheduled Lessons</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Unscheduled and Rescheduled Lessons Sections - Side by side (for non-permanent schedule change, show below Summary) */}
+          {!isPermanentScheduleChange && (unscheduledLessons.length > 0 || rescheduledLessons.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Unscheduled Lessons Section */}
+              <div className="border rounded-md overflow-hidden">
+                <div className="bg-muted px-4 py-2 border-b">
+                  <h3 className="text-sm font-semibold">Unscheduled Lessons</h3>
+                </div>
+                {unscheduledLessons.length > 0 ? (
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-xs">Date/Time</th>
+                        <th className="px-3 py-2 text-left font-semibold text-xs">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {unscheduledLessons.map((lesson, index) => {
+                        const dateTime = formatDateTime(lesson.date, lesson.startTime);
+                        const duration = formatDuration(lesson.duration);
+                        return (
+                          <tr key={index} className="border-t hover:bg-muted/50">
+                            <td className="px-3 py-2">{dateTime}</td>
+                            <td className="px-3 py-2">{duration}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground">No Unscheduled Lessons</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Rescheduled Lessons Section */}
+              <div className="border rounded-md overflow-hidden">
+                <div className="bg-muted px-4 py-2 border-b">
+                  <h3 className="text-sm font-semibold">Rescheduled Lessons</h3>
+                </div>
+                {rescheduledLessons.length > 0 ? (
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-xs">Date/Time</th>
+                        <th className="px-3 py-2 text-left font-semibold text-xs">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rescheduledLessons.map((lesson, index) => {
+                        const dateTime = formatDateTime(lesson.date, lesson.startTime);
+                        const duration = formatDuration(lesson.duration);
+                        return (
+                          <tr key={index} className="border-t hover:bg-muted/50">
+                            <td className="px-3 py-2">{dateTime}</td>
+                            <td className="px-3 py-2">{duration}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground">No Rescheduled Lessons</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {lessons.length === 0 ? (
             <div className="border rounded-md p-8 text-center">
@@ -346,10 +496,10 @@ export function NewEnrolmentReviewModal({
               type="button" 
               onClick={onConfirm} 
               disabled={isLoading || hasConflicts}
-              title={hasConflicts ? "Please resolve all conflicts before confirming" : undefined}
+              title={hasConflicts ? "Please resolve all conflicts before confirming" : isLoading ? "Processing..." : undefined}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm Enrolment
+              {isPermanentScheduleChange ? "Confirm Schedule Change" : "Confirm Enrolment"}
             </Button>
           </div>
         </DialogFooter>
