@@ -44,6 +44,7 @@ import referralSourceListingReducer from '../app/[location]/referral-source/refe
 import holidaysListingReducer from '../app/[location]/holidays/holidaysListing.slice';
 import emailTemplateListingReducer from '../app/[location]/email-template/emailTemplateListing.slice';
 import itemCategoriesListingReducer from '../app/[location]/item-categories/itemCategoriesListing.slice';
+import testEmailListingReducer from '../app/[location]/test-email/testEmailListing.slice';
 
 export const store = configureStore({
   reducer: {
@@ -92,6 +93,7 @@ export const store = configureStore({
     holidaysListing: holidaysListingReducer,
     emailTemplateListing: emailTemplateListingReducer,
     itemCategoriesListing: itemCategoriesListingReducer,
+    testEmailListing: testEmailListingReducer,
   },
 });
 
