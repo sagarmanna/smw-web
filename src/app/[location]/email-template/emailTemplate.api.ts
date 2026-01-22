@@ -118,28 +118,13 @@ export async function updateEmailTemplate(
     };
 
     // Make API call to update email template
-    // Note: API is not ready yet, so this is a placeholder
-    // TODO: Uncomment when API is ready
     // Note: This endpoint doesn't include location in the path (unlike other endpoints)
-    // const response = await apiClient.put<UpdateEmailTemplateResponse>(
-    //   `/admin/v2/email-template/${emailTemplateId}`,
-    //   requestBody
-    // );
+    const response = await apiClient.put<UpdateEmailTemplateResponse>(
+      `/admin/v2/email-template/${emailTemplateId}`,
+      requestBody
+    );
 
-    // return response.data;
-
-    // Placeholder response for now (API not ready)
-    return {
-      success: true,
-      message: "Email template updated successfully (API placeholder)",
-      data: {
-        id: emailTemplateId,
-        type: "",
-        subject: requestBody.subject,
-        header: requestBody.header,
-        footer: requestBody.footer,
-      },
-    };
+    return response.data;
   } catch (error: unknown) {
     const apiError = error as { 
       response?: { 
