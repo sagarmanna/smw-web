@@ -9,6 +9,8 @@ import {
   updateDetails,
 } from "../[id]/administrators-details.slice";
 import { toast } from "sonner";
+import { setUserPassword } from "@/lib/api/user.api";
+import { updateAdministratorProfile } from "../[id]/administrators-details.api";
 import {
   AdministratorAddress,
   AdministratorBasicDetails,
@@ -24,6 +26,7 @@ type AdministratorDetailsHookReturn = {
   phones: AdministratorPhone[];
   addresses: AdministratorAddress[];
   saveDetails: (next: AdministratorBasicDetails) => Promise<boolean>;
+  updatePassword: (password: string, confirmPassword: string) => Promise<boolean>;
   updateEmails: React.Dispatch<React.SetStateAction<AdministratorEmail[]>>;
   updatePhones: React.Dispatch<React.SetStateAction<AdministratorPhone[]>>;
   updateAddresses: React.Dispatch<React.SetStateAction<AdministratorAddress[]>>;
@@ -62,12 +65,31 @@ export function useAdministratorDetails(
 
   const saveDetails = React.useCallback(
     async (next: AdministratorBasicDetails) => {
-      // Optimistic update only - API not ready yet
-      dispatch(updateDetails(next));
-      toast.success("Administrator details updated locally");
-      return true;
+      try {
+        // Call API to update administrator profile
+        const response = await updateAdministratorProfile(location, administratorId, {
+          firstname: next.firstName,
+          lastname: next.lastName,
+        });
+
+        if (response.success) {
+          // Update Redux state with new details
+          dispatch(updateDetails(next));
+          toast.success(response.message || "Administrator details updated successfully");
+          return true;
+        } else {
+          toast.error(response.message || "Failed to update administrator details");
+          return false;
+        }
+      } catch (error: unknown) {
+        const errorMessage = 
+          (error as { message?: string })?.message || 
+          "Failed to update administrator details";
+        toast.error(errorMessage);
+        return false;
+      }
     },
-    [dispatch]
+    [dispatch, location, administratorId]
   );
 
   const handleUpdateEmails = React.useCallback(
@@ -100,6 +122,30 @@ export function useAdministratorDetails(
     [dispatch, administratorInfo]
   );
 
+  const handleUpdatePassword = React.useCallback(async (password: string, confirmPassword: string) => {
+    try {
+      // Call API to set password
+      const response = await setUserPassword(location, administratorId, {
+        password,
+        confirmPassword,
+      });
+
+      if (response.success && response.data?.status) {
+        return true;
+      } else {
+        console.error("Failed to update password:", response.message);
+        return false;
+      }
+    } catch (err: unknown) {
+      const errorMessage = 
+        (err as { message?: string })?.message || 
+        (err as { errorCode?: string; message?: string })?.message ||
+        "Failed to update password";
+      console.error("Failed to update password:", errorMessage);
+      return false;
+    }
+  }, [location, administratorId]);
+
   return {
     loading,
     error,
@@ -108,6 +154,7 @@ export function useAdministratorDetails(
     phones,
     addresses,
     saveDetails,
+    updatePassword: handleUpdatePassword,
     updateEmails: handleUpdateEmails,
     updatePhones: handleUpdatePhones,
     updateAddresses: handleUpdateAddresses,
