@@ -29,6 +29,7 @@ import {
   createStudentEnrolment,
   type CreateStudentEnrolmentRequest,
 } from "../../[id]/students-details.api";
+import { useRouter } from "next/navigation";
 
 interface StudentEnrolmentsCardProps {
   enrolments: StudentEnrolment[];
@@ -58,6 +59,7 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
   onRefresh,
 }: StudentEnrolmentsCardProps) {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const [showAll, setShowAll] = React.useState(false);
   const [isNewEnrolmentModalOpen, setIsNewEnrolmentModalOpen] = React.useState(false);
   const [isAddGroupEnrolmentModalOpen, setIsAddGroupEnrolmentModalOpen] = React.useState(false);
@@ -233,9 +235,13 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
 
   const handleRowClick = React.useCallback(
     (enrolment: StudentEnrolment) => {
-      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
-      const url = `${legacyBase}/${location}/enrolment/view?id=${enrolment.id}`;
-      window.location.href = url;
+      if (location === "burlington" || location === "training-location") {
+        router.push(`/${location}/enrolments/${enrolment.id}`)
+      } else {
+        const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+        const url = `${legacyBase}/${location}/enrolment/view?id=${enrolment.id}`;
+        window.location.href = url;
+      }
     },
     [location]
   );

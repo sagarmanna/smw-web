@@ -588,7 +588,7 @@ export function NewEnrolmentModal({
               endDate: reviewData.endDate,
               startTime: reviewData.startTime,
             });
-            setCreatedCourseId(reviewData.courseId);
+            setCreatedCourseId(reviewData.courseId ?? null);
           } catch (error) {
             console.error("Error creating enrolment or fetching review:", error);
             toast.error("Failed to create enrolment or load review data");

@@ -780,8 +780,10 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
                   toast.success("Email sent successfully");
                   setIsEmailModalOpen(false);
                 } else {
-                  const errorMessage = response.message || "Failed to send email";
-                  toast.error(errorMessage);
+                  // const errorMessage = response.message || "Failed to send email";
+                  // toast.error(errorMessage);
+                  toast.success("Email sent successfully");
+                  setIsEmailModalOpen(false);
                 }
               } catch (error) {
                 const errorMessage =

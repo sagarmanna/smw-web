@@ -205,14 +205,18 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
       </Tooltip>
       <DropdownMenuContent align="end">
         <DropdownMenuItem 
-          onClick={() => {
-            if (!isDev()) {
-              toast.info("Change Teacher is in development");
+          onClick={async () => {
+            // if (!isDev()) {
+            //   toast.info("Change Teacher is in development");
+            //   return;
+            // }
+            if (selectedRows.size === 0) {
               return;
             }
-            if (selectedRows.size > 0) {
-              setChangeTeacherModalOpen(true);
-            }
+            
+            // Note: Teacher validation is handled by the backend API
+            // The backend will return an error if enrolments don't have the same teacher
+            setChangeTeacherModalOpen(true);
           }}
           disabled={selectedRows.size === 0}
         >
@@ -220,7 +224,7 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  ), [selectedRows.size]);
+  ), [selectedRows.size, rows]);
 
   // Reusable tab navigation
   const tabNavigation = React.useMemo(() => (

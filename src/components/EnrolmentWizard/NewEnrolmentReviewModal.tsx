@@ -34,6 +34,12 @@ export interface EnrolmentReviewDetails {
   startDate?: string;
   endDate?: string;
   startTime?: string;
+  // Bulk teacher change details
+  oldTeacherName?: string;
+  newTeacherName?: string;
+  studentNames?: string; // Comma-separated list for multiple students
+  changesFrom?: string;
+  isBulkTeacherChange?: boolean;
 }
 
 interface NewEnrolmentReviewModalProps {
@@ -79,10 +85,11 @@ export function NewEnrolmentReviewModal({
 
   // Debug: Log details when they change
   React.useEffect(() => {
-    if (open && details) {
-      console.log('[NewEnrolmentReviewModal] Details:', details);
+    if (open) {
+      console.log('[NewEnrolmentReviewModal] Modal opened with details:', details);
+      console.log('[NewEnrolmentReviewModal] Lessons:', lessons);
     }
-  }, [open, details]);
+  }, [open, details, lessons]);
 
   // Calculate summary statistics
   const summary = React.useMemo(() => {
@@ -109,7 +116,23 @@ export function NewEnrolmentReviewModal({
   // Format date/time similar to legacy (datetime format with AM/PM)
   const formatDateTime = (date: string, time: string): string => {
     try {
-      const dateObj = new Date(date);
+      // Handle both YYYY-MM-DD and YYYY-MM-DDTHH:mm:ss formats
+      // If date includes time (T), parse it carefully to avoid timezone issues
+      let dateObj: Date;
+      if (date.includes('T')) {
+        // Date string includes time - parse as local time (not UTC)
+        // Split date and time, then create date object treating as local time
+        const [datePart, timePart] = date.split('T');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes, seconds] = (timePart || '').split(':').map(Number);
+        // Create date object in local timezone (not UTC)
+        dateObj = new Date(year, month - 1, day, hours || 0, minutes || 0, seconds || 0);
+      } else {
+        // Date only format (YYYY-MM-DD) - parse as local date
+        const [year, month, day] = date.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day);
+      }
+      
       if (isNaN(dateObj.getTime())) return `${date} ${formatTime(time)}`;
       
       const formattedDate = format(dateObj, "MMM dd, yyyy");
@@ -182,37 +205,76 @@ export function NewEnrolmentReviewModal({
               <h3 className="text-sm font-semibold mb-3">Details</h3>
               {details ? (
                 <dl className="space-y-2 text-sm">
-                  {details.studentName && (
-                    <div>
-                      <dt className="text-muted-foreground font-medium">Student</dt>
-                      <dd className="mt-1">{details.studentName}</dd>
-                    </div>
+                  {details.isBulkTeacherChange ? (
+                    <>
+                      {details.oldTeacherName && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">Old Teacher</dt>
+                          <dd className="mt-1">{details.oldTeacherName}</dd>
+                        </div>
+                      )}
+                      {details.newTeacherName && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">New Teacher</dt>
+                          <dd className="mt-1">{details.newTeacherName}</dd>
+                        </div>
+                      )}
+                      {details.studentNames && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">Students</dt>
+                          <dd className="mt-1">{details.studentNames}</dd>
+                        </div>
+                      )}
+                      {details.changesFrom && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">As of</dt>
+                          <dd className="mt-1">
+                            {format(new Date(details.changesFrom), "MMM dd, yyyy")}
+                          </dd>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {details.studentName && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">Student</dt>
+                          <dd className="mt-1">{details.studentName}</dd>
+                        </div>
+                      )}
+                      {details.programName && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">Program</dt>
+                          <dd className="mt-1">{details.programName}</dd>
+                        </div>
+                      )}
+                      {details.teacherName && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">Teacher</dt>
+                          <dd className="mt-1">{details.teacherName}</dd>
+                        </div>
+                      )}
+                      {details.startDate && details.endDate && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">Period</dt>
+                          <dd className="mt-1">{formatPeriod(details.startDate, details.endDate)}</dd>
+                        </div>
+                      )}
+                      {details.startTime && (
+                        <div>
+                          <dt className="text-muted-foreground font-medium">Time</dt>
+                          <dd className="mt-1">{formatTime(details.startTime)}</dd>
+                        </div>
+                      )}
+                    </>
                   )}
-                  {details.programName && (
-                    <div>
-                      <dt className="text-muted-foreground font-medium">Program</dt>
-                      <dd className="mt-1">{details.programName}</dd>
-                    </div>
+                  {details.isBulkTeacherChange && 
+                   !details.oldTeacherName && !details.newTeacherName && 
+                   !details.studentNames && !details.changesFrom && (
+                    <p className="text-xs text-muted-foreground">No details available</p>
                   )}
-                  {details.teacherName && (
-                    <div>
-                      <dt className="text-muted-foreground font-medium">Teacher</dt>
-                      <dd className="mt-1">{details.teacherName}</dd>
-                    </div>
-                  )}
-                  {details.startDate && details.endDate && (
-                    <div>
-                      <dt className="text-muted-foreground font-medium">Period</dt>
-                      <dd className="mt-1">{formatPeriod(details.startDate, details.endDate)}</dd>
-                    </div>
-                  )}
-                  {details.startTime && (
-                    <div>
-                      <dt className="text-muted-foreground font-medium">Time</dt>
-                      <dd className="mt-1">{formatTime(details.startTime)}</dd>
-                    </div>
-                  )}
-                  {!details.studentName && !details.programName && !details.teacherName && 
+                  {!details.isBulkTeacherChange && 
+                   !details.studentName && !details.programName && !details.teacherName && 
                    !details.startDate && !details.endDate && !details.startTime && (
                     <p className="text-xs text-muted-foreground">No details available</p>
                   )}
@@ -481,9 +543,12 @@ export function NewEnrolmentReviewModal({
         </div>
 
         <DialogFooter className="!flex !flex-row !justify-between !items-center gap-2">
-          <Button type="button" onClick={onBack}>
-            Back
-          </Button>
+          {onBack && !details?.isBulkTeacherChange && (
+            <Button type="button" onClick={onBack}>
+              Back
+            </Button>
+          )}
+          {(!onBack || details?.isBulkTeacherChange) && <div />}
           <div className="flex gap-2">
             <Button
               type="button"

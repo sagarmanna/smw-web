@@ -31,6 +31,7 @@ interface SearchableSelectProps {
   className?: string;
   disabled?: boolean;
   isLoading?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function SearchableSelect({
@@ -46,10 +47,16 @@ export function SearchableSelect({
   className,
   disabled = false,
   isLoading = false,
+  onOpenChange,
 }: SearchableSelectProps) {
   const [search, setSearch] = React.useState("");
   const [isOpen, setIsOpen] = React.useState(false);
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    onOpenChange?.(open);
+  };
 
   const filteredOptions = React.useMemo(() => {
     if (!search.trim()) return options;
@@ -84,7 +91,7 @@ export function SearchableSelect({
       value={value ?? ""}
       onValueChange={handleValueChange}
       disabled={disabled || isLoading}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
     >
       <SelectTrigger id={id} className={cn("h-9 w-full", className)}>
         <SelectValue placeholder={effectivePlaceholder} />
