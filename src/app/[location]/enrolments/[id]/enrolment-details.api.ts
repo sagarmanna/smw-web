@@ -30,6 +30,9 @@ export interface EnrolmentDetailsResponseBody {
   student: string;
   customer: string;
   online: string;
+  course?: {
+    teacherId: number;
+  };
 }
 
 export interface EnrolmentDetailsApiResponse {

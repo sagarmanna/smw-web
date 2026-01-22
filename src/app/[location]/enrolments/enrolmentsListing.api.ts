@@ -167,4 +167,44 @@ export async function getEnrolmentsList(
   }
 }
 
+// Change Teacher Request/Response interfaces
+export interface ChangeTeacherRequest {
+  enrolmentIds: number[];
+  teacherId: number;
+  changesFrom: string; // Format: YYYY-MM-DD
+}
+
+export interface ChangeTeacherResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    url: string;
+  };
+}
+
+/**
+ * Change teacher for enrolments - creates draft lessons with new teacher
+ * POST /admin/v2/{location}/enrolments/change-teacher
+ * Matches legacy: POST /admin/{location}/teacher-substitute/enrolment
+ */
+export async function changeTeacherForEnrolments(
+  location: string,
+  request: ChangeTeacherRequest
+): Promise<ChangeTeacherResponse | null> {
+  try {
+    // Send data in POST body (standard REST/NestJS approach)
+    const response = await apiClient.post<ChangeTeacherResponse>(
+      `/admin/v2/${location}/enrolments/change-teacher`,
+      request
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || 'Failed to change teacher for enrolments',
+    };
+  }
+}
 

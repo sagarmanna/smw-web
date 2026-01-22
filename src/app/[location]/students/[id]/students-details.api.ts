@@ -215,6 +215,7 @@ export async function createStudentEnrolment(
 export interface LessonReviewItem {
   id: number;
   date: string;
+  startTime?: string;
   duration: string;
   conflict?: string;
   isHolidayConflict?: boolean;
@@ -223,14 +224,21 @@ export interface LessonReviewItem {
 }
 
 export interface LessonReviewData {
-  courseId: number;
-  programName: string;
-  teacherName: string;
-  studentName: string;
-  startDate: string;
-  endDate: string;
-  startTime: string;
+  courseId?: number;
+  programName?: string;
+  teacherName?: string;
+  studentName?: string;
+  startDate?: string;
+  endDate?: string;
+  startTime?: string;
   lessons: LessonReviewItem[];
+  details?: {
+    oldTeacherName?: string;
+    newTeacherName?: string;
+    studentNames?: string;
+    changesFrom?: string;
+    isBulkTeacherChange?: boolean;
+  };
   summary: {
     holidayConflicted: number;
     conflicted: number;
@@ -248,7 +256,7 @@ export interface LessonReviewResponse {
 
 /**
  * Get lesson review data for a course
- * Endpoint: GET /admin/v2/{location}/lesson/review?courseId=X&showAllReviewLessons=0
+ * Endpoint: GET /admin/v2/{location}/lesson/review?courseId=X
  */
 export async function getLessonReview(
   location: string,
@@ -256,18 +264,50 @@ export async function getLessonReview(
   showAllReviewLessons: boolean = false,
 ): Promise<LessonReviewResponse | null> {
   try {
+    const params = new URLSearchParams();
+    params.append('courseId', courseId.toString());
+    params.append('showAllReviewLessons', showAllReviewLessons ? '1' : '0');
+
     const response = await apiClient.get<LessonReviewResponse>(
-      `/admin/v2/${location}/lesson/review`,
-      {
-        params: {
-          courseId,
-          showAllReviewLessons: showAllReviewLessons ? '1' : '0',
-        },
-      }
+      `/admin/v2/${location}/lesson/review?${params.toString()}`
     );
     return response.data;
   } catch (error: unknown) {
     console.error("Error fetching lesson review:", error);
+    return null;
+  }
+}
+
+/**
+ * Get lesson review data for teacher change (bulk teacher change scenario)
+ * Endpoint: GET /admin/v2/{location}/lesson/review-teacher-change?enrolmentIds[]=X&teacherId=Y&changesFrom=Z&isBulkTeacherChange=true
+ */
+export async function getLessonReviewForTeacherChange(
+  location: string,
+  enrolmentIds: number[],
+  teacherId: number,
+  changesFrom: string,
+  isBulkTeacherChange: boolean = true,
+): Promise<LessonReviewResponse | null> {
+  try {
+    const params = new URLSearchParams();
+    
+    // Format: enrolmentIds=31414&enrolmentIds=31415 (repeated params)
+    enrolmentIds.forEach((id) => {
+      params.append('enrolmentIds', id.toString());
+    });
+    params.append('teacherId', teacherId.toString());
+    params.append('changesFrom', changesFrom);
+    if (isBulkTeacherChange) {
+      params.append('isBulkTeacherChange', 'true');
+    }
+
+    const response = await apiClient.get<LessonReviewResponse>(
+      `/admin/v2/${location}/lesson/review-teacher-change?${params.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching lesson review for teacher change:", error);
     return null;
   }
 }
