@@ -12,17 +12,18 @@ interface UserPhoneCardProps<TPhone extends GenericPhone> {
   location: string;
   entityId: number;
   onRefresh?: () => Promise<void>;
-  CreateModal: React.ComponentType<{
-    open: boolean;
-    onClose: () => void;
-    onSubmit?: (phone: TPhone) => void;
-    editingPhone?: TPhone | null;
-    location: string;
-    entityId: number;
-    onUpdatePhones?: (phones: TPhone[]) => void;
-    onRefresh?: () => Promise<void>;
-    [key: string]: unknown;
-  }>;
+      CreateModal: React.ComponentType<{
+        open: boolean;
+        onClose: () => void;
+        onSubmit?: (phone: TPhone) => void;
+        editingPhone?: TPhone | null;
+        location: string;
+        entityId: number;
+        onUpdatePhones?: (phones: TPhone[]) => void;
+        currentPhones?: TPhone[];
+        onRefresh?: () => Promise<void>;
+        [key: string]: unknown;
+      }>;
   PhoneList: React.ComponentType<{
     phones: TPhone[];
     loading?: boolean;
@@ -140,6 +141,7 @@ export function UserPhoneCard<TPhone extends GenericPhone>({
         location={location}
         entityId={entityId}
         onUpdatePhones={onUpdate}
+        currentPhones={phones}
         onRefresh={onRefresh}
       />
 

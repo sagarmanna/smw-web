@@ -12,17 +12,18 @@ interface UserAddressCardProps<TAddress extends GenericAddress> {
   location: string;
   entityId: number;
   onRefresh?: () => Promise<void>;
-  CreateModal: React.ComponentType<{
-    open: boolean;
-    onClose: () => void;
-    onSubmit?: (address: TAddress) => void;
-    editingAddress?: TAddress | null;
-    location: string;
-    entityId: number;
-    onUpdateAddresses?: (addresses: TAddress[]) => void;
-    onRefresh?: () => Promise<void>;
-    [key: string]: unknown;
-  }>;
+      CreateModal: React.ComponentType<{
+        open: boolean;
+        onClose: () => void;
+        onSubmit?: (address: TAddress) => void;
+        editingAddress?: TAddress | null;
+        location: string;
+        entityId: number;
+        onUpdateAddresses?: (addresses: TAddress[]) => void;
+        currentAddresses?: TAddress[];
+        onRefresh?: () => Promise<void>;
+        [key: string]: unknown;
+      }>;
   AddressList: React.ComponentType<{
     addresses: TAddress[];
     loading?: boolean;
@@ -140,6 +141,7 @@ export function UserAddressCard<TAddress extends GenericAddress>({
         location={location}
         entityId={entityId}
         onUpdateAddresses={onUpdate}
+        currentAddresses={addresses}
         onRefresh={onRefresh}
       />
 

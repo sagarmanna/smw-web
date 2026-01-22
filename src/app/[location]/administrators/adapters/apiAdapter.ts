@@ -52,19 +52,70 @@ export function createAdministratorApiAdapter(
       }));
     },
 
-    createEmail: async () => {
-      // API not ready - throw error
-      throw new Error('Create email API not ready');
+    createEmail: async (location, id, emailData) => {
+      const response = await administratorApi.addAdministratorEmail(location, Number(id), {
+        email: emailData.email,
+        label: emailData.label,
+        note: emailData.note,
+        isPrimary: emailData.isPrimary || false,
+      });
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to create email');
+      }
+      // API may return data as object (POST) or array (PUT/DELETE)
+      // Handle both cases
+      let createdEmail;
+      if (Array.isArray(response.data)) {
+        // If data is an array, find the newly created email
+        createdEmail = response.data.find(e => e.email === emailData.email);
+        if (!createdEmail) {
+          throw new Error(response?.message || 'Created email not found in response');
+        }
+      } else {
+        // If data is an object (single email), use it directly
+        createdEmail = response.data;
+      }
+      const result = {
+        id: createdEmail.id.toString(),
+        label: createdEmail.label,
+        email: createdEmail.email,
+        note: createdEmail.note,
+        isPrimary: createdEmail.isPrimary,
+      };
+      // Attach API message as a property (modal can check for it)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (result as any)._apiMessage = response.message;
+      return result;
     },
 
-    updateEmail: async () => {
-      // API not ready - return false
-      return false;
+    updateEmail: async (location, id, emailId, emailData) => {
+      const response = await administratorApi.updateAdministratorEmail(
+        location,
+        Number(id),
+        Number(emailId),
+        {
+          email: emailData.email || '',
+          label: emailData.label || '',
+          note: emailData.note || '',
+          isPrimary: emailData.isPrimary || false,
+        }
+      );
+      if (!response?.success) {
+        return false;
+      }
+      return true;
     },
 
-    deleteEmail: async () => {
-      // API not ready - return false
-      return false;
+    deleteEmail: async (location, id, emailId) => {
+      const response = await administratorApi.deleteAdministratorEmail(
+        location,
+        Number(id),
+        emailId
+      );
+      if (!response?.success) {
+        return false;
+      }
+      return true;
     },
 
     fetchPhones: async (location, id) => {
@@ -89,19 +140,70 @@ export function createAdministratorApiAdapter(
       }));
     },
 
-    createPhone: async () => {
-      // API not ready - throw error
-      throw new Error('Create phone API not ready');
+    createPhone: async (location, id, phoneData) => {
+      const response = await administratorApi.addAdministratorPhone(location, Number(id), {
+        number: phoneData.number,
+        label: phoneData.label,
+        extension: phoneData.extension,
+        note: phoneData.note,
+      });
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to create phone');
+      }
+      // API may return data as object (POST) or array (PUT/DELETE)
+      // Handle both cases
+      let createdPhone;
+      if (Array.isArray(response.data)) {
+        // If data is an array, find the newly created phone
+        createdPhone = response.data.find(p => p.number === phoneData.number);
+        if (!createdPhone) {
+          throw new Error(response?.message || 'Created phone not found in response');
+        }
+      } else {
+        // If data is an object (single phone), use it directly
+        createdPhone = response.data;
+      }
+      const result = {
+        id: createdPhone.id.toString(),
+        label: createdPhone.label,
+        number: createdPhone.number,
+        extension: createdPhone.extension,
+        note: createdPhone.note,
+      };
+      // Attach API message as a property (modal can check for it)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (result as any)._apiMessage = response.message;
+      return result;
     },
 
-    updatePhone: async () => {
-      // API not ready - return false
-      return false;
+    updatePhone: async (location, id, phoneId, phoneData) => {
+      const response = await administratorApi.updateAdministratorPhone(
+        location,
+        Number(id),
+        Number(phoneId),
+        {
+          number: phoneData.number || '',
+          label: phoneData.label || '',
+          extension: phoneData.extension || '',
+          note: phoneData.note || '',
+        }
+      );
+      if (!response?.success) {
+        return false;
+      }
+      return true;
     },
 
-    deletePhone: async () => {
-      // API not ready - return false
-      return false;
+    deletePhone: async (location, id, phoneId) => {
+      const response = await administratorApi.deleteAdministratorPhone(
+        location,
+        Number(id),
+        phoneId
+      );
+      if (!response?.success) {
+        return false;
+      }
+      return true;
     },
 
     fetchAddresses: async (location, id) => {
@@ -132,19 +234,94 @@ export function createAdministratorApiAdapter(
       }));
     },
 
-    createAddress: async () => {
-      // API not ready - throw error
-      throw new Error('Create address API not ready');
+    createAddress: async (location, id, addressData) => {
+      const response = await administratorApi.addAdministratorAddress(location, Number(id), {
+        address: addressData.address,
+        city: addressData.city,
+        cityId: addressData.cityId,
+        provinceId: addressData.provinceId,
+        countryId: addressData.countryId,
+        postalCode: addressData.postalCode,
+        label: addressData.label,
+        isPrimary: addressData.isPrimary || false,
+      });
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to create address');
+      }
+      // POST API returns full address object in data
+      let createdAddress;
+      if (Array.isArray(response.data)) {
+        // If data is an array, find the newly created address
+        createdAddress = response.data.find(a => a.address === addressData.address && a.postalCode === addressData.postalCode);
+        if (!createdAddress) {
+          throw new Error(response?.message || 'Created address not found in response');
+        }
+      } else {
+        // POST returns full address object
+        createdAddress = response.data;
+      }
+      
+      // Return address using full response data
+      // Note: API response may include cityId, provinceId, countryId even though type doesn't specify them
+      const responseData = createdAddress as typeof createdAddress & {
+        cityId?: number;
+        provinceId?: number;
+        countryId?: number;
+      };
+      
+      const result = {
+        id: responseData.id.toString(),
+        label: responseData.label,
+        address: responseData.address,
+        city: responseData.city,
+        cityId: responseData.cityId ?? addressData.cityId ?? 0,
+        provinceId: responseData.provinceId ?? addressData.provinceId ?? 0,
+        countryId: responseData.countryId ?? addressData.countryId ?? 0,
+        postalCode: responseData.postalCode,
+        province: responseData.province || undefined,
+        country: responseData.country || undefined,
+        isPrimary: responseData.isPrimary || false,
+      };
+      
+      // Attach API message as a property (modal can check for it)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (result as any)._apiMessage = response.message;
+      
+      return result;
     },
 
-    updateAddress: async () => {
-      // API not ready - return false
-      return false;
+    updateAddress: async (location, id, addressId, addressData) => {
+      const response = await administratorApi.updateAdministratorAddress(
+        location,
+        Number(id),
+        Number(addressId),
+        {
+          address: addressData.address || '',
+          city: addressData.city || '',
+          cityId: addressData.cityId || 0,
+          provinceId: addressData.provinceId || 0,
+          countryId: addressData.countryId || 0,
+          postalCode: addressData.postalCode || '',
+          label: addressData.label || '',
+          isPrimary: addressData.isPrimary || false,
+        }
+      );
+      if (!response?.success) {
+        return false;
+      }
+      return true;
     },
 
-    deleteAddress: async () => {
-      // API not ready - return false
-      return false;
+    deleteAddress: async (location, id, addressId) => {
+      const response = await administratorApi.deleteAdministratorAddress(
+        location,
+        Number(id),
+        addressId
+      );
+      if (!response?.success) {
+        return false;
+      }
+      return true;
     },
   };
 }

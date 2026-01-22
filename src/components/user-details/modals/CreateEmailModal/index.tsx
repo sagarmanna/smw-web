@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GenericEmail, GenericBasicDetails } from "../../types/common";
+import { GenericEmail, GenericBasicDetails, WithApiMessage } from "../../types/common";
 import { UserDetailsApiAdapter } from "../../types/adapters";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -233,24 +233,38 @@ export function CreateEmailModal<
         if (!success) {
           throw new Error("Failed to update email");
         }
-        // Fetch updated emails to get the latest data
-        const updatedEmails = await apiAdapter.fetchEmails(location, entityId);
-        const updated = updatedEmails.find(
-          (e) => e.email.toLowerCase() === emailData.email.toLowerCase()
-        );
-        if (!updated) {
-          throw new Error("Failed to get updated email");
-        }
-        result = updated as TEmail;
+        // Update Redux state directly - no GET call needed
+        // Create updated email object from input data and existing ID
+        result = {
+          ...editingEmail,
+          ...emailData,
+        } as TEmail;
         toast.success("Email updated successfully");
       } else {
-        result = await apiAdapter.createEmail(location, entityId, emailData);
-        toast.success("Email added successfully");
+        const createResult = await apiAdapter.createEmail(location, entityId, emailData);
+        result = createResult as TEmail;
+        // Use API response message if available, otherwise use default
+        const resultWithMessage = createResult as WithApiMessage<TEmail>;
+        toast.success(resultWithMessage._apiMessage || "Email added successfully");
       }
 
+      // Update Redux state directly with the result - no GET call needed
       if (onUpdateEmails) {
-        const allEmails = await apiAdapter.fetchEmails(location, entityId);
-        onUpdateEmails(allEmails as TEmail[]);
+        const currentEmailsList = currentEmails || [];
+        if (editingEmail) {
+          // Update existing email in the list
+          const updatedList = currentEmailsList.map((e) =>
+            e.id === editingEmail.id ? result : e
+          );
+          onUpdateEmails(updatedList);
+        } else {
+          // Add new email to the list
+          // Handle isPrimary: if new email is primary, unset others
+          const updatedList = result.isPrimary
+            ? currentEmailsList.map((e) => ({ ...e, isPrimary: false }))
+            : currentEmailsList;
+          onUpdateEmails([...updatedList, result]);
+        }
       }
 
       if (onSubmit) {

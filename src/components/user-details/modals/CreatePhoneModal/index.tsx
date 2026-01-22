@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GenericPhone, GenericBasicDetails } from "../../types/common";
+import { GenericPhone, GenericBasicDetails, WithApiMessage } from "../../types/common";
 import { UserDetailsApiAdapter } from "../../types/adapters";
 import { toast } from "sonner";
 
@@ -35,6 +35,7 @@ interface CreatePhoneModalProps<
   location: string;
   entityId: number;
   onUpdatePhones?: (phones: TPhone[]) => void;
+  currentPhones?: TPhone[];
   onRefresh?: () => Promise<void>;
   apiAdapter: UserDetailsApiAdapter<GenericBasicDetails, TEmail, TPhone, TAddress>;
 }
@@ -62,6 +63,7 @@ export function CreatePhoneModal<
   location,
   entityId,
   onUpdatePhones,
+  currentPhones = [],
   onRefresh,
   apiAdapter,
 }: CreatePhoneModalProps<TEmail, TPhone, TAddress>) {
@@ -167,24 +169,33 @@ export function CreatePhoneModal<
         if (!success) {
           throw new Error("Failed to update phone");
         }
-        // Fetch updated phones to get the latest data
-        const updatedPhones = await apiAdapter.fetchPhones(location, entityId);
-        const updated = updatedPhones.find(
-          (p) => p.number === phoneData.number
-        );
-        if (!updated) {
-          throw new Error("Failed to get updated phone");
-        }
-        result = updated as TPhone;
+        // Update Redux state directly - no GET call needed
+        // Create updated phone object from input data and existing ID
+        result = {
+          ...editingPhone,
+          ...phoneData,
+        } as TPhone;
         toast.success("Phone number updated successfully");
       } else {
-        result = await apiAdapter.createPhone(location, entityId, phoneData);
-        toast.success("Phone number added successfully");
+        const createResult = await apiAdapter.createPhone(location, entityId, phoneData);
+        result = createResult as TPhone;
+        // Use API response message if available, otherwise use default
+        const resultWithMessage = createResult as WithApiMessage<TPhone>;
+        toast.success(resultWithMessage._apiMessage || "Phone number added successfully");
       }
 
+      // Update Redux state directly with the result - no GET call needed
       if (onUpdatePhones) {
-        const allPhones = await apiAdapter.fetchPhones(location, entityId);
-        onUpdatePhones(allPhones as TPhone[]);
+        if (editingPhone) {
+          // Update existing phone in the list
+          const updatedList = currentPhones.map((p) =>
+            p.id === editingPhone.id ? result : p
+          ) as TPhone[];
+          onUpdatePhones(updatedList);
+        } else {
+          // Add new phone to the list
+          onUpdatePhones([...currentPhones, result] as TPhone[]);
+        }
       }
 
       if (onSubmit) {

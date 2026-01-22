@@ -53,7 +53,7 @@ function transformApiResponse(apiResponse: AdministratorDetailsApiResponse): Adm
       id: phone.id.toString(),
       label: phone.label,
       number: phone.number,
-      extension: phone.extension?.trim() || undefined,
+      extension: phone.extension ? String(phone.extension).trim() || undefined : undefined,
       note: phone.note?.trim() || undefined,
     })),
     addresses: body.addresses.map((address) => ({
