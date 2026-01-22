@@ -23,8 +23,8 @@ interface UseReminderNotesOptions {
 export function useReminderNotes(options: UseReminderNotesOptions) {
   const {
     location,
-    // Per backend request example: order=ASC
-    defaultSortDirection = "asc",
+    // Optional: if omitted, we don't request server-side sorting by default
+    defaultSortDirection,
   } = options;
 
   // API-driven data only (no mock fallback)
@@ -32,10 +32,13 @@ export function useReminderNotes(options: UseReminderNotesOptions) {
 
   // Backend-driven sorting: order=ASC|DESC
   const [notesSortDirection, setNotesSortDirection] =
-    React.useState<NotesSortDirection>(defaultSortDirection);
+    React.useState<NotesSortDirection | undefined>(defaultSortDirection);
 
   const toggleSort = React.useCallback(() => {
-    setNotesSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    setNotesSortDirection((prev) => {
+      if (prev === undefined) return "asc";
+      return prev === "asc" ? "desc" : "asc";
+    });
   }, []);
 
   // Notes are returned sorted by the API according to order.
@@ -55,8 +58,14 @@ export function useReminderNotes(options: UseReminderNotesOptions) {
     setError(null);
 
     try {
-      const order = notesSortDirection.toUpperCase() as "ASC" | "DESC";
-      const rows = await getReminderNotes(location, { sort: "notes", order });
+      const query =
+        notesSortDirection === undefined
+          ? {}
+          : {
+              sort: "notes" as const,
+              order: notesSortDirection.toUpperCase() as "ASC" | "DESC",
+            };
+      const rows = await getReminderNotes(location, query);
 
       if (requestId !== requestIdRef.current) return;
 

@@ -58,13 +58,12 @@ const encodeId = (id: number | string) => encodeURIComponent(String(id));
  */
 export async function getReminderNotes(
   _location: string,
-  query: ReminderNotesQuery
+  query: ReminderNotesQuery = {}
 ): Promise<ReminderNoteApiRow[] | null> {
   try {
-    const params: Record<string, unknown> = {
-      sort: query.sort ?? "notes",
-      order: query.order ?? "ASC",
-    };
+    const params: Record<string, unknown> = {};
+    if (query.sort) params.sort = query.sort;
+    if (query.order) params.order = query.order;
     if (query.page !== undefined) params.page = query.page;
     if (query.limit !== undefined) params.limit = query.limit;
 
