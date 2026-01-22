@@ -49,7 +49,7 @@ export function HolidaysListingClient({ location }: HolidaysListingClientProps) 
     fetchData,
     handleSortingChange,
     handlePageChange,
-    handleErrorClear,
+    handlePageSizeChange,
   } = useHolidaysListing(location);
 
   /**
@@ -121,7 +121,7 @@ export function HolidaysListingClient({ location }: HolidaysListingClientProps) 
         enableSearch={false}
         enableFilter={false}
         enablePrint={false}
-        enableRowsPerPage={false}
+        enableRowsPerPage={true}
         enableColumnFilters={false}
         enableSorting={true}
         serverSidePagination={{
@@ -131,6 +131,9 @@ export function HolidaysListingClient({ location }: HolidaysListingClientProps) 
           totalPages,
         }}
         onServerSidePageChange={handlePageChange}
+        rowsPerPage={pageSize}
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        onRowsPerPageChange={handlePageSizeChange}
         hideRecordCount={true}
         showRecordCountInToolbar={true}
         enableExport={false}
