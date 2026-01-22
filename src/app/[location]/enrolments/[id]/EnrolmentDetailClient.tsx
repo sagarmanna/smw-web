@@ -22,6 +22,8 @@ import { EnrolmentHistoryCard } from "../components/EnrolmentHistoryCard";
 import { DeleteEnrolmentModal } from "../components/modals/DeleteEnrolmentModal";
 import { FullDeleteEnrolmentModal } from "../components/modals/FullDeleteEnrolmentModal";
 import { ReceivePaymentModal, type ReceivePaymentData } from "@/components/modal/ReceivePaymentModal";
+import { PaymentReceiptModalContainer, getPaymentReceiptData } from "@/components/modal/PaymentReceiptModal";
+import { getCustomerPayments } from "@/app/[location]/customers/customers.api";
 import { toast } from "sonner";
 import { Lock, Users } from "lucide-react";
 import {
@@ -112,6 +114,45 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
 
   // Receive payment modal state
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
+  
+  // Receipt payment modal state
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
+  const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<{
+    date: string;
+    paymentMethod: string;
+    reference: string;
+    amount: number;
+    lessons?: Array<{
+      date: string;
+      student: string;
+      program: string;
+      teacher: string;
+      amount: string;
+      payment: string;
+      balance: string;
+    }>;
+    groupLessons?: Array<{
+      date: string;
+      student: string;
+      program: string;
+      amount: string;
+      balance: string;
+    }>;
+    invoices?: Array<{
+      date: string;
+      number: string;
+      amount: string;
+      payment: string;
+      balance: string;
+    }>;
+    credits?: Array<{
+      type: string;
+      reference: string;
+      paymentMethod?: string;
+      amount: string;
+      amountUsed: string;
+    }>;
+  } | null>(null);
 
   // Handle receiving payment
   const handleReceivePayment = React.useCallback(async (paymentData: ReceivePaymentData) => {
@@ -260,8 +301,63 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
         setIsReceivePaymentModalOpen(false);
         toast.success(`Payment of $${finalAmount.toFixed(2)} received successfully`);
         
-        // Optionally refresh enrolment data here if needed
-        // You might want to refetch enrolment details to reflect the payment
+        // Fetch receipt data and open receipt modal
+        try {
+          // Refresh payments list to get the latest payment
+          const paymentsResponse = await getCustomerPayments(
+            location,
+            details.customerId,
+            1,
+            1
+          );
+          
+          if (paymentsResponse.data && paymentsResponse.data.length > 0) {
+            const latestPayment = paymentsResponse.data[0];
+            
+            // Small delay to ensure payment is fully saved in database
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Fetch payment receipt data
+            const receiptData = await getPaymentReceiptData(location, latestPayment.id);
+            
+            // Build directPaymentData from receipt data
+            const directData = {
+              date: receiptData.info?.date || paymentData.date,
+              paymentMethod: receiptData.info?.paymentMethod || "",
+              reference: receiptData.info?.reference || paymentData.reference || "",
+              amount: receiptData.info?.amount || finalAmount,
+              lessons: receiptData.lessons.data.map(lesson => ({
+                date: lesson.date,
+                student: lesson.student,
+                program: lesson.program,
+                teacher: lesson.teacher,
+                amount: lesson.amount,
+                payment: lesson.payment,
+                balance: lesson.balance || "$0.00",
+              })),
+              groupLessons: receiptData.groupLessons.data.map(gl => ({
+                date: gl.date,
+                student: gl.student,
+                program: gl.program,
+                amount: gl.amount,
+                balance: gl.balance || "$0.00",
+              })),
+              invoices: receiptData.invoices.data.map(inv => ({
+                date: inv.date,
+                number: inv.number,
+                amount: inv.amount,
+                payment: inv.payment,
+                balance: inv.balance || "$0.00",
+              })),
+            };
+            
+            setDirectPaymentReceiptData(directData);
+            setIsReceiptModalOpen(true);
+          }
+        } catch (error) {
+          console.error("Error fetching payment receipt data:", error);
+          // Continue without opening receipt modal - payment was successful
+        }
       } else {
         const errorMessage = response.message || "Failed to receive payment";
         toast.error(errorMessage);
@@ -711,6 +807,24 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
           location={location}
           customerId={details.customerId.toString()}
           customerName={details.customer || ""}
+        />
+      )}
+
+      {/* Payment Receipt Modal */}
+      {details?.customerId && directPaymentReceiptData && (
+        <PaymentReceiptModalContainer
+          open={isReceiptModalOpen}
+          onOpenChange={(open) => {
+            setIsReceiptModalOpen(open);
+            if (!open) {
+              setDirectPaymentReceiptData(null);
+            }
+          }}
+          location={location}
+          customerId={details.customerId}
+          customerName={details.customer || ""}
+          mode="new"
+          directPaymentData={directPaymentReceiptData}
         />
       )}
     </>
