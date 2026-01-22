@@ -19,7 +19,7 @@ import type { NotesSortDirection, ReminderNote } from "../../hooks/useReminderNo
 
 interface ReminderNotesTableProps {
   notes: ReminderNote[];
-  sortDirection: NotesSortDirection;
+  sortDirection?: NotesSortDirection;
   onToggleSort: () => void;
   onEdit: (note: ReminderNote) => void;
   onDelete: (noteId: string) => void;
@@ -84,6 +84,8 @@ export function ReminderNotesTable({
   onEdit,
   onDelete,
 }: ReminderNotesTableProps) {
+  const nextSortDirection: NotesSortDirection = sortDirection === "asc" ? "desc" : "asc";
+
   return (
     <Card className="shadow-sm">
       <CardContent className="p-0">
@@ -95,14 +97,16 @@ export function ReminderNotesTable({
                   type="button"
                   className="inline-flex items-center gap-2"
                   onClick={onToggleSort}
-                  aria-label={`Toggle sort ${sortDirection === "asc" ? "descending" : "ascending"}`}
+                  aria-label={`Toggle sort ${nextSortDirection === "asc" ? "ascending" : "descending"}`}
                 >
                   Notes
                   <ArrowUpDown
                     className={`h-3 w-3 transition-transform duration-150 ${
                       sortDirection === "asc"
                         ? "transform rotate-180 text-primary"
-                        : "text-primary"
+                        : sortDirection === "desc"
+                        ? "text-primary"
+                        : "text-muted-foreground/50"
                     }`}
                   />
                 </button>

@@ -10,9 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-import TipTapEmailEditor from "../../../../customers/components/EmailStatementModal/TipTapEmailEditor";
-import "../../../../customers/components/EmailStatementModal/tiptap-styles.css";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 interface EditReminderNoteModalProps {
   open: boolean;
@@ -27,7 +25,7 @@ interface EditReminderNoteModalProps {
 export function EditReminderNoteModal({
   open,
   onClose,
-  location,
+  location: _location,
   value,
   onChange,
   onUpdate,
@@ -41,11 +39,14 @@ export function EditReminderNoteModal({
         </DialogHeader>
 
         <div className="space-y-2">
-          <div className="text-sm font-medium">Notes</div>
-          <TipTapEmailEditor
-            content={value}
+          <RichTextEditor
+            value={value}
             onChange={onChange}
-            localStorageKey={`reminder-notes-${location}`}
+            mode="full"
+            label="Notes"
+            minHeight="300px"
+            placeholder="Write reminder notes..."
+            disabled={isSaving}
           />
         </div>
 
