@@ -19,11 +19,20 @@ import { UserEmailCard } from "@/components/user-details/cards/UserEmailCard";
 import { UserPhoneCard } from "@/components/user-details/cards/UserPhoneCard";
 import { UserAddressCard } from "@/components/user-details/cards/UserAddressCard";
 import { EditUserDetailsModal } from "@/components/user-details/modals/EditUserDetailsModal";
+import { SetPasswordModal } from "@/components/user-details/modals/SetPasswordModal";
 import { CreateEmailModal } from "@/components/user-details/modals/CreateEmailModal";
 import { CreatePhoneModal } from "@/components/user-details/modals/CreatePhoneModal";
 import { CreateAddressModal } from "@/components/user-details/modals/CreateAddressModal";
 import { EmailList, PhoneList, AddressList } from "../components/sections";
 import { useEmailHandlers, usePhoneHandlers, useAddressHandlers } from "../hooks/useAdministratorItemHandlers";
+import { ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 interface AdministratorDetailClientProps {
   location: string;
@@ -53,6 +62,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
     addresses,
     saveDetails,
     savingDetails,
+    updatePassword,
     updateEmails,
     updatePhones,
     updateAddresses,
@@ -76,6 +86,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
 
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
 
   const handleDeleteClick = React.useCallback(() => {
     setShowDeleteConfirm(true);
@@ -120,6 +131,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
     ],
     [handleDeleteClick]
   );
+
 
   // Error state - show error but still render cards with skeleton
   const showError = error && !administratorInfo;
@@ -187,6 +199,20 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                   defaultRole={administratorDetailPageConfig.defaultRole}
                 />
               )}
+              customActions={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setIsPasswordModalOpen(true)}>
+                      Set Password
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
               formatName={(d) => formatFullName(d?.firstName, d?.lastName) || ""}
             />
 
@@ -288,6 +314,16 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
         {/* Tabs Section */}
         <AdministratorTabsSection location={location} administratorId={administratorId} />
       </div>
+
+      {/* Set Password Modal */}
+      <SetPasswordModal
+        open={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSubmit={updatePassword}
+        title="Set Password"
+        successMessage="Password updated successfully"
+        errorMessage="Failed to update password"
+      />
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
