@@ -11,11 +11,16 @@ export interface CityRow {
   provinceId?: number;
 }
 
+export type CitiesSortField = "name" | "province";
+export type CitiesOrder = "ASC" | "DESC";
+
 export interface CitiesQuery {
   page?: number;
   limit?: number;
   name?: string;
   province?: string;
+  sort?: CitiesSortField;
+  order?: CitiesOrder;
 }
 
 export type CitiesListResponse = StandardListResponse<CityRow>;
@@ -56,8 +61,8 @@ const citiesApi = createCrudApi<CityRow, CitiesQuery, CreateCityRequest, UpdateC
     if (query.limit !== undefined) params.limit = query.limit === -1 ? FETCH_ALL_LIMIT : query.limit;
     if (query.name) params.name = query.name;
     if (query.province) params.province = query.province;
-    // IMPORTANT: backend rejects unknown query keys (400 BAD_REQUEST)
-    // Do NOT send sort/order until API explicitly supports them for this endpoint.
+    if (query.sort) params.sort = query.sort;
+    if (query.order) params.order = query.order;
     return params;
   },
 });

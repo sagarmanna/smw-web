@@ -29,6 +29,8 @@ export function CitiesListingClient({ location }: CitiesListingClientProps) {
     totalPages,
     isLoading,
     error,
+    sorting,
+    setSorting,
     page,
     setPage,
     pageSize,
@@ -86,6 +88,12 @@ export function CitiesListingClient({ location }: CitiesListingClientProps) {
         }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
+        manualSorting={true}
+        sorting={sorting}
+        onSortingChange={(s) => {
+          setSorting(s);
+          setPage(1);
+        }}
         hideRecordCount={true}
         showRecordCountInToolbar={true}
         rowsPerPage={pageSize}
