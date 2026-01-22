@@ -12,7 +12,6 @@ import {
   updateEnrolmentDetails,
   adjustEnrolmentEndDate,
   adjustGroupEnrolmentEndDate,
-  permanentScheduleChange,
   updateEnrolmentDiscounts,
   updateGroupEnrolmentDiscount,
   updateEnrolmentPaymentFrequency,
@@ -238,27 +237,6 @@ export const adjustGroupEndDate = createAsyncThunk(
       return { data: result.data };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to adjust group enrolment end date');
-    }
-  }
-);
-
-// Async thunk for permanent schedule change
-export const changeSchedulePermanently = createAsyncThunk(
-  'enrolment/changeSchedulePermanently',
-  async (
-    { location, enrolmentId, startingDate }: { location: string; enrolmentId: string; startingDate: string },
-    { rejectWithValue }
-  ) => {
-    try {
-      const result = await permanentScheduleChange(location, enrolmentId, { startingDate });
-
-      if (!result || !result.success) {
-        throw new Error(result?.message || 'Failed to perform permanent schedule change');
-      }
-
-      return { data: result.data };
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to perform permanent schedule change');
     }
   }
 );
@@ -540,27 +518,6 @@ const enrolmentSlice = createSlice({
         state.error = null;
       })
       .addCase(adjustGroupEndDate.rejected, (state, action) => {
-        state.isSaving = false;
-        state.error = action.payload as string;
-      })
-      // Permanent schedule change reducers
-      .addCase(changeSchedulePermanently.pending, (state) => {
-        state.isSaving = true;
-        state.error = null;
-      })
-      .addCase(changeSchedulePermanently.fulfilled, (state, action) => {
-        state.isSaving = false;
-        // Update schedule start date from API response (API returns formatted date)
-        if (state.enrolmentInfo && action.payload) {
-          const { data } = action.payload;
-          state.enrolmentInfo.schedule = {
-            ...state.enrolmentInfo.schedule,
-            startDate: data.startingDate || state.enrolmentInfo.schedule.startDate,
-          };
-        }
-        state.error = null;
-      })
-      .addCase(changeSchedulePermanently.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       })

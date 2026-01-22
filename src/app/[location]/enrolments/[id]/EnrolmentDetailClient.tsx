@@ -65,9 +65,9 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     saveDetails,
     savingDetails,
     adjustScheduleEndDate,
-    changeSchedulePermanently,
     saveDiscounts,
     savePaymentFrequency,
+    forceRefresh,
   } = useEnrolmentDetails(location, id);
 
   // Email modal state - only used for group enrolments (statements)
@@ -559,12 +559,12 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
               <EnrolmentScheduleCard
                 schedule={schedule}
                 onAdjustEndDate={(endDate) => adjustScheduleEndDate(endDate, enrolmentType)}
-                onChangeSchedulePermanently={changeSchedulePermanently}
                 saving={savingDetails}
                 isLoading={isLoading}
                 enrolmentType={enrolmentType}
                 location={location}
                 enrolmentId={id}
+                onRefresh={forceRefresh}
               />
 
               {/* Schedule History - Only show for private enrolments */}
