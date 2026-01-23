@@ -1631,6 +1631,7 @@ export interface EnrolmentDiscountPreviewResponse {
     previewItems: PreviewItem[];
   };
   message?: string;
+  errorCode?: string;
 }
 
 /**
@@ -1655,7 +1656,7 @@ export async function getEnrolmentDiscountPreview(
     console.error("Error getting enrolment discount preview:", error);
     const apiError = error as { 
       response?: { 
-        data?: { message?: string };
+        data?: { message?: string; errorCode?: string };
         status?: number;
         statusText?: string;
       };
@@ -1669,6 +1670,7 @@ export async function getEnrolmentDiscountPreview(
         previewItems: [],
       },
       message: apiError.response?.data?.message || apiError.message || "Failed to get preview",
+      errorCode: apiError.response?.data?.errorCode,
     };
   }
 }
