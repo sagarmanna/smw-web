@@ -1785,3 +1785,93 @@ export async function getEnrolmentEmailStatement(
   }
 }
 
+// Group Enrolment Print Details API Types
+export interface GroupEnrolmentPrintDetailsBody {
+  enrolmentId: number;
+  studentName: string;
+  programName: string;
+  teacherName: string;
+  time: string;
+  duration: string;
+  startDate: string;
+  endDate: string;
+  schedule: Array<{
+    date?: string; // Format: "Jan 26, 2026 at 06:00 PM"
+    day?: string;
+    dayName?: string;
+    fromTime?: string;
+    time?: string;
+    duration?: string;
+    [key: string]: unknown; // Allow additional properties
+  }>;
+}
+
+export interface GroupEnrolmentPrintDetailsApiResponse {
+  success: boolean;
+  data: {
+    body: GroupEnrolmentPrintDetailsBody;
+  };
+  message?: string;
+}
+
+/**
+ * Fetches group enrolment print details from the API
+ * Endpoint: GET /admin/v2/{location}/enrolments/{enrolmentId}/print-details
+ * 
+ * @param location - The location identifier
+ * @param enrolmentId - The enrolment ID
+ * @returns Promise resolving to the print details response or null on error
+ */
+export async function getGroupEnrolmentPrintDetails(
+  location: string,
+  enrolmentId: string
+): Promise<GroupEnrolmentPrintDetailsApiResponse | null> {
+  try {
+    const response = await apiClient.get<GroupEnrolmentPrintDetailsApiResponse>(
+      `/admin/v2/${location}/enrolments/${enrolmentId}/print-details`
+    );
+    
+    if (!response.data.success || !response.data.data?.body) {
+      return {
+        success: false,
+        data: {
+          body: {
+            enrolmentId: Number(enrolmentId) || 0,
+            studentName: "",
+            programName: "",
+            teacherName: "",
+            time: "",
+            duration: "",
+            startDate: "",
+            endDate: "",
+            schedule: [],
+          },
+        },
+        message: response.data.message || "Failed to fetch print details",
+      };
+    }
+    
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching group enrolment print details:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: {
+          enrolmentId: Number(enrolmentId) || 0,
+          studentName: "",
+          programName: "",
+          teacherName: "",
+          time: "",
+          duration: "",
+          startDate: "",
+          endDate: "",
+          schedule: [],
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to fetch group enrolment print details",
+    };
+  }
+}
+
