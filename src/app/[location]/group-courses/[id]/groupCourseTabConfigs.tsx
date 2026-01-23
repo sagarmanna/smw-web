@@ -1,5 +1,4 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { formatDisplayDate } from "@/utils/dateUtils";
 
 // Data interfaces
 export interface LessonData {
@@ -23,7 +22,7 @@ export interface StudentData {
    */
   customerId?: number;
   /**
-   * Raw enrolmentId from the API (used for discount API calls)
+   * Raw enrolmentId from the API (used for discount API calls and email statement)
    */
   enrolmentId?: number;
 }

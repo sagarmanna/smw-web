@@ -2,8 +2,10 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   getCourseInfo,
   getCourseLessons,
+  getGroupCourseEmailStatement,
   CourseInfoResponse,
   CourseLesson,
+  GroupCourseEmailStatementBody,
 } from './groupCourseDetails.api';
 
 interface GroupCourseState {
@@ -15,6 +17,10 @@ interface GroupCourseState {
   error: string | null;
   lastFetched: number | null;
   currentCourseId: number | null;
+  // Email statement state
+  emailStatement: GroupCourseEmailStatementBody | null;
+  emailStatementLoading: boolean;
+  emailStatementError: string | null;
 }
 
 const initialState: GroupCourseState = {
@@ -25,6 +31,9 @@ const initialState: GroupCourseState = {
   error: null,
   lastFetched: null,
   currentCourseId: null,
+  emailStatement: null,
+  emailStatementLoading: false,
+  emailStatementError: null,
 };
 
 /**
@@ -92,6 +101,31 @@ export const fetchGroupCourse = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching group course email statement
+export const fetchGroupCourseEmailStatement = createAsyncThunk(
+  'groupCourse/fetchGroupCourseEmailStatement',
+  async (
+    { location, courseId }: { location: string; courseId: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getGroupCourseEmailStatement(location, courseId);
+
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch group course email statement');
+      }
+
+      return {
+        data: apiResult.data.body,
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch group course email statement'
+      );
+    }
+  }
+);
+
 const groupCourseSlice = createSlice({
   name: 'groupCourse',
   initialState,
@@ -102,6 +136,8 @@ const groupCourseSlice = createSlice({
       state.error = null;
       state.lastFetched = null;
       state.currentCourseId = null;
+      state.emailStatement = null;
+      state.emailStatementError = null;
     },
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
@@ -137,6 +173,20 @@ const groupCourseSlice = createSlice({
       .addCase(fetchGroupCourse.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+      })
+      // Fetch email statement reducers
+      .addCase(fetchGroupCourseEmailStatement.pending, (state) => {
+        state.emailStatementLoading = true;
+        state.emailStatementError = null;
+      })
+      .addCase(fetchGroupCourseEmailStatement.fulfilled, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatement = action.payload.data;
+        state.emailStatementError = null;
+      })
+      .addCase(fetchGroupCourseEmailStatement.rejected, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatementError = action.payload as string;
       });
   },
 });
