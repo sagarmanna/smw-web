@@ -24,6 +24,16 @@ import { CreatePhoneModal } from "@/components/user-details/modals/CreatePhoneMo
 import { CreateAddressModal } from "@/components/user-details/modals/CreateAddressModal";
 import { EmailList, PhoneList, AddressList } from "../components/sections";
 import { useEmailHandlers, usePhoneHandlers, useAddressHandlers } from "../hooks/useStaffMemberItemHandlers";
+import { EditStaffMemberLoginModal } from "../components/modals/EditStaffMemberLoginModal";
+import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { setUserPassword } from "@/lib/api/user.api";
 
 interface StaffMemberDetailClientProps {
   location: string;
@@ -77,6 +87,7 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
 
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isEditLoginModalOpen, setIsEditLoginModalOpen] = React.useState(false);
 
   const handleDeleteClick = React.useCallback(() => {
     setShowDeleteConfirm(true);
@@ -105,6 +116,56 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location, staffMemberId, router]); // staffMemberDetailPageConfig is stable (memoized with empty deps)
+
+  const handleUpdateLoginCredentials = React.useCallback(async (data: {
+    pin?: string;
+    canLogin: boolean;
+    password?: string;
+    confirmPassword?: string;
+  }) => {
+    try {
+      const requestData: {
+        password?: string;
+        confirmPassword?: string;
+        pin?: number;
+      } = {};
+
+      // Only include PIN if provided
+      if (data.pin && data.pin.trim()) {
+        const pinNumber = parseInt(data.pin.trim(), 10);
+        if (!isNaN(pinNumber) && pinNumber > 0) {
+          requestData.pin = pinNumber;
+        }
+      }
+
+      // Only include password if canLogin is true and password is provided
+      if (data.canLogin && data.password && data.password.trim()) {
+        requestData.password = data.password.trim();
+        requestData.confirmPassword = data.confirmPassword?.trim();
+      }
+
+      // If no data to update, return early
+      if (!requestData.pin && !requestData.password) {
+        return false;
+      }
+
+      const response = await setUserPassword(location, staffMemberId, requestData);
+
+      if (response.success && response.data?.status) {
+        return true;
+      } else {
+        console.error("Failed to update login credentials:", response.message);
+        return false;
+      }
+    } catch (err: unknown) {
+      const errorMessage = 
+        (err as { message?: string })?.message || 
+        (err as { errorCode?: string; message?: string })?.message ||
+        "Failed to update login credentials";
+      console.error("Failed to update login credentials:", errorMessage);
+      return false;
+    }
+  }, [location, staffMemberId]);
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
@@ -188,6 +249,20 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
                   defaultRole={staffMemberDetailPageConfig.defaultRole}
                 />
               )}
+              customActions={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setIsEditLoginModalOpen(true)}>
+                      Set Password
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
               formatName={(d) => formatFullName(d?.firstName, d?.lastName) || ""}
             />
 
@@ -294,6 +369,13 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
         {/* Tabs Section */}
         <StaffMemberTabsSection location={location} staffMemberId={staffMemberId} />
       </div>
+
+      {/* Edit Login Credentials Modal */}
+      <EditStaffMemberLoginModal
+        open={isEditLoginModalOpen}
+        onClose={() => setIsEditLoginModalOpen(false)}
+        onSubmit={handleUpdateLoginCredentials}
+      />
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal

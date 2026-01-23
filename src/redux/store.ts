@@ -3,7 +3,6 @@ import userReducer from './userSlice';
 import locationsReducer from './locationsSlice';
 import locationFlagsReducer from './locationFlagsSlice';
 import permissionsReducer from './permissionsSlice';
-import staffMemberReducer from '../app/[location]/staffmembers/[id]/staffmembers.slice';
 import dashboardReducer from '../app/[location]/dashboard/dashboard.slice';
 import teacherReducer from '../app/[location]/teachers/[id]/teachers.slice';
 import teacherTabsReducer from '../app/[location]/teachers/[id]/teacherTabs.slice';
@@ -52,7 +51,6 @@ export const store = configureStore({
     locations: locationsReducer,
     locationFlags: locationFlagsReducer,
     permissions: permissionsReducer,
-    staffMember: staffMemberReducer,
     dashboard: dashboardReducer,
     teacher: teacherReducer,
     teacherTabs: teacherTabsReducer,
