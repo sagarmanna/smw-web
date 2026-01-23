@@ -17,8 +17,14 @@ export function useCityListing(location: string) {
     sortBy: string | undefined,
     sortDir: "asc" | "desc"
   ): CitiesQuery => {
-    const sort: CitiesSortField = sortBy === "province" ? "province" : "name";
-    const order: CitiesOrder = sortDir === "desc" ? "DESC" : "ASC";
+    const sort: CitiesSortField | undefined =
+      sortBy === "province" ? "province" : sortBy === "name" ? "name" : undefined;
+
+    const order: CitiesOrder | undefined = sort
+      ? sortDir === "desc"
+        ? "DESC"
+        : "ASC"
+      : undefined;
 
     return {
       page,
@@ -52,8 +58,6 @@ export function useCityListing(location: string) {
     },
     buildQuery,
     location,
-    defaultSortField: "name",
-    defaultSortDir: "asc",
   });
 }
 
