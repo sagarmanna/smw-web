@@ -15,24 +15,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-interface EditStaffMemberLoginModalProps {
+interface EditOwnerLoginModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: {
     pin?: string;
-    canLogin: boolean;
+    canMerge: boolean;
     password?: string;
     confirmPassword?: string;
   }) => Promise<{ success: boolean; message?: string }>;
 }
 
-export function EditStaffMemberLoginModal({
+export function EditOwnerLoginModal({
   open,
   onClose,
   onSubmit,
-}: EditStaffMemberLoginModalProps) {
+}: EditOwnerLoginModalProps) {
   const [pin, setPin] = React.useState("");
-  const [canLogin, setCanLogin] = React.useState(false);
+  const [canMerge, setCanMerge] = React.useState(false);
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -40,7 +40,7 @@ export function EditStaffMemberLoginModal({
 
   const resetForm = React.useCallback(() => {
     setPin("");
-    setCanLogin(false);
+    setCanMerge(false);
     setPassword("");
     setConfirmPassword("");
     setError(null);
@@ -75,31 +75,29 @@ export function EditStaffMemberLoginModal({
       return;
     }
 
-    // Password validation when canLogin is checked
-    if (canLogin) {
-      if (!password.trim()) {
-        setError("Password is required.");
-        return;
-      }
+    // Password validation
+    if (!password.trim()) {
+      setError("Password is required.");
+      return;
+    }
 
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters.");
-        return;
-      }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
 
-      if (password !== confirmPassword) {
-        setError("Passwords do not match.");
-        return;
-      }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
     }
 
     setIsSubmitting(true);
     try {
       const result = await onSubmit({
         pin: pin.trim() || undefined,
-        canLogin,
-        password: canLogin && password ? password.trim() : undefined,
-        confirmPassword: canLogin && confirmPassword ? confirmPassword.trim() : undefined,
+        canMerge,
+        password: password.trim() || undefined,
+        confirmPassword: confirmPassword.trim() || undefined,
       });
 
       if (result.success) {
@@ -133,16 +131,6 @@ export function EditStaffMemberLoginModal({
     }
   };
 
-  const handleCanLoginChange = (checked: boolean) => {
-    setCanLogin(checked);
-    if (!checked) {
-      // Clear password fields when unchecked
-      setPassword("");
-      setConfirmPassword("");
-    }
-    if (error) setError(null);
-  };
-
   return (
     <Dialog
       open={open}
@@ -154,7 +142,7 @@ export function EditStaffMemberLoginModal({
     >
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>Edit</DialogTitle>
+          <DialogTitle>Set Password</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
@@ -162,6 +150,51 @@ export function EditStaffMemberLoginModal({
               {error}
             </div>
           )}
+
+          {/* Password Fields - Always visible */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                Password <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder="Enter password"
+                disabled={isSubmitting}
+                required
+                minLength={6}
+                aria-describedby={error ? "password-error" : "password-help"}
+              />
+              <p id="password-help" className="text-xs text-muted-foreground">
+                Minimum 6 characters
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">
+                Confirm Password <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder="Confirm password"
+                disabled={isSubmitting}
+                required
+                aria-describedby={error ? "confirm-password-error" : undefined}
+              />
+            </div>
+          </div>
 
           {/* Pin Field */}
           <div className="space-y-2">
@@ -187,70 +220,24 @@ export function EditStaffMemberLoginModal({
             />
           </div>
 
-          {/* Can Login Checkbox */}
+          {/* Can Merge Checkbox */}
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="can-login"
-              checked={canLogin}
+              id="can-merge"
+              checked={canMerge}
               onCheckedChange={(checked) => {
-                handleCanLoginChange(checked === true);
+                setCanMerge(checked === true);
+                if (error) setError(null);
               }}
               disabled={isSubmitting}
             />
             <Label
-              htmlFor="can-login"
+              htmlFor="can-merge"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Can Login
+              Can Merge
             </Label>
           </div>
-
-          {/* Password Fields - Only show when Can Login is checked */}
-          {canLogin && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="password">
-                  Password <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (error) setError(null);
-                  }}
-                  placeholder="Enter password"
-                  disabled={isSubmitting}
-                  required
-                  minLength={6}
-                  aria-describedby={error ? "password-error" : "password-help"}
-                />
-                <p id="password-help" className="text-xs text-muted-foreground">
-                  Minimum 6 characters
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">
-                  Confirm Password <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (error) setError(null);
-                  }}
-                  placeholder="Confirm password"
-                  disabled={isSubmitting}
-                  required
-                  aria-describedby={error ? "confirm-password-error" : undefined}
-                />
-              </div>
-            </div>
-          )}
 
           <DialogFooter>
             <Button
