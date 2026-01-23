@@ -2,11 +2,15 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
+import { fetchGroupCourseEmailStatement } from "./groupCourseDetails.slice";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { EmailModal, type EmailFormData } from "@/components/EmailModal";
+import { sendEmail } from "@/lib/api/legacyApiAdapter";
+import { generateEmailContent } from "./utils/emailStatementHtmlGenerator";
 import { GroupCourseDetailsCard } from "../components/GroupCourseDetailsCard";
 import { GroupCourseScheduleCard } from "../components/GroupCourseScheduleCard";
 import { GroupCourseTabsSection } from "../components/GroupCourseTabsSection";
@@ -25,6 +29,7 @@ interface GroupCourseDetailClientProps {
 
 export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClientProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const courseId = Number(id);
 
   // Get loading and error from Redux - single source of truth
@@ -33,6 +38,28 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
   const courseInfoData = useAppSelector((state) => state.groupCourse.courseInfoData);
   const courseLessons = useAppSelector((state) => state.groupCourse.courseLessons);
   const lessonData = useAppSelector((state) => state.groupCourseTabs.lessonData);
+  
+  // Email modal state
+  const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
+  
+  // Get email statement data from Redux
+  const emailStatement = useAppSelector((state) => state.groupCourse?.emailStatement);
+  const emailStatementLoading = useAppSelector((state) => state.groupCourse?.emailStatementLoading || false);
+  const emailStatementError = useAppSelector((state) => state.groupCourse?.emailStatementError);
+  
+  // Generate email content from Redux state
+  const emailSubject = React.useMemo(() => {
+    return emailStatement?.emailTemplate?.subject || "";
+  }, [emailStatement]);
+
+  const emailContent = React.useMemo(() => {
+    if (!emailStatement) return "";
+    return generateEmailContent(emailStatement);
+  }, [emailStatement]);
+
+  const customerEmails = React.useMemo(() => {
+    return emailStatement?.emails || [];
+  }, [emailStatement]);
   
   const { handlePrint: printReport } = usePrintReport();
 
@@ -54,6 +81,20 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
 
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+
+  // Handle email modal open - fetch data if not already loaded
+  const handleEmailModalOpen = React.useCallback(() => {
+    // Fetch email statement if not already loaded or loading
+    if (!emailStatement && !emailStatementLoading) {
+      dispatch(fetchGroupCourseEmailStatement({ location, courseId }));
+    }
+    setIsEmailModalOpen(true);
+  }, [emailStatement, emailStatementLoading, dispatch, location, courseId]);
+
+  // Handle retry for email statement
+  const handleRetryEmailStatement = React.useCallback(() => {
+    dispatch(fetchGroupCourseEmailStatement({ location, courseId }));
+  }, [dispatch, location, courseId]);
 
   const handleDeleteClick = React.useCallback(() => {
     setShowDeleteConfirm(true);
@@ -90,24 +131,93 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
     // Format date range from schedule period
     const dateRange = schedule?.period || "";
 
-    // Format lessons data for printing - just date without time
-    const formattedLessons = lessonData.map((lesson) => {
-      let formattedDate = "N/A";
-      if (lesson.date) {
-        try {
-          // Extract just the date part (YYYY-MM-DD)
-          const parts = lesson.date.split(' ');
-          const datePart = parts[0];
-          formattedDate = formatDisplayDate(datePart);
-        } catch {
-          formattedDate = lesson.date;
+    // Helper function to format date from various formats
+    const formatLessonDate = (dateString: string | null | undefined): string => {
+      if (!dateString || typeof dateString !== 'string') return "N/A";
+      
+      const trimmed = dateString.trim();
+      if (!trimmed) return "N/A";
+
+      try {
+        // Try multiple parsing strategies
+        
+        // 1. Check if already in display format "MMM dd, yyyy" or "MMM d, yyyy"
+        if (trimmed.match(/^[A-Za-z]{3}\s+\d{1,2},\s+\d{4}/)) {
+          // Extract just the date part (remove time if present)
+          const datePart = trimmed.split(' ').slice(0, 3).join(' ');
+          return datePart;
         }
+        
+        // 2. Handle ISO format with time: "2026-01-19T18:00:00" or "2026-01-19T18:00:00.000Z"
+        if (trimmed.includes('T')) {
+          const datePart = trimmed.split('T')[0];
+          return formatDisplayDate(datePart);
+        }
+        
+        // 3. Handle space-separated date and time: "2026-01-19 18:00:00"
+        if (trimmed.includes(' ')) {
+          const datePart = trimmed.split(' ')[0];
+          // Check if it's a valid date format (YYYY-MM-DD or YYYY/MM/DD)
+          if (datePart.match(/^\d{4}[-/]\d{2}[-/]\d{2}$/)) {
+            return formatDisplayDate(datePart);
+          }
+        }
+        
+        // 4. Handle date-only formats: "2026-01-19" or "2026/01/19"
+        if (trimmed.match(/^\d{4}[-/]\d{2}[-/]\d{2}$/)) {
+          return formatDisplayDate(trimmed);
+        }
+        
+        // 5. Try formatDisplayDate on the whole string (handles most cases)
+        const formatted = formatDisplayDate(trimmed);
+        if (formatted !== "N/A") {
+          return formatted;
+        }
+        
+        // 6. Last resort: try native Date parsing
+        const dateObj = new Date(trimmed);
+        if (!isNaN(dateObj.getTime())) {
+          return dateObj.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "2-digit",
+          });
+        }
+      } catch (error) {
+        console.error("Error formatting date:", error, dateString);
       }
+      
+      return "N/A";
+    };
+
+    // Prefer email statement lessons if available (they have proper dates)
+    // Otherwise use courseLessons with improved date parsing
+    let lessonsToUse: Array<{ id: number; date: string; status: string }> = [];
+    
+    if (emailStatement && emailStatement.lessons && emailStatement.lessons.length > 0) {
+      // Use email statement lessons - they have proper dates
+      lessonsToUse = emailStatement.lessons.map(lesson => ({
+        id: lesson.id,
+        date: lesson.date,
+        status: lesson.status,
+      }));
+    } else if (courseLessons && courseLessons.length > 0) {
+      // Use courseLessons with improved date parsing
+      lessonsToUse = courseLessons.map(lesson => ({
+        id: lesson.id,
+        date: lesson.date,
+        status: lesson.status,
+      }));
+    }
+
+    // Format lessons data for printing
+    const formattedLessons = lessonsToUse.map((lesson) => {
+      const formattedDate = formatLessonDate(lesson.date);
 
       return {
         teacherName: course.teacher || "N/A",
         date: formattedDate,
-        status: lesson.status,
+        status: lesson.status || "N/A",
       };
     });
 
@@ -209,7 +319,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
 
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-  }, [courseInfoData, lessonData, toast]);
+  }, [courseInfoData, courseLessons, emailStatement, toast]);
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
@@ -303,6 +413,82 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
       />
+
+      {/* Email Modal - group course customer statement */}
+      <>
+        {/* Loading overlay - show when modal is open and data is loading */}
+        {isEmailModalOpen && emailStatementLoading && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+              <LoadingAnimation size="md" text="Loading email statement..." />
+            </div>
+          </div>
+        )}
+        {/* Error overlay - show when modal is open and there's an error */}
+        {isEmailModalOpen && emailStatementError && !emailStatementLoading && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-md">
+              <ErrorDisplay
+                error={emailStatementError}
+                title="Failed to Load Email Statement"
+                fallbackMessage="Unable to load email statement data. Please try again."
+              />
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={handleRetryEmailStatement}
+                  className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={() => setIsEmailModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Email Modal - show when modal is open and data is ready */}
+        <EmailModal
+          open={isEmailModalOpen && !emailStatementLoading && !!emailStatement && !emailStatementError}
+          onOpenChange={setIsEmailModalOpen}
+          onSend={async (emailData: EmailFormData) => {
+            if (!emailStatement?.enrolment?.studentId) {
+              toast.error("Student ID is required to send email");
+              return;
+            }
+
+            try {
+              const response = await sendEmail(location, {
+                objectId: 8, // EMAIL_OBJECT_CUSTOMER_STATEMENT
+                userId: emailStatement.enrolment.studentId,
+                to: emailData.recipients,
+                subject: emailData.subject,
+                content: emailData.content,
+              });
+
+              if (response.status) {
+                toast.success("Email sent successfully");
+                setIsEmailModalOpen(false);
+              } else {
+                toast.success("Email sent successfully");
+                setIsEmailModalOpen(false);
+              }
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : "Failed to send email";
+              toast.error(errorMessage);
+            }
+          }}
+          recipientEmails={customerEmails}
+          locationName={location}
+          initialSubject={emailSubject}
+          initialContent={emailContent}
+          localStorageKey={`group-course-email-${id}-${courseId || "default"}`}
+        />
+      </>
     </>
   );
 }

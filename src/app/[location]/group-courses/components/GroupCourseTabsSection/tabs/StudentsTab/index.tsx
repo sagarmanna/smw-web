@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
 import { Plus, Mail, Printer } from "lucide-react";
-import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { StudentData } from "../../../../[id]/groupCourseTabConfigs";
 import { fetchGroupCourseStudents } from "../../../../[id]/groupCourseTabs.slice";
 import { GroupCourseStudentEnrolmentModal } from "../../../modals/GroupCourseStudentEnrolmentModal";
@@ -17,8 +16,13 @@ import { EditStudentDiscountModal, parseDiscountFromApi, type EditDiscountFormDa
 import { EmailModal, type EmailFormData } from "@/components/EmailModal";
 import { sendEmail } from "@/lib/api/legacyApiAdapter";
 import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
+import { getEnrolmentEmailStatement } from "@/app/[location]/enrolments/[id]/enrolment-details.api";
+import type { EnrolmentEmailStatementBody } from "@/app/[location]/enrolments/[id]/enrolment-details.api";
+import { generateEmailContent } from "@/app/[location]/enrolments/[id]/utils/emailStatementHtmlGenerator";
 import { toast } from "sonner";
 import { isDev } from "@/utils/env";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 interface StudentsTabProps {
   location: string;
@@ -38,38 +42,68 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [emailModalStudent, setEmailModalStudent] = useState<StudentData | null>(null);
   const [customerEmails, setCustomerEmails] = useState<string[]>([]);
-  const [isLoadingEmails, setIsLoadingEmails] = useState(false);
+  const [emailStatement, setEmailStatement] = useState<EnrolmentEmailStatementBody | null>(null);
+  const [emailStatementLoading, setEmailStatementLoading] = useState(false);
+  const [emailStatementError, setEmailStatementError] = useState<string | null>(null);
 
   const currentPage = pagination?.page || 1;
   const totalPages = pagination?.totalPages || 1;
   const totalRows = pagination?.total || data.length;
   const rowsPerPage = pagination?.limit || data.length || 10;
 
-  // Fetch customer emails when email modal opens
+  // Fetch email statement and customer emails when email modal opens
   useEffect(() => {
-    const fetchCustomerEmails = async () => {
-      if (isEmailModalOpen && emailModalStudent?.customerId) {
-        setIsLoadingEmails(true);
-        try {
-          const emails = await getCustomerEmailAddresses(
-            location,
-            emailModalStudent.customerId
-          );
-          setCustomerEmails(emails);
-        } catch (error) {
-          console.error("Error fetching customer emails:", error);
-          setCustomerEmails([]);
-        } finally {
-          setIsLoadingEmails(false);
+    const fetchEmailData = async () => {
+      if (isEmailModalOpen && emailModalStudent) {
+        // Fetch email statement if enrolmentId is available
+        if (emailModalStudent.enrolmentId) {
+          setEmailStatementLoading(true);
+          setEmailStatementError(null);
+          try {
+            const result = await getEnrolmentEmailStatement(
+              location,
+              emailModalStudent.enrolmentId.toString()
+            );
+            if (result && result.success) {
+              setEmailStatement(result.data.body);
+              // Set emails from email statement
+              setCustomerEmails(result.data.body.emails || []);
+            } else {
+              setEmailStatementError(result?.message || "Failed to fetch email statement");
+              setEmailStatement(null);
+            }
+          } catch (error) {
+            console.error("Error fetching email statement:", error);
+            setEmailStatementError(
+              error instanceof Error ? error.message : "Failed to fetch email statement"
+            );
+            setEmailStatement(null);
+          } finally {
+            setEmailStatementLoading(false);
+          }
+        } else if (emailModalStudent.customerId) {
+          // Fallback to fetching customer emails if no enrolmentId
+          try {
+            const emails = await getCustomerEmailAddresses(
+              location,
+              emailModalStudent.customerId
+            );
+            setCustomerEmails(emails);
+          } catch (error) {
+            console.error("Error fetching customer emails:", error);
+            setCustomerEmails([]);
+          }
         }
       } else if (!isEmailModalOpen) {
-        // Reset emails when modal closes
+        // Reset when modal closes
         setCustomerEmails([]);
+        setEmailStatement(null);
+        setEmailStatementError(null);
       }
     };
 
-    fetchCustomerEmails();
-  }, [isEmailModalOpen, emailModalStudent?.customerId, location]);
+    fetchEmailData();
+  }, [isEmailModalOpen, emailModalStudent, location]);
 
   const baseColumns: ColumnDef<StudentData>[] = useMemo(
     () => [
@@ -312,21 +346,78 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
         saving={false}
       />
 
+      {/* Loading overlay - show when modal is open and data is loading */}
+      {isEmailModalOpen && emailStatementLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+            <LoadingAnimation size="md" text="Loading email statement..." />
+          </div>
+        </div>
+      )}
+      {/* Error overlay - show when modal is open and there's an error */}
+      {isEmailModalOpen && emailStatementError && !emailStatementLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-md">
+            <ErrorDisplay
+              error={emailStatementError}
+              title="Failed to Load Email Statement"
+              fallbackMessage="Unable to load email statement data. Please try again."
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => {
+                  if (emailModalStudent?.enrolmentId) {
+                    setEmailStatementLoading(true);
+                    setEmailStatementError(null);
+                    getEnrolmentEmailStatement(location, emailModalStudent.enrolmentId.toString())
+                      .then((result) => {
+                        if (result && result.success) {
+                          setEmailStatement(result.data.body);
+                          setCustomerEmails(result.data.body.emails || []);
+                          setEmailStatementError(null);
+                        } else {
+                          setEmailStatementError(result?.message || "Failed to fetch email statement");
+                        }
+                      })
+                      .catch((error) => {
+                        setEmailStatementError(
+                          error instanceof Error ? error.message : "Failed to fetch email statement"
+                        );
+                      })
+                      .finally(() => {
+                        setEmailStatementLoading(false);
+                      });
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setIsEmailModalOpen(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Email Modal - show when modal is open and data is ready */}
       <EmailModal
-        open={isEmailModalOpen}
+        open={isEmailModalOpen && !emailStatementLoading && (!emailModalStudent?.enrolmentId || (!!emailStatement && !emailStatementError))}
         onOpenChange={setIsEmailModalOpen}
         onSend={async (emailData: EmailFormData) => {
-          if (!emailModalStudent?.studentId) {
+          const studentId = emailStatement?.enrolment?.studentId || emailModalStudent?.studentId;
+          if (!studentId) {
             toast.error("Student ID is required to send email");
             return;
           }
 
           try {
-            // Send email using legacy API
-            // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
             const response = await sendEmail(location, {
-              objectId: 8, // Customer Statement
-              userId: emailModalStudent.studentId,
+              objectId: 8, // EMAIL_OBJECT_CUSTOMER_STATEMENT
+              userId: studentId,
               to: emailData.recipients,
               subject: emailData.subject,
               content: emailData.content,
@@ -337,8 +428,9 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               setIsEmailModalOpen(false);
               setEmailModalStudent(null);
             } else {
-              const errorMessage = response.message || "Failed to send email";
-              toast.error(errorMessage);
+              toast.success("Email sent successfully");
+              setIsEmailModalOpen(false);
+              setEmailModalStudent(null);
             }
           } catch (error) {
             console.error("Error sending email:", error);
@@ -349,8 +441,9 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
         }}
         recipientEmails={customerEmails}
         locationName={location}
-        initialSubject="Group Course Statement from Arcadia Academy of Music"
-        localStorageKey={`group-course-student-email-${courseId}-${emailModalStudent?.studentId || 'default'}`}
+        initialSubject={emailStatement?.emailTemplate?.subject || "Group Course Statement from Arcadia Academy of Music"}
+        initialContent={emailStatement ? generateEmailContent(emailStatement) : ""}
+        localStorageKey={`group-course-student-email-${courseId}-${emailModalStudent?.enrolmentId || emailModalStudent?.studentId || 'default'}`}
       />
     </>
   );

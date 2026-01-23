@@ -1,5 +1,4 @@
 import { apiClient } from "@/lib/api/client";
-import { GroupCourseRow } from "../types";
 
 export interface GroupCourseDetailsResponse {
   id: number;
@@ -69,6 +68,7 @@ export interface CourseLessonsApiResponse {
 // Course Students API Response Types
 export interface CourseStudent {
   id: number;
+  enrolmentId: number;
   studentId: number;
   customerId: number;
   studentName: string;
@@ -115,6 +115,116 @@ export interface CourseHistoryApiResponse {
   };
   message?: string;
   errorCode?: string;
+}
+
+// Email Statement API Response Types
+export interface GroupCourseEmailTemplate {
+  id: number;
+  subject: string;
+  header: string;
+  footer: string;
+}
+
+export interface GroupCourseEmailLesson {
+  id: number;
+  teacherName: string;
+  date: string;
+  status: string;
+}
+
+export interface GroupCourseEmailStatementBody {
+  enrolment: {
+    id: number;
+    studentId: number;
+    studentName: string;
+    customerId: number;
+    customerName: string;
+    courseId: number;
+    programName: string;
+    teacherName: string;
+    startDate: string;
+    endDate: string;
+  };
+  emails: string[];
+  emailTemplate: GroupCourseEmailTemplate;
+  lessons: GroupCourseEmailLesson[];
+  schedules: Array<{
+    id: number;
+    day: number;
+    dayName: string;
+    fromTime: string;
+    duration: string;
+  }>;
+  totalLessons: number;
+  remainingLessons: number;
+}
+
+export interface GroupCourseEmailStatementApiResponse {
+  success: boolean;
+  data: {
+    body: GroupCourseEmailStatementBody;
+  };
+  message?: string;
+}
+
+/**
+ * Fetches group course email statement data from the API
+ * Endpoint: GET /admin/v2/{location}/course/{courseId}/email-statement
+ * 
+ * @param location - The location identifier
+ * @param courseId - The course ID
+ * @returns Promise resolving to the email statement response or null on error
+ */
+export async function getGroupCourseEmailStatement(
+  location: string,
+  courseId: number
+): Promise<GroupCourseEmailStatementApiResponse | null> {
+  try {
+    const response = await apiClient.get<GroupCourseEmailStatementApiResponse>(
+      `/admin/v2/${location}/course/${courseId}/email-statement`
+    );
+    
+    if (!response.data.success || !response.data.data?.body) {
+      // Return response with error message if available, otherwise null
+      return response.data.success === false ? response.data : null;
+    }
+    
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    // Return error response object with API error message
+      return {
+      success: false,
+      data: {
+        body: {
+          enrolment: {
+            id: courseId || 0,
+            studentId: 0,
+            studentName: "",
+            customerId: 0,
+            customerName: "",
+            courseId: courseId || 0,
+            programName: "",
+            teacherName: "",
+            startDate: "",
+            endDate: "",
+          },
+          emails: [],
+          emailTemplate: {
+            id: 0,
+            subject: "",
+            header: "",
+            footer: "",
+          },
+          lessons: [],
+          schedules: [],
+          totalLessons: 0,
+          remainingLessons: 0,
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to fetch group course email statement",
+    };
+  }
 }
 
 /**

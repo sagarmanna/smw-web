@@ -214,6 +214,7 @@ const groupCourseTabsSlice = createSlice({
           discount: student.discount || "Not set",
           studentId: student.studentId,
           customerId: student.customerId,
+          enrolmentId: student.enrolmentId,
         }));
         state.studentPagination = action.payload.pagination;
         state.studentCourseId = action.payload.courseId;

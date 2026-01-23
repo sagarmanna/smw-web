@@ -22,6 +22,10 @@ export interface StudentData {
    * Raw customerId from the API (used for navigation)
    */
   customerId?: number;
+  /**
+   * Raw enrolmentId from the API (used for email statement)
+   */
+  enrolmentId?: number;
 }
 
 export interface HistoryData {
