@@ -135,18 +135,23 @@ export function createAdministratorApiAdapter(
         id: p.id.toString(),
         label: p.label,
         number: p.number,
-        extension: p.extension,
+        extension: p.extension != null ? String(p.extension).trim() || undefined : undefined,
         note: p.note,
       }));
     },
 
     createPhone: async (location, id, phoneData) => {
-      const response = await administratorApi.addAdministratorPhone(location, Number(id), {
+      const ext = phoneData.extension?.toString().trim();
+      const extensionAsNumber = ext && /^\d+$/.test(ext) ? parseInt(ext, 10) : undefined;
+      const payload: Parameters<typeof administratorApi.addAdministratorPhone>[2] = {
         number: phoneData.number,
         label: phoneData.label,
-        extension: phoneData.extension,
         note: phoneData.note,
-      });
+      };
+      if (extensionAsNumber !== undefined) {
+        payload.extension = extensionAsNumber;
+      }
+      const response = await administratorApi.addAdministratorPhone(location, Number(id), payload);
       if (!response?.success) {
         throw new Error(response?.message || 'Failed to create phone');
       }
@@ -167,7 +172,7 @@ export function createAdministratorApiAdapter(
         id: createdPhone.id.toString(),
         label: createdPhone.label,
         number: createdPhone.number,
-        extension: createdPhone.extension,
+        extension: createdPhone.extension != null ? String(createdPhone.extension).trim() || undefined : undefined,
         note: createdPhone.note,
       };
       // Attach API message as a property (modal can check for it)
@@ -177,16 +182,21 @@ export function createAdministratorApiAdapter(
     },
 
     updatePhone: async (location, id, phoneId, phoneData) => {
+      const ext = phoneData.extension?.toString().trim();
+      const extensionAsNumber = ext && /^\d+$/.test(ext) ? parseInt(ext, 10) : undefined;
+      const payload: Parameters<typeof administratorApi.updateAdministratorPhone>[3] = {
+        number: phoneData.number || '',
+        label: phoneData.label || '',
+        note: phoneData.note || '',
+      };
+      if (extensionAsNumber !== undefined) {
+        payload.extension = extensionAsNumber;
+      }
       const response = await administratorApi.updateAdministratorPhone(
         location,
         Number(id),
         Number(phoneId),
-        {
-          number: phoneData.number || '',
-          label: phoneData.label || '',
-          extension: phoneData.extension || '',
-          note: phoneData.note || '',
-        }
+        payload
       );
       if (!response?.success) {
         return false;
