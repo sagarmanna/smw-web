@@ -33,7 +33,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { setUserPassword } from "@/lib/api/user.api";
+import { setUserPassword, type SetPasswordErrorResponse } from "@/lib/api/user.api";
 
 interface StaffMemberDetailClientProps {
   location: string;
@@ -146,24 +146,50 @@ export function StaffMemberDetailClient({ location, id }: StaffMemberDetailClien
 
       // If no data to update, return early
       if (!requestData.pin && !requestData.password) {
-        return false;
+        return { success: false, message: "No data to update" };
       }
 
       const response = await setUserPassword(location, staffMemberId, requestData);
 
       if (response.success && response.data?.status) {
-        return true;
+        return { success: true, message: response.message };
       } else {
-        console.error("Failed to update login credentials:", response.message);
-        return false;
+        // Handle error response (shouldn't happen if API is correct, but handle it)
+        const errorMessage = Array.isArray(response.message) 
+          ? response.message.join(", ") 
+          : response.message || "Failed to update login credentials";
+        console.error("Failed to update login credentials:", errorMessage);
+        return { success: false, message: errorMessage };
       }
     } catch (err: unknown) {
-      const errorMessage = 
-        (err as { message?: string })?.message || 
-        (err as { errorCode?: string; message?: string })?.message ||
-        "Failed to update login credentials";
-      console.error("Failed to update login credentials:", errorMessage);
-      return false;
+      // Extract error message from API error response
+      let errorMessage: string = "Failed to update login credentials";
+      
+      console.error("Error caught in handleUpdateLoginCredentials:", err);
+      console.error("Error type:", typeof err);
+      console.error("Error is object:", err && typeof err === 'object');
+      
+      // Check if it's a SetPasswordErrorResponse (thrown by setUserPassword)
+      // The API throws axiosError.response.data which is the SetPasswordErrorResponse
+      if (err && typeof err === 'object') {
+        // Try to access message property directly
+        const errorObj = err as Record<string, unknown>;
+        
+        if (errorObj.message !== undefined && errorObj.message !== null) {
+          const message = errorObj.message;
+          
+          if (Array.isArray(message)) {
+            errorMessage = message.join(", ");
+          } else if (typeof message === 'string' && message.trim()) {
+            errorMessage = message;
+          }
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message || errorMessage;
+      }
+      
+      console.error("Extracted error message:", errorMessage);
+      return { success: false, message: errorMessage };
     }
   }, [location, staffMemberId]);
 

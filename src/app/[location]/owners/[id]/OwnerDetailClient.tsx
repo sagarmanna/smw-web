@@ -32,7 +32,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
-import { SetPasswordModal } from "@/components/user-details/modals/SetPasswordModal";
+import { EditOwnerLoginModal } from "../components/modals/EditOwnerLoginModal";
+import { setUserPassword, type SetPasswordErrorResponse } from "@/lib/api/user.api";
 
 interface OwnerDetailClientProps {
   location: string;
@@ -79,7 +80,7 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
+  const [isEditLoginModalOpen, setIsEditLoginModalOpen] = React.useState(false);
 
   const handleDeleteClick = React.useCallback(() => {
     setShowDeleteConfirm(true);
@@ -106,6 +107,85 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
       setShowDeleteConfirm(false);
     }
   }, [location, ownerId, router]);
+
+  const handleUpdateLoginCredentials = React.useCallback(async (data: {
+    pin?: string;
+    canMerge: boolean;
+    password?: string;
+    confirmPassword?: string;
+  }) => {
+    try {
+      const requestData: {
+        password?: string;
+        confirmPassword?: string;
+        pin?: number;
+      } = {};
+
+      // Only include PIN if provided
+      if (data.pin && data.pin.trim()) {
+        const pinNumber = parseInt(data.pin.trim(), 10);
+        if (!isNaN(pinNumber) && pinNumber > 0) {
+          requestData.pin = pinNumber;
+        }
+      }
+
+      // Include password if provided
+      if (data.password && data.password.trim()) {
+        requestData.password = data.password.trim();
+        requestData.confirmPassword = data.confirmPassword?.trim();
+      }
+
+      // Note: canMerge is kept in UI but not sent to API for now
+      // TODO: Add canMerge support when API endpoint is ready
+
+      // If no data to update, return early
+      if (!requestData.pin && !requestData.password) {
+        return { success: false, message: "No data to update" };
+      }
+
+      const response = await setUserPassword(location, ownerId, requestData);
+
+      if (response.success && response.data?.status) {
+        return { success: true, message: response.message };
+      } else {
+        // Handle error response (shouldn't happen if API is correct, but handle it)
+        const errorMessage = Array.isArray(response.message) 
+          ? response.message.join(", ") 
+          : response.message || "Failed to update login credentials";
+        console.error("Failed to update login credentials:", errorMessage);
+        return { success: false, message: errorMessage };
+      }
+    } catch (err: unknown) {
+      // Extract error message from API error response
+      let errorMessage: string = "Failed to update login credentials";
+      
+      console.error("Error caught in handleUpdateLoginCredentials:", err);
+      console.error("Error type:", typeof err);
+      console.error("Error is object:", err && typeof err === 'object');
+      
+      // Check if it's a SetPasswordErrorResponse (thrown by setUserPassword)
+      // The API throws axiosError.response.data which is the SetPasswordErrorResponse
+      if (err && typeof err === 'object') {
+        // Try to access message property directly
+        const errorObj = err as Record<string, unknown>;
+        
+        if (errorObj.message !== undefined && errorObj.message !== null) {
+          const message = errorObj.message;
+          
+          if (Array.isArray(message)) {
+            errorMessage = message.join(", ");
+          } else if (typeof message === 'string' && message.trim()) {
+            errorMessage = message;
+          }
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message || errorMessage;
+      }
+      
+      console.error("Extracted error message:", errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  }, [location, ownerId]);
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
@@ -203,7 +283,7 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setIsPasswordModalOpen(true)}>
+                    <DropdownMenuItem onClick={() => setIsEditLoginModalOpen(true)}>
                       Set Password
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -327,23 +407,11 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
         cancelLabel="Cancel"
       />
 
-      {/* Set Password Modal */}
-      <SetPasswordModal
-        open={isPasswordModalOpen}
-        onClose={() => setIsPasswordModalOpen(false)}
-        onSubmit={async (password: string, confirmPassword: string) => {
-          const success = await ownerDetailPageConfig.updatePassword(
-            location,
-            ownerId,
-            password,
-            confirmPassword
-          );
-          if (success) {
-            setIsPasswordModalOpen(false);
-          }
-          return success;
-        }}
-        title="Set Owner Password"
+      {/* Edit Login Credentials Modal */}
+      <EditOwnerLoginModal
+        open={isEditLoginModalOpen}
+        onClose={() => setIsEditLoginModalOpen(false)}
+        onSubmit={handleUpdateLoginCredentials}
       />
     </>
   );
