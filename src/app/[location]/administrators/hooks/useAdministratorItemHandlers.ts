@@ -91,12 +91,8 @@ export function useEmailHandlers({
 
         // DELETE API returns confirmation, not the full list
         // So we filter out the deleted email from current state
+        // No GET call needed - Redux state is updated directly per caching rules
         updateEmails((prev) => prev.filter((email) => email.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
       } else {
         // Use API response message for error toast
         toast.error(result?.message || "Failed to delete email");
@@ -188,12 +184,8 @@ export function usePhoneHandlers({
 
         // DELETE API returns confirmation, not the full list
         // So we filter out the deleted phone from current state
+        // No GET call needed - Redux state is updated directly per caching rules
         updatePhones((prev) => prev.filter((phone) => phone.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
       } else {
         // Use API response message for error toast
         toast.error(result?.message || "Failed to delete phone");
@@ -206,7 +198,7 @@ export function usePhoneHandlers({
       setIsDeleting(false);
       setPhoneToDelete(null);
     }
-  }, [phoneToDelete, location, entityId, updatePhones, onRefresh]);
+  }, [phoneToDelete, location, entityId, updatePhones]);
 
   return {
     editingPhone,
@@ -285,12 +277,8 @@ export function useAddressHandlers({
 
         // DELETE API returns confirmation, not the full list
         // So we filter out the deleted address from current state
+        // No GET call needed - Redux state is updated directly per caching rules
         updateAddresses((prev) => prev.filter((address) => address.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
       } else {
         // Use API response message for error toast
         toast.error(result?.message || "Failed to delete address");
@@ -303,7 +291,7 @@ export function useAddressHandlers({
       setIsDeleting(false);
       setAddressToDelete(null);
     }
-  }, [addressToDelete, location, entityId, updateAddresses, onRefresh]);
+  }, [addressToDelete, location, entityId, updateAddresses]);
 
   return {
     editingAddress,

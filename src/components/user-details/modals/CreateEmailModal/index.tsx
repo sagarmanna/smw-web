@@ -271,9 +271,8 @@ export function CreateEmailModal<
         onSubmit(result);
       }
 
-      if (onRefresh) {
-        await onRefresh();
-      }
+      // No GET call needed - Redux state is updated directly per caching rules
+      // onRefresh would trigger fetchAdministrator (GET API), which violates caching rules
 
       resetForm();
       onClose();
