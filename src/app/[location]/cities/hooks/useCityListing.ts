@@ -5,7 +5,7 @@ import { PayloadAction } from "@reduxjs/toolkit";
 
 import { useGenericListing } from "@/hooks/useGenericListing";
 
-import { CitiesQuery, CityRow } from "../cities.api";
+import { CitiesQuery, CityRow, type CitiesOrder, type CitiesSortField } from "../cities.api";
 import { fetchCities, setColumnFilters, setPage, setPageSize, setSorting as setSortingAction, setActiveFilter } from "../citiesListing.slice";
 
 export function useCityListing(location: string) {
@@ -14,14 +14,19 @@ export function useCityListing(location: string) {
     pageSize: number,
     columnFilters: Record<string, unknown>,
     _activeFilter: string | undefined,
-    _sortBy: string | undefined,
-    _sortDir: "asc" | "desc"
+    sortBy: string | undefined,
+    sortDir: "asc" | "desc"
   ): CitiesQuery => {
+    const sort: CitiesSortField = sortBy === "province" ? "province" : "name";
+    const order: CitiesOrder = sortDir === "desc" ? "DESC" : "ASC";
+
     return {
       page,
       limit: pageSize,
       name: columnFilters.name as string | undefined,
       province: columnFilters.province as string | undefined,
+      sort,
+      order,
     };
   }, []);
 
@@ -47,6 +52,8 @@ export function useCityListing(location: string) {
     },
     buildQuery,
     location,
+    defaultSortField: "name",
+    defaultSortDir: "asc",
   });
 }
 
