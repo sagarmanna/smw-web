@@ -244,12 +244,12 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => {
-                if(isDev()) {
+                // if(isDev()) {
                   setEmailModalStudent(row.original);
                   setIsEmailModalOpen(true);
-                } else {
-                  toast.info("This feature is in development.");
-                }
+                // } else {
+                //   toast.info("This feature is in development.");
+                // }
               }}
             >
               <Mail className="h-4 w-4" />

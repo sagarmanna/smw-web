@@ -328,7 +328,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
         items: [
           {
             label: "Print",
-            onClick: isDev() ? handlePrint : () => toast.info("This feature is in development."),
+            onClick:  handlePrint,
           },
           {
             label: "Delete",
