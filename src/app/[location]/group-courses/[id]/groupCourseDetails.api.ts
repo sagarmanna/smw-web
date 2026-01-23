@@ -69,6 +69,7 @@ export interface CourseLessonsApiResponse {
 // Course Students API Response Types
 export interface CourseStudent {
   id: number;
+  enrolmentId: number;
   studentId: number;
   customerId: number;
   studentName: string;
