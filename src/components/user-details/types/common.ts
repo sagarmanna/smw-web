@@ -38,3 +38,8 @@ export interface GenericAddress {
   isPrimary?: boolean;
 }
 
+// Helper type for API adapter results that may include an API message
+export type WithApiMessage<T> = T & {
+  _apiMessage?: string;
+};
+

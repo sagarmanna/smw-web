@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { toast } from "sonner";
+import { fetchAdministrator } from "./administrators-details.slice";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
@@ -41,12 +42,18 @@ interface AdministratorDetailClientProps {
 
 export function AdministratorDetailClient({ location, id }: AdministratorDetailClientProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const administratorId = Number(id);
 
   // Get loading and error from Redux - single source of truth
   const isLoading = useAppSelector((state) => state.administrator.isLoading);
   const error = useAppSelector((state) => state.administrator.error);
   const administratorInfo = useAppSelector((state) => state.administrator.administratorInfo);
+
+  // Refresh function to refetch administrator details
+  const handleRefresh = React.useCallback(async () => {
+    await dispatch(fetchAdministrator({ location, administratorId })).unwrap();
+  }, [dispatch, location, administratorId]);
 
   // Create config with Redux-aware adapter (uses Redux state instead of making GET requests)
   // Memoized with empty deps - config is stable and only depends on store.getState which is stable
@@ -263,6 +270,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
+                onRefresh={handleRefresh}
                 CreateModal={(props) => (
                   <CreateEmailModal
                     {...props}
@@ -282,6 +290,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
                 loading={isLoading}
                 location={location}
                 entityId={administratorId}
+                onRefresh={handleRefresh}
                 CreateModal={(props) => (
                   <CreatePhoneModal
                     {...props}
@@ -299,6 +308,7 @@ export function AdministratorDetailClient({ location, id }: AdministratorDetailC
               loading={isLoading}
               location={location}
               entityId={administratorId}
+              onRefresh={handleRefresh}
               CreateModal={(props) => (
                 <CreateAddressModal
                   {...props}

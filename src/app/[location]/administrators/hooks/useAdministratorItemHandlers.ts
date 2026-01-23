@@ -3,6 +3,11 @@
 import * as React from "react";
 import { AdministratorEmail, AdministratorPhone, AdministratorAddress } from "../types";
 import { toast } from "sonner";
+import {
+  deleteAdministratorEmail,
+  deleteAdministratorPhone,
+  deleteAdministratorAddress,
+} from "../[id]/administrators-details.api";
 
 interface UseEmailHandlersProps {
   emails: AdministratorEmail[];
@@ -10,12 +15,15 @@ interface UseEmailHandlersProps {
   location: string;
   administratorId?: number;
   entityId?: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export function useEmailHandlers({
   emails,
   updateEmails,
-  // location, administratorId, entityId - Reserved for future API integration
+  location,
+  entityId,
+  onRefresh,
 }: UseEmailHandlersProps) {
   const [editingEmail, setEditingEmail] = React.useState<AdministratorEmail | null>(null);
   const [emailToDelete, setEmailToDelete] = React.useState<AdministratorEmail | null>(null);
@@ -69,18 +77,39 @@ export function useEmailHandlers({
   );
 
   const handleDeleteConfirm = React.useCallback(async () => {
-    if (!emailToDelete) return;
+    if (!emailToDelete || !entityId) return;
 
     const id = emailToDelete.id;
     setIsDeleting(true);
 
-    // Local state update only - DELETE API not ready yet
-    updateEmails((prev) => prev.filter((email) => email.id !== id));
-    toast.success("Email deleted locally");
-    
-    setIsDeleting(false);
-    setEmailToDelete(null);
-  }, [emailToDelete, updateEmails]);
+    try {
+      const result = await deleteAdministratorEmail(location, entityId, id);
+
+      if (result?.success) {
+        // Use API response message for toast
+        toast.success(result.message || "Email deleted successfully");
+
+        // DELETE API returns confirmation, not the full list
+        // So we filter out the deleted email from current state
+        updateEmails((prev) => prev.filter((email) => email.id !== id));
+
+        // Refresh from server to get latest data
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        // Use API response message for error toast
+        toast.error(result?.message || "Failed to delete email");
+      }
+    } catch (error) {
+      console.error("Error deleting email:", error);
+      const errorMessage = (error as { message?: string })?.message || "Failed to delete email";
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+      setEmailToDelete(null);
+    }
+  }, [emailToDelete, location, entityId, updateEmails, onRefresh]);
 
   return {
     editingEmail,
@@ -101,12 +130,15 @@ interface UsePhoneHandlersProps {
   location: string;
   administratorId?: number;
   entityId?: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export function usePhoneHandlers({
   phones,
   updatePhones,
-  // location, administratorId, entityId - Reserved for future API integration
+  location,
+  entityId,
+  onRefresh,
 }: UsePhoneHandlersProps) {
   const [editingPhone, setEditingPhone] = React.useState<AdministratorPhone | null>(null);
   const [phoneToDelete, setPhoneToDelete] = React.useState<AdministratorPhone | null>(null);
@@ -142,18 +174,39 @@ export function usePhoneHandlers({
   );
 
   const handleDeleteConfirm = React.useCallback(async () => {
-    if (!phoneToDelete) return;
+    if (!phoneToDelete || !entityId) return;
 
     const id = phoneToDelete.id;
     setIsDeleting(true);
 
-    // Local state update only - DELETE API not ready yet
-    updatePhones((prev) => prev.filter((phone) => phone.id !== id));
-    toast.success("Phone deleted locally");
-    
-    setIsDeleting(false);
-    setPhoneToDelete(null);
-  }, [phoneToDelete, updatePhones]);
+    try {
+      const result = await deleteAdministratorPhone(location, entityId, id);
+
+      if (result?.success) {
+        // Use API response message for toast
+        toast.success(result.message || "Phone deleted successfully");
+
+        // DELETE API returns confirmation, not the full list
+        // So we filter out the deleted phone from current state
+        updatePhones((prev) => prev.filter((phone) => phone.id !== id));
+
+        // Refresh from server to get latest data
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        // Use API response message for error toast
+        toast.error(result?.message || "Failed to delete phone");
+      }
+    } catch (error) {
+      console.error("Error deleting phone:", error);
+      const errorMessage = (error as { message?: string })?.message || "Failed to delete phone";
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+      setPhoneToDelete(null);
+    }
+  }, [phoneToDelete, location, entityId, updatePhones, onRefresh]);
 
   return {
     editingPhone,
@@ -174,12 +227,15 @@ interface UseAddressHandlersProps {
   location: string;
   administratorId?: number;
   entityId?: number;
+  onRefresh?: () => Promise<void>;
 }
 
 export function useAddressHandlers({
   addresses,
   updateAddresses,
-  // location, administratorId, entityId - Reserved for future API integration
+  location,
+  entityId,
+  onRefresh,
 }: UseAddressHandlersProps) {
   const [editingAddress, setEditingAddress] = React.useState<AdministratorAddress | null>(null);
   const [addressToDelete, setAddressToDelete] = React.useState<AdministratorAddress | null>(null);
@@ -215,18 +271,39 @@ export function useAddressHandlers({
   );
 
   const handleDeleteConfirm = React.useCallback(async () => {
-    if (!addressToDelete) return;
+    if (!addressToDelete || !entityId) return;
 
     const id = addressToDelete.id;
     setIsDeleting(true);
 
-    // Local state update only - DELETE API not ready yet
-    updateAddresses((prev) => prev.filter((address) => address.id !== id));
-    toast.success("Address deleted locally");
-    
-    setIsDeleting(false);
-    setAddressToDelete(null);
-  }, [addressToDelete, updateAddresses]);
+    try {
+      const result = await deleteAdministratorAddress(location, entityId, id);
+
+      if (result?.success) {
+        // Use API response message for toast
+        toast.success(result.message || "Address deleted successfully");
+
+        // DELETE API returns confirmation, not the full list
+        // So we filter out the deleted address from current state
+        updateAddresses((prev) => prev.filter((address) => address.id !== id));
+
+        // Refresh from server to get latest data
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        // Use API response message for error toast
+        toast.error(result?.message || "Failed to delete address");
+      }
+    } catch (error) {
+      console.error("Error deleting address:", error);
+      const errorMessage = (error as { message?: string })?.message || "Failed to delete address";
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+      setAddressToDelete(null);
+    }
+  }, [addressToDelete, location, entityId, updateAddresses, onRefresh]);
 
   return {
     editingAddress,

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GenericAddress, GenericBasicDetails } from "../../types/common";
+import { GenericAddress, GenericBasicDetails, WithApiMessage } from "../../types/common";
 import { UserDetailsApiAdapter } from "../../types/adapters";
 import { toast } from "sonner";
 import type { GeoData } from "@/app/[location]/customers/components/AddressCard/address-card.api";
@@ -36,6 +36,7 @@ interface CreateAddressModalProps<
   location: string;
   entityId: number;
   onUpdateAddresses?: (addresses: TAddress[]) => void;
+  currentAddresses?: TAddress[];
   onRefresh?: () => Promise<void>;
   apiAdapter: UserDetailsApiAdapter<GenericBasicDetails, TEmail, TPhone, TAddress>;
 }
@@ -52,6 +53,7 @@ export function CreateAddressModal<
   location,
   entityId,
   onUpdateAddresses,
+  currentAddresses = [],
   onRefresh,
   apiAdapter,
 }: CreateAddressModalProps<TEmail, TPhone, TAddress>) {
@@ -198,24 +200,34 @@ export function CreateAddressModal<
         if (!success) {
           throw new Error("Failed to update address");
         }
-        // Fetch updated addresses to get the latest data
-        const updatedAddresses = await apiAdapter.fetchAddresses(location, entityId);
-        const updated = updatedAddresses.find(
-          (a) => a.address === addressData.address
-        );
-        if (!updated) {
-          throw new Error("Failed to get updated address");
-        }
-        result = updated as TAddress;
+        // Update Redux state directly - no GET call needed
+        // Create updated address object from input data and existing ID
+        result = {
+          ...editingAddress,
+          ...addressData,
+        } as TAddress;
+        // For update, we don't have the API message, so use default
         toast.success("Address updated successfully");
       } else {
-        result = await apiAdapter.createAddress(location, entityId, addressData);
-        toast.success("Address added successfully");
+        const createResult = await apiAdapter.createAddress(location, entityId, addressData);
+        result = createResult as TAddress;
+        // Use API response message if available, otherwise use default
+        const resultWithMessage = createResult as WithApiMessage<TAddress>;
+        toast.success(resultWithMessage._apiMessage || "Address added successfully");
       }
 
+      // Update Redux state directly with the result - no GET call needed
       if (onUpdateAddresses) {
-        const allAddresses = await apiAdapter.fetchAddresses(location, entityId);
-        onUpdateAddresses(allAddresses as TAddress[]);
+        if (editingAddress) {
+          // Update existing address in the list
+          const updatedList = currentAddresses.map((a) =>
+            a.id === editingAddress.id ? result : a
+          ) as TAddress[];
+          onUpdateAddresses(updatedList);
+        } else {
+          // Add new address to the list
+          onUpdateAddresses([...currentAddresses, result] as TAddress[]);
+        }
       }
 
       if (onSubmit) {
