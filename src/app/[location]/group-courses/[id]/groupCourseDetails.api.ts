@@ -446,3 +446,57 @@ export async function getCourseHistory(
   }
 }
 
+// Delete Group Course API Response Types
+export interface DeleteGroupCourseApiResponse {
+  success: boolean;
+  data?: {
+    url: string;
+  };
+  message?: string;
+  errorCode?: string;
+}
+
+/**
+ * Deletes a group course
+ * Endpoint: DELETE /admin/v2/{location}/course/{courseId}
+ * 
+ * @param location - The location identifier
+ * @param courseId - The course ID to delete
+ * @returns Promise resolving to the delete response or null on error
+ */
+export async function deleteGroupCourse(
+  location: string,
+  courseId: number
+): Promise<DeleteGroupCourseApiResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteGroupCourseApiResponse>(
+      `/admin/v2/${location}/course/${courseId}`
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error deleting group course:", error);
+    const apiError = error as { 
+      response?: { 
+        status?: number;
+        data?: { 
+          message?: string;
+          errorCode?: string;
+          success?: boolean;
+        } 
+      } 
+    };
+    
+    // Extract error message from API response
+    const errorMessage = apiError.response?.data?.message || "Failed to delete group course";
+    const errorCode = apiError.response?.data?.errorCode;
+    
+    // Return error response structure that matches API format
+    return {
+      success: false,
+      message: errorMessage,
+      ...(errorCode && { errorCode }),
+    };
+  }
+}
+

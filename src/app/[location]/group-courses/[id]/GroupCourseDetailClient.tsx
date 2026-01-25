@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { fetchGroupCourseEmailStatement } from "./groupCourseDetails.slice";
+import { deleteGroupCourse } from "./groupCourseDetails.api";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
@@ -103,22 +104,25 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
   const handleDeleteConfirm = React.useCallback(async () => {
     setIsDeleting(true);
     try {
-      // TODO: Implement API call to delete group course
-      // const response = await deleteGroupCourse(location, courseId);
+      const response = await deleteGroupCourse(location, courseId);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      toast.success("Group course deleted successfully");
-      // Redirect to group courses list
-      router.push(`/${location}/group-courses`);
+      if (response?.success) {
+        toast.success(response.message || "Group course deleted successfully");
+        // Redirect to group courses list
+        router.push(`/${location}/group-courses`);
+      } else {
+        // Handle error response
+        const errorMessage = response?.message || "Failed to delete group course";
+        toast.error(errorMessage);
+        setShowDeleteConfirm(false);
+      }
     } catch (error: unknown) {
       const errorResponse = error as { errorCode?: string; message?: string };
       const errorMessage = errorResponse.message || "Failed to delete group course";
       toast.error(errorMessage);
+      setShowDeleteConfirm(false);
     } finally {
       setIsDeleting(false);
-      setShowDeleteConfirm(false);
     }
   }, [location, courseId, router]);
 
@@ -332,7 +336,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
           },
           {
             label: "Delete",
-            onClick: isDev() ? handleDeleteClick : () => toast.info("This feature is in development."),
+            onClick: handleDeleteClick,
             variant: "destructive",
           },
         ],

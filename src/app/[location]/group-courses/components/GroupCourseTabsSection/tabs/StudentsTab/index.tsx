@@ -288,11 +288,7 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
             size="icon"
             className="h-8 w-8"
             onClick={() => {
-              if(isDev()) {
-                setIsEnrolmentModalOpen(true);
-              } else {
-                toast.info("This feature is in development.");
-              }
+              setIsEnrolmentModalOpen(true);
             }}
           >
             <Plus className="h-4 w-4" />
@@ -380,6 +376,12 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
       <GroupCourseStudentEnrolmentModal
         open={isEnrolmentModalOpen}
         onOpenChange={setIsEnrolmentModalOpen}
+        location={location}
+        courseId={courseId}
+        onEnrolmentComplete={async () => {
+          // Refresh student list after enrolment is complete
+          await dispatch(fetchGroupCourseStudents({ location, courseId, page: currentPage })).unwrap();
+        }}
       />
 
       <EditStudentDiscountModal
