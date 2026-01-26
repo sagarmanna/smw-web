@@ -21,7 +21,8 @@ import type { EnrolmentEmailStatementBody } from "@/app/[location]/enrolments/[i
 import { generateEmailContent } from "@/app/[location]/enrolments/[id]/utils/emailStatementHtmlGenerator";
 import { toast } from "sonner";
 import { isDev } from "@/utils/env";
-import { getEnrolmentDiscountPreview, updateGroupEnrolmentDiscount } from "@/app/[location]/enrolments/[id]/enrolment-details.api";
+import { getEnrolmentDiscountPreview, updateGroupEnrolmentDiscount, getGroupEnrolmentPrintDetails } from "@/app/[location]/enrolments/[id]/enrolment-details.api";
+import { generateGroupEnrolmentPrintHtml } from "@/app/[location]/group-courses/utils/groupCoursestPrintUtils";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 
@@ -258,10 +259,55 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => {
+              onClick={async () => {
                 if(isDev()) {
-                  // TODO: Implement print
-                  console.log("Print", row.original.studentName);
+                  const enrolmentId = row.original.enrolmentId?.toString();
+                  if (!enrolmentId) {
+                    toast.error("Enrolment ID is required to print");
+                    return;
+                  }
+
+                  try {
+                    const printData = await getGroupEnrolmentPrintDetails(location, enrolmentId);
+                    
+                    if (!printData || !printData.success) {
+                      const errorMessage = printData?.message || "Failed to fetch print details";
+                      toast.error(errorMessage);
+                      return;
+                    }
+
+                    const details = printData.data.body;
+
+                    // Validate required data
+                    if (!details) {
+                      toast.error("Invalid print data received");
+                      return;
+                    }
+
+                    // Create print window
+                    const printWindow = window.open('', '_blank');
+                    if (!printWindow) {
+                      toast.error("Please allow popups to print");
+                      return;
+                    }
+
+                    try {
+                      // Generate print HTML using utility function (XSS protected)
+                      const htmlContent = generateGroupEnrolmentPrintHtml(details);
+
+                      printWindow.document.write(htmlContent);
+                      printWindow.document.close();
+                    } catch (htmlError) {
+                      printWindow.close();
+                      console.error("Error generating print HTML:", htmlError);
+                      toast.error("Failed to generate print content. Please try again.");
+                    }
+                  } catch (error) {
+                    console.error("Error printing enrolment:", error);
+                    const errorMessage =
+                      error instanceof Error ? error.message : "Failed to print enrolment details";
+                    toast.error(errorMessage);
+                  }
                 } else {
                   toast.info("This feature is in development.");
                 }
