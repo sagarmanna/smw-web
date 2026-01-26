@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { EnrolmentLesson } from "../../types";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { groupLessonsByDueDate, GroupedEnrolmentLesson } from "./utils";
 
 interface EnrolmentLessonsCardProps {
   lessons: EnrolmentLesson[];
@@ -69,25 +70,60 @@ export const EnrolmentLessonsCard = React.memo(function EnrolmentLessonsCard({
     window.location.href = url;
   }, [location, studentId, programId, studentName]);
 
+  // Transform lessons data to include grouping metadata for visual rowspan-like behavior
+  const groupedLessons = React.useMemo(() => {
+    return groupLessonsByDueDate(lessons);
+  }, [lessons]);
+
   // Handle row click to redirect to legacy lesson view
   const handleRowClick = React.useCallback(
-    (row: EnrolmentLesson) => {
-      if (!location || !row.id) return;
+    (row: GroupedEnrolmentLesson) => {
+      // Access id property - GroupedEnrolmentLesson extends EnrolmentLesson which has optional id
+      const lessonId = (row as unknown as EnrolmentLesson).id;
+      if (!location || !lessonId) return;
       
       const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
-      const url = `${legacyBase}/${location}/lesson/view?id=${row.id}`;
+      const url = `${legacyBase}/${location}/lesson/view?id=${lessonId}`;
       window.location.href = url;
     },
     [location]
   );
 
-  const columns = React.useMemo<ColumnDef<EnrolmentLesson>[]>(() => [
+  // Row className function to apply visual grouping styles using Tailwind
+  // Keeps row borders for all columns except due date, allows hover on other columns
+  const getRowClassName = React.useCallback((row: GroupedEnrolmentLesson) => {
+    const baseClass = "cursor-pointer";
+    // Check if this is NOT the last row in the group
+    const isLastInGroup = row.groupIndex === row.groupRowSpan - 1;
+    // Use Tailwind classes for borders
+    const borderClass = isLastInGroup 
+      ? "border-b border-border/50" 
+      : "border-b-0 [&>td:not(:first-child)]:border-b [&>td:not(:first-child)]:border-border/50";
+    // Hover effect on other columns (not first) - use arbitrary variants
+    const hoverClass = "hover:[&>td:not(:first-child)]:!bg-primary/10 hover:[&>td:first-child]:!bg-transparent hover:[&>td:first-child>*]:!bg-transparent";
+    return `${baseClass} ${borderClass} ${hoverClass}`;
+  }, []);
+
+  const columns = React.useMemo<ColumnDef<GroupedEnrolmentLesson>[]>(() => [
     {
       accessorKey: "dueDate",
       header: "Due Date",
-      cell: ({ getValue }) => {
-        const dueDate = getValue() as string;
-        return <span>{dueDate || "-"}</span>;
+      cell: ({ row, getValue }) => {
+        const groupedLesson = row.original;
+        // Only show due date on the first row of each group
+        if (groupedLesson.isFirstInGroup) {
+          // Use getValue() to access the dueDate property - this works because accessorKey is "dueDate"
+          const dueDate = getValue() as string;
+          const isLastInGroup = groupedLesson.groupIndex === groupedLesson.groupRowSpan - 1;
+          // Add class to control border visibility - only show border on last row of group
+          return (
+            <div className="font-medium text-foreground pointer-events-none">
+              {dueDate || "-"}
+            </div>
+          );
+        }
+        // Empty cell for subsequent rows in the group (creates rowspan-like visual effect)
+        return <span className="invisible pointer-events-none" aria-hidden="true">-</span>;
       },
     },
     {
@@ -158,11 +194,12 @@ export const EnrolmentLessonsCard = React.memo(function EnrolmentLessonsCard({
         </div>
       ) : (
         <>
+          <div className="enrolment-lessons-table">
           <CustomTable
-            data={lessons}
+            data={groupedLessons}
             columns={columns}
             size="compact"
-            variant="striped"
+            variant="default"
             enableSorting={false}
             enableSearch={false}
             enableFilter={false}
@@ -170,7 +207,7 @@ export const EnrolmentLessonsCard = React.memo(function EnrolmentLessonsCard({
             enablePrint={false}
             isLoading={isLoading || lessonsLoading}
             onRowClick={handleRowClick}
-            rowClassName="cursor-pointer"
+            rowClassName={getRowClassName}
             customLoadingState={
               <div role="status" aria-label="Loading lessons data">
                 <LoadingAnimation 
@@ -181,7 +218,7 @@ export const EnrolmentLessonsCard = React.memo(function EnrolmentLessonsCard({
               </div>
             }
             customEmptyState={
-              !isLoading && !lessonsLoading && lessons.length === 0 ? (
+              !isLoading && !lessonsLoading && groupedLessons.length === 0 ? (
                 <div 
                   className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8"
                   role="status"
@@ -193,10 +230,11 @@ export const EnrolmentLessonsCard = React.memo(function EnrolmentLessonsCard({
               ) : undefined
             }
           />
+          </div>
           
           {/* Show More Button - ONLY for private enrolments with auto renewal enabled */}
           {!isGroupEnrolment && 
-           lessons.length > 0 && 
+           groupedLessons.length > 0 && 
            studentId && 
            programId && 
            location && 
