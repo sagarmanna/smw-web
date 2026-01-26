@@ -205,6 +205,16 @@ export function useStudentListing(location: string) {
     [dispatch]
   );
 
+  const resetColumnFilters = React.useCallback(() => {
+    // Reset column filters to empty object and fetch data with cleared filters
+    dispatch(setColumnFilters({}));
+    // Reset to first page when clearing filters
+    dispatch(setPage(1));
+    // Fetch data with cleared filters
+    const query = buildQuery(1, pageSize, {}, activeFilter, sortBy, sortDir);
+    dispatch(fetchStudents({ location, query }));
+  }, [dispatch, location, pageSize, activeFilter, sortBy, sortDir, buildQuery]);
+
   return {
     rows,
     total,
@@ -223,6 +233,7 @@ export function useStudentListing(location: string) {
     handleColumnFilterChange,
     handleColumnFilterEnter,
     handleServerSideFilterChange,
+    resetColumnFilters,
   };
 }
 
