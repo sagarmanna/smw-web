@@ -1,3 +1,5 @@
+import { getTodayDateRange } from './dateUtils';
+
 // Utility to detect the current page feature from pathname
 export const getCurrentPageFeature = (pathname: string): string => {
   const pathSegments = pathname.split('/').filter(Boolean);
@@ -29,6 +31,7 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'enrolments': 'enrolments',
     'group-courses': 'groupCourses',
     'unscheduled-lessons': 'unscheduledLessons',
+    'private-lessons': 'privateLessons',
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -62,8 +65,14 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     enrolments: `/enrolment/index?EnrolmentSearch%5BshowAllEnrolments%5D=0`,
     groupCourses: `/course/index?CourseSearch%5Btype%5D=2`,
     unscheduledLessons: `/unscheduled-lesson/index?UnscheduledLessonSearch%5BshowAll%5D=0`,
+    privateLessons: '', // Will be handled dynamically below
   };
     
-  const legacyPath = featureToUrlMap[feature] || '/dashboard';
+  // Handle privateLessons with dynamic date range
+  let legacyPath = featureToUrlMap[feature] || '/dashboard';
+  if (feature === 'privateLessons') {
+    legacyPath = `/lesson/index?LessonSearch%5BdateRange%5D=${getTodayDateRange()}`;
+  }
+  
   return `${legacyBaseUrl}/${location}${legacyPath}`;
 };

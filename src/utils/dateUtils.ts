@@ -171,9 +171,7 @@ export function convertToDate(dateStr: string): Date | undefined {
     return undefined;
   }
   return undefined;
-}
-
-/**
+}/**
  * Parses date string in format "MMM dd, yyyy" or "MMM d, yyyy" to Date object
  * Used for parsing display date strings to Date objects for date comparisons and filtering
  * @param dateStr - Date string in format "MMM dd, yyyy" (e.g., "Nov 17, 2025") or "MMM d, yyyy" (e.g., "Nov 5, 2025")
@@ -225,4 +223,21 @@ export function convertToISOFormat(dateStr: string): string {
   // Fallback: try native Date parsing
   const date = new Date(dateStr);
   return !isNaN(date.getTime()) ? formatDateToISO(date) : "";
+}
+
+/**
+ * Generate today's date range in the format: "MMM DD, YYYY - MMM DD, YYYY"
+ * Returns URL-encoded string: "Jan+26%2C+2026+-+Jan+26%2C+2026"
+ * Used for legacy URL generation for private lessons and other date-range queries
+ * @returns URL-encoded date range string
+ */
+export function getTodayDateRange(): string {
+  const today = new Date();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[today.getMonth()];
+  const day = today.getDate();
+  const year = today.getFullYear();
+  const dateStr = `${month} ${day}, ${year}`;
+  const dateRange = `${dateStr} - ${dateStr}`;
+  return encodeURIComponent(dateRange).replace(/%20/g, '+');
 }

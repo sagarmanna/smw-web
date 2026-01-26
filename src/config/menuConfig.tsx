@@ -1,4 +1,5 @@
 import { isDev } from "@/utils/env";
+import { getTodayDateRange } from "@/utils/dateUtils";
 import { 
   Home, 
   Calendar, 
@@ -343,7 +344,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       id: 'privateLessons',
       title: 'Private Lessons',
       icon: <Music className="h-4 w-4" />,
-      url: `/lesson/index?LessonSearch%5BdateRange%5D=${new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).replace(/,/g, "")}+-+${new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).replace(/,/g, "")}`,
+      url: getMenuSource(locationFlags, 'privateLessons') === 'legacy' ? `/lesson/index?LessonSearch%5BdateRange%5D=${getTodayDateRange()}` : '/private-lessons',
       source: getMenuSource(locationFlags, 'privateLessons') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'privateLessons') ? ('no' as const) : ('yes' as const),
