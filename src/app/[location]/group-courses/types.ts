@@ -12,5 +12,6 @@ export interface GroupCourseRow {
   programId?: number;
   status?: string;
   isOnline?: boolean;
+  numberOfWeeks?: number;
 }
 

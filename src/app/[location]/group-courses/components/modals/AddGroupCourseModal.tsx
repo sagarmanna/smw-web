@@ -17,43 +17,17 @@ import {
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
 import { GroupCourseRow } from "../../types";
+import { getPrograms, type ProgramRow } from "@/app/[location]/programs/programs.api";
+import { getTeachersByProgram, type Teacher } from "@/app/[location]/schedule/schedule.api";
+import { toast } from "sonner";
+import { DurationPicker } from "@/components/DurationPicker";
 
 interface AddGroupCourseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (course: Partial<GroupCourseRow>) => void;
+  location: string;
 }
-
-interface MockProgram {
-  id: number;
-  name: string;
-}
-
-interface MockTeacher {
-  id: number;
-  name: string;
-  programId: number;
-}
-
-const MOCK_PROGRAMS: MockProgram[] = [
-  { id: 1, name: "Band" },
-  { id: 2, name: "Guitar" },
-  { id: 3, name: "Piano" },
-  { id: 4, name: "Drums" },
-  { id: 5, name: "Voice" },
-  { id: 6, name: "Violin" },
-  { id: 7, name: "Saxophone" },
-];
-
-const MOCK_TEACHERS: MockTeacher[] = [
-  { id: 1, name: "Daniel Clain", programId: 1 },
-  { id: 2, name: "Sarah Johnson", programId: 2 },
-  { id: 3, name: "Michael Chen", programId: 3 },
-  { id: 4, name: "David Martinez", programId: 4 },
-  { id: 5, name: "Emily Davis", programId: 5 },
-  { id: 6, name: "Robert Wilson", programId: 6 },
-  { id: 7, name: "Lisa Anderson", programId: 7 },
-];
 
 const toOptions = (items: { id: number; name: string }[]): SearchableSelectOption[] =>
   items.map((item) => ({ value: item.id.toString(), label: item.name }));
@@ -62,15 +36,77 @@ export function AddGroupCourseModal({
   isOpen,
   onClose,
   onSuccess,
+  location,
 }: AddGroupCourseModalProps) {
   const [selectedProgramId, setSelectedProgramId] = React.useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
+  const [programOptions, setProgramOptions] = React.useState<SearchableSelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = React.useState<SearchableSelectOption[]>([]);
   const [duration, setDuration] = React.useState<string>("01:00");
   const [numberOfWeeks, setNumberOfWeeks] = React.useState<string>("");
   const [isOnline, setIsOnline] = React.useState<boolean>(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const [isLoadingPrograms, setIsLoadingPrograms] = React.useState(false);
+  const [isLoadingTeachers, setIsLoadingTeachers] = React.useState(false);
 
+  const loadPrograms = React.useCallback(async () => {
+    setIsLoadingPrograms(true);
+    try {
+      const response = await getPrograms(location, {
+        type: "GROUP",
+        showAll: false,
+        page: 1,
+        limit: 99999,
+      });
+
+      if (response?.success && response.data?.body) {
+        const options = toOptions(
+          response.data.body.map((p: ProgramRow) => ({
+            id: p.id,
+            name: p.name,
+          }))
+        );
+        setProgramOptions(options);
+      } else {
+        toast.error(response?.message || "Failed to load programs");
+        setProgramOptions([]);
+      }
+    } catch (error) {
+      console.error("Error loading programs:", error);
+      toast.error("Failed to load programs");
+      setProgramOptions([]);
+    } finally {
+      setIsLoadingPrograms(false);
+    }
+  }, [location]);
+
+  const loadTeachers = React.useCallback(async (programId: number) => {
+    setIsLoadingTeachers(true);
+    setSelectedTeacherId(""); // Clear teacher selection when program changes
+    try {
+      const response = await getTeachersByProgram(location, programId);
+
+      if (response?.success && response.data) {
+        const options = toOptions(
+          response.data.map((t: Teacher) => ({
+            id: t.id,
+            name: t.name,
+          }))
+        );
+        setTeacherOptions(options);
+      } else {
+        // Don't show error toast if teachers list is empty (might be valid)
+        setTeacherOptions([]);
+      }
+    } catch (error) {
+      console.error("Error loading teachers:", error);
+      setTeacherOptions([]);
+    } finally {
+      setIsLoadingTeachers(false);
+    }
+  }, [location]);
+
+  // Fetch programs when modal opens
   React.useEffect(() => {
     if (isOpen) {
       setSelectedProgramId("");
@@ -80,23 +116,30 @@ export function AddGroupCourseModal({
       setNumberOfWeeks("");
       setIsOnline(false);
       setSubmitting(false);
+      loadPrograms();
+    } else {
+      // Reset state when modal closes
+      setProgramOptions([]);
+      setTeacherOptions([]);
     }
-  }, [isOpen]);
+  }, [isOpen, loadPrograms]);
 
-  const programOptions = React.useMemo(
-    () => toOptions(MOCK_PROGRAMS),
-    []
-  );
+  // Fetch teachers when program is selected
+  React.useEffect(() => {
+    if (isOpen && selectedProgramId) {
+      const programId = parseInt(selectedProgramId, 10);
+      if (!isNaN(programId)) {
+        loadTeachers(programId);
+      }
+    } else {
+      setTeacherOptions([]);
+      setSelectedTeacherId("");
+    }
+  }, [isOpen, selectedProgramId, loadTeachers]);
 
   const handleProgramChange = (value: string) => {
     setSelectedProgramId(value);
-    setSelectedTeacherId("");
-
-    const programId = parseInt(value, 10);
-    const teachersForProgram = MOCK_TEACHERS.filter(
-      (t) => t.programId === programId
-    );
-    setTeacherOptions(toOptions(teachersForProgram));
+    // Teacher will be cleared and loaded via useEffect
   };
 
   const handleTeacherChange = (value: string) => {
@@ -105,24 +148,29 @@ export function AddGroupCourseModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProgramId || !selectedTeacherId) {
+    if (!selectedProgramId || !selectedTeacherId || !numberOfWeeks || parseInt(numberOfWeeks, 10) < 1) {
+      if (!numberOfWeeks || parseInt(numberOfWeeks, 10) < 1) {
+        toast.error("Please enter a valid number of weeks");
+      }
       return;
     }
     setSubmitting(true);
 
-    const program = MOCK_PROGRAMS.find(
-      (p) => p.id.toString() === selectedProgramId
+    // Find selected program and teacher from current options
+    const selectedProgram = programOptions.find(
+      (p) => p.value === selectedProgramId
     );
-    const teacher = MOCK_TEACHERS.find(
-      (t) => t.id.toString() === selectedTeacherId
+    const selectedTeacher = teacherOptions.find(
+      (t) => t.value === selectedTeacherId
     );
 
     const course: Partial<GroupCourseRow> = {
-      programId: program?.id,
-      program: program?.name,
-      teacherId: teacher?.id,
-      teacher: teacher?.name ?? "",
+      programId: selectedProgram ? parseInt(selectedProgramId, 10) : undefined,
+      program: selectedProgram?.label,
+      teacherId: selectedTeacher ? parseInt(selectedTeacherId, 10) : undefined,
+      teacher: selectedTeacher?.label ?? "",
       duration,
+      numberOfWeeks: parseInt(numberOfWeeks, 10),
       isOnline,
       // These will be filled by the real API later
     };
@@ -150,6 +198,7 @@ export function AddGroupCourseModal({
               searchPlaceholder="Search programs..."
               emptyText="No programs available"
               className="w-full"
+              disabled={isLoadingPrograms}
             />
           </div>
 
@@ -170,23 +219,27 @@ export function AddGroupCourseModal({
                   : "Select a program first"
               }
               className="w-full"
-              disabled={!selectedProgramId}
+              disabled={!selectedProgramId || isLoadingTeachers}
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="flex items-center justify-between gap-4">
             <Label htmlFor="duration">Duration</Label>
-            <Input
-              id="duration"
-              type="text"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="HH:MM"
-            />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <DurationPicker
+                  value={duration}
+                  onChange={(value) => setDuration(value)}
+                />
+                <span className="text-sm text-muted-foreground">mins.</span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="numberOfWeeks">Number Of Weeks</Label>
+            <Label htmlFor="numberOfWeeks">
+              Number Of Weeks <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="numberOfWeeks"
               type="number"
@@ -194,6 +247,7 @@ export function AddGroupCourseModal({
               value={numberOfWeeks}
               onChange={(e) => setNumberOfWeeks(e.target.value)}
               placeholder="Enter number of weeks"
+              required
             />
           </div>
 
@@ -220,7 +274,7 @@ export function AddGroupCourseModal({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting || !selectedProgramId || !selectedTeacherId}>
+              <Button type="submit" disabled={submitting || !selectedProgramId || !selectedTeacherId || !numberOfWeeks || parseInt(numberOfWeeks, 10) < 1}>
                 Next
               </Button>
             </div>
