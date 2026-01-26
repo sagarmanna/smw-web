@@ -14,6 +14,8 @@
  * - Dynamic: { pattern: /^\/[^/]+\/customers\/[^/]+$/, legacyUrl: (params) => `...&id=${params.id}` }
  */
 
+import { getTodayDateRange } from './dateUtils';
+
 export interface LegacyRouteConfig {
   pattern: string | RegExp; // Route pattern (e.g., '/customers' or regex for /customers/[id])
   legacyUrl: string | ((params: Record<string, string>) => string); // Legacy URL or function that receives params
@@ -45,6 +47,11 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     legacyUrl: (params) => 
       `/enrolment/view?id=${params.id || ''}`
   },
+  {
+    pattern: /^\/[^/]+\/group-courses\/[^/]+$/, // Matches /[location]/group-courses/[id]
+    legacyUrl: (params) => 
+      `/course/view?id=${params.id || ''}`
+  },
   // Static routes (string patterns)
   {
     pattern: /^\/[^/]+\/customers$/, // Matches /[location]/customers (list page)
@@ -69,6 +76,10 @@ const legacyRouteMap: LegacyRouteConfig[] = [
   {
     pattern: /^\/[^/]+\/unscheduled-lessons$/, // Matches /[location]/unscheduled-lessons (list page)
     legacyUrl: '/unscheduled-lesson/index?UnscheduledLessonSearch%5BshowAll%5D=0'
+  },
+  {
+    pattern: /^\/[^/]+\/private-lessons$/, // Matches /[location]/private-lessons (list page)
+    legacyUrl: () => `/lesson/index?LessonSearch%5BdateRange%5D=${getTodayDateRange()}`
   },
   {
     pattern: '/dashboard',
