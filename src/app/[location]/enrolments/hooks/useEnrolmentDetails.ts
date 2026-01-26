@@ -131,7 +131,11 @@ export function useEnrolmentDetails(
   const forceRefresh = React.useCallback(async () => {
     dispatch(clearCache());
     await dispatch(fetchEnrolment({ location, enrolmentId })).unwrap();
-  }, [dispatch, location, enrolmentId]);
+    
+    // Also refresh history to show new entries
+    const currentPage = historyPagination?.page || 1;
+    await dispatch(fetchEnrolmentHistory({ location, enrolmentId, page: currentPage })).unwrap();
+  }, [dispatch, location, enrolmentId, historyPagination]);
 
   // Fetch history with pagination
   const fetchHistory = React.useCallback(
