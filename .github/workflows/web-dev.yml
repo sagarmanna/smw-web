@@ -53,9 +53,11 @@ jobs:
       # Load build-time envs (NEXT_PUBLIC_*)
       - name: Load build env vars
         run: |
-          set -a
-          source platform_tools_new/web-env/dev.txt
-          set +a
+          while IFS=": " read -r key value; do
+            if [[ -n "$key" && -n "$value" ]]; then
+              echo "$key=$value" >> $GITHUB_ENV
+            fi
+          done < platform_tools_new/web-env/dev.txt
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
