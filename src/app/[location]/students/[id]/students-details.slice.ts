@@ -94,6 +94,28 @@ function calculateAge(birthDate: string): string {
 }
 
 /**
+ * Helper function to format evaluation exam date
+ * Ensures consistent date formatting across all evaluation operations
+ */
+function formatEvaluationDate(dateStr: string): string {
+  if (!dateStr) return "";
+  try {
+    // If already in display format (e.g., "Jan 15, 2026"), return as-is
+    if (/^\w{3}\s\d{1,2},\s\d{4}$/.test(dateStr)) {
+      return dateStr;
+    }
+    // Parse YYYY-MM-DD and format to display
+    const date = parse(dateStr, "yyyy-MM-dd", new Date());
+    if (!isValid(date)) {
+      return dateStr;
+    }
+    return format(date, "MMM d, yyyy");
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
  * Transforms enrolment API response to match the StudentEnrolment interface
  */
 function transformEnrolmentsResponse(enrolments: StudentEnrolmentResponse[]): StudentEnrolment[] {
@@ -357,7 +379,11 @@ const studentSlice = createSlice({
     // Only adds to current page if we're on page 1, otherwise just updates total count
     addEvaluation: (state, action: PayloadAction<StudentEvaluation>) => {
       if (state.studentInfo) {
-        const newEvaluation = action.payload;
+        // Format the exam date to ensure consistency
+        const newEvaluation = {
+          ...action.payload,
+          examDate: formatEvaluationDate(action.payload.examDate)
+        };
         const pagination = state.studentInfo.evaluationsPagination;
         
         // If we're on page 1, add to the beginning of the list
@@ -380,10 +406,15 @@ const studentSlice = createSlice({
     updateEvaluation: (state, action: PayloadAction<{ evaluationId: number; evaluation: StudentEvaluation }>) => {
       if (state.studentInfo && state.studentInfo.evaluations) {
         const { evaluationId, evaluation } = action.payload;
+        // Format the exam date to ensure consistency
+        const formattedEvaluation = {
+          ...evaluation,
+          examDate: formatEvaluationDate(evaluation.examDate)
+        };
         const index = state.studentInfo.evaluations.findIndex((e) => e.id === evaluationId);
         if (index >= 0) {
           const updated = [...state.studentInfo.evaluations];
-          updated[index] = evaluation;
+          updated[index] = formattedEvaluation;
           state.studentInfo.evaluations = updated;
         }
       }
@@ -514,4 +545,3 @@ export const {
   setEnrolments,
 } = studentSlice.actions;
 export default studentSlice.reducer;
-
