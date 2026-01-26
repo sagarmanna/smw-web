@@ -47,6 +47,10 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
   const isLoading = useAppSelector((state) => state.enrolment?.isLoading || false);
   const error = useAppSelector((state) => state.enrolment?.error);
   const enrolmentInfo = useAppSelector((state) => state.enrolment?.enrolmentInfo);
+  
+  // Get user info to check if user is administrator (for Full Delete access)
+  const { userInfo } = useAppSelector((state) => state.user);
+  const isAdministrator = userInfo?.role === 'administrator';
 
   const {
     details,
@@ -509,13 +513,18 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
           ]
         : [
             ...commonItems,
-            {
-              label: ENROLMENT_MESSAGES.ACTION_FULL_DELETE,
-              onClick: () => {
-                setIsFullDeleteModalOpen(true);
-              },
-              variant: "destructive" as const,
-            },
+            // Only show Full Delete option for administrators (matches legacy behavior)
+            ...(isAdministrator
+              ? [
+                  {
+                    label: ENROLMENT_MESSAGES.ACTION_FULL_DELETE,
+                    onClick: () => {
+                      setIsFullDeleteModalOpen(true);
+                    },
+                    variant: "destructive" as const,
+                  },
+                ]
+              : []),
           ];
 
     return [
@@ -524,7 +533,7 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
         items: groupSpecificItems,
       },
     ];
-  }, [enrolmentType, handlePrint, handleEmailModalOpen]);
+  }, [enrolmentType, handlePrint, handleEmailModalOpen, isAdministrator]);
 
   // Error state - show error but still render cards with skeleton
   const showError = error && !enrolmentInfo;
