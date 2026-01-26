@@ -82,7 +82,7 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
       onRetry={fetchData}
       actions={
         <Button 
-          onClick={() => isDev() ? setIsAddCourseModalOpen(true) : toast.info("This feature is in development.")} 
+          onClick={() => setIsAddCourseModalOpen(true)} 
           className="bg-primary hover:bg-primary/90"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -163,6 +163,7 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
           setIsAddCourseModalOpen(false);
           setIsScheduleModalOpen(true);
         }}
+        location={location}
       />
 
       <AddGroupCourseScheduleModal
@@ -173,6 +174,11 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
           setIsAddCourseModalOpen(true);
         }}
         course={pendingCourse}
+        location={location}
+        onCourseConfirmed={() => {
+          // Refresh the group courses list
+          fetchData();
+        }}
       />
     </ReportPageLayout>
   );

@@ -140,3 +140,181 @@ export async function getGroupCourses(
     return emptyResponse;
   }
 }
+
+export interface CreateGroupCourseRequest {
+  programId: number;
+  teacherId: number;
+  duration: string; // Format: "HH:mm:ss" (e.g., "00:30:00")
+  isOnline: number; // 0 or 1
+  weeksCount: number;
+  schedules: Array<{
+    day: string; // Day name (e.g., "Wednesday")
+    fromTime: string; // Format: "HH:mm:ss" (e.g., "09:00:00")
+  }>;
+}
+
+export interface CreateGroupCourseResponse {
+  success: boolean;
+  data?: {
+    courseId: number;
+  };
+  message?: string;
+  errorCode?: string;
+}
+
+/**
+ * Create a group course
+ * Endpoint: POST /admin/v2/training-location/course/create
+ */
+export async function createGroupCourse(
+  location: string,
+  payload: CreateGroupCourseRequest
+): Promise<CreateGroupCourseResponse | null> {
+  try {
+    const response = await apiClient.post<CreateGroupCourseResponse>(
+      `/admin/v2/${location}/course/create`,
+      payload
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error creating group course:", error);
+    const apiError = error as {
+      response?: {
+        status?: number;
+        data?: {
+          message?: string;
+          errorCode?: string;
+          success?: boolean;
+        };
+      };
+    };
+    const errorMessage = apiError.response?.data?.message || "Failed to create group course";
+    const errorCode = apiError.response?.data?.errorCode;
+    return {
+      success: false,
+      message: errorMessage,
+      ...(errorCode && { errorCode }),
+    };
+  }
+}
+
+export interface ReviewGroupCourseLessonResponse {
+  success: boolean;
+  data?: {
+    courseId: number;
+    program: string;
+    teacher: string;
+    period: string;
+    time: string;
+    lessons: Array<{
+      id: number;
+      date: string; // Format: "Jan 31, 2026 at 11:00 AM"
+      duration: string;
+      isHolidayConflict: boolean;
+      isConflict: boolean;
+      isUnscheduled: boolean;
+    }>;
+    summary: {
+      holidayConflicted: number;
+      conflicted: number;
+      unscheduled: number;
+      scheduled: number;
+      total: number;
+    };
+  };
+  message?: string;
+  errorCode?: string;
+}
+
+/**
+ * Review group course lessons
+ * Endpoint: GET /admin/v2/training-location/course/review-lesson?courseId={courseId}
+ */
+export async function reviewGroupCourseLesson(
+  location: string,
+  courseId: number
+): Promise<ReviewGroupCourseLessonResponse | null> {
+  try {
+    const response = await apiClient.get<ReviewGroupCourseLessonResponse>(
+      `/admin/v2/${location}/course/review-lesson`,
+      {
+        params: {
+          courseId: courseId.toString(),
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error reviewing group course lessons:", error);
+    const apiError = error as {
+      response?: {
+        status?: number;
+        data?: {
+          message?: string;
+          errorCode?: string;
+          success?: boolean;
+        };
+      };
+    };
+    const errorMessage = apiError.response?.data?.message || "Failed to review group course lessons";
+    const errorCode = apiError.response?.data?.errorCode;
+    return {
+      success: false,
+      message: errorMessage,
+      ...(errorCode && { errorCode }),
+    };
+  }
+}
+
+export interface ConfirmGroupCourseRequest {
+  courseId: number;
+}
+
+export interface ConfirmGroupCourseResponse {
+  success: boolean;
+  data?: {
+    courseId?: number;
+  };
+  message?: string;
+  errorCode?: string;
+}
+
+/**
+ * Confirm a group course
+ * Endpoint: POST /admin/v2/{location}/course/confirm
+ * 
+ * @param location - The location identifier
+ * @param courseId - The course ID to confirm
+ * @returns Promise resolving to the confirm response or null on error
+ */
+export async function confirmGroupCourse(
+  location: string,
+  courseId: number
+): Promise<ConfirmGroupCourseResponse | null> {
+  try {
+    const response = await apiClient.post<ConfirmGroupCourseResponse>(
+      `/admin/v2/${location}/course/confirm`,
+      { courseId }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error confirming group course:", error);
+    const apiError = error as {
+      response?: {
+        status?: number;
+        data?: {
+          message?: string;
+          errorCode?: string;
+          success?: boolean;
+        };
+      };
+    };
+    const errorMessage = apiError.response?.data?.message || "Failed to confirm group course";
+    const errorCode = apiError.response?.data?.errorCode;
+    return {
+      success: false,
+      message: errorMessage,
+      ...(errorCode && { errorCode }),
+    };
+  }
+}
