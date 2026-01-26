@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { StudentRow } from "./studentsListing.api";
@@ -27,6 +27,7 @@ interface ExportStudentRow extends Omit<StudentRow, 'allEmails'>, ExportRowWithE
 
 export function StudentsListingClient({ location }: StudentsListingClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const columns = React.useMemo<ColumnDef<StudentRow>[]>(() => studentColumns, []);
 
@@ -48,7 +49,21 @@ export function StudentsListingClient({ location }: StudentsListingClientProps) 
     handleColumnFilterChange,
     handleColumnFilterEnter,
     handleServerSideFilterChange,
+    resetColumnFilters,
   } = useStudentListing(location);
+
+  // Handle resetSearch parameter from URL (similar to schedule page's resetDate)
+  React.useEffect(() => {
+    const resetSearch = searchParams.get('resetSearch');
+    
+    if (resetSearch === 'true') {
+      // Reset column filters to empty object (clears all search inputs)
+      resetColumnFilters();
+      
+      // Clean up URL parameter after processing
+      router.replace(`/${location}/students`);
+    }
+  }, [searchParams, router, location, resetColumnFilters]);
 
   // Create export-specific columns with separate email columns
   const exportColumns = React.useMemo((): ColumnDef<ExportStudentRow>[] => {
