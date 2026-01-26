@@ -8,6 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { isDev } from "@/utils/env";
 
 interface PrivateLessonsToolbarProps {
   hasSelection: boolean;
@@ -21,6 +23,10 @@ interface PrivateLessonsToolbarProps {
   onUnscheduleClick: () => void;
   onBulkRescheduleClick: () => void;
   onGenerateInvoiceClick: () => void;
+}
+
+const showtoast = () => {
+  toast.info("This feature is in development.")
 }
 
 export function PrivateLessonsToolbar({
@@ -57,62 +63,62 @@ export function PrivateLessonsToolbar({
         </Tooltip>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem
-            onClick={onSubstituteTeacherClick}
+            onClick={!isDev() ? showtoast : onSubstituteTeacherClick}
             disabled={!hasSelection}
           >
             Substitute Teacher
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onEditDiscountClick}
+            onClick={!isDev() ? showtoast : onEditDiscountClick}
             disabled={!hasSelection}
           >
             Edit Discount
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onEditDurationClick}
+            onClick={!isDev() ? showtoast : onEditDurationClick}
             disabled={!hasSelection}
           >
             Edit Duration
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onDeleteClick}
+            onClick={!isDev() ? showtoast : onDeleteClick}
             disabled={!hasSelection}
             className="text-destructive focus:text-destructive"
           >
             Delete
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onEditClassroomClick}
+            onClick={!isDev() ? showtoast : onEditClassroomClick}
             disabled={!hasSelection}
           >
             Edit Classroom
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onEditOnlineTypeClick}
+            onClick={!isDev() ? showtoast : onEditOnlineTypeClick}
             disabled={!hasSelection}
           >
             Edit Online Type
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onEmailSelectedClick}
+            onClick={!isDev() ? showtoast : onEmailSelectedClick}
             disabled={!hasSelection}
           >
             Email Selected
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onUnscheduleClick}
+            onClick={!isDev() ? showtoast : onUnscheduleClick}
             disabled={!hasSelection}
           >
             Unschedule
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onBulkRescheduleClick}
+            onClick={!isDev() ? showtoast : onBulkRescheduleClick}
             disabled={!hasSelection}
           >
             Bulk Reschedule
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={onGenerateInvoiceClick}
+            onClick={!isDev() ? showtoast : onGenerateInvoiceClick}
             disabled={!hasSelection}
           >
             Generate Invoice
