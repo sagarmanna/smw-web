@@ -437,10 +437,10 @@ export function EnrolmentDetailClient({ location, id }: EnrolmentDetailClientPro
     }
   }, [details, schedule, formattedLessonsForPrint]);
 
-  // Fetch history on initial load - optimized dependencies
+  // Fetch history on initial load and when enrollment/location changes
   React.useEffect(() => {
-    // Only fetch if we have valid IDs and haven't loaded history yet
-    if (id && location && !historyPagination && !historyLoading) {
+    // Always fetch history when id or location changes to ensure fresh data
+    if (id && location && !historyLoading) {
       fetchHistory(1);
     }
     // fetchHistory is stable from useCallback, so we can safely omit it from deps
