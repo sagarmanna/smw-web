@@ -27,6 +27,7 @@ interface EnrolmentState {
   error: string | null;
   lastFetched: number | null;
   currentEnrolmentId: string | null;
+  currentLocation: string | null;
   // History state with pagination
   historyData: EnrolmentHistory[];
   historyPagination: PaginationInfo | null;
@@ -50,6 +51,7 @@ const initialState: EnrolmentState = {
   error: null,
   lastFetched: null,
   currentEnrolmentId: null,
+  currentLocation: null,
   historyData: [],
   historyPagination: null,
   historyLoading: false,
@@ -401,6 +403,7 @@ const enrolmentSlice = createSlice({
       state.error = null;
       state.lastFetched = null;
       state.currentEnrolmentId = null;
+      state.currentLocation = null;
       state.historyData = [];
       state.historyPagination = null;
       state.historyError = null;
@@ -438,18 +441,27 @@ const enrolmentSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchEnrolment.pending, (state, action) => {
-        const { enrolmentId } = action.meta.arg as { location: string; enrolmentId: string };
+        const { location, enrolmentId } = action.meta.arg as { location: string; enrolmentId: string };
         
-        if (state.currentEnrolmentId !== null && state.currentEnrolmentId !== enrolmentId) {
+        // Clear data when switching enrollments or locations to avoid stale data
+        if (
+          (state.currentEnrolmentId !== null && state.currentEnrolmentId !== enrolmentId) ||
+          (state.currentLocation !== null && state.currentLocation !== location)
+        ) {
           state.enrolmentInfo = null;
           state.lastFetched = null;
-          // Clear paginated lessons data when switching enrolments to avoid stale data
+          // Clear paginated lessons data when switching enrolments/locations to avoid stale data
           state.lessonsData = [];
           state.lessonsPagination = null;
           state.lessonsError = null;
+          // Clear history data when switching enrolments/locations to avoid stale data
+          state.historyData = [];
+          state.historyPagination = null;
+          state.historyError = null;
         }
         
         state.currentEnrolmentId = enrolmentId;
+        state.currentLocation = location;
         state.isLoading = true;
         state.error = null;
       })
@@ -526,7 +538,7 @@ const enrolmentSlice = createSlice({
         state.isSaving = true;
         state.error = null;
       })
-      .addCase(updateDiscounts.fulfilled, (state, action) => {
+      .addCase(updateDiscounts.fulfilled, (state) => {
         state.isSaving = false;
         // Note: Discounts are refreshed via forceRefresh() in the hook,
         // so we don't need to update them here from the API response
@@ -563,18 +575,26 @@ const enrolmentSlice = createSlice({
         state.historyError = null;
       })
       .addCase(fetchEnrolmentHistory.fulfilled, (state, action) => {
-        state.historyLoading = false;
-        state.historyData = action.payload.data.map((item) => ({
-          id: item.id,
-          message: item.message || "",
-          createdOn: item.createdOn || "",
-        }));
-        state.historyPagination = action.payload.pagination || null;
-        state.historyError = null;
+        // Only update state if this response is for the current enrollment
+        // This prevents race conditions when switching between enrollments
+        if (state.currentEnrolmentId === action.payload.enrolmentId) {
+          state.historyLoading = false;
+          state.historyData = action.payload.data.map((item) => ({
+            id: item.id,
+            message: item.message || "",
+            createdOn: item.createdOn || "",
+          }));
+          state.historyPagination = action.payload.pagination || null;
+          state.historyError = null;
+        }
       })
       .addCase(fetchEnrolmentHistory.rejected, (state, action) => {
-        state.historyLoading = false;
-        state.historyError = action.payload as string;
+        // Only update error state if this was for the current enrollment
+        const enrolmentId = action.meta.arg?.enrolmentId;
+        if (state.currentEnrolmentId === enrolmentId) {
+          state.historyLoading = false;
+          state.historyError = action.payload as string;
+        }
       })
       // Fetch enrolment lessons reducers (for group enrolments only)
       .addCase(fetchEnrolmentLessons.pending, (state) => {
