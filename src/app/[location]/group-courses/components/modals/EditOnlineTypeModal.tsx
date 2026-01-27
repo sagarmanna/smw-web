@@ -17,7 +17,8 @@ interface EditOnlineTypeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedLessons: LessonData[];
-  onSave: (isOnline: boolean, lessonIds: string[]) => void;
+  onSave: (isOnline: boolean, lessonIds: string[]) => void | Promise<void>;
+  isLoading?: boolean;
 }
 
 export function EditOnlineTypeModal({
@@ -25,6 +26,7 @@ export function EditOnlineTypeModal({
   onOpenChange,
   selectedLessons,
   onSave,
+  isLoading = false,
 }: EditOnlineTypeModalProps) {
   const [onlineType, setOnlineType] = React.useState<string>("online");
 
@@ -37,12 +39,14 @@ export function EditOnlineTypeModal({
     }
   }, [selectedLessons]);
 
-  const handleSave = React.useCallback(() => {
+  const handleSave = React.useCallback(async () => {
+    if (isLoading) return;
+    
     const isOnline = onlineType === "online";
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
-    onSave(isOnline, lessonIds);
+    await onSave(isOnline, lessonIds);
     onOpenChange(false);
-  }, [onlineType, selectedLessons, onSave, onOpenChange]);
+  }, [onlineType, selectedLessons, onSave, onOpenChange, isLoading]);
 
   const handleCancel = React.useCallback(() => {
     onOpenChange(false);
@@ -75,14 +79,15 @@ export function EditOnlineTypeModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </Button>
           <Button
             onClick={handleSave}
             className="bg-primary hover:bg-primary/90"
+            disabled={isLoading}
           >
-            Save
+            {isLoading ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

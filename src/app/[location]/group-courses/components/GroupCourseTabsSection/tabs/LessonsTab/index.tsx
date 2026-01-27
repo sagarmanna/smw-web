@@ -15,6 +15,8 @@ import {
 import { ChevronDown } from "lucide-react";
 import { lessonColumns, LessonData } from "../../../../[id]/groupCourseTabConfigs";
 import { fetchGroupCourseTabsData, updateLessonsOnlineStatus } from "../../../../[id]/groupCourseTabs.slice";
+import { refreshCourseLessons } from "../../../../[id]/groupCourseDetails.slice";
+import { editOnlineType } from "../../../../[id]/groupCourseDetails.api";
 import { SubstituteTeacherModal } from "../../../modals/SubstituteTeacherModal";
 import { EditOnlineTypeModal } from "../../../modals/EditOnlineTypeModal";
 import { toast } from "sonner";
@@ -35,6 +37,7 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
   const [selectedLessonIds, setSelectedLessonIds] = useState<Set<string>>(new Set());
   const [isSubstituteModalOpen, setIsSubstituteModalOpen] = useState(false);
   const [isEditOnlineModalOpen, setIsEditOnlineModalOpen] = useState(false);
+  const [isUpdatingOnlineType, setIsUpdatingOnlineType] = useState(false);
 
   useEffect(() => {
     // Only fetch if we don't have data for this course yet
@@ -98,15 +101,45 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
     setSelectedLessonIds(new Set());
   };
 
-  const handleEditOnlineSave = (isOnline: boolean, lessonIds: string[]) => {
-    // Update Redux state immediately
-    dispatch(updateLessonsOnlineStatus({ lessonIds, isOnline }));
+  const handleEditOnlineSave = async (isOnline: boolean, lessonIds: string[]) => {
+    if (isUpdatingOnlineType) return;
+
+    setIsUpdatingOnlineType(true);
     
-    // TODO: Implement API call to update online type
-    toast.success(
-      `${lessonIds.length} lesson(s) updated to ${isOnline ? "Online" : "In Class"}`
-    );
-    setSelectedLessonIds(new Set());
+    try {
+      // Convert lessonIds from string[] to number[] for API
+      const lessonIdsNumbers = lessonIds.map((id) => parseInt(id, 10));
+      
+      // Call API to update online type
+      const result = await editOnlineType(location, courseId, {
+        lessonIds: lessonIdsNumbers,
+        online: isOnline ? 1 : 0,
+      });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || "Failed to update online type");
+      }
+
+      // Update Redux state optimistically
+      dispatch(updateLessonsOnlineStatus({ lessonIds, isOnline }));
+      
+      // Refresh lessons from API to ensure data consistency
+      await dispatch(refreshCourseLessons({ location, courseId })).unwrap();
+      
+      // Refresh tabs data to sync with updated lessons
+      dispatch(fetchGroupCourseTabsData({ location, courseId }));
+
+      toast.success(
+        `${lessonIds.length} lesson(s) updated to ${isOnline ? "Online" : "In Class"}`
+      );
+      setSelectedLessonIds(new Set());
+    } catch (error) {
+      console.error("Error updating online type:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to update online type";
+      toast.error(errorMessage);
+    } finally {
+      setIsUpdatingOnlineType(false);
+    }
   };
 
   const columns = useMemo(
@@ -207,6 +240,7 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
         onOpenChange={setIsEditOnlineModalOpen}
         selectedLessons={selectedLessons}
         onSave={handleEditOnlineSave}
+        isLoading={isUpdatingOnlineType}
       />
     </>
   );
