@@ -10,11 +10,13 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 interface PrivateLessonPaymentsCardProps {
   payments: PrivateLessonPayment[];
   isLoading?: boolean;
+  onPaymentClick?: (payment: PrivateLessonPayment) => void;
 }
 
 export const PrivateLessonPaymentsCard = React.memo(function PrivateLessonPaymentsCard({
   payments,
   isLoading = false,
+  onPaymentClick,
 }: PrivateLessonPaymentsCardProps) {
   const columns = React.useMemo<ColumnDef<PrivateLessonPayment>[]>(() => [
     {
@@ -55,6 +57,8 @@ export const PrivateLessonPaymentsCard = React.memo(function PrivateLessonPaymen
           enableFilter={false}
           className="border-0 w-full"
           isLoading={isLoading}
+          onRowClick={onPaymentClick ? (row: PrivateLessonPayment) => onPaymentClick(row) : undefined}
+          rowClassName={onPaymentClick ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" : undefined}
           customLoadingState={
             <div role="status" aria-label="Loading payments data">
               <LoadingAnimation 
