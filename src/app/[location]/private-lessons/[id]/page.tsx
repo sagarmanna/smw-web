@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef } from 'react';
 import { useAppDispatch } from '@/redux/hooks';
-import { fetchPrivateLesson, clearPrivateLesson } from './private-lesson-details.slice';
+import { fetchPrivateLesson, fetchPrivateLessonHistory, clearPrivateLesson } from './private-lesson-details.slice';
 import { PrivateLessonDetailClient } from "./PrivateLessonDetailClient";
 
 interface PrivateLessonDetailPageProps {
@@ -44,8 +44,10 @@ export default function PrivateLessonDetailPage({ params }: PrivateLessonDetailP
     // Update the ref to track this fetch
     prevKeyRef.current = currentKey;
     
-    // Fetch private lesson details on initial page load
+    // Fetch private lesson details and history on initial page load
+    // All GET calls happen only once here - no caching on UI side
     dispatch(fetchPrivateLesson({ location, privateLessonId }));
+    dispatch(fetchPrivateLessonHistory({ location, privateLessonId, page: 1 }));
   }, [location, privateLessonId, dispatch]);
 
   // Render the client component that displays the details

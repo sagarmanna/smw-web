@@ -97,14 +97,8 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     fetchCustomerEmails();
   }, [isEmailModalOpen, details?.customerId, location]);
 
-  // Fetch history on initial load - optimized dependencies
-  React.useEffect(() => {
-    // Only fetch if we have valid IDs and haven't loaded history yet
-    if (privateLessonId && location && !historyPagination && !historyLoading) {
-      fetchHistory(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [privateLessonId, location]); // Only depend on IDs, fetchHistory is stable from useCallback
+  // History is fetched once in page.tsx during initial load
+  // No need to fetch here - component only displays data from Redux state
 
   // All hooks must be called before any early returns
   const pageTitle = React.useMemo(() => {

@@ -50,19 +50,38 @@ export const fetchPrivateLesson = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fetch details, payments, history, and comments in parallel, but handle failures gracefully
-      const [detailsResult, paymentsResult, historyResult, commentsResult] = await Promise.allSettled([
-        getPrivateLessonDetails(location, privateLessonId),
-        getPrivateLessonPayments(location, privateLessonId),
-        getPrivateLessonHistory(location, privateLessonId),
-        getPrivateLessonComments(location, privateLessonId),
-      ]);
-
-      // Details API is required - fail if it doesn't succeed
-      const details = detailsResult.status === 'fulfilled' ? detailsResult.value : null;
+      // 1. Fetch details first (required) so we can derive customerId for comments API
+      const details = await getPrivateLessonDetails(location, privateLessonId);
       if (!details || !details.success) {
         throw new Error(details?.message || 'Failed to fetch private lesson info');
       }
+
+      // Extract customerId from details response (nested student or flat structure)
+      const body = details.data?.body;
+      const studentData = body?.student as
+        | { customerId?: number }
+        | undefined;
+
+      const rawCustomerId =
+        (studentData && typeof studentData === 'object' && 'customerId' in studentData
+          ? studentData.customerId
+          : body?.customerId) ?? undefined;
+
+      const numericCustomerId =
+        typeof rawCustomerId === 'number'
+          ? rawCustomerId
+          : rawCustomerId != null
+          ? Number(rawCustomerId)
+          : undefined;
+
+      // 2. Fetch payments and comments in parallel (comments only if we have a valid customerId)
+      // Note: History is fetched separately with pagination via fetchPrivateLessonHistory thunk
+      const [paymentsResult, commentsResult] = await Promise.allSettled([
+        getPrivateLessonPayments(location, privateLessonId),
+        numericCustomerId && !Number.isNaN(numericCustomerId)
+          ? getPrivateLessonComments(location, numericCustomerId, 1)
+          : Promise.resolve(null),
+      ]);
 
       // Payments API is optional - log error but don't fail the entire fetch
       let payments: Awaited<ReturnType<typeof getPrivateLessonPayments>> = null;
@@ -75,29 +94,19 @@ export const fetchPrivateLesson = createAsyncThunk(
         console.warn('Payments API error:', paymentsResult.reason);
       }
 
-      // History API is optional - log error but don't fail the entire fetch
-      let history: Awaited<ReturnType<typeof getPrivateLessonHistory>> = null;
-      if (historyResult.status === 'fulfilled') {
-        history = historyResult.value;
-        if (!history || !history.success) {
-          console.warn('History API failed:', history?.message || 'Unknown error');
-        }
-      } else {
-        console.warn('History API error:', historyResult.reason);
-      }
-
       // Comments API is optional - log error but don't fail the entire fetch
       let comments: Awaited<ReturnType<typeof getPrivateLessonComments>> = null;
       if (commentsResult.status === 'fulfilled') {
-        comments = commentsResult.value;
-        if (!comments || !comments.success) {
+        comments = commentsResult.value as Awaited<ReturnType<typeof getPrivateLessonComments>> | null;
+        if (comments && !comments.success) {
           console.warn('Comments API failed:', comments?.message || 'Unknown error');
         }
-      } else {
+      } else if (commentsResult.status === 'rejected') {
         console.warn('Comments API error:', commentsResult.reason);
       }
 
-      const transformedData = transformApiResponse(details, payments, history, comments);
+      // History is not fetched here - it's fetched separately with pagination
+      const transformedData = transformApiResponse(details, payments, null, comments);
 
       return { data: transformedData };
     } catch (error) {

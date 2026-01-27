@@ -25,6 +25,7 @@ export const PrivateLessonDueDateCard = React.memo(function PrivateLessonDueDate
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
+    // Trust API layer normalization - component only handles display
     return [
       {
         label: "Due Date",
