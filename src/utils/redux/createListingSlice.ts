@@ -52,13 +52,18 @@ export interface ListingSliceConfig<TData, TQuery> {
     };
     message?: string;
   } | null>;
+
+  /**
+   * Initial page size for this listing (defaults to 20)
+   */
+  initialPageSize?: number;
 }
 
 /**
  * Creates a Redux slice for a listing feature
  */
 export function createListingSlice<TData, TQuery>(config: ListingSliceConfig<TData, TQuery>) {
-  const { name, entityName, fetchFn } = config;
+  const { name, entityName, fetchFn, initialPageSize = 20 } = config;
 
   const initialState: ListingState<TData> = {
     rows: [],
@@ -67,7 +72,7 @@ export function createListingSlice<TData, TQuery>(config: ListingSliceConfig<TDa
     isLoading: false,
     error: null,
     page: 1,
-    pageSize: 20,
+    pageSize: initialPageSize,
     sortBy: undefined,
     sortDir: "asc",
     columnFilters: {},

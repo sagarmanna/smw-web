@@ -28,6 +28,7 @@ import administratorsListingReducer from '../app/[location]/administrators/admin
 import staffMembersListingReducer from '../app/[location]/staff-members/staffMembersListing.slice';
 import ownersListingReducer from '../app/[location]/owners/ownersListing.slice';
 import citiesListingReducer from '../app/[location]/cities/citiesListing.slice';
+import classroomsListingReducer from '../app/[location]/classrooms/classroomsListing.slice';
 import locationsListingReducer from '../app/[location]/locations/locationsListing.slice';
 import programsListingReducer from '../app/[location]/programs/programsListing.slice';
 import taxCodesListingReducer from '../app/[location]/taxes/taxCodesListing.slice';
@@ -76,6 +77,7 @@ export const store = configureStore({
     staffMembersListing: staffMembersListingReducer,
     ownersListing: ownersListingReducer,
     citiesListing: citiesListingReducer,
+    classroomsListing: classroomsListingReducer,
     locationsListing: locationsListingReducer,
     programsListing: programsListingReducer,
     taxCodesListing: taxCodesListingReducer,
