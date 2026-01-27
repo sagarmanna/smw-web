@@ -1,6 +1,25 @@
 import { apiClient } from "@/lib/api/client";
 import type { PrivateLessonInfo } from "../types";
 
+/**
+ * Normalizes dueDate from API response to a displayable string.
+ * API returns dueDate as an object: { dueDate: "Dec 15, 2025" }
+ * This function extracts the string value from the nested object structure.
+ * 
+ * @param value - The dueDate value from API response (object format: { dueDate: string })
+ * @returns Normalized string value or empty string if invalid/missing
+ */
+function normalizeDueDate(value: unknown): string {
+  // API always returns object format: { dueDate: "Dec 15, 2025" }
+  if (value && typeof value === "object" && value !== null && "dueDate" in value) {
+    const nestedValue = (value as { dueDate?: unknown }).dueDate;
+    return typeof nestedValue === "string" ? nestedValue : "";
+  }
+  
+  // Return empty string for null, undefined, or invalid values
+  return "";
+}
+
 // API Response Types - supports both nested (lesson/student) and flat structures
 export interface PrivateLessonDetailsResponseBody {
   // New nested structure (from actual API)
@@ -48,7 +67,7 @@ export interface PrivateLessonDetailsResponseBody {
     duration: string;
     expiryDate: string;
   };
-  dueDate?: string;
+  dueDate?: { dueDate: string } | string; // API returns object format: { dueDate: "Dec 15, 2025" }, but keeping string for backward compatibility
   totals?: {
     lessonRatePerHour: string;
     qty: string;
@@ -218,9 +237,10 @@ export async function getPrivateLessonPayments(
 }
 
 /**
- * Fetches private lesson history from the API with pagination
- * For now, returns mock data
- * 
+ * Fetches private lesson history from the API with pagination.
+ *
+ * Endpoint: GET /admin/v2/{location}/history?type=lesson&id={privateLessonId}&page={page}
+ *
  * @param location - The location identifier
  * @param privateLessonId - The private lesson ID
  * @param page - The page number for pagination (default: 1)
@@ -232,53 +252,54 @@ export async function getPrivateLessonHistory(
   page: number = 1
 ): Promise<PrivateLessonHistoryApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.get<PrivateLessonHistoryApiResponse>(
-    //   `/admin/v2/${location}/history`,
-    //   {
-    //     params: {
-    //       type: 'private-lesson',
-    //       id: privateLessonId,
-    //       page,
-    //     },
-    //   }
-    // );
-    // return response.data;
-    
-    void location;
-    void privateLessonId;
-    void page;
-    
-    // Mock data
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    return {
-      success: true,
-      data: {
-        body: [],
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: 0,
-          totalPages: 1,
+    const response = await apiClient.get<PrivateLessonHistoryApiResponse>(
+      `/admin/v2/${location}/history`,
+      {
+        params: {
+          type: "lesson",
+          id: privateLessonId,
+          page,
         },
-      },
-    };
+      }
+    );
+
+    // If API indicates failure (even with 200), pass that back so callers can surface the message
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    // Ensure we always have a body for downstream consumers
+    if (!response.data.data?.body) {
+      console.error("Private lesson history API returned no body:", response.data);
+      return response.data;
+    }
+
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching private lesson history:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as {
+      response?: {
+        data?: {
+          message?: string;
+          success?: boolean;
+        };
+      };
+    };
+
+    const errorMessage = apiError.response?.data?.message || "Failed to fetch private lesson history";
+
     return {
       success: false,
       data: {
         body: [],
         pagination: {
           page: 1,
-          limit: 10,
+          limit: 20,
           total: 0,
-          totalPages: 1,
+          totalPages: 0,
         },
       },
-      message: apiError.response?.data?.message || "Failed to fetch private lesson history",
+      message: errorMessage,
     };
   }
 }
@@ -323,6 +344,9 @@ export function transformApiResponse(
   
   // Convert attendance present string "Yes"/"No" to boolean
   const attendancePresent = body.attendance?.present === "Yes";
+
+  // Normalize dueDate to a displayable string using utility function
+  const normalizedDueDate = normalizeDueDate(body.dueDate);
   
   // Get payments from API response
   const paymentsBody = paymentsResponse?.data?.body || [];
@@ -382,7 +406,7 @@ export function transformApiResponse(
         duration: body.schedule?.duration || "",
         expiryDate: body.schedule?.expiryDate || "",
       },
-      dueDate: body.dueDate || "",
+      dueDate: normalizedDueDate,
       totals: {
         lessonRatePerHour: body.totals?.lessonRatePerHour || "",
         qty: body.totals?.qty || "",
@@ -737,6 +761,7 @@ export interface PrivateLessonCommentsApiResponse {
   success: boolean;
   data: {
     body: PrivateLessonCommentResponseBody[];
+    pagination?: PaginationInfo;
   };
   message?: string;
 }
@@ -746,71 +771,60 @@ export interface PrivateLessonCommentsApiResponse {
  * For now, returns mock data
  * 
  * @param location - The location identifier
- * @param privateLessonId - The private lesson ID
+ * @param customerId - The customer ID (from lesson details response)
+ * @param page - The page number for pagination (default: 1)
  * @returns Promise resolving to the comments response or null on error
  */
 export async function getPrivateLessonComments(
   location: string,
-  privateLessonId: string
+  customerId: number,
+  page: number = 1
 ): Promise<PrivateLessonCommentsApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.get<PrivateLessonCommentsApiResponse>(
-    //   `/admin/v2/${location}/comments`,
-    //   {
-    //     params: {
-    //       type: 'private-lesson',
-    //       id: privateLessonId,
-    //     },
-    //   }
-    // );
-    // return response.data;
-    
-    void location;
-    void privateLessonId;
-    
-    // Mock data - sample comments
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const mockComments: PrivateLessonCommentResponseBody[] = [
+    const response = await apiClient.get<PrivateLessonCommentsApiResponse>(
+      `/admin/v2/${location}/customers/${customerId}/comments`,
       {
-        id: 1,
-        content: "Student showed great improvement in today's lesson. Keep practicing the scales.",
-        createdUser: "John Smith",
-        avatar: "",
-        createdOn: "Mar 15, 2025 10:30 AM",
-      },
-      {
-        id: 2,
-        content: "Please remember to bring your music book next time.",
-        createdUser: "Sarah Johnson",
-        avatar: "",
-        createdOn: "Mar 10, 2025 2:15 PM",
-      },
-      {
-        id: 3,
-        content: "Excellent progress! The student is ready for the next level.",
-        createdUser: "Michael Brown",
-        avatar: "",
-        createdOn: "Mar 5, 2025 9:00 AM",
-      },
-    ];
-    
-    return {
-      success: true,
-      data: {
-        body: mockComments,
-      },
-    };
+        params: {
+          page,
+        },
+      }
+    );
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.error("Private lesson comments API returned no body:", response.data);
+      return response.data;
+    }
+
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching private lesson comments:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { 
+      response?: { 
+        data?: { 
+          message?: string;
+          success?: boolean;
+        }; 
+      }; 
+    };
+
+    const errorMessage = apiError.response?.data?.message || "Failed to fetch private lesson comments";
+
     return {
       success: false,
       data: {
         body: [],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+        },
       },
-      message: apiError.response?.data?.message || "Failed to fetch private lesson comments",
+      message: errorMessage,
     };
   }
 }
