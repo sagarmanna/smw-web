@@ -126,6 +126,35 @@ export const fetchGroupCourseEmailStatement = createAsyncThunk(
   }
 );
 
+/**
+ * Refreshes course lessons from the API
+ * Used after updating lesson data (e.g., online type)
+ */
+export const refreshCourseLessons = createAsyncThunk(
+  'groupCourse/refreshCourseLessons',
+  async (
+    { location, courseId }: { location: string; courseId: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getCourseLessons(location, courseId);
+
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to refresh course lessons');
+      }
+
+      return {
+        courseLessons: apiResult.data.body || [],
+        fetchedAt: Date.now(),
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to refresh course lessons'
+      );
+    }
+  }
+);
+
 const groupCourseSlice = createSlice({
   name: 'groupCourse',
   initialState,
@@ -187,6 +216,19 @@ const groupCourseSlice = createSlice({
       .addCase(fetchGroupCourseEmailStatement.rejected, (state, action) => {
         state.emailStatementLoading = false;
         state.emailStatementError = action.payload as string;
+      })
+      // Refresh course lessons reducers
+      .addCase(refreshCourseLessons.pending, (state) => {
+        // Don't set isLoading to true to avoid showing full page loading
+        state.error = null;
+      })
+      .addCase(refreshCourseLessons.fulfilled, (state, action) => {
+        state.courseLessons = action.payload.courseLessons;
+        state.lastFetched = action.payload.fetchedAt;
+        state.error = null;
+      })
+      .addCase(refreshCourseLessons.rejected, (state, action) => {
+        state.error = action.payload as string;
       });
   },
 });

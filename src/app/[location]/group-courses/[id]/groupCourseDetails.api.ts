@@ -500,3 +500,66 @@ export async function deleteGroupCourse(
   }
 }
 
+// Edit Online Type API Response Types
+export interface EditOnlineTypeRequest {
+  lessonIds: number[];
+  online: number; // 0 for In Class, 1 for Online
+}
+
+export interface EditOnlineTypeApiResponse {
+  success: boolean;
+  data?: {
+    courseId: number;
+    updatedBy: number;
+  };
+  message?: string;
+  errorCode?: string;
+}
+
+/**
+ * Edits online type for group course lessons
+ * Endpoint: PUT /admin/v2/{location}/course/edit-online-type/{courseId}
+ * 
+ * @param location - The location identifier
+ * @param courseId - The course ID
+ * @param payload - The request payload with lessonIds and online status
+ * @returns Promise resolving to the edit online type response or null on error
+ */
+export async function editOnlineType(
+  location: string,
+  courseId: number,
+  payload: EditOnlineTypeRequest
+): Promise<EditOnlineTypeApiResponse | null> {
+  try {
+    const response = await apiClient.put<EditOnlineTypeApiResponse>(
+      `/admin/v2/${location}/course/edit-online-type/${courseId}`,
+      payload
+    );
+    
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error editing online type:", error);
+    const apiError = error as { 
+      response?: { 
+        status?: number;
+        data?: { 
+          message?: string;
+          errorCode?: string;
+          success?: boolean;
+        } 
+      } 
+    };
+    
+    // Extract error message from API response
+    const errorMessage = apiError.response?.data?.message || "Failed to edit online type";
+    const errorCode = apiError.response?.data?.errorCode;
+    
+    // Return error response structure that matches API format
+    return {
+      success: false,
+      message: errorMessage,
+      ...(errorCode && { errorCode }),
+    };
+  }
+}
+
