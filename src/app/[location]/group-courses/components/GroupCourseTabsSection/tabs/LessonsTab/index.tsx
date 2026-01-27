@@ -189,7 +189,7 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
                 <DropdownMenuItem onClick={isDev() ? handleSubstituteTeacher : () => toast.info("This feature is in development.")}>
                   Substitute Teacher
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={isDev() ? handleEditOnlineType : () => toast.info("This feature is in development.")}>
+                <DropdownMenuItem onClick={handleEditOnlineType}>
                   Edit Online Type
                 </DropdownMenuItem>
               </DropdownMenuContent>
