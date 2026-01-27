@@ -3,15 +3,23 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus } from "lucide-react";
+import { ColumnDef } from "@tanstack/react-table";
+import { toast } from "sonner";
 
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { type ActionMenuGroup } from "@/components/DetailHeader";
+import { CustomTable } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
+import { formatDisplayDate } from "@/utils/dateUtils";
 
 import { getClassroomById, type ClassroomRow } from "../classrooms.api";
 import { AddClassroomModal } from "../components/modals/AddClassroomModal";
+import {
+  AddClassroomUnavailabilityModal,
+  type ClassroomUnavailabilityRow,
+} from "../components/modals/AddClassroomUnavailabilityModal";
 
 interface ClassroomDetailClientProps {
   location: string;
@@ -26,6 +34,8 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
   const [error, setError] = React.useState<string | null>(null);
   const [classroom, setClassroom] = React.useState<ClassroomRow | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [isUnavailabilityModalOpen, setIsUnavailabilityModalOpen] = React.useState(false);
+  const [editingUnavailability, setEditingUnavailability] = React.useState<ClassroomUnavailabilityRow | null>(null);
 
   const requestIdRef = React.useRef(0);
 
@@ -92,6 +102,56 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
     ];
   }, [classroom]);
 
+  const unavailabilityColumns = React.useMemo<ColumnDef<ClassroomUnavailabilityRow>[]>(
+    () => [
+      {
+        accessorKey: "fromDate",
+        header: "From Date",
+        cell: ({ row }) => <span className="font-medium">{formatDisplayDate(row.original.fromDate)}</span>,
+      },
+      {
+        accessorKey: "toDate",
+        header: "To Date",
+        cell: ({ row }) => <span className="font-medium">{formatDisplayDate(row.original.toDate)}</span>,
+      },
+      {
+        accessorKey: "reason",
+        header: "Reason",
+        cell: ({ row }) => <span className="text-sm">{row.original.reason || ""}</span>,
+      },
+    ],
+    []
+  );
+
+  const openAddUnavailability = () => {
+    setEditingUnavailability(null);
+    setIsUnavailabilityModalOpen(true);
+  };
+
+  const openEditUnavailability = (row: ClassroomUnavailabilityRow) => {
+    setEditingUnavailability(row);
+    setIsUnavailabilityModalOpen(true);
+  };
+
+  const toastUnavailabilityNotReady = React.useCallback(() => {
+    toast.error("Classroom unavailability API is not ready yet.");
+  }, []);
+
+  const handleAddUnavailability = (data: Omit<ClassroomUnavailabilityRow, "id">) => {
+    void data;
+    toastUnavailabilityNotReady();
+  };
+
+  const handleUpdateUnavailability = (data: ClassroomUnavailabilityRow) => {
+    void data;
+    toastUnavailabilityNotReady();
+  };
+
+  const handleDeleteUnavailability = (id: string) => {
+    void id;
+    toastUnavailabilityNotReady();
+  };
+
   return (
     <div className="px-4 sm:px-6">
       <DetailHeaderWithProfile
@@ -132,29 +192,32 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
           title="Unavailabilities"
           isLoading={isLoading}
           headerActions={
-            <Button type="button" variant="ghost" size="icon" aria-label="Add unavailability" disabled>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Add unavailability"
+              onClick={openAddUnavailability}
+              disabled={isLoading || !classroom}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           }
         >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="py-2 text-left font-semibold">From Date</th>
-                  <th className="py-2 text-left font-semibold">To Date</th>
-                  <th className="py-2 text-left font-semibold">Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="py-3 text-muted-foreground" colSpan={3}>
-                    No unavailabilities
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <CustomTable
+            data={[]}
+            columns={unavailabilityColumns}
+            size="compact"
+            variant="default"
+            stickyHeader={false}
+            enableSearch={false}
+            enableFilter={false}
+            enablePrint={false}
+            enableRowsPerPage={false}
+            isLoading={false}
+            customEmptyState={<div className="py-3 text-sm text-muted-foreground">No unavailabilities</div>}
+            onRowClick={openEditUnavailability}
+          />
         </SectionCard>
       </div>
 
@@ -171,6 +234,16 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
           }
           void fetchClassroom({ showLoading: false });
         }}
+      />
+
+      <AddClassroomUnavailabilityModal
+        open={isUnavailabilityModalOpen}
+        onClose={() => setIsUnavailabilityModalOpen(false)}
+        mode={editingUnavailability ? "edit" : "add"}
+        initialData={editingUnavailability}
+        onSubmit={handleAddUnavailability}
+        onUpdate={handleUpdateUnavailability}
+        onDelete={handleDeleteUnavailability}
       />
     </div>
   );
