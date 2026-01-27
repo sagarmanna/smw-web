@@ -22,7 +22,10 @@ import { PrivateLessonPaymentsCard } from "../components/PrivateLessonPaymentsCa
 import { PrivateLessonCommentsCard } from "../components/PrivateLessonCommentsCard";
 import { PrivateLessonHistoryCard } from "../components/PrivateLessonHistoryCard";
 import { DeletePrivateLessonModal } from "../components/modals/DeletePrivateLessonModal";
+import { PrivateLessonPayment } from "../types";
 import { ReceivePaymentModal, type ReceivePaymentData } from "@/components/modal/ReceivePaymentModal";
+import { PaymentReceiptModalContainer, getPaymentReceiptData } from "@/components/modal/PaymentReceiptModal";
+import { getCustomerPayments } from "@/app/[location]/customers/customers.api";
 import { toast } from "sonner";
 
 interface PrivateLessonDetailClientProps {
@@ -64,6 +67,20 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
 
   // Receive payment modal state
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
+
+  // Receipt payment modal state (same flow as enrollment page)
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = React.useState<number | string | null>(null);
+  const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<{
+    date: string;
+    paymentMethod: string;
+    reference: string;
+    amount: number;
+    lessons?: Array<{ date: string; student: string; program: string; teacher: string; amount: string; payment: string; balance: string }>;
+    groupLessons?: Array<{ date: string; student: string; program: string; amount: string; balance: string }>;
+    invoices?: Array<{ date: string; number: string; amount: string; payment: string; balance: string }>;
+    credits?: Array<{ type: string; reference: string; paymentMethod?: string; amount: string; amountUsed: string }>;
+  } | null>(null);
 
   // Fetch customer email addresses when email modal opens
   React.useEffect(() => {
@@ -132,7 +149,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     setIsReceivePaymentModalOpen(true);
   }, []);
 
-  // Handle receiving payment
+  // Handle receiving payment — same flow as enrollment: call API, then open receipt from getPaymentReceiptData.
   const handleReceivePayment = React.useCallback(async (paymentData: ReceivePaymentData) => {
     if (!details?.customerId) {
       toast.error("Customer ID is required to receive payment");
@@ -140,156 +157,136 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     }
 
     try {
-      // Import the legacy API function
       const { receivePayment } = await import("@/lib/api/legacyApiAdapter");
-      const paymentMethodId = Number(paymentData.paymentMethod) || 1; // Default to 1 if invalid
+      const paymentMethodId = Number(paymentData.paymentMethod) || 1;
 
-      // Helper function to format numbers to 2 decimal places
-      const formatToTwoDecimals = (value: number): number => {
-        return Math.round(value * 100) / 100;
-      };
+      const formatToTwoDecimals = (value: number): number => Math.round(value * 100) / 100;
 
-      // Calculate amount needed (sum of all selected items)
-      const lessonPaymentsTotal = Object.values(
-        paymentData.lessonPayments || {}
-      ).reduce((sum, val) => sum + val, 0);
-      const groupLessonPaymentsTotal = Object.values(
-        paymentData.groupLessonPayments || {}
-      ).reduce((sum, val) => sum + val, 0);
-      const invoicePaymentsTotal = Object.values(
-        paymentData.invoicePayments || {}
-      ).reduce((sum, val) => sum + val, 0);
-      const amountNeeded = formatToTwoDecimals(
-        lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal
-      );
+      const lessonPaymentsTotal = Object.values(paymentData.lessonPayments || {}).reduce((s, v) => s + v, 0);
+      const groupLessonPaymentsTotal = Object.values(paymentData.groupLessonPayments || {}).reduce((s, v) => s + v, 0);
+      const invoicePaymentsTotal = Object.values(paymentData.invoicePayments || {}).reduce((s, v) => s + v, 0);
+      const amountNeeded = formatToTwoDecimals(lessonPaymentsTotal + groupLessonPaymentsTotal + invoicePaymentsTotal);
       const amountToDistribute = formatToTwoDecimals(amountNeeded);
 
-      // Prepare lesson payments array (IDs are already numeric from API)
-      const lessonPaymentsArray = paymentData.lessonPayments
-        ? Object.entries(paymentData.lessonPayments)
-            .filter(([, value]) => value > 0)
-            .map(([id, value]) => ({
-              id: Number(id),
-              value: formatToTwoDecimals(value),
-            }))
-            .filter(({ id }) => !isNaN(id) && id > 0)
-        : [];
+      const lessonPaymentsArray =
+        paymentData.lessonPayments &&
+        Object.entries(paymentData.lessonPayments)
+          .filter(([, v]) => v > 0)
+          .map(([id, value]) => ({ id: Number(id), value: formatToTwoDecimals(value) }))
+          .filter(({ id }) => !isNaN(id) && id > 0);
+      const groupLessonPaymentsArray =
+        paymentData.groupLessonPayments &&
+        Object.entries(paymentData.groupLessonPayments)
+          .filter(([, v]) => v > 0)
+          .map(([id, value]) => ({ id: Number(id), value: formatToTwoDecimals(value) }))
+          .filter(({ id }) => !isNaN(id) && id > 0);
+      const invoicePaymentsArray =
+        paymentData.invoicePayments &&
+        Object.entries(paymentData.invoicePayments)
+          .filter(([, v]) => v > 0)
+          .map(([id, value]) => ({ id: Number(id), value: formatToTwoDecimals(value) }))
+          .filter(({ id }) => !isNaN(id) && id > 0);
+      const paymentCreditsArray =
+        paymentData.paymentCredits &&
+        Object.entries(paymentData.paymentCredits)
+          .filter(([, v]) => v > 0)
+          .map(([id, value]) => ({ id: Number(id), value: formatToTwoDecimals(value) }))
+          .filter(({ id }) => !isNaN(id) && id > 0);
+      const invoiceCreditsArray =
+        paymentData.invoiceCredits &&
+        Object.entries(paymentData.invoiceCredits)
+          .filter(([, v]) => v > 0)
+          .map(([id, value]) => ({ id: Number(id), value: formatToTwoDecimals(value) }))
+          .filter(({ id }) => !isNaN(id) && id > 0);
 
-      // Prepare group lesson payments array (IDs are already numeric from API)
-      const groupLessonPaymentsArray = paymentData.groupLessonPayments
-        ? Object.entries(paymentData.groupLessonPayments)
-            .filter(([, value]) => value > 0)
-            .map(([id, value]) => ({
-              id: Number(id),
-              value: formatToTwoDecimals(value),
-            }))
-            .filter(({ id }) => !isNaN(id) && id > 0)
-        : [];
-
-      // Prepare invoice payments array (IDs are already numeric from API, no "I-" prefix needed)
-      const invoicePaymentsArray = paymentData.invoicePayments
-        ? Object.entries(paymentData.invoicePayments)
-            .filter(([, value]) => value > 0)
-            .map(([id, value]) => ({
-              id: Number(id),
-              value: formatToTwoDecimals(value),
-            }))
-            .filter(({ id }) => !isNaN(id) && id > 0)
-        : [];
-
-      // Prepare payment credits array (IDs are already numeric from API)
-      const paymentCreditsArray = paymentData.paymentCredits
-        ? Object.entries(paymentData.paymentCredits)
-            .filter(([, value]) => value > 0)
-            .map(([id, value]) => ({
-              id: Number(id),
-              value: formatToTwoDecimals(value),
-            }))
-            .filter(({ id }) => !isNaN(id) && id > 0)
-        : [];
-
-      // Prepare invoice credits array (IDs are already numeric from API)
-      const invoiceCreditsArray = paymentData.invoiceCredits
-        ? Object.entries(paymentData.invoiceCredits)
-            .filter(([, value]) => value > 0)
-            .map(([id, value]) => ({
-              id: Number(id),
-              value: formatToTwoDecimals(value),
-            }))
-            .filter(({ id }) => !isNaN(id) && id > 0)
-        : [];
-
-      // Calculate selected credit value (sum of all selected credits)
       const selectedCreditValue = formatToTwoDecimals(
-        paymentCreditsArray.reduce((sum, c) => sum + c.value, 0) +
-          invoiceCreditsArray.reduce((sum, c) => sum + c.value, 0)
+        (paymentCreditsArray?.reduce((s, c) => s + c.value, 0) ?? 0) +
+          (invoiceCreditsArray?.reduce((s, c) => s + c.value, 0) ?? 0)
       );
-
-      // Calculate amount received following legacy logic
       const amountAfterCredits = amountNeeded - selectedCreditValue;
-      let calculatedAmount: number;
-      if (amountAfterCredits < 0) {
-        // Credits exceed amount needed
-        calculatedAmount = amountNeeded > 0 ? 0.0 : amountAfterCredits;
-      } else {
-        // Credits don't fully cover amount needed (or exactly match)
-        calculatedAmount = amountAfterCredits;
-      }
-
-      // Use the calculated amount when credits are present (matching legacy auto-calculation behavior)
-      // When no credits are used, use the user-entered amount
+      const calculatedAmount =
+        amountAfterCredits < 0 ? (amountNeeded > 0 ? 0 : amountAfterCredits) : amountAfterCredits;
       const finalAmount =
-        selectedCreditValue > 0
-          ? formatToTwoDecimals(calculatedAmount)
-          : formatToTwoDecimals(paymentData.amountReceived);
+        selectedCreditValue > 0 ? formatToTwoDecimals(calculatedAmount) : formatToTwoDecimals(paymentData.amountReceived);
 
-      // Prepare payment data for legacy API
       const legacyPaymentData = {
         userId: details.customerId,
-        date: paymentData.date, // Already in "MMM dd, yyyy" format
-        paymentMethodId: paymentMethodId,
+        date: paymentData.date,
+        paymentMethodId,
         reference: paymentData.reference || "",
         amount: finalAmount,
-        amountNeeded: amountNeeded,
-        selectedCreditValue: selectedCreditValue,
-        amountToDistribute: amountToDistribute,
+        amountNeeded,
+        selectedCreditValue,
+        amountToDistribute,
         notes: paymentData.notes || "",
-        lessonPayments:
-          lessonPaymentsArray.length > 0 ? lessonPaymentsArray : undefined,
-        groupLessonPayments:
-          groupLessonPaymentsArray.length > 0
-            ? groupLessonPaymentsArray
-            : undefined,
-        invoicePayments:
-          invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
-        paymentCredits:
-          paymentCreditsArray.length > 0 ? paymentCreditsArray : undefined,
-        invoiceCredits:
-          invoiceCreditsArray.length > 0 ? invoiceCreditsArray : undefined,
-        canUsePaymentCredits: paymentCreditsArray.length > 0 ? 1 : 0,
-        canUseInvoiceCredits: invoiceCreditsArray.length > 0 ? 1 : 0,
+        lessonPayments: lessonPaymentsArray && lessonPaymentsArray.length > 0 ? lessonPaymentsArray : undefined,
+        groupLessonPayments: groupLessonPaymentsArray && groupLessonPaymentsArray.length > 0 ? groupLessonPaymentsArray : undefined,
+        invoicePayments: invoicePaymentsArray && invoicePaymentsArray.length > 0 ? invoicePaymentsArray : undefined,
+        paymentCredits: paymentCreditsArray && paymentCreditsArray.length > 0 ? paymentCreditsArray : undefined,
+        invoiceCredits: invoiceCreditsArray && invoiceCreditsArray.length > 0 ? invoiceCreditsArray : undefined,
+        canUsePaymentCredits: paymentCreditsArray && paymentCreditsArray.length > 0 ? 1 : 0,
+        canUseInvoiceCredits: invoiceCreditsArray && invoiceCreditsArray.length > 0 ? 1 : 0,
         prId: "",
       };
 
-      // Call legacy API
       const response = await receivePayment(location, legacyPaymentData);
 
       if (response.status) {
-        // Success - close receive payment modal
         setIsReceivePaymentModalOpen(false);
         toast.success(`Payment of $${finalAmount.toFixed(2)} received successfully`);
-        
-        // Optionally refresh private lesson data here if needed
-        // You might want to refetch private lesson details to reflect the payment
+
+        try {
+          const paymentsResponse = await getCustomerPayments(location, details.customerId, 1, 1);
+          if (paymentsResponse.data && paymentsResponse.data.length > 0) {
+            const latestPayment = paymentsResponse.data[0] as { id?: number | string };
+            const paymentId = latestPayment.id;
+            if (paymentId != null) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            const receiptData = await getPaymentReceiptData(location, paymentId);
+
+            const directData = {
+              date: receiptData.info?.date ?? paymentData.date,
+              paymentMethod: receiptData.info?.paymentMethod ?? "",
+              reference: receiptData.info?.reference ?? paymentData.reference ?? "",
+              amount: receiptData.info?.amount ?? finalAmount,
+              lessons: receiptData.lessons.data.map((lesson) => ({
+                date: lesson.date,
+                student: lesson.student,
+                program: lesson.program,
+                teacher: lesson.teacher,
+                amount: lesson.amount,
+                payment: lesson.payment,
+                balance: lesson.balance ?? "$0.00",
+              })),
+              groupLessons: receiptData.groupLessons.data.map((gl) => ({
+                date: gl.date,
+                student: gl.student,
+                program: gl.program,
+                amount: gl.amount,
+                balance: gl.balance ?? "$0.00",
+              })),
+              invoices: receiptData.invoices.data.map((inv) => ({
+                date: inv.date,
+                number: inv.number,
+                amount: inv.amount,
+                payment: inv.payment,
+                balance: inv.balance ?? "$0.00",
+              })),
+            };
+            setDirectPaymentReceiptData(directData);
+            setSelectedPaymentId(null);
+            setIsReceiptModalOpen(true);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching payment receipt data:", err);
+        }
       } else {
-        const errorMessage = response.message || "Failed to receive payment";
-        toast.error(errorMessage);
+        toast.error(response.message ?? "Failed to receive payment");
       }
     } catch (error) {
       console.error("Error receiving payment:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to receive payment";
-      toast.error(errorMessage);
+      toast.error(error instanceof Error ? error.message : "Failed to receive payment");
     }
   }, [details?.customerId, location]);
 
@@ -300,6 +297,14 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   const handleDeleteSuccess = React.useCallback(() => {
     router.push(`/${location}/private-lessons`);
   }, [location, router]);
+
+  // Click payment row -> open receipt modal (view mode), same as enrollment page.
+  const handlePaymentClick = React.useCallback((payment: PrivateLessonPayment) => {
+    if (!payment.id || !details?.customerId) return;
+    setSelectedPaymentId(payment.id);
+    setDirectPaymentReceiptData(null);
+    setIsReceiptModalOpen(true);
+  }, [details?.customerId]);
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
@@ -435,6 +440,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           <PrivateLessonPaymentsCard
             payments={payments}
             isLoading={isLoading}
+            onPaymentClick={handlePaymentClick}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
@@ -511,6 +517,38 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           location={location}
           customerId={details.customerId.toString()}
           customerName={details.customer || ""}
+        />
+      )}
+
+      {/* Payment Receipt Modal — view existing payment (from table row click) */}
+      {details?.customerId && selectedPaymentId && !directPaymentReceiptData && (
+        <PaymentReceiptModalContainer
+          open={isReceiptModalOpen}
+          onOpenChange={(open) => {
+            setIsReceiptModalOpen(open);
+            if (!open) setSelectedPaymentId(null);
+          }}
+          location={location}
+          customerId={details.customerId}
+          paymentId={selectedPaymentId}
+          customerName={details.customer ?? ""}
+          mode="view"
+        />
+      )}
+
+      {/* Payment Receipt Modal — new payment (after Receive Payment, bypass POST) */}
+      {details?.customerId && directPaymentReceiptData && (
+        <PaymentReceiptModalContainer
+          open={isReceiptModalOpen}
+          onOpenChange={(open) => {
+            setIsReceiptModalOpen(open);
+            if (!open) setDirectPaymentReceiptData(null);
+          }}
+          location={location}
+          customerId={details.customerId}
+          customerName={details.customer ?? ""}
+          mode="new"
+          directPaymentData={directPaymentReceiptData}
         />
       )}
     </>
