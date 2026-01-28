@@ -6,7 +6,7 @@ import {
   TimelineQuery,
   CreatedUser 
 } from './timelineListing.api';
-import { startOfDay, endOfDay } from 'date-fns';
+import { startOfDay, endOfDay, format } from 'date-fns';
 
 interface TimelineListingState {
   rows: TimelineRow[];
@@ -24,13 +24,16 @@ interface TimelineListingState {
   isLoadingUsers: boolean;
 }
 
-// Initialize default date filter to today
+// Initialize default date filter to today (stored as serializable strings)
 const getDefaultDateFilter = () => {
   const today = new Date();
+  const from = startOfDay(today);
+  const to = endOfDay(today);
+
   return {
-    from: startOfDay(today),
-    to: endOfDay(today),
-  };
+    from: format(from, 'yyyy-MM-dd'),
+    to: format(to, 'yyyy-MM-dd'),
+  } as { from: string; to: string };
 };
 
 const initialState: TimelineListingState = {

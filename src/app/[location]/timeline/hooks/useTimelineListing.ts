@@ -12,8 +12,8 @@ import {
 import { TimelineQuery } from "../timelineListing.api";
 import { format } from "date-fns";
 
-// Helper to check if value is a date range
-const isDateRange = (val: unknown): val is { from?: Date; to?: Date } => {
+// Helper to check if value is a date range-like object
+const isDateRange = (val: unknown): val is { from?: unknown; to?: unknown } => {
   if (val === null || typeof val !== 'object') return false;
   return (
     'from' in (val as { from?: unknown }) || 
@@ -53,8 +53,18 @@ export function useTimelineListing() {
     // Handle date range filter
     const dateFilter = currentColumnFilters.date;
     if (dateFilter && isDateRange(dateFilter) && dateFilter.from && dateFilter.to) {
-      query.fromDate = format(dateFilter.from, "yyyy-MM-dd");
-      query.toDate = format(dateFilter.to, "yyyy-MM-dd");
+      const fromVal = dateFilter.from;
+      const toVal = dateFilter.to;
+
+      if (fromVal instanceof Date && toVal instanceof Date) {
+        // Defensive: if Dates somehow reach here, normalize to strings
+        query.fromDate = format(fromVal, "yyyy-MM-dd");
+        query.toDate = format(toVal, "yyyy-MM-dd");
+      } else {
+        // Normal path: values already stored as serializable strings
+        query.fromDate = String(fromVal);
+        query.toDate = String(toVal);
+      }
     }
 
     // Handle created user filter (userId)
@@ -107,9 +117,15 @@ export function useTimelineListing() {
     (columnKey: string, filterValue: unknown) => {
       let value = filterValue;
       
-      // Handle date range - store as Date objects directly
+      // Handle date range - normalize to serializable string values in state
       if (columnKey === 'date' && isDateRange(filterValue)) {
-        value = filterValue;
+        const from = filterValue.from;
+        const to = filterValue.to;
+
+        value = {
+          from: from instanceof Date ? format(from, "yyyy-MM-dd") : from ? String(from) : undefined,
+          to: to instanceof Date ? format(to, "yyyy-MM-dd") : to ? String(to) : undefined,
+        };
       } else if (columnKey === 'createdUser') {
         // Convert user dropdown value to number (userId) or undefined
         if (typeof filterValue === 'string' && filterValue !== 'all' && filterValue !== '') {
