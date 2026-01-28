@@ -4,22 +4,19 @@ import * as React from "react";
 import { SortingState } from "@tanstack/react-table";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-  fetchItems,
   setPage,
   setPageSize,
   setSorting,
   setColumnFilters,
   setShowAll,
 } from "../itemsListing.slice";
-import { ItemsQuery } from "../itemsListing.api";
 import type { SortField } from "../itemsListing.slice";
+import type { ItemRow } from "../itemsListing.api";
 
-export function useItemListing(location: string) {
+export function useItemListing() {
   const dispatch = useAppDispatch();
 
-  const rows = useAppSelector((state) => state.itemsListing.rows);
-  const total = useAppSelector((state) => state.itemsListing.total);
-  const totalPages = useAppSelector((state) => state.itemsListing.totalPages);
+  const allRows = useAppSelector((state) => state.itemsListing.rows);
   const isLoading = useAppSelector((state) => state.itemsListing.isLoading);
   const error = useAppSelector((state) => state.itemsListing.error);
   const page = useAppSelector((state) => state.itemsListing.page);
@@ -31,77 +28,85 @@ export function useItemListing(location: string) {
 
   const sorting: SortingState = React.useMemo(() => {
     if (!sortBy) return [];
-    return [{ id: sortBy, desc: sortDir === 'desc' }];
+    return [{ id: sortBy, desc: sortDir === "desc" }];
   }, [sortBy, sortDir]);
 
-  const hasInitialFetchedRef = React.useRef(false);
-  const lastLocationRef = React.useRef<string | null>(null);
   const columnFiltersRef = React.useRef(columnFilters);
-  const prevParamsRef = React.useRef<{
-    location: string;
-    page: number;
-    pageSize: number;
-    showAll: boolean;
-  } | null>(null);
-
-  const buildQuery = React.useCallback((
-    currentPage: number,
-    currentPageSize: number,
-    currentColumnFilters: Record<string, unknown>,
-    currentShowAll: boolean
-  ): ItemsQuery => {
-    const query: ItemsQuery = {
-      page: currentPage,
-      limit: currentShowAll ? -1 : currentPageSize,
-      code: currentColumnFilters.code as string | undefined,
-      itemCategory: currentColumnFilters.itemCategory as string | undefined,
-      description: currentColumnFilters.description as string | undefined,
-    };
-
-    return query;
-  }, []);
-
-  const fetchData = React.useCallback(async () => {
-    const query = buildQuery(page, pageSize, columnFilters, showAll);
-    await dispatch(fetchItems({ location, query }));
-  }, [dispatch, location, page, pageSize, columnFilters, showAll, buildQuery]);
 
   React.useEffect(() => {
     columnFiltersRef.current = columnFilters;
   }, [columnFilters]);
 
-  React.useEffect(() => {
-    const locationChanged = lastLocationRef.current !== null && lastLocationRef.current !== location;
-    if (locationChanged) {
-      hasInitialFetchedRef.current = false;
-      prevParamsRef.current = null;
+  const { rows, total, totalPages } = React.useMemo(() => {
+    let data: ItemRow[] = [...allRows];
+
+    const codeFilter = (columnFilters.code as string | undefined)?.trim().toLowerCase();
+    const itemCategoryFilter = (columnFilters.itemCategory as string | undefined)
+      ?.trim()
+      .toLowerCase();
+    const descriptionFilter = (columnFilters.description as string | undefined)
+      ?.trim()
+      .toLowerCase();
+
+    if (codeFilter) {
+      data = data.filter((row) => row.code.toLowerCase().includes(codeFilter));
     }
-    lastLocationRef.current = location;
 
-    const paramsChanged = prevParamsRef.current === null ||
-      prevParamsRef.current.location !== location ||
-      prevParamsRef.current.page !== page ||
-      prevParamsRef.current.pageSize !== pageSize ||
-      prevParamsRef.current.showAll !== showAll;
+    if (itemCategoryFilter) {
+      data = data.filter((row) =>
+        row.itemCategory.toLowerCase().includes(itemCategoryFilter)
+      );
+    }
 
-    prevParamsRef.current = {
-      location,
-      page,
-      pageSize,
-      showAll,
+    if (descriptionFilter) {
+      data = data.filter((row) =>
+        row.description.toLowerCase().includes(descriptionFilter)
+      );
+    }
+
+    if (sortBy) {
+      data = [...data].sort((a, b) => {
+        const aValue = (a as unknown as Record<string, unknown>)[sortBy];
+        const bValue = (b as unknown as Record<string, unknown>)[sortBy];
+
+        const aStr = (aValue ?? "").toString().toLowerCase();
+        const bStr = (bValue ?? "").toString().toLowerCase();
+
+        if (aStr < bStr) return sortDir === "asc" ? -1 : 1;
+        if (aStr > bStr) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    const totalFiltered = data.length;
+
+    if (showAll) {
+      return {
+        rows: data,
+        total: totalFiltered,
+        totalPages: 1,
+      };
+    }
+
+    const totalPagesComputed = Math.max(
+      1,
+      Math.ceil(totalFiltered / (pageSize || 1))
+    );
+    const currentPage = Math.min(page, totalPagesComputed);
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+
+    return {
+      rows: data.slice(startIndex, endIndex),
+      total: totalFiltered,
+      totalPages: totalPagesComputed,
     };
-
-    if (!hasInitialFetchedRef.current || paramsChanged) {
-      hasInitialFetchedRef.current = true;
-      const query = buildQuery(page, pageSize, columnFiltersRef.current, showAll);
-      dispatch(fetchItems({ location, query }));
-    }
-  }, [location, page, pageSize, showAll, dispatch, buildQuery]);
+  }, [allRows, columnFilters, sortBy, sortDir, showAll, page, pageSize]);
 
   const handleSetSorting = React.useCallback(
     (newSorting: SortingState) => {
       const sortBy = newSorting[0]?.id as SortField | undefined;
-      const sortDir = newSorting[0]?.desc ? 'desc' : 'asc';
+      const sortDir = newSorting[0]?.desc ? "desc" : "asc";
       dispatch(setSorting({ sortBy, sortDir }));
     },
     [dispatch]
@@ -125,29 +130,37 @@ export function useItemListing(location: string) {
     (columnKey: string, filterValue: unknown) => {
       const newFilters = {
         ...columnFiltersRef.current,
-        [columnKey]: filterValue === "" || filterValue === null ? undefined : filterValue,
+        [columnKey]:
+          filterValue === "" || filterValue === null ? undefined : filterValue,
       };
       dispatch(setColumnFilters(newFilters));
       columnFiltersRef.current = newFilters;
+      dispatch(setPage(1));
     },
     [dispatch]
   );
 
   const handleColumnFilterEnter = React.useCallback(() => {
-    const query = buildQuery(1, pageSize, columnFiltersRef.current, showAll);
-    dispatch(fetchItems({ location, query }));
+    // With client-side filtering, pressing Enter just ensures we start from page 1
     dispatch(setPage(1));
-  }, [dispatch, location, pageSize, showAll, buildQuery]);
+  }, [dispatch]);
 
   const handleShowAllChange = React.useCallback(
     (checked: boolean) => {
       dispatch(setShowAll(checked));
+      dispatch(setPage(1));
     },
     [dispatch]
   );
 
+  const fetchData = React.useCallback(async () => {
+    // No-op: by design we only call GET once on initial page load (in page.tsx)
+    return;
+  }, []);
+
   return {
     rows,
+    allRows,
     total,
     totalPages,
     isLoading,

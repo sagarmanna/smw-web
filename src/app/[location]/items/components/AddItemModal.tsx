@@ -25,7 +25,19 @@ import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { Plus } from "lucide-react";
 import { ItemRow } from "../itemsListing.api";
-import { getItemCategories, createItemCategory } from "../itemCategories.api";
+import {
+  getItemCategories,
+  createItemCategory,
+  type ItemCategoryOption,
+} from "../itemCategories.api";
+import {
+  TAX_STATUS_OPTIONS,
+  STATUS_OPTIONS,
+  TAX_STATUS_ID_MAP,
+  type TaxStatusLabel,
+  type StatusLabel,
+} from "../items.constants";
+import { apiClient } from "@/lib/api/client";
 
 interface AddItemModalProps {
   isOpen: boolean;
@@ -42,20 +54,12 @@ interface ItemFormData {
   description: string;
   price: string;
   royaltyFree: "Yes" | "No";
-  tax: string;
-  status: "Enable" | "Disable";
+  tax: TaxStatusLabel;
+  status: StatusLabel;
 }
 
-const taxOptions = [
-  "No Tax",
-  "GST Only",
-  "Default",
-];
-
-const statusOptions = [
-  "Enable",
-  "Disable",
-];
+const taxOptions = [...TAX_STATUS_OPTIONS];
+const statusOptions = [...STATUS_OPTIONS];
 
 export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData = null, mode = "add" }: AddItemModalProps) {
   const [formData, setFormData] = React.useState<ItemFormData>({
@@ -64,7 +68,7 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
     description: "",
     price: "",
     royaltyFree: "No",
-    tax: "",
+    tax: "No Tax",
     status: "Enable",
   });
   const [isLoading, setIsLoading] = React.useState(false);
@@ -76,6 +80,7 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
   const [newCategoryName, setNewCategoryName] = React.useState("");
   const [isCreatingCategory, setIsCreatingCategory] = React.useState(false);
   const lastCategoriesLocationRef = React.useRef<string | null>(null);
+  const [itemCategories, setItemCategories] = React.useState<ItemCategoryOption[]>([]);
 
   // Initialize form data when modal opens or initialData changes
   React.useEffect(() => {
@@ -87,8 +92,8 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
           description: initialData.description || "",
           price: initialData.price?.toString() || "",
           royaltyFree: (initialData.royaltyFree === "Yes" ? "Yes" : "No") as "Yes" | "No",
-          tax: initialData.tax || "",
-          status: (initialData.status === "Disable" ? "Disable" : "Enable") as "Enable" | "Disable",
+          tax: (initialData.tax as TaxStatusLabel) || "No Tax",
+          status: (initialData.status as StatusLabel) || "Enable",
         });
       } else {
         setFormData({
@@ -97,7 +102,7 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
           description: "",
           price: "",
           royaltyFree: "No",
-          tax: "",
+          tax: "No Tax",
           status: "Enable",
         });
       }
@@ -125,6 +130,7 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
           })
           .map((c) => ({ value: c.name, label: c.name }));
         setItemCategoryOptions(opts);
+        setItemCategories(res.data);
         lastCategoriesLocationRef.current = location;
       })
       .catch(() => {
@@ -152,6 +158,12 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
       const response = await createItemCategory(location, { name: newCategoryName.trim() });
       if (response.success) {
         toast.success("Item category created successfully");
+        // Update local lists so the new category is immediately available
+        setItemCategories((prev) => [...prev, response.data]);
+        setItemCategoryOptions((prev) => [
+          ...prev,
+          { value: response.data.name, label: response.data.name },
+        ]);
         setNewCategoryName("");
         setShowCreateCategoryDialog(false);
         // Refresh categories list
@@ -161,7 +173,7 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
       } else {
         toast.error(response.message || "Failed to create item category");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to create item category");
     } finally {
       setIsCreatingCategory(false);
@@ -219,35 +231,94 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
     setIsLoading(true);
 
     try {
+      // Resolve selected item category to its backend ID
+      const selectedCategory = itemCategories.find(
+        (c) => c.name === formData.itemCategory
+      );
+
+      if (!selectedCategory) {
+        toast.error("Please select a valid Item Category");
+        setIsLoading(false);
+        return;
+      }
+
+      const taxStatusId = TAX_STATUS_ID_MAP[formData.tax];
+
+      if (!taxStatusId) {
+        toast.error("Please select a valid Tax Status");
+        setIsLoading(false);
+        return;
+      }
+
+      const priceValue = parseFloat(formData.price);
+
+      const requestBody = {
+        itemCategoryId: selectedCategory.id,
+        code: formData.code,
+        description: formData.description,
+        price: priceValue,
+        royaltyFree: formData.royaltyFree === "Yes",
+        taxStatusId,
+        status: formData.status === "Enable",
+      };
+
       const itemData: Partial<ItemRow> = {
         itemCategory: formData.itemCategory,
         code: formData.code,
         description: formData.description,
-        price: parseFloat(formData.price),
+        price: priceValue,
         royaltyFree: formData.royaltyFree,
         tax: formData.tax,
         status: formData.status,
       };
 
-      // TODO: Replace with actual API call
       if (mode === "edit" && initialData) {
-        // Update item
-        // const response = await apiClient.put(`/admin/v2/${location}/user/item/${initialData.id}`, itemData);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        toast.success("Item updated successfully");
-        onSuccess?.({ ...itemData, id: initialData.id } as ItemRow, initialData.id);
-      } else {
-        // Add new item
-        // const response = await apiClient.post(`/admin/v2/${location}/user/item`, itemData);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        // Temporary client-side ID (in real app, API would return this)
-        const newId = Date.now();
-        const newItem: ItemRow = {
-          id: newId,
+        // Defensive guard: if id is missing, avoid sending /items/undefined
+        if (initialData.id == null) {
+          toast.error("Item id is missing. Please reload the page and try again.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Update existing item
+        const response = await apiClient.put(
+          `/admin/v2/${location}/items/${initialData.id}`,
+          requestBody
+        );
+
+        if (response.data?.success === false) {
+          throw new Error(response.data?.message || "Failed to update item");
+        }
+
+        const updatedItem: ItemRow = {
+          id: initialData.id,
           ...itemData,
         } as ItemRow;
-        toast.success("Item added successfully");
-        onSuccess?.(newItem);
+
+        toast.success(response.data?.message || "Item updated successfully");
+        onSuccess?.(updatedItem, initialData.id);
+      } else {
+        // Create new item
+        const response = await apiClient.post(
+          `/admin/v2/${location}/items`,
+          requestBody
+        );
+
+        if (response.data?.success === false) {
+          throw new Error(response.data?.message || "Failed to add item");
+        }
+
+        const apiId =
+          (response.data?.data && (response.data.data.id as number | undefined)) ||
+          undefined;
+
+        const newItem: ItemRow = {
+          id: apiId ?? Date.now(),
+          ...itemData,
+        } as ItemRow;
+
+        toast.success(response.data?.message || "Item added successfully");
+        onSuccess?.(newItem, newItem.id);
       }
 
       onClose();
