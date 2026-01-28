@@ -4,6 +4,7 @@ import {
   getPrivateLessonPayments,
   getPrivateLessonHistory,
   getPrivateLessonComments,
+  getGroupLessonStudents,
   transformApiResponse,
   updatePrivateLessonDetails,
   updateAttendance,
@@ -105,8 +106,22 @@ export const fetchPrivateLesson = createAsyncThunk(
         console.warn('Comments API error:', commentsResult.reason);
       }
 
+      // 3. If this is a group lesson, fetch the students list
+      let groupStudents: Awaited<ReturnType<typeof getGroupLessonStudents>> = null;
+      const isGroupLesson = body?.lesson?.isGroup ?? false;
+      if (isGroupLesson) {
+        try {
+          groupStudents = await getGroupLessonStudents(location, privateLessonId);
+          if (!groupStudents || !groupStudents.success) {
+            console.warn('Group lesson students API failed:', groupStudents?.message || 'Unknown error');
+          }
+        } catch (err) {
+          console.warn('Group lesson students API error:', err);
+        }
+      }
+
       // History is not fetched here - it's fetched separately with pagination
-      const transformedData = transformApiResponse(details, payments, null, comments);
+      const transformedData = transformApiResponse(details, payments, null, comments, groupStudents);
 
       return { data: transformedData };
     } catch (error) {

@@ -30,6 +30,8 @@ export interface PrivateLessonDetailsResponseBody {
     status: string;
     colorCode: string;
     isOnline: string; // "Yes" | "No"
+    isPrivate?: boolean;
+    isGroup?: boolean;
   };
   student?: {
     studentId: number;
@@ -79,6 +81,19 @@ export interface PrivateLessonDetailsResponseBody {
     paid: string;
     balance: string;
   };
+  // Group lesson specific fields (when isGroup: true)
+  // Note: Students data may come from a separate API call
+  students?: Array<{
+    id: number;
+    studentName: string;
+    customerName: string;
+    dueDate: string;
+    grossPrice: string;
+    discount: string;
+    netPrice: string;
+    owing: string;
+  }>;
+  costPerStudent?: string;
 }
 
 export interface PrivateLessonDetailsApiResponse {
@@ -157,6 +172,95 @@ export async function getPrivateLessonDetails(
         },
       },
       message: apiError.response?.data?.message || "Failed to fetch private lesson details",
+    };
+  }
+}
+
+// Group Lesson Students API Response Types
+export interface GroupLessonStudentResponseBody {
+  id: number;
+  studentName: string;
+  customerName: string;
+  dueDate: string;
+  grossPrice: string;
+  discount: string;
+  netPrice: string;
+  owing: string;
+}
+
+export interface GroupLessonStudentsApiResponse {
+  success: boolean;
+  data: {
+    body: GroupLessonStudentResponseBody[];
+  };
+  message?: string;
+}
+
+/**
+ * Fetches group lesson students from the API
+ * This is called separately for group lessons (when isGroup: true)
+ * 
+ * @param location - The location identifier
+ * @param lessonId - The lesson ID
+ * @returns Promise resolving to the students response or null on error
+ */
+export async function getGroupLessonStudents(
+  location: string,
+  lessonId: string
+): Promise<GroupLessonStudentsApiResponse | null> {
+  try {
+    // TODO: Replace with actual endpoint when backend provides it
+    // For now, return mock data for group lessons
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const mockStudents: GroupLessonStudentResponseBody[] = [
+      {
+        id: 1,
+        studentName: "Test studentseng",
+        customerName: "Test customerseng",
+        dueDate: "Dec 18, 2025",
+        grossPrice: "$28.75",
+        discount: "$0.00",
+        netPrice: "$28.75",
+        owing: "$0.00",
+      },
+      {
+        id: 2,
+        studentName: "Anna Winston",
+        customerName: "Anna Winston",
+        dueDate: "Dec 18, 2025",
+        grossPrice: "$28.75",
+        discount: "$0.00",
+        netPrice: "$25.88",
+        owing: "$25.88",
+      },
+      {
+        id: 3,
+        studentName: "Aisha Lee",
+        customerName: "Aisha Lee",
+        dueDate: "Dec 18, 2025",
+        grossPrice: "$28.75",
+        discount: "$0.00",
+        netPrice: "$25.14",
+        owing: "$25.14",
+      },
+    ];
+    
+    return {
+      success: true,
+      data: {
+        body: mockStudents,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error fetching group lesson students:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch group lesson students",
     };
   }
 }
@@ -311,7 +415,8 @@ export function transformApiResponse(
   apiResponse: PrivateLessonDetailsApiResponse,
   paymentsResponse: PrivateLessonPaymentsApiResponse | null,
   historyResponse: PrivateLessonHistoryApiResponse | null,
-  commentsResponse: PrivateLessonCommentsApiResponse | null
+  commentsResponse: PrivateLessonCommentsApiResponse | null,
+  groupStudentsResponse?: GroupLessonStudentsApiResponse | null
 ): PrivateLessonInfo {
   const { body } = apiResponse.data;
   
@@ -341,6 +446,19 @@ export function transformApiResponse(
     ? lessonData.isOnline 
     : (body.online ?? "No");
   const onlineBoolean = onlineString === "Yes";
+  
+  // Extract isGroup and isPrivate from lesson data
+  const isGroup = lessonData?.isGroup ?? false;
+  const isPrivate = lessonData?.isPrivate ?? false;
+  
+  // Debug logging
+  console.log('[transformApiResponse] Lesson flags:', {
+    'lessonData': lessonData,
+    'lessonData?.isGroup': lessonData?.isGroup,
+    'lessonData?.isPrivate': lessonData?.isPrivate,
+    'isGroup': isGroup,
+    'isPrivate': isPrivate
+  });
   
   // Convert attendance present string "Yes"/"No" to boolean
   const attendancePresent = body.attendance?.present === "Yes";
@@ -376,6 +494,26 @@ export function transformApiResponse(
     createdOn: item.createdOn || "",
   }));
   
+  // Get group lesson students (from separate API call if provided, otherwise from body)
+  const studentsBody = groupStudentsResponse?.data?.body || body.students || [];
+  const students = studentsBody.map((student) => ({
+    id: student.id,
+    studentName: student.studentName || "",
+    customerName: student.customerName || "",
+    dueDate: student.dueDate || "",
+    grossPrice: student.grossPrice || "",
+    discount: student.discount || "",
+    netPrice: student.netPrice || "",
+    owing: student.owing || "",
+  }));
+
+  // Get group cost data (if isGroup: true)
+  const groupCost = isGroup ? {
+    costPerHour: body.cost?.costPerHour || "",
+    cost: body.cost?.cost || "",
+    costPerStudent: body.costPerStudent || "",
+  } : undefined;
+  
   return {
     details: {
       id: (lessonData?.id ?? body.id) || 0,
@@ -389,6 +527,8 @@ export function transformApiResponse(
       customer: customerName,
       customerId: customerId,
       phone: phone,
+      isGroup: isGroup,
+      isPrivate: isPrivate,
       attendance: {
         present: attendancePresent,
       },
@@ -422,6 +562,8 @@ export function transformApiResponse(
     payments: payments,
     history: history, // History is fetched separately with pagination
     comments: comments,
+    students: students, // Group lesson students
+    groupCost: groupCost, // Group lesson cost data
   };
 }
 
@@ -873,4 +1015,3 @@ export async function deletePrivateLesson(
     };
   }
 }
-

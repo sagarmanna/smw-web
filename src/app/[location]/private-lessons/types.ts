@@ -10,6 +10,8 @@ export interface PrivateLessonDetails {
   customer: string;
   customerId?: number;
   phone: string;
+  isPrivate?: boolean;
+  isGroup?: boolean;
   attendance: {
     present: boolean;
   };
@@ -68,5 +70,26 @@ export interface PrivateLessonInfo {
   payments: PrivateLessonPayment[];
   history: PrivateLessonHistory[];
   comments: PrivateLessonComment[];
+  // Group lesson specific data (when isGroup: true)
+  students?: GroupLessonStudent[];
+  groupCost?: GroupLessonCost;
 }
 
+// Group Lesson Student Interface (for isGroup: true)
+export interface GroupLessonStudent {
+  id: number;
+  studentName: string;
+  customerName: string;
+  dueDate: string;
+  grossPrice: string;
+  discount: string;
+  netPrice: string;
+  owing: string;
+}
+
+// Group Lesson Cost Data
+export interface GroupLessonCost {
+  costPerHour: string;
+  cost: string;
+  costPerStudent: string;
+}
