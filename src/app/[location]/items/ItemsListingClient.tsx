@@ -178,17 +178,19 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
           setIsAddItemModalOpen(false);
           setEditingItem(null);
         }}
-        onSuccess={(itemData, itemId) => {
+        onSuccess={(itemData) => {
           if (itemData) {
-            if (itemId) {
+            const fullItem = itemData as ItemRow;
+            // Check if item already exists in Redux state (update) or not (add)
+            const itemExists = allRows.some((row) => row.id === fullItem.id);
+            if (itemExists) {
               // Update existing item
-              dispatch(updateItem(itemData as ItemRow));
+              dispatch(updateItem(fullItem));
             } else {
               // Add new item
-              dispatch(addItem(itemData as ItemRow));
+              dispatch(addItem(fullItem));
             }
           }
-          fetchData();
           setIsAddItemModalOpen(false);
           setEditingItem(null);
         }}
