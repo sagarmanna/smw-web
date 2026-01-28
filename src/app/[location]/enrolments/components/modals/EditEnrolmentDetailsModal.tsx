@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EnrolmentDetails, UpdateEnrolmentDetails } from "../../types";
+import { useAppSelector } from "@/redux/hooks";
 
 interface EditEnrolmentDetailsModalProps {
   open: boolean;
@@ -29,6 +30,10 @@ export function EditEnrolmentDetailsModal({
   onSubmit,
   saving = false,
 }: EditEnrolmentDetailsModalProps) {
+  // Get user info to check if user is admin (for rate editing permission)
+  const { userInfo } = useAppSelector((state) => state.user);
+  const isAdmin = userInfo?.role === 'administrator';
+
   const [formData, setFormData] = React.useState<{
     rates: Array<{ amount: string; fromDate: string; toDate: string }>;
     autoRenewal: boolean;
@@ -129,27 +134,37 @@ export function EditEnrolmentDetailsModal({
       online: formData.online,
     };
 
-    // Determine if we have multiple rates (check both formData and original details)
-    const hasMultipleRates = (details.rates && details.rates.length > 1) || formData.rates.length > 1;
-    const hasRatesInFormData = formData.rates.length > 0;
-    const hasRatesInDetails = (details.rates && details.rates.length > 0) || !!details.rate;
-    
-    // Always send rates if we have them (matches legacy: always sends all courseProgramRates)
-    // Priority: formData.rates > details.rates > details.rate
-    if (hasRatesInFormData && rates.length > 0) {
-      // We have rates in formData - use them (even if some amounts are empty)
-      if (hasMultipleRates) {
-        // Multiple rates - send as array
-        submitData.rates = rates;
-      } else {
-        // Single rate - send both for backward compatibility
-        submitData.rates = rates;
-        if (rates[0]?.amount) {
-          submitData.rate = rates[0].amount;
+    // Only include rate changes if user is admin
+    if (isAdmin) {
+      // Determine if we have multiple rates (check both formData and original details)
+      const hasMultipleRates = (details.rates && details.rates.length > 1) || formData.rates.length > 1;
+      const hasRatesInFormData = formData.rates.length > 0;
+      const hasRatesInDetails = (details.rates && details.rates.length > 0) || !!details.rate;
+      
+      // Always send rates if we have them (matches legacy: always sends all courseProgramRates)
+      // Priority: formData.rates > details.rates > details.rate
+      if (hasRatesInFormData && rates.length > 0) {
+        // We have rates in formData - use them (even if some amounts are empty)
+        if (hasMultipleRates) {
+          // Multiple rates - send as array
+          submitData.rates = rates;
+        } else {
+          // Single rate - send both for backward compatibility
+          submitData.rates = rates;
+          if (rates[0]?.amount) {
+            submitData.rate = rates[0].amount;
+          }
+        }
+      } else if (hasRatesInDetails) {
+        // Fallback: use original rates from details if formData is empty or rates array is empty
+        if (details.rates && details.rates.length > 0) {
+          submitData.rates = details.rates;
+        } else if (details.rate) {
+          submitData.rate = details.rate;
         }
       }
-    } else if (hasRatesInDetails) {
-      // Fallback: use original rates from details if formData is empty or rates array is empty
+    } else {
+      // Non-admin users: preserve original rates without changes
       if (details.rates && details.rates.length > 0) {
         submitData.rates = details.rates;
       } else if (details.rate) {
@@ -165,6 +180,10 @@ export function EditEnrolmentDetailsModal({
   };
 
   const handleRateChange = (index: number, value: string) => {
+    // Prevent rate changes for non-admin users
+    if (!isAdmin) {
+      return;
+    }
     setFormData((prev) => {
       const newRates = [...prev.rates];
       if (newRates[index]) {
@@ -199,6 +218,7 @@ export function EditEnrolmentDetailsModal({
                   onChange={(e) => handleRateChange(index, e.target.value)}
                   placeholder="Enter rate"
                   className="focus:ring-2 focus:ring-primary"
+                  disabled={!isAdmin}
                 />
               </div>
             ))
@@ -221,6 +241,7 @@ export function EditEnrolmentDetailsModal({
                 }}
                 placeholder="Enter rate"
                 className="focus:ring-2 focus:ring-primary"
+                disabled={!isAdmin}
               />
             </div>
           )}
