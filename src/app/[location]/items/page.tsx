@@ -1,5 +1,5 @@
-import React from 'react';
-import { ItemsListingClient } from './ItemsListingClient';
+import React from "react";
+import { ItemsListingClient } from "./ItemsListingClient";
 
 interface ItemsPageProps {
   params: Promise<{

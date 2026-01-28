@@ -64,6 +64,18 @@ const itemsListingSlice = createSlice({
   name: 'itemsListing',
   initialState,
   reducers: {
+    initializeItems: (state, action: PayloadAction<{ rows: ItemRow[] }>) => {
+      state.rows = action.payload.rows;
+      state.total = action.payload.rows.length;
+      state.totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+      state.isLoading = false;
+      state.error = null;
+      state.page = 1;
+      state.showAll = false;
+      state.columnFilters = {};
+      state.sortBy = 'code';
+      state.sortDir = 'asc';
+    },
     setPage: (state, action: PayloadAction<number>) => {
       state.page = action.payload;
     },
@@ -127,6 +139,7 @@ const itemsListingSlice = createSlice({
 });
 
 export const {
+  initializeItems,
   setPage,
   setPageSize,
   setSorting,
