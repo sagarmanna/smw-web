@@ -45,6 +45,7 @@ import holidaysListingReducer from '../app/[location]/holidays/holidaysListing.s
 import emailTemplateListingReducer from '../app/[location]/email-template/emailTemplateListing.slice';
 import itemCategoriesListingReducer from '../app/[location]/item-categories/itemCategoriesListing.slice';
 import testEmailListingReducer from '../app/[location]/test-email/testEmailListing.slice';
+import timelineListingReducer from '../app/[location]/timeline/timelineListing.slice';
 
 export const store = configureStore({
   reducer: {
@@ -94,6 +95,7 @@ export const store = configureStore({
     emailTemplateListing: emailTemplateListingReducer,
     itemCategoriesListing: itemCategoriesListingReducer,
     testEmailListing: testEmailListingReducer,
+    timelineListing: timelineListingReducer,
   },
 });
 

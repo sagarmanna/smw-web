@@ -1,28 +1,82 @@
 /**
  * Utility functions for processing timeline messages
- * Similar pattern to enrolment historyUtils.ts
+ * Reference: enrolments/utils/historyUtils.ts, private-lessons/utils/historyUtils.ts
+ *
+ * Key differences from history utils:
+ * - Invoice links: Open in new tab (legacy URLs from API)
+ * - Student/Customer links: Navigate to new v2 routes
+ * - Timeline HTML is sanitized before being rendered
  */
 
-// CSS classes for links
-const LINK_CLASSES = "text-blue-600 hover:text-blue-800 font-medium";
-const CLICKABLE_STUDENT_CLASSES = "text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer";
+import DOMPurify from "dompurify";
+
+// Link styling constants
+const LINK_CLASSES = "text-blue-600 hover:text-blue-800 font-medium cursor-pointer";
 
 /**
- * Processes HTML links in timeline messages to ensure consistent styling and target="_blank"
- * @param html - The HTML string containing links
- * @returns Processed HTML string with updated link attributes
+ * Sanitizes HTML content for timeline messages to prevent XSS attacks
+ * Allows only safe HTML tags and attributes
+ */
+function sanitizeTimelineHtml(html: string): string {
+  try {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ["p", "br", "strong", "em", "u", "s", "a", "span", "div", "b", "i"],
+      ALLOWED_ATTR: ["href", "target", "rel", "class"],
+      ALLOW_DATA_ATTR: false,
+    });
+  } catch (error) {
+    console.error("Error sanitizing timeline HTML:", error);
+    // Return escaped HTML as fallback
+    return html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+}
+
+/**
+ * Parses a legacy URL to extract route information
+ * @param url - Full URL from API response
+ * @returns Parsed route info or null
+ */
+function parseUrl(url: string): { type: 'invoice' | 'student' | 'customer'; id: string } | null {
+  try {
+    // Extract ID (works for all URL types)
+    const idMatch = url.match(/[&?]id=(\d+)/);
+    if (!idMatch) return null;
+
+    const id = idMatch[1];
+
+    // Determine type
+    if (url.includes('/invoice/view')) {
+      return { type: 'invoice', id };
+    }
+    
+    if (url.includes('/student/view')) {
+      return { type: 'student', id };
+    }
+    
+    if (url.includes('/user/view')) {
+      return { type: 'customer', id };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Processes HTML links in timeline messages - keeps original URLs and adds styling
+ * Similar to enrolments/utils/historyUtils.ts but keeps hrefs for click interception
+ * @param html - HTML string from API response
+ * @returns Processed HTML with styled links
  */
 export function processTimelineLinks(html: string): string {
   try {
-    // Use DOMParser for proper HTML parsing instead of regex
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const links = doc.querySelectorAll('a');
 
     links.forEach((link) => {
-      // Ensure target="_blank" for new tab navigation
-      link.setAttribute('target', '_blank');
-      link.setAttribute('rel', 'noopener noreferrer');
+      // Keep original href from API response - don't modify
       
       // Add consistent styling classes
       const existingClasses = link.getAttribute('class') || '';
@@ -33,124 +87,107 @@ export function processTimelineLinks(html: string): string {
 
     return doc.body.innerHTML;
   } catch (error) {
-    console.error('Error processing links with DOMParser, using regex fallback:', error);
-    // Fallback to regex-based approach if DOMParser fails
-    return html.replace(
-      /<a\b([^>]*)>/g,
-      (_match, attrs: string) => {
-        let newAttrs = attrs || "";
-        // Remove existing target if present
-        newAttrs = newAttrs.replace(/target="[^"]*"/g, '');
-        // Set target to _blank for new tab navigation
-        newAttrs += ' target="_blank" rel="noopener noreferrer"';
-        
-        // Add or update classes
-        if (/class=/.test(newAttrs)) {
-          newAttrs = newAttrs.replace(
-            /class="([^"]*)"/,
-            (_m, cls: string) => `class="${cls} ${LINK_CLASSES}"`
-          );
-        } else {
-          newAttrs += ` class="${LINK_CLASSES}"`;
-        }
-        return `<a${newAttrs}>`;
-      }
-    );
+    console.error('Error processing timeline links:', error);
+    return html;
   }
 }
 
 /**
- * Makes student names clickable by replacing them with clickable spans
- * @param message - The message string
- * @param studentName - The student name to make clickable
- * @param customerId - The customer ID for navigation
- * @returns HTML string with clickable student name
+ * Processes timeline message for display
+ * - Sanitizes HTML from API
+ * - Then processes links for styling and routing
+ * @param message - Message string from API (contains HTML links)
+ * @returns Processed HTML ready for rendering
  */
-export function makeStudentNameClickable(message: string, studentName: string, customerId: number): string {
-  const escapedName = studentName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const nameRegex = new RegExp(`(for\\s+)${escapedName}(?![^<]*>)`, "gi");
-  const clickableSpan = `<span data-customer-id="${customerId}" class="${CLICKABLE_STUDENT_CLASSES}">${studentName}</span>`;
-  return message.replace(nameRegex, (_, prefix) => `${prefix}${clickableSpan}`);
-}
-
-/**
- * Processes a complete timeline message for display
- * @param message - The message string
- * @param studentName - Optional student name to make clickable
- * @param customerId - Optional customer ID for student navigation
- * @returns Processed HTML string ready for rendering
- */
-export function processTimelineMessage(
-  message: string,
-  studentName?: string,
-  customerId?: number
-): string {
+export function processTimelineMessage(message: string): string {
   try {
-    let processed = message;
-
-    // Make student name clickable if customerId exists
-    if (customerId && studentName) {
-      processed = makeStudentNameClickable(processed, studentName, customerId);
-    }
-
-    // Style invoice links
-    processed = processTimelineLinks(processed);
-
-    return processed;
+    const sanitized = sanitizeTimelineHtml(message);
+    return processTimelineLinks(sanitized);
   } catch (error) {
-    console.error('Error processing timeline message:', error);
-    // Fallback: return escaped text
-    return message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    console.error("Error processing timeline message:", error);
+    return message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 }
 
 /**
- * Creates a click handler for timeline message links
- * Handles both customer links (student names) and invoice links
- * @param location - The location parameter for URL construction
- * @param legacyBaseUrl - The legacy base URL
+ * Safely derives location from the current pathname if not provided
+ */
+function getLocationFromPathname(): string | null {
+  if (typeof window === "undefined") return null;
+
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  // Expected pattern: /{location}/timeline
+  return segments[0] || null;
+}
+
+/**
+ * Creates click handler for timeline links
+ * Reference: studentTabConfigs.tsx HistoryMessageCell handleLinkClick
+ * - Invoice URLs: Open in new tab
+ * - Student/Customer URLs: Navigate to new v2 routes
+ * @param router - Next.js router instance
+ * @param location - Optional current location (falls back to URL)
  * @returns Click handler function
  */
 export function createTimelineLinkClickHandler(
-  location: string,
-  legacyBaseUrl: string
+  router: { push: (url: string) => void },
+  location?: string
 ) {
   return (event: React.MouseEvent<HTMLDivElement>) => {
     try {
       const target = event.target as HTMLElement | null;
       if (!target) return;
 
-      // Check if clicked element is a student name span (customer link)
-      const customerId = target.getAttribute("data-customer-id");
-      if (customerId) {
-        event.preventDefault();
-        event.stopPropagation();
-        // Navigate to legacy customer URL: admin/v2/training-location/customers/12546
-        const url = `${legacyBaseUrl}/v2/${location}/customers/${customerId}`;
-        window.open(url, "_blank", "noopener,noreferrer");
-        return;
-      }
-
-      // Check if clicked element is an invoice link
       const anchor = target.closest("a") as HTMLAnchorElement | null;
       if (!anchor) return;
 
       const href = anchor.getAttribute("href");
-      if (!href || href === "#") return;
+      if (!href) return;
 
       event.preventDefault();
       event.stopPropagation();
 
-      // Handle invoice links
-      if (href.startsWith("/invoice/view")) {
-        const url = `${legacyBaseUrl}/${location}${href}`;
-        window.open(url, "_blank", "noopener,noreferrer");
-      } else if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("/")) {
-        window.open(href, "_blank", "noopener,noreferrer");
+      // Parse the URL to determine routing strategy
+      const urlInfo = parseUrl(href);
+
+      if (!urlInfo) {
+        // Unknown URL format - open as-is in new tab
+        window.open(href, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      // Determine effective location (prop → URL → fallback)
+      const effectiveLocation = location || getLocationFromPathname();
+
+      // If we still don't have a location, open in new tab as a safe fallback
+      if (!effectiveLocation) {
+        window.open(href, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      // Route based on URL type
+      switch (urlInfo.type) {
+        case 'invoice':
+          // Invoice links: Open legacy URL in new tab
+          window.open(href, '_blank', 'noopener,noreferrer');
+          break;
+
+        case 'student':
+          // Student links: Navigate to new v2 route
+          router.push(`/${effectiveLocation}/students/${urlInfo.id}`);
+          break;
+
+        case 'customer':
+          // Customer links: Navigate to new v2 route
+          router.push(`/${effectiveLocation}/customers/${urlInfo.id}`);
+          break;
+
+        default:
+          // Fallback: open in new tab
+          window.open(href, '_blank', 'noopener,noreferrer');
       }
     } catch (error) {
-      console.error("Error handling link click:", error);
+      console.error('Error handling timeline link click:', error);
     }
   };
 }
-

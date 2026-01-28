@@ -26,17 +26,31 @@ export function TimelineListingClient({ location }: TimelineListingClientProps) 
     columnFilters,
     handleColumnFilterChange,
     handleColumnFilterEnter,
-    users,
+    createdUsers,
     fetchData,
+    fetchUsers,
   } = useTimelineListing();
+
+  // Fetch users on mount and when location changes
+  React.useEffect(() => {
+    fetchUsers(location);
+  }, [location, fetchUsers]);
+
+  // Fetch timeline data on mount and when location changes
+  React.useEffect(() => {
+    fetchData(location);
+  }, [location, fetchData]);
 
   // Prepare filter options for Created User dropdown
   const createdUserFilterOptions = React.useMemo(() => {
     return [
       { value: "all", label: "Select User" },
-      ...users.map(user => ({ value: user, label: user })),
+      ...createdUsers.map(user => ({ 
+        value: user.id.toString(), 
+        label: user.publicIdentity 
+      })),
     ];
-  }, [users]);
+  }, [createdUsers]);
 
   // Update columns with dynamic filter options for createdUser dropdown
   const columns = React.useMemo(() => {
@@ -61,7 +75,7 @@ export function TimelineListingClient({ location }: TimelineListingClientProps) 
       subtitle="View system events and activities"
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={() => fetchData(location)}
     >
       <CustomTable
         data={rows}
@@ -76,11 +90,14 @@ export function TimelineListingClient({ location }: TimelineListingClientProps) 
         enableRowsPerPage={true}
         enableColumnFilters={true}
         onColumnFilterChange={handleColumnFilterChange}
-        onColumnFilterEnter={handleColumnFilterEnter}
+        onColumnFilterEnter={() => {
+          handleColumnFilterEnter();
+          fetchData(location);
+        }}
         columnFilters={columnFilters}
         columnFilterPlaceholders={{
           date: "Select date range",
-          createdUser: "Select user",
+          createdUser: "Select User",
           message: "Enter message",
         }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
