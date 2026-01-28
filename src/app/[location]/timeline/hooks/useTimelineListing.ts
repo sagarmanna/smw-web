@@ -1,135 +1,152 @@
 "use client";
 
 import * as React from "react";
-import { getMockTimelineData, TimelineRow } from "../timelineListing.api";
-import { getTimelineUsers } from "../utils/timelineUtils";
-import { isWithinInterval, isValid, parseISO, startOfDay, endOfDay } from "date-fns";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { 
+  fetchTimeline, 
+  fetchCreatedUsers,
+  setPage, 
+  setPageSize, 
+  setColumnFilters 
+} from "../timelineListing.slice";
+import { TimelineQuery } from "../timelineListing.api";
+import { format } from "date-fns";
 
-// Initialize default date filter to today
-const getDefaultDateFilter = () => {
-  const today = new Date();
-  return {
-    from: startOfDay(today),
-    to: endOfDay(today),
-  };
+// Helper to check if value is a date range
+const isDateRange = (val: unknown): val is { from?: Date; to?: Date } => {
+  if (val === null || typeof val !== 'object') return false;
+  return (
+    'from' in (val as { from?: unknown }) || 
+    'to' in (val as { to?: unknown })
+  );
 };
 
 export function useTimelineListing() {
-  const [allData] = React.useState<TimelineRow[]>(() => getMockTimelineData());
-  const [filteredData, setFilteredData] = React.useState<TimelineRow[]>(allData);
-  const [isLoading] = React.useState(false);
-  const [error] = React.useState<string | null>(null);
-  
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(20);
-  const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>(() => ({
-    date: getDefaultDateFilter(),
-  }));
-  
-  const users = React.useMemo(() => getTimelineUsers(allData), [allData]);
-  
-  // Helper to check if value is a date range
-  const isDateRange = (val: unknown): val is { from?: Date; to?: Date } => {
-    if (val === null || typeof val !== 'object') return false;
-    return (
-      'from' in (val as { from?: unknown }) || 
-      'to' in (val as { to?: unknown })
-    );
-  };
-  
-  // Apply filters
-  React.useEffect(() => {
-    let result = [...allData];
-    
-    // Apply date range filter
-    const dateFilter = columnFilters.date;
+  const dispatch = useAppDispatch();
+
+  // Get state from Redux
+  const rows = useAppSelector((state) => state.timelineListing.rows);
+  const total = useAppSelector((state) => state.timelineListing.total);
+  const totalPages = useAppSelector((state) => state.timelineListing.totalPages);
+  const isLoading = useAppSelector((state) => state.timelineListing.isLoading);
+  const error = useAppSelector((state) => state.timelineListing.error);
+  const page = useAppSelector((state) => state.timelineListing.page);
+  const pageSize = useAppSelector((state) => state.timelineListing.pageSize);
+  const columnFilters = useAppSelector((state) => state.timelineListing.columnFilters);
+  const createdUsers = useAppSelector((state) => state.timelineListing.createdUsers);
+  const isLoadingUsers = useAppSelector((state) => state.timelineListing.isLoadingUsers);
+
+  // Store latest columnFilters in ref to avoid dependency in callbacks
+  const columnFiltersRef = React.useRef(columnFilters);
+
+  // Build query function
+  const buildQuery = React.useCallback((
+    currentPage: number,
+    currentPageSize: number,
+    currentColumnFilters: Record<string, unknown>
+  ): TimelineQuery => {
+    const query: TimelineQuery = {
+      page: currentPage,
+      limit: currentPageSize,
+    };
+
+    // Handle date range filter
+    const dateFilter = currentColumnFilters.date;
     if (dateFilter && isDateRange(dateFilter) && dateFilter.from && dateFilter.to) {
-      result = result.filter(row => {
-        const rowDate = parseISO(row.date);
-        if (!isValid(rowDate)) return false;
-        try {
-          return isWithinInterval(rowDate, {
-            start: dateFilter.from!,
-            end: dateFilter.to!,
-          });
-        } catch {
-          return false;
-        }
-      });
+      query.fromDate = format(dateFilter.from, "yyyy-MM-dd");
+      query.toDate = format(dateFilter.to, "yyyy-MM-dd");
     }
-    
-    // Apply created user filter
-    const createdUserFilter = columnFilters.createdUser;
-    if (createdUserFilter && typeof createdUserFilter === 'string' && createdUserFilter !== 'all') {
-      result = result.filter(row => row.createdUser === createdUserFilter);
+
+    // Handle created user filter (userId)
+    const createdUserFilter = currentColumnFilters.createdUser;
+    if (createdUserFilter && typeof createdUserFilter === 'number') {
+      query.createdUserId = createdUserFilter;
     }
-    
-    // Apply message filter (text search)
-    const messageFilter = columnFilters.message;
+
+    // Handle message filter
+    const messageFilter = currentColumnFilters.message;
     if (messageFilter && typeof messageFilter === 'string' && messageFilter.trim() !== '') {
-      const searchTerm = messageFilter.toLowerCase();
-      result = result.filter(row => {
-        // Strip HTML tags for searching
-        const textContent = row.message.replace(/<[^>]*>/g, '').toLowerCase();
-        return textContent.includes(searchTerm);
-      });
+      query.message = messageFilter;
     }
-    
-    setFilteredData(result);
-    // Reset to page 1 when filters change
-    setPage(1);
-  }, [allData, columnFilters]);
-  
-  // Paginate filtered data
-  const paginatedData = React.useMemo(() => {
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    return filteredData.slice(start, end);
-  }, [filteredData, page, pageSize]);
-  
-  const total = filteredData.length;
-  const totalPages = Math.ceil(total / pageSize);
-  
+
+    return query;
+  }, []);
+
+
+  // Keep columnFilters ref in sync
+  React.useEffect(() => {
+    columnFiltersRef.current = columnFilters;
+  }, [columnFilters]);
+
+  // Fetch created users when component mounts or location changes
+  const fetchUsers = React.useCallback(async (location: string) => {
+    await dispatch(fetchCreatedUsers(location));
+  }, [dispatch]);
+
+  // Return a wrapped fetchData that can be called with location
+  const wrappedFetchData = React.useCallback(async (location: string) => {
+    const query = buildQuery(page, pageSize, columnFilters);
+    await dispatch(fetchTimeline({ location, query }));
+  }, [dispatch, page, pageSize, columnFilters, buildQuery]);
+
+  const handleSetPage = React.useCallback(
+    (newPage: number) => {
+      dispatch(setPage(newPage));
+    },
+    [dispatch]
+  );
+
+  const handleSetPageSize = React.useCallback(
+    (newSize: number) => {
+      dispatch(setPageSize(newSize));
+    },
+    [dispatch]
+  );
+
   const handleColumnFilterChange = React.useCallback(
     (columnKey: string, filterValue: unknown) => {
       let value = filterValue;
       
-      // Handle date range - store as Date objects directly (no serialization needed for local state)
-      // The CustomTable ColumnFilter component passes Date objects, so we can store them directly
+      // Handle date range - store as Date objects directly
       if (columnKey === 'date' && isDateRange(filterValue)) {
-        // Keep as DateRange object with Date objects
         value = filterValue;
+      } else if (columnKey === 'createdUser') {
+        // Convert user dropdown value to number (userId) or undefined
+        if (typeof filterValue === 'string' && filterValue !== 'all' && filterValue !== '') {
+          value = parseInt(filterValue, 10);
+        } else {
+          value = undefined;
+        }
       } else if (filterValue === "all" || filterValue === "" || filterValue === null) {
         value = undefined;
       }
       
-      setColumnFilters(prev => ({
-        ...prev,
+      // Use ref to get latest value without dependency
+      const newFilters = {
+        ...columnFiltersRef.current,
         [columnKey]: value,
-      }));
+      };
+      dispatch(setColumnFilters(newFilters));
+      
+      // If filter is being cleared (null, empty string, or undefined), reset to page 1
+      const isClearing = filterValue === null || filterValue === '' || filterValue === undefined || filterValue === 'all';
+      if (isClearing) {
+        // Update ref immediately
+        columnFiltersRef.current = newFilters;
+        // Reset page to 1 when clearing filter
+        dispatch(setPage(1));
+      }
     },
-    []
+    [dispatch]
   );
-  
-  const handleColumnFilterEnter = React.useCallback(
-    (columnKey: string) => {
-      // For text filters, trigger filter immediately on Enter
-      // Already handled by handleColumnFilterChange
-    },
-    []
-  );
-  
-  const handleSetPage = React.useCallback((newPage: number) => {
-    setPage(newPage);
-  }, []);
-  
-  const handleSetPageSize = React.useCallback((newSize: number) => {
-    setPageSize(newSize);
-    setPage(1);
-  }, []);
-  
+
+  const handleColumnFilterEnter = React.useCallback(() => {
+    // Reset to page 1 when filtering
+    dispatch(setPage(1));
+  }, [dispatch]);
+
   return {
-    rows: paginatedData,
+    rows,
     total,
     totalPages,
     isLoading,
@@ -141,8 +158,10 @@ export function useTimelineListing() {
     columnFilters,
     handleColumnFilterChange,
     handleColumnFilterEnter,
-    users,
-    fetchData: React.useCallback(() => {}, []), // No-op for mock data
+    createdUsers,
+    isLoadingUsers,
+    fetchData: wrappedFetchData,
+    fetchUsers,
   };
 }
 

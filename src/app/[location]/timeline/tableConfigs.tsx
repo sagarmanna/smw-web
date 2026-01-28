@@ -7,6 +7,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { TimelineRow } from "./timelineListing.api";
 import { formatISOToDisplay } from "@/utils/dateUtils";
 import { startOfDay, endOfDay } from "date-fns";
+import { useRouter } from "next/navigation";
 import {
   processTimelineMessage,
   createTimelineLinkClickHandler,
@@ -18,21 +19,17 @@ interface MessageCellProps {
 }
 
 const MessageCell: React.FC<MessageCellProps> = ({ row, location }) => {
-  const legacyBaseUrl = React.useMemo(() => process.env.NEXT_PUBLIC_LEGACY_URL || "", []);
+  const router = useRouter();
 
   const handleLinkClick = React.useMemo(
-    () => createTimelineLinkClickHandler(location, legacyBaseUrl),
-    [location, legacyBaseUrl]
+    () => createTimelineLinkClickHandler(router, location),
+    [router, location]
   );
 
-  // Process message: make student names clickable and style invoice links
+  // Process message: add styling to links, keep original URLs from API
   const processedMessage = React.useMemo(() => {
-    return processTimelineMessage(
-      row.original.message,
-      row.original.studentName,
-      row.original.customerId
-    );
-  }, [row.original.message, row.original.customerId, row.original.studentName]);
+    return processTimelineMessage(row.original.message);
+  }, [row.original.message]);
 
   return (
     <div
