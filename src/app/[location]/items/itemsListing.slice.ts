@@ -35,6 +35,15 @@ const initialState: ItemsListingState = {
   showAll: false,
 };
 
+/**
+ * Single source of truth for pagination (industry standard: one helper, no magic numbers).
+ * totalPages = ceil(total / pageSize), with safe defaults so pagination always shows when total > pageSize.
+ */
+function computeTotalPages(total: number, pageSize: number): number {
+  const limit = Math.max(1, pageSize);
+  return Math.max(1, Math.ceil(total / limit));
+}
+
 // Async thunk for fetching items list
 export const fetchItems = createAsyncThunk(
   'itemsListing/fetchItems',
@@ -67,7 +76,7 @@ const itemsListingSlice = createSlice({
     initializeItems: (state, action: PayloadAction<{ rows: ItemRow[] }>) => {
       state.rows = action.payload.rows;
       state.total = action.payload.rows.length;
-      state.totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+      state.totalPages = computeTotalPages(state.total, state.pageSize);
       state.isLoading = false;
       state.error = null;
       state.page = 1;
@@ -82,6 +91,7 @@ const itemsListingSlice = createSlice({
     setPageSize: (state, action: PayloadAction<number>) => {
       state.pageSize = action.payload;
       state.page = 1;
+      state.totalPages = computeTotalPages(state.total, state.pageSize);
     },
     setSorting: (state, action: PayloadAction<{ sortBy?: SortField; sortDir: 'asc' | 'desc' }>) => {
       state.sortBy = action.payload.sortBy;
@@ -108,7 +118,7 @@ const itemsListingSlice = createSlice({
       // Optimistic local update; source of truth remains the API.
       state.rows = [action.payload, ...state.rows];
       state.total = state.total + 1;
-      state.totalPages = state.showAll ? 1 : Math.ceil(state.total / state.pageSize);
+      state.totalPages = computeTotalPages(state.total, state.pageSize);
     },
     updateItem: (state, action: PayloadAction<ItemRow>) => {
       // Update in current rows if present; source of truth remains the API.
@@ -128,7 +138,7 @@ const itemsListingSlice = createSlice({
         state.isLoading = false;
         state.rows = action.payload.rows;
         state.total = action.payload.total;
-        state.totalPages = action.payload.totalPages;
+        state.totalPages = computeTotalPages(action.payload.total, state.pageSize);
         state.error = null;
       })
       .addCase(fetchItems.rejected, (state, action) => {
