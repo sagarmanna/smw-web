@@ -2,124 +2,200 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { CustomTable } from "@/components/CustomTable";
+import { ColumnDef } from "@tanstack/react-table";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { GroupLessonStudent } from "../../types";
+import { GroupStudentDiscountModal } from "../modals/GroupStudentDiscountModal";
+import { GroupStudentPaymentsModal } from "../modals/GroupStudentPaymentsModal";
 
 interface GroupStudentsTabProps {
   students: GroupLessonStudent[];
   isLoading?: boolean;
-  location: string;
-  lessonId: string;
+  onSaveStudentDiscount: (studentId: number, discount: string) => Promise<boolean>;
+  savingDiscount?: boolean;
 }
 
 export function GroupStudentsTab({
   students,
   isLoading = false,
-  location,
-  lessonId,
+  onSaveStudentDiscount,
+  savingDiscount = false,
 }: GroupStudentsTabProps) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <div className="text-gray-500">Loading students...</div>
-      </div>
-    );
-  }
+  const [discountModalOpen, setDiscountModalOpen] = React.useState(false);
+  const [paymentsModalOpen, setPaymentsModalOpen] = React.useState(false);
+  const [selectedStudent, setSelectedStudent] = React.useState<GroupLessonStudent | null>(null);
 
-  if (!students || students.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[200px]">
-        <div className="text-gray-500">No students found</div>
-      </div>
-    );
-  }
+  const handleEditDiscountClick = React.useCallback((student: GroupLessonStudent) => {
+    setSelectedStudent(student);
+    setDiscountModalOpen(true);
+  }, []);
+
+  const handleDiscountClose = React.useCallback(() => {
+    setDiscountModalOpen(false);
+    setSelectedStudent(null);
+  }, []);
+
+  const handleDiscountSubmit = React.useCallback(
+    async (discount: string): Promise<boolean> => {
+      if (!selectedStudent) return false;
+      const success = await onSaveStudentDiscount(selectedStudent.id, discount);
+      if (success) handleDiscountClose();
+      return success;
+    },
+    [selectedStudent, onSaveStudentDiscount, handleDiscountClose]
+  );
+
+  const handleViewPaymentClick = React.useCallback((student: GroupLessonStudent) => {
+    setSelectedStudent(student);
+    setPaymentsModalOpen(true);
+  }, []);
+
+  const handlePaymentsClose = React.useCallback(() => {
+    setPaymentsModalOpen(false);
+    setSelectedStudent(null);
+  }, []);
+
+  const columns = React.useMemo<ColumnDef<GroupLessonStudent>[]>(
+    () => [
+      {
+        accessorKey: "studentName",
+        header: () => <div className="text-left">Student Name</div>,
+        cell: ({ getValue }) => (
+          <div className="text-left">{getValue() as string}</div>
+        ),
+      },
+      {
+        accessorKey: "customerName",
+        header: () => <div className="text-left">Customer Name</div>,
+        cell: ({ getValue }) => (
+          <div className="text-left">{getValue() as string}</div>
+        ),
+      },
+      {
+        accessorKey: "dueDate",
+        header: () => <div className="text-left">Due Date</div>,
+        cell: ({ getValue }) => (
+          <div className="text-left">{getValue() as string}</div>
+        ),
+      },
+      {
+        accessorKey: "grossPrice",
+        header: () => <div className="text-right">Gross Price</div>,
+        cell: ({ getValue }) => (
+          <div className="text-right">{getValue() as string}</div>
+        ),
+      },
+      {
+        accessorKey: "discount",
+        header: () => <div className="text-right">Discount</div>,
+        cell: ({ getValue }) => (
+          <div className="text-right">{getValue() as string}</div>
+        ),
+      },
+      {
+        accessorKey: "netPrice",
+        header: () => <div className="text-right">Net Price</div>,
+        cell: ({ getValue }) => (
+          <div className="text-right">{getValue() as string}</div>
+        ),
+      },
+      {
+        accessorKey: "owing",
+        header: () => <div className="text-right">Owing</div>,
+        cell: ({ getValue }) => (
+          <div className="text-right">{getValue() as string}</div>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 text-white text-xs px-3 py-1"
+              onClick={() => handleEditDiscountClick(row.original)}
+            >
+              Edit Discount
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white text-xs px-3 py-1"
+            >
+              Create Invoice
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 text-white text-xs px-3 py-1"
+              onClick={() => handleViewPaymentClick(row.original)}
+            >
+              View Payment
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [handleEditDiscountClick, handleViewPaymentClick]
+  );
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-              Student Name
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-              Customer Name
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-              Due Date
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-              Gross Price
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-              Discount
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-              Net Price
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-              Owing
-            </th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {students.map((student) => (
-            <tr
-              key={student.id}
-              className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+    <div>
+      <CustomTable
+        data={students}
+        columns={columns}
+        size="compact"
+        variant="striped"
+        enableSorting={false}
+        enableExport={false}
+        enablePrint={false}
+        enableSearch={false}
+        enableFilter={false}
+        className="border-0 w-full"
+        isLoading={isLoading}
+        customLoadingState={
+          <div role="status" aria-label="Loading students data">
+            <LoadingAnimation 
+              size="md" 
+              text="Loading students..." 
+              className="py-8"
+            />
+          </div>
+        }
+        customEmptyState={
+          !isLoading && students.length === 0 ? (
+            <div 
+              className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8"
+              role="status"
+              aria-label="No students found"
             >
-              <td className="py-3 px-4 text-sm text-gray-900">
-                {student.studentName}
-              </td>
-              <td className="py-3 px-4 text-sm text-gray-900">
-                {student.customerName}
-              </td>
-              <td className="py-3 px-4 text-sm text-gray-900">
-                {student.dueDate}
-              </td>
-              <td className="py-3 px-4 text-sm text-gray-900">
-                {student.grossPrice}
-              </td>
-              <td className="py-3 px-4 text-sm text-gray-900">
-                {student.discount}
-              </td>
-              <td className="py-3 px-4 text-sm text-gray-900">
-                {student.netPrice}
-              </td>
-              <td className="py-3 px-4 text-sm text-gray-900">
-                {student.owing}
-              </td>
-              <td className="py-3 px-4 text-sm text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-cyan-500 hover:bg-cyan-600 text-white text-xs px-3 py-1"
-                  >
-                    Edit Discount
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1"
-                  >
-                    Create Invoice
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-cyan-500 hover:bg-cyan-600 text-white text-xs px-3 py-1"
-                  >
-                    View Payment
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              <div className="text-4xl" aria-hidden="true">👥</div>
+              <span className="text-sm font-medium">No students found</span>
+            </div>
+          ) : undefined
+        }
+      />
+
+      {selectedStudent && (
+        <GroupStudentDiscountModal
+          open={discountModalOpen}
+          onClose={handleDiscountClose}
+          discount={selectedStudent.discount || ""}
+          onSubmit={handleDiscountSubmit}
+          saving={savingDiscount}
+        />
+      )}
+
+      {selectedStudent && (
+        <GroupStudentPaymentsModal
+          open={paymentsModalOpen}
+          onClose={handlePaymentsClose}
+          studentName={selectedStudent.studentName}
+        />
+      )}
     </div>
   );
 }

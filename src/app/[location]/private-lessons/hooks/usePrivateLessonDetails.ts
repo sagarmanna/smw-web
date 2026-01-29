@@ -12,6 +12,7 @@ import {
   updateDueDateThunk,
   updateDiscountThunk,
   updatePriceThunk,
+  updateGroupLessonStudentDiscountThunk,
 } from "../[id]/private-lesson-details.slice";
 import { toast } from "sonner";
 import {
@@ -41,6 +42,7 @@ type PrivateLessonDetailsHookReturn = {
   saveDueDate: (dueDate: string) => Promise<boolean>;
   saveDiscount: (discount: string) => Promise<boolean>;
   savePrice: (lessonRatePerHour: string) => Promise<boolean>;
+  saveGroupStudentDiscount: (studentId: number, discount: string) => Promise<boolean>;
 };
 
 export function usePrivateLessonDetails(
@@ -219,6 +221,28 @@ export function usePrivateLessonDetails(
     [dispatch, location, privateLessonId]
   );
 
+  const saveGroupStudentDiscount = React.useCallback(
+    async (studentId: number, discount: string): Promise<boolean> => {
+      try {
+        await dispatch(
+          updateGroupLessonStudentDiscountThunk({
+            location,
+            lessonId: privateLessonId,
+            studentId,
+            discount,
+          })
+        ).unwrap();
+        toast.success("Student discount updated successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to save student discount:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to update student discount. Please try again.");
+        return false;
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
   const savePrice = React.useCallback(
     async (lessonRatePerHour: string): Promise<boolean> => {
       try {
@@ -261,6 +285,7 @@ export function usePrivateLessonDetails(
     saveDueDate,
     saveDiscount,
     savePrice,
+    saveGroupStudentDiscount,
   };
 }
 

@@ -8,26 +8,26 @@ import { GroupLessonStudent, PrivateLessonHistory } from "../../types";
 import { PaginationInfo } from "../../[id]/private-lesson-details.api";
 
 interface GroupLessonTabsSectionProps {
-  location: string;
-  lessonId: string;
   students: GroupLessonStudent[];
   history: PrivateLessonHistory[];
   historyPagination: PaginationInfo | null;
   historyLoading: boolean;
   historyError: string | null;
   onHistoryPageChange: (page: number) => void;
+  onSaveStudentDiscount: (studentId: number, discount: string) => Promise<boolean>;
+  savingDetails?: boolean;
   isLoading?: boolean;
 }
 
 export function GroupLessonTabsSection({
-  location,
-  lessonId,
   students,
   history,
   historyPagination,
   historyLoading,
   historyError,
   onHistoryPageChange,
+  onSaveStudentDiscount,
+  savingDetails = false,
   isLoading = false,
 }: GroupLessonTabsSectionProps) {
   const [activeTab, setActiveTab] = React.useState<string>("students");
@@ -51,14 +51,12 @@ export function GroupLessonTabsSection({
         </TabsList>
 
         <TabsContent value="students" className="mt-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <GroupStudentsTab
-              students={students}
-              isLoading={isLoading}
-              location={location}
-              lessonId={lessonId}
-            />
-          </div>
+          <GroupStudentsTab
+            students={students}
+            isLoading={isLoading}
+            onSaveStudentDiscount={onSaveStudentDiscount}
+            savingDiscount={savingDetails}
+          />
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">

@@ -265,6 +265,51 @@ export async function getGroupLessonStudents(
   }
 }
 
+// Update Group Lesson Student Discount API Types
+export interface UpdateGroupLessonStudentDiscountRequest {
+  discount: string;
+}
+
+export interface UpdateGroupLessonStudentDiscountResponse {
+  success: boolean;
+  data: {
+    studentId: number;
+    discount: string;
+  };
+  message?: string;
+}
+
+/**
+ * Updates a group lesson student's discount via API.
+ * For now, returns mock response.
+ */
+export async function updateGroupLessonStudentDiscount(
+  location: string,
+  lessonId: string,
+  studentId: number,
+  data: UpdateGroupLessonStudentDiscountRequest
+): Promise<UpdateGroupLessonStudentDiscountResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return {
+      success: true,
+      data: {
+        studentId,
+        discount: data.discount,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error updating group lesson student discount:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: { studentId, discount: "" },
+      message: apiError.response?.data?.message || "Failed to update student discount",
+    };
+  }
+}
+
 /**
  * Fetches private lesson payments from the API
  * For now, returns mock data

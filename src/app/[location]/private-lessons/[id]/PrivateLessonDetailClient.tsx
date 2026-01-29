@@ -22,7 +22,6 @@ import { PrivateLessonPaymentsCard } from "../components/PrivateLessonPaymentsCa
 import { PrivateLessonCommentsCard } from "../components/PrivateLessonCommentsCard";
 import { PrivateLessonHistoryCard } from "../components/PrivateLessonHistoryCard";
 import { DeletePrivateLessonModal } from "../components/modals/DeletePrivateLessonModal";
-import { GroupCostCard } from "../components/GroupCostCard";
 import { GroupLessonTabsSection } from "../components/GroupLessonTabsSection";
 import { PrivateLessonPayment } from "../types";
 import { ReceivePaymentModal, type ReceivePaymentData } from "@/components/modal/ReceivePaymentModal";
@@ -60,12 +59,12 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     saveDueDate,
     saveDiscount,
     savePrice,
+    saveGroupStudentDiscount,
   } = usePrivateLessonDetails(location, privateLessonId);
 
   // Email modal state for sending private lesson statements
   const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
   const [customerEmails, setCustomerEmails] = React.useState<string[]>([]);
-  const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
 
   // Receive payment modal state
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
@@ -88,7 +87,6 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   React.useEffect(() => {
     const fetchCustomerEmails = async () => {
       if (isEmailModalOpen && details?.customerId) {
-        setIsLoadingEmails(true);
         try {
           const customerId = typeof details.customerId === 'number' 
             ? details.customerId 
@@ -104,8 +102,6 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
         } catch (error) {
           console.error("Error fetching customer emails:", error);
           setCustomerEmails([]);
-        } finally {
-          setIsLoadingEmails(false);
         }
       } else if (!isEmailModalOpen) {
         // Reset emails when modal closes
@@ -314,8 +310,24 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     setIsReceiptModalOpen(true);
   }, [details?.customerId]);
 
-  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
-    () => [
+  // Action menu: group lessons = Mail only; private lessons = Mail, Receive Payment, Delete.
+  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(() => {
+    if (isGroupLesson) {
+      return [
+        {
+          label: "Action",
+          items: [
+            {
+              label: "Mail",
+              onClick: handleMailClick,
+            },
+          ],
+        },
+      ];
+    }
+
+    // For private lessons, keep full action set
+    return [
       {
         label: "Action",
         items: [
@@ -334,9 +346,8 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           },
         ],
       },
-    ],
-    [handleMailClick, handleReceivePaymentClick, handleDeleteClick]
-  );
+    ];
+  }, [handleMailClick, handleReceivePaymentClick, handleDeleteClick, isGroupLesson]);
 
   // Error state - show error but still render cards with skeleton
   const showError = error && !privateLessonInfo;
@@ -401,8 +412,10 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                     location={location}
                   />
 
-                  <GroupCostCard
-                    costData={privateLessonInfo?.groupCost || null}
+                  <PrivateLessonCostCard
+                    details={details}
+                    onSaveCost={saveCost}
+                    savingDetails={savingDetails}
                     isLoading={isLoading}
                   />
                 </div>
@@ -413,6 +426,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                     details={details}
                     isLoading={isLoading}
                     location={location}
+                    hideGenerateInvoice={isGroupLesson}
                   />
 
                   <PrivateLessonCommentsCard
@@ -424,14 +438,14 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
 
               {/* Tabs Section (Students & History) */}
               <GroupLessonTabsSection
-                location={location}
-                lessonId={privateLessonId}
                 students={privateLessonInfo?.students || []}
                 history={history}
                 historyPagination={historyPagination}
                 historyLoading={historyLoading}
                 historyError={historyError}
                 onHistoryPageChange={fetchHistory}
+                onSaveStudentDiscount={saveGroupStudentDiscount}
+                savingDetails={savingDetails}
                 isLoading={isLoading}
               />
             </>
