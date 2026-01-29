@@ -1,6 +1,5 @@
 // Constants for better maintainability
 export const ALLOWED_PATHS: string[] = [
-    '/user/schedule',
     '/user/invoiced-lessons',
     '/login',
     '/classrooms',
