@@ -71,9 +71,10 @@ const DEFAULT_SORT_ORDER = 'asc' as const;
 // When showAll=1 we still use limit from query (rows per page) so pagination and row-per-page work
 const buildItemsQueryParams = (query: ItemsQuery): URLSearchParams => {
   const params = new URLSearchParams();
+  const limit = query.limit == -1 ? 9999 : query.limit ?? DEFAULT_LIMIT;  
 
   params.append("page", (query.page ?? DEFAULT_PAGE).toString());
-  params.append("limit", (query.limit ?? DEFAULT_LIMIT).toString());
+  params.append("limit", limit.toString());
   params.append("sortBy", query.sortBy ?? DEFAULT_SORT_BY);
   params.append("sortOrder", query.sortOrder ?? DEFAULT_SORT_ORDER);
   if (query.code) params.append("code", query.code);
