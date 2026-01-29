@@ -4,6 +4,7 @@ import {
   getPrivateLessonPayments,
   getPrivateLessonHistory,
   getPrivateLessonComments,
+  getGroupLessonStudents,
   transformApiResponse,
   updatePrivateLessonDetails,
   updateAttendance,
@@ -11,6 +12,7 @@ import {
   updateDueDate,
   updateDiscount,
   updatePrice,
+  updateGroupLessonStudentDiscount,
   type PaginationInfo,
 } from './private-lesson-details.api';
 import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment } from '../types';
@@ -105,8 +107,22 @@ export const fetchPrivateLesson = createAsyncThunk(
         console.warn('Comments API error:', commentsResult.reason);
       }
 
+      // 3. If this is a group lesson, fetch the students list
+      let groupStudents: Awaited<ReturnType<typeof getGroupLessonStudents>> = null;
+      const isGroupLesson = body?.lesson?.isGroup ?? false;
+      if (isGroupLesson) {
+        try {
+          groupStudents = await getGroupLessonStudents(location, privateLessonId);
+          if (!groupStudents || !groupStudents.success) {
+            console.warn('Group lesson students API failed:', groupStudents?.message || 'Unknown error');
+          }
+        } catch (err) {
+          console.warn('Group lesson students API error:', err);
+        }
+      }
+
       // History is not fetched here - it's fetched separately with pagination
-      const transformedData = transformApiResponse(details, payments, null, comments);
+      const transformedData = transformApiResponse(details, payments, null, comments, groupStudents);
 
       return { data: transformedData };
     } catch (error) {
@@ -224,6 +240,30 @@ export const updateDiscountThunk = createAsyncThunk(
       return { data: result.data };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update discount');
+    }
+  }
+);
+
+// Async thunk for updating group lesson student discount
+export const updateGroupLessonStudentDiscountThunk = createAsyncThunk(
+  'privateLesson/updateGroupLessonStudentDiscount',
+  async (
+    {
+      location,
+      lessonId,
+      studentId,
+      discount,
+    }: { location: string; lessonId: string; studentId: number; discount: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await updateGroupLessonStudentDiscount(location, lessonId, studentId, { discount });
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update student discount');
+      }
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update student discount');
     }
   }
 );
@@ -389,6 +429,14 @@ const privateLessonSlice = createSlice({
             price: data.price,
             profit: data.profit,
           };
+          // Keep groupCost in sync for group lessons
+          if (state.privateLessonInfo.details.isGroup && state.privateLessonInfo.groupCost) {
+            state.privateLessonInfo.groupCost = {
+              ...state.privateLessonInfo.groupCost,
+              costPerHour: data.costPerHour,
+              cost: data.cost,
+            };
+          }
         }
         state.error = null;
       })
@@ -427,6 +475,29 @@ const privateLessonSlice = createSlice({
         state.error = null;
       })
       .addCase(updateDiscountThunk.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Update group lesson student discount reducers
+      .addCase(updateGroupLessonStudentDiscountThunk.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updateGroupLessonStudentDiscountThunk.fulfilled, (state, action) => {
+        state.isSaving = false;
+        if (state.privateLessonInfo?.students && action.payload?.data) {
+          const { studentId, discount } = action.payload.data;
+          const idx = state.privateLessonInfo.students.findIndex((s) => s.id === studentId);
+          if (idx !== -1) {
+            state.privateLessonInfo.students[idx] = {
+              ...state.privateLessonInfo.students[idx],
+              discount,
+            };
+          }
+        }
+        state.error = null;
+      })
+      .addCase(updateGroupLessonStudentDiscountThunk.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       })

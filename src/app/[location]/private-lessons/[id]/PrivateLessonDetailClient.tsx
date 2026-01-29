@@ -22,6 +22,7 @@ import { PrivateLessonPaymentsCard } from "../components/PrivateLessonPaymentsCa
 import { PrivateLessonCommentsCard } from "../components/PrivateLessonCommentsCard";
 import { PrivateLessonHistoryCard } from "../components/PrivateLessonHistoryCard";
 import { DeletePrivateLessonModal } from "../components/modals/DeletePrivateLessonModal";
+import { GroupLessonTabsSection } from "../components/GroupLessonTabsSection";
 import { PrivateLessonPayment } from "../types";
 import { ReceivePaymentModal, type ReceivePaymentData } from "@/components/modal/ReceivePaymentModal";
 import { PaymentReceiptModalContainer, getPaymentReceiptData } from "@/components/modal/PaymentReceiptModal";
@@ -58,12 +59,12 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     saveDueDate,
     saveDiscount,
     savePrice,
+    saveGroupStudentDiscount,
   } = usePrivateLessonDetails(location, privateLessonId);
 
   // Email modal state for sending private lesson statements
   const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
   const [customerEmails, setCustomerEmails] = React.useState<string[]>([]);
-  const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
 
   // Receive payment modal state
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
@@ -86,7 +87,6 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   React.useEffect(() => {
     const fetchCustomerEmails = async () => {
       if (isEmailModalOpen && details?.customerId) {
-        setIsLoadingEmails(true);
         try {
           const customerId = typeof details.customerId === 'number' 
             ? details.customerId 
@@ -102,8 +102,6 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
         } catch (error) {
           console.error("Error fetching customer emails:", error);
           setCustomerEmails([]);
-        } finally {
-          setIsLoadingEmails(false);
         }
       } else if (!isEmailModalOpen) {
         // Reset emails when modal closes
@@ -118,19 +116,31 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   // No need to fetch here - component only displays data from Redux state
 
   // All hooks must be called before any early returns
+  
+  // Determine if this is a group lesson (must be defined before pageTitle and breadcrumbItems)
+  const isGroupLesson = React.useMemo(() => {
+    const result = details?.isGroup === true;
+    console.log('[PrivateLessonDetailClient] Checking isGroup:', {
+      'details?.isGroup': details?.isGroup,
+      'isGroupLesson': result,
+      'details': details
+    });
+    return result;
+  }, [details]);
+
   const pageTitle = React.useMemo(() => {
-    if (!details) return `Private Lesson #${id}`;
-    return `${details.program || `Private Lesson #${id}`}`;
-  }, [details, id]);
+    if (!details) return isGroupLesson ? `Group Lesson #${id}` : `Private Lesson #${id}`;
+    return `${details.program || (isGroupLesson ? `Group Lesson #${id}` : `Private Lesson #${id}`)}`;
+  }, [details, id, isGroupLesson]);
 
   const breadcrumbItems = React.useMemo(
     () => [
       {
-        label: "Private Lessons",
+        label: isGroupLesson ? "Group Lessons" : "Private Lessons",
         onClick: () => router.push(`/${location}/private-lessons`),
       },
     ],
-    [location, router]
+    [location, router, isGroupLesson]
   );
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
@@ -300,8 +310,24 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     setIsReceiptModalOpen(true);
   }, [details?.customerId]);
 
-  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
-    () => [
+  // Action menu: group lessons = Mail only; private lessons = Mail, Receive Payment, Delete.
+  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(() => {
+    if (isGroupLesson) {
+      return [
+        {
+          label: "Action",
+          items: [
+            {
+              label: "Mail",
+              onClick: handleMailClick,
+            },
+          ],
+        },
+      ];
+    }
+
+    // For private lessons, keep full action set
+    return [
       {
         label: "Action",
         items: [
@@ -320,9 +346,8 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           },
         ],
       },
-    ],
-    [handleMailClick, handleReceivePaymentClick, handleDeleteClick]
-  );
+    ];
+  }, [handleMailClick, handleReceivePaymentClick, handleDeleteClick, isGroupLesson]);
 
   // Error state - show error but still render cards with skeleton
   const showError = error && !privateLessonInfo;
@@ -370,88 +395,145 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           profileIconSize="md"
         />
 
-        {/* Main Content - All cards share the same cached data from Redux */}
+        {/* Main Content - Conditional rendering based on isGroup flag */}
         <div className="space-y-3 sm:space-y-4 mt-4">
-          {/* Two Column Layout: Left Column (Details, Student, Attendance, Cost) | Right Column (Schedule, Due Date, Totals) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-            {/* Left Column */}
-            <div className="space-y-3 sm:space-y-4">
-              <PrivateLessonDetailsCard
-                details={details}
-                onSaveDetails={saveDetails}
-                savingDetails={savingDetails}
-                isLoading={isLoading}
-                location={location}
-              />
+          {isGroupLesson ? (
+            // Group Lesson Layout
+            <>
+              {/* Two Column Layout: Left (Details, Cost) | Right (Schedule, Comments) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                {/* Left Column */}
+                <div className="space-y-3 sm:space-y-4">
+                  <PrivateLessonDetailsCard
+                    details={details}
+                    onSaveDetails={saveDetails}
+                    savingDetails={savingDetails}
+                    isLoading={isLoading}
+                    location={location}
+                  />
 
-              <PrivateLessonStudentCard
-                details={details}
-                isLoading={isLoading}
-                location={location}
-              />
+                  <PrivateLessonCostCard
+                    details={details}
+                    onSaveCost={saveCost}
+                    savingDetails={savingDetails}
+                    isLoading={isLoading}
+                  />
+                </div>
 
-              <PrivateLessonAttendanceCard
-                details={details}
-                onSaveAttendance={saveAttendance}
-                savingDetails={savingDetails}
-                isLoading={isLoading}
-              />
+                {/* Right Column */}
+                <div className="space-y-3 sm:space-y-4">
+                  <PrivateLessonScheduleCard
+                    details={details}
+                    isLoading={isLoading}
+                    location={location}
+                    hideGenerateInvoice={isGroupLesson}
+                  />
 
-              <PrivateLessonCostCard
-                details={details}
-                onSaveCost={saveCost}
-                savingDetails={savingDetails}
-                isLoading={isLoading}
-              />
-            </div>
+                  <PrivateLessonCommentsCard
+                    comments={comments}
+                    isLoading={isLoading}
+                  />
+                </div>
+              </div>
 
-            {/* Right Column */}
-            <div className="space-y-3 sm:space-y-4">
-              <PrivateLessonScheduleCard
-                details={details}
-                isLoading={isLoading}
-                location={location}
-              />
-
-              <PrivateLessonDueDateCard
-                details={details}
-                onSaveDueDate={saveDueDate}
-                savingDetails={savingDetails}
-                isLoading={isLoading}
-              />
-
-              <PrivateLessonTotalsCard
-                details={details}
-                onSaveDiscount={saveDiscount}
-                onSavePrice={savePrice}
+              {/* Tabs Section (Students & History) */}
+              <GroupLessonTabsSection
+                students={privateLessonInfo?.students || []}
+                history={history}
+                historyPagination={historyPagination}
+                historyLoading={historyLoading}
+                historyError={historyError}
+                onHistoryPageChange={fetchHistory}
+                onSaveStudentDiscount={saveGroupStudentDiscount}
                 savingDetails={savingDetails}
                 isLoading={isLoading}
               />
-            </div>
-          </div>
+            </>
+          ) : (
+            // Private Lesson Layout (Original)
+            <>
+              {/* Two Column Layout: Left Column (Details, Student, Attendance, Cost) | Right Column (Schedule, Due Date, Totals) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                {/* Left Column */}
+                <div className="space-y-3 sm:space-y-4">
+                  <PrivateLessonDetailsCard
+                    details={details}
+                    onSaveDetails={saveDetails}
+                    savingDetails={savingDetails}
+                    isLoading={isLoading}
+                    location={location}
+                  />
 
-          {/* Full Width Sections */}
-          <PrivateLessonPaymentsCard
-            payments={payments}
-            isLoading={isLoading}
-            onPaymentClick={handlePaymentClick}
-          />
+                  <PrivateLessonStudentCard
+                    details={details}
+                    isLoading={isLoading}
+                    location={location}
+                  />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-            <PrivateLessonCommentsCard
-              comments={comments}
-              isLoading={isLoading}
-            />
+                  <PrivateLessonAttendanceCard
+                    details={details}
+                    onSaveAttendance={saveAttendance}
+                    savingDetails={savingDetails}
+                    isLoading={isLoading}
+                  />
 
-            <PrivateLessonHistoryCard
-              history={history}
-              isLoading={isLoading}
-              pagination={historyPagination}
-              historyLoading={historyLoading}
-              historyError={historyError}
-              onPageChange={fetchHistory}
-            />
-          </div>
+                  <PrivateLessonCostCard
+                    details={details}
+                    onSaveCost={saveCost}
+                    savingDetails={savingDetails}
+                    isLoading={isLoading}
+                  />
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-3 sm:space-y-4">
+                  <PrivateLessonScheduleCard
+                    details={details}
+                    isLoading={isLoading}
+                    location={location}
+                  />
+
+                  <PrivateLessonDueDateCard
+                    details={details}
+                    onSaveDueDate={saveDueDate}
+                    savingDetails={savingDetails}
+                    isLoading={isLoading}
+                  />
+
+                  <PrivateLessonTotalsCard
+                    details={details}
+                    onSaveDiscount={saveDiscount}
+                    onSavePrice={savePrice}
+                    savingDetails={savingDetails}
+                    isLoading={isLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Full Width Sections */}
+              <PrivateLessonPaymentsCard
+                payments={payments}
+                isLoading={isLoading}
+                onPaymentClick={handlePaymentClick}
+              />
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                <PrivateLessonCommentsCard
+                  comments={comments}
+                  isLoading={isLoading}
+                />
+
+                <PrivateLessonHistoryCard
+                  history={history}
+                  isLoading={isLoading}
+                  pagination={historyPagination}
+                  historyLoading={historyLoading}
+                  historyError={historyError}
+                  onPageChange={fetchHistory}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
       <DeletePrivateLessonModal

@@ -22,12 +22,18 @@ interface PrivateLessonScheduleCardProps {
   details: PrivateLessonDetails | null;
   isLoading?: boolean;
   location: string;
+  /**
+   * When true, hides the Generate Invoice action from the schedule header menu.
+   * Used for group lessons where invoice generation is not supported.
+   */
+  hideGenerateInvoice?: boolean;
 }
 
 export const PrivateLessonScheduleCard = React.memo(function PrivateLessonScheduleCard({
   details,
   isLoading = false,
   location,
+  hideGenerateInvoice = false,
 }: PrivateLessonScheduleCardProps) {
   const router = useRouter();
   const [isUnscheduleModalOpen, setIsUnscheduleModalOpen] = React.useState(false);
@@ -46,6 +52,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
     setIsUnscheduleModalOpen(true);
   }, []);
 
+  // No-op when hideGenerateInvoice is true (e.g. group lessons); menu item is not shown.
   const handleGenerateInvoiceClick = React.useCallback(() => {
     toast.error("Invoice can be generated against completed scheduled lessons only.");
   }, []);
@@ -115,9 +122,11 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
               <DropdownMenuItem onClick={handleUnscheduleClick}>
                 Unschedule Lesson
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleGenerateInvoiceClick}>
-                Generate Invoice
-              </DropdownMenuItem>
+              {!hideGenerateInvoice && (
+                <DropdownMenuItem onClick={handleGenerateInvoiceClick}>
+                  Generate Invoice
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         }
