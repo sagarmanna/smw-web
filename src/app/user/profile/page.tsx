@@ -1,5 +1,7 @@
-const ProfilePage = () => {
-    return <div>Profile Page</div>;
-};
+"use client";
 
-export default ProfilePage;
+import UserProfileClient from "./UserProfileClient";
+
+export default function ProfilePage() {
+  return <UserProfileClient />;
+}
