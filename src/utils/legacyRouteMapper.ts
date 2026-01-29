@@ -101,6 +101,14 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     pattern: '/release-notes',
     legacyUrl: '/release-notes/index'
   },
+  {
+    pattern: /^\/[^/]+\/timeline$/, // Matches /[location]/timeline
+    legacyUrl: '/timeline-event/index'
+  },
+  {
+    pattern: /^\/[^/]+\/items$/, // Matches /[location]/items (main items page, not report)
+    legacyUrl: '/item/index?ItemSearch%5BshowAllItems%5D=0'
+  },
 ];
 
 /**
