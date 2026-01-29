@@ -15,38 +15,37 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AddItemModal } from "./components/AddItemModal";
 import { useAppDispatch } from "@/redux/hooks";
-import { addItem, updateItem, fetchItems } from "./itemsListing.slice";
+import { addItem, updateItem } from "./itemsListing.slice";
+
+// Item codes that cannot be edited (legacy: "Lesson and opening balance items cannot be modified from Backend")
+const NON_EDITABLE_ITEM_CODES = ["LESSON", "OPENING BALANCE"] as const;
+
+function isItemNonEditable(row: ItemRow): boolean {
+  const code = row.code?.trim().toUpperCase();
+  return !!code && NON_EDITABLE_ITEM_CODES.includes(code as (typeof NON_EDITABLE_ITEM_CODES)[number]);
+}
 
 interface ItemsListingClientProps {
   location: string;
 }
 
+const NON_EDITABLE_BANNER_DURATION_MS = 10_000;
+
 export function ItemsListingClient({ location }: ItemsListingClientProps) {
   const dispatch = useAppDispatch();
   const [isAddItemModalOpen, setIsAddItemModalOpen] = React.useState(false);
   const [editingItem, setEditingItem] = React.useState<ItemRow | null>(null);
+  const [showNonEditableBanner, setShowNonEditableBanner] = React.useState(false);
+  const nonEditableBannerTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Call GET API exactly once on initial mount and store in Redux
-  const hasFetchedRef = React.useRef(false);
   React.useEffect(() => {
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
-    dispatch(
-      fetchItems({
-        location,
-        query: {
-          page: 1,
-          // Using -1 so backend returns all rows; subsequent
-          // filtering/pagination is handled on the client side.
-          limit: -1,
-        },
-      })
-    );
-  }, [dispatch, location]);
+    return () => {
+      if (nonEditableBannerTimeoutRef.current) clearTimeout(nonEditableBannerTimeoutRef.current);
+    };
+  }, []);
 
   const {
     rows,
-    allRows,
     total,
     totalPages,
     isLoading,
@@ -59,11 +58,11 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
     setPageSize,
     columnFilters,
     showAll,
-    fetchData,
+    refetch,
     handleColumnFilterChange,
     handleColumnFilterEnter,
     handleShowAllChange,
-  } = useItemListing();
+  } = useItemListing(location);
 
   const exportColumns = React.useMemo((): ColumnDef<ItemRow>[] => {
     return [
@@ -80,8 +79,7 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<ItemRow>({
     reportTitle: `Items list for ${formatLocationName(location)}`,
     columns: exportColumns,
-    // For exports we always use the full, unpaginated dataset
-    data: allRows,
+    data: rows,
     location: location,
   });
 
@@ -114,15 +112,37 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
     </div>
   ), [showAll, handleShowAllChange]);
 
+  const handleRowClick = React.useCallback((row: ItemRow) => {
+    if (isItemNonEditable(row)) {
+      if (nonEditableBannerTimeoutRef.current) clearTimeout(nonEditableBannerTimeoutRef.current);
+      setShowNonEditableBanner(true);
+      nonEditableBannerTimeoutRef.current = setTimeout(() => {
+        setShowNonEditableBanner(false);
+        nonEditableBannerTimeoutRef.current = null;
+      }, NON_EDITABLE_BANNER_DURATION_MS);
+      return;
+    }
+    setEditingItem(row);
+    setIsAddItemModalOpen(true);
+  }, []);
+
   return (
     <ReportPageLayout
       title="Items"
       subtitle="Browse all items, search and sort"
       isLoading={isLoading}
       error={error}
-      onRetry={fetchData}
+      onRetry={refetch}
       actions={addItemButton}
     >
+      {showNonEditableBanner && (
+        <div
+          role="alert"
+          className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200"
+        >
+          Lesson and opening balance items cannot be modified from Backend.
+        </div>
+      )}
       <CustomTable
         data={rows}
         columns={itemColumns}
@@ -149,6 +169,7 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
         onSortingChange={(s) => {
           setSorting(s);
         }}
+        manualSorting={true}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
         hideRecordCount={true}
@@ -166,11 +187,12 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         customHeaderComponent={showAllCheckbox}
-        onRowClick={(row: ItemRow) => {
-          setEditingItem(row);
-          setIsAddItemModalOpen(true);
-        }}
-        rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        onRowClick={handleRowClick}
+        rowClassName={(row: ItemRow) =>
+          isItemNonEditable(row)
+            ? "cursor-not-allowed bg-muted/30 dark:bg-muted/20"
+            : "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        }
       />
       <AddItemModal
         isOpen={isAddItemModalOpen}
@@ -181,13 +203,10 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
         onSuccess={(itemData) => {
           if (itemData) {
             const fullItem = itemData as ItemRow;
-            // Check if item already exists in Redux state (update) or not (add)
-            const itemExists = allRows.some((row) => row.id === fullItem.id);
+            const itemExists = rows.some((row) => row.id === fullItem.id);
             if (itemExists) {
-              // Update existing item
               dispatch(updateItem(fullItem));
             } else {
-              // Add new item
               dispatch(addItem(fullItem));
             }
           }

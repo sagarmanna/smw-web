@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { getItemsList, ItemRow, ItemsQuery } from './itemsListing.api';
 
-export type SortField = "code" | "description";
+export type SortField = "id" | "code" | "description";
 
 interface ItemsListingState {
   rows: ItemRow[];
@@ -29,7 +29,7 @@ const initialState: ItemsListingState = {
   error: null,
   page: 1,
   pageSize: 20,
-  sortBy: 'code', // Default to sorting by code
+  sortBy: 'id', // Legacy default: order by id asc so LESSON (id=1), OPENING BALANCE etc. appear first; no sort indicator shown (no id column)
   sortDir: 'asc',
   columnFilters: {},
   showAll: false,
@@ -73,7 +73,7 @@ const itemsListingSlice = createSlice({
       state.page = 1;
       state.showAll = false;
       state.columnFilters = {};
-      state.sortBy = 'code';
+      state.sortBy = 'id';
       state.sortDir = 'asc';
     },
     setPage: (state, action: PayloadAction<number>) => {
