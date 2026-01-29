@@ -23,7 +23,6 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-import { Plus } from "lucide-react";
 import { ItemRow } from "../itemsListing.api";
 import {
   getItemCategories,
@@ -362,28 +361,16 @@ export function AddItemModal({ isOpen, onClose, onSuccess, location, initialData
                 <Label htmlFor="itemCategory" className={errors.itemCategory ? "text-red-600 dark:text-red-400" : ""}>
                   Item Category
                 </Label>
-                <div className="flex gap-2">
-                  <SearchableSelect
-                    id="itemCategory"
-                    options={itemCategoryOptions}
-                    value={formData.itemCategory}
-                    onValueChange={(value) => handleInputChange("itemCategory", value)}
-                    placeholder="Select Category"
-                    searchPlaceholder="Search categories..."
-                    className={errors.itemCategory ? "border-red-500" : ""}
-                    isLoading={itemCategoriesLoading}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowCreateCategoryDialog(true)}
-                    className="shrink-0"
-                    title="Add new category"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                <SearchableSelect
+                  id="itemCategory"
+                  options={itemCategoryOptions}
+                  value={formData.itemCategory}
+                  onValueChange={(value) => handleInputChange("itemCategory", value)}
+                  placeholder="Select Category"
+                  searchPlaceholder="Search categories..."
+                  className={errors.itemCategory ? "border-red-500" : ""}
+                  isLoading={itemCategoriesLoading}
+                />
                 {errors.itemCategory && (
                   <p className="text-sm text-red-600 dark:text-red-400">{errors.itemCategory}</p>
                 )}

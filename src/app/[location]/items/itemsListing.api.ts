@@ -62,22 +62,18 @@ const DEFAULT_PAGINATION = {
   totalPages: 1,
 } as const;
 
-const FETCH_ALL_LIMIT = 99999;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const DEFAULT_SORT_BY = 'id';
 const DEFAULT_SORT_ORDER = 'asc' as const;
 
 // Helper to build query parameters - all server-side (pagination, sort, filter)
+// When showAll=1 we still use limit from query (rows per page) so pagination and row-per-page work
 const buildItemsQueryParams = (query: ItemsQuery): URLSearchParams => {
   const params = new URLSearchParams();
 
   params.append("page", (query.page ?? DEFAULT_PAGE).toString());
-  const limit =
-    query.limit === -1 || query.showAll === 1
-      ? FETCH_ALL_LIMIT
-      : (query.limit ?? DEFAULT_LIMIT);
-  params.append("limit", limit.toString());
+  params.append("limit", (query.limit ?? DEFAULT_LIMIT).toString());
   params.append("sortBy", query.sortBy ?? DEFAULT_SORT_BY);
   params.append("sortOrder", query.sortOrder ?? DEFAULT_SORT_ORDER);
   if (query.code) params.append("code", query.code);
