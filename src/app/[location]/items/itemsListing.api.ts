@@ -12,13 +12,16 @@ export interface ItemRow {
   status: string; // "Enable" | "Disable"
 }
 
-// ItemsQuery interface for API queries
+// ItemsQuery interface for API queries (matches GET /admin/v2/training-location/items)
 export interface ItemsQuery {
   page?: number;
   limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
   code?: string;
-  itemCategory?: string;
   description?: string;
+  showAll?: 0 | 1;
+  itemCategory?: string;
 }
 
 // API response structure
@@ -60,21 +63,27 @@ const DEFAULT_PAGINATION = {
 } as const;
 
 const FETCH_ALL_LIMIT = 99999;
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const DEFAULT_SORT_BY = 'id';
+const DEFAULT_SORT_ORDER = 'asc' as const;
 
-// Helper to build query parameters - DRY principle
+// Helper to build query parameters - all server-side (pagination, sort, filter)
 const buildItemsQueryParams = (query: ItemsQuery): URLSearchParams => {
   const params = new URLSearchParams();
 
-  if (query.page) params.append("page", query.page.toString());
-  if (query.limit) {
-    params.append(
-      "limit",
-      query.limit === -1 ? FETCH_ALL_LIMIT.toString() : query.limit.toString()
-    );
-  }
+  params.append("page", (query.page ?? DEFAULT_PAGE).toString());
+  const limit =
+    query.limit === -1 || query.showAll === 1
+      ? FETCH_ALL_LIMIT
+      : (query.limit ?? DEFAULT_LIMIT);
+  params.append("limit", limit.toString());
+  params.append("sortBy", query.sortBy ?? DEFAULT_SORT_BY);
+  params.append("sortOrder", query.sortOrder ?? DEFAULT_SORT_ORDER);
   if (query.code) params.append("code", query.code);
-  if (query.itemCategory) params.append("itemCategory", query.itemCategory);
   if (query.description) params.append("description", query.description);
+  params.append("showAll", String(query.showAll ?? 0));
+  if (query.itemCategory) params.append("itemCategory", query.itemCategory);
 
   return params;
 };
