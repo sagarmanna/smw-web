@@ -6,6 +6,17 @@ export const getCurrentPageFeature = (pathname: string): string => {
   
   // This should be the last part of the URL, e.g., 'dashboard', 'schedule', 'account-receivable'
   const pageSlug = pathSegments.pop();
+  const secondToLast = pathSegments[pathSegments.length - 1];
+  
+  // Special handling for 'items' - distinguish between report items and main items page
+  if (pageSlug === 'items') {
+    // If second-to-last segment is 'report', it's the report items page
+    if (secondToLast === 'report') {
+      return 'reportItems';
+    }
+    // Otherwise it's the main items page
+    return 'items';
+  }
   
   const slugToFeatureMap: { [key: string]: string } = {
     'dashboard': 'dashboard',
@@ -14,7 +25,6 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'financial-summary-report': 'financialSummaryReport',
     'student-birthday': 'birthdays',
     'payment': 'paymentsReport',
-    'items': 'reportItems',
     'rental': 'rental',
     'item-category': 'itemCategory',
     'discount': 'discount',
@@ -32,6 +42,7 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'group-courses': 'groupCourses',
     'unscheduled-lessons': 'unscheduledLessons',
     'private-lessons': 'privateLessons',
+    'timeline': 'timeline',
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -66,6 +77,8 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     groupCourses: `/course/index?CourseSearch%5Btype%5D=2`,
     unscheduledLessons: `/unscheduled-lesson/index?UnscheduledLessonSearch%5BshowAll%5D=0`,
     privateLessons: '', // Will be handled dynamically below
+    timeline: `/timeline-event/index`,
+    items: `/item/index?ItemSearch%5BshowAllItems%5D=0`,
   };
     
   // Handle privateLessons with dynamic date range
