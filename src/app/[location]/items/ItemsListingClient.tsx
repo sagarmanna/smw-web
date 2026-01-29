@@ -15,7 +15,7 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AddItemModal } from "./components/AddItemModal";
 import { useAppDispatch } from "@/redux/hooks";
-import { addItem, updateItem } from "./itemsListing.slice";
+import { addItem, updateItem, fetchItems } from "./itemsListing.slice";
 
 interface ItemsListingClientProps {
   location: string;
@@ -26,8 +26,27 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
   const [isAddItemModalOpen, setIsAddItemModalOpen] = React.useState(false);
   const [editingItem, setEditingItem] = React.useState<ItemRow | null>(null);
 
+  // Call GET API exactly once on initial mount and store in Redux
+  const hasFetchedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    dispatch(
+      fetchItems({
+        location,
+        query: {
+          page: 1,
+          // Using -1 so backend returns all rows; subsequent
+          // filtering/pagination is handled on the client side.
+          limit: -1,
+        },
+      })
+    );
+  }, [dispatch, location]);
+
   const {
     rows,
+    allRows,
     total,
     totalPages,
     isLoading,
@@ -44,7 +63,7 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
     handleColumnFilterChange,
     handleColumnFilterEnter,
     handleShowAllChange,
-  } = useItemListing(location);
+  } = useItemListing();
 
   const exportColumns = React.useMemo((): ColumnDef<ItemRow>[] => {
     return [
@@ -61,7 +80,8 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
   const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<ItemRow>({
     reportTitle: `Items list for ${formatLocationName(location)}`,
     columns: exportColumns,
-    data: rows,
+    // For exports we always use the full, unpaginated dataset
+    data: allRows,
     location: location,
   });
 
@@ -158,17 +178,19 @@ export function ItemsListingClient({ location }: ItemsListingClientProps) {
           setIsAddItemModalOpen(false);
           setEditingItem(null);
         }}
-        onSuccess={(itemData, itemId) => {
+        onSuccess={(itemData) => {
           if (itemData) {
-            if (itemId) {
+            const fullItem = itemData as ItemRow;
+            // Check if item already exists in Redux state (update) or not (add)
+            const itemExists = allRows.some((row) => row.id === fullItem.id);
+            if (itemExists) {
               // Update existing item
-              dispatch(updateItem(itemData as ItemRow));
+              dispatch(updateItem(fullItem));
             } else {
               // Add new item
-              dispatch(addItem(itemData as ItemRow));
+              dispatch(addItem(fullItem));
             }
           }
-          fetchData();
           setIsAddItemModalOpen(false);
           setEditingItem(null);
         }}

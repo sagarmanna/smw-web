@@ -145,7 +145,11 @@ export function RecurringPaymentModal({
             };
           });
           setEnrolments(mappedEnrolments);
-          recalcAmountFromSelected(mappedEnrolments);
+          // Only recalculate amount from enrolments in create mode, not edit mode
+          // In edit mode, preserve the amount from the API
+          if (!isEditMode) {
+            recalcAmountFromSelected(mappedEnrolments);
+          }
 
           // Set payment methods and frequencies
           setPaymentMethods(data.paymentMethods);
