@@ -57,6 +57,7 @@ export function CreateAddressModal({
   const [postalCode, setPostalCode] = React.useState("");
   const [errors, setErrors] = React.useState({
     address: "",
+    postalCode: "",
     city: "",
   });
   const [isSaving, setIsSaving] = React.useState(false);
@@ -104,7 +105,7 @@ export function CreateAddressModal({
       setCountryId(1);
       setPostalCode("");
     }
-    setErrors({ address: "", city: "" });
+    setErrors({ address: "", postalCode: "", city: "" });
   }, [editingAddress, open]);
 
   const resetForm = () => {
@@ -115,17 +116,22 @@ export function CreateAddressModal({
     setProvinceId(1);
     setCountryId(1);
     setPostalCode("");
-    setErrors({ address: "", city: "" });
+    setErrors({ address: "", postalCode: "", city: "" });
   };
 
   const validateForm = () => {
     const newErrors = {
       address: "",
+      postalCode: "",
       city: "",
     };
 
     if (!address.trim()) {
       newErrors.address = "Address cannot be blank.";
+    }
+
+    if (!postalCode.trim()) {
+      newErrors.postalCode = "Postal code cannot be blank.";
     }
 
     // Check if cityId is valid OR if we're editing and city name exists
@@ -152,7 +158,7 @@ export function CreateAddressModal({
     }
 
     setErrors(newErrors);
-    return !newErrors.address && !newErrors.city;
+    return !newErrors.address && !newErrors.postalCode && !newErrors.city;
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -456,16 +462,24 @@ export function CreateAddressModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address-postal">Postal Code</Label>
+            <Label htmlFor="address-postal">
+              Postal Code <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="address-postal"
               value={postalCode}
               onChange={(event) => {
                 setPostalCode(event.target.value);
+                if (errors.postalCode)
+                  setErrors({ ...errors, postalCode: "" });
               }}
               placeholder="Enter postal code"
+              className={errors.postalCode ? "border-red-500" : ""}
               disabled={isSaving}
             />
+            {errors.postalCode && (
+              <p className="text-sm text-red-500">{errors.postalCode}</p>
+            )}
           </div>
 
           <DialogFooter>
