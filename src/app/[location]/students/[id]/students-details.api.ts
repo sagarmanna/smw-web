@@ -225,7 +225,9 @@ export interface LessonReviewItem {
 
 export interface LessonReviewData {
   courseId?: number;
+  programId?: number;
   programName?: string;
+  teacherId?: number;
   teacherName?: string;
   studentName?: string;
   startDate?: string;
