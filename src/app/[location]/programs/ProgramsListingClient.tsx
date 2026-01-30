@@ -8,17 +8,20 @@ import { CustomTable } from "@/components/CustomTable";
 import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppDispatch } from "@/redux/hooks";
 
 import { ProgramRow } from "./programs.api";
 import { createProgramColumns } from "./tableConfigs";
 import { useProgramListing } from "./hooks/useProgramListing";
 import { AddProgramModal } from "./components/modals/AddProgramModal";
+import { setActiveFilter, setPage as setPageAction, setSorting as setSortingAction } from "./programsListing.slice";
 
 interface ProgramsListingClientProps {
   location: string;
 }
 
 export function ProgramsListingClient({ location }: ProgramsListingClientProps) {
+  const dispatch = useAppDispatch();
   const [activeType, setActiveType] = React.useState<"PRIVATE" | "GROUP">("PRIVATE");
   const [isAddProgramModalOpen, setIsAddProgramModalOpen] = React.useState(false);
   const [modalMode, setModalMode] = React.useState<"add" | "edit">("add");
@@ -45,14 +48,18 @@ export function ProgramsListingClient({ location }: ProgramsListingClientProps) 
     handleServerSideFilterChange,
   } = useProgramListing(location, activeType);
 
-  // Reset to page 1 and clear filters when switching tabs
-  React.useEffect(() => {
-    setPage(1);
-    handleServerSideFilterChange(undefined);
-  }, [activeType, setPage, handleServerSideFilterChange]);
-
+  // Handle tab change - reset state BEFORE changing type to avoid race condition
   const handleTypeChange = (value: string) => {
-    setActiveType(value as "PRIVATE" | "GROUP");
+    const newType = value as "PRIVATE" | "GROUP";
+    if (newType !== activeType) {
+      // Reset Redux state synchronously BEFORE changing activeType
+      // This ensures the next API call uses default values
+      dispatch(setPageAction(1));
+      dispatch(setActiveFilter(undefined));
+      dispatch(setSortingAction({ sortBy: "name", sortDir: "asc" }));
+      // Now change the type - this will trigger the API call with reset state
+      setActiveType(newType);
+    }
   };
 
   const handleProgramsServerSideFilterChange = React.useCallback(
