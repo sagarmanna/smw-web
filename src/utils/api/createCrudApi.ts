@@ -15,14 +15,66 @@ const emptyPagination = {
 };
 
 /**
- * Helper function to extract error message from API error response
+ * Network error message constant for user-friendly display
  */
-export function extractErrorMessage(error: unknown): string {
+export const NETWORK_ERROR_MESSAGE = "No internet connection. Please check your network and try again.";
+
+/**
+ * Helper function to check if an error is a network error (no response from server)
+ */
+export function isNetworkError(error: unknown): boolean {
+  const axiosError = error as {
+    code?: string;
+    message?: string;
+    response?: unknown;
+  };
+  
+  // Axios network error codes
+  if (axiosError.code === "ERR_NETWORK" || axiosError.code === "ECONNABORTED") {
+    return true;
+  }
+  
+  // No response object means network failure
+  if (!axiosError.response && axiosError.message) {
+    const msg = axiosError.message.toLowerCase();
+    if (msg.includes("network") || msg.includes("timeout") || msg.includes("connection")) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Helper function to extract error message from API error response
+ * Handles network errors, API errors, and provides user-friendly messages
+ */
+export function extractErrorMessage(error: unknown, defaultMessage?: string): string {
+  // Check for network error first
+  if (isNetworkError(error)) {
+    return NETWORK_ERROR_MESSAGE;
+  }
+  
   const apiError = error as {
     response?: { status?: number; statusText?: string; data?: { message?: string | string[]; errorCode?: string } };
+    message?: string;
   };
+  
+  // Try to get message from API response
   const rawMsg = apiError.response?.data?.message;
-  return Array.isArray(rawMsg) ? rawMsg.join(", ") : rawMsg || "";
+  if (rawMsg) {
+    return Array.isArray(rawMsg) ? rawMsg.join(", ") : rawMsg;
+  }
+  
+  // Try to build message from status code (only if valid)
+  const status = apiError.response?.status;
+  const statusText = apiError.response?.statusText;
+  if (status && statusText) {
+    return `${status}: ${statusText}`;
+  }
+  
+  // Return default message or generic error
+  return defaultMessage || "An unexpected error occurred. Please try again.";
 }
 
 /**
@@ -124,13 +176,10 @@ export function createCrudApi<TRow, TQuery, TCreateRequest, TUpdateRequest exten
         },
       };
     } catch (error) {
-      const apiError = error as {
-        response?: { status?: number; statusText?: string; data?: { message?: string | string[]; errorCode?: string } };
-      };
-      const msg = extractErrorMessage(error);
+      const msg = extractErrorMessage(error, `Failed to fetch ${entityName}s`);
       return {
         success: false,
-        message: msg || `${apiError.response?.status}: ${apiError.response?.statusText}` || `Failed to fetch ${entityName}s`,
+        message: msg,
         data: {
           body: [],
           pagination: emptyPagination,
@@ -150,13 +199,10 @@ export function createCrudApi<TRow, TQuery, TCreateRequest, TUpdateRequest exten
 
       return response.data;
     } catch (error: unknown) {
-      const apiError = error as {
-        response?: { status?: number; statusText?: string; data?: { message?: string | string[]; errorCode?: string } };
-      };
-      const msg = extractErrorMessage(error);
+      const msg = extractErrorMessage(error, `Failed to create ${entityName}`);
       return {
         success: false,
-        message: msg || `${apiError.response?.status}: ${apiError.response?.statusText}` || `Failed to create ${entityName}`,
+        message: msg,
       };
     }
   }
@@ -175,13 +221,10 @@ export function createCrudApi<TRow, TQuery, TCreateRequest, TUpdateRequest exten
 
       return response.data;
     } catch (error: unknown) {
-      const apiError = error as {
-        response?: { status?: number; statusText?: string; data?: { message?: string | string[]; errorCode?: string } };
-      };
-      const msg = extractErrorMessage(error);
+      const msg = extractErrorMessage(error, `Failed to update ${entityName}`);
       return {
         success: false,
-        message: msg || `${apiError.response?.status}: ${apiError.response?.statusText}` || `Failed to update ${entityName}`,
+        message: msg,
       };
     }
   }
@@ -198,13 +241,10 @@ export function createCrudApi<TRow, TQuery, TCreateRequest, TUpdateRequest exten
 
       return response.data;
     } catch (error: unknown) {
-      const apiError = error as {
-        response?: { status?: number; statusText?: string; data?: { message?: string | string[]; errorCode?: string } };
-      };
-      const msg = extractErrorMessage(error);
+      const msg = extractErrorMessage(error, `Failed to delete ${entityName}`);
       return {
         success: false,
-        message: msg || `${apiError.response?.status}: ${apiError.response?.statusText}` || `Failed to delete ${entityName}`,
+        message: msg,
       };
     }
   }

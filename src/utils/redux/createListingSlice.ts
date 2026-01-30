@@ -94,6 +94,11 @@ export function createListingSlice<TData, TQuery>(config: ListingSliceConfig<TDa
           };
         }
 
+        // API returned success: false - use the error message from response
+        if (response && !response.success && response.message) {
+          return rejectWithValue(response.message);
+        }
+
         return { rows: [], total: 0, totalPages: 0 };
       } catch (error) {
         return rejectWithValue(error instanceof Error ? error.message : `Failed to fetch ${entityName}s`);

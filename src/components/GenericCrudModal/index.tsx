@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from "@/utils/api/createCrudApi";
 
 export interface CrudModalConfig<TRow, TFormData, TCreateRequest, TUpdateRequest> {
   /**
@@ -183,7 +184,10 @@ export function GenericCrudModal<TRow extends { id: number }, TFormData extends 
         toast.error(response.message || `Failed to ${mode === "edit" ? "update" : "create"} ${entityName.toLowerCase()}`);
       }
     } catch (error) {
-      toast.error(`An error occurred while saving the ${entityName.toLowerCase()}`);
+      const errorMessage = isNetworkError(error)
+        ? NETWORK_ERROR_MESSAGE
+        : `An error occurred while saving the ${entityName.toLowerCase()}`;
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -205,7 +209,10 @@ export function GenericCrudModal<TRow extends { id: number }, TFormData extends 
         toast.error(response.message || `Failed to delete ${entityName.toLowerCase()}`);
       }
     } catch (error) {
-      toast.error(`An error occurred while deleting the ${entityName.toLowerCase()}`);
+      const errorMessage = isNetworkError(error)
+        ? NETWORK_ERROR_MESSAGE
+        : `An error occurred while deleting the ${entityName.toLowerCase()}`;
+      toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
     }
