@@ -68,11 +68,12 @@ const programsApi = createCrudApi<ProgramRow, ProgramsQuery, CreateProgramReques
     if (query.sortBy) params.sortBy = query.sortBy;
     if (query.sortOrder) params.sortOrder = query.sortOrder;
 
-    // Server-side filter flags (mirror enrolmentsListing.api.ts behavior):
-    // Backend expects coherent values for showActive/showInActive/showAll.
-    const showActive = query.showActive === true;
-    const showInActive = query.showInActive === true;
-    const showAll = query.showAll === true || (!showActive && !showInActive);
+    // Server-side filter flags (legacy behavior):
+    // Default to showActive=true, showInActive=false, showAll=false
+    // Only set showAll=true when explicitly requested
+    const showActive = query.showActive ?? true;
+    const showInActive = query.showInActive ?? false;
+    const showAll = query.showAll ?? false;
 
     params.showActive = showActive;
     params.showInActive = showInActive;

@@ -32,12 +32,20 @@ export function formatRateForDisplay(rate: string): string {
 }
 
 export function buildProgramsActiveFlags(activeFilter: string | undefined): {
-  showActive?: boolean;
-  showInActive?: boolean;
+  showActive: boolean;
+  showInActive: boolean;
+  showAll: boolean;
 } {
-  const showActive = activeFilter === "active" ? true : activeFilter === "inactive" ? false : undefined;
-  const showInActive = activeFilter === "inactive" ? true : activeFilter === "active" ? false : undefined;
-  return { showActive, showInActive };
+  // Legacy behavior: default to showing active programs only
+  // showActive=true, showInActive=false, showAll=false
+  if (activeFilter === "inactive") {
+    return { showActive: false, showInActive: true, showAll: false };
+  }
+  if (activeFilter === "all") {
+    return { showActive: true, showInActive: true, showAll: true };
+  }
+  // Default: "active" or undefined -> show active only
+  return { showActive: true, showInActive: false, showAll: false };
 }
 
 

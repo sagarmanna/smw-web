@@ -39,7 +39,7 @@ export function useProgramListing(location: string, type: "PRIVATE" | "GROUP") {
       sortBy: string | undefined,
       sortDir: "asc" | "desc"
     ): ProgramsQuery => {
-      const { showActive, showInActive } = buildProgramsActiveFlags(activeFilter);
+      const { showActive, showInActive, showAll } = buildProgramsActiveFlags(activeFilter);
 
       const query: ProgramsQuery = {
         page,
@@ -49,6 +49,7 @@ export function useProgramListing(location: string, type: "PRIVATE" | "GROUP") {
         sortOrder: sortDir.toUpperCase() as "ASC" | "DESC",
         showActive,
         showInActive,
+        showAll,
       };
 
       return query;
