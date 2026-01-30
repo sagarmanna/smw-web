@@ -29,45 +29,56 @@ const initialState: AdministratorState = {
 
 /**
  * Transforms API response to match the AdministratorInfo interface
- * Handles empty strings by converting them to undefined for optional fields
+ * Uses optional chaining to safely handle empty/invalid data
+ * Returns null if the profile data is invalid (e.g., user not found)
  */
-function transformApiResponse(apiResponse: AdministratorDetailsApiResponse): AdministratorInfo {
-  const { body } = apiResponse.data;
+function transformApiResponse(apiResponse: AdministratorDetailsApiResponse): AdministratorInfo | null {
+  const body = apiResponse?.data?.body;
+  
+  // Use optional chaining to safely access profile properties
+  // If profile is an empty array [], profile?.name will be undefined
+  const profileName = (body?.profile as { name?: string })?.name;
+  const profileRole = (body?.profile as { role?: string })?.role;
+  const profileBirthDate = (body?.profile as { birthDate?: string })?.birthDate;
+  
+  // Check if we have valid profile data using optional chaining result
+  if (!profileName) {
+    return null; // Administrator not found
+  }
   
   return {
     profile: {
-      name: body.profile.name,
-      role: body.profile.role,
-      // Convert empty string to undefined for optional fields
-      birthDate: body.profile.birthDate?.trim() || undefined,
+      name: profileName,
+      role: profileRole || '',
+      birthDate: profileBirthDate?.trim() || undefined,
       picture: undefined,
     },
-    email: body.email.map((email) => ({
-      id: email.id.toString(),
-      label: email.label,
-      email: email.email,
-      note: email.note?.trim() || undefined,
-      isPrimary: email.isPrimary,
+    email: (body?.email ?? []).map((email) => ({
+      id: email?.id?.toString() ?? '',
+      label: email?.label ?? '',
+      email: email?.email ?? '',
+      note: email?.note?.trim() || undefined,
+      isPrimary: email?.isPrimary ?? false,
     })),
-    phone: body.phone.map((phone) => ({
-      id: phone.id.toString(),
-      label: phone.label,
-      number: phone.number,
-      extension: phone.extension ? String(phone.extension).trim() || undefined : undefined,
-      note: phone.note?.trim() || undefined,
+    phone: (body?.phone ?? []).map((phone) => ({
+      id: phone?.id?.toString() ?? '',
+      label: phone?.label ?? '',
+      number: phone?.number ?? '',
+      extension: phone?.extension ? String(phone.extension).trim() || undefined : undefined,
+      note: phone?.note?.trim() || undefined,
     })),
-    addresses: body.addresses.map((address) => ({
-      id: address.id.toString(),
-      label: address.label,
-      address: address.address,
-      city: address.city,
+    addresses: (body?.addresses ?? []).map((address) => ({
+      id: address?.id?.toString() ?? '',
+      label: address?.label ?? '',
+      address: address?.address ?? '',
+      city: address?.city ?? '',
       provinceId: 0,
       countryId: 0,
       cityId: 0,
-      postalCode: address.postalCode,
-      province: address.province?.trim() || undefined,
-      country: address.country?.trim() || undefined,
-      isPrimary: address.isPrimary,
+      postalCode: address?.postalCode ?? '',
+      province: address?.province?.trim() || undefined,
+      country: address?.country?.trim() || undefined,
+      isPrimary: address?.isPrimary ?? false,
     })),
   };
 }
@@ -84,16 +95,34 @@ export const fetchAdministrator = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
+      // Validate administratorId is a valid number
+      if (isNaN(administratorId) || administratorId <= 0) {
+        return rejectWithValue('Invalid administrator ID');
+      }
+
       const response = await getAdministratorDetails(location, administratorId);
       
-      if (!response || !response.success) {
+      if (!response) {
         return rejectWithValue('Failed to fetch administrator details');
       }
 
+      if (!response.success) {
+        return rejectWithValue(response.message || 'Failed to fetch administrator details');
+      }
+
+      // transformApiResponse returns null if profile data is invalid
       const transformedData = transformApiResponse(response);
+      
+      // Check if data is valid using optional chaining result
+      if (!transformedData) {
+        return rejectWithValue('Administrator not found');
+      }
+      
       return { administratorInfo: transformedData };
     } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch administrator details');
+      // Handle specific error messages
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch administrator details';
+      return rejectWithValue(errorMessage);
     }
   }
 );
