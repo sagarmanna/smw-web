@@ -7,12 +7,12 @@ import { sanitizeBasicHtml, stripHtmlTags } from "@/utils/sanitizeHtml";
 export const blogColumns: ColumnDef<BlogRow>[] = [
   {
     accessorKey: "userName",
-    header: () => <span>Author</span>,
+    header: () => <span>User Name</span>,
     cell: ({ row }: { row: { original: BlogRow } }) => (
       <span 
         className="truncate block max-w-[200px]" 
         title={row.original.userName || ""}
-        aria-label={`Author: ${row.original.userName || "Unknown"}`}
+        aria-label={`User Name: ${row.original.userName || "Unknown"}`}
       >
         {row.original.userName || "-"}
       </span>
@@ -21,7 +21,7 @@ export const blogColumns: ColumnDef<BlogRow>[] = [
     filter: {
       type: "string"
     },
-    meta: { printable: true, printableName: "Author" },
+    meta: { printable: true, printableName: "User Name" },
   } as ColumnDef<BlogRow> & { filter: { type: string } },
   {
     accessorKey: "title",
