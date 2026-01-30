@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { createUserByRole, CreateUserRequest, CreateUserErrorResponse } from "@/lib/api/user.api";
 
 interface AddAdministratorModalProps {
   isOpen: boolean;
@@ -14,13 +16,14 @@ interface AddAdministratorModalProps {
   location: string;
 }
 
-export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _location }: AddAdministratorModalProps) {
+export function AddAdministratorModal({ isOpen, onClose, onSuccess, location }: AddAdministratorModalProps) {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
   });
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const resetForm = () => {
@@ -38,10 +41,18 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
     // Required fields
     if (!formData.firstName.trim()) {
       newErrors.firstName = "First Name cannot be blank.";
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = "First name must be at least 2 characters";
+    } else if (formData.firstName.trim().length > 255) {
+      newErrors.firstName = "First name must not exceed 255 characters";
     }
 
     if (!formData.lastName.trim()) {
       newErrors.lastName = "Last Name cannot be blank.";
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = "Last name must be at least 2 characters";
+    } else if (formData.lastName.trim().length > 255) {
+      newErrors.lastName = "Last name must not exceed 255 characters";
     }
 
     if (!formData.email.trim()) {
@@ -50,6 +61,8 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email.trim())) {
         newErrors.email = "Please enter a valid email address";
+      } else if (formData.email.trim().length > 255) {
+        newErrors.email = "Email must not exceed 255 characters";
       }
     }
 
@@ -64,12 +77,42 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
       return;
     }
 
-    // TODO: Implement API call when backend is ready
-    toast.info("Create administrator API is not yet available");
-    resetForm();
-    onClose();
-    // TODO: Call onSuccess callback when API is implemented
-    // onSuccess?.();
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      // Prepare request payload
+      const payload: CreateUserRequest = {
+        firstname: formData.firstName.trim(),
+        lastname: formData.lastName.trim(),
+        email: formData.email.trim(),
+      };
+
+      const response = await createUserByRole(location, 'administrator', payload);
+      
+      toast.success(response.message || "Administrator created successfully!");
+      onSuccess?.();
+      onClose();
+      
+      // Reset form
+      resetForm();
+
+      // Redirect to administrator detail page
+      router.push(`/${location}/administrators/${response.data.id}`);
+    } catch (error: unknown) {
+      const apiError = error as CreateUserErrorResponse;
+      const errorMessage = apiError.message || "Failed to add administrator";
+      
+      // Show specific error message
+      toast.error(errorMessage);
+      
+      // If there are field-specific errors, set them
+      if (apiError.errorCode === 'BAD_REQUEST') {
+        console.error('Validation error:', errorMessage);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -84,6 +127,27 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
         delete newErrors[field];
         return newErrors;
       });
+    }
+    
+    // Validate email format in real-time when user types
+    if (field === 'email') {
+      const trimmedEmail = value.trim();
+      if (trimmedEmail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail)) {
+          // Show format error while typing
+          setErrors(prev => ({ ...prev, email: "Please enter a valid email address" }));
+        } else {
+          // Clear format error when valid
+          setErrors(prev => {
+            const newErrors = { ...prev };
+            if (newErrors.email === "Please enter a valid email address") {
+              delete newErrors.email;
+            }
+            return newErrors;
+          });
+        }
+      }
     }
   };
 
@@ -104,7 +168,7 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="firstName">
-              First Name
+              First Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="firstName"
@@ -121,7 +185,7 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
 
           <div className="space-y-2">
             <Label htmlFor="lastName">
-              Last Name
+              Last Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="lastName"
@@ -137,7 +201,9 @@ export function AddAdministratorModal({ isOpen, onClose, onSuccess, location: _l
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="email">Email (Work)</Label>
+            <Label htmlFor="email">
+              Email (Work) <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="email"
               type="email"

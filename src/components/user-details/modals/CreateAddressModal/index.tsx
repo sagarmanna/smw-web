@@ -54,7 +54,6 @@ export function CreateAddressModal<
   entityId,
   onUpdateAddresses,
   currentAddresses = [],
-  onRefresh,
   apiAdapter,
 }: CreateAddressModalProps<TEmail, TPhone, TAddress>) {
   const [label, setLabel] = React.useState("Work");
@@ -66,7 +65,6 @@ export function CreateAddressModal<
   const [postalCode, setPostalCode] = React.useState("");
   const [errors, setErrors] = React.useState({
     address: "",
-    postalCode: "",
     city: "",
   });
   const [isSaving, setIsSaving] = React.useState(false);
@@ -76,9 +74,15 @@ export function CreateAddressModal<
     country: [],
   });
   const [loadingGeoData, setLoadingGeoData] = React.useState(false);
+  const [hasSetDefaultCity, setHasSetDefaultCity] = React.useState(false);
 
+  // Fetch geo data when modal opens
   React.useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Reset the flag when modal closes
+      setHasSetDefaultCity(false);
+      return;
+    }
 
     const fetchGeo = async () => {
       setLoadingGeoData(true);
@@ -95,6 +99,26 @@ export function CreateAddressModal<
     fetchGeo();
   }, [open]);
 
+  // Set default city (Alliston) when geo data is loaded and not editing
+  React.useEffect(() => {
+    if (
+      !editingAddress &&
+      geoData.city.length > 0 &&
+      !hasSetDefaultCity &&
+      open
+    ) {
+      const alliston = geoData.city.find(
+        (c) => c.name.toLowerCase() === "alliston"
+      );
+      if (alliston) {
+        setCityId(alliston.id);
+        setCity(alliston.name);
+        setHasSetDefaultCity(true);
+      }
+    }
+  }, [geoData.city, editingAddress, hasSetDefaultCity, open]);
+
+  // Initialize form when editing address changes
   React.useEffect(() => {
     if (editingAddress) {
       setLabel(editingAddress.label || "Work");
@@ -107,39 +131,42 @@ export function CreateAddressModal<
     } else {
       setLabel("Work");
       setAddress("");
-      setCity("");
-      setCityId(0);
       setProvinceId(1);
       setCountryId(1);
       setPostalCode("");
+      // City will be set by the default city effect
     }
-    setErrors({ address: "", postalCode: "", city: "" });
-  }, [editingAddress, open]);
+    setErrors({ address: "", city: "" });
+  }, [editingAddress]);
 
-  const resetForm = () => {
+  const resetForm = React.useCallback(() => {
     setLabel("Work");
     setAddress("");
-    setCity("");
-    setCityId(0);
+    // Reset to Alliston as default city if available
+    const alliston = geoData.city.find(
+      (c) => c.name.toLowerCase() === "alliston"
+    );
+    if (alliston) {
+      setCityId(alliston.id);
+      setCity(alliston.name);
+    } else {
+      setCity("");
+      setCityId(0);
+    }
     setProvinceId(1);
     setCountryId(1);
     setPostalCode("");
-    setErrors({ address: "", postalCode: "", city: "" });
-  };
+    setErrors({ address: "", city: "" });
+  }, [geoData.city]);
 
   const validateForm = () => {
     const newErrors = {
       address: "",
-      postalCode: "",
       city: "",
     };
 
     if (!address.trim()) {
       newErrors.address = "Address cannot be blank.";
-    }
-
-    if (!postalCode.trim()) {
-      newErrors.postalCode = "Postal code cannot be blank.";
     }
 
     const cityExists = geoData.city.some((c) => c.id === cityId);
@@ -163,7 +190,7 @@ export function CreateAddressModal<
     }
 
     setErrors(newErrors);
-    return !newErrors.address && !newErrors.postalCode && !newErrors.city;
+    return !newErrors.address && !newErrors.city;
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -406,24 +433,16 @@ export function CreateAddressModal<
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address-postal">
-              Postal Code <span className="text-red-500">*</span>
-            </Label>
+            <Label htmlFor="address-postal">Postal Code</Label>
             <Input
               id="address-postal"
               value={postalCode}
               onChange={(event) => {
                 setPostalCode(event.target.value);
-                if (errors.postalCode)
-                  setErrors({ ...errors, postalCode: "" });
               }}
               placeholder="Enter postal code"
-              className={errors.postalCode ? "border-red-500" : ""}
               disabled={isSaving}
             />
-            {errors.postalCode && (
-              <p className="text-sm text-red-500">{errors.postalCode}</p>
-            )}
           </div>
 
           <DialogFooter>

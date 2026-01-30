@@ -202,7 +202,9 @@ export function formatAddressDisplay(
   const country = geoData?.country.find(c => c.id === address.countryId)?.name || address.country || 'Canada';
   
   // Build the full address value with line breaks (same format as customer AddressCard)
-  const addressValue = `${address.address}\n${address.city}, ${province}\n${country} - ${address.postalCode}`;
+  // Only show postal code with dash if it exists
+  const postalCodePart = address.postalCode?.trim() ? ` - ${address.postalCode}` : '';
+  const addressValue = `${address.address}\n${address.city}, ${province}\n${country}${postalCodePart}`;
   
   return addressValue;
 }

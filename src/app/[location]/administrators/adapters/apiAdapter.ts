@@ -317,7 +317,7 @@ export function createAdministratorApiAdapter(
         }
       );
       if (!response?.success) {
-        return false;
+        throw new Error(response?.message || 'Failed to update address');
       }
       return true;
     },
@@ -329,7 +329,7 @@ export function createAdministratorApiAdapter(
         addressId
       );
       if (!response?.success) {
-        return false;
+        throw new Error(response?.message || 'Failed to delete address');
       }
       return true;
     },
