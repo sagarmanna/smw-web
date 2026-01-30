@@ -24,13 +24,15 @@ export interface LessonPreview {
   isHolidayConflict?: boolean; // Whether this is a holiday conflict
   isConflict?: boolean; // Whether this has a conflict
   isUnscheduled?: boolean; // Whether this lesson is unscheduled
+  programId?: string; // Program ID for filtering teachers
 }
 
 export interface EnrolmentReviewDetails {
   studentName?: string;
+  programId?: number; // From lesson review API; used in edit modal
   programName?: string;
   teacherName?: string;
-  teacherId?: number;
+  teacherId?: number; // From lesson review API; used in edit modal
   startDate?: string;
   endDate?: string;
   startTime?: string;
@@ -80,16 +82,9 @@ export function NewEnrolmentReviewModal({
     date: string;
     time: string;
     duration: string;
+    programId?: string;
   } | null>(null);
   const [editModalOpen, setEditModalOpen] = React.useState(false);
-
-  // Debug: Log details when they change
-  React.useEffect(() => {
-    if (open) {
-      console.log('[NewEnrolmentReviewModal] Modal opened with details:', details);
-      console.log('[NewEnrolmentReviewModal] Lessons:', lessons);
-    }
-  }, [open, details, lessons]);
 
   // Calculate summary statistics
   const summary = React.useMemo(() => {
@@ -570,7 +565,7 @@ export function NewEnrolmentReviewModal({
         </DialogFooter>
       </DialogContent>
 
-      {/* Lesson Edit Modal */}
+      {/* Lesson Edit Modal - use programId/teacherId from review API (details) when available, like startDate */}
       {editingLesson && location && (
         <LessonEditModal
           open={editModalOpen}
@@ -580,7 +575,7 @@ export function NewEnrolmentReviewModal({
           lessonTime={editingLesson.time}
           lessonDuration={editingLesson.duration}
           location={location}
-          programId={programId}
+          programId={details?.programId != null ? String(details.programId) : programId}
           currentTeacherId={details?.teacherId}
           onLessonUpdated={() => {
             setEditModalOpen(false);
@@ -601,6 +596,7 @@ export function NewEnrolmentReviewModal({
                 date: l.date,
                 time: timeStr,
                 duration: l.duration,
+                programId: programId,
               };
             })}
         />

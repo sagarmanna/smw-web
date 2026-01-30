@@ -581,9 +581,10 @@ export function NewEnrolmentModal({
             setLessonPreviews(previews);
             setReviewDetails({
               studentName: reviewData.studentName,
+              programId: reviewData.programId,
               programName: reviewData.programName,
               teacherName: reviewData.teacherName,
-              teacherId: currentFormData?.teacherId ? Number(currentFormData.teacherId) : undefined,
+              teacherId: reviewData.teacherId ?? (currentFormData?.teacherId ? Number(currentFormData.teacherId) : undefined),
               startDate: reviewData.startDate,
               endDate: reviewData.endDate,
               startTime: reviewData.startTime,
