@@ -556,8 +556,8 @@ export function LessonEditModal({
   };
 
   const handleApplyAll = async () => {
-    if (!selectedDate || !startTime || allLessons.length === 0) {
-      toast.error("Please select a date and time, and ensure there are lessons to update");
+    if (!selectedDate || !startTime) {
+      toast.error("Please select a date and time");
       return;
     }
 
@@ -577,12 +577,16 @@ export function LessonEditModal({
       
       if (result?.success) {
         const responseData = result.data as UpdateLessonFieldResponse['data'];
-        const updatedCount = responseData?.updatedCount || allLessons.length;
-        const totalCount = responseData?.totalCount || allLessons.length;
-        if (updatedCount === totalCount) {
-          toast.success(`All ${totalCount} lessons updated successfully`);
+        const updatedCount = responseData?.updatedCount ?? 0;
+        const totalCount = responseData?.totalCount ?? 0;
+        if (totalCount > 0) {
+          if (updatedCount === totalCount) {
+            toast.success(`All ${totalCount} lessons updated successfully`);
+          } else {
+            toast.warning(`${updatedCount} of ${totalCount} lessons updated successfully`);
+          }
         } else {
-          toast.warning(`${updatedCount} of ${totalCount} lessons updated successfully`);
+          toast.success("Lessons updated successfully");
         }
         onLessonUpdated?.();
         onOpenChange(false);
@@ -706,17 +710,15 @@ export function LessonEditModal({
               {isApplyingSingle && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Apply
             </Button>
-            {allLessons.length > 0 && (
-              <Button
-                type="button"
-                variant="default"
-                onClick={handleApplyAll}
-                disabled={isApplyingSingle || isApplyingAll || !selectedDate || !startTime || !!validationError}
-              >
-                {isApplyingAll && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Apply All
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleApplyAll}
+              disabled={isApplyingSingle || isApplyingAll || !selectedDate || !startTime || !!validationError}
+            >
+              {isApplyingAll && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Apply All
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>
