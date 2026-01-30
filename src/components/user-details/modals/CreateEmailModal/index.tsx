@@ -55,7 +55,6 @@ export function CreateEmailModal<
   entityId,
   onUpdateEmails,
   currentEmails = [],
-  onRefresh,
   apiAdapter,
   validateEmail,
 }: CreateEmailModalProps<TEmail, TPhone, TAddress>) {
