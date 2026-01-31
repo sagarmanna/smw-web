@@ -97,10 +97,10 @@ export const createProgram = async (location: string, payload: CreateProgramRequ
     const response = await apiClient.post<CreateProgramResponse>(url, body);
     return response.data;
   } catch (error: unknown) {
-    const msg = extractErrorMessage(error);
+    const msg = extractErrorMessage(error, "Failed to create program");
     return {
       success: false,
-      message: msg || "Failed to create program",
+      message: msg,
     };
   }
 };
