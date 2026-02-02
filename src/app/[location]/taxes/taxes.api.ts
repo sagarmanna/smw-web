@@ -27,6 +27,8 @@ export interface TaxCodesQuery {
   taxName?: string;
   provinceName?: string;
   code?: string;
+  sort?: "taxName" | "provinceName" | "startDate" | "code";
+  order?: "ASC" | "DESC";
 }
 
 export type TaxCodesListResponse = StandardListResponse<TaxCodeRow>;
@@ -64,6 +66,9 @@ const taxCodesApi = createCrudApi<TaxCodeRow, TaxCodesQuery, CreateTaxCodeReques
     if (query.taxName) params.taxName = query.taxName;
     if (query.provinceName) params.provinceName = query.provinceName;
     if (query.code) params.code = query.code;
+    // Server-side sorting
+    params.sort = query.sort || "taxName";
+    params.order = query.order || "ASC";
     return params;
   },
 });

@@ -30,6 +30,8 @@ export function TaxCodesListingClient({ location }: TaxCodesListingClientProps) 
     totalPages,
     isLoading,
     error,
+    sorting,
+    setSorting,
     page,
     setPage,
     pageSize,
@@ -75,6 +77,13 @@ export function TaxCodesListingClient({ location }: TaxCodesListingClientProps) 
         enablePrint={false}
         enableRowsPerPage={true}
         enableColumnFilters={false}
+        // Server-side sorting
+        manualSorting={true}
+        sorting={sorting}
+        onSortingChange={(s) => {
+          setSorting(s);
+          setPage(1);
+        }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
         hideRecordCount={true}

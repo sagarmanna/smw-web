@@ -19,14 +19,22 @@ export function useTaxCodesListing(location: string) {
     (
       page: number,
       pageSize: number,
-      _columnFilters: Record<string, unknown>,
+      columnFilters: Record<string, unknown>,
       _activeFilter: string | undefined,
-      _sortBy: string | undefined,
-      _sortDir: "asc" | "desc"
+      sortBy: string | undefined,
+      sortDir: "asc" | "desc"
     ): TaxCodesQuery => {
+      const sort = (sortBy as TaxCodesQuery["sort"]) || "taxName";
+      const order: TaxCodesQuery["order"] = sortDir === "desc" ? "DESC" : "ASC";
+
       return {
         page,
         limit: pageSize,
+        taxName: columnFilters.taxName as string | undefined,
+        provinceName: columnFilters.provinceName as string | undefined,
+        code: columnFilters.code as string | undefined,
+        sort,
+        order,
       };
     },
     []
@@ -54,6 +62,8 @@ export function useTaxCodesListing(location: string) {
     },
     buildQuery,
     location,
+    defaultSortField: "taxName",
+    defaultSortDir: "asc",
   });
 }
 
