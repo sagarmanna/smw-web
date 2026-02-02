@@ -5,7 +5,7 @@
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { TaxCodeRow } from "./taxes.api";
-import { compareStartDates, formatStartDateForDisplay } from "./utils/taxCodeUtils";
+import { formatStartDateForDisplay } from "./utils/taxCodeUtils";
 
 export const taxCodeColumns: ColumnDef<TaxCodeRow>[] = [
   {
@@ -35,7 +35,6 @@ export const taxCodeColumns: ColumnDef<TaxCodeRow>[] = [
       <span className="text-sm">{formatStartDateForDisplay(row.original.startDate)}</span>
     ),
     enableSorting: true,
-    sortingFn: (rowA, rowB) => compareStartDates(rowA.original.startDate, rowB.original.startDate),
   },
   {
     accessorKey: "code",
