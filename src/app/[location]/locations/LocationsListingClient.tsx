@@ -18,6 +18,13 @@ interface LocationsListingClientProps {
   location: string;
 }
 
+const slugifyLocationSegment = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 export function LocationsListingClient({ location }: LocationsListingClientProps) {
   const router = useRouter();
   const [isAddLocationModalOpen, setIsAddLocationModalOpen] = React.useState(false);
@@ -42,24 +49,21 @@ export function LocationsListingClient({ location }: LocationsListingClientProps
     setIsAddLocationModalOpen(true);
   };
 
-  const openDetailPage = (row: LocationRow) => {
-    const slugOrId = row.slug?.trim() ? row.slug.trim() : String(row.id);
-    // API not ready: store row data for the detail page (keep URL clean).
-    try {
-      const key = `smw.locationDetail:${location}:${slugOrId}`;
-      sessionStorage.setItem(
-        key,
-        JSON.stringify({
-          name: row.name,
-          address: row.address,
-          email: row.email,
-        })
-      );
-    } catch {
-      // ignore (storage may be unavailable)
-    }
-    router.push(`/${location}/locations/${encodeURIComponent(slugOrId)}`);
-  };
+  const openDetailPage = React.useCallback((row: LocationRow) => {
+    // Route structure: /[location]/locations/[slugOrId]
+    // For the [location] segment we prefer a URL-safe backend identifier (row.slug),
+    // otherwise we derive one from the display name.
+    const nextLocationSegment = row.slug?.trim()
+      ? row.slug.trim()
+      : row.name?.trim()
+        ? slugifyLocationSegment(row.name)
+        : location;
+
+    // Detail segment: prefer id first; if backend requires slug later we can switch.
+    const detailSegment = String(row.id);
+
+    router.push(`/${nextLocationSegment}/locations/${encodeURIComponent(detailSegment)}`);
+  }, [location, router]);
 
   return (
     <ReportPageLayout

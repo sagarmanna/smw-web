@@ -8,6 +8,8 @@ export type LocationTimeBlock = {
   resourceId: number; // 1-7 (Mon-Sun)
   fromTime: string; // "HH:mm"
   toTime: string; // "HH:mm"
+  backgroundColor?: string;
+  className?: string;
 };
 
 // Day resources (Monday-Sunday)
@@ -73,16 +75,26 @@ export function LocationAvailabilityCalendar({
       const end = toDateAtMonday(mondayDate, b.toTime);
       return {
         id: b.id,
-        title: `${formatShortTime(start)} - ${formatShortTime(end)}`,
+        // The shared calendar event renderer already prints the time range.
+        // Keep the title empty to avoid showing the same time range twice.
+        title: "",
         start,
         end,
         resourceId: b.resourceId,
-        backgroundColor: "#86efac", // light green (matches screenshot vibe)
+        backgroundColor: b.backgroundColor || "#86efac",
         borderColor: "#22c55e",
-        className: "location-availability-block",
+        className: b.className || "location-availability-block",
       };
     });
   }, [blocks, mondayDate]);
+
+  const handleEventDelete = React.useCallback(
+    (event: CalendarEvent) => {
+      const next = blocks.filter((b) => b.id !== event.id);
+      onBlocksChange(next);
+    },
+    [blocks, onBlocksChange]
+  );
 
   const updateFromCalendarEvent = React.useCallback(
     (event: CalendarEvent) => {
@@ -135,6 +147,7 @@ export function LocationAvailabilityCalendar({
         onNavigate={(newDate) => setSelectedDate(getMondayOfWeek(newDate))}
         onEventDrop={updateFromCalendarEvent}
         onEventResize={updateFromCalendarEvent}
+        onEventDelete={handleEventDelete}
         onSelectSlot={handleSelectSlot}
         editable={editable}
         viewType="availability"
