@@ -90,8 +90,24 @@ const findMenuItemByUrl = (menuItems: MenuItem[], url: string): MenuItem | null 
   return null;
 };
 
+// Paths that require admin role only (e.g. /[location]/administrators, /[location]/administrators/[id])
+const isAdministratorsPath = (pathname: string): boolean => {
+  const segments = pathname.split("/").filter(Boolean);
+  return segments.length >= 2 && segments[1] === "administrators";
+};
+
 // Helper function to determine if user has access
-const hasAccess = (pathname: string, menuItems: MenuItem[], params: Record<string, string | string[] | undefined>): boolean => {
+const hasAccess = (
+  pathname: string,
+  menuItems: MenuItem[],
+  params: Record<string, string | string[] | undefined>,
+  userRole: string | undefined
+): boolean => {
+  // Administrators pages: allow only users with admin role
+  if (isAdministratorsPath(pathname)) {
+    return userRole === "administrator";
+  }
+
   // Check if path is in the allowed list (bypasses menu-based access control)
   if (isPathAllowed(pathname, params)) {
     return true;
@@ -127,7 +143,7 @@ export default function PageAccessControl({ children }: PageAccessControlProps) 
   }
 
   // Check if user has access to the current page
-  if (!hasAccess(pathname, menuItems, params)) {
+  if (!hasAccess(pathname, menuItems, params, userInfo?.role)) {
     return <AccessDeniedCard />;
   }
 
