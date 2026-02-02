@@ -29,6 +29,8 @@ export function ProvincesListingClient({ location }: ProvincesListingClientProps
     totalPages,
     isLoading,
     error,
+    sorting,
+    setSorting,
     page,
     setPage,
     pageSize,
@@ -82,6 +84,12 @@ export function ProvincesListingClient({ location }: ProvincesListingClientProps
         columnFilters={columnFilters}
         columnFilterPlaceholders={{
           name: "Enter province name",
+        }}
+        manualSorting={true}
+        sorting={sorting}
+        onSortingChange={(s) => {
+          setSorting(s);
+          setPage(1);
         }}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
