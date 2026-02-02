@@ -29,6 +29,7 @@ interface UserAddressCardProps<TAddress extends GenericAddress> {
     loading?: boolean;
     onEdit: (e: React.MouseEvent, address: TAddress) => void;
     onDelete: (e: React.MouseEvent, id: string) => void;
+    onReorder?: (reorderedAddresses: TAddress[]) => void;
   }>;
   useAddressHandlers: (props: {
     addresses: TAddress[];
@@ -46,6 +47,7 @@ interface UserAddressCardProps<TAddress extends GenericAddress> {
     setAddressToDelete: (address: TAddress | null) => void;
     handleDeleteConfirm: () => Promise<void>;
     isDeleting: boolean;
+    handleReorder?: (reorderedAddresses: TAddress[]) => void;
   };
 }
 
@@ -72,6 +74,7 @@ export function UserAddressCard<TAddress extends GenericAddress>({
     setAddressToDelete,
     handleDeleteConfirm,
     isDeleting,
+    handleReorder,
   } = useAddressHandlers({
     addresses,
     updateAddresses: onUpdate,
@@ -129,6 +132,7 @@ export function UserAddressCard<TAddress extends GenericAddress>({
             loading={loading}
             onEdit={handleEditClick}
             onDelete={handleDeleteClick}
+            onReorder={handleReorder}
           />
         </div>
       </InfoCard>

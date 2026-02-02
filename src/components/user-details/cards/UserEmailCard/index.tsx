@@ -29,6 +29,7 @@ interface UserEmailCardProps<TEmail extends GenericEmail> {
     loading?: boolean;
     onEdit: (e: React.MouseEvent, email: TEmail) => void;
     onDelete: (e: React.MouseEvent, id: string) => void;
+    onReorder?: (reorderedEmails: TEmail[]) => void;
   }>;
   useEmailHandlers: (props: {
     emails: TEmail[];
@@ -46,6 +47,7 @@ interface UserEmailCardProps<TEmail extends GenericEmail> {
     setEmailToDelete: (email: TEmail | null) => void;
     handleDeleteConfirm: () => Promise<void>;
     isDeleting: boolean;
+    handleReorder?: (reorderedEmails: TEmail[]) => void;
   };
 }
 
@@ -72,6 +74,7 @@ export function UserEmailCard<TEmail extends GenericEmail>({
     setEmailToDelete,
     handleDeleteConfirm,
     isDeleting,
+    handleReorder,
   } = useEmailHandlers({
     emails,
     updateEmails: onUpdate,
@@ -129,6 +132,7 @@ export function UserEmailCard<TEmail extends GenericEmail>({
             loading={loading}
             onEdit={handleEditClick}
             onDelete={handleDeleteClick}
+            onReorder={handleReorder}
           />
         </div>
       </InfoCard>

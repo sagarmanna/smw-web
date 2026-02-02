@@ -29,6 +29,7 @@ interface UserPhoneCardProps<TPhone extends GenericPhone> {
     loading?: boolean;
     onEdit: (e: React.MouseEvent, phone: TPhone) => void;
     onDelete: (e: React.MouseEvent, id: string) => void;
+    onReorder?: (reorderedPhones: TPhone[]) => void;
   }>;
   usePhoneHandlers: (props: {
     phones: TPhone[];
@@ -46,6 +47,7 @@ interface UserPhoneCardProps<TPhone extends GenericPhone> {
     setPhoneToDelete: (phone: TPhone | null) => void;
     handleDeleteConfirm: () => Promise<void>;
     isDeleting: boolean;
+    handleReorder?: (reorderedPhones: TPhone[]) => void;
   };
 }
 
@@ -72,6 +74,7 @@ export function UserPhoneCard<TPhone extends GenericPhone>({
     setPhoneToDelete,
     handleDeleteConfirm,
     isDeleting,
+    handleReorder,
   } = usePhoneHandlers({
     phones,
     updatePhones: onUpdate,
@@ -129,6 +132,7 @@ export function UserPhoneCard<TPhone extends GenericPhone>({
             loading={loading}
             onEdit={handleEditClick}
             onDelete={handleDeleteClick}
+            onReorder={handleReorder}
           />
         </div>
       </InfoCard>

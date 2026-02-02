@@ -7,6 +7,9 @@ import {
   deleteAdministratorEmail,
   deleteAdministratorPhone,
   deleteAdministratorAddress,
+  updateAdministratorEmail,
+  updateAdministratorPhone,
+  updateAdministratorAddress,
 } from "../[id]/administrators-details.api";
 
 interface UseEmailHandlersProps {
@@ -107,6 +110,72 @@ export function useEmailHandlers({
     }
   }, [emailToDelete, location, entityId, updateEmails, onRefresh]);
 
+  const handleReorder = React.useCallback(
+    async (reorderedEmails: AdministratorEmail[]) => {
+      // Check if primary status changed
+      const newPrimary = reorderedEmails.find((e) => e.isPrimary);
+      const oldPrimary = emails.find((e) => e.isPrimary && e.id !== newPrimary?.id);
+
+      // Update local state first for immediate UI feedback
+      updateEmails(reorderedEmails);
+
+      // If primary status changed, persist to API
+      if (newPrimary && newPrimary.id !== oldPrimary?.id && entityId) {
+        try {
+          // First, update the new primary email
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateAdministratorEmail(
+            location,
+            entityId,
+            newPrimaryId,
+            {
+              email: newPrimary.email,
+              note: newPrimary.note || "",
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary email");
+            updateEmails(emails);
+            return;
+          }
+
+          // Then update all other emails to non-primary
+          const otherEmails = emails.filter((e) => e.id !== newPrimary.id);
+          if (otherEmails.length > 0) {
+            await Promise.all(
+              otherEmails.map((email) => {
+                const emailId = Number(email.id);
+                return updateAdministratorEmail(
+                  location,
+                  entityId,
+                  emailId,
+                  {
+                    email: email.email,
+                    note: email.note || "",
+                    label: email.label,
+                    isPrimary: false,
+                  }
+                );
+              })
+            );
+          }
+
+          // API returns single object, not array - keep the reordered state as is
+          // The local state is already correct from the optimistic update
+          toast.success(newPrimaryResult.message || "Primary email updated successfully");
+        } catch (error) {
+          console.error("Error updating primary email:", error);
+          toast.error("Failed to update primary email");
+          updateEmails(emails);
+        }
+      }
+    },
+    [emails, location, entityId, updateEmails]
+  );
+
   return {
     editingEmail,
     emailToDelete,
@@ -117,6 +186,7 @@ export function useEmailHandlers({
     handleDeleteConfirm,
     requestDelete,
     isDeleting,
+    handleReorder,
   };
 }
 
@@ -200,6 +270,74 @@ export function usePhoneHandlers({
     }
   }, [phoneToDelete, location, entityId, updatePhones]);
 
+  const handleReorder = React.useCallback(
+    async (reorderedPhones: AdministratorPhone[]) => {
+      // Check if primary status changed
+      const newPrimary = reorderedPhones.find((p) => p.isPrimary);
+      const oldPrimary = phones.find((p) => p.isPrimary && p.id !== newPrimary?.id);
+
+      // Update local state first for immediate UI feedback
+      updatePhones(reorderedPhones);
+
+      // If primary status changed, persist to API
+      if (newPrimary && newPrimary.id !== oldPrimary?.id && entityId) {
+        try {
+          // First, update the new primary phone
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateAdministratorPhone(
+            location,
+            entityId,
+            newPrimaryId,
+            {
+              number: newPrimary.number,
+              extension: newPrimary.extension,
+              note: newPrimary.note || "",
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary phone");
+            updatePhones(phones);
+            return;
+          }
+
+          // Then update all other phones to non-primary
+          const otherPhones = phones.filter((p) => p.id !== newPrimary.id);
+          if (otherPhones.length > 0) {
+            await Promise.all(
+              otherPhones.map((phone) => {
+                const phoneId = Number(phone.id);
+                return updateAdministratorPhone(
+                  location,
+                  entityId,
+                  phoneId,
+                  {
+                    number: phone.number,
+                    extension: phone.extension,
+                    note: phone.note || "",
+                    label: phone.label,
+                    isPrimary: false,
+                  }
+                );
+              })
+            );
+          }
+
+          // API returns single object, not array - keep the reordered state as is
+          // The local state is already correct from the optimistic update
+          toast.success(newPrimaryResult.message || "Primary phone updated successfully");
+        } catch (error) {
+          console.error("Error updating primary phone:", error);
+          toast.error("Failed to update primary phone");
+          updatePhones(phones);
+        }
+      }
+    },
+    [phones, location, entityId, updatePhones]
+  );
+
   return {
     editingPhone,
     phoneToDelete,
@@ -210,6 +348,7 @@ export function usePhoneHandlers({
     handleDeleteConfirm,
     requestDelete,
     isDeleting,
+    handleReorder,
   };
 }
 
@@ -293,6 +432,80 @@ export function useAddressHandlers({
     }
   }, [addressToDelete, location, entityId, updateAddresses]);
 
+  const handleReorder = React.useCallback(
+    async (reorderedAddresses: AdministratorAddress[]) => {
+      // Check if primary status changed
+      const newPrimary = reorderedAddresses.find((a) => a.isPrimary);
+      const oldPrimary = addresses.find((a) => a.isPrimary && a.id !== newPrimary?.id);
+
+      // Update local state first for immediate UI feedback
+      updateAddresses(reorderedAddresses);
+
+      // If primary status changed, persist to API
+      if (newPrimary && newPrimary.id !== oldPrimary?.id && entityId) {
+        try {
+          // First, update the new primary address
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateAdministratorAddress(
+            location,
+            entityId,
+            newPrimaryId,
+            {
+              address: newPrimary.address,
+              postalCode: newPrimary.postalCode,
+              city: newPrimary.city,
+              cityId: newPrimary.cityId,
+              provinceId: newPrimary.provinceId,
+              countryId: newPrimary.countryId,
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary address");
+            updateAddresses(addresses);
+            return;
+          }
+
+          // Then update all other addresses to non-primary
+          const otherAddresses = addresses.filter((a) => a.id !== newPrimary.id);
+          if (otherAddresses.length > 0) {
+            await Promise.all(
+              otherAddresses.map((address) => {
+                const addressId = Number(address.id);
+                return updateAdministratorAddress(
+                  location,
+                  entityId,
+                  addressId,
+                  {
+                    address: address.address,
+                    postalCode: address.postalCode,
+                    city: address.city,
+                    cityId: address.cityId,
+                    provinceId: address.provinceId,
+                    countryId: address.countryId,
+                    label: address.label,
+                    isPrimary: false,
+                  }
+                );
+              })
+            );
+          }
+
+          // API returns single object, not array - keep the reordered state as is
+          // The local state is already correct from the optimistic update
+          toast.success(newPrimaryResult.message || "Primary address updated successfully");
+        } catch (error) {
+          console.error("Error updating primary address:", error);
+          toast.error("Failed to update primary address");
+          updateAddresses(addresses);
+        }
+      }
+    },
+    [addresses, location, entityId, updateAddresses]
+  );
+
   return {
     editingAddress,
     addressToDelete,
@@ -303,6 +516,7 @@ export function useAddressHandlers({
     handleDeleteConfirm,
     requestDelete,
     isDeleting,
+    handleReorder,
   };
 }
 

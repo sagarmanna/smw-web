@@ -66,6 +66,7 @@ function transformApiResponse(apiResponse: AdministratorDetailsApiResponse): Adm
       number: phone?.number ?? '',
       extension: phone?.extension ? String(phone.extension).trim() || undefined : undefined,
       note: phone?.note?.trim() || undefined,
+      isPrimary: phone?.isPrimary ?? false,
     })),
     addresses: (body?.addresses ?? []).map((address) => ({
       id: address?.id?.toString() ?? '',
