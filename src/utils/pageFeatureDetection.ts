@@ -18,6 +18,19 @@ export const getCurrentPageFeature = (pathname: string): string => {
     return 'items';
   }
   
+  // Special handling for 'item-category' and 'item-categories' - distinguish between report item-category and admin item-categories
+  if (pageSlug === 'item-category') {
+    // If second-to-last segment is 'report', it's the report item-category page
+    if (secondToLast === 'report') {
+      return 'itemCategory'; // Report item category
+    }
+  }
+  
+  if (pageSlug === 'item-categories') {
+    // Admin item-categories page
+    return 'adminItemCategory';
+  }
+  
   const slugToFeatureMap: { [key: string]: string } = {
     'dashboard': 'dashboard',
     'schedule': 'schedule',
@@ -26,7 +39,6 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'student-birthday': 'birthdays',
     'payment': 'paymentsReport',
     'rental': 'rental',
-    'item-category': 'itemCategory',
     'discount': 'discount',
     'sales-and-payment': 'salesAndPayment',
     'all-locations': 'allLocations',
@@ -43,6 +55,13 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'unscheduled-lessons': 'unscheduledLessons',
     'private-lessons': 'privateLessons',
     'timeline': 'timeline',
+    'administrators': 'administrators',
+    'programs': 'programs',
+    'cities': 'cities',
+    'provinces': 'provinces',
+    'countries': 'countries',
+    'taxes': 'taxes',
+    'calendar-event-color': 'colorCode',
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -61,7 +80,6 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     paymentsReport: `/report/payment`,
     reportItems: `/report/items`,
     rental: `/report/rental`,
-    itemCategory: `/report/item-category`,
     discount: `/report/discount`,
     salesAndPayment: `/report/sales-and-payment`,
     allLocations: `/report/all-locations`,
@@ -79,6 +97,15 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     privateLessons: '', // Will be handled dynamically below
     timeline: `/timeline-event/index`,
     items: `/item/index?ItemSearch%5BshowAllItems%5D=0`,
+    administrators: `/user/index?UserSearch%5Brole_name%5D=administrator`,
+    programs: `/program/index`,
+    cities: `/city/index`,
+    provinces: `/province/index`,
+    countries: `/country/index`,
+    taxes: `/tax-code/index`,
+    colorCode: `/calendar-event-color/edit`,
+    itemCategory: `/report/item-category`, // Report item category
+    adminItemCategory: `/item-category/index`, // Admin item category
   };
     
   // Handle privateLessons with dynamic date range
