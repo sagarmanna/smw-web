@@ -109,6 +109,38 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     pattern: /^\/[^/]+\/items$/, // Matches /[location]/items (main items page, not report)
     legacyUrl: '/item/index?ItemSearch%5BshowAllItems%5D=0'
   },
+  {
+    pattern: /^\/[^/]+\/administrators$/, // Matches /[location]/administrators
+    legacyUrl: '/user/index?UserSearch%5Brole_name%5D=administrator'
+  },
+  {
+    pattern: /^\/[^/]+\/programs$/, // Matches /[location]/programs
+    legacyUrl: '/program/index'
+  },
+  {
+    pattern: /^\/[^/]+\/cities$/, // Matches /[location]/cities
+    legacyUrl: '/city/index'
+  },
+  {
+    pattern: /^\/[^/]+\/provinces$/, // Matches /[location]/provinces
+    legacyUrl: '/province/index'
+  },
+  {
+    pattern: /^\/[^/]+\/countries$/, // Matches /[location]/countries
+    legacyUrl: '/country/index'
+  },
+  {
+    pattern: /^\/[^/]+\/taxes$/, // Matches /[location]/taxes
+    legacyUrl: '/tax-code/index'
+  },
+  {
+    pattern: /^\/[^/]+\/calendar-event-color$/, // Matches /[location]/calendar-event-color
+    legacyUrl: '/calendar-event-color/edit'
+  },
+  {
+    pattern: /^\/[^/]+\/item-categories$/, // Matches /[location]/item-categories
+    legacyUrl: '/item-category/index'
+  },
 ];
 
 /**
