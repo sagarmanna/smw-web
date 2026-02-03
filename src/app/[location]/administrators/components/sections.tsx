@@ -262,7 +262,7 @@ interface AddressListProps {
   addresses: AdministratorAddress[];
   loading?: boolean;
   onEdit: (e: React.MouseEvent, address: AdministratorAddress) => void;
-  onDelete: (e: React.MouseEvent, id: string) => void;
+  onDelete: (e: React.MouseEvent, id: string, displayLabel?: string) => void;
   onReorder?: (reorderedAddresses: AdministratorAddress[]) => void;
 }
 
@@ -272,7 +272,6 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete, onRe
     province: Array<{ id: number; name: string }>;
     country: Array<{ id: number; name: string }>;
   } | null>(null);
-  const [loadingGeoData, setLoadingGeoData] = React.useState(false);
   // Track if we've already initiated a fetch to prevent duplicate calls
   const hasFetchedRef = React.useRef(false);
 
@@ -298,7 +297,6 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete, onRe
     const fetchGeoData = async () => {
       // Mark as fetching to prevent duplicate calls
       hasFetchedRef.current = true;
-      setLoadingGeoData(true);
       try {
         // Import getGeoData dynamically to avoid circular dependencies
         const { getGeoData } = await import('@/app/[location]/customers/components/AddressCard/address-card.api');
@@ -311,8 +309,6 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete, onRe
         console.error('Error fetching geodata:', error);
         // Reset ref on error so we can retry if needed
         hasFetchedRef.current = false;
-      } finally {
-        setLoadingGeoData(false);
       }
     };
 
@@ -345,6 +341,8 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete, onRe
           </span>
         );
         
+        const formattedAddressForDelete = formatAddressDisplay(address, geoData || undefined);
+
         return (
           <DraggableItemRow
             key={address.id}
@@ -352,7 +350,7 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete, onRe
             label={address.label}
             value={addressDisplay}
             onEdit={onEdit}
-            onDelete={onDelete}
+            onDelete={(e, id) => onDelete(e, id, formattedAddressForDelete)}
             getItemId={(item) => item.id}
             editAriaLabel="Edit address"
             deleteAriaLabel="Delete address"
