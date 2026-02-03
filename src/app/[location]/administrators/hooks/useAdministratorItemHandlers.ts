@@ -26,7 +26,6 @@ export function useEmailHandlers({
   updateEmails,
   location,
   entityId,
-  onRefresh,
 }: UseEmailHandlersProps) {
   const [editingEmail, setEditingEmail] = React.useState<AdministratorEmail | null>(null);
   const [emailToDelete, setEmailToDelete] = React.useState<AdministratorEmail | null>(null);
@@ -108,7 +107,7 @@ export function useEmailHandlers({
       setIsDeleting(false);
       setEmailToDelete(null);
     }
-  }, [emailToDelete, location, entityId, updateEmails, onRefresh]);
+  }, [emailToDelete, location, entityId, updateEmails]);
 
   const handleReorder = React.useCallback(
     async (reorderedEmails: AdministratorEmail[]) => {
@@ -204,7 +203,6 @@ export function usePhoneHandlers({
   updatePhones,
   location,
   entityId,
-  onRefresh,
 }: UsePhoneHandlersProps) {
   const [editingPhone, setEditingPhone] = React.useState<AdministratorPhone | null>(null);
   const [phoneToDelete, setPhoneToDelete] = React.useState<AdministratorPhone | null>(null);
@@ -366,10 +364,10 @@ export function useAddressHandlers({
   updateAddresses,
   location,
   entityId,
-  onRefresh,
 }: UseAddressHandlersProps) {
   const [editingAddress, setEditingAddress] = React.useState<AdministratorAddress | null>(null);
   const [addressToDelete, setAddressToDelete] = React.useState<AdministratorAddress | null>(null);
+  const [addressToDeleteDisplayLabel, setAddressToDeleteDisplayLabel] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCreate = React.useCallback(
@@ -393,13 +391,19 @@ export function useAddressHandlers({
   }, []);
 
   const requestDelete = React.useCallback(
-    (id: string) => {
+    (id: string, displayLabel?: string) => {
       const address = addresses.find((a) => a.id === id);
       if (!address) return;
       setAddressToDelete(address);
+      setAddressToDeleteDisplayLabel(displayLabel ?? null);
     },
     [addresses]
   );
+
+  const clearAddressToDelete = React.useCallback(() => {
+    setAddressToDelete(null);
+    setAddressToDeleteDisplayLabel(null);
+  }, []);
 
   const handleDeleteConfirm = React.useCallback(async () => {
     if (!addressToDelete || !entityId) return;
@@ -429,6 +433,7 @@ export function useAddressHandlers({
     } finally {
       setIsDeleting(false);
       setAddressToDelete(null);
+      setAddressToDeleteDisplayLabel(null);
     }
   }, [addressToDelete, location, entityId, updateAddresses]);
 
@@ -511,6 +516,8 @@ export function useAddressHandlers({
     addressToDelete,
     setEditingAddress,
     setAddressToDelete,
+    addressToDeleteDisplayLabel,
+    clearAddressToDelete,
     handleCreate,
     handleEdit,
     handleDeleteConfirm,

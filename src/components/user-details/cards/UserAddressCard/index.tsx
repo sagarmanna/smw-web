@@ -28,7 +28,7 @@ interface UserAddressCardProps<TAddress extends GenericAddress> {
     addresses: TAddress[];
     loading?: boolean;
     onEdit: (e: React.MouseEvent, address: TAddress) => void;
-    onDelete: (e: React.MouseEvent, id: string) => void;
+    onDelete: (e: React.MouseEvent, id: string, displayLabel?: string) => void;
     onReorder?: (reorderedAddresses: TAddress[]) => void;
   }>;
   useAddressHandlers: (props: {
@@ -42,9 +42,11 @@ interface UserAddressCardProps<TAddress extends GenericAddress> {
     setEditingAddress: (address: TAddress | null) => void;
     handleCreate: (address: TAddress) => void;
     handleEdit: (address: TAddress) => void;
-    requestDelete: (id: string) => void;
+    requestDelete: (id: string, displayLabel?: string) => void;
     addressToDelete: TAddress | null;
     setAddressToDelete: (address: TAddress | null) => void;
+    addressToDeleteDisplayLabel?: string | null;
+    clearAddressToDelete?: () => void;
     handleDeleteConfirm: () => Promise<void>;
     isDeleting: boolean;
     handleReorder?: (reorderedAddresses: TAddress[]) => void;
@@ -72,6 +74,8 @@ export function UserAddressCard<TAddress extends GenericAddress>({
     requestDelete,
     addressToDelete,
     setAddressToDelete,
+    addressToDeleteDisplayLabel,
+    clearAddressToDelete,
     handleDeleteConfirm,
     isDeleting,
     handleReorder,
@@ -98,9 +102,9 @@ export function UserAddressCard<TAddress extends GenericAddress>({
   );
 
   const handleDeleteClick = React.useCallback(
-    (e: React.MouseEvent, id: string) => {
+    (e: React.MouseEvent, id: string, displayLabel?: string) => {
       e.stopPropagation();
-      requestDelete(id);
+      requestDelete(id, displayLabel);
     },
     [requestDelete]
   );
@@ -166,13 +170,16 @@ export function UserAddressCard<TAddress extends GenericAddress>({
         open={!!addressToDelete}
         onOpenChange={(open) => {
           if (!open) {
-            setAddressToDelete(null);
+            if (clearAddressToDelete) clearAddressToDelete();
+            else setAddressToDelete(null);
           }
         }}
         title="Delete address"
         description={
-          fullAddressLabel ? (
-            <p className="text-sm text-muted-foreground whitespace-pre-line">{fullAddressLabel}</p>
+          (addressToDeleteDisplayLabel ?? fullAddressLabel) ? (
+            <p className="text-sm text-muted-foreground whitespace-pre-line">
+              {addressToDeleteDisplayLabel ?? fullAddressLabel}
+            </p>
           ) : undefined
         }
         onConfirm={handleDeleteConfirm}
