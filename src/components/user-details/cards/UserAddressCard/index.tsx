@@ -119,6 +119,19 @@ export function UserAddressCard<TAddress extends GenericAddress>({
     setEditingAddress(null);
   }, [setEditingAddress]);
 
+  // Build full address string for delete confirmation (matches card display)
+  const fullAddressLabel = React.useMemo(() => {
+    if (!addressToDelete) return undefined;
+    const a = addressToDelete;
+    const province = a.province?.trim() || "";
+    const country = a.country?.trim() || "";
+    const postalPart = a.postalCode?.trim() ? ` - ${a.postalCode}` : "";
+    const line2 = [a.city, province].filter(Boolean).join(", ");
+    const line3 = country ? `${country}${postalPart}` : postalPart ? postalPart.slice(3) : "";
+    const lines = [a.address, line2, line3].filter(Boolean);
+    return lines.join("\n");
+  }, [addressToDelete]);
+
   return (
     <>
       <InfoCard
@@ -157,7 +170,11 @@ export function UserAddressCard<TAddress extends GenericAddress>({
           }
         }}
         title="Delete address"
-        itemLabel={addressToDelete ? addressToDelete.address : undefined}
+        description={
+          fullAddressLabel ? (
+            <p className="text-sm text-muted-foreground whitespace-pre-line">{fullAddressLabel}</p>
+          ) : undefined
+        }
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
       />
