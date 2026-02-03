@@ -119,7 +119,7 @@ export function ReminderNotesTable({
             {notes.map((note) => {
               const sanitized = sanitizeHtml(note.html);
               return (
-                <TableRow key={note.id}>
+                <TableRow key={note.id} className="hover:bg-primary/10 transition-colors duration-150">
                   <TableCell className="align-top px-4 py-4">
                     <div
                       className="prose prose-sm max-w-none dark:prose-invert [&_p]:mb-2 [&_p:last-child]:mb-0 [&_p]:leading-relaxed [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:mb-1 [&_mark]:rounded [&_mark]:px-0.5"
