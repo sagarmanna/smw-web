@@ -20,12 +20,20 @@ export function useProvinceListing(location: string) {
     (
       page: number,
       pageSize: number,
-      columnFilters: Record<string, unknown>
+      columnFilters: Record<string, unknown>,
+      _activeFilter: string | undefined,
+      sortBy: string | undefined,
+      sortDir: "asc" | "desc"
     ): ProvincesQuery => {
+      const sort = (sortBy as ProvincesQuery["sort"]) || "name";
+      const order: ProvincesQuery["order"] = sortDir === "desc" ? "DESC" : "ASC";
+
       return {
         page,
         limit: pageSize,
         name: columnFilters.name as string | undefined,
+        sort,
+        order,
       };
     },
     []
@@ -53,6 +61,8 @@ export function useProvinceListing(location: string) {
     },
     buildQuery,
     location,
+    defaultSortField: "name",
+    defaultSortDir: "asc",
   });
 }
 

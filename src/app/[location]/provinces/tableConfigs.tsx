@@ -24,12 +24,14 @@ export const provinceColumns: ColumnDef<ProvinceRow>[] = [
     cell: ({ row }: { row: { original: ProvinceRow } }) => (
       <span className="text-sm">{Number.isFinite(row.original.taxRate) ? row.original.taxRate : ""}</span>
     ),
+    enableSorting: false,
     meta: { printable: true, printableName: "Tax Rate (%)" },
   },
   {
     accessorKey: "country",
     header: () => <span>Country</span>,
     cell: ({ row }: { row: { original: ProvinceRow } }) => <span className="text-sm">{row.original.country || ""}</span>,
+    enableSorting: false,
     meta: { printable: true, printableName: "Country" },
   },
 ];

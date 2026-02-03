@@ -22,6 +22,8 @@ export interface ProvincesQuery {
   page?: number;
   limit?: number;
   name?: string;
+  sort?: "name";
+  order?: "ASC" | "DESC";
 }
 
 export type ProvincesListResponse = StandardListResponse<ProvinceRow>;
@@ -65,7 +67,9 @@ const provincesApi = createCrudApi<ProvinceRow, ProvincesQuery, CreateProvinceRe
     if (query.page !== undefined) params.page = query.page;
     if (query.limit !== undefined) params.limit = query.limit === -1 ? FETCH_ALL_LIMIT : query.limit;
     if (query.name) params.name = query.name;
-    // IMPORTANT: backend may reject unknown query keys (400 BAD_REQUEST)
+    // Server-side sorting
+    params.sort = query.sort || "name";
+    params.order = query.order || "ASC";
     return params;
   },
 });
