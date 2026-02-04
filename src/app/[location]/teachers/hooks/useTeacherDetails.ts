@@ -8,7 +8,6 @@ import {
   updateEmails, 
   updatePhones, 
   updateAddresses, 
-  updateProfile,
   updatePrivateQualifications,
   updateGroupQualifications,
   fetchTeacher,
@@ -112,19 +111,14 @@ export function useTeacherDetails(
           })
         ).unwrap();
 
-        // Update local Redux state with the new profile data
-        dispatch(updateProfile(next));
-        
-        // Refresh data from server to ensure consistency
-        await refresh();
-        
+        // Profile updated from API response in updateTeacher.fulfilled. No extra GET per rule.
         return true;
       } catch (err) {
         console.error("Failed to save teacher details:", err);
         return false;
       }
     },
-    [dispatch, location, teacherId, refresh]
+    [dispatch, location, teacherId]
   );
 
   const handleUpdateEmails = React.useCallback(

@@ -12,8 +12,10 @@ import { parse, format, isValid } from "date-fns";
  */
 export function formatDisplayDate(value?: string): string {
   if (!value) return "N/A";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
+  // Use convertToDate so YYYY-MM-DD strings are parsed as local calendar dates
+  // and don't shift by one day in timezones behind UTC
+  const date = convertToDate(value);
+  if (!date) return "N/A";
 
   return date.toLocaleDateString("en-US", {
     year: "numeric",

@@ -5,6 +5,7 @@ import {
   getTeacherQualifications,
   TeacherQualificationsApiResponse,
   TeacherQualificationResponse,
+  TeacherProfileResponse,
   updateTeacherProfile
 } from './teachers-details.api';
 import type { TeacherInfo } from './teachers-details.interface';
@@ -190,11 +191,18 @@ export const fetchTeacher = createAsyncThunk(
   }
 );
 
+// Payload returned on success: use API response so UI shows server format (e.g. birthDate "Jan 01, 1989")
+export type UpdateTeacherFulfilledPayload = { profileFromApi: TeacherProfileResponse };
+
 // Async thunk for updating teacher details
-export const updateTeacher = createAsyncThunk(
+export const updateTeacher = createAsyncThunk<
+  UpdateTeacherFulfilledPayload,
+  { location: string; teacherId: number; data: UpdateTeacherDetailsData },
+  { rejectValue: string }
+>(
   'teacher/updateTeacher',
   async (
-    { location, teacherId, data }: { location: string; teacherId: number; data: UpdateTeacherDetailsData },
+    { location, teacherId, data },
     { rejectWithValue }
   ) => {
     try {
@@ -204,11 +212,10 @@ export const updateTeacher = createAsyncThunk(
         birthDate: data.birthDate,
       });
 
-      if (response?.success) {
-        return data;
-      } else {
-        throw new Error(response?.message || 'Failed to update teacher details');
+      if (response?.success && response?.data) {
+        return { profileFromApi: response.data };
       }
+      throw new Error(response?.message || 'Failed to update teacher details');
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update teacher details');
     }
@@ -362,13 +369,15 @@ const teacherSlice = createSlice({
         state.isSaving = true;
         state.error = null;
       })
-      .addCase(updateTeacher.fulfilled, (state, action: PayloadAction<UpdateTeacherDetailsData>) => {
+      .addCase(updateTeacher.fulfilled, (state, action: PayloadAction<UpdateTeacherFulfilledPayload>) => {
         state.isSaving = false;
-        if (state.teacherInfo) {
+        if (state.teacherInfo && action.payload.profileFromApi) {
+          const api = action.payload.profileFromApi;
           state.teacherInfo.profile = {
             ...state.teacherInfo.profile,
-            name: `${action.payload.firstName} ${action.payload.lastName}`,
-            birthDate: action.payload.birthDate || state.teacherInfo.profile.birthDate,
+            name: api.name,
+            role: api.role,
+            birthDate: api.birthDate ?? state.teacherInfo.profile.birthDate,
           };
         }
         state.error = null;
