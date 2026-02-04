@@ -20,6 +20,7 @@ export interface StaffMemberPhone {
   number: string;
   extension?: string;
   note?: string;
+  isPrimary?: boolean;
 }
 
 export interface StaffMemberAddress {

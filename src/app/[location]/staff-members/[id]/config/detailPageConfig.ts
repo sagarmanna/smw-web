@@ -2,6 +2,7 @@ import { createStaffMemberApiAdapter } from '../../adapters/apiAdapter';
 import { staffMemberDataAdapter } from '../../adapters/dataAdapter';
 import { StaffMemberBasicDetails, StaffMemberEmail, StaffMemberPhone, StaffMemberAddress } from '../../types';
 import { deleteUserByRole } from '@/lib/api/user.api';
+import { validateStaffMemberEmail } from '../staff-members-details.api';
 import type { RootState } from '@/redux/store';
 
 /**
@@ -28,9 +29,8 @@ export function createStaffMemberDetailPageConfig(getState?: () => RootState) {
     deleteEndpoint: async (location: string, id: number) => {
       return await deleteUserByRole(location, id, 'staffmember');
     },
-    validateEmail: async () => {
-      // Email validation API not ready
-      return { success: false, data: { exists: false }, message: 'Email validation API not ready' };
+    validateEmail: async (location: string, email: string) => {
+      return await validateStaffMemberEmail(location, email);
     },
   } as const;
 }

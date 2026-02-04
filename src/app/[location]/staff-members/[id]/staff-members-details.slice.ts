@@ -51,8 +51,9 @@ function transformApiResponse(apiResponse: StaffMemberDetailsApiResponse): Staff
       id: phone.id.toString(),
       label: phone.label,
       number: phone.number,
-      extension: phone.extension?.trim() || undefined,
+      extension: phone.extension != null ? String(phone.extension).trim() || undefined : undefined,
       note: phone.note?.trim() || undefined,
+      isPrimary: phone.isPrimary,
     })),
     addresses: body.addresses.map((address) => ({
       id: address.id.toString(),

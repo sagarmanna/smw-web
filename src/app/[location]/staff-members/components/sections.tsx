@@ -5,6 +5,8 @@ import { KeyValueDisplay } from "@/components/KeyValueDisplay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2 } from "lucide-react";
+import { DraggableItemRow } from "@/components/DraggableItemRow";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import {
   StaffMemberAddress,
   StaffMemberEmail,
@@ -106,9 +108,22 @@ interface EmailListProps {
   loading?: boolean;
   onEdit: (e: React.MouseEvent, email: StaffMemberEmail) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
+  onReorder?: (reorderedEmails: StaffMemberEmail[]) => void;
 }
 
-export function EmailList({ emails, loading = false, onEdit, onDelete }: EmailListProps) {
+export function EmailList({ emails, loading = false, onEdit, onDelete, onReorder }: EmailListProps) {
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<StaffMemberEmail>({
+    items: emails,
+    onReorder: onReorder,
+    getItemId: (email) => email.id,
+  });
+
   if (loading) {
     return <ItemListSkeleton />;
   }
@@ -119,8 +134,8 @@ export function EmailList({ emails, loading = false, onEdit, onDelete }: EmailLi
 
   return (
     <>
-      {emails.map((email) => (
-        <ItemRow
+      {emails.map((email, index) => (
+        <DraggableItemRow
           key={email.id}
           item={email}
           label={email.label}
@@ -139,6 +154,12 @@ export function EmailList({ emails, loading = false, onEdit, onDelete }: EmailLi
           getItemId={(item) => item.id}
           editAriaLabel="Edit email"
           deleteAriaLabel="Delete email"
+          draggable={true}
+          onDragStart={(e) => handleDragStart(e, email)}
+          onDragOver={(e) => handleDragOver(e, email, index)}
+          onDrop={(e) => handleDrop(e, email, index)}
+          isDragging={isDragging(email)}
+          isDragOver={isDragOver(email, index)}
         />
       ))}
     </>
@@ -162,9 +183,22 @@ interface PhoneListProps {
   loading?: boolean;
   onEdit: (e: React.MouseEvent, phone: StaffMemberPhone) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
+  onReorder?: (reorderedPhones: StaffMemberPhone[]) => void;
 }
 
-export function PhoneList({ phones, loading = false, onEdit, onDelete }: PhoneListProps) {
+export function PhoneList({ phones, loading = false, onEdit, onDelete, onReorder }: PhoneListProps) {
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<StaffMemberPhone>({
+    items: phones,
+    onReorder: onReorder,
+    getItemId: (phone) => phone.id,
+  });
+
   if (loading) {
     return <ItemListSkeleton />;
   }
@@ -175,17 +209,32 @@ export function PhoneList({ phones, loading = false, onEdit, onDelete }: PhoneLi
 
   return (
     <>
-      {phones.map((phone) => (
-        <ItemRow
+      {phones.map((phone, index) => (
+        <DraggableItemRow
           key={phone.id}
           item={phone}
           label={phone.label}
-          value={formatPhoneDisplay(phone)}
+          value={
+            <span className="flex items-center gap-2">
+              {formatPhoneDisplay(phone)}
+              {phone.isPrimary && (
+                <Badge variant="secondary" className="text-xs">
+                  Primary
+                </Badge>
+              )}
+            </span>
+          }
           onEdit={onEdit}
           onDelete={onDelete}
           getItemId={(item) => item.id}
           editAriaLabel="Edit phone"
           deleteAriaLabel="Delete phone"
+          draggable={true}
+          onDragStart={(e) => handleDragStart(e, phone)}
+          onDragOver={(e) => handleDragOver(e, phone, index)}
+          onDrop={(e) => handleDrop(e, phone, index)}
+          isDragging={isDragging(phone)}
+          isDragOver={isDragOver(phone, index)}
         />
       ))}
     </>
@@ -202,7 +251,9 @@ export function formatAddressDisplay(
   const country = geoData?.country.find(c => c.id === address.countryId)?.name || address.country || 'Canada';
   
   // Build the full address value with line breaks (same format as customer AddressCard)
-  const addressValue = `${address.address}\n${address.city}, ${province}\n${country} - ${address.postalCode}`;
+  // Only show postal code with dash if it exists
+  const postalCodePart = address.postalCode?.trim() ? ` - ${address.postalCode}` : '';
+  const addressValue = `${address.address}\n${address.city}, ${province}\n${country}${postalCodePart}`;
   
   return addressValue;
 }
@@ -211,18 +262,30 @@ interface AddressListProps {
   addresses: StaffMemberAddress[];
   loading?: boolean;
   onEdit: (e: React.MouseEvent, address: StaffMemberAddress) => void;
-  onDelete: (e: React.MouseEvent, id: string) => void;
+  onDelete: (e: React.MouseEvent, id: string, displayLabel?: string) => void;
+  onReorder?: (reorderedAddresses: StaffMemberAddress[]) => void;
 }
 
-export function AddressList({ addresses, loading = false, onEdit, onDelete }: AddressListProps) {
+export function AddressList({ addresses, loading = false, onEdit, onDelete, onReorder }: AddressListProps) {
   const [geoData, setGeoData] = React.useState<{
     city: Array<{ id: number; name: string }>;
     province: Array<{ id: number; name: string }>;
     country: Array<{ id: number; name: string }>;
   } | null>(null);
-  const [loadingGeoData, setLoadingGeoData] = React.useState(false);
   // Track if we've already initiated a fetch to prevent duplicate calls
   const hasFetchedRef = React.useRef(false);
+
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    isDragging,
+    isDragOver,
+  } = useDragAndDrop<StaffMemberAddress>({
+    items: addresses,
+    onReorder: onReorder,
+    getItemId: (address) => address.id,
+  });
 
   // Only fetch geodata when addresses exist and we haven't fetched yet
   React.useEffect(() => {
@@ -234,7 +297,6 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
     const fetchGeoData = async () => {
       // Mark as fetching to prevent duplicate calls
       hasFetchedRef.current = true;
-      setLoadingGeoData(true);
       try {
         // Import getGeoData dynamically to avoid circular dependencies
         const { getGeoData } = await import('@/app/[location]/customers/components/AddressCard/address-card.api');
@@ -247,8 +309,6 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
         console.error('Error fetching geodata:', error);
         // Reset ref on error so we can retry if needed
         hasFetchedRef.current = false;
-      } finally {
-        setLoadingGeoData(false);
       }
     };
 
@@ -265,26 +325,41 @@ export function AddressList({ addresses, loading = false, onEdit, onDelete }: Ad
 
   return (
     <>
-      {addresses.map((address) => {
+      {addresses.map((address, index) => {
         // Build the full address value with line breaks (same format as customer AddressCard)
         const addressValue = formatAddressDisplay(address, geoData || undefined);
         
         // Render address value with line breaks (convert \n to <br />)
         const addressDisplay = (
-          <span className="whitespace-pre-line">{addressValue}</span>
+          <span className="whitespace-pre-line flex items-center gap-2">
+            <span>{addressValue}</span>
+            {address.isPrimary && (
+              <Badge variant="secondary" className="text-xs">
+                Primary
+              </Badge>
+            )}
+          </span>
         );
         
+        const formattedAddressForDelete = formatAddressDisplay(address, geoData || undefined);
+
         return (
-          <ItemRow
+          <DraggableItemRow
             key={address.id}
             item={address}
             label={address.label}
             value={addressDisplay}
             onEdit={onEdit}
-            onDelete={onDelete}
+            onDelete={(e, id) => onDelete(e, id, formattedAddressForDelete)}
             getItemId={(item) => item.id}
             editAriaLabel="Edit address"
             deleteAriaLabel="Delete address"
+            draggable={true}
+            onDragStart={(e) => handleDragStart(e, address)}
+            onDragOver={(e) => handleDragOver(e, address, index)}
+            onDrop={(e) => handleDrop(e, address, index)}
+            isDragging={isDragging(address)}
+            isDragOver={isDragOver(address, index)}
           />
         );
       })}
