@@ -2,12 +2,15 @@ import { UserDetailsApiAdapter } from '@/components/user-details/types/adapters'
 import { OwnerBasicDetails, OwnerEmail, OwnerPhone, OwnerAddress } from '../types';
 import * as ownerApi from '../[id]/owners-details.api';
 
-export const ownerApiAdapter: UserDetailsApiAdapter<
-  OwnerBasicDetails,
-  OwnerEmail,
-  OwnerPhone,
-  OwnerAddress
-> = {
+/**
+ * Creates the owner API adapter with optional Redux state access.
+ * This allows fetchEmails/fetchPhones/fetchAddresses to use Redux state
+ * instead of making additional GET requests after the initial load.
+ */
+export function createOwnerApiAdapter(
+  getStateFn?: () => { ownerInfo: { email?: OwnerEmail[]; phone?: OwnerPhone[]; addresses?: OwnerAddress[] } | null }
+): UserDetailsApiAdapter<OwnerBasicDetails, OwnerEmail, OwnerPhone, OwnerAddress> {
+  return {
   fetchDetails: async (location, id) => {
     const response = await ownerApi.getOwnerDetails(location, id);
     if (!response?.success || !response.data?.body?.profile) {
@@ -32,6 +35,13 @@ export const ownerApiAdapter: UserDetailsApiAdapter<
   },
 
   fetchEmails: async (location, id) => {
+    // Prefer Redux state if available to avoid extra GET calls
+    if (getStateFn) {
+      const state = getStateFn();
+      if (state?.ownerInfo?.email) {
+        return state.ownerInfo.email;
+      }
+    }
     const response = await ownerApi.getOwnerDetails(location, id);
     if (!response?.success || !response.data?.body?.email) {
       return [];
@@ -52,10 +62,21 @@ export const ownerApiAdapter: UserDetailsApiAdapter<
       note: email.note,
       isPrimary: email.isPrimary ?? false,
     });
-    if (!response?.success || !response.data || response.data.length === 0) {
+    if (!response?.success) {
       throw new Error(response?.message || 'Failed to create email');
     }
-    const created = response.data[response.data.length - 1];
+    // API may return data as object (single email) or array
+    let created: { id: number; email: string; label: string; note?: string; isPrimary?: boolean };
+    if (Array.isArray(response.data)) {
+      if (response.data.length === 0) {
+        throw new Error(response?.message || 'Failed to create email');
+      }
+      created = response.data[response.data.length - 1];
+    } else if (response.data && typeof response.data === 'object' && 'id' in response.data) {
+      created = response.data as typeof created;
+    } else {
+      throw new Error(response?.message || 'Failed to create email');
+    }
     return {
       id: created.id.toString(),
       label: created.label,
@@ -81,6 +102,12 @@ export const ownerApiAdapter: UserDetailsApiAdapter<
   },
 
   fetchPhones: async (location, id) => {
+    if (getStateFn) {
+      const state = getStateFn();
+      if (state?.ownerInfo?.phone) {
+        return state.ownerInfo.phone;
+      }
+    }
     const response = await ownerApi.getOwnerDetails(location, id);
     if (!response?.success || !response.data?.body?.phone) {
       return [];
@@ -102,10 +129,20 @@ export const ownerApiAdapter: UserDetailsApiAdapter<
       note: phone.note,
       isPrimary: false,
     });
-    if (!response?.success || !response.data || response.data.length === 0) {
+    if (!response?.success) {
       throw new Error(response?.message || 'Failed to create phone');
     }
-    const created = response.data[response.data.length - 1];
+    let created: { id: number; number: string; label: string; extension?: string; note?: string };
+    if (Array.isArray(response.data)) {
+      if (response.data.length === 0) {
+        throw new Error(response?.message || 'Failed to create phone');
+      }
+      created = response.data[response.data.length - 1];
+    } else if (response.data && typeof response.data === 'object' && 'id' in response.data) {
+      created = response.data as typeof created;
+    } else {
+      throw new Error(response?.message || 'Failed to create phone');
+    }
     return {
       id: created.id.toString(),
       label: created.label,
@@ -132,6 +169,12 @@ export const ownerApiAdapter: UserDetailsApiAdapter<
   },
 
   fetchAddresses: async (location, id) => {
+    if (getStateFn) {
+      const state = getStateFn();
+      if (state?.ownerInfo?.addresses) {
+        return state.ownerInfo.addresses;
+      }
+    }
     const response = await ownerApi.getOwnerDetails(location, id);
     if (!response?.success || !response.data?.body?.addresses) {
       return [];
@@ -162,10 +205,21 @@ export const ownerApiAdapter: UserDetailsApiAdapter<
       label: address.label,
       isPrimary: address.isPrimary ?? false,
     });
-    if (!response?.success || !response.data || response.data.length === 0) {
+    if (!response?.success) {
       throw new Error(response?.message || 'Failed to create address');
     }
-    const created = response.data[response.data.length - 1];
+    type CreatedAddress = { id: number; address: string; city: string; postalCode: string; label: string; province?: string; country?: string; isPrimary?: boolean };
+    let created: CreatedAddress;
+    if (Array.isArray(response.data)) {
+      if (response.data.length === 0) {
+        throw new Error(response?.message || 'Failed to create address');
+      }
+      created = response.data[response.data.length - 1];
+    } else if (response.data && typeof response.data === 'object' && 'id' in response.data) {
+      created = response.data as CreatedAddress;
+    } else {
+      throw new Error(response?.message || 'Failed to create address');
+    }
     return {
       id: created.id.toString(),
       label: created.label,
@@ -200,4 +254,8 @@ export const ownerApiAdapter: UserDetailsApiAdapter<
     return response?.success ?? false;
   },
 };
+}
+
+// Default adapter without Redux state (for backwards compatibility)
+export const ownerApiAdapter = createOwnerApiAdapter();
 

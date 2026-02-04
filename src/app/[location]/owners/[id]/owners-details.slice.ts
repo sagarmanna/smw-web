@@ -22,19 +22,14 @@ interface OwnerState {
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
-  lastFetched: number | null;
   currentOwnerId: number | null;
 }
-
-// Cache configuration - data is considered fresh for 5 minutes (300000ms)
-const STALE_TIME_MS = 5 * 60 * 1000;
 
 const initialState: OwnerState = {
   ownerInfo: null,
   isLoading: false,
   isSaving: false,
   error: null,
-  lastFetched: null,
   currentOwnerId: null,
 };
 
@@ -64,6 +59,7 @@ function transformApiResponse(apiResponse: OwnerDetailsApiResponse): OwnerInfo {
       number: phone.number,
       extension: phone.extension || undefined,
       note: phone.note || undefined,
+      isPrimary: phone.isPrimary ?? false,
     })),
     addresses: body.addresses.map((address) => ({
       id: address.id.toString(),
@@ -88,22 +84,9 @@ export const fetchOwner = createAsyncThunk(
   'ownerDetails/fetchOwner',
   async (
     { location, ownerId }: { location: string; ownerId: number },
-    { getState, rejectWithValue }
+    { rejectWithValue }
   ) => {
     try {
-      const state = getState() as { ownerDetails: OwnerState };
-      const { ownerInfo, lastFetched, currentOwnerId } = state.ownerDetails;
-
-      // Check if we have fresh cached data for this owner
-      if (
-        ownerInfo &&
-        currentOwnerId === ownerId &&
-        lastFetched &&
-        Date.now() - lastFetched < STALE_TIME_MS
-      ) {
-        return { ownerInfo, fromCache: true };
-      }
-
       const response = await getOwnerDetails(location, ownerId);
       
       if (!response.success) {
@@ -111,7 +94,7 @@ export const fetchOwner = createAsyncThunk(
       }
 
       const transformedData = transformApiResponse(response);
-      return { ownerInfo: transformedData, fromCache: false };
+      return { ownerInfo: transformedData };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch owner details');
     }
@@ -159,14 +142,10 @@ const ownerDetailsSlice = createSlice({
     clearOwner: (state) => {
       state.ownerInfo = null;
       state.currentOwnerId = null;
-      state.lastFetched = null;
       state.error = null;
     },
     clearError: (state) => {
       state.error = null;
-    },
-    clearCache: (state) => {
-      state.lastFetched = null;
     },
     updateDetails: (state, action: PayloadAction<Partial<OwnerBasicDetails>>) => {
       if (state.ownerInfo) {
@@ -201,7 +180,6 @@ const ownerDetailsSlice = createSlice({
         const { ownerId } = action.meta.arg as { location: string; ownerId: number };
         if (state.currentOwnerId !== null && state.currentOwnerId !== ownerId) {
           state.ownerInfo = null;
-          state.lastFetched = null;
         }
         state.currentOwnerId = ownerId;
         state.isLoading = true;
@@ -210,9 +188,6 @@ const ownerDetailsSlice = createSlice({
       .addCase(fetchOwner.fulfilled, (state, action) => {
         state.isLoading = false;
         state.ownerInfo = action.payload.ownerInfo;
-        if (!action.payload.fromCache) {
-          state.lastFetched = Date.now();
-        }
       })
       .addCase(fetchOwner.rejected, (state, action) => {
         state.isLoading = false;
@@ -242,7 +217,6 @@ const ownerDetailsSlice = createSlice({
 export const { 
   clearOwner, 
   clearError, 
-  clearCache,
   updateDetails,
   updateEmails, 
   updatePhones, 

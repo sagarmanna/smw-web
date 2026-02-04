@@ -20,6 +20,7 @@ export interface OwnerPhone {
   number: string;
   extension?: string;
   note?: string;
+  isPrimary?: boolean;
 }
 
 export interface OwnerAddress {

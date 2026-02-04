@@ -154,6 +154,12 @@ export interface SetPasswordRequest {
   password?: string;
   confirmPassword?: string;
   pin?: number;
+  /**
+   * Optional merge flag for modules that support it (e.g. Owners).
+   * Represented as a numeric flag (0/1) or boolean; omitted for modules
+   * that do not use merge semantics.
+   */
+  merge?: number | boolean;
 }
 
 export interface SetPasswordResponse {

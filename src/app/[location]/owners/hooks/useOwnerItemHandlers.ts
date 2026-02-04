@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { OwnerEmail, OwnerPhone, OwnerAddress } from "../types";
-import { deleteOwnerEmail, deleteOwnerPhone, deleteOwnerAddress } from "../[id]/owners-details.api";
+import {
+  deleteOwnerEmail,
+  deleteOwnerPhone,
+  deleteOwnerAddress,
+  updateOwnerEmail,
+  updateOwnerPhone,
+  updateOwnerAddress,
+} from "../[id]/owners-details.api";
 import { toast } from "sonner";
 
 interface UseEmailHandlersProps {
@@ -84,26 +91,70 @@ export function useEmailHandlers({
       const result = await deleteOwnerEmail(location, effectiveOwnerId, id);
 
       if (result?.success) {
-        toast.success("Email deleted successfully");
-
-        // Update local state
+        toast.success(result.message || "Email deleted successfully");
         updateEmails((prev) => prev.filter((email) => email.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
+        if (onRefresh) await onRefresh();
       } else {
         toast.error(result?.message || "Failed to delete email");
       }
     } catch (error) {
       console.error("Error deleting email:", error);
-      toast.error("Failed to delete email");
+      const errorMessage = (error as { message?: string })?.message || "Failed to delete email";
+      toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
       setEmailToDelete(null);
     }
-  }, [emailToDelete, location, ownerId, updateEmails, onRefresh]);
+  }, [emailToDelete, location, effectiveOwnerId, updateEmails, onRefresh]);
+
+  const handleReorder = React.useCallback(
+    async (reorderedEmails: OwnerEmail[]) => {
+      const newPrimary = reorderedEmails.find((e) => e.isPrimary);
+      const oldPrimary = emails.find((e) => e.isPrimary && e.id !== newPrimary?.id);
+      updateEmails(reorderedEmails);
+      if (newPrimary && newPrimary.id !== oldPrimary?.id && effectiveOwnerId) {
+        try {
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateOwnerEmail(
+            location,
+            effectiveOwnerId,
+            newPrimaryId,
+            {
+              email: newPrimary.email,
+              note: newPrimary.note || "",
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary email");
+            updateEmails(emails);
+            return;
+          }
+          const otherEmails = emails.filter((e) => e.id !== newPrimary.id);
+          if (otherEmails.length > 0) {
+            await Promise.all(
+              otherEmails.map((email) => {
+                const emailId = Number(email.id);
+                return updateOwnerEmail(location, effectiveOwnerId, emailId, {
+                  email: email.email,
+                  note: email.note || "",
+                  label: email.label,
+                  isPrimary: false,
+                });
+              })
+            );
+          }
+          toast.success(newPrimaryResult.message || "Primary email updated successfully");
+        } catch (error) {
+          console.error("Error updating primary email:", error);
+          toast.error("Failed to update primary email");
+          updateEmails(emails);
+        }
+      }
+    },
+    [emails, location, effectiveOwnerId, updateEmails]
+  );
 
   return {
     editingEmail,
@@ -115,6 +166,7 @@ export function useEmailHandlers({
     handleDeleteConfirm,
     requestDelete,
     isDeleting,
+    handleReorder,
   };
 }
 
@@ -179,26 +231,72 @@ export function usePhoneHandlers({
       const result = await deleteOwnerPhone(location, effectiveOwnerId, id);
 
       if (result?.success) {
-        toast.success("Phone deleted successfully");
-
-        // Update local state
+        toast.success(result.message || "Phone deleted successfully");
         updatePhones((prev) => prev.filter((phoneItem) => phoneItem.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
+        if (onRefresh) await onRefresh();
       } else {
         toast.error(result?.message || "Failed to delete phone");
       }
     } catch (error) {
       console.error("Error deleting phone:", error);
-      toast.error("Failed to delete phone");
+      const errorMessage = (error as { message?: string })?.message || "Failed to delete phone";
+      toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
       setPhoneToDelete(null);
     }
   }, [phoneToDelete, location, effectiveOwnerId, updatePhones, onRefresh]);
+
+  const handleReorder = React.useCallback(
+    async (reorderedPhones: OwnerPhone[]) => {
+      const newPrimary = reorderedPhones.find((p) => p.isPrimary);
+      const oldPrimary = phones.find((p) => p.isPrimary && p.id !== newPrimary?.id);
+      updatePhones(reorderedPhones);
+      if (newPrimary && newPrimary.id !== oldPrimary?.id && effectiveOwnerId) {
+        try {
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateOwnerPhone(
+            location,
+            effectiveOwnerId,
+            newPrimaryId,
+            {
+              number: newPrimary.number,
+              extension: newPrimary.extension,
+              note: newPrimary.note || "",
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary phone");
+            updatePhones(phones);
+            return;
+          }
+          const otherPhones = phones.filter((p) => p.id !== newPrimary.id);
+          if (otherPhones.length > 0) {
+            await Promise.all(
+              otherPhones.map((phone) => {
+                const phoneId = Number(phone.id);
+                return updateOwnerPhone(location, effectiveOwnerId, phoneId, {
+                  number: phone.number,
+                  extension: phone.extension,
+                  note: phone.note || "",
+                  label: phone.label,
+                  isPrimary: false,
+                });
+              })
+            );
+          }
+          toast.success(newPrimaryResult.message || "Primary phone updated successfully");
+        } catch (error) {
+          console.error("Error updating primary phone:", error);
+          toast.error("Failed to update primary phone");
+          updatePhones(phones);
+        }
+      }
+    },
+    [phones, location, effectiveOwnerId, updatePhones]
+  );
 
   return {
     editingPhone,
@@ -210,6 +308,7 @@ export function usePhoneHandlers({
     handleDeleteConfirm,
     requestDelete,
     isDeleting,
+    handleReorder,
   };
 }
 
@@ -274,26 +373,78 @@ export function useAddressHandlers({
       const result = await deleteOwnerAddress(location, effectiveOwnerId, id);
 
       if (result?.success) {
-        toast.success("Address deleted successfully");
-
-        // Update local state
+        toast.success(result.message || "Address deleted successfully");
         updateAddresses((prev) => prev.filter((address) => address.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
+        if (onRefresh) await onRefresh();
       } else {
         toast.error(result?.message || "Failed to delete address");
       }
     } catch (error) {
       console.error("Error deleting address:", error);
-      toast.error("Failed to delete address");
+      const errorMessage = (error as { message?: string })?.message || "Failed to delete address";
+      toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
       setAddressToDelete(null);
     }
   }, [addressToDelete, location, effectiveOwnerId, updateAddresses, onRefresh]);
+
+  const handleReorder = React.useCallback(
+    async (reorderedAddresses: OwnerAddress[]) => {
+      const newPrimary = reorderedAddresses.find((a) => a.isPrimary);
+      const oldPrimary = addresses.find((a) => a.isPrimary && a.id !== newPrimary?.id);
+      updateAddresses(reorderedAddresses);
+      if (newPrimary && newPrimary.id !== oldPrimary?.id && effectiveOwnerId) {
+        try {
+          const newPrimaryId = Number(newPrimary.id);
+          const newPrimaryResult = await updateOwnerAddress(
+            location,
+            effectiveOwnerId,
+            newPrimaryId,
+            {
+              address: newPrimary.address,
+              postalCode: newPrimary.postalCode,
+              city: newPrimary.city,
+              cityId: newPrimary.cityId,
+              provinceId: newPrimary.provinceId,
+              countryId: newPrimary.countryId,
+              label: newPrimary.label,
+              isPrimary: true,
+            }
+          );
+          if (!newPrimaryResult?.success) {
+            toast.error(newPrimaryResult?.message || "Failed to update primary address");
+            updateAddresses(addresses);
+            return;
+          }
+          const otherAddresses = addresses.filter((a) => a.id !== newPrimary.id);
+          if (otherAddresses.length > 0) {
+            await Promise.all(
+              otherAddresses.map((address) => {
+                const addressId = Number(address.id);
+                return updateOwnerAddress(location, effectiveOwnerId, addressId, {
+                  address: address.address,
+                  postalCode: address.postalCode,
+                  city: address.city,
+                  cityId: address.cityId,
+                  provinceId: address.provinceId,
+                  countryId: address.countryId,
+                  label: address.label,
+                  isPrimary: false,
+                });
+              })
+            );
+          }
+          toast.success(newPrimaryResult.message || "Primary address updated successfully");
+        } catch (error) {
+          console.error("Error updating primary address:", error);
+          toast.error("Failed to update primary address");
+          updateAddresses(addresses);
+        }
+      }
+    },
+    [addresses, location, effectiveOwnerId, updateAddresses]
+  );
 
   return {
     editingAddress,
@@ -305,6 +456,7 @@ export function useAddressHandlers({
     handleDeleteConfirm,
     requestDelete,
     isDeleting,
+    handleReorder,
   };
 }
 

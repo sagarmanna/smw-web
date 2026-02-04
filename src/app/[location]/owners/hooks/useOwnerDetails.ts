@@ -8,7 +8,6 @@ import {
   updatePhones, 
   updateAddresses,
   fetchOwner,
-  clearCache,
   updateDetails,
 } from "../[id]/owners-details.slice";
 import { toast } from "sonner";
@@ -28,7 +27,6 @@ type OwnerDetailsHookReturn = {
   phones: OwnerPhone[];
   addresses: OwnerAddress[];
   refresh: () => Promise<void>;
-  forceRefresh: () => Promise<void>;
   saveDetails: (next: OwnerBasicDetails) => Promise<boolean>;
   updatePassword: (password: string, confirmPassword: string) => Promise<boolean>;
   updateEmails: React.Dispatch<React.SetStateAction<OwnerEmail[]>>;
@@ -67,12 +65,6 @@ export function useOwnerDetails(
   const addresses = React.useMemo(() => ownerInfo?.addresses || [], [ownerInfo?.addresses]);
 
   const refresh = React.useCallback(async () => {
-    dispatch(fetchOwner({ location, ownerId }));
-  }, [dispatch, location, ownerId]);
-
-  // Force refresh by clearing cache first
-  const forceRefresh = React.useCallback(async () => {
-    dispatch(clearCache());
     dispatch(fetchOwner({ location, ownerId }));
   }, [dispatch, location, ownerId]);
 
@@ -171,7 +163,6 @@ export function useOwnerDetails(
     phones,
     addresses,
     refresh,
-    forceRefresh,
     saveDetails,
     updatePassword,
     updateEmails: handleUpdateEmails,
