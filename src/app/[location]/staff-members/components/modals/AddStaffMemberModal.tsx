@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { createUserByRole, CreateUserRequest, CreateUserErrorResponse } from "@/lib/api/user.api";
 
 interface AddStaffMemberModalProps {
   isOpen: boolean;
@@ -14,13 +16,14 @@ interface AddStaffMemberModalProps {
   location: string;
 }
 
-export function AddStaffMemberModal({ isOpen, onClose, onSuccess: _onSuccess, location: _location }: AddStaffMemberModalProps) {
+export function AddStaffMemberModal({ isOpen, onClose, onSuccess, location }: AddStaffMemberModalProps) {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
   });
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const resetForm = () => {
@@ -35,13 +38,21 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess: _onSuccess, lo
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Required fields
+    // Required fields - same validation as admin module
     if (!formData.firstName.trim()) {
       newErrors.firstName = "First Name cannot be blank.";
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = "First name must be at least 2 characters";
+    } else if (formData.firstName.trim().length > 255) {
+      newErrors.firstName = "First name must not exceed 255 characters";
     }
 
     if (!formData.lastName.trim()) {
       newErrors.lastName = "Last Name cannot be blank.";
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = "Last name must be at least 2 characters";
+    } else if (formData.lastName.trim().length > 255) {
+      newErrors.lastName = "Last name must not exceed 255 characters";
     }
 
     if (!formData.email.trim()) {
@@ -50,6 +61,8 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess: _onSuccess, lo
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email.trim())) {
         newErrors.email = "Please enter a valid email address";
+      } else if (formData.email.trim().length > 255) {
+        newErrors.email = "Email must not exceed 255 characters";
       }
     }
 
@@ -59,31 +72,73 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess: _onSuccess, lo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
-    // TODO: Implement API call when backend is ready
-    toast.info("Create staff member API is not yet available");
-    resetForm();
-    onClose();
-    // TODO: Call onSuccess callback when API is implemented
-    // _onSuccess?.();
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const payload: CreateUserRequest = {
+        firstname: formData.firstName.trim(),
+        lastname: formData.lastName.trim(),
+        email: formData.email.trim(),
+      };
+
+      const response = await createUserByRole(location, "staffmember", payload);
+
+      toast.success(response.message || "Staff member created successfully!");
+      onSuccess?.();
+      onClose();
+
+      resetForm();
+
+      router.push(`/${location}/staff-members/${response.data.id}`);
+    } catch (error: unknown) {
+      const apiError = error as CreateUserErrorResponse;
+      const errorMessage = apiError.message || "Failed to add staff member";
+
+      toast.error(errorMessage);
+
+      if (apiError.errorCode === "BAD_REQUEST") {
+        console.error("Validation error:", errorMessage);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
-    // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[field];
         return newErrors;
       });
+    }
+
+    if (field === "email") {
+      const trimmedEmail = value.trim();
+      if (trimmedEmail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail)) {
+          setErrors((prev) => ({ ...prev, email: "Please enter a valid email address" }));
+        } else {
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            if (newErrors.email === "Please enter a valid email address") {
+              delete newErrors.email;
+            }
+            return newErrors;
+          });
+        }
+      }
     }
   };
 
@@ -104,7 +159,7 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess: _onSuccess, lo
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="firstName">
-              First Name
+              First Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="firstName"
@@ -121,7 +176,7 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess: _onSuccess, lo
 
           <div className="space-y-2">
             <Label htmlFor="lastName">
-              Last Name
+              Last Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="lastName"
@@ -137,7 +192,9 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess: _onSuccess, lo
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="email">Email (Work)</Label>
+            <Label htmlFor="email">
+              Email (Work) <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="email"
               type="email"

@@ -59,26 +59,6 @@ export interface StaffMembersListResponse {
   };
 }
 
-// Constants for default pagination
-const DEFAULT_PAGINATION = {
-  page: 1,
-  limit: 20,
-  total: 0,
-  totalPages: 1,
-} as const;
-
-/**
- * Helper to create empty response - DRY principle
- */
-const createEmptyStaffMembersResponse = (): StaffMembersListResponse => ({
-  success: false,
-  message: "Failed to fetch staff members",
-  data: {
-    body: [],
-    pagination: { ...DEFAULT_PAGINATION },
-  },
-});
-
 /**
  * Builds URL search parameters from query object
  * Filters out empty values and converts -1 limit to FETCH_ALL_LIMIT
@@ -119,11 +99,11 @@ const buildStaffMembersQueryParams = (query: StaffMembersQuery): URLSearchParams
 
 /**
  * Fetches staff members list from the API with server-side pagination, sorting, and filtering
- * 
+ *
  * @param location - The location slug for the API endpoint
  * @param query - Query parameters including pagination, filters, and sorting options
- * @returns Promise resolving to StaffMembersListResponse on success, or structured error response on failure
- * 
+ * @returns Promise resolving to StaffMembersListResponse on success, or null on error
+ *
  * @example
  * ```typescript
  * const response = await getStaffMembers('maple', {
@@ -138,7 +118,7 @@ const buildStaffMembersQueryParams = (query: StaffMembersQuery): URLSearchParams
 export async function getStaffMembers(
   location: string,
   query: StaffMembersQuery
-): Promise<StaffMembersListResponse> {
+): Promise<StaffMembersListResponse | null> {
   try {
     const params = buildStaffMembersQueryParams(query);
 
@@ -149,12 +129,8 @@ export async function getStaffMembers(
 
     return response.data;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { message?: string } } };
     console.error("Error fetching staff members:", error);
-    const emptyResponse = createEmptyStaffMembersResponse();
-    emptyResponse.message =
-      apiError.response?.data?.message || "Failed to fetch staff members";
-    return emptyResponse;
+    return null;
   }
 }
 
