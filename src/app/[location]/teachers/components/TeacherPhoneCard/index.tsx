@@ -178,7 +178,7 @@ export const TeacherPhoneCard = React.memo(function TeacherPhoneCard({
         location={location}
         teacherId={teacherId}
         onUpdatePhones={onUpdate}
-        onRefresh={onRefresh}
+        currentPhones={phones}
       />
 
       <DeleteConfirmationModal

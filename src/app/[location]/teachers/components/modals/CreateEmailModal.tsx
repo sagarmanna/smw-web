@@ -223,13 +223,14 @@ export function CreateEmailModal({
           )
         : await addTeacherEmail(location, teacherId, baseData);
 
-      if (result?.success && result.data) {
+      const list = Array.isArray(result?.data) ? result.data : [];
+      if (result?.success) {
         toast.success(
           editingEmail ? "Email updated successfully" : "Email added successfully"
         );
 
-        const transformedEmails: TeacherEmail[] = result.data.map(
-          (item: {
+        const transformItem = (
+          item: {
             id: number;
             email: string;
             note?: string;
@@ -240,31 +241,57 @@ export function CreateEmailModal({
               labelId?: number;
               isPrimary?: boolean | number;
             };
-          }) => {
-            // Some teacher endpoints return a nested contact object for label / primary
-            const contact = item.contact || {};
-            const labelMap: Record<number, string> = {
-              1: "Home",
-              2: "Work",
-              3: "Other",
-            };
-
-            return {
-              id: item.id?.toString() || String(item.id),
-              label:
-                contact.label ||
-                labelMap[contact.labelId as number] ||
-                item.label ||
-                "Home",
-              email: item.email,
-              note: item.note || undefined,
-              isPrimary:
-                contact.isPrimary === 1 ||
-                contact.isPrimary === true ||
-                item.isPrimary === true,
-            };
           }
-        );
+        ): TeacherEmail => {
+          const contact = item.contact || {};
+          const labelMap: Record<number, string> = {
+            1: "Home",
+            2: "Work",
+            3: "Other",
+          };
+          return {
+            id: item.id?.toString() || String(item.id),
+            label:
+              contact.label ||
+              labelMap[contact.labelId as number] ||
+              item.label ||
+              "Home",
+            email: item.email,
+            note: item.note || undefined,
+            isPrimary:
+              contact.isPrimary === 1 ||
+              contact.isPrimary === true ||
+              item.isPrimary === true,
+          };
+        };
+
+        let transformedEmails: TeacherEmail[];
+        if (list.length === 1) {
+          const item = transformItem(list[0] as Parameters<typeof transformItem>[0]);
+          if (editingEmail) {
+            transformedEmails = currentEmails.map((e) => (e.id === editingEmail.id ? item : e));
+          } else {
+            transformedEmails = [
+              ...currentEmails.map((e) => ({ ...e, isPrimary: baseData.isPrimary ? false : e.isPrimary })),
+              item,
+            ];
+          }
+        } else if (list.length > 1) {
+          transformedEmails = list.map((i) => transformItem(i as Parameters<typeof transformItem>[0]));
+        } else {
+          if (editingEmail) {
+            transformedEmails = currentEmails.map((e) =>
+              e.id === editingEmail.id
+                ? { ...e, email: baseData.email, note: baseData.note ?? e.note, label: baseData.label, isPrimary: baseData.isPrimary }
+                : e
+            );
+          } else {
+            transformedEmails = [
+              ...currentEmails.map((e) => ({ ...e, isPrimary: baseData.isPrimary ? false : e.isPrimary })),
+              { id: `new-${Date.now()}`, email: baseData.email, note: baseData.note, label: baseData.label, isPrimary: baseData.isPrimary },
+            ];
+          }
+        }
 
         if (onUpdateEmails) {
           onUpdateEmails(transformedEmails);

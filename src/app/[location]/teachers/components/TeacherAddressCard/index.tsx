@@ -184,7 +184,7 @@ export const TeacherAddressCard = React.memo(function TeacherAddressCard({
         location={location}
         teacherId={teacherId}
         onUpdateAddresses={onUpdate}
-        onRefresh={onRefresh}
+        currentAddresses={addresses}
       />
 
       <DeleteConfirmationModal
