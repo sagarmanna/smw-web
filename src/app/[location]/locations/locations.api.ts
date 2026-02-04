@@ -5,7 +5,11 @@
  */
 
 import { apiClient } from "@/lib/api/client";
-import { FETCH_ALL_LIMIT, StandardListResponse } from "@/utils/api/createCrudApi";
+import {
+  FETCH_ALL_LIMIT,
+  StandardListResponse,
+  extractErrorMessage,
+} from "@/utils/api/createCrudApi";
 
 /**
  * Location row structure (best-effort, based on UI needs).
@@ -53,6 +57,29 @@ export interface LocationDetailsResponse {
   data: LocationDetails;
 }
 
+/**
+ * Request body for creating a location
+ * POST /admin/v2/location/create
+ * Matches API snake_case format
+ */
+export interface CreateLocationRequest {
+  name: string;
+  address: string;
+  phone_number: string;
+  email: string;
+  city_id: number;
+  province_id: number;
+  postal_code: string;
+  royaltyValue: number;
+  advertisementValue: number;
+}
+
+export interface CreateLocationResponse {
+  success: boolean;
+  message?: string;
+  data?: { id?: number };
+}
+
 const emptyResponse: LocationsListResponse = {
   success: false,
   message: "Failed to fetch locations",
@@ -97,6 +124,43 @@ export async function getLocations(
     return {
       ...emptyResponse,
       message: apiError.response?.data?.message || emptyResponse.message,
+    };
+  }
+}
+
+/**
+ * Creates a new location
+ * POST /admin/v2/location/create
+ *
+ * @param _location - Unused; endpoint is global. Kept for consistency with modal interface.
+ * @param payload - Location create payload
+ * @returns Promise with success and message
+ */
+export async function createLocation(
+  _location: string,
+  payload: CreateLocationRequest
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await apiClient.post<CreateLocationResponse>(
+      "/admin/v2/location/create",
+      payload
+    );
+
+    if (response.data?.success) {
+      return {
+        success: true,
+        message: response.data.message ?? "Location created successfully",
+      };
+    }
+
+    return {
+      success: false,
+      message: response.data?.message ?? "Failed to create location",
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: extractErrorMessage(error, "Failed to create location"),
     };
   }
 }
