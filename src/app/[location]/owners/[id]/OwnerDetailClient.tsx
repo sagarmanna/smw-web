@@ -33,7 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { EditOwnerLoginModal } from "../components/modals/EditOwnerLoginModal";
-import { setUserPassword, type SetPasswordErrorResponse } from "@/lib/api/user.api";
+import { setUserPassword } from "@/lib/api/user.api";
 
 interface OwnerDetailClientProps {
   location: string;
@@ -110,7 +110,7 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
 
   const handleUpdateLoginCredentials = React.useCallback(async (data: {
     pin?: string;
-    canMerge: boolean;
+    merge: boolean;
     password?: string;
     confirmPassword?: string;
   }) => {
@@ -119,11 +119,14 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
         password?: string;
         confirmPassword?: string;
         pin?: number;
+        merge?: number;
       } = {};
 
-      // Only include PIN if provided
-      if (data.pin && data.pin.trim()) {
-        const pinNumber = parseInt(data.pin.trim(), 10);
+      const trimmedPin = data.pin?.trim();
+
+      // Only include PIN if provided or required by canMerge
+      if (trimmedPin) {
+        const pinNumber = parseInt(trimmedPin, 10);
         if (!isNaN(pinNumber) && pinNumber > 0) {
           requestData.pin = pinNumber;
         }
@@ -135,8 +138,16 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
         requestData.confirmPassword = data.confirmPassword?.trim();
       }
 
-      // Note: canMerge is kept in UI but not sent to API for now
-      // TODO: Add canMerge support when API endpoint is ready
+      // Handle Merge flag (legacy behaviour)
+      if (data.merge) {
+        // When merge is enabled, a valid PIN should already be enforced by the modal.
+        // As an extra safety check, ensure we have a numeric PIN before sending.
+        if (!requestData.pin) {
+          return { success: false, message: "Pin must be no less than 1111" };
+        }
+        // Legacy payload expects a numeric flag for merge
+        requestData.merge = 1;
+      }
 
       // If no data to update, return early
       if (!requestData.pin && !requestData.password) {

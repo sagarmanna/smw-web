@@ -20,7 +20,7 @@ interface EditOwnerLoginModalProps {
   onClose: () => void;
   onSubmit: (data: {
     pin?: string;
-    canMerge: boolean;
+    merge: boolean;
     password?: string;
     confirmPassword?: string;
   }) => Promise<{ success: boolean; message?: string }>;
@@ -63,16 +63,43 @@ export function EditOwnerLoginModal({
     e.preventDefault();
     setError(null);
 
-    // PIN validation - must be numeric if provided
-    if (pin.trim() && !/^\d+$/.test(pin.trim())) {
-      setError("PIN must contain only numbers");
-      return;
-    }
+    const trimmedPin = pin.trim();
 
-    // PIN must not exceed 9999 (max 4 digits)
-    if (pin.trim() && pin.trim().length > 4) {
-      setError("PIN must not exceed 9999");
-      return;
+    // PIN & Can Merge validation
+    if (canMerge) {
+      // When Can Merge is enabled, PIN is required and must be a 4-digit number between 1111 and 9999
+      if (!trimmedPin) {
+        setError("Pin must be no less than 1111");
+        return;
+      }
+
+      if (!/^\d+$/.test(trimmedPin)) {
+        setError("PIN must contain only numbers");
+        return;
+      }
+
+      const pinNumber = parseInt(trimmedPin, 10);
+
+      if (isNaN(pinNumber) || pinNumber < 1111) {
+        setError("Pin must be no less than 1111");
+        return;
+      }
+
+      if (pinNumber > 9999) {
+        setError("Pin must be no greater than 9999");
+        return;
+      }
+    } else if (trimmedPin) {
+      // When Can Merge is not enabled, PIN is optional but if provided it must still be numeric and up to 4 digits (<= 9999)
+      if (!/^\d+$/.test(trimmedPin)) {
+        setError("PIN must contain only numbers");
+        return;
+      }
+
+      if (trimmedPin.length > 4 || parseInt(trimmedPin, 10) > 9999) {
+        setError("PIN must not exceed 9999");
+        return;
+      }
     }
 
     // Password validation
@@ -95,7 +122,7 @@ export function EditOwnerLoginModal({
     try {
       const result = await onSubmit({
         pin: pin.trim() || undefined,
-        canMerge,
+        merge: canMerge,
         password: password.trim() || undefined,
         confirmPassword: confirmPassword.trim() || undefined,
       });

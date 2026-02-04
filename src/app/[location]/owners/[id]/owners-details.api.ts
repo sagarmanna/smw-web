@@ -92,6 +92,13 @@ const createOwnerInfoErrorResponse = <TItem>(
   };
 };
 
+/**
+ * Helper to build owner info API URL
+ * Endpoint: /admin/v2/{location}/user/{ownerId}/info/owner
+ */
+const getOwnerInfoUrl = (location: string, ownerId: number) =>
+  `/admin/v2/${location}/user/${ownerId}/info/owner`;
+
 // ---------------------------------------------
 // Mock Data Store (in-memory for session persistence)
 // ---------------------------------------------
@@ -172,32 +179,6 @@ function getCurrentMockData(ownerId: number): OwnerDetailsResponseBody | null {
   return initializeMockData(ownerId);
 }
 
-/**
- * Update mock data in the store (for mutations)
- */
-function updateMockOwnerData(
-  ownerId: number,
-  updates: Partial<OwnerDetailsResponseBody>
-): void {
-  const currentData = initializeMockData(ownerId);
-  if (!currentData) return;
-
-  if (updates.profile) {
-    currentData.profile = { ...currentData.profile, ...updates.profile };
-  }
-  if (updates.email) {
-    currentData.email = updates.email;
-  }
-  if (updates.phone) {
-    currentData.phone = updates.phone;
-  }
-  if (updates.addresses) {
-    currentData.addresses = updates.addresses;
-  }
-
-  mockDataStore.set(ownerId, currentData);
-}
-
 async function ownerInfoMutation<TItem, TBody>(
   method: OwnerInfoMethod,
   location: string,
@@ -206,154 +187,16 @@ async function ownerInfoMutation<TItem, TBody>(
   defaultErrorMessage: string
 ): Promise<OwnerInfoMutationResponse<TItem> | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const url = getOwnerInfoUrl(location, ownerId);
 
-    // Get current mock data
-    const currentData = getCurrentMockData(ownerId);
+    // For DELETE requests, axios requires the body in config.data.
+    // For POST/PUT, axios accepts the body as the second parameter directly.
+    const response = await apiClient[method]<OwnerInfoMutationResponse<TItem>>(
+      url,
+      method === "delete" ? { data: body } : body
+    );
 
-    if (!currentData) {
-      return {
-        success: false,
-        message: "Owner not found",
-        data: [] as TItem[],
-      };
-    }
-
-    // Build mock response based on the type of mutation
-    const bodyData = (body as { data?: unknown }).data;
-    let updatedData: TItem[] = [];
-
-    if (method === "delete") {
-      const deleteBody = body as OwnerInfoDeleteRequest<OwnerInfoType>;
-      const deleteId = typeof deleteBody.id === "string" ? parseInt(deleteBody.id) : deleteBody.id;
-      
-      if (deleteBody.type === "email") {
-        const updatedEmails = currentData.email.filter((e) => e.id !== deleteId);
-        updateMockOwnerData(ownerId, { email: updatedEmails });
-        updatedData = updatedEmails.map((e) => ({ ...e } as TItem));
-      } else if (deleteBody.type === "phone") {
-        const updatedPhones = currentData.phone.filter((p) => p.id !== deleteId);
-        updateMockOwnerData(ownerId, { phone: updatedPhones });
-        updatedData = updatedPhones.map((p) => ({ ...p } as TItem));
-      } else if (deleteBody.type === "addresses") {
-        const updatedAddresses = currentData.addresses.filter((a) => a.id !== deleteId);
-        updateMockOwnerData(ownerId, { addresses: updatedAddresses });
-        updatedData = updatedAddresses.map((a) => ({ ...a } as TItem));
-      }
-    } else if (method === "post") {
-      // Add new item
-      const newId = Date.now(); // Generate a unique ID
-      if ((body as { type?: string }).type === "email" && bodyData) {
-        const emailData = bodyData as { email: string; label: string; note?: string; isPrimary: boolean };
-        const newEmail: OwnerEmailResponse = {
-          id: newId,
-          email: emailData.email,
-          note: emailData.note || "",
-          label: emailData.label,
-          isPrimary: emailData.isPrimary,
-        };
-        const updatedEmails = emailData.isPrimary 
-          ? currentData.email.map(e => ({ ...e, isPrimary: false })).concat(newEmail)
-          : currentData.email.concat(newEmail);
-        updateMockOwnerData(ownerId, { email: updatedEmails });
-        updatedData = updatedEmails.map((e) => ({ ...e } as TItem));
-      } else if ((body as { type?: string }).type === "phone" && bodyData) {
-        const phoneData = bodyData as { number: string; extension?: string | number; label: string; note?: string; isPrimary: boolean };
-        const newPhone: OwnerPhoneResponse = {
-          id: newId,
-          number: phoneData.number,
-          extension: typeof phoneData.extension === "number" ? phoneData.extension.toString() : (phoneData.extension || ""),
-          note: phoneData.note || "",
-          label: phoneData.label,
-          isPrimary: phoneData.isPrimary || false,
-        };
-        const updatedPhones = currentData.phone.concat(newPhone);
-        updateMockOwnerData(ownerId, { phone: updatedPhones });
-        updatedData = updatedPhones.map((p) => ({ ...p } as TItem));
-      } else if ((body as { type?: string }).type === "addresses" && bodyData) {
-        const addressData = bodyData as { address: string; city: string; postalCode: string; label: string; isPrimary: boolean };
-        const newAddress: OwnerAddressResponse = {
-          id: newId,
-          address: addressData.address,
-          city: addressData.city,
-          province: "Ontario",
-          country: "Canada",
-          postalCode: addressData.postalCode,
-          label: addressData.label,
-          isPrimary: addressData.isPrimary || false,
-        };
-        const updatedAddresses = currentData.addresses.concat(newAddress);
-        updateMockOwnerData(ownerId, { addresses: updatedAddresses });
-        updatedData = updatedAddresses.map((a) => ({ ...a } as TItem));
-      }
-    } else if (method === "put") {
-      // Update existing item
-      const updateBody = body as { type?: string; data?: { id?: number } };
-      const updateId = updateBody.data?.id;
-      
-      if (updateBody.type === "email" && bodyData) {
-        const emailData = bodyData as { email: string; label: string; note?: string; isPrimary: boolean };
-        const updatedEmails = emailData.isPrimary
-          ? currentData.email.map((e) => 
-              e.id === updateId 
-                ? { ...e, email: emailData.email, label: emailData.label, note: emailData.note || "", isPrimary: true }
-                : { ...e, isPrimary: false }
-            )
-          : currentData.email.map((e) => 
-              e.id === updateId 
-                ? { ...e, email: emailData.email, label: emailData.label, note: emailData.note || "", isPrimary: emailData.isPrimary }
-                : e
-            );
-        updateMockOwnerData(ownerId, { email: updatedEmails });
-        updatedData = updatedEmails.map((e) => ({ ...e } as TItem));
-      } else if (updateBody.type === "phone" && bodyData) {
-        const phoneData = bodyData as { number: string; extension?: string | number; label: string; note?: string; isPrimary: boolean };
-        const updatedPhones = currentData.phone.map((p) => 
-          p.id === updateId 
-            ? { 
-                ...p, 
-                number: phoneData.number, 
-                extension: typeof phoneData.extension === "number" ? phoneData.extension.toString() : (phoneData.extension || ""), 
-                label: phoneData.label, 
-                note: phoneData.note || "", 
-                isPrimary: phoneData.isPrimary || false 
-              }
-            : p
-        );
-        updateMockOwnerData(ownerId, { phone: updatedPhones });
-        updatedData = updatedPhones.map((p) => ({ ...p } as TItem));
-      } else if (updateBody.type === "addresses" && bodyData) {
-        const addressData = bodyData as { address: string; city: string; postalCode: string; label: string; isPrimary: boolean };
-        const updatedAddresses = currentData.addresses.map((a) => 
-          a.id === updateId 
-            ? { 
-                ...a, 
-                address: addressData.address, 
-                city: addressData.city, 
-                postalCode: addressData.postalCode, 
-                label: addressData.label, 
-                isPrimary: addressData.isPrimary || false 
-              }
-            : a
-        );
-        updateMockOwnerData(ownerId, { addresses: updatedAddresses });
-        updatedData = updatedAddresses.map((a) => ({ ...a } as TItem));
-      }
-    }
-
-    const mockResponse: OwnerInfoMutationResponse<TItem> = {
-      success: true,
-      message: method === "delete" 
-        ? "Item deleted successfully" 
-        : method === "post" 
-        ? "Item added successfully" 
-        : "Item updated successfully",
-      data: updatedData,
-    };
-
-    return mockResponse;
+    return response.data;
   } catch (error: unknown) {
     console.error("Owner info API error:", error);
     return createOwnerInfoErrorResponse<TItem>(defaultErrorMessage, error);
@@ -444,58 +287,24 @@ export async function updateOwnerProfile(
   }
 ): Promise<UpdateOwnerProfileResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    void location; // Suppress unused parameter warning
-
-    // Get current mock data
-    const currentData = getCurrentMockData(ownerId);
-    if (!currentData) {
-      return {
-        success: false,
-        message: "Owner not found",
-      };
-    }
-
-    // Update profile in mock data store
-    const updatedName = `${profileData.firstname} ${profileData.lastname}`.trim();
-    updateMockOwnerData(ownerId, {
-      profile: {
-        ...currentData.profile,
-        name: updatedName,
-      },
+    const url = getOwnerInfoUrl(location, ownerId);
+    const response = await apiClient.put<UpdateOwnerProfileResponse>(url, {
+      type: "profile",
+      data: profileData,
     });
 
-    // Mock success response
-    const mockResponse: UpdateOwnerProfileResponse = {
-      success: true,
-      message: "Owner profile updated successfully",
-      data: {
-        name: updatedName,
-        role: currentData.profile.role,
-        status: currentData.profile.status,
-        birthDate: currentData.profile.birthDate,
-      },
-    };
-
-    return mockResponse;
-
-    // Uncomment when API is ready:
-    // const url = `/admin/v2/${location}/user/${ownerId}/info/owner`;
-    // const response = await apiClient.put<UpdateOwnerProfileResponse>(url, {
-    //   type: "profile",
-    //   data: profileData,
-    // });
-    // return response.data;
+    return response.data;
   } catch (error: unknown) {
     console.error("Error updating owner profile:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { response?: { data?: UpdateOwnerProfileResponse }; message?: string };
+
+    if (apiError.response?.data) {
+      return apiError.response.data;
+    }
 
     return {
       success: false,
-      message: apiError.response?.data?.message || "Failed to update owner profile",
+      message: apiError.message || "Failed to update owner profile",
     };
   }
 }
@@ -614,14 +423,39 @@ export type UpdateOwnerPhoneRequest = OwnerInfoBaseRequest<
 export type OwnerPhoneApiResponse =
   OwnerInfoMutationResponse<OwnerPhoneResponse>;
 
+/**
+ * Normalizes phone data before sending to the API.
+ * - Ensures extension is numeric if provided (matches admin behaviour).
+ */
+const normalizeOwnerPhoneData = (phoneData: OwnerPhoneData): OwnerPhoneData => {
+  const { extension, ...rest } = phoneData;
+
+  if (extension === undefined || extension === null) {
+    return { ...rest };
+  }
+
+  const extString = extension.toString().trim();
+  if (!extString) {
+    return { ...rest };
+  }
+
+  // Only keep extension if it's all digits; otherwise drop it to avoid 500s
+  if (/^\d+$/.test(extString)) {
+    return { ...rest, extension: Number(extString) };
+  }
+
+  return { ...rest };
+};
+
 export async function addOwnerPhone(
   location: string,
   ownerId: number,
   phoneData: OwnerPhoneData
 ): Promise<OwnerPhoneApiResponse | null> {
+  const normalized = normalizeOwnerPhoneData(phoneData);
   const requestBody: CreateOwnerPhoneRequest = {
     type: "phone",
-    data: phoneData,
+    data: normalized,
   };
 
   return ownerInfoMutation<OwnerPhoneResponse, CreateOwnerPhoneRequest>(
@@ -639,11 +473,12 @@ export async function updateOwnerPhone(
   id: number,
   phoneData: OwnerPhoneData
 ): Promise<OwnerPhoneApiResponse | null> {
+  const normalized = normalizeOwnerPhoneData(phoneData);
   const requestBody: UpdateOwnerPhoneRequest = {
     type: "phone",
     data: {
       id,
-      ...phoneData,
+      ...normalized,
     },
   };
 
