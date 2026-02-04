@@ -10,6 +10,7 @@ import type {
   StaffMemberPhone, 
   StaffMemberAddress
 } from '../types';
+import { splitFullNameToFirstLast } from '../utils/nameUtils';
 
 interface StaffMemberState {
   staffMemberInfo: StaffMemberInfo | null;
@@ -32,6 +33,8 @@ const initialState: StaffMemberState = {
 function transformApiResponse(apiResponse: StaffMemberDetailsApiResponse): StaffMemberInfo {
   const { body } = apiResponse.data;
   
+  const { firstName: defaultFirstName, lastName: defaultLastName } = splitFullNameToFirstLast(body.profile.name || '');
+
   return {
     profile: {
       name: body.profile.name,
@@ -39,6 +42,8 @@ function transformApiResponse(apiResponse: StaffMemberDetailsApiResponse): Staff
       // Convert empty string to undefined for optional fields
       birthDate: body.profile.birthDate?.trim() || undefined,
       picture: undefined,
+      firstName: defaultFirstName,
+      lastName: defaultLastName,
     },
     email: body.email.map((email) => ({
       id: email.id.toString(),
@@ -114,9 +119,12 @@ const staffMemberSlice = createSlice({
       if (state.staffMemberInfo) {
         const { firstName, lastName } = action.payload;
         if (firstName !== undefined || lastName !== undefined) {
-          const currentFirstName = firstName || state.staffMemberInfo.profile.name.split(' ')[0];
-          const currentLastName = lastName || state.staffMemberInfo.profile.name.split(' ').slice(1).join(' ') || '';
+          const fallback = splitFullNameToFirstLast(state.staffMemberInfo.profile.name || '');
+          const currentFirstName = firstName ?? state.staffMemberInfo.profile.firstName ?? fallback.firstName;
+          const currentLastName = lastName ?? state.staffMemberInfo.profile.lastName ?? fallback.lastName;
           state.staffMemberInfo.profile.name = `${currentFirstName} ${currentLastName}`.trim();
+          state.staffMemberInfo.profile.firstName = currentFirstName;
+          state.staffMemberInfo.profile.lastName = currentLastName;
         }
       }
     },

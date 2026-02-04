@@ -16,6 +16,7 @@ import {
   StaffMemberEmail,
   StaffMemberPhone,
 } from "../types";
+import { splitFullNameToFirstLast } from "../utils/nameUtils";
 import { updateStaffMemberProfile } from "../[id]/staff-members-details.api";
 
 type StaffMemberDetailsHookReturn = {
@@ -47,17 +48,19 @@ export function useStaffMemberDetails(
   // TODO: Add isSaving state when mutations are integrated
   const savingDetails = false;
 
-  // Transform Redux state to hook return format
-  const details: StaffMemberBasicDetails | null = React.useMemo(() => {
-    if (!staffMemberInfo?.profile) return null;
-    const [firstName, ...lastNameParts] = staffMemberInfo.profile.name.split(' ');
+  // Select details with explicit profile fields so we re-render when firstName/lastName change
+  // Fallback: use "last word is surname" when profile.firstName/lastName not set (e.g. after reload)
+  const details: StaffMemberBasicDetails | null = useAppSelector((state) => {
+    const profile = state.staffMemberDetails.staffMemberInfo?.profile;
+    if (!profile) return null;
+    const fallback = splitFullNameToFirstLast(profile.name || '');
     return {
-      firstName,
-      lastName: lastNameParts.join(' ') || '',
-      role: staffMemberInfo.profile.role,
-      picture: staffMemberInfo.profile.picture,
-    };
-  }, [staffMemberInfo]);
+      firstName: profile.firstName ?? fallback.firstName,
+      lastName: profile.lastName ?? fallback.lastName,
+      role: profile.role ?? '',
+      picture: profile.picture,
+    } as StaffMemberBasicDetails;
+  });
 
   // Memoize arrays to prevent unnecessary re-renders
   const emails = React.useMemo(() => staffMemberInfo?.email || [], [staffMemberInfo?.email]);
