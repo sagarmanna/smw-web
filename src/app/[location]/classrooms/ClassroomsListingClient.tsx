@@ -36,10 +36,7 @@ export function ClassroomsListingClient({ location }: ClassroomsListingClientPro
     setPage,
     pageSize,
     setPageSize,
-    columnFilters,
     fetchData,
-    handleColumnFilterChange,
-    handleColumnFilterEnter,
   } = useClassroomListing(location);
 
   const openAddModal = () => {
@@ -79,17 +76,10 @@ export function ClassroomsListingClient({ location }: ClassroomsListingClientPro
         variant="default"
         stickyHeader={true}
         enableSearch={false}
-        enableFilter={true}
+        enableFilter={false}
         enablePrint={false}
         enableRowsPerPage={true}
-        enableColumnFilters={true}
-        onColumnFilterChange={handleColumnFilterChange}
-        onColumnFilterEnter={handleColumnFilterEnter}
-        columnFilters={columnFilters}
-        columnFilterPlaceholders={{
-          name: "Enter shortname",
-          description: "Enter longname",
-        }}
+        enableColumnFilters={false}
         serverSidePagination={{ page, limit: pageSize, total, totalPages }}
         onServerSidePageChange={(newPage) => setPage(newPage)}
         manualSorting={true}
