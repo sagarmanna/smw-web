@@ -65,6 +65,29 @@ export function formatISOToDisplay(isoString: string): string {
 }
 
 /**
+ * Formats ISO string to display date and time in UTC, without local timezone conversion.
+ * Shows "MMM dd, yyyy h:mm a" (e.g. "Feb 04, 2026 4:46 AM") as stored by the API.
+ * Avoids off-by-one date display when API returns "2026-02-04T23:59:59Z" which would
+ * otherwise show as Feb 5 in timezones ahead of UTC.
+ */
+export function formatISODateToDisplay(isoString: string): string {
+  if (!isoString) return "N/A";
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString;
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const hour = date.getUTCHours();
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 || 12;
+    return `${months[date.getUTCMonth()]} ${pad(date.getUTCDate())}, ${date.getUTCFullYear()} ${hour12}:${pad(date.getUTCMinutes())} ${ampm}`;
+  } catch (error) {
+    console.warn("Failed to format ISO date:", isoString, error);
+  }
+  return isoString;
+}
+
+/**
  * Converts ISO string to Date object
  * Used in Modal to populate form fields - no parsing needed, direct conversion
  */

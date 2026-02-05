@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Filter, X, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { convertToDate } from "@/utils/dateUtils";
 import { ColumnFilter } from "../CustomTable";
 import { DateRangePicker } from "@/components/DateRangePicker";
 
@@ -181,8 +182,10 @@ export function ColumnFilterComponent({
           <DateRangePicker
             preset={filter.quickPreset}
             value={(() => {
-              const from = isDateRange(currentValue) ? currentValue.from : undefined;
-              const to = isDateRange(currentValue) ? currentValue.to : undefined;
+              const raw = isDateRange(currentValue) ? currentValue : undefined;
+              if (!raw?.from || !raw?.to) return undefined;
+              const from = raw.from instanceof Date ? raw.from : convertToDate(String(raw.from));
+              const to = raw.to instanceof Date ? raw.to : convertToDate(String(raw.to));
               return from && to ? { from, to } : undefined;
             })()}
             onChange={(range) => {

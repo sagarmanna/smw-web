@@ -67,10 +67,17 @@ export function useTimelineListing() {
       }
     }
 
-    // Handle created user filter (userId)
+    // Handle created user filter (userId) - stored as string to match dropdown values for display
     const createdUserFilter = currentColumnFilters.createdUser;
-    if (createdUserFilter && typeof createdUserFilter === 'number') {
-      query.createdUserId = createdUserFilter;
+    if (createdUserFilter && createdUserFilter !== 'all') {
+      const parsed = typeof createdUserFilter === 'string'
+        ? parseInt(createdUserFilter, 10)
+        : typeof createdUserFilter === 'number'
+          ? createdUserFilter
+          : NaN;
+      if (!isNaN(parsed)) {
+        query.createdUserId = parsed;
+      }
     }
 
     // Handle message filter
@@ -127,9 +134,9 @@ export function useTimelineListing() {
           to: to instanceof Date ? format(to, "yyyy-MM-dd") : to ? String(to) : undefined,
         };
       } else if (columnKey === 'createdUser') {
-        // Convert user dropdown value to number (userId) or undefined
+        // Keep as string to match dropdown option values - ColumnFilter looks up by value to show label (username)
         if (typeof filterValue === 'string' && filterValue !== 'all' && filterValue !== '') {
-          value = parseInt(filterValue, 10);
+          value = filterValue;
         } else {
           value = undefined;
         }
