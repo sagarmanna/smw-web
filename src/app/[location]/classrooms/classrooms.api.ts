@@ -51,7 +51,14 @@ const classroomsApi = createCrudApi<ClassroomRow, ClassroomsQuery, CreateClassro
   buildQueryParams: (query) => {
     const params: Record<string, unknown> = {};
     if (query.page !== undefined) params.page = query.page;
-    if (query.limit !== undefined) params.limit = query.limit === -1 ? FETCH_ALL_LIMIT : query.limit;
+    // Use query.limit (rows per page); -1 = "All" option uses FETCH_ALL_LIMIT
+    const limit =
+      query.limit === -1
+        ? FETCH_ALL_LIMIT
+        : query.limit !== undefined && query.limit > 0
+          ? query.limit
+          : 10;
+    params.limit = limit;
     if (query.name) params.name = query.name;
     if (query.description) params.description = query.description;
     if (query.sort) params.sort = query.sort;

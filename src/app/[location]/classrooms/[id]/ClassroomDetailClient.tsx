@@ -13,8 +13,18 @@ import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
 import { formatDisplayDate } from "@/utils/dateUtils";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
-import { getClassroomById, type ClassroomRow } from "../classrooms.api";
+import {
+  createClassroomUnavailability,
+  updateClassroomUnavailability,
+  deleteClassroomUnavailability,
+} from "./classroomDetail.api";
+import {
+  fetchClassroom,
+  fetchUnavailabilities,
+  clearClassroomDetail,
+} from "./classroomDetail.slice";
 import { AddClassroomModal } from "../components/modals/AddClassroomModal";
 import {
   AddClassroomUnavailabilityModal,
@@ -28,58 +38,37 @@ interface ClassroomDetailClientProps {
 
 export function ClassroomDetailClient({ location, id }: ClassroomDetailClientProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const classroomId = Number(id);
 
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [classroom, setClassroom] = React.useState<ClassroomRow | null>(null);
+  const classroom = useAppSelector((state) => state.classroomDetail.classroom);
+  const isLoading = useAppSelector((state) => state.classroomDetail.isLoading);
+  const error = useAppSelector((state) => state.classroomDetail.error);
+  const unavailabilities = useAppSelector((state) => state.classroomDetail.unavailabilities);
+  const isUnavailabilitiesLoading = useAppSelector(
+    (state) => state.classroomDetail.isUnavailabilitiesLoading
+  );
+
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [isUnavailabilityModalOpen, setIsUnavailabilityModalOpen] = React.useState(false);
   const [editingUnavailability, setEditingUnavailability] = React.useState<ClassroomUnavailabilityRow | null>(null);
 
-  const requestIdRef = React.useRef(0);
-
-  const fetchClassroom = React.useCallback(
-    async (options?: { showLoading?: boolean }) => {
-      if (!location || !classroomId || Number.isNaN(classroomId)) return;
-
-      const reqId = ++requestIdRef.current;
-      const showLoading = options?.showLoading ?? true;
-
-      if (showLoading) setIsLoading(true);
-      setError(null);
-
-      try {
-        const res = await getClassroomById(location, classroomId);
-        // Ignore stale responses
-        if (reqId !== requestIdRef.current) return;
-
-        if (res?.success && res.data) {
-          setClassroom(res.data);
-        } else {
-          setClassroom(null);
-          setError(res?.message || "Failed to load classroom");
-        }
-      } catch (e) {
-        if (reqId !== requestIdRef.current) return;
-        setClassroom(null);
-        setError(e instanceof Error ? e.message : "Failed to load classroom");
-      } finally {
-        if (reqId === requestIdRef.current) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [location, classroomId]
-  );
-
   React.useEffect(() => {
-    void fetchClassroom({ showLoading: true });
-    return () => {
-      // Invalidate any in-flight request on unmount/param change
-      requestIdRef.current += 1;
-    };
-  }, [fetchClassroom]);
+    if (!location || !classroomId || Number.isNaN(classroomId)) return;
+    dispatch(clearClassroomDetail());
+    void dispatch(fetchClassroom({ location, classroomId }));
+    void dispatch(fetchUnavailabilities({ location, classroomId }));
+  }, [dispatch, location, classroomId]);
+
+  const refetchClassroom = React.useCallback(() => {
+    if (!location || !classroomId || Number.isNaN(classroomId)) return;
+    void dispatch(fetchClassroom({ location, classroomId }));
+  }, [dispatch, location, classroomId]);
+
+  const refetchUnavailabilities = React.useCallback(() => {
+    if (!location || !classroomId || Number.isNaN(classroomId)) return;
+    void dispatch(fetchUnavailabilities({ location, classroomId }));
+  }, [dispatch, location, classroomId]);
 
   const pageTitle = classroom?.name || `Classroom #${id}`;
 
@@ -133,24 +122,72 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
     setIsUnavailabilityModalOpen(true);
   };
 
-  const toastUnavailabilityNotReady = React.useCallback(() => {
-    toast.error("Classroom unavailability API is not ready yet.");
-  }, []);
+  const handleAddUnavailability = React.useCallback(
+    async (data: Omit<ClassroomUnavailabilityRow, "id">) => {
+      if (!location || !classroomId || Number.isNaN(classroomId)) return;
+      try {
+        const res = await createClassroomUnavailability(location, classroomId, {
+          fromDate: data.fromDate,
+          toDate: data.toDate,
+          reason: data.reason ?? "",
+        });
+        if (res.success) {
+          toast.success(res.message ?? "Unavailability created successfully");
+          refetchUnavailabilities();
+        } else {
+          toast.error(res.message ?? "Failed to create unavailability");
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to create unavailability");
+      }
+    },
+    [location, classroomId, refetchUnavailabilities]
+  );
 
-  const handleAddUnavailability = (data: Omit<ClassroomUnavailabilityRow, "id">) => {
-    void data;
-    toastUnavailabilityNotReady();
-  };
+  const handleUpdateUnavailability = React.useCallback(
+    async (data: ClassroomUnavailabilityRow) => {
+      if (!location || !classroomId || Number.isNaN(classroomId)) return;
+      const idNum = Number(data.id);
+      if (Number.isNaN(idNum)) return;
+      try {
+        const res = await updateClassroomUnavailability(location, classroomId, {
+          id: idNum,
+          fromDate: data.fromDate,
+          toDate: data.toDate,
+          reason: data.reason ?? "",
+        });
+        if (res.success) {
+          toast.success(res.message ?? "Unavailability updated successfully");
+          refetchUnavailabilities();
+        } else {
+          toast.error(res.message ?? "Failed to update unavailability");
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to update unavailability");
+      }
+    },
+    [location, classroomId, refetchUnavailabilities]
+  );
 
-  const handleUpdateUnavailability = (data: ClassroomUnavailabilityRow) => {
-    void data;
-    toastUnavailabilityNotReady();
-  };
-
-  const handleDeleteUnavailability = (id: string) => {
-    void id;
-    toastUnavailabilityNotReady();
-  };
+  const handleDeleteUnavailability = React.useCallback(
+    async (id: string) => {
+      if (!location || !classroomId || Number.isNaN(classroomId)) return;
+      const idNum = Number(id);
+      if (Number.isNaN(idNum)) return;
+      try {
+        const res = await deleteClassroomUnavailability(location, classroomId, idNum);
+        if (res.success) {
+          toast.success(res.message ?? "Unavailability deleted successfully");
+          refetchUnavailabilities();
+        } else {
+          toast.error(res.message ?? "Failed to delete unavailability");
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to delete unavailability");
+      }
+    },
+    [location, classroomId, refetchUnavailabilities]
+  );
 
   return (
     <div className="px-4 sm:px-6">
@@ -190,7 +227,7 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
 
         <SectionCard
           title="Unavailabilities"
-          isLoading={isLoading}
+          isLoading={isUnavailabilitiesLoading}
           headerActions={
             <Button
               type="button"
@@ -198,14 +235,14 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
               size="icon"
               aria-label="Add unavailability"
               onClick={openAddUnavailability}
-              disabled={isLoading || !classroom}
+              disabled={isLoading || isUnavailabilitiesLoading || !classroom}
             >
               <Plus className="h-4 w-4" />
             </Button>
           }
         >
-          <CustomTable
-            data={[]}
+          <CustomTable<ClassroomUnavailabilityRow, unknown>
+            data={unavailabilities}
             columns={unavailabilityColumns}
             size="compact"
             variant="default"
@@ -214,7 +251,7 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
             enableFilter={false}
             enablePrint={false}
             enableRowsPerPage={false}
-            isLoading={false}
+            isLoading={isUnavailabilitiesLoading}
             customEmptyState={<div className="py-3 text-sm text-muted-foreground">No unavailabilities</div>}
             onRowClick={openEditUnavailability}
           />
@@ -232,7 +269,7 @@ export function ClassroomDetailClient({ location, id }: ClassroomDetailClientPro
             router.push(`/${location}/classrooms`);
             return;
           }
-          void fetchClassroom({ showLoading: false });
+          refetchClassroom();
         }}
       />
 

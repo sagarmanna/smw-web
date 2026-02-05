@@ -5,7 +5,7 @@ const { reducer, actions, fetchThunk } = createListingSlice<ClassroomRow, Classr
   name: "classroomsListing",
   entityName: "classroom",
   fetchFn: getClassrooms,
-  initialPageSize: 10,
+  initialPageSize: 20,
 });
 
 export const {
