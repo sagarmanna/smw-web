@@ -65,14 +65,19 @@ const DEFAULT_PAGINATION = {
   totalPages: 1,
 } as const;
 
+const FETCH_ALL_LIMIT = 99999;
+
 /**
  * Helper to build query parameters
+ * Converts limit=-1 (UI "All" option) to FETCH_ALL_LIMIT for the API
  */
 const buildTimelineQueryParams = (query: TimelineQuery): URLSearchParams => {
   const params = new URLSearchParams();
 
   if (query.page) params.append("page", query.page.toString());
-  if (query.limit) params.append("limit", query.limit.toString());
+  if (query.limit !== undefined) {
+    params.append("limit", (query.limit === -1 ? FETCH_ALL_LIMIT : query.limit).toString());
+  }
   if (query.fromDate) params.append("fromDate", query.fromDate);
   if (query.toDate) params.append("toDate", query.toDate);
   if (query.createdUserId) params.append("createdUserId", query.createdUserId.toString());

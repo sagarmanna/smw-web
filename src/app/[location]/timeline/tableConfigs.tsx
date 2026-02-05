@@ -5,7 +5,7 @@
 import * as React from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { TimelineRow } from "./timelineListing.api";
-import { formatISOToDisplay } from "@/utils/dateUtils";
+import { formatISODateToDisplay } from "@/utils/dateUtils";
 import { startOfDay, endOfDay } from "date-fns";
 import { useRouter } from "next/navigation";
 import {
@@ -48,7 +48,7 @@ export const getTimelineColumns = (location: string): (ColumnDef<TimelineRow> & 
     header: () => <span>Date</span>,
     cell: ({ row }: { row: { original: TimelineRow } }) => (
       <span className="text-sm whitespace-nowrap">
-        {formatISOToDisplay(row.original.date)}
+        {formatISODateToDisplay(row.original.date)}
       </span>
     ),
     size: 180,
