@@ -101,18 +101,38 @@ export function useItemListing(location: string) {
   );
 
   // Search/filter: don't call API on every keystroke – only on Enter (like customer listing)
+  // When clearing via X icon, we must refetch immediately to restore unfiltered data
   const handleColumnFilterChange = React.useCallback(
     (columnKey: string, filterValue: unknown) => {
+      const prevFilters = columnFiltersRef.current;
+      const hadValue = (prevFilters[columnKey] ?? "") !== "";
+      const isClearing = (filterValue === "" || filterValue === null) && hadValue;
+
       const newFilters = {
-        ...columnFiltersRef.current,
+        ...prevFilters,
         [columnKey]:
           filterValue === "" || filterValue === null ? undefined : filterValue,
       };
       dispatch(setColumnFilters(newFilters));
       columnFiltersRef.current = newFilters;
       dispatch(setPage(1));
+
+      // When user clears filter via X icon, refetch immediately with cleared filters
+      if (isClearing) {
+        const query = {
+          page: 1,
+          limit: pageSize,
+          sortBy: sortBy ?? "id",
+          sortOrder: (sortDir === "desc" ? "desc" : "asc") as "asc" | "desc",
+          code: (newFilters.code as string | undefined)?.trim() || undefined,
+          description: (newFilters.description as string | undefined)?.trim() || undefined,
+          itemCategory: (newFilters.itemCategory as string | undefined)?.trim() || undefined,
+          showAll: showAll ? (1 as const) : (0 as const),
+        };
+        dispatch(fetchItems({ location, query }));
+      }
     },
-    [dispatch]
+    [dispatch, location, pageSize, sortBy, sortDir, showAll]
   );
 
   const handleColumnFilterEnter = React.useCallback(() => {
