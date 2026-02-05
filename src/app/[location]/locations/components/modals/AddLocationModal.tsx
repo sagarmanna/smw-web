@@ -13,7 +13,7 @@ import { formatPhoneNumber, parsePhoneNumber, validatePhoneNumber } from "@/util
 import { getGeoData, GeoData } from "@/app/[location]/customers/components/AddressCard/address-card.api";
 import { GenericCrudModal, CrudModalConfig } from "@/components/GenericCrudModal";
 
-import { LocationRow } from "../../locations.api";
+import { LocationRow, createLocation, type CreateLocationRequest } from "../../locations.api";
 
 interface AddLocationModalProps {
   isOpen: boolean;
@@ -38,31 +38,9 @@ type LocationFormData = {
   conversionDate?: Date;
 };
 
-type LocationPayload = {
-  name: string;
-  address: string;
-  phoneNumber?: string;
-  email: string;
-  cityId: number;
-  provinceId: number;
-  countryId: number;
-  postalCode: string;
-  royaltyPercent: number;
-  advertisementPercent: number;
-  conversionDate?: string; // YYYY-MM-DD
-};
-
-type LocationUpdatePayload = LocationPayload & { id: number };
+type LocationUpdatePayload = CreateLocationRequest & { id: number };
 
 const isBlank = (v: string) => !v || v.trim().length === 0;
-
-const toIsoDate = (d?: Date): string | undefined => {
-  if (!d) return undefined;
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-};
 
 export function AddLocationModal({
   isOpen,
@@ -113,18 +91,16 @@ export function AddLocationModal({
     ...overrides,
   });
 
-  const buildPayload = (formData: LocationFormData): LocationPayload => ({
+  const buildCreatePayload = (formData: LocationFormData): CreateLocationRequest => ({
     name: formData.name.trim(),
     address: formData.address.trim(),
-    phoneNumber: formData.phoneNumber.trim() ? parsePhoneNumber(formData.phoneNumber.trim()) : undefined,
+    phone_number: formData.phoneNumber.trim() ? parsePhoneNumber(formData.phoneNumber.trim()) ?? "" : "",
     email: formData.email.trim(),
-    cityId: Number(formData.cityId),
-    provinceId: Number(formData.provinceId),
-    countryId: Number(formData.countryId),
-    postalCode: formData.postalCode.trim(),
-    royaltyPercent: Number(formData.royaltyPercent),
-    advertisementPercent: Number(formData.advertisementPercent),
-    conversionDate: toIsoDate(formData.conversionDate),
+    city_id: Number(formData.cityId),
+    province_id: Number(formData.provinceId),
+    postal_code: formData.postalCode.trim(),
+    royaltyValue: Number(formData.royaltyPercent),
+    advertisementValue: Number(formData.advertisementPercent),
   });
 
   const validatePercentField = (rawValue: string, label: string): string | undefined => {
@@ -134,24 +110,19 @@ export function AddLocationModal({
     return undefined;
   };
 
-  const notReadyMessage = "Location API is not ready yet.";
-  const createNotReady = async (): Promise<{ success: boolean; message?: string }> => ({
-    success: false,
-    message: notReadyMessage,
-  });
   const updateNotReady = async (): Promise<{ success: boolean; message?: string }> => ({
     success: false,
-    message: notReadyMessage,
+    message: "Location update API is not ready yet.",
   });
 
-  const config: CrudModalConfig<LocationRow, LocationFormData, LocationPayload, LocationUpdatePayload> = {
+  const config: CrudModalConfig<LocationRow, LocationFormData, CreateLocationRequest, LocationUpdatePayload> = {
     entityName: "Location",
-    onCreate: createNotReady,
+    onCreate: createLocation,
     onUpdate: updateNotReady,
-    buildCreateRequest: (formData: LocationFormData): LocationPayload => buildPayload(formData),
+    buildCreateRequest: (formData: LocationFormData): CreateLocationRequest => buildCreatePayload(formData),
     buildUpdateRequest: (formData: LocationFormData, id: number): LocationUpdatePayload => ({
       id,
-      ...buildPayload(formData),
+      ...buildCreatePayload(formData),
     }),
     initializeFormData: (row: LocationRow): LocationFormData =>
       getBaseFormData({
@@ -188,7 +159,7 @@ export function AddLocationModal({
   };
 
   return (
-    <GenericCrudModal<LocationRow, LocationFormData, LocationPayload, LocationUpdatePayload>
+    <GenericCrudModal<LocationRow, LocationFormData, CreateLocationRequest, LocationUpdatePayload>
       isOpen={isOpen}
       onClose={onClose}
       onSuccess={onSuccess}
