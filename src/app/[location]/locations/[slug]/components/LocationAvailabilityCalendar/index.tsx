@@ -1,13 +1,20 @@
 "use client";
 
 import * as React from "react";
+import type { EventProps } from "react-big-calendar";
+import { X } from "lucide-react";
+
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { Button } from "@/components/ui/button";
 
 export type LocationTimeBlock = {
   id: string;
   resourceId: number; // 1-7 (Mon-Sun)
   fromTime: string; // "HH:mm"
   toTime: string; // "HH:mm"
+  backgroundColor?: string;
+  className?: string;
 };
 
 // Day resources (Monday-Sunday)
@@ -50,6 +57,61 @@ const formatShortTime = (d: Date) => {
   return `${hours12}:${minutes}`;
 };
 
+const formatTimeRange = (start: Date, end: Date) =>
+  `${formatShortTime(start)} - ${formatShortTime(end)}`;
+
+type AvailabilityEventComponentProps = EventProps<CalendarEvent> & {
+  onEventDelete?: (event: CalendarEvent) => void;
+};
+
+function AvailabilityEventWithDelete({ event, onEventDelete }: AvailabilityEventComponentProps) {
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+
+  const handleDeleteClick = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowDeleteModal(true);
+    },
+    []
+  );
+
+  const handleConfirmDelete = React.useCallback(() => {
+    onEventDelete?.(event);
+    setShowDeleteModal(false);
+  }, [event, onEventDelete]);
+
+  return (
+    <>
+      <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-start cursor-default">
+        <span className="text-[10px] font-semibold text-white flex-shrink-0">
+          {formatTimeRange(event.start, event.end)}
+        </span>
+        {onEventDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute top-0 right-0 h-6 w-6 min-w-6 rounded-sm opacity-90 hover:opacity-100 text-red-500 hover:text-red-400 hover:bg-red-500/20"
+            aria-label="Delete time slot"
+            onClick={handleDeleteClick}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+      <DeleteConfirmationModal
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        title="Delete time slot?"
+        description="This time slot will be removed. This cannot be undone."
+        onConfirm={handleConfirmDelete}
+        confirmLabel="Delete"
+      />
+    </>
+  );
+}
+
 interface LocationAvailabilityCalendarProps {
   blocks: LocationTimeBlock[];
   onBlocksChange: (next: LocationTimeBlock[]) => void;
@@ -73,16 +135,26 @@ export function LocationAvailabilityCalendar({
       const end = toDateAtMonday(mondayDate, b.toTime);
       return {
         id: b.id,
-        title: `${formatShortTime(start)} - ${formatShortTime(end)}`,
+        // The shared calendar event renderer already prints the time range.
+        // Keep the title empty to avoid showing the same time range twice.
+        title: "",
         start,
         end,
         resourceId: b.resourceId,
-        backgroundColor: "#86efac", // light green (matches screenshot vibe)
+        backgroundColor: b.backgroundColor || "#86efac",
         borderColor: "#22c55e",
-        className: "location-availability-block",
+        className: b.className || "location-availability-block",
       };
     });
   }, [blocks, mondayDate]);
+
+  const handleEventDelete = React.useCallback(
+    (event: CalendarEvent) => {
+      const next = blocks.filter((b) => b.id !== event.id);
+      onBlocksChange(next);
+    },
+    [blocks, onBlocksChange]
+  );
 
   const updateFromCalendarEvent = React.useCallback(
     (event: CalendarEvent) => {
@@ -135,9 +207,11 @@ export function LocationAvailabilityCalendar({
         onNavigate={(newDate) => setSelectedDate(getMondayOfWeek(newDate))}
         onEventDrop={updateFromCalendarEvent}
         onEventResize={updateFromCalendarEvent}
+        onEventDelete={handleEventDelete}
         onSelectSlot={handleSelectSlot}
         editable={editable}
         viewType="availability"
+        availabilityEventComponent={AvailabilityEventWithDelete}
         stepMinutes={60}
         timeslots={1}
         minTime="00:00:00"

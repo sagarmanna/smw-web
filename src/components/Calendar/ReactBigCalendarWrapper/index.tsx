@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Calendar as BigCalendar, momentLocalizer, Views, EventProps, ResourceHeaderProps } from 'react-big-calendar';
 import moment from 'moment';
 import { Clock, DollarSign, Monitor, Megaphone, User, MapPin, BookOpen, Calendar, Users, Loader2, Eye, Edit } from 'lucide-react';
@@ -78,6 +78,7 @@ interface ReactBigCalendarWrapperProps {
   onEventClick?: (event: CalendarEvent) => void;
   onEventDrop?: (event: CalendarEvent) => void;
   onEventResize?: (event: CalendarEvent) => void;
+  onEventDelete?: (event: CalendarEvent) => void;
   onClassroomChange?: (event: CalendarEvent, newClassroomId: string) => void;
   onSelectSlot?: (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => void;
   editable?: boolean;
@@ -91,6 +92,8 @@ interface ReactBigCalendarWrapperProps {
   availability?: AvailabilityData[]; // Teacher availability data
   viewType?: 'teacher' | 'classroom' | 'availability'; // Add view type to distinguish between teacher, classroom, and availability views
   updatingEvents?: Set<string>; // Events currently being updated
+  /** Optional custom event component for availability view (e.g. with delete X + modal); receives onEventDelete when provided */
+  availabilityEventComponent?: React.ComponentType<EventProps<CalendarEvent> & { onEventDelete?: (event: CalendarEvent) => void }>;
   // Mobile editing props
   teachers?: Array<{ id: number; title: string }>; // For mobile teacher selection
   classrooms?: Array<{ id: number; title: string }>; // For mobile classroom selection
@@ -226,6 +229,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   onEventClick,
   onEventDrop,
   onEventResize,
+  onEventDelete,
   onClassroomChange,
   onSelectSlot,
   editable = true,
@@ -237,6 +241,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
   availability = [],
   viewType = 'teacher',
   updatingEvents = new Set(),
+  availabilityEventComponent,
   teachers = [],
   classrooms = [],
   height = '70vh',
@@ -877,7 +882,9 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             resizable={editable}
             dragFromOutsideItem={undefined}
             components={{
-              event: EventComponent,
+              event: viewType === 'availability' && availabilityEventComponent && onEventDelete
+                ? (props: EventProps<CalendarEvent>) => React.createElement(availabilityEventComponent, { ...props, onEventDelete })
+                : EventComponent,
               resourceHeader: resources.length === 0 
                 ? EmptyResourceHeader 
                 : (props: ResourceHeaderProps<CalendarResource>) => <ResourceHeader {...props} date={date} viewType={viewType} />,

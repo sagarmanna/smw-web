@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 
 import { DetailHeader } from "@/components/DetailHeader";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 
 import { AddLocationModal } from "../components/modals/AddLocationModal";
 import { LocationDetails, LocationRow } from "../locations.api";
+import { getLocationInfo } from "./locationDetail.api";
 import { type LocationTimeBlock } from "./components/LocationAvailabilityCalendar";
 import { LocationDetailsCard } from "./components/LocationDetailsCard";
 import { LocationAddressCard } from "./components/LocationAddressCard";
@@ -22,33 +23,8 @@ interface LocationDetailClientProps {
   slug: string;
 }
 
-const createWeeklyBlocks = (args: {
-  prefix: string;
-  weekday: { fromTime: string; toTime: string }; // Mon-Fri
-  saturday: { fromTime: string; toTime: string };
-  sunday?: { fromTime: string; toTime: string };
-}): LocationTimeBlock[] => {
-  const { prefix, weekday, saturday, sunday } = args;
-
-  const blocks: LocationTimeBlock[] = [
-    { id: `${prefix}-mon`, resourceId: 1, ...weekday },
-    { id: `${prefix}-tue`, resourceId: 2, ...weekday },
-    { id: `${prefix}-wed`, resourceId: 3, ...weekday },
-    { id: `${prefix}-thu`, resourceId: 4, ...weekday },
-    { id: `${prefix}-fri`, resourceId: 5, ...weekday },
-    { id: `${prefix}-sat`, resourceId: 6, ...saturday },
-  ];
-
-  if (sunday) {
-    blocks.push({ id: `${prefix}-sun`, resourceId: 7, ...sunday });
-  }
-
-  return blocks;
-};
-
 export function LocationDetailClient({ location, slug }: LocationDetailClientProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [details, setDetails] = React.useState<LocationDetails | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -56,48 +32,36 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [hstRegistrationNo, setHstRegistrationNo] = React.useState("");
 
-  // API not ready: local-only blocks for each tab (seeded to match screenshots).
-  const [operationBlocks, setOperationBlocks] = React.useState<LocationTimeBlock[]>(() =>
-    createWeeklyBlocks({
-      prefix: "op",
-      weekday: { fromTime: "14:00", toTime: "21:00" },
-      saturday: { fromTime: "09:00", toTime: "18:00" },
-    })
-  );
-  const [visibilityBlocks, setVisibilityBlocks] = React.useState<LocationTimeBlock[]>(() =>
-    createWeeklyBlocks({
-      prefix: "sv",
-      weekday: { fromTime: "14:00", toTime: "19:00" },
-      saturday: { fromTime: "09:00", toTime: "18:00" },
-      sunday: { fromTime: "09:00", toTime: "17:00" },
-    })
-  );
+  // Availability blocks currently have no backend integration.
+  // Keep the UI functional without seeding placeholder blocks.
+  const [operationBlocks, setOperationBlocks] = React.useState<LocationTimeBlock[]>([]);
+  const [visibilityBlocks, setVisibilityBlocks] = React.useState<LocationTimeBlock[]>([]);
+
+  const fetchDetails = React.useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const apiDetails = await getLocationInfo(location);
+      if (apiDetails) {
+        setDetails(apiDetails);
+        setHstRegistrationNo(apiDetails.hstRegistrationNo || "");
+      } else {
+        setDetails(null);
+        setHstRegistrationNo("");
+        setError("Location details not found");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load location details");
+      setDetails(null);
+      setHstRegistrationNo("");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [location]);
 
   React.useEffect(() => {
-    // API not ready yet: hydrate from query params passed from listing.
-    // This keeps the detail page functional without a backend call.
-    const stored = (() => {
-      try {
-        const key = `smw.locationDetail:${location}:${slug}`;
-        const raw = sessionStorage.getItem(key);
-        return raw ? (JSON.parse(raw) as { name?: string; address?: string; email?: string }) : null;
-      } catch {
-        return null;
-      }
-    })();
-
-    const nextDetails: LocationDetails = {
-      id: Number.isFinite(Number.parseInt(slug, 10)) ? Number.parseInt(slug, 10) : undefined,
-      // Prefer sessionStorage (clean URL), fallback to query params (backward compatible), then slug.
-      name: stored?.name || searchParams.get("name") || slug,
-      address: stored?.address || searchParams.get("address") || "",
-      email: stored?.email || searchParams.get("email") || "",
-    };
-    setDetails(nextDetails);
-    setHstRegistrationNo(nextDetails.hstRegistrationNo || "");
-    setIsLoading(false);
-    setError(null);
-  }, [location, searchParams, slug]);
+    fetchDetails();
+  }, [fetchDetails]);
 
   const pageTitle = details?.name?.trim() ? details.name.trim() : slug;
 
@@ -186,6 +150,7 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
 
           {/* Availability Tabs (reuses the same calendar UI as Teachers/AvailabilityCalendarTab) */}
           <LocationAvailabilityTabsSection
+            location={location}
             operationBlocks={operationBlocks}
             setOperationBlocks={setOperationBlocks}
             visibilityBlocks={visibilityBlocks}
@@ -199,6 +164,7 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
         onClose={() => setIsEditModalOpen(false)}
         onSuccess={() => {
           setIsEditModalOpen(false);
+          fetchDetails();
         }}
         location={location}
         mode="edit"
