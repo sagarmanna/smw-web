@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 import { AddLocationModal } from "../components/modals/AddLocationModal";
-import { LocationDetails, LocationRow } from "../locations.api";
+import { LocationDetails } from "../locations.api";
 import { getLocationInfo } from "./locationDetail.api";
 import { type LocationTimeBlock } from "./components/LocationAvailabilityCalendar";
 import { LocationDetailsCard } from "./components/LocationDetailsCard";
@@ -65,15 +65,24 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
 
   const pageTitle = details?.name?.trim() ? details.name.trim() : slug;
 
-  const editInitialData = React.useMemo<LocationRow | null>(() => {
+  const handleAfterAction = React.useCallback(
+    (action: "create" | "update" | "delete") => {
+      if (action === "delete") {
+        router.push(`/${location}/locations`);
+      } else {
+        fetchDetails();
+      }
+    },
+    [router, location, fetchDetails]
+  );
+
+  const editInitialData = React.useMemo(() => {
     if (!details) return null;
     const parsedId = Number.parseInt(slug, 10);
     const fallbackId = Number.isFinite(parsedId) ? parsedId : 0;
     return {
+      ...details,
       id: details.id ?? fallbackId,
-      name: details.name || "",
-      address: details.address || "",
-      email: details.email || "",
       slug,
     };
   }, [details, slug]);
@@ -164,8 +173,8 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
         onClose={() => setIsEditModalOpen(false)}
         onSuccess={() => {
           setIsEditModalOpen(false);
-          fetchDetails();
         }}
+        onAfterAction={handleAfterAction}
         location={location}
         mode="edit"
         initialData={editInitialData}
