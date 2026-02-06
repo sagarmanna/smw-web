@@ -6,7 +6,7 @@ export async function GET() {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
+      environment: process.env.NEXT_PUBLIC_ENV,
       version: process.env.npm_package_version || '1.0.0',
       service: 'smw-web',
     };
