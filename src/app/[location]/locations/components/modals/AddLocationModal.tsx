@@ -1,26 +1,37 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { FormField, GeoSelectField } from "@/components/FormField";
 
 import { formatPhoneNumber, parsePhoneNumber, validatePhoneNumber } from "@/utils/phoneUtils";
+import { formatDateToISO } from "@/utils/dateUtils";
 
 import { getGeoData, GeoData } from "@/app/[location]/customers/components/AddressCard/address-card.api";
 import { GenericCrudModal, CrudModalConfig } from "@/components/GenericCrudModal";
 
-import { LocationRow, createLocation, type CreateLocationRequest } from "../../locations.api";
+import {
+  LocationRow,
+  LocationDetails,
+  createLocation,
+  updateLocation,
+  deleteLocation,
+  type CreateLocationRequest,
+} from "../../locations.api";
+
+/** Data passed to edit modal - LocationRow from list, or LocationDetails from detail page */
+type LocationEditData = (LocationRow | LocationDetails) & { id: number };
 
 interface AddLocationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  onAfterAction?: (action: "create" | "update" | "delete") => void;
   location: string;
-  initialData?: LocationRow | null;
+  initialData?: LocationEditData | null;
   mode?: "add" | "edit";
 }
 
@@ -35,10 +46,11 @@ type LocationFormData = {
   postalCode: string;
   royaltyPercent: string;
   advertisementPercent: string;
+  hstRegistrationNo: string;
   conversionDate?: Date;
 };
 
-type LocationUpdatePayload = CreateLocationRequest & { id: number };
+type LocationUpdatePayload = CreateLocationRequest & { id: number; conversionDate?: string };
 
 const isBlank = (v: string) => !v || v.trim().length === 0;
 
@@ -46,6 +58,7 @@ export function AddLocationModal({
   isOpen,
   onClose,
   onSuccess,
+  onAfterAction,
   location,
   initialData = null,
   mode = "add",
@@ -56,6 +69,16 @@ export function AddLocationModal({
     country: [],
   });
   const [loadingGeoData, setLoadingGeoData] = useState(false);
+
+  const lastActionRef = useRef<"create" | "update" | "delete" | null>(null);
+
+  const handleSuccess = useCallback(() => {
+    const action = lastActionRef.current;
+    if (action) {
+      onAfterAction?.(action);
+    }
+    onSuccess?.();
+  }, [onAfterAction, onSuccess]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -87,21 +110,34 @@ export function AddLocationModal({
     postalCode: "",
     royaltyPercent: "",
     advertisementPercent: "",
+    hstRegistrationNo: "",
     conversionDate: undefined,
     ...overrides,
   });
 
-  const buildCreatePayload = (formData: LocationFormData): CreateLocationRequest => ({
-    name: formData.name.trim(),
-    address: formData.address.trim(),
-    phone_number: formData.phoneNumber.trim() ? parsePhoneNumber(formData.phoneNumber.trim()) ?? "" : "",
-    email: formData.email.trim(),
-    city_id: Number(formData.cityId),
-    province_id: Number(formData.provinceId),
-    postal_code: formData.postalCode.trim(),
-    royaltyValue: Number(formData.royaltyPercent),
-    advertisementValue: Number(formData.advertisementPercent),
-  });
+  const buildCreatePayload = (formData: LocationFormData): CreateLocationRequest => {
+    const payload: CreateLocationRequest = {
+      name: formData.name.trim(),
+      address: formData.address.trim(),
+      phone_number: formData.phoneNumber.trim() ? parsePhoneNumber(formData.phoneNumber.trim()) ?? "" : "",
+      email: formData.email.trim(),
+      city_id: Number(formData.cityId),
+      province_id: Number(formData.provinceId),
+      country_id: Number(formData.countryId),
+      postal_code: formData.postalCode.trim(),
+      royaltyValue: Number(formData.royaltyPercent),
+      advertisementValue: Number(formData.advertisementPercent),
+    };
+
+    const hst = formData.hstRegistrationNo?.trim();
+    if (hst) payload.hst_registration_no = hst;
+
+    if (formData.conversionDate) {
+      payload.conversionDate = formatDateToISO(formData.conversionDate);
+    }
+
+    return payload;
+  };
 
   const validatePercentField = (rawValue: string, label: string): string | undefined => {
     if (isBlank(rawValue)) return `${label} cannot be blank.`;
@@ -110,38 +146,63 @@ export function AddLocationModal({
     return undefined;
   };
 
-  const updateNotReady = async (): Promise<{ success: boolean; message?: string }> => ({
-    success: false,
-    message: "Location update API is not ready yet.",
-  });
+  const resolveGeoId = (list: { id: number; name: string }[], name?: string) =>
+    (name && list.find((x) => x.name === name)?.id?.toString()) || "";
 
-  const config: CrudModalConfig<LocationRow, LocationFormData, CreateLocationRequest, LocationUpdatePayload> = {
+  const config: CrudModalConfig<LocationEditData, LocationFormData, CreateLocationRequest, LocationUpdatePayload> = {
     entityName: "Location",
-    onCreate: createLocation,
-    onUpdate: updateNotReady,
+    onCreate: async (loc, payload) => {
+      lastActionRef.current = "create";
+      return createLocation(loc, payload);
+    },
+    onUpdate: async (loc, payload) => {
+      lastActionRef.current = "update";
+      return updateLocation(loc, payload);
+    },
+    onDelete: async (loc, id) => {
+      lastActionRef.current = "delete";
+      return deleteLocation(loc, id);
+    },
     buildCreateRequest: (formData: LocationFormData): CreateLocationRequest => buildCreatePayload(formData),
-    buildUpdateRequest: (formData: LocationFormData, id: number): LocationUpdatePayload => ({
-      id,
-      ...buildCreatePayload(formData),
-    }),
-    initializeFormData: (row: LocationRow): LocationFormData =>
-      getBaseFormData({
+    buildUpdateRequest: (formData: LocationFormData, id: number): LocationUpdatePayload => {
+      const base = buildCreatePayload(formData);
+      const payload: LocationUpdatePayload = { id, ...base };
+      return payload;
+    },
+    initializeFormData: (row: LocationEditData): LocationFormData => {
+      const details = row as LocationDetails;
+      return getBaseFormData({
         name: row.name || "",
         address: row.address || "",
         email: row.email || "",
-      }),
+        phoneNumber: details.phoneNumber || "",
+        postalCode: details.postalCode || "",
+        royaltyPercent: details.royaltyPercent?.toString() ?? "",
+        advertisementPercent: details.advertisementPercent?.toString() ?? "",
+        hstRegistrationNo: details.hstRegistrationNo || "",
+        cityId: resolveGeoId(geoData.city, details.city) || defaults.cityId,
+        provinceId: resolveGeoId(geoData.province, details.province) || defaults.provinceId,
+        countryId: resolveGeoId(geoData.country, details.country) || defaults.countryId,
+        conversionDate: details.conversionDate ? new Date(details.conversionDate) : undefined,
+      });
+    },
     getDefaultFormData: (): LocationFormData => getBaseFormData(),
     validateForm: (formData: LocationFormData): Record<string, string> => {
       const errors: Record<string, string> = {};
 
-      if (isBlank(formData.name)) errors.name = "Name cannot be blank.";
-      if (isBlank(formData.address)) errors.address = "Address cannot be blank.";
-      if (isBlank(formData.phoneNumber)) errors.phoneNumber = "Phone Number cannot be blank.";
-      if (isBlank(formData.email)) errors.email = "Email cannot be blank.";
-      if (isBlank(formData.cityId)) errors.cityId = "City cannot be blank.";
-      if (isBlank(formData.provinceId)) errors.provinceId = "Province cannot be blank.";
-      if (isBlank(formData.countryId)) errors.countryId = "Country cannot be blank.";
-      if (isBlank(formData.postalCode)) errors.postalCode = "Postal Code cannot be blank.";
+      const requiredFields: [keyof LocationFormData, string][] = [
+        ["name", "Name"],
+        ["address", "Address"],
+        ["phoneNumber", "Phone Number"],
+        ["email", "Email"],
+        ["cityId", "City"],
+        ["provinceId", "Province"],
+        ["countryId", "Country"],
+        ["postalCode", "Postal Code"],
+      ];
+      for (const [key, label] of requiredFields) {
+        if (isBlank(formData[key] as string)) errors[key] = `${label} cannot be blank.`;
+      }
 
       // Phone is required and must be a valid 10-digit number
       if (!isBlank(formData.phoneNumber) && !validatePhoneNumber(formData.phoneNumber)) {
@@ -159,24 +220,23 @@ export function AddLocationModal({
   };
 
   return (
-    <GenericCrudModal<LocationRow, LocationFormData, CreateLocationRequest, LocationUpdatePayload>
+    <GenericCrudModal<LocationEditData, LocationFormData, CreateLocationRequest, LocationUpdatePayload>
       isOpen={isOpen}
       onClose={onClose}
-      onSuccess={onSuccess}
+      onSuccess={handleSuccess}
       location={location}
       initialData={initialData}
       mode={mode}
       title="Location"
       dialogClassName="sm:max-w-[1000px]"
       config={config}
+      deleteTitle="Delete Location"
+      deleteDescription={<span>Are you sure you want to delete this location?</span>}
     >
       {({ formData, errors, isBusy, handleInputChange }) => (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="name" className={errors.name ? "text-red-500" : ""}>
-                Name
-              </Label>
+            <FormField id="name" label="Name" error={errors.name}>
               <Input
                 id="name"
                 value={formData.name}
@@ -184,13 +244,9 @@ export function AddLocationModal({
                 className={errors.name ? "border-red-500" : ""}
                 disabled={isBusy}
               />
-              {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="address" className={errors.address ? "text-red-500" : ""}>
-                Address
-              </Label>
+            <FormField id="address" label="Address" error={errors.address}>
               <Input
                 id="address"
                 value={formData.address}
@@ -198,13 +254,9 @@ export function AddLocationModal({
                 className={errors.address ? "border-red-500" : ""}
                 disabled={isBusy}
               />
-              {errors.address && <p className="text-sm text-red-500">{errors.address}</p>}
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className={errors.phoneNumber ? "text-red-500" : ""}>
-                Phone Number
-              </Label>
+            <FormField id="phoneNumber" label="Phone Number" error={errors.phoneNumber}>
               <Input
                 id="phoneNumber"
                 value={formData.phoneNumber}
@@ -212,13 +264,9 @@ export function AddLocationModal({
                 className={errors.phoneNumber ? "border-red-500" : ""}
                 disabled={isBusy}
               />
-              {errors.phoneNumber && <p className="text-sm text-red-500">{errors.phoneNumber}</p>}
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className={errors.email ? "text-red-500" : ""}>
-                Email
-              </Label>
+            <FormField id="email" label="Email" error={errors.email}>
               <Input
                 id="email"
                 value={formData.email}
@@ -226,80 +274,47 @@ export function AddLocationModal({
                 className={errors.email ? "border-red-500" : ""}
                 disabled={isBusy}
               />
-              {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
-            </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <Label className={errors.cityId ? "text-red-500" : ""}>City</Label>
-              <Select
-                value={formData.cityId}
-                onValueChange={(value) => handleInputChange("cityId", value)}
-                disabled={isBusy || loadingGeoData}
-              >
-                <SelectTrigger className={errors.cityId ? "border-red-500" : ""}>
-                  <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select city"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {geoData.city.map((c) => (
-                    <SelectItem key={c.id} value={c.id.toString()}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.cityId && <p className="text-sm text-red-500">{errors.cityId}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label className={errors.provinceId ? "text-red-500" : ""}>Province</Label>
-              <Select
-                value={formData.provinceId}
-                onValueChange={(value) => handleInputChange("provinceId", value)}
-                disabled={isBusy || loadingGeoData}
-              >
-                <SelectTrigger className={errors.provinceId ? "border-red-500" : ""}>
-                  <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select province"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {geoData.province.map((p) => (
-                    <SelectItem key={p.id} value={p.id.toString()}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.provinceId && <p className="text-sm text-red-500">{errors.provinceId}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label className={errors.countryId ? "text-red-500" : ""}>Country</Label>
-              <Select
-                value={formData.countryId}
-                onValueChange={(value) => handleInputChange("countryId", value)}
-                disabled={isBusy || loadingGeoData}
-              >
-                <SelectTrigger className={errors.countryId ? "border-red-500" : ""}>
-                  <SelectValue placeholder={loadingGeoData ? "Loading..." : "Select country"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {geoData.country.map((c) => (
-                    <SelectItem key={c.id} value={c.id.toString()}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.countryId && <p className="text-sm text-red-500">{errors.countryId}</p>}
-            </div>
+            <GeoSelectField
+              id="cityId"
+              label="City"
+              value={formData.cityId}
+              options={geoData.city}
+              placeholder="Select city"
+              error={errors.cityId}
+              loading={loadingGeoData}
+              disabled={isBusy}
+              onValueChange={(v: string) => handleInputChange("cityId", v)}
+            />
+            <GeoSelectField
+              id="provinceId"
+              label="Province"
+              value={formData.provinceId}
+              options={geoData.province}
+              placeholder="Select province"
+              error={errors.provinceId}
+              loading={loadingGeoData}
+              disabled={isBusy}
+              onValueChange={(v: string) => handleInputChange("provinceId", v)}
+            />
+            <GeoSelectField
+              id="countryId"
+              label="Country"
+              value={formData.countryId}
+              options={geoData.country}
+              placeholder="Select country"
+              error={errors.countryId}
+              loading={loadingGeoData}
+              disabled={isBusy}
+              onValueChange={(v: string) => handleInputChange("countryId", v)}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="postalCode" className={errors.postalCode ? "text-red-500" : ""}>
-                Postal Code
-              </Label>
+            <FormField id="postalCode" label="Postal Code" error={errors.postalCode}>
               <Input
                 id="postalCode"
                 value={formData.postalCode}
@@ -307,13 +322,9 @@ export function AddLocationModal({
                 className={errors.postalCode ? "border-red-500" : ""}
                 disabled={isBusy}
               />
-              {errors.postalCode && <p className="text-sm text-red-500">{errors.postalCode}</p>}
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="royaltyPercent" className={errors.royaltyPercent ? "text-red-500" : ""}>
-                Royalty (%)
-              </Label>
+            <FormField id="royaltyPercent" label="Royalty (%)" error={errors.royaltyPercent}>
               <Input
                 id="royaltyPercent"
                 inputMode="decimal"
@@ -322,13 +333,9 @@ export function AddLocationModal({
                 className={errors.royaltyPercent ? "border-red-500" : ""}
                 disabled={isBusy}
               />
-              {errors.royaltyPercent && <p className="text-sm text-red-500">{errors.royaltyPercent}</p>}
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="advertisementPercent" className={errors.advertisementPercent ? "text-red-500" : ""}>
-                Advertisement (%)
-              </Label>
+            <FormField id="advertisementPercent" label="Advertisement (%)" error={errors.advertisementPercent}>
               <Input
                 id="advertisementPercent"
                 inputMode="decimal"
@@ -337,22 +344,30 @@ export function AddLocationModal({
                 className={errors.advertisementPercent ? "border-red-500" : ""}
                 disabled={isBusy}
               />
-              {errors.advertisementPercent && (
-                <p className="text-sm text-red-500">{errors.advertisementPercent}</p>
-              )}
-            </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label>Conversion Date</Label>
+            <FormField label="Conversion Date">
               <DatePicker
                 value={formData.conversionDate}
                 onSelect={(d) => handleInputChange("conversionDate", d)}
                 placeholder="Pick a date"
                 disabled={isBusy}
               />
-            </div>
+            </FormField>
+
+            {mode === "edit" && (
+              <FormField id="hstRegistrationNo" label="HST Registration Number">
+                <Input
+                  id="hstRegistrationNo"
+                  value={formData.hstRegistrationNo}
+                  onChange={(e) => handleInputChange("hstRegistrationNo", e.target.value)}
+                  disabled={isBusy}
+                  placeholder="Enter HST registration number"
+                />
+              </FormField>
+            )}
           </div>
         </div>
       )}

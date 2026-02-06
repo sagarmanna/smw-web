@@ -3,10 +3,17 @@
 import * as React from "react";
 import type { EventProps } from "react-big-calendar";
 import { X } from "lucide-react";
+import { toast } from "sonner";
 
 import { ReactBigCalendarWrapper, CalendarEvent } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { Button } from "@/components/ui/button";
+import { formatDateTimeForAPI, getMondayOfWeek, pad2 } from "@/utils/dateUtils";
+
+import type {
+  CreateAvailabilityBlockRequest,
+  EditAvailabilityBlockRequest,
+} from "../../locationAvailability.api";
 
 export type LocationTimeBlock = {
   id: string;
@@ -28,8 +35,6 @@ const DAY_RESOURCES = [
   { id: 7, title: "Sunday" },
 ];
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
 const toHHmm = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
 const toDateAtMonday = (monday: Date, hhmm: string) => {
@@ -37,16 +42,6 @@ const toDateAtMonday = (monday: Date, hhmm: string) => {
   const next = new Date(monday);
   next.setHours(hh || 0, mm || 0, 0, 0);
   return next;
-};
-
-const getMondayOfWeek = (date: Date) => {
-  const d = new Date(date);
-  const dayOfWeek = d.getDay(); // 0-6 (Sun-Sat)
-  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + daysToMonday);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
 };
 
 const formatShortTime = (d: Date) => {
@@ -60,11 +55,22 @@ const formatShortTime = (d: Date) => {
 const formatTimeRange = (start: Date, end: Date) =>
   `${formatShortTime(start)} - ${formatShortTime(end)}`;
 
-type AvailabilityEventComponentProps = EventProps<CalendarEvent> & {
-  onEventDelete?: (event: CalendarEvent) => void;
+/** Parse resourceId from calendar event/slot (number or string) to number, with fallback. */
+const parseResourceId = (value: number | string | undefined, fallback = 1): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const parsed = Number.parseInt(String(value ?? fallback), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-function AvailabilityEventWithDelete({ event, onEventDelete }: AvailabilityEventComponentProps) {
+const ONE_AVAILABILITY_PER_DAY_MESSAGE =
+  "You are not allowed to set more than one availability for a day!";
+
+type AvailabilityEventComponentProps = EventProps<CalendarEvent> & {
+  onEventDelete?: (event: CalendarEvent) => void;
+  editable?: boolean;
+};
+
+function AvailabilityEventWithDelete({ event, onEventDelete, editable }: AvailabilityEventComponentProps) {
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
 
   const handleDeleteClick = React.useCallback(
@@ -83,7 +89,7 @@ function AvailabilityEventWithDelete({ event, onEventDelete }: AvailabilityEvent
 
   return (
     <>
-      <div className="relative h-full w-full overflow-hidden px-1 py-0.5 flex items-start cursor-default">
+      <div className={`relative h-full w-full overflow-hidden px-1 py-0.5 flex items-start ${editable ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}>
         <span className="text-[10px] font-semibold text-white flex-shrink-0">
           {formatTimeRange(event.start, event.end)}
         </span>
@@ -104,7 +110,7 @@ function AvailabilityEventWithDelete({ event, onEventDelete }: AvailabilityEvent
         open={showDeleteModal}
         onOpenChange={setShowDeleteModal}
         title="Delete time slot?"
-        description="This time slot will be removed. This cannot be undone."
+        description="Are you sure to delete availability?"
         onConfirm={handleConfirmDelete}
         confirmLabel="Delete"
       />
@@ -117,6 +123,16 @@ interface LocationAvailabilityCalendarProps {
   onBlocksChange: (next: LocationTimeBlock[]) => void;
   editable?: boolean;
   height?: string;
+  /** When provided, calls API on create/drop/resize (location slug) */
+  location?: string;
+  /** 1 = operation time, 2 = schedule visibility */
+  availabilityType?: 1 | 2;
+  /** Called when a new block is created (select slot) */
+  onBlockCreate?: (payload: CreateAvailabilityBlockRequest) => void | Promise<void>;
+  /** Called when a block is moved or resized (drag & drop) */
+  onBlockEdit?: (payload: EditAvailabilityBlockRequest) => void | Promise<void>;
+  /** Called when a block is deleted */
+  onBlockDelete?: (id: number) => void | Promise<void>;
 }
 
 export function LocationAvailabilityCalendar({
@@ -124,6 +140,11 @@ export function LocationAvailabilityCalendar({
   onBlocksChange,
   editable = true,
   height = "600px",
+  location,
+  availabilityType,
+  onBlockCreate,
+  onBlockEdit,
+  onBlockDelete,
 }: LocationAvailabilityCalendarProps) {
   const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
 
@@ -149,53 +170,101 @@ export function LocationAvailabilityCalendar({
   }, [blocks, mondayDate]);
 
   const handleEventDelete = React.useCallback(
-    (event: CalendarEvent) => {
-      const next = blocks.filter((b) => b.id !== event.id);
-      onBlocksChange(next);
+    async (event: CalendarEvent) => {
+      const blockId = Number.parseInt(String(event.id), 10);
+      if (Number.isFinite(blockId) && onBlockDelete) {
+        await onBlockDelete(blockId);
+      } else {
+        const next = blocks.filter((b) => b.id !== event.id);
+        onBlocksChange(next);
+      }
     },
-    [blocks, onBlocksChange]
+    [blocks, onBlocksChange, onBlockDelete]
+  );
+
+  const persistBlockCreate = React.useCallback(
+    (resourceId: number, start: Date, end: Date) => {
+      if (location && availabilityType != null && onBlockCreate) {
+        onBlockCreate({
+          resourceId,
+          type: availabilityType,
+          startTime: formatDateTimeForAPI(start),
+          endTime: formatDateTimeForAPI(end),
+        });
+      }
+    },
+    [location, availabilityType, onBlockCreate]
+  );
+
+  const persistBlockEdit = React.useCallback(
+    (id: number, resourceId: number, start: Date, end: Date) => {
+      if (location && availabilityType != null && onBlockEdit) {
+        onBlockEdit({
+          id,
+          resourceId,
+          type: availabilityType,
+          startTime: formatDateTimeForAPI(start),
+          endTime: formatDateTimeForAPI(end),
+        });
+      }
+    },
+    [location, availabilityType, onBlockEdit]
   );
 
   const updateFromCalendarEvent = React.useCallback(
     (event: CalendarEvent) => {
-      const resourceId =
-        typeof event.resourceId === "number"
-          ? event.resourceId
-          : Number.parseInt(String(event.resourceId), 10);
+      const resolvedResourceId = parseResourceId(event.resourceId, 1);
+
+      const otherBlockOnSameDay = blocks.find(
+        (b) => b.id !== event.id && b.resourceId === resolvedResourceId
+      );
+      if (otherBlockOnSameDay) {
+        toast.error(ONE_AVAILABILITY_PER_DAY_MESSAGE);
+        return;
+      }
+
       const next = blocks.map((b) =>
         b.id === event.id
           ? {
               ...b,
-              resourceId: Number.isFinite(resourceId) ? resourceId : b.resourceId,
+              resourceId: resolvedResourceId,
               fromTime: toHHmm(event.start),
               toTime: toHHmm(event.end),
             }
           : b
       );
       onBlocksChange(next);
+      const blockId = Number.parseInt(String(event.id), 10);
+      if (Number.isFinite(blockId)) {
+        persistBlockEdit(blockId, resolvedResourceId, event.start, event.end);
+      }
     },
-    [blocks, onBlocksChange]
+    [blocks, onBlocksChange, persistBlockEdit]
   );
 
   const handleSelectSlot = React.useCallback(
     (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
       if (!editable) return;
 
-      const resourceId =
-        typeof slotInfo.resourceId === "number"
-          ? slotInfo.resourceId
-          : Number.parseInt(String(slotInfo.resourceId || "1"), 10);
+      const resolvedResourceId = parseResourceId(slotInfo.resourceId, 1);
+
+      const hasSlotOnSameDay = blocks.some((b) => b.resourceId === resolvedResourceId);
+      if (hasSlotOnSameDay) {
+        toast.error(ONE_AVAILABILITY_PER_DAY_MESSAGE);
+        return;
+      }
 
       const id = `loc-avail-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const next: LocationTimeBlock = {
         id,
-        resourceId: Number.isFinite(resourceId) ? resourceId : 1,
+        resourceId: resolvedResourceId,
         fromTime: toHHmm(slotInfo.start),
         toTime: toHHmm(slotInfo.end),
       };
       onBlocksChange([...blocks, next]);
+      persistBlockCreate(resolvedResourceId, slotInfo.start, slotInfo.end);
     },
-    [blocks, editable, onBlocksChange]
+    [blocks, editable, onBlocksChange, persistBlockCreate]
   );
 
   return (

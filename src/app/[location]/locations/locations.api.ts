@@ -69,9 +69,13 @@ export interface CreateLocationRequest {
   email: string;
   city_id: number;
   province_id: number;
+  country_id: number;
   postal_code: string;
   royaltyValue: number;
   advertisementValue: number;
+  conversionDate?: string;
+  /** Optional HST registration number sent in snake_case for API */
+  hst_registration_no?: string;
 }
 
 export interface CreateLocationResponse {
@@ -161,6 +165,87 @@ export async function createLocation(
     return {
       success: false,
       message: extractErrorMessage(error, "Failed to create location"),
+    };
+  }
+}
+
+/**
+ * Updates an existing location
+ * PUT /admin/v2/{location}/location-update
+ * Note: API expects body without id - the location slug in the URL identifies the record.
+ *
+ * @param location - Location slug (e.g. test-yamala)
+ * @param payload - Location update payload (id is used internally but not sent in body)
+ * @returns Promise with success and message
+ */
+export interface UpdateLocationRequest extends CreateLocationRequest {
+  id: number;
+  conversionDate?: string;
+}
+
+export async function updateLocation(
+  location: string,
+  payload: UpdateLocationRequest
+): Promise<{ success: boolean; message?: string }> {
+  const { id: _id, ...body } = payload;
+  try {
+    const response = await apiClient.put<CreateLocationResponse>(
+      `/admin/v2/${location}/location-update`,
+      body
+    );
+
+    if (response.data?.success) {
+      return {
+        success: true,
+        message: response.data.message ?? "Location updated successfully",
+      };
+    }
+
+    return {
+      success: false,
+      message: response.data?.message ?? "Failed to update location",
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: extractErrorMessage(error, "Failed to update location"),
+    };
+  }
+}
+
+/**
+ * Deletes a location
+ * DELETE /admin/v2/location/delete?id={id}
+ *
+ * @param _location - Unused; endpoint is global. Kept for consistency with modal interface.
+ * @param id - Location id to delete
+ * @returns Promise with success and message
+ */
+export async function deleteLocation(
+  _location: string,
+  id: number
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await apiClient.delete<CreateLocationResponse>(
+      "/admin/v2/location/delete",
+      { params: { id } }
+    );
+
+    if (response.data?.success) {
+      return {
+        success: true,
+        message: response.data.message ?? "Location deleted successfully",
+      };
+    }
+
+    return {
+      success: false,
+      message: response.data?.message ?? "Failed to delete location",
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: extractErrorMessage(error, "Failed to delete location"),
     };
   }
 }

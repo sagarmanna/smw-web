@@ -93,7 +93,12 @@ interface ReactBigCalendarWrapperProps {
   viewType?: 'teacher' | 'classroom' | 'availability'; // Add view type to distinguish between teacher, classroom, and availability views
   updatingEvents?: Set<string>; // Events currently being updated
   /** Optional custom event component for availability view (e.g. with delete X + modal); receives onEventDelete when provided */
-  availabilityEventComponent?: React.ComponentType<EventProps<CalendarEvent> & { onEventDelete?: (event: CalendarEvent) => void }>;
+  availabilityEventComponent?: React.ComponentType<
+    EventProps<CalendarEvent> & {
+      onEventDelete?: (event: CalendarEvent) => void;
+      editable?: boolean;
+    }
+  >;
   // Mobile editing props
   teachers?: Array<{ id: number; title: string }>; // For mobile teacher selection
   classrooms?: Array<{ id: number; title: string }>; // For mobile classroom selection
@@ -883,7 +888,7 @@ export const ReactBigCalendarWrapper = forwardRef<CalendarWrapperRef, ReactBigCa
             dragFromOutsideItem={undefined}
             components={{
               event: viewType === 'availability' && availabilityEventComponent && onEventDelete
-                ? (props: EventProps<CalendarEvent>) => React.createElement(availabilityEventComponent, { ...props, onEventDelete })
+                ? (props: EventProps<CalendarEvent>) => React.createElement(availabilityEventComponent, { ...props, onEventDelete, editable })
                 : EventComponent,
               resourceHeader: resources.length === 0 
                 ? EmptyResourceHeader 
