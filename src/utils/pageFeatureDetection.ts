@@ -62,6 +62,14 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'countries': 'countries',
     'taxes': 'taxes',
     'calendar-event-color': 'colorCode',
+    'reminder-notes': 'reminderNotes',
+    'blogs': 'blogs',
+    'locations': 'locations',
+    'holidays': 'holidays',
+    'email-template': 'emailTemplate',
+    'test-email': 'testEmail',
+    'terms-of-service': 'termsOfService',
+    'referral-source': 'referralSources',
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -106,6 +114,14 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     colorCode: `/calendar-event-color/edit`,
     itemCategory: `/report/item-category`, // Report item category
     adminItemCategory: `/item-category/index`, // Admin item category
+    reminderNotes: `/reminder-note/index`,
+    blogs: `/blog/index`,
+    locations: `/location/index`,
+    holidays: `/holiday/index`,
+    emailTemplate: `/email-template/index`,
+    testEmail: `/test-email/index`,
+    termsOfService: `/terms-of-service/index`,
+    referralSources: `/referral-source/index`,
   };
     
   // Handle privateLessons with dynamic date range

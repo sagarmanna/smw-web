@@ -57,6 +57,10 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     legacyUrl: (params) => 
       `/user/view?UserSearch%5Brole_name%5D=administrator&id=${params.id || ''}`
   },
+  {
+    pattern: /^\/[^/]+\/locations\/[^/]+$/, // Matches /[location]/locations/[id]
+    legacyUrl: '/location-view'
+  },
   // Static routes (string patterns)
   {
     pattern: /^\/[^/]+\/customers$/, // Matches /[location]/customers (list page)
@@ -145,6 +149,38 @@ const legacyRouteMap: LegacyRouteConfig[] = [
   {
     pattern: /^\/[^/]+\/item-categories$/, // Matches /[location]/item-categories
     legacyUrl: '/item-category/index'
+  },
+  {
+    pattern: /^\/[^/]+\/reminder-notes$/, // Matches /[location]/reminder-notes
+    legacyUrl: '/reminder-note/index'
+  },
+  {
+    pattern: /^\/[^/]+\/blogs$/, // Matches /[location]/blogs
+    legacyUrl: '/blog/index'
+  },
+  {
+    pattern: /^\/[^/]+\/locations$/, // Matches /[location]/locations
+    legacyUrl: '/location/index'
+  },
+  {
+    pattern: /^\/[^/]+\/holidays$/, // Matches /[location]/holidays
+    legacyUrl: '/holiday/index'
+  },
+  {
+    pattern: /^\/[^/]+\/email-template$/, // Matches /[location]/email-template
+    legacyUrl: '/email-template/index'
+  },
+  {
+    pattern: /^\/[^/]+\/test-email$/, // Matches /[location]/test-email
+    legacyUrl: '/test-email/index'
+  },
+  {
+    pattern: /^\/[^/]+\/terms-of-service$/, // Matches /[location]/terms-of-service
+    legacyUrl: '/terms-of-service/index'
+  },
+  {
+    pattern: /^\/[^/]+\/referral-source$/, // Matches /[location]/referral-source
+    legacyUrl: '/referral-source/index'
   },
 ];
 
