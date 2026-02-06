@@ -1,22 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { parseISO, format, isValid as isValidDate } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDisplayDate } from "@/utils/dateUtils";
 import type { LocationDetails } from "../../../locations.api";
 import { InfoRow } from "../InfoRow";
-
-const formatDisplayDate = (raw?: string): string => {
-  if (!raw) return "";
-  try {
-    const d = parseISO(raw);
-    if (isValidDate(d)) return format(d, "MMM dd, yyyy");
-    return raw;
-  } catch {
-    return raw;
-  }
-};
 
 interface LocationDetailsCardProps {
   details: LocationDetails | null;

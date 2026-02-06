@@ -73,8 +73,9 @@ export interface CreateLocationRequest {
   postal_code: string;
   royaltyValue: number;
   advertisementValue: number;
-  hstRegistrationNo?: string;
   conversionDate?: string;
+  /** Optional HST registration number sent in snake_case for API */
+  hst_registration_no?: string;
 }
 
 export interface CreateLocationResponse {

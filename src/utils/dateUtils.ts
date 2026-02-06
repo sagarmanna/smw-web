@@ -4,6 +4,11 @@
 
 import { parse, format, isValid } from "date-fns";
 
+/** Pads a number to 2 digits (e.g. 5 → "05"). */
+export function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 /**
  * Formats a date string for display.
  * Business requirement: display as `Feb 01, 2006` (MMM DD, YYYY).
@@ -223,6 +228,31 @@ export function convertToISOFormat(dateStr: string): string {
   // Fallback: try native Date parsing
   const date = new Date(dateStr);
   return !isNaN(date.getTime()) ? formatDateToISO(date) : "";
+}
+
+/**
+ * Returns the Monday of the week containing the given date.
+ * Used for week-based calendars (e.g. availability, schedule views).
+ * @param date - Any date
+ * @returns Monday at 00:00:00 of that week
+ */
+export function getMondayOfWeek(date: Date): Date {
+  const d = new Date(date);
+  const dayOfWeek = d.getDay(); // 0-6 (Sun-Sat)
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + daysToMonday);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+/**
+ * Formats a Date to "YYYY-MM-DD HH:mm:ss" for API requests.
+ * @param date - Date object to format
+ * @returns API-compatible datetime string
+ */
+export function formatDateTimeForAPI(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:00`;
 }
 
 /**

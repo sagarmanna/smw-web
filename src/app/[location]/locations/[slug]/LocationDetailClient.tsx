@@ -3,16 +3,18 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
+import { toast } from "sonner";
 
 import { DetailHeader } from "@/components/DetailHeader";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { extractErrorMessage } from "@/utils/api/createCrudApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 import { AddLocationModal } from "../components/modals/AddLocationModal";
 import { LocationDetails } from "../locations.api";
-import { getLocationInfo } from "./locationDetail.api";
+import { getLocationInfo, updateLocationHst } from "./locationDetail.api";
 import { type LocationTimeBlock } from "./components/LocationAvailabilityCalendar";
 import { LocationDetailsCard } from "./components/LocationDetailsCard";
 import { LocationAddressCard } from "./components/LocationAddressCard";
@@ -30,10 +32,11 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
-  const [hstRegistrationNo, setHstRegistrationNo] = React.useState("");
+  const [hstInput, setHstInput] = React.useState("");
+  const [isUpdatingHst, setIsUpdatingHst] = React.useState(false);
 
-  // Availability blocks currently have no backend integration.
-  // Keep the UI functional without seeding placeholder blocks.
+  // Availability blocks are backed by the location availability API
+  // (see LocationAvailabilityTabsSection + locationAvailability.api).
   const [operationBlocks, setOperationBlocks] = React.useState<LocationTimeBlock[]>([]);
   const [visibilityBlocks, setVisibilityBlocks] = React.useState<LocationTimeBlock[]>([]);
 
@@ -44,16 +47,14 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
       const apiDetails = await getLocationInfo(location);
       if (apiDetails) {
         setDetails(apiDetails);
-        setHstRegistrationNo(apiDetails.hstRegistrationNo || "");
+        setHstInput(apiDetails.hstRegistrationNo || "");
       } else {
         setDetails(null);
-        setHstRegistrationNo("");
         setError("Location details not found");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load location details");
+      setError(extractErrorMessage(e, "Failed to load location details"));
       setDetails(null);
-      setHstRegistrationNo("");
     } finally {
       setIsLoading(false);
     }
@@ -62,6 +63,12 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
   React.useEffect(() => {
     fetchDetails();
   }, [fetchDetails]);
+
+  React.useEffect(() => {
+    if (details?.hstRegistrationNo !== undefined) {
+      setHstInput(details.hstRegistrationNo || "");
+    }
+  }, [details?.hstRegistrationNo]);
 
   const pageTitle = details?.name?.trim() ? details.name.trim() : slug;
 
@@ -74,6 +81,35 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
       }
     },
     [router, location, fetchDetails]
+  );
+
+  const handleHstKeyDown = React.useCallback(
+    async (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+
+      const nextHst = hstInput.trim();
+
+      setIsUpdatingHst(true);
+      try {
+        const updated = await updateLocationHst(location, nextHst);
+        if (updated === null) {
+          toast.error("Failed to update HST number.");
+          return;
+        }
+
+        setDetails((prev) =>
+          prev ? { ...prev, hstRegistrationNo: updated } : prev
+        );
+        setHstInput(updated);
+        toast.success("HST number updated.");
+      } catch (e) {
+        toast.error(extractErrorMessage(e, "Failed to update HST number."));
+      } finally {
+        setIsUpdatingHst(false);
+      }
+    },
+    [hstInput, location]
   );
 
   const editInitialData = React.useMemo(() => {
@@ -150,8 +186,10 @@ export function LocationDetailClient({ location, slug }: LocationDetailClientPro
                 </div>
                 <Input
                   className="w-1/3 border-gray-300 dark:border-gray-600"
-                  value={hstRegistrationNo}
-                  onChange={(e) => setHstRegistrationNo(e.target.value)}
+                  value={hstInput}
+                  onChange={(e) => setHstInput(e.target.value)}
+                  onKeyDown={handleHstKeyDown}
+                  disabled={isUpdatingHst}
                 />
               </div>
             </CardContent>

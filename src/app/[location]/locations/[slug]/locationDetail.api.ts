@@ -81,3 +81,36 @@ export async function getLocationInfo(
     return null;
   }
 }
+
+/** Response may be direct { hst } or wrapped { success, data: { hst } } */
+type UpdateHstApiResponse =
+  | { hst: string }
+  | { success?: boolean; data?: { hst?: string }; hst?: string };
+
+/**
+ * Updates HST registration number for a location.
+ * Endpoint: POST /admin/v2/{location}/hst-update
+ * Body: { hst: string }
+ * Response: { "hst": "..." } or { "success": true, "data": { "hst": "..." } }
+ */
+export async function updateLocationHst(
+  location: string,
+  hst: string
+): Promise<string | null> {
+  try {
+    const response = await apiClient.post<UpdateHstApiResponse>(
+      `/admin/v2/${location}/hst-update`,
+      { hst }
+    );
+    const body = response.data;
+    if (!body) return hst; // Fallback to sent value if no body
+    // Handle direct { hst } or wrapped { data: { hst } }
+    const value =
+      (body as { hst?: string }).hst ??
+      (body as { data?: { hst?: string } }).data?.hst;
+    return value ?? hst; // Fallback to sent value if shape unexpected
+  } catch (error) {
+    console.error("Error updating HST number:", error);
+    return null;
+  }
+}

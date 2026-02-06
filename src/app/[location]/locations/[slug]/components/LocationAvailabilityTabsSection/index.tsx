@@ -4,6 +4,8 @@ import * as React from "react";
 import { Settings } from "lucide-react";
 import { toast } from "sonner";
 
+import { extractErrorMessage } from "@/utils/api/createCrudApi";
+import { pad2 } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -16,6 +18,9 @@ import {
 import { LocationAvailabilityCalendar, type LocationTimeBlock } from "../LocationAvailabilityCalendar";
 import {
   copyLocationAvailability,
+  createLocationAvailabilityBlock,
+  deleteLocationAvailabilityBlock,
+  editLocationAvailabilityBlock,
   getLocationRenderEvents,
   type LocationRenderEventRow,
 } from "../../locationAvailability.api";
@@ -25,6 +30,16 @@ type AvailabilityTabKey = "operation" | "visibility";
 const AVAILABILITY_TYPE = 1 as const;
 const SCHEDULE_VISIBILITY_TYPE = 2 as const;
 
+const getBlocksConfig = (
+  type: 1 | 2,
+  setOperationBlocks: React.Dispatch<React.SetStateAction<LocationTimeBlock[]>>,
+  setVisibilityBlocks: React.Dispatch<React.SetStateAction<LocationTimeBlock[]>>
+) => ({
+  setBlocks: type === 1 ? setOperationBlocks : setVisibilityBlocks,
+  errorMsg:
+    type === 1 ? "Failed to refresh operation time" : "Failed to refresh schedule visibility",
+});
+
 const extractTimeHHmm = (value: string): string => {
   // Supports "YYYY-MM-DD HH:mm:ss" and ISO strings.
   const timePart = value.includes(" ")
@@ -33,9 +48,7 @@ const extractTimeHHmm = (value: string): string => {
       ? value.split("T")[1] || ""
       : value;
   const [hhRaw = "00", mmRaw = "00"] = timePart.split(":");
-  const hh = hhRaw.padStart(2, "0");
-  const mm = mmRaw.padStart(2, "0");
-  return `${hh}:${mm}`;
+  return `${pad2(Number.parseInt(hhRaw, 10) || 0)}:${pad2(Number.parseInt(mmRaw, 10) || 0)}`;
 };
 
 const toTimeBlocks = (rows: LocationRenderEventRow[]): LocationTimeBlock[] =>
@@ -94,6 +107,66 @@ export function LocationAvailabilityTabsSection({
     load();
   }, [fetchAndSetBlocks, setOperationBlocks, setVisibilityBlocks]);
 
+  const handleBlockCreate = React.useCallback(
+    async (payload: { resourceId: number; type: 1 | 2; startTime: string; endTime: string }) => {
+      try {
+        const result = await createLocationAvailabilityBlock(location, payload);
+        if (!result.success) {
+          toast.error(result.message || "Failed to save availability block");
+          return;
+        }
+        const type = payload.type;
+        const setBlocks = type === 1 ? setOperationBlocks : setVisibilityBlocks;
+        const errorMsg =
+          type === 1 ? "Failed to refresh operation time" : "Failed to refresh schedule visibility";
+        await fetchAndSetBlocks(type, setBlocks, errorMsg);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to save availability block");
+      }
+    },
+    [fetchAndSetBlocks, location, setOperationBlocks, setVisibilityBlocks]
+  );
+
+  const handleBlockEdit = React.useCallback(
+    async (payload: { id: number; resourceId: number; type: 1 | 2; startTime: string; endTime: string }) => {
+      try {
+        const result = await editLocationAvailabilityBlock(location, payload);
+        if (!result.success) {
+          toast.error(result.message || "Failed to update availability block");
+          return;
+        }
+        const { setBlocks, errorMsg } = getBlocksConfig(
+          payload.type,
+          setOperationBlocks,
+          setVisibilityBlocks
+        );
+        await fetchAndSetBlocks(payload.type, setBlocks, errorMsg);
+      } catch (e) {
+        toast.error(extractErrorMessage(e, "Failed to update availability block"));
+      }
+    },
+    [fetchAndSetBlocks, location, setOperationBlocks, setVisibilityBlocks]
+  );
+
+  const handleBlockDelete = React.useCallback(
+    (type: 1 | 2) => async (id: number) => {
+      try {
+        const result = await deleteLocationAvailabilityBlock(location, id);
+        if (!result.success) {
+          toast.error(result.message || "Failed to delete availability block");
+          return;
+        }
+        const setBlocks = type === 1 ? setOperationBlocks : setVisibilityBlocks;
+        const errorMsg =
+          type === 1 ? "Failed to refresh operation time" : "Failed to refresh schedule visibility";
+        await fetchAndSetBlocks(type, setBlocks, errorMsg);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to delete availability block");
+      }
+    },
+    [fetchAndSetBlocks, location, setOperationBlocks, setVisibilityBlocks]
+  );
+
   const copyOperationalToVisibility = React.useCallback(async () => {
     if (isCopying) return;
     setIsCopying(true);
@@ -116,7 +189,7 @@ export function LocationAvailabilityTabsSection({
 
       toast.success(result.message || "Copied operational hours to schedule visibility");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to copy availability");
+      toast.error(extractErrorMessage(e, "Failed to copy availability"));
     } finally {
       setIsCopying(false);
     }
@@ -148,6 +221,11 @@ export function LocationAvailabilityTabsSection({
             onBlocksChange={setOperationBlocks}
             editable={true}
             height="650px"
+            location={location}
+            availabilityType={1}
+            onBlockCreate={handleBlockCreate}
+            onBlockEdit={handleBlockEdit}
+            onBlockDelete={handleBlockDelete(1)}
           />
         </TabsContent>
 
@@ -177,6 +255,11 @@ export function LocationAvailabilityTabsSection({
             onBlocksChange={setVisibilityBlocks}
             editable={true}
             height="650px"
+            location={location}
+            availabilityType={2}
+            onBlockCreate={handleBlockCreate}
+            onBlockEdit={handleBlockEdit}
+            onBlockDelete={handleBlockDelete(2)}
           />
         </TabsContent>
       </Tabs>
