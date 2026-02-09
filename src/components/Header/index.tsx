@@ -356,7 +356,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </Button>
 
           {/* Latest Features & Updates */}
-          {isDev() && (
+          {/* TODO: Remove this once we have a new latest updates page */}
+          {(location === 'burlington' || location === 'training-location') && (
             <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
