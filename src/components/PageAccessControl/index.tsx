@@ -90,10 +90,40 @@ const findMenuItemByUrl = (menuItems: MenuItem[], url: string): MenuItem | null 
   return null;
 };
 
-// Paths that require admin role only (e.g. /[location]/administrators, /[location]/administrators/[id])
+// List of admin page slugs (second segment after location)
+const ADMIN_PAGE_SLUGS = [
+  "administrators",
+  "programs",
+  "cities",
+  "provinces",
+  "countries",
+  "taxes",
+  "calendar-event-color",
+  "item-categories",
+  "reminder-notes",
+  "blogs",
+  "locations",
+  "holidays",
+  "email-template",
+  "test-email",
+  "terms-of-service",
+  "referral-source",
+] as const;
+
+// Paths that require admin role only (e.g. /[location]/administrators, /[location]/administrators/[id], /[location]/locations/[slug])
 const isAdministratorsPath = (pathname: string): boolean => {
   const segments = pathname.split("/").filter(Boolean);
   return segments.length >= 2 && segments[1] === "administrators";
+};
+
+// Check if pathname is any admin page (including detail pages)
+const isAdminPage = (pathname: string): boolean => {
+  const segments = pathname.split("/").filter(Boolean);
+  // Check if second segment (after location) matches any admin page slug
+  if (segments.length >= 2) {
+    return ADMIN_PAGE_SLUGS.includes(segments[1] as typeof ADMIN_PAGE_SLUGS[number]);
+  }
+  return false;
 };
 
 // Helper function to determine if user has access
@@ -103,8 +133,8 @@ const hasAccess = (
   params: Record<string, string | string[] | undefined>,
   userRole: string | undefined
 ): boolean => {
-  // Administrators pages: allow only users with admin role
-  if (isAdministratorsPath(pathname)) {
+  // Admin pages (including detail pages): allow only users with admin role
+  if (isAdminPage(pathname)) {
     return userRole === "administrator";
   }
 
