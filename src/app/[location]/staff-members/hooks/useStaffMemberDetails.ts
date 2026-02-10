@@ -16,6 +16,8 @@ import {
   StaffMemberEmail,
   StaffMemberPhone,
 } from "../types";
+import { splitFullNameToFirstLast } from "../utils/nameUtils";
+import { updateStaffMemberProfile } from "../[id]/staff-members-details.api";
 
 type StaffMemberDetailsHookReturn = {
   loading: boolean;
@@ -46,17 +48,19 @@ export function useStaffMemberDetails(
   // TODO: Add isSaving state when mutations are integrated
   const savingDetails = false;
 
-  // Transform Redux state to hook return format
-  const details: StaffMemberBasicDetails | null = React.useMemo(() => {
-    if (!staffMemberInfo?.profile) return null;
-    const [firstName, ...lastNameParts] = staffMemberInfo.profile.name.split(' ');
+  // Select details with explicit profile fields so we re-render when firstName/lastName change
+  // Fallback: use "last word is surname" when profile.firstName/lastName not set (e.g. after reload)
+  const details: StaffMemberBasicDetails | null = useAppSelector((state) => {
+    const profile = state.staffMemberDetails.staffMemberInfo?.profile;
+    if (!profile) return null;
+    const fallback = splitFullNameToFirstLast(profile.name || '');
     return {
-      firstName,
-      lastName: lastNameParts.join(' ') || '',
-      role: staffMemberInfo.profile.role,
-      picture: staffMemberInfo.profile.picture,
-    };
-  }, [staffMemberInfo]);
+      firstName: profile.firstName ?? fallback.firstName,
+      lastName: profile.lastName ?? fallback.lastName,
+      role: profile.role ?? '',
+      picture: profile.picture,
+    } as StaffMemberBasicDetails;
+  });
 
   // Memoize arrays to prevent unnecessary re-renders
   const emails = React.useMemo(() => staffMemberInfo?.email || [], [staffMemberInfo?.email]);
@@ -72,15 +76,31 @@ export function useStaffMemberDetails(
     dispatch(fetchStaffMember({ location, staffMemberId }));
   }, [dispatch, location, staffMemberId]);
 
-  // TODO: Implement when PUT/POST/DELETE APIs are integrated
   const saveDetails = React.useCallback(
     async (next: StaffMemberBasicDetails) => {
-      // Optimistic update for now
-      dispatch(updateDetails(next));
-      toast.success("Staff member details updated (API integration pending)");
-      return true;
+      try {
+        const response = await updateStaffMemberProfile(location, staffMemberId, {
+          firstname: next.firstName,
+          lastname: next.lastName,
+        });
+
+        if (response.success) {
+          dispatch(updateDetails(next));
+          toast.success(response.message || "Staff member details updated successfully");
+          return true;
+        } else {
+          toast.error(response.message || "Failed to update staff member details");
+          return false;
+        }
+      } catch (error: unknown) {
+        const errorMessage =
+          (error as { message?: string })?.message ||
+          "Failed to update staff member details";
+        toast.error(errorMessage);
+        return false;
+      }
     },
-    [dispatch]
+    [dispatch, location, staffMemberId]
   );
 
   const handleUpdateEmails = React.useCallback(
