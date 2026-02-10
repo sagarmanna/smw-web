@@ -8,7 +8,7 @@ import { QualificationList } from "../sections";
 import { updateTeacherQualification, deleteTeacherQualification } from "../../[id]/teachers-details.api";
 import { createTeacherQualification } from "../../[id]/teachers-details.api";
 import { toast } from "sonner";
-import { useAppDispatch } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchQualifications } from "../../[id]/teachers.slice";
 
 interface TeacherGroupQualificationCardProps {
@@ -28,6 +28,8 @@ export const TeacherGroupQualificationCard = React.memo(
     teacherId,
   }: TeacherGroupQualificationCardProps) {
     const dispatch = useAppDispatch();
+    const { userInfo } = useAppSelector((state) => state.user);
+    const hideRateColumn = userInfo?.role === 'staffmember';
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
     const [editingQualification, setEditingQualification] = React.useState<TeacherQualification | null>(null);
@@ -242,6 +244,7 @@ export const TeacherGroupQualificationCard = React.memo(
                 showPagination={showPagination}
                 onPageChange={handlePageChange}
                 onRowClick={handleRowClick}
+                hideRateColumn={hideRateColumn}
               />
             </div>
           )}
