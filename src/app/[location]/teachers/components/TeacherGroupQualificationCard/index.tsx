@@ -30,6 +30,7 @@ export const TeacherGroupQualificationCard = React.memo(
     const dispatch = useAppDispatch();
     const { userInfo } = useAppSelector((state) => state.user);
     const hideRateColumn = userInfo?.role === 'staffmember';
+    const isStaffMember = userInfo?.role === 'staffmember';
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
     const [editingQualification, setEditingQualification] = React.useState<TeacherQualification | null>(null);
@@ -228,7 +229,8 @@ export const TeacherGroupQualificationCard = React.memo(
       <>
         <InfoCard
           title="Group Qualifications"
-          onAddClick={handleAddClick}
+          onAddClick={isStaffMember ? undefined : handleAddClick}
+          showAddButton={!isStaffMember}
           showViewToggle={true}
           isExpanded={isExpanded}
           onViewToggle={handleViewToggle}
@@ -243,7 +245,7 @@ export const TeacherGroupQualificationCard = React.memo(
                 totalPages={totalPages}
                 showPagination={showPagination}
                 onPageChange={handlePageChange}
-                onRowClick={handleRowClick}
+                onRowClick={isStaffMember ? undefined : handleRowClick}
                 hideRateColumn={hideRateColumn}
               />
             </div>

@@ -392,9 +392,9 @@ export function QualificationList({
           <div
             key={qualification.id}
             onClick={() => onRowClick?.(qualification)}
-            className={`grid ${hideRateColumn ? 'grid-cols-1' : 'grid-cols-2'} gap-4 py-2 cursor-pointer transition-colors ${
+            className={`grid ${hideRateColumn ? 'grid-cols-1' : 'grid-cols-2'} gap-4 py-2 ${onRowClick ? 'cursor-pointer' : 'cursor-default'} transition-colors ${
               index % 2 === 0 ? "bg-white dark:bg-black" : "bg-gray-50 dark:bg-gray-900"
-            } hover:bg-gray-100 dark:hover:bg-gray-800`}
+            } ${onRowClick ? 'hover:bg-gray-100 dark:hover:bg-gray-800' : ''}`}
           >
             <div className="text-left">
               <span>{qualification.name}</span>
