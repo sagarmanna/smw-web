@@ -344,6 +344,7 @@ interface QualificationListProps {
   showPagination?: boolean;
   onPageChange?: (page: number) => void;
   onRowClick?: (qualification: TeacherQualification) => void;
+  hideRateColumn?: boolean;
 }
 
 export function QualificationList({ 
@@ -354,18 +355,19 @@ export function QualificationList({
   showPagination = false,
   onPageChange,
   onRowClick,
+  hideRateColumn = false,
 }: QualificationListProps) {
   if (loading) {
     return (
       <div className="space-y-2">
-        <div className="grid grid-cols-2 gap-4 pb-2 border-b">
+        <div className={`grid ${hideRateColumn ? 'grid-cols-1' : 'grid-cols-2'} gap-4 pb-2 border-b`}>
           <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-24 ml-auto" />
+          {!hideRateColumn && <Skeleton className="h-4 w-24 ml-auto" />}
         </div>
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="grid grid-cols-2 gap-4 py-2">
+          <div key={i} className={`grid ${hideRateColumn ? 'grid-cols-1' : 'grid-cols-2'} gap-4 py-2`}>
             <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-20 ml-auto" />
+            {!hideRateColumn && <Skeleton className="h-4 w-20 ml-auto" />}
           </div>
         ))}
       </div>
@@ -379,9 +381,9 @@ export function QualificationList({
   return (
     <div className="w-full">
       {/* Table Header */}
-      <div className="grid grid-cols-2 gap-4 pb-2 border-b font-semibold text-sm">
+      <div className={`grid ${hideRateColumn ? 'grid-cols-1' : 'grid-cols-2'} gap-4 pb-2 border-b font-semibold text-sm`}>
         <div className="text-left">Name</div>
-        <div className="text-right">Rate ($/hr)</div>
+        {!hideRateColumn && <div className="text-right">Rate ($/hr)</div>}
       </div>
       
       {/* Table Rows */}
@@ -390,23 +392,25 @@ export function QualificationList({
           <div
             key={qualification.id}
             onClick={() => onRowClick?.(qualification)}
-            className={`grid grid-cols-2 gap-4 py-2 cursor-pointer transition-colors ${
+            className={`grid ${hideRateColumn ? 'grid-cols-1' : 'grid-cols-2'} gap-4 py-2 cursor-pointer transition-colors ${
               index % 2 === 0 ? "bg-white dark:bg-black" : "bg-gray-50 dark:bg-gray-900"
             } hover:bg-gray-100 dark:hover:bg-gray-800`}
           >
             <div className="text-left">
               <span>{qualification.name}</span>
             </div>
-            <div className="text-right">
-              {qualification.rate !== undefined && qualification.rate !== null
-                ? (() => {
-                    const rateValue = typeof qualification.rate === 'number' 
-                      ? qualification.rate 
-                      : parseFloat(String(qualification.rate));
-                    return !isNaN(rateValue) ? `$${rateValue.toFixed(2)}` : "";
-                  })()
-                : ""}
-            </div>
+            {!hideRateColumn && (
+              <div className="text-right">
+                {qualification.rate !== undefined && qualification.rate !== null
+                  ? (() => {
+                      const rateValue = typeof qualification.rate === 'number' 
+                        ? qualification.rate 
+                        : parseFloat(String(qualification.rate));
+                      return !isNaN(rateValue) ? `$${rateValue.toFixed(2)}` : "";
+                    })()
+                  : ""}
+              </div>
+            )}
           </div>
         ))}
       </div>
