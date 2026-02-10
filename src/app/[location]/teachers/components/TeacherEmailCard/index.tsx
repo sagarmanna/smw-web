@@ -126,24 +126,15 @@ export const TeacherEmailCard = React.memo(function TeacherEmailCard({
           }
 
           if (newPrimaryResult?.success) {
-            // Refresh to get latest data from server
-            if (onRefresh) {
-              await onRefresh();
-            }
+            // Optimistic update already applied; no extra GET
           } else {
             toast.error(newPrimaryResult?.message || "Failed to update primary email");
-            // Revert on error
-            if (onRefresh) {
-              await onRefresh();
-            }
+            if (onRefresh) await onRefresh();
           }
         } catch (error) {
           console.error("Error updating primary email:", error);
           toast.error("Failed to update primary email");
-          // Revert on error
-          if (onRefresh) {
-            await onRefresh();
-          }
+          if (onRefresh) await onRefresh();
         }
       }
     },

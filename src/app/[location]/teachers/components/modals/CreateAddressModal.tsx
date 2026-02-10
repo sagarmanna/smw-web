@@ -35,7 +35,7 @@ interface CreateAddressModalProps {
   location: string;
   teacherId: number;
   onUpdateAddresses?: (addresses: TeacherAddress[]) => void;
-  onRefresh?: () => Promise<void>;
+  currentAddresses?: TeacherAddress[];
 }
 
 export function CreateAddressModal({
@@ -46,7 +46,7 @@ export function CreateAddressModal({
   location,
   teacherId,
   onUpdateAddresses,
-  onRefresh,
+  currentAddresses = [],
 }: CreateAddressModalProps) {
   const [label, setLabel] = React.useState("Home");
   const [address, setAddress] = React.useState("");
@@ -192,18 +192,18 @@ export function CreateAddressModal({
           )
         : await addTeacherAddress(location, teacherId, addressData);
 
-      if (result?.success && result.data && Array.isArray(result.data)) {
+      const list = Array.isArray(result?.data) ? result.data : [];
+      if (result?.success) {
         toast.success(
           editingAddress
             ? "Address updated successfully"
             : "Address added successfully"
         );
 
-        // Transform API response - handle nested structure from API
-        const transformedAddresses: TeacherAddress[] = result.data.map((item: {
+        const transformItem = (item: {
           id: number;
           address: string;
-          city: string | { name?: string };
+          city?: string | { name?: string };
           cityId?: number;
           provinceId?: number;
           countryId?: number;
@@ -212,86 +212,78 @@ export function CreateAddressModal({
           country?: string | { name?: string };
           label?: string;
           isPrimary?: boolean;
-          userContact?: {
-            label?: string;
-            labelId?: number;
-            isPrimary?: boolean | number;
-          };
-          contact?: {
-            label?: string;
-            labelId?: number;
-            isPrimary?: boolean | number;
-          };
-        }) => {
-          // API response has nested structure: item.userContact.label, item.userContact.isPrimary
+          userContact?: { label?: string; labelId?: number; isPrimary?: boolean | number };
+          contact?: { label?: string; labelId?: number; isPrimary?: boolean | number };
+        }): TeacherAddress => {
           const userContact = item.userContact || item.contact || {};
-          const labelMap: Record<number, string> = {
-            1: "Home",
-            2: "Work",
-            3: "Other",
-          };
-
-          // City/province/country may come back as nested objects; normalise to strings
+          const labelMap: Record<number, string> = { 1: "Home", 2: "Work", 3: "Other" };
           const rawCity = item.city;
-          const normalisedCity =
-            typeof rawCity === "string"
-              ? rawCity
-              : rawCity?.name || addressData.city || city || "";
-
+          const normalisedCity = typeof rawCity === "string" ? rawCity : (rawCity as { name?: string })?.name || addressData.city || city || "";
           const rawProvince = item.province;
-          const normalisedProvince =
-            typeof rawProvince === "string"
-              ? rawProvince
-              : rawProvince?.name || undefined;
-
+          const normalisedProvince = typeof rawProvince === "string" ? rawProvince : (rawProvince as { name?: string })?.name;
           const rawCountry = item.country;
-          const normalisedCountry =
-            typeof rawCountry === "string"
-              ? rawCountry
-              : rawCountry?.name || undefined;
-
+          const normalisedCountry = typeof rawCountry === "string" ? rawCountry : (rawCountry as { name?: string })?.name;
           return {
             id: item.id?.toString() || String(item.id),
-            label:
-              userContact.label ||
-              labelMap[userContact.labelId as number] ||
-              item.label ||
-              "Home",
+            label: userContact.label || labelMap[userContact.labelId as number] || item.label || "Home",
             address: item.address || addressData.address,
             city: normalisedCity,
-            cityId: item.cityId || cityId || addressData.cityId || 0,
-            provinceId: item.provinceId || provinceId || addressData.provinceId || 1,
-            countryId: item.countryId || countryId || addressData.countryId || 1,
+            cityId: item.cityId ?? cityId ?? addressData.cityId ?? 0,
+            provinceId: item.provinceId ?? provinceId ?? addressData.provinceId ?? 1,
+            countryId: item.countryId ?? countryId ?? addressData.countryId ?? 1,
             postalCode: item.postalCode || addressData.postalCode,
             province: normalisedProvince,
             country: normalisedCountry,
-            isPrimary:
-              userContact.isPrimary === 1 ||
-              userContact.isPrimary === true ||
-              item.isPrimary === true,
+            isPrimary: userContact.isPrimary === 1 || userContact.isPrimary === true || item.isPrimary === true,
           };
-        });
+        };
+
+        let transformedAddresses: TeacherAddress[];
+        if (list.length === 1) {
+          const item = transformItem(list[0] as Parameters<typeof transformItem>[0]);
+          if (editingAddress) {
+            transformedAddresses = currentAddresses.map((a) => (a.id === editingAddress.id ? item : a));
+          } else {
+            transformedAddresses = [...currentAddresses, item];
+          }
+        } else if (list.length > 1) {
+          transformedAddresses = list.map((i) => transformItem(i as Parameters<typeof transformItem>[0]));
+        } else {
+          if (editingAddress) {
+            transformedAddresses = currentAddresses.map((a) =>
+              a.id === editingAddress.id
+                ? { ...a, address: addressData.address, city: addressData.city, postalCode: addressData.postalCode, province: a.province, country: a.country }
+                : a
+            );
+          } else {
+            transformedAddresses = [
+              ...currentAddresses,
+              {
+                id: `new-${Date.now()}`,
+                label: addressData.label,
+                address: addressData.address,
+                city: addressData.city,
+                cityId: addressData.cityId,
+                provinceId: addressData.provinceId,
+                countryId: addressData.countryId,
+                postalCode: addressData.postalCode,
+                isPrimary: addressData.isPrimary,
+              },
+            ];
+          }
+        }
 
         if (onUpdateAddresses) {
           onUpdateAddresses(transformedAddresses);
         }
 
         if (onSubmit && transformedAddresses.length > 0) {
-          const latest = transformedAddresses.find(
-            (a) => a.address === addressData.address
-          );
-          if (latest) {
-            onSubmit(latest);
-          }
+          const latest = transformedAddresses.find((a) => a.address === addressData.address);
+          if (latest) onSubmit(latest);
         }
 
         resetForm();
         onClose();
-
-        // Ensure latest data is reflected from server
-        if (onRefresh) {
-          await onRefresh();
-        }
       } else {
         toast.error(result?.message || "Failed to save address");
       }

@@ -82,14 +82,7 @@ export function useEmailHandlers({
 
       if (result?.success) {
         toast.success("Email deleted successfully");
-
-        // Update local state
         updateEmails((prev) => prev.filter((email) => email.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
       } else {
         toast.error(result?.message || "Failed to delete email");
       }
@@ -100,7 +93,7 @@ export function useEmailHandlers({
       setIsDeleting(false);
       setEmailToDelete(null);
     }
-  }, [emailToDelete, location, teacherId, updateEmails, onRefresh]);
+  }, [emailToDelete, location, teacherId, updateEmails]);
 
   return {
     editingEmail,
@@ -174,14 +167,7 @@ export function usePhoneHandlers({
 
       if (result?.success) {
         toast.success("Phone deleted successfully");
-
-        // Update local state
         updatePhones((prev) => prev.filter((phoneItem) => phoneItem.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
       } else {
         toast.error(result?.message || "Failed to delete phone");
       }
@@ -192,7 +178,7 @@ export function usePhoneHandlers({
       setIsDeleting(false);
       setPhoneToDelete(null);
     }
-  }, [phoneToDelete, location, teacherId, updatePhones, onRefresh]);
+  }, [phoneToDelete, location, teacherId, updatePhones]);
 
   return {
     editingPhone,
@@ -266,14 +252,7 @@ export function useAddressHandlers({
 
       if (result?.success) {
         toast.success("Address deleted successfully");
-
-        // Update local state
         updateAddresses((prev) => prev.filter((address) => address.id !== id));
-
-        // Refresh from server to get latest data
-        if (onRefresh) {
-          await onRefresh();
-        }
       } else {
         toast.error(result?.message || "Failed to delete address");
       }
@@ -284,7 +263,7 @@ export function useAddressHandlers({
       setIsDeleting(false);
       setAddressToDelete(null);
     }
-  }, [addressToDelete, location, teacherId, updateAddresses, onRefresh]);
+  }, [addressToDelete, location, teacherId, updateAddresses]);
 
   return {
     editingAddress,

@@ -34,7 +34,7 @@ interface CreatePhoneModalProps {
   location: string;
   teacherId: number;
   onUpdatePhones?: (phones: TeacherPhone[]) => void;
-  onRefresh?: () => Promise<void>;
+  currentPhones?: TeacherPhone[];
 }
 
 const formatPhoneNumber = (value: string) => {
@@ -56,7 +56,7 @@ export function CreatePhoneModal({
   location,
   teacherId,
   onUpdatePhones,
-  onRefresh,
+  currentPhones = [],
 }: CreatePhoneModalProps) {
   const [label, setLabel] = React.useState("Home");
   const [number, setNumber] = React.useState("");
@@ -161,76 +161,65 @@ export function CreatePhoneModal({
           )
         : await addTeacherPhone(location, teacherId, phoneData);
 
-      if (result?.success && result.data && Array.isArray(result.data)) {
+      const list = Array.isArray(result?.data) ? result.data : [];
+      if (result?.success) {
         toast.success(
           editingPhone
             ? "Phone number updated successfully"
             : "Phone number added successfully"
         );
 
-        // Transform API response - handle nested structure from API
-        const transformedPhones: TeacherPhone[] = result.data.map((item: {
+        const transformItem = (item: {
           id: number;
           number: string;
           extension?: string | number;
           note?: string;
           label?: string;
           isPrimary?: boolean;
-          contact?: {
-            label?: string;
-            labelId?: number;
-            isPrimary?: boolean | number;
-          };
-          userContact?: {
-            label?: string;
-            labelId?: number;
-            isPrimary?: boolean | number;
-          };
-        }) => {
-          // API response has nested structure: item.contact.label, item.contact.isPrimary
+          contact?: { label?: string; labelId?: number; isPrimary?: boolean | number };
+          userContact?: { label?: string; labelId?: number; isPrimary?: boolean | number };
+        }): TeacherPhone => {
           const contact = item.contact || item.userContact || {};
-          const labelMap: Record<number, string> = {
-            1: "Home",
-            2: "Work",
-            3: "Other",
-          };
-
+          const labelMap: Record<number, string> = { 1: "Home", 2: "Work", 3: "Other" };
           return {
             id: item.id?.toString() || String(item.id),
             label: contact.label || (contact.labelId ? labelMap[contact.labelId] : undefined) || item.label || "Home",
             number: item.number || "",
-            extension: item.extension 
-              ? (typeof item.extension === "string" && item.extension.trim() !== "" 
-                  ? item.extension 
-                  : typeof item.extension === "number" 
-                    ? item.extension.toString() 
-                    : undefined)
+            extension: item.extension
+              ? typeof item.extension === "string" && item.extension.trim() !== ""
+                ? item.extension
+                : typeof item.extension === "number"
+                  ? item.extension.toString()
+                  : undefined
               : undefined,
             note: item.note && item.note.trim() !== "" ? item.note : undefined,
             isPrimary: contact.isPrimary === 1 || contact.isPrimary === true || item.isPrimary === true,
           };
-        });
+        };
+
+        let transformedPhones: TeacherPhone[];
+        if (list.length === 1) {
+          const item = transformItem(list[0] as Parameters<typeof transformItem>[0]);
+          if (editingPhone) {
+            transformedPhones = currentPhones.map((p) => (p.id === editingPhone.id ? item : p));
+          } else {
+            transformedPhones = [...currentPhones, item];
+          }
+        } else {
+          transformedPhones = list.map((i) => transformItem(i as Parameters<typeof transformItem>[0]));
+        }
 
         if (onUpdatePhones) {
           onUpdatePhones(transformedPhones);
         }
 
         if (onSubmit && transformedPhones.length > 0) {
-          const latest = transformedPhones.find(
-            (p) => p.number === phoneData.number
-          );
-          if (latest) {
-            onSubmit(latest);
-          }
+          const latest = transformedPhones.find((p: TeacherPhone) => p.number === phoneData.number);
+          if (latest) onSubmit(latest);
         }
 
         resetForm();
         onClose();
-
-        // Ensure latest data is reflected from server
-        if (onRefresh) {
-          await onRefresh();
-        }
       } else {
         toast.error(result?.message || "Failed to save phone number");
       }

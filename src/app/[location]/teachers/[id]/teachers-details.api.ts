@@ -94,24 +94,51 @@ const createTeacherInfoErrorResponse = <TItem>(
   };
 };
 
+/** Backend may return data as: array, single object (create/update), or { body: { email|phone|addresses: [] } }. Normalize to always return { success, message, data: TItem[] }. */
+function normalizeTeacherInfoMutationResponse<TItem>(
+  raw: Record<string, unknown> | null,
+  key: TeacherInfoType
+): TeacherInfoMutationResponse<TItem> {
+  if (!raw) {
+    return { success: false, message: "", data: [] };
+  }
+  const data = raw.data;
+  let list: TItem[] = [];
+  if (Array.isArray(data)) {
+    list = data as TItem[];
+  } else if (data && typeof data === "object" && !Array.isArray(data) && "body" in data) {
+    const body = (data as Record<string, unknown>).body as Record<string, unknown> | undefined;
+    if (body && Array.isArray(body[key])) {
+      list = body[key] as TItem[];
+    }
+  } else if (data && typeof data === "object" && !Array.isArray(data)) {
+    // Single item (create/update): { id, number, ... } or { id, email, ... } etc.
+    list = [data as TItem];
+  }
+  return {
+    success: Boolean(raw.success),
+    message: (raw.message as string) ?? "",
+    data: list,
+  };
+}
+
 async function teacherInfoMutation<TItem, TBody>(
   method: TeacherInfoMethod,
   location: string,
   teacherId: number,
   body: TBody,
-  defaultErrorMessage: string
-): Promise<TeacherInfoMutationResponse<TItem> | null> {
+  defaultErrorMessage: string,
+  responseKey: TeacherInfoType
+): Promise<TeacherInfoMutationResponse<TItem>> {
   try {
     const url = getTeacherInfoUrl(location, teacherId);
 
-    // For DELETE requests, axios requires the body in config.data
-    // For POST/PUT, axios accepts the body as the second parameter directly
-    const response = await apiClient[method]<TeacherInfoMutationResponse<TItem>>(
+    const response = await apiClient[method]<Record<string, unknown>>(
       url,
       method === "delete" ? { data: body } : body
     );
 
-    return response.data;
+    return normalizeTeacherInfoMutationResponse<TItem>(response.data ?? null, responseKey);
   } catch (error: unknown) {
     console.error("Teacher info API error:", error);
     return createTeacherInfoErrorResponse<TItem>(defaultErrorMessage, error);
@@ -458,7 +485,8 @@ export async function addTeacherEmail(
     location,
     teacherId,
     requestBody,
-    "Failed to add email"
+    "Failed to add email",
+    "email"
   );
 }
 
@@ -485,7 +513,8 @@ export async function updateTeacherEmail(
     location,
     teacherId,
     requestBody,
-    "Failed to update email"
+    "Failed to update email",
+    "email"
   );
 }
 
@@ -509,7 +538,8 @@ export async function deleteTeacherEmail(
     location,
     teacherId,
     requestBody,
-    "Failed to delete email"
+    "Failed to delete email",
+    "email"
   );
 }
 
@@ -553,7 +583,8 @@ export async function addTeacherPhone(
     location,
     teacherId,
     requestBody,
-    "Failed to add phone"
+    "Failed to add phone",
+    "phone"
   );
 }
 
@@ -576,7 +607,8 @@ export async function updateTeacherPhone(
     location,
     teacherId,
     requestBody,
-    "Failed to update phone"
+    "Failed to update phone",
+    "phone"
   );
 }
 
@@ -595,7 +627,8 @@ export async function deleteTeacherPhone(
     location,
     teacherId,
     requestBody,
-    "Failed to delete phone"
+    "Failed to delete phone",
+    "phone"
   );
 }
 
@@ -640,7 +673,7 @@ export async function addTeacherAddress(
   return teacherInfoMutation<
     TeacherAddressResponse,
     CreateTeacherAddressRequest
-  >("post", location, teacherId, requestBody, "Failed to add address");
+  >("post", location, teacherId, requestBody, "Failed to add address", "addresses");
 }
 
 export async function updateTeacherAddress(
@@ -660,7 +693,7 @@ export async function updateTeacherAddress(
   return teacherInfoMutation<
     TeacherAddressResponse,
     UpdateTeacherAddressRequest
-  >("put", location, teacherId, requestBody, "Failed to update address");
+  >("put", location, teacherId, requestBody, "Failed to update address", "addresses");
 }
 
 export async function deleteTeacherAddress(
@@ -676,7 +709,7 @@ export async function deleteTeacherAddress(
   return teacherInfoMutation<
     TeacherAddressResponse,
     TeacherInfoDeleteRequest<"addresses">
-  >("delete", location, teacherId, requestBody, "Failed to delete address");
+  >("delete", location, teacherId, requestBody, "Failed to delete address", "addresses");
 }
 
 // ---------------------------------------------
