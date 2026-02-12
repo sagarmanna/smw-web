@@ -206,10 +206,6 @@ export function EnrolmentsListingClient({ location }: EnrolmentsListingClientPro
       <DropdownMenuContent align="end">
         <DropdownMenuItem 
           onClick={async () => {
-            // if (!isDev()) {
-            //   toast.info("Change Teacher is in development");
-            //   return;
-            // }
             if (selectedRows.size === 0) {
               return;
             }
