@@ -16,7 +16,7 @@ interface EditDurationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedLessons: PrivateLessonRow[];
-  onSave: (duration: string, lessonIds: number[]) => void;
+  onSave: (duration: string, lessonIds: number[]) => Promise<boolean>;
 }
 
 export function EditDurationModal({
@@ -27,6 +27,7 @@ export function EditDurationModal({
 }: EditDurationModalProps) {
   const [duration, setDuration] = React.useState<string>("");
   const [error, setError] = React.useState<string>("");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Determine initial duration value when modal opens
   React.useEffect(() => {
@@ -57,14 +58,12 @@ export function EditDurationModal({
     }
   }, [open, selectedLessons]);
 
-  const handleSave = () => {
-    // Validate duration
+  const handleSave = async () => {
     if (!duration || duration.trim() === "") {
       setError("Duration cannot be blank.");
       return;
     }
 
-    // Validate format (should be HH:mm)
     const durationRegex = /^\d{2}:\d{2}$/;
     if (!durationRegex.test(duration)) {
       setError("Duration must be in HH:mm format.");
@@ -72,8 +71,15 @@ export function EditDurationModal({
     }
 
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
-    onSave(duration, lessonIds);
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      const success = await onSave(duration, lessonIds);
+      if (success) {
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -128,11 +134,14 @@ export function EditDurationModal({
         </div>
 
         <DialogFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!duration || duration.trim() === ""}>
-            Save
+          <Button
+            onClick={handleSave}
+            disabled={!duration || duration.trim() === "" || isSaving}
+          >
+            {isSaving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

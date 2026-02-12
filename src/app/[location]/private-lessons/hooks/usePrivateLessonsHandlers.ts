@@ -7,6 +7,7 @@ import { startOfDay, isBefore } from "date-fns";
 import { parseDateString } from "@/utils/dateUtils";
 import { PrivateLessonRow } from "../privateLessonsListing.api";
 import { editClassroom } from "../actionApi/editClassroom.api";
+import { editDuration } from "../actionApi/editDuration.api";
 import {
   substituteTeacherForLessons,
   updateLessonsPrices,
@@ -259,16 +260,49 @@ export function usePrivateLessonsHandlers({
     );
   }, [selectedLessons, dispatch, clearSelection, modalState]);
 
-  const handleEditDurationSave = React.useCallback((duration: string, lessonIds: number[]) => {
-    dispatch(updateLessonsDuration({ lessonIds, duration }));
+  /** Converts UI duration (HH:mm) to API format (HH:MM:SS) */
+  const toApiDuration = React.useCallback((duration: string) => {
+    const trimmed = duration.trim();
+    const parts = trimmed.split(":");
+    if (parts.length === 2) return `${trimmed}:00`;
+    return trimmed;
+  }, []);
 
-    // TODO: Replace with real API call
+  const handleEditDurationSave = React.useCallback(
+    async (duration: string, lessonIds: number[]) => {
+      try {
+        const apiDuration = toApiDuration(duration);
+        const response = await editDuration(location, {
+          lessonIds,
+          duration: apiDuration,
+        });
 
-    clearSelection();
-    modalState.setIsEditDurationModalOpen(false);
+        const updatedLessonIds = response.data?.updatedLessonIds ?? [];
+        if (updatedLessonIds.length > 0) {
+          dispatch(
+            updateLessonsDuration({
+              lessonIds: updatedLessonIds,
+              duration,
+            })
+          );
+        }
 
-    toast.success("Lesson Duration Edited Successfully");
-  }, [dispatch, clearSelection, modalState]);
+        clearSelection();
+        modalState.setIsEditDurationModalOpen(false);
+        toast.success(
+          typeof response.message === "string" && response.message.trim() !== ""
+            ? response.message
+            : "Lesson duration edited successfully"
+        );
+        return true;
+      } catch (error) {
+        const message = extractErrorMessage(error, "Failed to edit duration");
+        toast.error(message);
+        return false;
+      }
+    },
+    [location, toApiDuration, dispatch, clearSelection, modalState]
+  );
 
   const handleEditClassroomSave = React.useCallback(
     async (classroomId: string, classroomName: string, lessonIds: number[]) => {
