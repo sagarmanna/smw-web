@@ -75,11 +75,6 @@ export const EnrolmentDiscountsCard = React.memo(function EnrolmentDiscountsCard
   );
 
   const handleEditClick = React.useCallback(async () => {
-    // if (!isDev()) {
-    //   toast.info("This feature is in development.");
-    //   return;
-    // }
-
     // Check validation before opening modal - call preview endpoint
     // If preview fails with validation error, show error message
     try {

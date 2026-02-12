@@ -15,8 +15,6 @@ import { useGroupCourseListing } from "./hooks/useGroupCourseListing";
 import { formatLocationName } from "@/utils/textUtils";
 import { AddGroupCourseModal } from "./components/modals/AddGroupCourseModal";
 import { AddGroupCourseScheduleModal } from "./components/modals/AddGroupCourseScheduleModal";
-import { isDev } from "@/utils/env";
-import { toast } from "sonner";
 
 interface GroupCoursesClientProps {
   location: string;
@@ -145,11 +143,6 @@ export function GroupCoursesListingClient({ location }: GroupCoursesClientProps)
         }}
         onRowsPerPageChange={(newSize) => { setPageSize(newSize); setPage(1); }}
         onRowClick={(row: GroupCourseRow) => {
-          // if(isDev()) {
-          //   router.push(`/${location}/group-courses/${row.id}`);
-          // } else {
-          //   router.push(`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/course/view?id=${row.id}`);
-          // }
           router.push(`/${location}/group-courses/${row.id}`);
         }}
         rowClassName="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
