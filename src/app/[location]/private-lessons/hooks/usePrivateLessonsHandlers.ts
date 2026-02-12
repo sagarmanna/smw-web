@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { startOfDay, isBefore } from "date-fns";
 import { parseDateString } from "@/utils/dateUtils";
 import { PrivateLessonRow } from "../privateLessonsListing.api";
+import { editClassroom } from "../actionApi/editClassroom.api";
 import {
   substituteTeacherForLessons,
   updateLessonsPrices,
@@ -19,6 +20,7 @@ import { calculateDiscountedPricesForLessons } from "../utils/discountCalculatio
 import type { EmailFormData } from "@/components/EmailModal";
 import type { LessonDiscountData } from "../privateLessonsListing.slice";
 import { isDev } from "@/utils/env";
+import { extractErrorMessage } from "@/utils/api/createCrudApi";
 
 interface UsePrivateLessonsHandlersProps {
   location: string;
@@ -268,16 +270,41 @@ export function usePrivateLessonsHandlers({
     toast.success("Lesson Duration Edited Successfully");
   }, [dispatch, clearSelection, modalState]);
 
-  const handleEditClassroomSave = React.useCallback((classroomId: string, classroomName: string, lessonIds: number[]) => {
-    dispatch(updateLessonsClassroom({ lessonIds, classroomId, classroomName }));
+  const handleEditClassroomSave = React.useCallback(
+    async (classroomId: string, classroomName: string, lessonIds: number[]) => {
+      try {
+        const response = await editClassroom(location, {
+          lessonIds,
+          classroomId: Number(classroomId),
+        });
 
-    // TODO: Replace with real API call
+        const updatedLessonIds = response.data?.updatedLessonIds ?? [];
+        if (updatedLessonIds.length > 0) {
+          dispatch(
+            updateLessonsClassroom({
+              lessonIds: updatedLessonIds,
+              classroomId,
+              classroomName,
+            })
+          );
+        }
 
-    clearSelection();
-    modalState.setIsEditClassroomModalOpen(false);
-
-    toast.success("Lesson Classroom Edited Successfully");
-  }, [dispatch, clearSelection, modalState]);
+        clearSelection();
+        modalState.setIsEditClassroomModalOpen(false);
+        toast.success(
+          typeof response.message === "string" && response.message.trim() !== ""
+            ? response.message
+            : "Lesson classroom edited successfully"
+        );
+        return true;
+      } catch (error) {
+        const message = extractErrorMessage(error, "Failed to edit classroom");
+        toast.error(message);
+        return false;
+      }
+    },
+    [location, dispatch, clearSelection, modalState]
+  );
 
   const handleEditOnlineTypeSave = React.useCallback((onlineStatus: string, lessonIds: number[]) => {
     dispatch(updateLessonsOnlineStatus({ lessonIds, onlineStatus }));
