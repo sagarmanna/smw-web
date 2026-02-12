@@ -2901,7 +2901,7 @@ export function CustomerDetailClient({
                       if (studentId) {
                         window.open(
                           `${legacyBase}/${location}/student/view?id=${studentId}`,
-                          "_blank",
+                          "_self",
                           "noopener"
                         );
                       }
@@ -2914,7 +2914,7 @@ export function CustomerDetailClient({
                       if (enrolmentId) {
                         window.open(
                           `${legacyBase}/${location}/enrolment/view?id=${enrolmentId}`,
-                          "_blank",
+                          "_self",
                           "noopener"
                         );
                       }
@@ -2926,7 +2926,7 @@ export function CustomerDetailClient({
                         // Use the url directly from API
                         window.open(
                           `${legacyBase}/${location}/${url}`,
-                          "_blank",
+                          "_self",
                           "noopener"
                         );
                       } else {
@@ -2938,7 +2938,7 @@ export function CustomerDetailClient({
                         if (lessonId) {
                           window.open(
                             `${legacyBase}/${location}/lesson/view?id=${lessonId}`,
-                            "_blank",
+                            "_self",
                             "noopener"
                           );
                         } else {
