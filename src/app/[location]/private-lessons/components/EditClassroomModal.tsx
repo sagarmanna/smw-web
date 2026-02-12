@@ -22,7 +22,11 @@ interface EditClassroomModalProps {
   onOpenChange: (open: boolean) => void;
   location: string;
   selectedLessons: PrivateLessonRow[];
-  onSave: (classroomId: string, classroomName: string, lessonIds: number[]) => void;
+  onSave: (
+    classroomId: string,
+    classroomName: string,
+    lessonIds: number[]
+  ) => Promise<boolean>;
 }
 
 export function EditClassroomModal({
@@ -35,6 +39,7 @@ export function EditClassroomModal({
   const [selectedClassroom, setSelectedClassroom] = React.useState<string>("");
   const [classrooms, setClassrooms] = React.useState<ClassroomViewResource[]>([]);
   const [isLoadingClassrooms, setIsLoadingClassrooms] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Load classrooms when modal opens
   React.useEffect(() => {
@@ -113,7 +118,7 @@ export function EditClassroomModal({
     }
   }, [open, selectedLessons, classrooms]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedClassroom) {
       return;
     }
@@ -121,11 +126,18 @@ export function EditClassroomModal({
     const selectedClassroomObj = classrooms.find(
       (c) => c.id.toString() === selectedClassroom
     );
-    const classroomName = selectedClassroomObj?.title || "";
+    const classroomName = selectedClassroomObj?.title ?? "";
 
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
-    onSave(selectedClassroom, classroomName, lessonIds);
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      const success = await onSave(selectedClassroom, classroomName, lessonIds);
+      if (success) {
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -161,11 +173,18 @@ export function EditClassroomModal({
         </div>
 
         <DialogFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button
+            variant="outline"
+            onClick={handleCancel}
+            disabled={isSaving}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!selectedClassroom}>
-            Save
+          <Button
+            onClick={handleSave}
+            disabled={!selectedClassroom || isSaving}
+          >
+            {isSaving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
