@@ -22,7 +22,7 @@ interface EditClassroomApiResponse {
 }
 
 /**
- * POST /admin/v2/{location}/private-lesson/edit-classroom
+ * PUT /admin/v2/{location}/private-lesson/edit-classroom
  * Assigns the given classroom to the specified lessons.
  * Throws on HTTP/network error so callers only run success path after a real response.
  */
@@ -30,7 +30,7 @@ export async function editClassroom(
   location: string,
   payload: EditClassroomRequest
 ): Promise<EditClassroomResponse> {
-  const response = await apiClient.post<EditClassroomApiResponse>(
+  const response = await apiClient.put<EditClassroomApiResponse>(
     `/admin/v2/${location}/private-lesson/edit-classroom`,
     payload
   );
