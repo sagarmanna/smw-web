@@ -40,7 +40,7 @@ interface PrivateLessonsModalsProps {
   saveHandlers: {
     handleSubstituteSave: (teacherId: string, teacherName: string, lessonIds: number[]) => void;
     handleEditDiscountSave: (data: LessonDiscountData, lessonIds: number[]) => void;
-    handleEditDurationSave: (duration: string, lessonIds: number[]) => void;
+    handleEditDurationSave: (duration: string, lessonIds: number[]) => Promise<boolean>;
     handleEditClassroomSave: (classroomId: string, classroomName: string, lessonIds: number[]) => Promise<boolean>;
     handleEditOnlineTypeSave: (onlineStatus: string, lessonIds: number[]) => void;
     handleDeleteConfirm: () => void;
