@@ -47,7 +47,7 @@ interface PrivateLessonsModalsProps {
     handleSendEmail: (emailData: EmailFormData) => void;
     handleUnscheduleConfirm: () => void;
     handleUnscheduleReasonSave: (reason: string) => Promise<boolean>;
-    handleBulkRescheduleSave: (selectedDate: Date) => void;
+    handleBulkRescheduleSave: (selectedDate: Date) => Promise<boolean>;
   };
   isDeleteInProgress?: boolean;
 }
