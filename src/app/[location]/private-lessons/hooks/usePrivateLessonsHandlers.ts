@@ -11,6 +11,7 @@ import { editDuration } from "../actionApi/editDuration.api";
 import { deleteLessonsApi } from "../actionApi/deleteLessons.api";
 import { applyDiscount } from "../actionApi/discount.api";
 import { editOnlineType } from "../actionApi/editOnlineType.api";
+import { generateInvoice } from "../actionApi/generateInvoice.api";
 import {
   substituteTeacherForLessons,
   updateLessonsPrices,
@@ -137,12 +138,24 @@ export function usePrivateLessonsHandlers({
     modalState.setIsBulkRescheduleModalOpen(true);
   }, [hasSelectedLessons, modalState]);
 
-  const handleGenerateInvoiceClick = React.useCallback(() => {
+  const handleGenerateInvoiceClick = React.useCallback(async () => {
     if (!hasSelectedLessons) {
       return;
     }
-    toast.error("Selected lesson's have not been invoiced");
-  }, [hasSelectedLessons]);
+    const lessonIds = selectedLessons.map((lesson) => lesson.id);
+    try {
+      const response = await generateInvoice(location, { lessonIds });
+      toast.success(
+        typeof response.message === "string" && response.message.trim() !== ""
+          ? response.message
+          : "Invoice generated successfully"
+      );
+      clearSelection();
+    } catch (error) {
+      const message = extractErrorMessage(error, "Failed to generate invoice");
+      toast.error(message);
+    }
+  }, [location, hasSelectedLessons, selectedLessons, clearSelection]);
 
   const handleRowClick = React.useCallback((row: PrivateLessonRow) => {
     if (!isDev()){
