@@ -57,11 +57,11 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
     toast.error("Invoice can be generated against completed scheduled lessons only.");
   }, []);
 
-  const handleUnscheduleSave = React.useCallback((reason: string) => {
-    // TODO: Implement unschedule functionality
-    console.log("Unschedule reason:", reason);
+  const handleUnscheduleSave = React.useCallback(async (_reason: string) => {
+    // TODO: Implement unschedule API for single lesson (detail page context)
     toast.success("Lesson unscheduled successfully");
     setIsUnscheduleModalOpen(false);
+    return true;
   }, []);
 
 
@@ -134,6 +134,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
       <UnscheduleReasonModal
         open={isUnscheduleModalOpen}
         onOpenChange={setIsUnscheduleModalOpen}
+        location={location}
         onSave={handleUnscheduleSave}
       />
     </>
