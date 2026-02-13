@@ -9,6 +9,7 @@ import { PrivateLessonRow } from "../privateLessonsListing.api";
 import { editClassroom } from "../actionApi/editClassroom.api";
 import { editDuration } from "../actionApi/editDuration.api";
 import { deleteLessonsApi } from "../actionApi/deleteLessons.api";
+import { applyDiscount } from "../actionApi/discount.api";
 import {
   substituteTeacherForLessons,
   updateLessonsPrices,
@@ -252,24 +253,50 @@ export function usePrivateLessonsHandlers({
     [dispatch, clearSelection, modalState]
   );
 
-  const handleEditDiscountSave = React.useCallback((data: LessonDiscountData, lessonIds: number[]) => {
-    const newPrices = calculateDiscountedPricesForLessons(selectedLessons, data);
+  const handleEditDiscountSave = React.useCallback(
+    async (data: LessonDiscountData, lessonIds: number[]) => {
+      try {
+        const payload = {
+          lessonIds,
+          customerDiscount: Number(data.customerDiscountPercent) || 0,
+          paymentFrequencyDiscount: Number(data.paymentFrequencyDiscountPercent) || 0,
+          multiEnrolmentDiscount: Number(data.multipleEnrollmentDiscountAmount) || 0,
+          lineItemDiscount: Number(data.lineItemDiscountValue) || 0,
+          lineItemDiscountValueType: data.lineItemDiscountType === "percentage" ? 1 : 0,
+        };
+        const response = await applyDiscount(location, payload);
 
-    dispatch(updateLessonsPrices({
-      lessonIds,
-      newPrices,
-      discountData: data
-    }));
+        const updatedLessonIds = response.data?.lessonIds ?? [];
+        if (updatedLessonIds.length > 0) {
+          const lessonsUpdated = selectedLessons.filter((l) =>
+            updatedLessonIds.includes(l.id)
+          );
+          const newPrices = calculateDiscountedPricesForLessons(lessonsUpdated, data);
+          dispatch(
+            updateLessonsPrices({
+              lessonIds: updatedLessonIds,
+              newPrices,
+              discountData: data,
+            })
+          );
+        }
 
-    // TODO: Replace with real API call
-
-    clearSelection();
-    modalState.setIsEditDiscountModalOpen(false);
-
-    toast.success(
-      `Discounts applied to ${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""}`
-    );
-  }, [selectedLessons, dispatch, clearSelection, modalState]);
+        clearSelection();
+        modalState.setIsEditDiscountModalOpen(false);
+        toast.success(
+          typeof response.message === "string" && response.message.trim() !== ""
+            ? response.message
+            : "Discount updated successfully"
+        );
+        return true;
+      } catch (error) {
+        const message = extractErrorMessage(error, "Failed to update discount");
+        toast.error(message);
+        return false;
+      }
+    },
+    [location, selectedLessons, dispatch, clearSelection, modalState]
+  );
 
   /** Converts UI duration (HH:mm) to API format (HH:MM:SS) */
   const toApiDuration = React.useCallback((duration: string) => {

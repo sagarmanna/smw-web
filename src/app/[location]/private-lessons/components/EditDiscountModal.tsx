@@ -15,6 +15,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { PrivateLessonRow } from "../privateLessonsListing.api";
 import { calculateDiscountPreview } from "../utils/discountCalculations";
 import type { LessonDiscountData } from "../privateLessonsListing.slice";
+import { getDiscountValues } from "../actionApi/discount.api";
 
 // Re-export for convenience
 export type PrivateLessonsDiscountFormData = LessonDiscountData;
@@ -22,14 +23,19 @@ export type PrivateLessonsDiscountFormData = LessonDiscountData;
 interface EditDiscountModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  location: string;
   selectedLessons: PrivateLessonRow[];
-  onSave: (data: PrivateLessonsDiscountFormData, lessonIds: number[]) => void;
+  onSave: (
+    data: PrivateLessonsDiscountFormData,
+    lessonIds: number[]
+  ) => Promise<boolean>;
   initialDiscountData?: PrivateLessonsDiscountFormData;
 }
 
 export function EditDiscountModal({
   open,
   onOpenChange,
+  location,
   selectedLessons,
   onSave,
   initialDiscountData,
@@ -44,25 +50,67 @@ export function EditDiscountModal({
     React.useState<"fixed" | "percentage">("fixed");
   const [lineItemDiscountValue, setLineItemDiscountValue] =
     React.useState<string>("");
+  const [isLoadingDiscount, setIsLoadingDiscount] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
 
-  // Load initial discount data when modal opens
+  // Fetch discount values from API when modal opens with selected lessons
   React.useEffect(() => {
-    if (open && initialDiscountData) {
-      // Restore previous discount data
-      setPaymentFrequencyDiscountPercent(initialDiscountData.paymentFrequencyDiscountPercent || "");
-      setCustomerDiscountPercent(initialDiscountData.customerDiscountPercent || "");
-      setMultipleEnrollmentDiscountAmount(initialDiscountData.multipleEnrollmentDiscountAmount || "");
-      setLineItemDiscountType(initialDiscountData.lineItemDiscountType || "fixed");
-      setLineItemDiscountValue(initialDiscountData.lineItemDiscountValue || "");
-    } else if (!open) {
-      // Reset form when modal closes
+    if (!open) {
       setPaymentFrequencyDiscountPercent("");
       setCustomerDiscountPercent("");
       setMultipleEnrollmentDiscountAmount("");
       setLineItemDiscountType("fixed");
       setLineItemDiscountValue("");
+      return;
     }
-  }, [open, initialDiscountData]);
+
+    if (selectedLessons.length === 0) return;
+
+    let isCancelled = false;
+    setIsLoadingDiscount(true);
+
+    const lessonIds = selectedLessons.map((l) => l.id);
+    getDiscountValues(location, lessonIds)
+      .then((res) => {
+        if (isCancelled || !res?.data?.body) return;
+        const b = res.data.body;
+        setPaymentFrequencyDiscountPercent(
+          b.paymentFrequencyDiscount != null ? String(b.paymentFrequencyDiscount) : ""
+        );
+        setCustomerDiscountPercent(
+          b.customerDiscount != null ? String(b.customerDiscount) : ""
+        );
+        setMultipleEnrollmentDiscountAmount(
+          b.multiEnrolmentDiscount != null ? String(b.multiEnrolmentDiscount) : ""
+        );
+        setLineItemDiscountValue(
+          b.lineItemDiscount != null ? String(b.lineItemDiscount) : ""
+        );
+        setLineItemDiscountType(
+          b.lineItemDiscountValueType === 1 ? "percentage" : "fixed"
+        );
+      })
+      .catch(() => {
+        if (!isCancelled && initialDiscountData) {
+          setPaymentFrequencyDiscountPercent(
+            initialDiscountData.paymentFrequencyDiscountPercent || ""
+          );
+          setCustomerDiscountPercent(initialDiscountData.customerDiscountPercent || "");
+          setMultipleEnrollmentDiscountAmount(
+            initialDiscountData.multipleEnrollmentDiscountAmount || ""
+          );
+          setLineItemDiscountType(initialDiscountData.lineItemDiscountType || "fixed");
+          setLineItemDiscountValue(initialDiscountData.lineItemDiscountValue || "");
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) setIsLoadingDiscount(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open, location, selectedLessons, initialDiscountData]);
 
   // Prepare discount data object for calculations
   const discountData = React.useMemo<PrivateLessonsDiscountFormData>(
@@ -96,21 +144,24 @@ export function EditDiscountModal({
     };
   }, [selectedLessons, discountData]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
-
-    onSave(
-      {
-        paymentFrequencyDiscountPercent,
-        customerDiscountPercent,
-        multipleEnrollmentDiscountAmount,
-        lineItemDiscountType,
-        lineItemDiscountValue,
-      },
-      lessonIds
-    );
-
-    onOpenChange(false);
+    const data: PrivateLessonsDiscountFormData = {
+      paymentFrequencyDiscountPercent,
+      customerDiscountPercent,
+      multipleEnrollmentDiscountAmount,
+      lineItemDiscountType,
+      lineItemDiscountValue,
+    };
+    setIsSaving(true);
+    try {
+      const success = await onSave(data, lessonIds);
+      if (success) {
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const hasAnyValue =
@@ -127,6 +178,9 @@ export function EditDiscountModal({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {isLoadingDiscount && (
+            <p className="text-sm text-muted-foreground">Loading discount values...</p>
+          )}
           {/* Payment Frequency Discount */}
           <div className="flex items-center justify-between gap-4">
             <Label className="font-semibold">
@@ -254,11 +308,18 @@ export function EditDiscountModal({
         </div>
 
         <DialogFooter className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!hasAnyValue}>
-            Save
+          <Button
+            onClick={handleSave}
+            disabled={!hasAnyValue || isSaving || isLoadingDiscount}
+          >
+            {isSaving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
