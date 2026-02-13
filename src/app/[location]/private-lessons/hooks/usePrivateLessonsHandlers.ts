@@ -8,6 +8,7 @@ import { parseDateString } from "@/utils/dateUtils";
 import { PrivateLessonRow } from "../privateLessonsListing.api";
 import { editClassroom } from "../actionApi/editClassroom.api";
 import { editDuration } from "../actionApi/editDuration.api";
+import { deleteLessonsApi } from "../actionApi/deleteLessons.api";
 import {
   substituteTeacherForLessons,
   updateLessonsPrices,
@@ -40,6 +41,7 @@ export function usePrivateLessonsHandlers({
 }: UsePrivateLessonsHandlersProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const [isDeleteInProgress, setIsDeleteInProgress] = React.useState(false);
 
   // Click Handlers
   const handleSubstituteTeacherClick = React.useCallback(() => {
@@ -212,20 +214,29 @@ export function usePrivateLessonsHandlers({
     );
   }, [selectedLessons, dispatch, clearSelection, modalState]);
 
-  const handleDeleteConfirm = React.useCallback(() => {
+  const handleDeleteConfirm = React.useCallback(async () => {
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
+    if (lessonIds.length === 0) return;
 
-    dispatch(deleteLessons({ lessonIds }));
+    setIsDeleteInProgress(true);
+    try {
+      const response = await deleteLessonsApi(location, { lessonIds });
 
-    // TODO: Replace with real API call
-
-    clearSelection();
-    modalState.setIsDeleteModalOpen(false);
-
-    toast.success(
-      `${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""} deleted successfully`
-    );
-  }, [selectedLessons, dispatch, clearSelection, modalState]);
+      dispatch(deleteLessons({ lessonIds }));
+      clearSelection();
+      modalState.setIsDeleteModalOpen(false);
+      toast.success(
+        typeof response.message === "string" && response.message.trim() !== ""
+          ? response.message
+          : "Lesson has been deleted successfully!"
+      );
+    } catch (error) {
+      const message = extractErrorMessage(error, "Failed to delete lessons");
+      toast.error(message);
+    } finally {
+      setIsDeleteInProgress(false);
+    }
+  }, [location, selectedLessons, dispatch, clearSelection, modalState]);
 
   const handleSubstituteSave = React.useCallback(
     (teacherId: string, teacherName: string, lessonIds: number[]) => {
@@ -376,6 +387,7 @@ export function usePrivateLessonsHandlers({
     handleUnscheduleConfirm,
     handleUnscheduleReasonSave,
     handleBulkRescheduleSave,
+    isDeleteInProgress,
   };
 }
 
