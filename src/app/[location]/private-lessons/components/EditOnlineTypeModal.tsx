@@ -17,7 +17,7 @@ interface EditOnlineTypeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedLessons: PrivateLessonRow[];
-  onSave: (onlineStatus: string, lessonIds: number[]) => void;
+  onSave: (onlineStatus: string, lessonIds: number[]) => Promise<boolean>;
 }
 
 export function EditOnlineTypeModal({
@@ -27,6 +27,7 @@ export function EditOnlineTypeModal({
   onSave,
 }: EditOnlineTypeModalProps) {
   const [onlineType, setOnlineType] = React.useState<string>("online");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Determine initial value based on selected lessons
   React.useEffect(() => {
@@ -53,12 +54,18 @@ export function EditOnlineTypeModal({
     }
   }, [open]);
 
-  const handleSave = React.useCallback(() => {
-    // Convert "online" to "Yes", "in-class" to "No"
+  const handleSave = React.useCallback(async () => {
     const onlineStatus = onlineType === "online" ? "Yes" : "No";
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
-    onSave(onlineStatus, lessonIds);
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      const success = await onSave(onlineStatus, lessonIds);
+      if (success) {
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   }, [onlineType, selectedLessons, onSave, onOpenChange]);
 
   const handleCancel = React.useCallback(() => {
@@ -93,11 +100,11 @@ export function EditOnlineTypeModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            Save
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

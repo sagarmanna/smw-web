@@ -10,6 +10,7 @@ import { editClassroom } from "../actionApi/editClassroom.api";
 import { editDuration } from "../actionApi/editDuration.api";
 import { deleteLessonsApi } from "../actionApi/deleteLessons.api";
 import { applyDiscount } from "../actionApi/discount.api";
+import { editOnlineType } from "../actionApi/editOnlineType.api";
 import {
   substituteTeacherForLessons,
   updateLessonsPrices,
@@ -378,19 +379,40 @@ export function usePrivateLessonsHandlers({
     [location, dispatch, clearSelection, modalState]
   );
 
-  const handleEditOnlineTypeSave = React.useCallback((onlineStatus: string, lessonIds: number[]) => {
-    dispatch(updateLessonsOnlineStatus({ lessonIds, onlineStatus }));
+  const handleEditOnlineTypeSave = React.useCallback(
+    async (onlineStatus: string, lessonIds: number[]) => {
+      try {
+        const online: 0 | 1 = onlineStatus === "Yes" ? 1 : 0;
+        const response = await editOnlineType(location, { lessonIds, online });
 
-    // TODO: Replace with real API call
+        const updatedLessonIds = response.data?.lessonIds ?? [];
+        if (updatedLessonIds.length > 0) {
+          dispatch(
+            updateLessonsOnlineStatus({
+              lessonIds: updatedLessonIds,
+              onlineStatus,
+            })
+          );
+        }
 
-    clearSelection();
-    modalState.setIsEditOnlineTypeModalOpen(false);
-
-    const toastMessage = onlineStatus === "Yes"
-      ? "Private Lesson Edited To Make Online Class Successfully"
-      : "Private Lesson Edited To Make In Class Successfully";
-    toast.success(toastMessage);
-  }, [dispatch, clearSelection, modalState]);
+        clearSelection();
+        modalState.setIsEditOnlineTypeModalOpen(false);
+        toast.success(
+          typeof response.message === "string" && response.message.trim() !== ""
+            ? response.message
+            : onlineStatus === "Yes"
+              ? "Private Lesson Edited To Make Online Class Successfully"
+              : "Private Lesson Edited To Make In Class Successfully"
+        );
+        return true;
+      } catch (error) {
+        const message = extractErrorMessage(error, "Failed to edit online type");
+        toast.error(message);
+        return false;
+      }
+    },
+    [location, dispatch, clearSelection, modalState]
+  );
 
   return {
     handleSubstituteTeacherClick,
