@@ -46,7 +46,7 @@ interface PrivateLessonsModalsProps {
     handleDeleteConfirm: () => void;
     handleSendEmail: (emailData: EmailFormData) => void;
     handleUnscheduleConfirm: () => void;
-    handleUnscheduleReasonSave: (reason: string) => void;
+    handleUnscheduleReasonSave: (reason: string) => Promise<boolean>;
     handleBulkRescheduleSave: (selectedDate: Date) => void;
   };
   isDeleteInProgress?: boolean;
@@ -143,6 +143,7 @@ export function PrivateLessonsModals({
       <UnscheduleReasonModal
         open={modalState.isUnscheduleReasonModalOpen}
         onOpenChange={modalState.setIsUnscheduleReasonModalOpen}
+        location={location}
         onSave={saveHandlers.handleUnscheduleReasonSave}
       />
 

@@ -12,6 +12,7 @@ import { deleteLessonsApi } from "../actionApi/deleteLessons.api";
 import { applyDiscount } from "../actionApi/discount.api";
 import { editOnlineType } from "../actionApi/editOnlineType.api";
 import { generateInvoice } from "../actionApi/generateInvoice.api";
+import { unscheduleLessons } from "../actionApi/unschedule.api";
 import {
   substituteTeacherForLessons,
   updateLessonsPrices,
@@ -180,20 +181,40 @@ export function usePrivateLessonsHandlers({
     modalState.setIsUnscheduleReasonModalOpen(true);
   }, [modalState]);
 
-  const handleUnscheduleReasonSave = React.useCallback((reason: string) => {
-    const lessonIds = selectedLessons.map((lesson) => lesson.id);
+  const handleUnscheduleReasonSave = React.useCallback(
+    async (reason: string) => {
+      const lessonIds = selectedLessons.map((lesson) => lesson.id);
+      if (lessonIds.length === 0) return false;
 
-    dispatch(updateLessonsStatus({ lessonIds, status: "Unscheduled" }));
+      try {
+        const response = await unscheduleLessons(location, { lessonIds, reason });
 
-    // TODO: Replace with real API call
+        const updatedLessonIds = response.data?.lessonIds ?? [];
+        if (updatedLessonIds.length > 0) {
+          dispatch(
+            updateLessonsStatus({
+              lessonIds: updatedLessonIds,
+              status: "Unscheduled",
+            })
+          );
+        }
 
-    clearSelection();
-    modalState.setIsUnscheduleReasonModalOpen(false);
-
-    toast.success(
-      `${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""} unscheduled successfully`
-    );
-  }, [selectedLessons, dispatch, clearSelection, modalState]);
+        clearSelection();
+        modalState.setIsUnscheduleReasonModalOpen(false);
+        toast.success(
+          typeof response.message === "string" && response.message.trim() !== ""
+            ? response.message
+            : "Lessons unscheduled successfully"
+        );
+        return true;
+      } catch (error) {
+        const message = extractErrorMessage(error, "Failed to unschedule lessons");
+        toast.error(message);
+        return false;
+      }
+    },
+    [location, selectedLessons, dispatch, clearSelection, modalState]
+  );
 
   const handleBulkRescheduleSave = React.useCallback((selectedDate: Date) => {
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
