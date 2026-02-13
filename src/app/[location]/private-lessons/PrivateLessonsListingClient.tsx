@@ -157,6 +157,7 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
         previousDiscountData={selection.previousDiscountData}
         modalState={modalState}
         saveHandlers={handlers}
+        isDeleteInProgress={handlers.isDeleteInProgress}
       />
     </>
   );

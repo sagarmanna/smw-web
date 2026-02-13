@@ -49,6 +49,7 @@ interface PrivateLessonsModalsProps {
     handleUnscheduleReasonSave: (reason: string) => void;
     handleBulkRescheduleSave: (selectedDate: Date) => void;
   };
+  isDeleteInProgress?: boolean;
 }
 
 export function PrivateLessonsModals({
@@ -57,6 +58,7 @@ export function PrivateLessonsModals({
   previousDiscountData,
   modalState,
   saveHandlers,
+  isDeleteInProgress = false,
 }: PrivateLessonsModalsProps) {
   return (
     <>
@@ -109,6 +111,7 @@ export function PrivateLessonsModals({
         onConfirm={saveHandlers.handleDeleteConfirm}
         confirmLabel="OK"
         cancelLabel="Cancel"
+        isDeleting={isDeleteInProgress}
       />
 
       <EmailModal
