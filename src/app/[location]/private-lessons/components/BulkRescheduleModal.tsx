@@ -20,7 +20,7 @@ import { toast } from "sonner";
 interface BulkRescheduleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (date: Date) => void;
+  onSave: (date: Date) => Promise<boolean>;
 }
 
 export function BulkRescheduleModal({
@@ -30,6 +30,7 @@ export function BulkRescheduleModal({
 }: BulkRescheduleModalProps) {
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(undefined);
   const [isCalendarOpen, setIsCalendarOpen] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Reset when modal closes
   React.useEffect(() => {
@@ -39,22 +40,22 @@ export function BulkRescheduleModal({
     }
   }, [open]);
 
-  const handleSave = React.useCallback(() => {
-    if (!selectedDate) {
-      return;
-    }
+  const handleSave = React.useCallback(async () => {
+    if (!selectedDate) return;
 
-    // Validate: only allow today and future dates
     const today = startOfDay(new Date());
     const selectedDateStart = startOfDay(selectedDate);
+    if (isBefore(selectedDateStart, today)) return;
 
-    if (isBefore(selectedDateStart, today)) {
-      // This should be caught by the calendar disabled prop, but handle it here too
-      return;
+    setIsSaving(true);
+    try {
+      const success = await onSave(selectedDate);
+      if (success) {
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
     }
-
-    onSave(selectedDate);
-    onOpenChange(false);
   }, [selectedDate, onSave, onOpenChange]);
 
   const handleCancel = React.useCallback(() => {
@@ -132,11 +133,11 @@ export function BulkRescheduleModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!selectedDate}>
-            Save
+          <Button onClick={handleSave} disabled={!selectedDate || isSaving}>
+            {isSaving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -13,6 +13,7 @@ import { applyDiscount } from "../actionApi/discount.api";
 import { editOnlineType } from "../actionApi/editOnlineType.api";
 import { generateInvoice } from "../actionApi/generateInvoice.api";
 import { unscheduleLessons } from "../actionApi/unschedule.api";
+import { bulkReschedule } from "../actionApi/bulkReschedule.api";
 import {
   substituteTeacherForLessons,
   updateLessonsPrices,
@@ -21,6 +22,7 @@ import {
   updateLessonsOnlineStatus,
   deleteLessons,
   updateLessonsStatus,
+  bulkRescheduleLessons,
 } from "../privateLessonsListing.slice";
 import { calculateDiscountedPricesForLessons } from "../utils/discountCalculations";
 import type { EmailFormData } from "@/components/EmailModal";
@@ -216,39 +218,66 @@ export function usePrivateLessonsHandlers({
     [location, selectedLessons, dispatch, clearSelection, modalState]
   );
 
-  const handleBulkRescheduleSave = React.useCallback((selectedDate: Date) => {
-    const lessonIds = selectedLessons.map((lesson) => lesson.id);
+  const handleBulkRescheduleSave = React.useCallback(
+    async (selectedDate: Date) => {
+      const lessonIds = selectedLessons.map((lesson) => lesson.id);
+      if (lessonIds.length === 0) return false;
 
-    const formattedNewDate = format(selectedDate, "MMM dd, yyyy");
+      const newDateYyyyMmDd = format(selectedDate, "yyyy-MM-dd");
+      const formattedNewDate = format(selectedDate, "MMM dd, yyyy");
 
-    const dateMap = new Map<number, string>();
-    selectedLessons.forEach((lesson) => {
-      const timePart = lesson.date.includes(" @ ")
-        ? lesson.date.split(" @ ")[1]
-        : "";
+      try {
+        const response = await bulkReschedule(location, {
+          lessonIds,
+          newDate: newDateYyyyMmDd,
+        });
 
-      const newDateString = timePart
-        ? `${formattedNewDate} @ ${timePart}`
-        : formattedNewDate;
+        const rescheduledLessons = response.data?.rescheduledLessons ?? [];
+        const dateByOldLessonId: Record<number, string> = {};
+        selectedLessons.forEach((lesson) => {
+          const timePart = lesson.date.includes(" @ ")
+            ? lesson.date.split(" @ ")[1]
+            : "";
+          dateByOldLessonId[lesson.id] = timePart
+            ? `${formattedNewDate} @ ${timePart}`
+            : formattedNewDate;
+        });
 
-      dateMap.set(lesson.id, newDateString);
-    });
+        if (rescheduledLessons.length > 0) {
+          dispatch(
+            bulkRescheduleLessons({
+              rescheduledLessons,
+              dateByOldLessonId,
+            })
+          );
+        } else {
+          dispatch(
+            updateLessonsStatus({
+              lessonIds,
+              status: "Rescheduled",
+              dateMap: new Map(
+                lessonIds.map((id) => [id, dateByOldLessonId[id] ?? formattedNewDate])
+              ),
+            })
+          );
+        }
 
-    dispatch(updateLessonsStatus({
-      lessonIds,
-      status: "Rescheduled",
-      dateMap
-    }));
-
-    // TODO: Replace with real API call
-
-    clearSelection();
-    modalState.setIsBulkRescheduleModalOpen(false);
-
-    toast.success(
-      `${lessonIds.length} lesson${lessonIds.length !== 1 ? "s" : ""} rescheduled successfully`
-    );
-  }, [selectedLessons, dispatch, clearSelection, modalState]);
+        clearSelection();
+        modalState.setIsBulkRescheduleModalOpen(false);
+        toast.success(
+          typeof response.message === "string" && response.message.trim() !== ""
+            ? response.message
+            : "Lesson has been rescheduled successfully."
+        );
+        return true;
+      } catch (error) {
+        const message = extractErrorMessage(error, "Failed to reschedule lessons");
+        toast.error(message);
+        return false;
+      }
+    },
+    [location, selectedLessons, dispatch, clearSelection, modalState]
+  );
 
   const handleDeleteConfirm = React.useCallback(async () => {
     const lessonIds = selectedLessons.map((lesson) => lesson.id);

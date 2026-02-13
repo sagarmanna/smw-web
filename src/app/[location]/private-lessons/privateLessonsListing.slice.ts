@@ -214,6 +214,28 @@ const privateLessonsListingSlice = createSlice({
         return row;
       });
     },
+    /** After bulk-reschedule API: old rows get new ids and new dates */
+    bulkRescheduleLessons: (
+      state,
+      action: PayloadAction<{
+        rescheduledLessons: Array<{ oldLessonId: number; newLessonId: number }>;
+        dateByOldLessonId: Record<number, string>;
+      }>
+    ) => {
+      const { rescheduledLessons, dateByOldLessonId } = action.payload;
+      const byOldId = new Map(rescheduledLessons.map((r) => [r.oldLessonId, r.newLessonId]));
+      state.rows = state.rows.map((row) => {
+        const newLessonId = byOldId.get(row.id);
+        if (newLessonId == null) return row;
+        const newDate = dateByOldLessonId[row.id] ?? row.date;
+        return {
+          ...row,
+          id: newLessonId,
+          date: newDate,
+          status: "Rescheduled",
+        };
+      });
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -250,6 +272,7 @@ export const {
   updateLessonsOnlineStatus,
   deleteLessons,
   updateLessonsStatus,
+  bulkRescheduleLessons,
 } = privateLessonsListingSlice.actions;
 
 // Selector to get discount data for a set of lessons
