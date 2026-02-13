@@ -23,7 +23,7 @@ interface EditDurationApiResponse {
 }
 
 /**
- * POST /admin/v2/{location}/private-lesson/edit-duration
+ * PUT /admin/v2/{location}/private-lesson/edit-duration
  * Updates duration for the given lessons.
  * Throws on HTTP/network error so callers only run success path after a real response.
  */
@@ -31,7 +31,7 @@ export async function editDuration(
   location: string,
   payload: EditDurationRequest
 ): Promise<EditDurationResponse> {
-  const response = await apiClient.post<EditDurationApiResponse>(
+  const response = await apiClient.put<EditDurationApiResponse>(
     `/admin/v2/${location}/private-lesson/edit-duration`,
     payload
   );
