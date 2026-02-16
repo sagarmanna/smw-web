@@ -1,6 +1,7 @@
 import * as React from "react";
 import { PrivateLessonRow } from "../../privateLessonsListing.api";
 import { LessonDiscountData } from "../../privateLessonsListing.slice";
+import type { SubstituteLessonResponse } from "../../actionApi/teacherSubstitute.api";
 import { SubstituteTeacherModal } from "../SubstituteTeacherModal";
 import { EditDiscountModal } from "../EditDiscountModal";
 import { EditDurationModal } from "../EditDurationModal";
@@ -38,7 +39,12 @@ interface PrivateLessonsModalsProps {
     setIsBulkRescheduleModalOpen: (open: boolean) => void;
   };
   saveHandlers: {
-    handleSubstituteSave: (teacherId: string, teacherName: string, lessonIds: number[]) => void;
+    handleSubstituteSave: (
+      teacherId: string,
+      teacherName: string,
+      lessonIds: number[],
+      substituteResponse?: SubstituteLessonResponse
+    ) => Promise<boolean>;
     handleEditDiscountSave: (data: LessonDiscountData, lessonIds: number[]) => Promise<boolean>;
     handleEditDurationSave: (duration: string, lessonIds: number[]) => Promise<boolean>;
     handleEditClassroomSave: (classroomId: string, classroomName: string, lessonIds: number[]) => Promise<boolean>;
