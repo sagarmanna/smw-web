@@ -182,6 +182,26 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     pattern: /^\/[^/]+\/referral-source$/, // Matches /[location]/referral-source
     legacyUrl: '/referral-source/index'
   },
+  {
+    pattern: /^\/[^/]+\/privileges$/, // Matches /[location]/privileges
+    legacyUrl: '/permission'
+  },
+  {
+    pattern: /^\/[^/]+\/staff-members$/, // Matches /[location]/staff-members
+    legacyUrl: '/user/index?UserSearch%5Brole_name%5D=staffmember'
+  },
+  {
+    pattern: /^\/[^/]+\/owners$/, // Matches /[location]/owners
+    legacyUrl: '/user/index?UserSearch%5Brole_name%5D=owner'
+  },
+  {
+    pattern: /^\/[^/]+\/classrooms$/, // Matches /[location]/classrooms
+    legacyUrl: '/classroom/index'
+  },
+  {
+    pattern: /^\/[^/]+\/location-view$/, // Matches /[location]/location-view
+    legacyUrl: '/location-view'
+  },
 ];
 
 /**
