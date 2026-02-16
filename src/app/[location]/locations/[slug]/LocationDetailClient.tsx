@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,6 +12,7 @@ import { extractErrorMessage } from "@/utils/api/createCrudApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { RootState } from "@/redux/store";
 
 import { AddLocationModal } from "../components/modals/AddLocationModal";
 import { LocationDetails } from "../locations.api";
@@ -22,11 +24,18 @@ import { LocationAvailabilityTabsSection } from "./components/LocationAvailabili
 
 interface LocationDetailClientProps {
   location: string;
-  slug: string;
+  /** When omitted (e.g. on location-view route), slug is resolved from Redux currentLocation or location id */
+  slug?: string;
 }
 
-export function LocationDetailClient({ location, slug }: LocationDetailClientProps) {
+export function LocationDetailClient({ location, slug: slugProp }: LocationDetailClientProps) {
   const router = useRouter();
+  const { currentLocation, locations } = useSelector((state: RootState) => state.locations);
+  const slug =
+    slugProp ??
+    currentLocation ??
+    locations.find((loc) => loc.slug === location || String(loc.id) === location)?.slug ??
+    String(locations[0]?.id ?? location);
 
   const [details, setDetails] = React.useState<LocationDetails | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);

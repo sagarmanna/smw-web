@@ -70,6 +70,11 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'test-email': 'testEmail',
     'terms-of-service': 'termsOfService',
     'referral-source': 'referralSources',
+    'privileges': 'privileges',
+    'staff-members': 'staffMembers',
+    'owners': 'owners',
+    'classrooms': 'classrooms',
+    'location-view': 'locationSettings',
   };
   
   return slugToFeatureMap[pageSlug || ''] || 'dashboard'; // Default to dashboard
@@ -122,6 +127,11 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     testEmail: `/test-email/index`,
     termsOfService: `/terms-of-service/index`,
     referralSources: `/referral-source/index`,
+    privileges: `/permission`,
+    staffMembers: `/user/index?UserSearch%5Brole_name%5D=staffmember`,
+    owners: `/user/index?UserSearch%5Brole_name%5D=owner`,
+    classrooms: `/classroom/index`,
+    locationSettings: `/location-view`,
   };
     
   // Handle privateLessons with dynamic date range
