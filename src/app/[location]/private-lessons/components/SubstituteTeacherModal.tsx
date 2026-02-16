@@ -18,14 +18,27 @@ import { PrivateLessonRow } from "../privateLessonsListing.api";
 import { Pencil } from "lucide-react";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
-import { getTeachersList, type Teacher } from "@/app/[location]/schedule/schedule.api";
+import { toast } from "sonner";
+import {
+  getTeacherSubstituteTeachers,
+  substituteLesson,
+  type TeacherSubstituteTeacher,
+  type SubstituteLessonResponse,
+  type SubstituteLessonItem,
+} from "../actionApi/teacherSubstitute.api";
+import { extractErrorMessage } from "@/utils/api/createCrudApi";
 
 interface SubstituteTeacherModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   location: string;
   selectedLessons: PrivateLessonRow[];
-  onSave: (teacherId: string, teacherName: string, lessonIds: number[]) => void;
+  onSave: (
+    teacherId: string,
+    teacherName: string,
+    lessonIds: number[],
+    substituteResponse?: SubstituteLessonResponse
+  ) => Promise<boolean>;
 }
 
 interface LessonWithConflict extends PrivateLessonRow {
@@ -33,20 +46,22 @@ interface LessonWithConflict extends PrivateLessonRow {
   conflict?: string;
 }
 
-// Mock conflict detection - in real app, this would call an API
-const detectConflict = (
-  lesson: PrivateLessonRow,
-  teacherName: string
-): string | undefined => {
-  // Simple mock logic:
-  // - If substitute is same as original teacher, show "occupied with another lesson"
-  // - Otherwise, warn that teacher is unscheduled (no real schedule check yet)
-  if (!teacherName) return undefined;
-  if (teacherName === lesson.teacher) {
-    return "Teacher occupied with another lesson";
-  }
-  return "Warning: Teacher Unscheduled";
-};
+function mapApiLessonToRow(lesson: SubstituteLessonItem, conflict?: string): LessonWithConflict {
+  return {
+    id: lesson.id,
+    date: lesson.date,
+    student: lesson.studentName ?? "",
+    program: lesson.programName ?? "",
+    teacher: lesson.teacherName ?? "",
+    duration: lesson.duration ?? "",
+    online: "",
+    status: String(lesson.status),
+    payment: "",
+    price: "",
+    assignedTeacher: lesson.teacherName ?? "",
+    conflict,
+  };
+}
 
 export function SubstituteTeacherModal({
   open,
@@ -56,88 +71,133 @@ export function SubstituteTeacherModal({
   onSave,
 }: SubstituteTeacherModalProps) {
   const [selectedTeacher, setSelectedTeacher] = React.useState<string>("");
-  const [teachers, setTeachers] = React.useState<Teacher[]>([]);
+  const [teachers, setTeachers] = React.useState<TeacherSubstituteTeacher[]>([]);
   const [isLoadingTeachers, setIsLoadingTeachers] = React.useState(false);
+  const [teachersLoadError, setTeachersLoadError] = React.useState<string | null>(null);
+  const [reviewResponse, setReviewResponse] = React.useState<SubstituteLessonResponse | null>(null);
+  const [isLoadingReview, setIsLoadingReview] = React.useState(false);
+  const [reviewLoadError, setReviewLoadError] = React.useState<string | null>(null);
 
-  // Load teachers when modal opens
+  // Load substitute teachers for selected lesson ids when modal opens (same pattern as other action APIs)
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || selectedLessons.length === 0) return;
 
+    const lessonIds = selectedLessons.map((l) => l.id);
     let isCancelled = false;
+    setTeachersLoadError(null);
 
     const fetchTeachers = async () => {
       setIsLoadingTeachers(true);
       try {
-        const response = await getTeachersList(location);
-        if (!isCancelled && response?.success && Array.isArray(response.data)) {
-          setTeachers(response.data);
+        const response = await getTeacherSubstituteTeachers(location, lessonIds);
+        if (!isCancelled && response?.success && Array.isArray(response.data?.teachers)) {
+          setTeachers(response.data.teachers);
         }
       } catch (error) {
-        console.error("Failed to load teachers for substitute modal:", error);
+        const message = extractErrorMessage(error, "Failed to load substitute teachers");
         if (!isCancelled) {
           setTeachers([]);
+          setTeachersLoadError(message);
+          toast.error(message);
         }
       } finally {
-        if (!isCancelled) {
-          setIsLoadingTeachers(false);
-        }
+        if (!isCancelled) setIsLoadingTeachers(false);
       }
     };
 
     fetchTeachers();
+    return () => { isCancelled = true; };
+  }, [open, location, selectedLessons]);
 
-    return () => {
-      isCancelled = true;
+  // Call review API when teacher is selected (GET with ids + teacherId)
+  React.useEffect(() => {
+    if (!open || !selectedTeacher || selectedLessons.length === 0) {
+      setReviewResponse(null);
+      setReviewLoadError(null);
+      return;
+    }
+
+    const lessonIds = selectedLessons.map((l) => l.id);
+    const teacherId = Number(selectedTeacher);
+    let isCancelled = false;
+    setReviewLoadError(null);
+
+    const fetchReview = async () => {
+      setIsLoadingReview(true);
+      setReviewResponse(null);
+      try {
+        const response = await substituteLesson(location, { ids: lessonIds, teacherId });
+        if (!isCancelled) setReviewResponse(response);
+      } catch (error) {
+        const message = extractErrorMessage(error, "Failed to load substitute review");
+        if (!isCancelled) {
+          setReviewResponse(null);
+          setReviewLoadError(message);
+          toast.error(message);
+        }
+      } finally {
+        if (!isCancelled) setIsLoadingReview(false);
+      }
     };
-  }, [open, location]);
+
+    fetchReview();
+    return () => { isCancelled = true; };
+  }, [open, location, selectedTeacher, selectedLessons]);
 
   const teacherOptions: SearchableSelectOption[] = React.useMemo(
-    () =>
-      teachers.map((teacher) => ({
-        value: teacher.id.toString(),
-        label: teacher.name,
-      })),
+    () => teachers.map((t) => ({ value: String(t.id), label: t.name })),
     [teachers]
   );
 
-  // Get selected teacher name
   const selectedTeacherName = React.useMemo(() => {
     if (!selectedTeacher) return "";
-    const teacher = teachers.find((t) => t.id.toString() === selectedTeacher);
-    return teacher?.name || "";
+    const t = teachers.find((x) => String(x.id) === selectedTeacher);
+    return t?.name ?? "";
   }, [selectedTeacher, teachers]);
 
-  // Determine if modal should be expanded (when teacher is selected)
   const isExpanded = !!selectedTeacher;
 
-  // Prepare lessons with assigned teacher and conflicts
   const lessonsWithConflicts = React.useMemo<LessonWithConflict[]>(() => {
-    if (!isExpanded) return [];
-    return selectedLessons.map((lesson) => ({
-      ...lesson,
-      assignedTeacher: selectedTeacherName,
-      conflict: detectConflict(lesson, selectedTeacherName),
-    }));
-  }, [selectedLessons, selectedTeacherName, isExpanded]);
+    if (!isExpanded || !reviewResponse?.data?.lessons) return [];
+    const lessons = reviewResponse.data.lessons;
+    const conflicts = reviewResponse.data.conflicts ?? {};
+    return lessons.map((lesson) => {
+      const msgs = conflicts[String(lesson.id)];
+      const conflict = Array.isArray(msgs) ? msgs.join("; ") : undefined;
+      return mapApiLessonToRow(lesson, conflict);
+    });
+  }, [isExpanded, reviewResponse]);
 
-  const handleSave = React.useCallback(() => {
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  const handleSave = React.useCallback(async () => {
     if (!selectedTeacher || !selectedTeacherName) return;
 
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
-    onSave(selectedTeacher, selectedTeacherName, lessonIds);
-    setSelectedTeacher("");
-    onOpenChange(false);
-  }, [selectedTeacher, selectedLessons, onSave, onOpenChange]);
+    setIsSaving(true);
+    try {
+      const ok = await onSave(selectedTeacher, selectedTeacherName, lessonIds, reviewResponse ?? undefined);
+      if (ok) {
+        setSelectedTeacher("");
+        setReviewResponse(null);
+        onOpenChange(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }, [selectedTeacher, selectedTeacherName, selectedLessons, reviewResponse, onSave, onOpenChange]);
 
   const handleCancel = React.useCallback(() => {
     setSelectedTeacher("");
     onOpenChange(false);
   }, [onOpenChange]);
 
-  // Reset selected teacher when modal closes
   React.useEffect(() => {
     if (!open) {
       setSelectedTeacher("");
+      setReviewResponse(null);
+      setTeachersLoadError(null);
+      setReviewLoadError(null);
     }
   }, [open]);
 
@@ -233,22 +293,38 @@ export function SubstituteTeacherModal({
               searchPlaceholder="Search teachers..."
               emptyText="No teachers available"
             />
+            {teachersLoadError && (
+              <p className="text-destructive text-sm" role="alert">
+                {teachersLoadError}
+              </p>
+            )}
           </div>
 
-          {isExpanded && lessonsWithConflicts.length > 0 && (
+          {isExpanded && (
             <div className="mt-4">
-              <CustomTable<LessonWithConflict, unknown>
-                data={lessonsWithConflicts}
-                columns={columns}
-                size="compact"
-                variant="default"
-                stickyHeader={true}
-                enableSearch={false}
-                enableFilter={false}
-                enableExport={false}
-                enablePrint={false}
-                enableRowsPerPage={false}
-              />
+              {reviewLoadError && (
+                <p className="text-destructive text-sm mb-2" role="alert">
+                  {reviewLoadError}
+                </p>
+              )}
+              {isLoadingReview ? (
+                <p className="text-muted-foreground text-sm py-4">Loading review…</p>
+              ) : lessonsWithConflicts.length > 0 ? (
+                <CustomTable<LessonWithConflict, unknown>
+                  data={lessonsWithConflicts}
+                  columns={columns}
+                  size="compact"
+                  variant="default"
+                  stickyHeader={true}
+                  enableSearch={false}
+                  enableFilter={false}
+                  enableExport={false}
+                  enablePrint={false}
+                  enableRowsPerPage={false}
+                />
+              ) : (
+                <p className="text-muted-foreground text-sm py-4">No lessons in review response.</p>
+              )}
             </div>
           )}
         </div>
@@ -259,10 +335,10 @@ export function SubstituteTeacherModal({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!selectedTeacher || selectedLessons.length === 0}
+            disabled={!selectedTeacher || selectedLessons.length === 0 || isSaving || isLoadingReview}
             className="bg-primary hover:bg-primary/90"
           >
-            Confirm
+            {isSaving ? "Confirming…" : "Confirm"}
           </Button>
         </DialogFooter>
       </DialogContent>

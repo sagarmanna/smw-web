@@ -236,6 +236,17 @@ const privateLessonsListingSlice = createSlice({
         };
       });
     },
+    /** After teacher-substitute confirm: remove old lesson rows and add new ones from API */
+    applyTeacherSubstituteResult: (
+      state,
+      action: PayloadAction<{ oldLessonIds: number[]; newRows: PrivateLessonRow[] }>
+    ) => {
+      const oldSet = new Set(action.payload.oldLessonIds);
+      state.rows = state.rows.filter((row) => !oldSet.has(row.id));
+      state.rows.push(...action.payload.newRows);
+      state.total = Math.max(0, state.total - action.payload.oldLessonIds.length + action.payload.newRows.length);
+      action.payload.oldLessonIds.forEach((id) => delete state.lessonDiscounts[id]);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -273,6 +284,7 @@ export const {
   deleteLessons,
   updateLessonsStatus,
   bulkRescheduleLessons,
+  applyTeacherSubstituteResult,
 } = privateLessonsListingSlice.actions;
 
 // Selector to get discount data for a set of lessons

@@ -15,7 +15,12 @@ import { generateInvoice } from "../actionApi/generateInvoice.api";
 import { unscheduleLessons } from "../actionApi/unschedule.api";
 import { bulkReschedule } from "../actionApi/bulkReschedule.api";
 import {
-  substituteTeacherForLessons,
+  substituteLesson,
+  confirmTeacherSubstitute,
+  type SubstituteLessonItem,
+  type SubstituteLessonResponse,
+} from "../actionApi/teacherSubstitute.api";
+import {
   updateLessonsPrices,
   updateLessonsDuration,
   updateLessonsClassroom,
@@ -23,12 +28,37 @@ import {
   deleteLessons,
   updateLessonsStatus,
   bulkRescheduleLessons,
+  applyTeacherSubstituteResult,
 } from "../privateLessonsListing.slice";
 import { calculateDiscountedPricesForLessons } from "../utils/discountCalculations";
 import type { EmailFormData } from "@/components/EmailModal";
 import type { LessonDiscountData } from "../privateLessonsListing.slice";
 import { isDev } from "@/utils/env";
 import { extractErrorMessage } from "@/utils/api/createCrudApi";
+
+function mapSubstituteLessonsToRows(lessons: SubstituteLessonItem[]): PrivateLessonRow[] {
+  const statusMap: Record<number, string> = {
+    0: "Unscheduled",
+    1: "Scheduled",
+    2: "Scheduled",
+    3: "Completed",
+    4: "Cancelled",
+    5: "Rescheduled",
+  };
+  return lessons.map((l) => ({
+    id: l.id,
+    date: l.date,
+    student: l.studentName ?? "",
+    program: l.programName ?? "",
+    teacher: l.teacherName ?? "",
+    duration: l.duration ?? "",
+    online: "",
+    status: statusMap[l.status] ?? "Scheduled",
+    payment: "",
+    price: "",
+    classroom: undefined,
+  }));
+}
 
 interface UsePrivateLessonsHandlersProps {
   location: string;
@@ -304,17 +334,78 @@ export function usePrivateLessonsHandlers({
   }, [location, selectedLessons, dispatch, clearSelection, modalState]);
 
   const handleSubstituteSave = React.useCallback(
-    (teacherId: string, teacherName: string, lessonIds: number[]) => {
-      dispatch(substituteTeacherForLessons({ lessonIds, teacher: teacherName }));
+    async (
+      teacherId: string,
+      _teacherName: string,
+      lessonIds: number[],
+      substituteResponseFromModal?: SubstituteLessonResponse
+    ) => {
+      if (lessonIds.length === 0) return false;
 
-      // TODO: Replace with real API call using teacherId + lessonIds
+      try {
+        const substituteResponse =
+          substituteResponseFromModal ??
+          (await substituteLesson(location, {
+            ids: lessonIds,
+            teacherId: Number(teacherId),
+          }));
 
-      clearSelection();
-      modalState.setIsSubstituteModalOpen(false);
+        const newLessonIds = substituteResponse.data?.newLessonIds ?? [];
+        if (newLessonIds.length === 0) {
+          toast.success(
+            typeof substituteResponse.message === "string" && substituteResponse.message.trim() !== ""
+              ? substituteResponse.message
+              : "Lesson substitution processed"
+          );
+          clearSelection();
+          modalState.setIsSubstituteModalOpen(false);
+          return true;
+        }
 
-      toast.success("Lessons are substituted to the selected teachers");
+        const confirmResponse = await confirmTeacherSubstitute(location, {
+          ids: lessonIds,
+          newLessonIds,
+        });
+
+        const lessons = substituteResponse.data?.lessons ?? [];
+        const newRows = mapSubstituteLessonsToRows(lessons);
+        dispatch(
+          applyTeacherSubstituteResult({
+            oldLessonIds: lessonIds,
+            newRows,
+          })
+        );
+
+        clearSelection();
+        modalState.setIsSubstituteModalOpen(false);
+        toast.success(
+          typeof confirmResponse.message === "string" && confirmResponse.message.trim() !== ""
+            ? confirmResponse.message
+            : typeof substituteResponse.message === "string" && substituteResponse.message.trim() !== ""
+              ? substituteResponse.message
+              : "Lesson substitution processed"
+        );
+
+        // Redirect using URL from API (same pattern as customers/InvoicesTable: legacy base + path from response)
+        const redirectPath = confirmResponse.data?.url;
+        const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL;
+        if (typeof redirectPath === "string" && redirectPath.trim() !== "" && legacyBase) {
+          const path = redirectPath.replace(/^\//, "");
+          const redirectUrl = `${legacyBase}/${path}`;
+          window.location.href = redirectUrl;
+        } else if (!redirectPath?.trim()) {
+          toast.info("Redirect URL was not provided. You can continue from the current page.");
+        } else if (!legacyBase) {
+          toast.info("Redirect is not configured. You can continue from the current page.");
+        }
+        return true;
+      } catch (error) {
+        const message = extractErrorMessage(error, "Failed to substitute teacher");
+        toast.error(message);
+        return false;
+      }
     },
-    [dispatch, clearSelection, modalState]
+    [location, dispatch, clearSelection, modalState]
   );
 
   const handleEditDiscountSave = React.useCallback(
