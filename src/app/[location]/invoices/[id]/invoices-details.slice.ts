@@ -5,7 +5,7 @@ import {
   updateInvoiceDetails,
   UpdateInvoiceDetailsRequest,
 } from './invoices-details.api';
-import { InvoiceDetail, InvoiceComment } from '../mockData/invoiceDetailMockData';
+import type { InvoiceDetail, InvoiceComment } from '../types';
 import { recalculateTotals } from '../utils/totalsCalculator';
 
 interface InvoiceState {

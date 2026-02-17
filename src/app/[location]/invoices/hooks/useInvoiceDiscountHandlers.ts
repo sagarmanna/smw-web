@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AppDispatch } from "@/redux/store";
-import { InvoiceDetail, InvoiceItem } from "../mockData/invoiceDetailMockData";
+import type { InvoiceDetail, InvoiceItem } from "../types";
 import { DiscountData } from "../components/modals/InvoiceDiscountModal";
 import { updateItems, updateTotals } from "../[id]/invoices-details.slice";
 import { recalculateTotals } from "../utils/totalsCalculator";

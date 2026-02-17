@@ -162,6 +162,7 @@ export const InvoiceCustomerCard = React.memo(function InvoiceCustomerCard({
 
       {onCustomerChange && (
         <ChooseCustomerModal
+          location={location}
           open={isChooseCustomerModalOpen}
           onClose={() => setIsChooseCustomerModalOpen(false)}
           onSelect={handleCustomerSelect}

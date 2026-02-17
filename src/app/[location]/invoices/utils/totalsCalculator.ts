@@ -1,4 +1,4 @@
-import { InvoiceItem } from "../mockData/invoiceDetailMockData";
+import type { InvoiceItem } from "../types";
 
 export interface TotalsCalculationResult {
   discounts: number;

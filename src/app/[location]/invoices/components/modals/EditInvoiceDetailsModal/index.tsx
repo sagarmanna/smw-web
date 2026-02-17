@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { parseDateString } from "@/utils/dateUtils";
 import { format } from "date-fns";
-import { InvoiceDetail } from "../../../mockData/invoiceDetailMockData";
+import type { InvoiceDetail } from "../../../types";
 
 interface EditInvoiceDetailsModalProps {
   open: boolean;
