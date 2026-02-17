@@ -202,6 +202,10 @@ const legacyRouteMap: LegacyRouteConfig[] = [
     pattern: /^\/[^/]+\/location-view$/, // Matches /[location]/location-view
     legacyUrl: '/location-view'
   },
+  {
+    pattern: /^\/[^/]+\/user\/import$/, // Matches /[location]/user/import
+    legacyUrl: '/user/import'
+  },
 ];
 
 /**

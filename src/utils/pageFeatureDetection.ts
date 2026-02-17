@@ -74,6 +74,7 @@ export const getCurrentPageFeature = (pathname: string): string => {
     'staff-members': 'staffMembers',
     'owners': 'owners',
     'classrooms': 'classrooms',
+    'import': 'import',
     'location-view': 'locationSettings',
   };
   
@@ -131,6 +132,7 @@ export const getLegacyUrl = (feature: string, location: string): string => {
     staffMembers: `/user/index?UserSearch%5Brole_name%5D=staffmember`,
     owners: `/user/index?UserSearch%5Brole_name%5D=owner`,
     classrooms: `/classroom/index`,
+    import: `/user/import`,
     locationSettings: `/location-view`,
   };
     
