@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
-import { InvoiceItem } from "../../../mockData/invoiceDetailMockData";
+import type { InvoiceItem } from "../../../types";
 
 interface EditLineItemModalProps {
   open: boolean;

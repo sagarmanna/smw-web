@@ -13,7 +13,7 @@ import {
   addComment,
   addHistoryEntry,
 } from "../[id]/invoices-details.slice";
-import { InvoiceDetail, InvoiceItem, InvoiceComment, InvoiceStatus } from "../mockData/invoiceDetailMockData";
+import type { InvoiceDetail, InvoiceItem, InvoiceComment, InvoiceStatus } from "../types";
 import { useInvoiceItemHandlers } from "./useInvoiceItemHandlers";
 import { useInvoiceDiscountHandlers } from "./useInvoiceDiscountHandlers";
 import { useInvoiceDetailsHandlers } from "./useInvoiceDetailsHandlers";

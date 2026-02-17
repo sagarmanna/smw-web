@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { InvoiceItem } from "../../mockData/invoiceDetailMockData";
+import type { InvoiceItem } from "../../types";
 import { InvoiceDiscountModal, DiscountData } from "../modals/InvoiceDiscountModal";
 import { EditLineItemModal } from "../modals/EditLineItemModal";
 import { toast } from "sonner";
