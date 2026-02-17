@@ -31,6 +31,8 @@ interface PrivateLessonsModalsProps {
     setIsDeleteModalOpen: (open: boolean) => void;
     isEmailModalOpen: boolean;
     setIsEmailModalOpen: (open: boolean) => void;
+    emailModalInitialData: { emails: string[]; subject: string } | null;
+    setEmailModalInitialData: (data: { emails: string[]; subject: string } | null) => void;
     isUnscheduleConfirmModalOpen: boolean;
     setIsUnscheduleConfirmModalOpen: (open: boolean) => void;
     isUnscheduleReasonModalOpen: boolean;
@@ -125,9 +127,9 @@ export function PrivateLessonsModals({
         open={modalState.isEmailModalOpen}
         onOpenChange={modalState.setIsEmailModalOpen}
         onSend={saveHandlers.handleSendEmail}
-        recipientEmails={[]}
+        recipientEmails={modalState.emailModalInitialData?.emails ?? []}
         locationName={location}
-        initialSubject="Message from Arcadia Academy of Music"
+        initialSubject={modalState.emailModalInitialData?.subject ?? "Message from Arcadia Academy of Music"}
         initialContent="<div></div>"
         privateLessonDueData={[]}
         groupLessonDueData={[]}

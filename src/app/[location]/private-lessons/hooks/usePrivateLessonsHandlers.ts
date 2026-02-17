@@ -35,6 +35,7 @@ import type { EmailFormData } from "@/components/EmailModal";
 import type { LessonDiscountData } from "../privateLessonsListing.slice";
 import { isDev } from "@/utils/env";
 import { extractErrorMessage } from "@/utils/api/createCrudApi";
+import { getEmailMultiCustomer } from "../actionApi/emailMultiCustomer.api";
 
 function mapSubstituteLessonsToRows(lessons: SubstituteLessonItem[]): PrivateLessonRow[] {
   const statusMap: Record<number, string> = {
@@ -150,12 +151,20 @@ export function usePrivateLessonsHandlers({
     modalState.setIsDeleteModalOpen(true);
   }, [hasSelectedLessons, modalState]);
 
-  const handleEmailSelectedClick = React.useCallback(() => {
-    if (!hasSelectedLessons) {
-      return;
+  const handleEmailSelectedClick = React.useCallback(async () => {
+    if (!hasSelectedLessons || selectedLessons.length === 0) return;
+    const lessonIds = selectedLessons.map((l) => l.id);
+    try {
+      const response = await getEmailMultiCustomer(location, lessonIds);
+      const emails = response.data?.body?.emails ?? [];
+      const subject = response.data?.body?.subject ?? "Message from Arcadia Academy of Music";
+      modalState.setEmailModalInitialData({ emails, subject });
+      modalState.setIsEmailModalOpen(true);
+    } catch (error) {
+      const message = extractErrorMessage(error, "Failed to load email recipients");
+      toast.error(message);
     }
-    modalState.setIsEmailModalOpen(true);
-  }, [hasSelectedLessons, modalState]);
+  }, [hasSelectedLessons, selectedLessons, location, modalState]);
 
   const handleUnscheduleClick = React.useCallback(() => {
     if (!hasSelectedLessons) {

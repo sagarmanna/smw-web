@@ -7,7 +7,15 @@ export function usePrivateLessonsModals() {
   const [isEditClassroomModalOpen, setIsEditClassroomModalOpen] = React.useState(false);
   const [isEditOnlineTypeModalOpen, setIsEditOnlineTypeModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
-  const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpenInternal] = React.useState(false);
+  const [emailModalInitialData, setEmailModalInitialData] = React.useState<{
+    emails: string[];
+    subject: string;
+  } | null>(null);
+  const setIsEmailModalOpen = React.useCallback((open: boolean) => {
+    if (!open) setEmailModalInitialData(null);
+    setIsEmailModalOpenInternal(open);
+  }, []);
   const [isUnscheduleConfirmModalOpen, setIsUnscheduleConfirmModalOpen] = React.useState(false);
   const [isUnscheduleReasonModalOpen, setIsUnscheduleReasonModalOpen] = React.useState(false);
   const [isBulkRescheduleModalOpen, setIsBulkRescheduleModalOpen] = React.useState(false);
@@ -27,6 +35,8 @@ export function usePrivateLessonsModals() {
     setIsDeleteModalOpen,
     isEmailModalOpen,
     setIsEmailModalOpen,
+    emailModalInitialData,
+    setEmailModalInitialData,
     isUnscheduleConfirmModalOpen,
     setIsUnscheduleConfirmModalOpen,
     isUnscheduleReasonModalOpen,
