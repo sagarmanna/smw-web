@@ -58,6 +58,21 @@ const legacyRouteMap: LegacyRouteConfig[] = [
       `/user/view?UserSearch%5Brole_name%5D=administrator&id=${params.id || ''}`
   },
   {
+    pattern: /^\/[^/]+\/staff-members\/[^/]+$/, // Matches /[location]/staff-members/[id]
+    legacyUrl: (params) => 
+      `/user/view?UserSearch%5Brole_name%5D=staffmember&id=${params.id || ''}`
+  },
+  {
+    pattern: /^\/[^/]+\/owners\/[^/]+$/, // Matches /[location]/owners/[id]
+    legacyUrl: (params) => 
+      `/user/view?UserSearch%5Brole_name%5D=owner&id=${params.id || ''}`
+  },
+  {
+    pattern: /^\/[^/]+\/classrooms\/[^/]+$/, // Matches /[location]/classrooms/[id]
+    legacyUrl: (params) => 
+      `/classroom/view?id=${params.id || ''}`
+  },
+  {
     pattern: /^\/[^/]+\/locations\/[^/]+$/, // Matches /[location]/locations/[id]
     legacyUrl: '/location-view'
   },
