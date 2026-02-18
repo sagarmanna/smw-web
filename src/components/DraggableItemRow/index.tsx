@@ -91,7 +91,7 @@ export function DraggableItemRow<T>({
 
   return (
     <div
-      className={`flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer transition-colors ${
+      className={`flex items-stretch sm:items-center justify-between gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded -mx-2 cursor-pointer transition-colors ${
         isDragging ? "opacity-50" : ""
       } ${isDragOver ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-600" : ""}`}
       onClick={handleClick}
@@ -103,7 +103,7 @@ export function DraggableItemRow<T>({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
         {draggable && (
           <div
             className={`flex-shrink-0 cursor-grab active:cursor-grabbing ${
@@ -118,10 +118,10 @@ export function DraggableItemRow<T>({
         <KeyValueDisplay
           label={label}
           value={value}
-          className="justify-start flex-1"
+          className="justify-start flex-1 min-w-0"
         />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <button
           onClick={(e) => {
             e.stopPropagation();
