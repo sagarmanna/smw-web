@@ -103,7 +103,7 @@ export function DraggableItemRow<T>({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center gap-2 flex-1">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         {draggable && (
           <div
             className={`flex-shrink-0 cursor-grab active:cursor-grabbing ${

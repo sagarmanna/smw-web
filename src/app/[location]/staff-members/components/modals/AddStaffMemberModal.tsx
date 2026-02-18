@@ -55,9 +55,8 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess, location }: Ad
       newErrors.lastName = "Last name must not exceed 255 characters";
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = "Email cannot be blank.";
-    } else {
+    // Email is optional; only validate format and length when provided
+    if (formData.email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email.trim())) {
         newErrors.email = "Please enter a valid email address";
@@ -132,12 +131,18 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess, location }: Ad
         } else {
           setErrors((prev) => {
             const newErrors = { ...prev };
-            if (newErrors.email === "Please enter a valid email address") {
+            if (newErrors.email === "Please enter a valid email address" || newErrors.email === "Email must not exceed 255 characters") {
               delete newErrors.email;
             }
             return newErrors;
           });
         }
+      } else {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.email;
+          return newErrors;
+        });
       }
     }
   };
@@ -193,7 +198,7 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess, location }: Ad
           
           <div className="space-y-2">
             <Label htmlFor="email">
-              Email (Work) <span className="text-red-500">*</span>
+              Email (Work)
             </Label>
             <Input
               id="email"

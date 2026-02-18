@@ -78,6 +78,7 @@ export function SubstituteTeacherModal({
   const [isLoadingReview, setIsLoadingReview] = React.useState(false);
   const [reviewLoadError, setReviewLoadError] = React.useState<string | null>(null);
 
+  // Load substitute teachers for selected lesson ids when modal opens (same pattern as other action APIs)
   React.useEffect(() => {
     if (!open || selectedLessons.length === 0) return;
 
@@ -108,6 +109,7 @@ export function SubstituteTeacherModal({
     return () => { isCancelled = true; };
   }, [open, location, selectedLessons]);
 
+  // Call review API when teacher is selected (GET with ids + teacherId)
   React.useEffect(() => {
     if (!open || !selectedTeacher || selectedLessons.length === 0) {
       setReviewResponse(null);

@@ -395,6 +395,7 @@ export function usePrivateLessonsHandlers({
               : "Lesson substitution processed"
         );
 
+        // Redirect using URL from API (same pattern as customers/InvoicesTable: legacy base + path from response)
         const redirectPath = confirmResponse.data?.url;
         const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL;
         if (typeof redirectPath === "string" && redirectPath.trim() !== "" && legacyBase) {
