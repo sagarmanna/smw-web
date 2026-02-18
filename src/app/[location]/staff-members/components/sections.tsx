@@ -140,10 +140,10 @@ export function EmailList({ emails, loading = false, onEdit, onDelete, onReorder
           item={email}
           label={email.label}
           value={
-            <span className="flex items-center gap-2">
-              {formatEmailDisplay(email)}
+            <span className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="min-w-0 break-words">{formatEmailDisplay(email)}</span>
               {email.isPrimary && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs flex-shrink-0">
                   Primary
                 </Badge>
               )}
