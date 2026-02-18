@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api/client";
+import { deleteUserByRole } from "@/lib/api/user.api";
 import { mockOwnerData } from "../mockData/ownerMockData";
 
 // ---------------------------------------------
@@ -786,59 +787,34 @@ export interface DeleteOwnerResponse {
 }
 
 /**
- * Deletes an owner
+ * Deletes an owner via v2 API
  * Endpoint: DELETE /admin/v2/{location}/user/{ownerId}/owner
- * Currently using mock data - will be replaced with actual API call when backend is ready
  */
 export async function deleteOwner(
   location: string,
   ownerId: number
 ): Promise<DeleteOwnerResponse> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    void location; // Suppress unused parameter warning
-
-    // Check if owner exists in mock data
-    const ownerExists = mockOwnerData.some((o) => o.userId === ownerId);
-    if (!ownerExists) {
-      return {
-        success: false,
-        message: "Owner not found",
-        data: {
-          id: ownerId,
-          url: `/${location}/owners`,
-          legacyUrl: "",
-        },
-      };
-    }
-
-    // Mock successful deletion
-    const mockResponse: DeleteOwnerResponse = {
-      success: true,
-      message: "Owner deleted successfully",
+    const response = await deleteUserByRole(location, ownerId, "owner");
+    return {
+      success: response.success,
+      message: response.message,
       data: {
-        id: ownerId,
-        url: `/${location}/owners`,
-        legacyUrl: "",
+        id: response.data.id,
+        url: response.data.url,
+        legacyUrl: response.data.legacyUrl ?? "",
       },
     };
-
-    return mockResponse;
-
-    // Uncomment when API is ready:
-    // const url = `/admin/v2/${location}/user/${ownerId}/owner`;
-    // const response = await apiClient.delete<DeleteOwnerResponse>(url);
-    // return response.data;
   } catch (error: unknown) {
     console.error("Error deleting owner:", error);
-    const apiError = error as { response?: { data?: { message?: string } }; message?: string };
-
+    const apiError = error as { message?: string };
+    const message =
+      typeof apiError.message === "string" && apiError.message.trim()
+        ? apiError.message
+        : "Failed to delete owner";
     return {
       success: false,
-      message: apiError.response?.data?.message || apiError.message || "Failed to delete owner",
+      message,
       data: {
         id: ownerId,
         url: `/${location}/owners`,

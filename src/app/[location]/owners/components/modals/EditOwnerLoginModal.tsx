@@ -102,20 +102,17 @@ export function EditOwnerLoginModal({
       }
     }
 
-    // Password validation
-    if (!password.trim()) {
-      setError("Password is required.");
-      return;
-    }
+    // Password validation (optional per legacy flow - only validate when provided)
+    if (password.trim() || confirmPassword.trim()) {
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+      }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -178,11 +175,11 @@ export function EditOwnerLoginModal({
             </div>
           )}
 
-          {/* Password Fields - Always visible */}
+          {/* Password Fields - Optional per legacy flow */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="password">
-                Password <span className="text-red-500">*</span>
+              <Label htmlFor="password" className="text-green-600 dark:text-green-400">
+                Password
               </Label>
               <Input
                 id="password"
@@ -194,18 +191,16 @@ export function EditOwnerLoginModal({
                 }}
                 placeholder="Enter password"
                 disabled={isSubmitting}
-                required
-                minLength={6}
                 aria-describedby={error ? "password-error" : "password-help"}
               />
               <p id="password-help" className="text-xs text-muted-foreground">
-                Minimum 6 characters
+                Optional. Minimum 6 characters if provided.
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">
-                Confirm Password <span className="text-red-500">*</span>
+              <Label htmlFor="confirm-password" className="text-green-600 dark:text-green-400">
+                Confirm Password
               </Label>
               <Input
                 id="confirm-password"
@@ -217,7 +212,6 @@ export function EditOwnerLoginModal({
                 }}
                 placeholder="Confirm password"
                 disabled={isSubmitting}
-                required
                 aria-describedby={error ? "confirm-password-error" : undefined}
               />
             </div>

@@ -239,7 +239,7 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
 
   return (
     <>
-      <div className="bg-white dark:bg-black -mt-2">
+      <div className="bg-white dark:bg-black -mt-2 overflow-x-hidden">
         {showError && (
           <div className="mb-4">
             <ErrorDisplay
@@ -261,9 +261,9 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
         />
 
         {/* Main Content Grid - All cards share the same cached data from Redux */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-4 min-w-0">
           {/* Left Column */}
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-3 sm:space-y-4 min-w-0 overflow-hidden">
             <UserDetailsCard
               details={details}
               config={{
@@ -303,7 +303,7 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
             />
 
             {/* Mobile Email and Phone Cards - Only on Mobile */}
-            <div className="lg:hidden space-y-3 sm:space-y-4">
+            <div className="lg:hidden space-y-3 sm:space-y-4 min-w-0 overflow-hidden">
               <UserEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
@@ -342,9 +342,9 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
           </div>
 
           {/* Right Column */}
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-3 sm:space-y-4 min-w-0 overflow-hidden">
             {/* Desktop Email and Phone Cards */}
-            <div className="hidden lg:block">
+            <div className="hidden lg:block min-w-0 overflow-hidden">
               <UserEmailCard
                 emails={emails}
                 onUpdate={updateEmails}
@@ -364,7 +364,7 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
               />
             </div>
 
-            <div className="hidden lg:block">
+            <div className="hidden lg:block min-w-0 overflow-hidden">
               <UserPhoneCard
                 phones={phones}
                 onUpdate={updatePhones}
@@ -383,22 +383,24 @@ export function OwnerDetailClient({ location, id }: OwnerDetailClientProps) {
               />
             </div>
 
-            <UserAddressCard
-              addresses={addresses}
-              onUpdate={updateAddresses}
-              loading={isLoading}
-              location={location}
-              entityId={ownerId}
-              onRefresh={refresh}
-              CreateModal={(props) => (
-                <CreateAddressModal
-                  {...props}
-                  apiAdapter={ownerDetailPageConfig.apiAdapter}
-                />
-              )}
-              AddressList={AddressList}
-              useAddressHandlers={useAddressHandlers}
-            />
+            <div className="min-w-0 overflow-hidden">
+              <UserAddressCard
+                addresses={addresses}
+                onUpdate={updateAddresses}
+                loading={isLoading}
+                location={location}
+                entityId={ownerId}
+                onRefresh={refresh}
+                CreateModal={(props) => (
+                  <CreateAddressModal
+                    {...props}
+                    apiAdapter={ownerDetailPageConfig.apiAdapter}
+                  />
+                )}
+                AddressList={AddressList}
+                useAddressHandlers={useAddressHandlers}
+              />
+            </div>
           </div>
         </div>
 
