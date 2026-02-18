@@ -1,9 +1,9 @@
 // Constants for better maintainability
 export const ALLOWED_PATHS: string[] = [
-    '/privileges',
+    // '/privileges',
     '/login',
-    '/classrooms',
-    '/[location]/classrooms/[id]',
+    // '/classrooms',
+    // '/[location]/classrooms/[id]',
     // '/item-categories',
     // '/email-template',
     // '/holidays',
@@ -37,8 +37,8 @@ export const ALLOWED_PATHS: string[] = [
     '/timeline',
     // '/blogs',
     // '/administrators',
-    '/owners',
-    '/staff-members',
+    // '/owners',
+    // '/staff-members',
     // '/test-email',
     '/menu-flags', 
     '/staffmembers/[id]',
