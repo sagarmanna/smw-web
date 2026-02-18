@@ -1,6 +1,7 @@
 import * as React from "react";
 import { PrivateLessonRow } from "../../privateLessonsListing.api";
 import { LessonDiscountData } from "../../privateLessonsListing.slice";
+import type { SubstituteLessonResponse } from "../../actionApi/teacherSubstitute.api";
 import { SubstituteTeacherModal } from "../SubstituteTeacherModal";
 import { EditDiscountModal } from "../EditDiscountModal";
 import { EditDurationModal } from "../EditDurationModal";
@@ -30,6 +31,8 @@ interface PrivateLessonsModalsProps {
     setIsDeleteModalOpen: (open: boolean) => void;
     isEmailModalOpen: boolean;
     setIsEmailModalOpen: (open: boolean) => void;
+    emailModalInitialData: { emails: string[]; subject: string } | null;
+    setEmailModalInitialData: (data: { emails: string[]; subject: string } | null) => void;
     isUnscheduleConfirmModalOpen: boolean;
     setIsUnscheduleConfirmModalOpen: (open: boolean) => void;
     isUnscheduleReasonModalOpen: boolean;
@@ -38,7 +41,12 @@ interface PrivateLessonsModalsProps {
     setIsBulkRescheduleModalOpen: (open: boolean) => void;
   };
   saveHandlers: {
-    handleSubstituteSave: (teacherId: string, teacherName: string, lessonIds: number[]) => void;
+    handleSubstituteSave: (
+      teacherId: string,
+      teacherName: string,
+      lessonIds: number[],
+      substituteResponse?: SubstituteLessonResponse
+    ) => Promise<boolean>;
     handleEditDiscountSave: (data: LessonDiscountData, lessonIds: number[]) => Promise<boolean>;
     handleEditDurationSave: (duration: string, lessonIds: number[]) => Promise<boolean>;
     handleEditClassroomSave: (classroomId: string, classroomName: string, lessonIds: number[]) => Promise<boolean>;
@@ -119,9 +127,9 @@ export function PrivateLessonsModals({
         open={modalState.isEmailModalOpen}
         onOpenChange={modalState.setIsEmailModalOpen}
         onSend={saveHandlers.handleSendEmail}
-        recipientEmails={[]}
+        recipientEmails={modalState.emailModalInitialData?.emails ?? []}
         locationName={location}
-        initialSubject="Message from Arcadia Academy of Music"
+        initialSubject={modalState.emailModalInitialData?.subject ?? "Message from Arcadia Academy of Music"}
         initialContent="<div></div>"
         privateLessonDueData={[]}
         groupLessonDueData={[]}

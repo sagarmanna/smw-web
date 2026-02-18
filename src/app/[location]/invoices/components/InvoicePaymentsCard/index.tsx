@@ -5,7 +5,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { SectionCard } from "@/components/SectionCard";
 import { CustomTable } from "@/components/CustomTable";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { InvoicePayment } from "../../mockData/invoiceDetailMockData";
+import type { InvoicePayment } from "../../types";
 
 interface InvoicePaymentsCardProps {
   payments: InvoicePayment[];

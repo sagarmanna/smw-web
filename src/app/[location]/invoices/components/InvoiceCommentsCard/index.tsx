@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, User } from "lucide-react";
-import { InvoiceComment } from "../../mockData/invoiceDetailMockData";
+import type { InvoiceComment } from "../../types";
 import { TOAST_MESSAGES } from "../../utils/constants";
 
 interface InvoiceCommentsCardProps {

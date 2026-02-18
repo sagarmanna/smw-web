@@ -3,7 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { AppDispatch } from "@/redux/store";
-import { InvoiceDetail } from "../mockData/invoiceDetailMockData";
+import type { InvoiceDetail } from "../types";
 import { updateCustomer } from "../[id]/invoices-details.slice";
 import { TOAST_MESSAGES } from "../utils/constants";
 

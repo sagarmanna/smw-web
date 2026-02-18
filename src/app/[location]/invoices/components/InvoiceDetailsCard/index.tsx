@@ -6,7 +6,7 @@ import {
   EditButton,
 } from "@/components/SectionCard";
 import { SectionCardDataRow } from "@/components/SectionCard/types";
-import { InvoiceDetail } from "../../mockData/invoiceDetailMockData";
+import type { InvoiceDetail } from "../../types";
 import { EditInvoiceDetailsModal } from "../modals/EditInvoiceDetailsModal";
 
 interface InvoiceDetailsCardProps {

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/CustomTable";
-import { mockInvoiceData } from "../../../mockData/invoiceMockData";
+import { getCustomers } from "@/app/[location]/customers/customers.api";
 
 interface CustomerOption {
   firstName: string;
@@ -23,75 +23,58 @@ interface CustomerOption {
 }
 
 interface ChooseCustomerModalProps {
+  location: string;
   open: boolean;
   onClose: () => void;
   onSelect: (customer: CustomerOption) => void;
   currentCustomerId?: number;
 }
 
-/**
- * Generates a list of unique customers from mock invoice data.
- * Groups invoices by customer name and aggregates their students.
- * 
- * @returns An array of unique customer options with aggregated student information
- */
-function generateCustomerList(): CustomerOption[] {
-  const customerMap = new Map<string, CustomerOption>();
-  let customerIdCounter = 1;
-
-  // Handle empty or invalid mock data
-  if (!mockInvoiceData || mockInvoiceData.length === 0) {
-    return [];
-  }
-
-  mockInvoiceData.forEach((invoice) => {
-    const customerName = invoice.customer?.trim();
-    if (!customerName) return;
-
-    // Parse name into first and last name
-    const nameParts = customerName.split(/\s+/);
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
-
-    // Generate email if not available
-    const email = `${customerName.toLowerCase().replace(/\s+/g, "")}@example.com`;
-
-    // Use customer name as key to group by customer
-    const key = customerName.toLowerCase();
-    
-    if (!customerMap.has(key)) {
-      customerMap.set(key, {
-        firstName,
-        lastName,
-        email,
-        students: invoice.student || "",
-        customerId: customerIdCounter++,
-        phone: invoice.phone || "",
-      });
-    } else {
-      // Append student if customer already exists
-      const existing = customerMap.get(key);
-      if (existing) {
-        if (existing.students && invoice.student && !existing.students.includes(invoice.student)) {
-          existing.students = `${existing.students}, ${invoice.student}`;
-        } else if (!existing.students && invoice.student) {
-          existing.students = invoice.student;
-        }
-      }
-    }
-  });
-
-  return Array.from(customerMap.values());
-}
-
 export function ChooseCustomerModal({
+  location,
   open,
   onClose,
   onSelect,
 }: ChooseCustomerModalProps) {
-  const [customers] = React.useState<CustomerOption[]>(() => generateCustomerList());
+  const [customers, setCustomers] = React.useState<CustomerOption[]>([]);
+  const [isLoading, setIsLoading] = React.useState(false);
   const [columnFilters, setColumnFilters] = React.useState<Record<string, unknown>>({});
   const [sorting, setSorting] = React.useState<SortingState>([]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+
+    (async () => {
+      try {
+        const result = await getCustomers(location, {
+          page: 1,
+          limit: -1,
+          showActive: true,
+          showInActive: true,
+        });
+
+        const body = result?.success ? result.data.body : [];
+        const mapped: CustomerOption[] = (body || []).map((c) => ({
+          firstName: c.firstName || "",
+          lastName: c.lastName || "",
+          email: c.email || "",
+          students: c.students || "",
+          customerId: c.id,
+        }));
+
+        if (!cancelled) setCustomers(mapped);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, location]);
 
   const columns = React.useMemo<ColumnDef<CustomerOption>[]>(
     () => [
@@ -224,6 +207,7 @@ export function ChooseCustomerModal({
           <CustomTable
             data={filteredCustomers}
             columns={columns}
+            isLoading={isLoading}
             size="compact"
             variant="default"
             stickyHeader={true}

@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AdjustTaxModal, TaxAdjustmentData } from "../modals/AdjustTaxModal";
-import { InvoiceItem } from "../../mockData/invoiceDetailMockData";
+import type { InvoiceItem } from "../../types";
 
 interface InvoiceTotalsCardProps {
   totals: {

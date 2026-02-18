@@ -203,42 +203,18 @@ export function SubstituteTeacherModal({
 
   const columns = React.useMemo<ColumnDef<LessonWithConflict>[]>(() => {
     return [
-      {
-        accessorKey: "assignedTeacher",
-        header: "Teacher",
-        cell: ({ row }) => row.original.assignedTeacher,
-      },
-      {
-        accessorKey: "student",
-        header: "Student",
-        cell: ({ row }) => row.original.student,
-      },
-      {
-        accessorKey: "program",
-        header: "Program",
-        cell: ({ row }) => row.original.program,
-      },
-      {
-        accessorKey: "date",
-        header: "Date/Time",
-        cell: ({ row }) => row.original.date,
-      },
-      {
-        accessorKey: "duration",
-        header: "Duration",
-        cell: ({ row }) => row.original.duration,
-      },
+      { accessorKey: "assignedTeacher", header: "Teacher", cell: ({ row }) => row.original.assignedTeacher },
+      { accessorKey: "student", header: "Student", cell: ({ row }) => row.original.student },
+      { accessorKey: "program", header: "Program", cell: ({ row }) => row.original.program },
+      { accessorKey: "date", header: "Date/Time", cell: ({ row }) => row.original.date },
+      { accessorKey: "duration", header: "Duration", cell: ({ row }) => row.original.duration },
       {
         id: "conflict",
         header: "Conflict",
         cell: ({ row }) => {
           const conflict = row.original.conflict;
-          if (!conflict) {
-            return <span className="text-muted-foreground text-xs">-</span>;
-          }
-
+          if (!conflict) return <span className="text-muted-foreground text-xs">-</span>;
           const isWarning = conflict.includes("Warning");
-
           return (
             <span
               className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
@@ -255,15 +231,8 @@ export function SubstituteTeacherModal({
       {
         id: "actions",
         header: "",
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-primary hover:text-primary"
-            onClick={() => {
-              // Placeholder – hook into conflict editing when available
-            }}
-          >
+        cell: () => (
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-primary hover:text-primary" onClick={() => {}}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
         ),
@@ -275,9 +244,7 @@ export function SubstituteTeacherModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">
-            Substitute Teacher
-          </DialogTitle>
+          <DialogTitle className="text-xl font-semibold">Substitute Teacher</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -345,5 +312,3 @@ export function SubstituteTeacherModal({
     </Dialog>
   );
 }
-
-
