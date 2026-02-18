@@ -50,6 +50,7 @@ export function useInvoiceVoidHandlers({
 
       // Add history entry
       dispatch(addHistoryEntry({
+        id: Date.now(),
         createdOn: new Date().toLocaleString("en-US", {
           year: "numeric",
           month: "short",

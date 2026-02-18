@@ -17,19 +17,19 @@ export interface InvoiceItem {
 }
 
 export interface InvoicePayment {
-  id: string;
+  id: number;
   date: string;
   type: string;
   ref: string;
   notes: string;
-  amount: number;
+  amount: string;
 }
 
 export interface InvoiceComment {
   id: number;
   content: string;
   createdUser: string;
-  avatar?: string;
+  avatar: string;
   createdOn: string;
 }
 
@@ -52,6 +52,7 @@ export interface InvoiceTotals {
 }
 
 export interface InvoiceHistoryEntry {
+  id: number;
   createdOn: string;
   message: string;
 }

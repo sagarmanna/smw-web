@@ -48,11 +48,11 @@ export function useInvoiceReturnHandlers({
         invoiceDetail.payments.length > 0
           ? invoiceDetail.payments.map((payment) => ({
               ...payment,
-              amount: -Math.abs(payment.amount),
+              amount: String(-Math.abs(parseFloat(String(payment.amount).replace(/[$,]/g, "")))),
             }))
           : [
               {
-                id: "1",
+                id: 1,
                 date: (() => {
                   const now = new Date();
                   const month = now.toLocaleDateString("en-US", { month: "short" });
@@ -63,7 +63,7 @@ export function useInvoiceReturnHandlers({
                 type: "Credit Used",
                 ref: `I-${invoiceDetail.id - 26}`,
                 notes: "",
-                amount: -Math.abs(invoiceDetail.totals.total),
+                amount: String(-Math.abs(invoiceDetail.totals.total)),
               },
             ];
 

@@ -54,6 +54,12 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     loading: isLoading,
     error,
     invoiceDetail,
+    historyData,
+    historyPagination,
+    historyLoading,
+    fetchHistory,
+    commentsData,
+    commentsLoading,
     handleSaveDetails,
     handleCustomerChange,
     handleSaveDiscount,
@@ -329,14 +335,18 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             />
 
             <InvoiceCommentsCard
-              comments={invoiceDetail.comments}
-              isLoading={isLoading}
+              comments={commentsData}
+              isLoading={commentsLoading}
               onAddComment={handleAddComment}
             />
 
             <InvoiceHistoryCard
-              history={invoiceDetail.history}
+              history={historyData}
               isLoading={isLoading}
+              pagination={historyPagination}
+              historyLoading={historyLoading}
+              onPageChange={fetchHistory}
+              location={location}
             />
           </div>
         </div>

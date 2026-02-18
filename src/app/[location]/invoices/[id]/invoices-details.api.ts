@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client";
-import type { InvoiceDetail, InvoiceItem } from "@/app/[location]/invoices/types";
+import type { InvoiceDetail, InvoiceItem, InvoicePayment, InvoiceHistoryEntry, InvoiceComment } from "@/app/[location]/invoices/types";
 
 // ---------------------------------------------
 // Invoice Details API Response Types
@@ -95,6 +95,91 @@ type InvoiceTotalsBackendResponse = {
   message?: string;
 };
 
+type InvoiceMessageBackendResponse = {
+  success: boolean;
+  data?: {
+    body?: {
+      id?: number;
+      message?: string;
+    };
+  };
+  message?: string;
+};
+
+type InvoicePaymentsBackendResponse = {
+  success: boolean;
+  data?: {
+    body?: InvoicePayment[];
+  };
+  message?: string;
+};
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+type PaginatedListResponse<T> = {
+  success: boolean;
+  data: { body: T[]; pagination?: PaginationInfo };
+  message?: string;
+};
+
+async function fetchPaginatedList<T>(
+  url: string,
+  params: Record<string, string | number | boolean>,
+  entityName: string
+): Promise<PaginatedListResponse<T>> {
+  try {
+    const response = await apiClient.get<PaginatedListResponse<T>>(url, { params });
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.error(`Invoice ${entityName} API returned no body:`, response.data);
+      return response.data;
+    }
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string; success?: boolean } } };
+    const errorMessage = apiError.response?.data?.message || `Failed to fetch invoice ${entityName}`;
+    return {
+      success: false,
+      data: { body: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
+      message: errorMessage,
+    };
+  }
+}
+
+export interface InvoiceCommentsApiResponse {
+  success: boolean;
+  data: {
+    body: InvoiceComment[];
+    pagination?: PaginationInfo;
+  };
+  message?: string;
+}
+
+export interface InvoiceHistoryResponseBody {
+  id: number;
+  createdOn: string;
+  message: string;
+}
+
+export interface InvoiceHistoryApiResponse {
+  success: boolean;
+  data: {
+    body: InvoiceHistoryResponseBody[];
+    pagination?: PaginationInfo;
+  };
+  message?: string;
+}
+
 function parseMoney(value: unknown): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value !== "string") return 0;
@@ -152,13 +237,16 @@ function normalizeTotals(
   return { discounts, subtotal, tax, total, paid, balance };
 }
 
+
 function buildInvoiceDetail(params: {
   detailsBody: InvoiceDetailsBackendBody | undefined;
   invoiceId: number;
   itemsResponse?: InvoiceItemsBackendResponse;
   totalsResponse?: InvoiceTotalsBackendResponse;
+  messageResponse?: InvoiceMessageBackendResponse;
+  paymentsResponse?: InvoicePaymentsBackendResponse;
 }): InvoiceDetail {
-  const { detailsBody, invoiceId, itemsResponse, totalsResponse } = params;
+  const { detailsBody, invoiceId, itemsResponse, totalsResponse, messageResponse, paymentsResponse } = params;
   const invoice = detailsBody?.invoice;
   const customer = detailsBody?.customer;
 
@@ -177,9 +265,9 @@ function buildInvoiceDetail(params: {
       email: customer?.email ?? "",
     },
     items,
-    payments: detailsBody?.payments ?? [],
+    payments: paymentsResponse?.data?.body ?? detailsBody?.payments ?? [],
     totals,
-    message: detailsBody?.message ?? "",
+    message: messageResponse?.data?.body?.message ?? detailsBody?.message ?? "",
     comments: detailsBody?.comments ?? [],
     history: detailsBody?.history ?? [],
   };
@@ -200,7 +288,7 @@ export async function getInvoiceDetails(
   invoiceId: number
 ): Promise<InvoiceDetailsApiResponse | null> {
   try {
-    const [detailsRes, itemsRes, totalsRes] = await Promise.allSettled([
+    const [detailsRes, itemsRes, totalsRes, messageRes, paymentsRes] = await Promise.allSettled([
       apiClient.get<InvoiceDetailsBackendResponse>(
         `/admin/v2/${location}/invoices/details/${invoiceId}`
       ),
@@ -211,6 +299,12 @@ export async function getInvoiceDetails(
       ),
       apiClient.get<InvoiceTotalsBackendResponse>(
         `/admin/v2/${location}/invoices/${invoiceId}/totals`
+      ),
+      apiClient.get<InvoiceMessageBackendResponse>(
+        `/admin/v2/${location}/invoices/message/${invoiceId}`
+      ),
+      apiClient.get<InvoicePaymentsBackendResponse>(
+        `/admin/v2/${location}/invoices/payments/${invoiceId}`
       ),
     ]);
 
@@ -223,6 +317,8 @@ export async function getInvoiceDetails(
       invoiceId,
       itemsResponse: itemsRes.status === "fulfilled" ? itemsRes.value.data : undefined,
       totalsResponse: totalsRes.status === "fulfilled" ? totalsRes.value.data : undefined,
+      messageResponse: messageRes.status === "fulfilled" ? messageRes.value.data : undefined,
+      paymentsResponse: paymentsRes.status === "fulfilled" ? paymentsRes.value.data : undefined,
     });
 
     return {
@@ -240,6 +336,40 @@ export async function getInvoiceDetails(
       message: apiError.response?.data?.message || "Failed to fetch invoice details",
     };
   }
+}
+
+/**
+ * Fetches invoice history from the API with pagination.
+ *
+ * Endpoint: GET /admin/v2/{location}/history?type=invoice&id={invoiceId}&page={page}
+ */
+export async function getInvoiceHistory(
+  location: string,
+  invoiceId: number,
+  page: number = 1
+): Promise<InvoiceHistoryApiResponse | null> {
+  return fetchPaginatedList<InvoiceHistoryResponseBody>(
+    `/admin/v2/${location}/history`,
+    { type: "invoice", id: invoiceId, page },
+    "history"
+  );
+}
+
+/**
+ * Fetches invoice comments from the API with pagination.
+ *
+ * Endpoint: GET /admin/v2/{location}/comments?page={page}&limit=20&type=invoice&id={invoiceId}
+ */
+export async function getInvoiceComments(
+  location: string,
+  invoiceId: number,
+  page: number = 1
+): Promise<InvoiceCommentsApiResponse | null> {
+  return fetchPaginatedList<InvoiceComment>(
+    `/admin/v2/${location}/comments`,
+    { type: "invoice", id: invoiceId, page, limit: 20 },
+    "comments"
+  );
 }
 
 /**

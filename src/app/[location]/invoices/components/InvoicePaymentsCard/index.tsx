@@ -37,7 +37,7 @@ export const InvoicePaymentsCard = React.memo(function InvoicePaymentsCard({
       {
         accessorKey: "amount",
         header: "Amount",
-        cell: ({ getValue }) => formatCurrency(getValue() as number),
+        cell: ({ getValue }) => formatCurrency(parseFloat((getValue() as string).replace(/[$,]/g, ""))),
       },
     ],
     []
