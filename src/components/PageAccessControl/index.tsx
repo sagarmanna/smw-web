@@ -126,6 +126,61 @@ const isAdminPage = (pathname: string): boolean => {
   return false;
 };
 
+// List of setup menu page slugs (second segment after location)
+const SETUP_PAGE_SLUGS = [
+  "privileges",
+  "staff-members",
+  "owners",
+  "classrooms",
+  "location-view",
+] as const;
+
+// Check if pathname is a setup menu page
+const isSetupPage = (pathname: string): boolean => {
+  const segments = pathname.split("/").filter(Boolean);
+  // Check if second segment (after location) matches any setup page slug
+  if (segments.length >= 2) {
+    return SETUP_PAGE_SLUGS.includes(segments[1] as typeof SETUP_PAGE_SLUGS[number]);
+  }
+  // Check for /user/import path (third segment after location)
+  if (segments.length >= 3 && segments[1] === "user" && segments[2] === "import") {
+    return true;
+  }
+  return false;
+};
+
+// Check if pathname is an owner detail page
+const isOwnerDetailPage = (pathname: string): boolean => {
+  const segments = pathname.split("/").filter(Boolean);
+  // Check if path matches /[location]/owners/[id] pattern
+  return segments.length >= 3 && segments[1] === "owners" && segments[2] !== undefined;
+};
+
+// Helper function to check setup menu access based on role
+const hasSetupMenuAccess = (
+  pathname: string,
+  userRole: string | undefined
+): boolean => {
+  // Administrator: can access all setup menus
+  if (userRole === "administrator") {
+    return true;
+  }
+
+  // Owner: can access all setup menus except owners listing and detail pages
+  if (userRole === "owner") {
+    // Block owners listing page and detail pages (any path starting with /owners)
+    const segments = pathname.split("/").filter(Boolean);
+    if (segments.length >= 2 && segments[1] === "owners") {
+      return false;
+    }
+    // Allow all other setup pages
+    return true;
+  }
+
+  // Any other role: no access to setup menus
+  return false;
+};
+
 // Helper function to determine if user has access
 const hasAccess = (
   pathname: string,
@@ -136,6 +191,11 @@ const hasAccess = (
   // Admin pages (including detail pages): allow only users with admin role
   if (isAdminPage(pathname)) {
     return userRole === "administrator";
+  }
+
+  // Setup menu pages: check role-based access
+  if (isSetupPage(pathname) || isOwnerDetailPage(pathname)) {
+    return hasSetupMenuAccess(pathname, userRole);
   }
 
   // Check if path is in the allowed list (bypasses menu-based access control)
