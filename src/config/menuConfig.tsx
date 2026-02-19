@@ -22,7 +22,8 @@ import {
   FileText, 
   Cog, 
   MapPin,
-  Car
+  Car,
+  ShoppingCart
 } from "lucide-react";
 
 // Environment-based flags
@@ -101,6 +102,11 @@ export const filterMenusByRole = (menus: MenuItem[], userRole: string, userPermi
   if (userRole === 'owner') {
     // Owner restrictions: hide Admin, Payment Preferences, some Reports, some Setup items
     const filteredMenus = menus.filter(item => {
+      // Allow POS for owner
+      if (item.title === 'POS') {
+        return true;
+      }
+      
       // Hide Admin menu completely for owner
       if (item.title === 'Admin') {
         return false;
@@ -236,6 +242,11 @@ export const filterMenusByRole = (menus: MenuItem[], userRole: string, userPermi
         return hasPermission ? item : null;
       }
       
+      // POS - no permission required for staff
+      if (item.title === 'POS') {
+        return item;
+      }
+      
       // Unscheduled Lessons - no permission required for staff
       if (item.title === 'Unscheduled Lessons') {
         return item;
@@ -294,6 +305,15 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       source: getMenuSource(locationFlags, 'dashboard') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'dashboard') ? ('no' as const) : ('yes' as const),
+    },
+    {
+      id: 'pos',
+      title: 'POS',
+      icon: <ShoppingCart className="h-4 w-4" />,
+      url: '/pos',
+      source: 'modern' as 'legacy' | 'modern',
+      items: [],
+      hidden: 'no' as const,
     },
     {
       id: 'schedule',
