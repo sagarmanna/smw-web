@@ -114,18 +114,21 @@ export function usePrivateLessonDetails(
   const saveDetails = React.useCallback(
     async (details: Partial<PrivateLessonDetails>): Promise<boolean> => {
       try {
-        await dispatch(
+        const result = await dispatch(
           updatePrivateLesson({
             location,
             privateLessonId,
             data: details,
           })
         ).unwrap();
-        
-        toast.success("Private lesson details updated successfully");
+
+        toast.success(
+          typeof result.message === "string" && result.message.trim() !== ""
+            ? result.message
+            : "Lesson details updated successfully"
+        );
         return true;
       } catch (error) {
-        console.error("Failed to save private lesson details:", error);
         toast.error(error instanceof Error ? error.message : "Failed to update private lesson details. Please try again.");
         return false;
       }

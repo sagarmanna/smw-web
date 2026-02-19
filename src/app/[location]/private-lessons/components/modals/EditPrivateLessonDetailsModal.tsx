@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/searchable-select";
 import { ColorPicker } from "@/components/ColorPicker";
 import { getClassroomViewResources, type ClassroomViewResource } from "@/app/[location]/schedule/schedule.api";
-import { toast } from "sonner";
+
 
 export interface ClassroomOption {
   id: string;
@@ -25,7 +25,8 @@ export interface ClassroomOption {
 }
 
 export interface PrivateLessonDetailsData {
-  classroom?: string; // This will be the classroom name (not ID) to match API expectations
+  classroom?: string; // classroom name (for state update display)
+  classroomId?: number; // classroom ID (for API body)
   colorCode?: string;
   online?: boolean;
 }
@@ -158,16 +159,14 @@ export function EditPrivateLessonDetailsModal({
     );
     const payload: PrivateLessonDetailsData = {
       classroom: selectedClassroom?.name || "",
+      classroomId: selectedClassroomId ? Number(selectedClassroomId) : undefined,
       colorCode: colorCode,
       online: isOnline,
     };
 
     const success = await onSubmit(payload);
     if (success) {
-      toast.success("Private lesson details updated successfully");
       onClose();
-    } else {
-      toast.error("Failed to update private lesson details");
     }
   };
 

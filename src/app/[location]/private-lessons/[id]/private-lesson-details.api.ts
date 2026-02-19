@@ -614,66 +614,64 @@ export function transformApiResponse(
 
 // Update Private Lesson Details API Types
 export interface UpdatePrivateLessonDetailsRequest {
-  program?: string;
-  classroom?: string;
-  status?: string;
+  classroomId?: number;
   colorCode?: string;
-  online?: boolean;
+  isOnline?: boolean;
+}
+
+interface UpdatePrivateLessonDetailsApiResponse {
+  success: boolean;
+  data: {
+    id: number;
+    classroomId: number;
+    colorCode: string;
+    isOnline: string; // "Yes" | "No"
+  };
+  message?: string;
 }
 
 export interface UpdatePrivateLessonDetailsResponse {
   success: boolean;
   data: {
     id: number;
-    program: string;
-    classroom: string;
-    status: string;
+    classroomId: number;
     colorCode: string;
-    online: boolean;
+    isOnline: string; // "Yes" | "No"
   };
   message?: string;
 }
 
 /**
- * Updates private lesson details via PUT API
- * For now, returns mock response
+ * Updates private lesson details via PUT API.
+ * PUT /admin/v2/{location}/lesson/details/{privateLessonId}
  */
 export async function updatePrivateLessonDetails(
   location: string,
   privateLessonId: string,
   data: UpdatePrivateLessonDetailsRequest
 ): Promise<UpdatePrivateLessonDetailsResponse | null> {
-  try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        id: Number(privateLessonId) || 0,
-        program: data.program || "",
-        classroom: data.classroom || "",
-        status: data.status || "",
-        colorCode: data.colorCode || "",
-        online: data.online !== undefined ? data.online : false,
-      },
-    };
-  } catch (error: unknown) {
-    console.error("Error updating private lesson details:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
-    return {
-      success: false,
-      data: {
-        id: Number(privateLessonId) || 0,
-        program: "",
-        classroom: "",
-        status: "",
-        colorCode: "",
-        online: false,
-      },
-      message: apiError.response?.data?.message || "Failed to update private lesson details",
-    };
+  const response = await apiClient.put<UpdatePrivateLessonDetailsApiResponse>(
+    `/admin/v2/${location}/lesson/details/${privateLessonId}`,
+    data
+  );
+
+  const body = response.data;
+  const success = body?.success === true;
+  const message = body?.message;
+
+  if (!success) {
+    throw new Error(
+      typeof message === "string" && message.trim() !== ""
+        ? message
+        : "Failed to update lesson details"
+    );
   }
+
+  return {
+    success: true,
+    data: body.data,
+    message,
+  };
 }
 
 // Update Attendance API Types

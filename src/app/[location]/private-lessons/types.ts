@@ -2,6 +2,7 @@ export interface PrivateLessonDetails {
   id: number;
   program: string;
   classroom: string;
+  classroomId?: number;
   status: string;
   colorCode: string;
   online: boolean;
