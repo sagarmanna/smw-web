@@ -139,21 +139,25 @@ export const updatePrivateLesson = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const updateData = {
-        program: data.program,
-        classroom: data.classroom,
-        status: data.status,
+      const result = await updatePrivateLessonDetails(location, privateLessonId, {
+        classroomId: data.classroomId,
         colorCode: data.colorCode,
-        online: data.online,
-      };
-      
-      const result = await updatePrivateLessonDetails(location, privateLessonId, updateData);
+        isOnline: data.online,
+      });
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update private lesson details');
       }
 
-      return { data: result.data };
+      return {
+        data: {
+          classroomId: result.data.classroomId,
+          classroomName: data.classroom,
+          colorCode: result.data.colorCode,
+          online: result.data.isOnline === "Yes",
+        },
+        message: result.message,
+      };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update private lesson details');
     }
@@ -377,14 +381,12 @@ const privateLessonSlice = createSlice({
       })
       .addCase(updatePrivateLesson.fulfilled, (state, action) => {
         state.isSaving = false;
-        // Update state from API response
         if (state.privateLessonInfo && action.payload) {
           const { data } = action.payload;
           state.privateLessonInfo.details = {
             ...state.privateLessonInfo.details,
-            program: data.program,
-            classroom: data.classroom,
-            status: data.status,
+            classroomId: data.classroomId,
+            classroom: data.classroomName ?? state.privateLessonInfo.details.classroom,
             colorCode: data.colorCode,
             online: data.online,
           };
