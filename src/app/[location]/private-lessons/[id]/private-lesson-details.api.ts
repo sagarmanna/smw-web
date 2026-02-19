@@ -312,66 +312,40 @@ export async function updateGroupLessonStudentDiscount(
 
 /**
  * Fetches private lesson payments from the API
- * For now, returns mock data
- * 
+ *
+ * Endpoint: GET /admin/v2/{location}/private-lesson/payment/{privateLessonId}
+ * Query params: sort=amount, order=DESC|ASC
+ *
  * @param location - The location identifier
  * @param privateLessonId - The private lesson ID
+ * @param sort - The sort field (default: "amount")
+ * @param order - The sort direction (default: "DESC")
  * @returns Promise resolving to the payments response or null on error
  */
 export async function getPrivateLessonPayments(
   location: string,
-  privateLessonId: string
+  privateLessonId: string,
+  sort: string = "amount",
+  order: "ASC" | "DESC" = "DESC"
 ): Promise<PrivateLessonPaymentsApiResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.get<PrivateLessonPaymentsApiResponse>(
-    //   `/admin/v2/${location}/private-lessons/${privateLessonId}/payments`
-    // );
-    // return response.data;
-    
-    void location;
-    void privateLessonId;
-    
-    // Mock data - sample payments
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const mockPayments: PrivateLessonPaymentResponseBody[] = [
+    const response = await apiClient.get<PrivateLessonPaymentsApiResponse>(
+      `/admin/v2/${location}/private-lesson/payment/${privateLessonId}`,
       {
-        id: 1,
-        date: "Mar 17, 2025",
-        paymentMethod: "Amex",
-        number: "****1234",
-        amount: "$1.69",
-      },
-      {
-        id: 2,
-        date: "Mar 10, 2025",
-        paymentMethod: "Visa",
-        number: "****5678",
-        amount: "$5.00",
-      },
-      {
-        id: 3,
-        date: "Mar 3, 2025",
-        paymentMethod: "Cash",
-        number: "",
-        amount: "$10.00",
-      },
-      {
-        id: 4,
-        date: "Feb 24, 2025",
-        paymentMethod: "Mastercard",
-        number: "****9012",
-        amount: "$15.00",
-      },
-    ];
-    
-    return {
-      success: true,
-      data: {
-        body: mockPayments,
-      },
-    };
+        params: { sort, order },
+      }
+    );
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.error("Private lesson payments API returned no body:", response.data);
+      return response.data;
+    }
+
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching private lesson payments:", error);
     const apiError = error as { response?: { data?: { message?: string } } };

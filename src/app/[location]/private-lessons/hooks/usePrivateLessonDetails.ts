@@ -1,10 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { SortingState } from "@tanstack/react-table";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { 
+import {
   fetchPrivateLesson,
   fetchPrivateLessonHistory,
+  fetchPrivateLessonPayments,
+  setPaymentsSorting,
   clearCache,
   updatePrivateLesson,
   updateAttendanceThunk,
@@ -27,6 +30,10 @@ type PrivateLessonDetailsHookReturn = {
   error: string | null;
   details: PrivateLessonDetails | null;
   payments: PrivateLessonPayment[];
+  paymentsLoading: boolean;
+  paymentsError: string | null;
+  paymentsSorting: SortingState;
+  setPaymentsSortingHandler: (sorting: SortingState) => void;
   comments: PrivateLessonComment[];
   history: PrivateLessonHistory[];
   historyPagination: { page: number; limit: number; total: number; totalPages: number } | null;
@@ -50,18 +57,40 @@ export function usePrivateLessonDetails(
   privateLessonId: string
 ): PrivateLessonDetailsHookReturn {
   const dispatch = useAppDispatch();
-  
+
   // Get private lesson data from Redux store
   const privateLessonInfo = useAppSelector((state) => state.privateLesson?.privateLessonInfo);
   const loading = useAppSelector((state) => state.privateLesson?.isLoading || false);
   const error = useAppSelector((state) => state.privateLesson?.error);
   const savingDetails = useAppSelector((state) => state.privateLesson?.isSaving || false);
-  
+
   // Get history data from Redux store (separate from privateLessonInfo)
   const historyData = useAppSelector((state) => state.privateLesson?.historyData || []);
   const historyPagination = useAppSelector((state) => state.privateLesson?.historyPagination);
   const historyLoading = useAppSelector((state) => state.privateLesson?.historyLoading || false);
   const historyError = useAppSelector((state) => state.privateLesson?.historyError);
+
+  // Get payments data from Redux store (separate from privateLessonInfo)
+  const paymentsData = useAppSelector((state) => state.privateLesson?.paymentsData || []);
+  const paymentsLoading = useAppSelector((state) => state.privateLesson?.paymentsLoading || false);
+  const paymentsError = useAppSelector((state) => state.privateLesson?.paymentsError);
+  const paymentsSortDir = useAppSelector((state) => state.privateLesson?.paymentsSortDir || 'desc');
+
+  // Fetch payments on mount — keyed to prevent StrictMode double-dispatch
+  const paymentsFetchKeyRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!location || !privateLessonId) return;
+    const key = `${location}-${privateLessonId}`;
+    if (paymentsFetchKeyRef.current === key) return;
+    paymentsFetchKeyRef.current = key;
+    dispatch(fetchPrivateLessonPayments({ location, privateLessonId }));
+  }, [location, privateLessonId, dispatch]);
+
+  // Derive TanStack SortingState from Redux sort direction — same pattern as teachers/students
+  const paymentsSorting: SortingState = React.useMemo(
+    () => [{ id: 'amount', desc: paymentsSortDir === 'desc' }],
+    [paymentsSortDir]
+  );
 
   // Transform Redux state to hook return format
   const details: PrivateLessonDetails | null = React.useMemo(() => {
@@ -70,8 +99,8 @@ export function usePrivateLessonDetails(
   }, [privateLessonInfo]);
 
   const payments: PrivateLessonPayment[] = React.useMemo(() => {
-    return privateLessonInfo?.payments || [];
-  }, [privateLessonInfo]);
+    return paymentsData;
+  }, [paymentsData]);
 
   const history: PrivateLessonHistory[] = React.useMemo(() => {
     return historyData;
@@ -81,6 +110,17 @@ export function usePrivateLessonDetails(
   const comments: PrivateLessonComment[] = React.useMemo(() => {
     return privateLessonInfo?.comments || [];
   }, [privateLessonInfo]);
+
+  // Sort change handler — updates Redux state then re-fetches with new sort direction
+  const setPaymentsSortingHandler = React.useCallback(
+    (newSorting: SortingState) => {
+      const desc = newSorting[0]?.desc ?? true;
+      const sortDir = desc ? 'desc' : 'asc';
+      dispatch(setPaymentsSorting({ sortDir }));
+      dispatch(fetchPrivateLessonPayments({ location, privateLessonId, sortDir }));
+    },
+    [dispatch, location, privateLessonId]
+  );
 
   const refresh = React.useCallback(async () => {
     dispatch(fetchPrivateLesson({ location, privateLessonId }));
@@ -146,7 +186,7 @@ export function usePrivateLessonDetails(
             present,
           })
         ).unwrap();
-        
+
         toast.success("Attendance updated successfully");
         return true;
       } catch (error) {
@@ -168,7 +208,7 @@ export function usePrivateLessonDetails(
             data,
           })
         ).unwrap();
-        
+
         toast.success("Cost updated successfully");
         return true;
       } catch (error) {
@@ -190,7 +230,7 @@ export function usePrivateLessonDetails(
             dueDate,
           })
         ).unwrap();
-        
+
         toast.success("Due date updated successfully");
         return true;
       } catch (error) {
@@ -212,7 +252,7 @@ export function usePrivateLessonDetails(
             discount,
           })
         ).unwrap();
-        
+
         toast.success("Discount updated successfully");
         return true;
       } catch (error) {
@@ -256,7 +296,7 @@ export function usePrivateLessonDetails(
             lessonRatePerHour,
           })
         ).unwrap();
-        
+
         toast.success("Price updated successfully");
         return true;
       } catch (error) {
@@ -273,6 +313,10 @@ export function usePrivateLessonDetails(
     error,
     details,
     payments,
+    paymentsLoading,
+    paymentsError,
+    paymentsSorting,
+    setPaymentsSortingHandler,
     comments,
     history,
     historyPagination,
@@ -291,4 +335,3 @@ export function usePrivateLessonDetails(
     saveGroupStudentDiscount,
   };
 }
-

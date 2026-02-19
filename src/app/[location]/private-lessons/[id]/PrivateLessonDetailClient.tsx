@@ -46,6 +46,9 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   const {
     details,
     payments,
+    paymentsLoading,
+    paymentsSorting,
+    setPaymentsSortingHandler,
     comments,
     history,
     historyPagination,
@@ -513,7 +516,9 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
               {/* Full Width Sections */}
               <PrivateLessonPaymentsCard
                 payments={payments}
-                isLoading={isLoading}
+                isLoading={paymentsLoading}
+                sorting={paymentsSorting}
+                onSortingChange={setPaymentsSortingHandler}
                 onPaymentClick={handlePaymentClick}
               />
 
