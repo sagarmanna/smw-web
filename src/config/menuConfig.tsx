@@ -307,15 +307,6 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       hidden: isMenuEnabled(locationFlags, 'dashboard') ? ('no' as const) : ('yes' as const),
     },
     {
-      id: 'pos',
-      title: 'POS',
-      icon: <ShoppingCart className="h-4 w-4" />,
-      url: '/pos',
-      source: 'modern' as 'legacy' | 'modern',
-      items: [],
-      hidden: 'no' as const,
-    },
-    {
       id: 'schedule',
       title: 'Schedule',
       icon: <Calendar className="h-4 w-4" />,
@@ -404,6 +395,15 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       source: getMenuSource(locationFlags, 'paymentPreferences') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'paymentPreferences') ? ('no' as const) : ('yes' as const),
+    },
+    {
+      id: 'pos',
+      title: 'POS (Point of Sale)',
+      icon: <ShoppingCart className="h-4 w-4" />,
+      url: '/pos',
+      source: 'modern' as 'legacy' | 'modern',
+      items: [],
+      hidden: 'no' as const,
     },
     {
       id: 'invoices',
