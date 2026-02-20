@@ -32,6 +32,7 @@ export function useInvoiceCommentsHandlers({
           id: Date.now(), // Simple ID generation for mock data
           content,
           createdUser: "Current User", // In real app, this would come from auth
+          avatar: "",
           createdOn: new Date().toLocaleDateString("en-US", {
             year: "numeric",
             month: "short",

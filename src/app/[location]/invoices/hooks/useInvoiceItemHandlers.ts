@@ -13,6 +13,16 @@ interface UseInvoiceItemHandlersProps {
   dispatch: AppDispatch;
 }
 
+function applyItemUpdate(
+  dispatch: AppDispatch,
+  updatedItems: InvoiceItem[],
+  currentTotals: InvoiceDetail["totals"]
+) {
+  const totals = recalculateTotals(updatedItems, currentTotals.tax, currentTotals.paid);
+  dispatch(updateItems(updatedItems));
+  dispatch(updateTotals(totals));
+}
+
 export function useInvoiceItemHandlers({
   invoiceDetail,
   dispatch,
@@ -23,23 +33,11 @@ export function useInvoiceItemHandlers({
         toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
         return;
       }
-
       try {
         const updatedItems = invoiceDetail.items.map((item) =>
           item.id === updatedItem.id ? updatedItem : item
         );
-
-        // Recalculate totals using utility function
-        const totals = recalculateTotals(
-          updatedItems,
-          invoiceDetail.totals.tax,
-          invoiceDetail.totals.paid
-        );
-
-        // Update Redux state
-        dispatch(updateItems(updatedItems));
-        dispatch(updateTotals(totals));
-
+        applyItemUpdate(dispatch, updatedItems, invoiceDetail.totals);
         toast.success(TOAST_MESSAGES.SUCCESS.ITEM_UPDATED);
       } catch (error) {
         console.error("Failed to save item:", error);
@@ -55,21 +53,9 @@ export function useInvoiceItemHandlers({
         toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
         return;
       }
-
       try {
         const updatedItems = invoiceDetail.items.filter((item) => item.id !== itemId);
-
-        // Recalculate totals using utility function
-        const totals = recalculateTotals(
-          updatedItems,
-          invoiceDetail.totals.tax,
-          invoiceDetail.totals.paid
-        );
-
-        // Update Redux state
-        dispatch(updateItems(updatedItems));
-        dispatch(updateTotals(totals));
-
+        applyItemUpdate(dispatch, updatedItems, invoiceDetail.totals);
         toast.success(TOAST_MESSAGES.SUCCESS.ITEM_DELETED);
       } catch (error) {
         console.error("Failed to delete item:", error);

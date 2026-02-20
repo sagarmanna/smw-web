@@ -1,11 +1,14 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { 
-  getInvoiceDetails, 
+import {
+  getInvoiceDetails,
+  getInvoiceHistory,
+  getInvoiceComments,
   InvoiceDetailsApiResponse,
+  PaginationInfo,
   updateInvoiceDetails,
   UpdateInvoiceDetailsRequest,
 } from './invoices-details.api';
-import type { InvoiceDetail, InvoiceComment } from '../types';
+import type { InvoiceDetail, InvoiceComment, InvoiceHistoryEntry } from '../types';
 import { recalculateTotals } from '../utils/totalsCalculator';
 
 interface InvoiceState {
@@ -15,6 +18,16 @@ interface InvoiceState {
   error: string | null;
   lastFetched: number | null;
   currentInvoiceId: number | null;
+  // History state with pagination
+  historyData: InvoiceHistoryEntry[];
+  historyPagination: PaginationInfo | null;
+  historyLoading: boolean;
+  historyError: string | null;
+  // Comments state with pagination
+  commentsData: InvoiceComment[];
+  commentsPagination: PaginationInfo | null;
+  commentsLoading: boolean;
+  commentsError: string | null;
 }
 
 const initialState: InvoiceState = {
@@ -24,6 +37,14 @@ const initialState: InvoiceState = {
   error: null,
   lastFetched: null,
   currentInvoiceId: null,
+  historyData: [],
+  historyPagination: null,
+  historyLoading: false,
+  historyError: null,
+  commentsData: [],
+  commentsPagination: null,
+  commentsLoading: false,
+  commentsError: null,
 };
 
 /**
@@ -77,6 +98,60 @@ export const updateInvoice = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching invoice history with pagination
+export const fetchInvoiceHistory = createAsyncThunk(
+  'invoice/fetchInvoiceHistory',
+  async (
+    { location, invoiceId, page = 1 }: { location: string; invoiceId: number; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getInvoiceHistory(location, invoiceId, page);
+
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch invoice history');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+      };
+    } catch (error) {
+      console.error('Error in fetchInvoiceHistory:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch invoice history data'
+      );
+    }
+  }
+);
+
+// Async thunk for fetching invoice comments with pagination
+export const fetchInvoiceComments = createAsyncThunk(
+  'invoice/fetchInvoiceComments',
+  async (
+    { location, invoiceId, page = 1 }: { location: string; invoiceId: number; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getInvoiceComments(location, invoiceId, page);
+
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch invoice comments');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+      };
+    } catch (error) {
+      console.error('Error in fetchInvoiceComments:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch invoice comments data'
+      );
+    }
+  }
+);
+
 const invoiceSlice = createSlice({
   name: 'invoice',
   initialState,
@@ -86,6 +161,12 @@ const invoiceSlice = createSlice({
       state.error = null;
       state.lastFetched = null;
       state.currentInvoiceId = null;
+      state.historyData = [];
+      state.historyPagination = null;
+      state.historyError = null;
+      state.commentsData = [];
+      state.commentsPagination = null;
+      state.commentsError = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -144,7 +225,7 @@ const invoiceSlice = createSlice({
       }
     },
     // Update history
-    addHistoryEntry: (state, action: PayloadAction<{ createdOn: string; message: string }>) => {
+    addHistoryEntry: (state, action: PayloadAction<{ id: number; createdOn: string; message: string }>) => {
       if (state.invoiceDetail) {
         state.invoiceDetail.history = [
           ...(state.invoiceDetail.history || []),
@@ -200,13 +281,43 @@ const invoiceSlice = createSlice({
       .addCase(updateInvoice.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
+      })
+      // Fetch invoice history reducers
+      .addCase(fetchInvoiceHistory.pending, (state) => {
+        state.historyLoading = true;
+        state.historyError = null;
+      })
+      .addCase(fetchInvoiceHistory.fulfilled, (state, action) => {
+        state.historyLoading = false;
+        state.historyData = action.payload.data as InvoiceHistoryEntry[];
+        state.historyPagination = action.payload.pagination || null;
+        state.historyError = null;
+      })
+      .addCase(fetchInvoiceHistory.rejected, (state, action) => {
+        state.historyLoading = false;
+        state.historyError = action.payload as string;
+      })
+      // Fetch invoice comments reducers
+      .addCase(fetchInvoiceComments.pending, (state) => {
+        state.commentsLoading = true;
+        state.commentsError = null;
+      })
+      .addCase(fetchInvoiceComments.fulfilled, (state, action) => {
+        state.commentsLoading = false;
+        state.commentsData = action.payload.data as InvoiceComment[];
+        state.commentsPagination = action.payload.pagination || null;
+        state.commentsError = null;
+      })
+      .addCase(fetchInvoiceComments.rejected, (state, action) => {
+        state.commentsLoading = false;
+        state.commentsError = action.payload as string;
       });
   },
 });
 
-export const { 
-  clearInvoice, 
-  clearError, 
+export const {
+  clearInvoice,
+  clearError,
   clearCache,
   updateInvoiceDetail,
   updateCustomer,
