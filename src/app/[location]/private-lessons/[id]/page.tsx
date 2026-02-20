@@ -45,7 +45,7 @@ export default function PrivateLessonDetailPage({ params }: PrivateLessonDetailP
     prevKeyRef.current = currentKey;
     
     // Fetch private lesson details and history on initial page load
-    // All GET calls happen only once here - no caching on UI side
+    // Payments are fetched independently by the hook
     dispatch(fetchPrivateLesson({ location, privateLessonId }));
     dispatch(fetchPrivateLessonHistory({ location, privateLessonId, page: 1 }));
   }, [location, privateLessonId, dispatch]);

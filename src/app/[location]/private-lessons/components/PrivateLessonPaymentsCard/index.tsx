@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomTable } from "@/components/CustomTable";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { PrivateLessonPayment } from "../../types";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 
@@ -11,12 +11,16 @@ interface PrivateLessonPaymentsCardProps {
   payments: PrivateLessonPayment[];
   isLoading?: boolean;
   onPaymentClick?: (payment: PrivateLessonPayment) => void;
+  sorting: SortingState;
+  onSortingChange: (sorting: SortingState) => void;
 }
 
 export const PrivateLessonPaymentsCard = React.memo(function PrivateLessonPaymentsCard({
   payments,
   isLoading = false,
   onPaymentClick,
+  sorting,
+  onSortingChange,
 }: PrivateLessonPaymentsCardProps) {
   const columns = React.useMemo<ColumnDef<PrivateLessonPayment>[]>(() => [
     {
@@ -34,6 +38,7 @@ export const PrivateLessonPaymentsCard = React.memo(function PrivateLessonPaymen
     {
       accessorKey: "amount",
       header: "Amount",
+      enableSorting: true,
     },
   ], []);
 
@@ -50,7 +55,10 @@ export const PrivateLessonPaymentsCard = React.memo(function PrivateLessonPaymen
           columns={columns}
           size="compact"
           variant="striped"
-          enableSorting={false}
+          enableSorting={true}
+          manualSorting={true}
+          sorting={sorting}
+          onSortingChange={onSortingChange}
           enableExport={false}
           enablePrint={false}
           enableSearch={false}
@@ -61,16 +69,16 @@ export const PrivateLessonPaymentsCard = React.memo(function PrivateLessonPaymen
           rowClassName={onPaymentClick ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" : undefined}
           customLoadingState={
             <div role="status" aria-label="Loading payments data">
-              <LoadingAnimation 
-                size="md" 
-                text="Loading payments..." 
+              <LoadingAnimation
+                size="md"
+                text="Loading payments..."
                 className="py-8"
               />
             </div>
           }
           customEmptyState={
             !isLoading && payments.length === 0 ? (
-              <div 
+              <div
                 className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8"
                 role="status"
                 aria-label="No payments found"
@@ -85,4 +93,3 @@ export const PrivateLessonPaymentsCard = React.memo(function PrivateLessonPaymen
     </Card>
   );
 });
-

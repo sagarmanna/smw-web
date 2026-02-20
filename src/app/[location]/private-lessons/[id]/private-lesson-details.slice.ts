@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { 
+import {
   getPrivateLessonDetails,
   getPrivateLessonPayments,
   getPrivateLessonHistory,
@@ -15,7 +15,7 @@ import {
   updateGroupLessonStudentDiscount,
   type PaginationInfo,
 } from './private-lesson-details.api';
-import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment } from '../types';
+import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment, PrivateLessonPayment } from '../types';
 
 interface PrivateLessonState {
   privateLessonInfo: PrivateLessonInfo | null;
@@ -29,6 +29,11 @@ interface PrivateLessonState {
   historyPagination: PaginationInfo | null;
   historyLoading: boolean;
   historyError: string | null;
+  // Payments state (fetched independently)
+  paymentsData: PrivateLessonPayment[];
+  paymentsLoading: boolean;
+  paymentsError: string | null;
+  paymentsSortDir: 'asc' | 'desc';
 }
 
 const initialState: PrivateLessonState = {
@@ -42,6 +47,10 @@ const initialState: PrivateLessonState = {
   historyPagination: null,
   historyLoading: false,
   historyError: null,
+  paymentsData: [],
+  paymentsLoading: false,
+  paymentsError: null,
+  paymentsSortDir: 'desc',
 };
 
 // Async thunk for fetching private lesson info
@@ -76,25 +85,12 @@ export const fetchPrivateLesson = createAsyncThunk(
           ? Number(rawCustomerId)
           : undefined;
 
-      // 2. Fetch payments and comments in parallel (comments only if we have a valid customerId)
-      // Note: History is fetched separately with pagination via fetchPrivateLessonHistory thunk
-      const [paymentsResult, commentsResult] = await Promise.allSettled([
-        getPrivateLessonPayments(location, privateLessonId),
+      // 2. Fetch comments (payments & history are fetched separately via their own thunks)
+      const [commentsResult] = await Promise.allSettled([
         numericCustomerId && !Number.isNaN(numericCustomerId)
           ? getPrivateLessonComments(location, numericCustomerId, 1)
           : Promise.resolve(null),
       ]);
-
-      // Payments API is optional - log error but don't fail the entire fetch
-      let payments: Awaited<ReturnType<typeof getPrivateLessonPayments>> = null;
-      if (paymentsResult.status === 'fulfilled') {
-        payments = paymentsResult.value;
-        if (!payments || !payments.success) {
-          console.warn('Payments API failed:', payments?.message || 'Unknown error');
-        }
-      } else {
-        console.warn('Payments API error:', paymentsResult.reason);
-      }
 
       // Comments API is optional - log error but don't fail the entire fetch
       let comments: Awaited<ReturnType<typeof getPrivateLessonComments>> = null;
@@ -121,13 +117,20 @@ export const fetchPrivateLesson = createAsyncThunk(
         }
       }
 
-      // History is not fetched here - it's fetched separately with pagination
-      const transformedData = transformApiResponse(details, payments, null, comments, groupStudents);
+      // Payments and history are fetched separately via their own thunks
+      const transformedData = transformApiResponse(details, null, null, comments, groupStudents);
 
       return { data: transformedData };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch private lesson info');
     }
+  },
+  {
+    // Skip if a fetch is already in progress (prevents React StrictMode double-dispatch)
+    condition: (_, { getState }) => {
+      const state = getState() as { privateLesson: { isLoading: boolean } };
+      return !state.privateLesson.isLoading;
+    },
   }
 );
 
@@ -321,6 +324,35 @@ export const fetchPrivateLessonHistory = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching private lesson payments independently
+export const fetchPrivateLessonPayments = createAsyncThunk(
+  'privateLesson/fetchPrivateLessonPayments',
+  async (
+    {
+      location,
+      privateLessonId,
+      sortDir = 'desc',
+    }: { location: string; privateLessonId: string; sortDir?: 'asc' | 'desc' },
+    { rejectWithValue }
+  ) => {
+    try {
+      const order = sortDir === 'asc' ? 'ASC' : 'DESC';
+      const result = await getPrivateLessonPayments(location, privateLessonId, 'amount', order);
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to fetch private lesson payments');
+      }
+
+      return { data: result.data.body || [], sortDir };
+    } catch (error) {
+      console.error('Error in fetchPrivateLessonPayments:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch private lesson payments'
+      );
+    }
+  }
+);
+
 const privateLessonSlice = createSlice({
   name: 'privateLesson',
   initialState,
@@ -333,9 +365,16 @@ const privateLessonSlice = createSlice({
       state.historyData = [];
       state.historyPagination = null;
       state.historyError = null;
+      state.paymentsData = [];
+      state.paymentsLoading = false;
+      state.paymentsError = null;
+      state.paymentsSortDir = 'desc';
     },
     clearError: (state) => {
       state.error = null;
+    },
+    setPaymentsSorting: (state, action: PayloadAction<{ sortDir: 'asc' | 'desc' }>) => {
+      state.paymentsSortDir = action.payload.sortDir;
     },
     clearCache: (state) => {
       state.lastFetched = null;
@@ -538,15 +577,37 @@ const privateLessonSlice = createSlice({
       .addCase(fetchPrivateLessonHistory.rejected, (state, action) => {
         state.historyLoading = false;
         state.historyError = action.payload as string;
+      })
+      // Fetch private lesson payments reducers
+      .addCase(fetchPrivateLessonPayments.pending, (state) => {
+        state.paymentsLoading = true;
+        state.paymentsError = null;
+      })
+      .addCase(fetchPrivateLessonPayments.fulfilled, (state, action) => {
+        state.paymentsLoading = false;
+        state.paymentsData = action.payload.data.map((item) => ({
+          id: item.id,
+          date: item.date || "",
+          paymentMethod: item.paymentMethod || "",
+          number: item.number || "",
+          amount: item.amount || "",
+        }));
+        state.paymentsSortDir = action.payload.sortDir;
+        state.paymentsError = null;
+      })
+      .addCase(fetchPrivateLessonPayments.rejected, (state, action) => {
+        state.paymentsLoading = false;
+        state.paymentsError = action.payload as string;
       });
   },
 });
 
-export const { 
-  clearPrivateLesson, 
-  clearError, 
+export const {
+  clearPrivateLesson,
+  clearError,
   clearCache,
   updateDetails,
+  setPaymentsSorting,
 } = privateLessonSlice.actions;
 export default privateLessonSlice.reducer;
 
