@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
-import type { InvoiceDetail, InvoiceItem, InvoicePayment, InvoiceHistoryEntry, InvoiceComment } from "@/app/[location]/invoices/types";
+import type { InvoiceDetail, InvoiceItem, InvoicePayment, InvoiceComment } from "@/app/[location]/invoices/types";
+import { parseMoney, formatDateToISO } from "./invoices-details.utils";
 
 // ---------------------------------------------
 // Invoice Details API Response Types
@@ -31,7 +32,10 @@ export interface UpdateInvoiceDetailsRequest {
 
 export interface UpdateInvoiceDetailsResponse {
   success: boolean;
-  data: InvoiceDetail;
+  data: {
+    id: number;
+    date: string;
+  };
   message?: string;
 }
 
@@ -48,10 +52,7 @@ type InvoiceDetailsBackendBody = {
     phoneNumber?: string;
     email?: string;
   };
-  // If backend adds these later, we will pass through.
-  items?: InvoiceDetail["items"];
   payments?: InvoiceDetail["payments"];
-  totals?: Partial<InvoiceDetail["totals"]>;
   message?: string;
   comments?: InvoiceDetail["comments"];
   history?: InvoiceDetail["history"];
@@ -85,11 +86,11 @@ type InvoiceTotalsBackendResponse = {
   data?: {
     body?: {
       discounts?: number | string; // e.g. "$2.08"
-      subTotal?: number | string; // e.g. "$26.68"
-      tax?: number | string; // e.g. "$0.00"
-      total?: number | string; // e.g. "$26.68"
-      paid?: number | string; // e.g. "$0.00"
-      balance?: number | string; // e.g. "$26.68"
+      subTotal?: number | string;  // e.g. "$26.68"
+      tax?: number | string;       // e.g. "$0.00"
+      total?: number | string;     // e.g. "$26.68"
+      paid?: number | string;      // e.g. "$0.00"
+      balance?: number | string;   // e.g. "$26.68"
     };
   };
   message?: string;
@@ -127,35 +128,6 @@ type PaginatedListResponse<T> = {
   message?: string;
 };
 
-async function fetchPaginatedList<T>(
-  url: string,
-  params: Record<string, string | number | boolean>,
-  entityName: string
-): Promise<PaginatedListResponse<T>> {
-  try {
-    const response = await apiClient.get<PaginatedListResponse<T>>(url, { params });
-
-    if (!response.data.success) {
-      return response.data;
-    }
-
-    if (!response.data.data?.body) {
-      console.error(`Invoice ${entityName} API returned no body:`, response.data);
-      return response.data;
-    }
-
-    return response.data;
-  } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { message?: string; success?: boolean } } };
-    const errorMessage = apiError.response?.data?.message || `Failed to fetch invoice ${entityName}`;
-    return {
-      success: false,
-      data: { body: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
-      message: errorMessage,
-    };
-  }
-}
-
 export interface InvoiceCommentsApiResponse {
   success: boolean;
   data: {
@@ -180,13 +152,15 @@ export interface InvoiceHistoryApiResponse {
   message?: string;
 }
 
-function parseMoney(value: unknown): number {
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  if (typeof value !== "string") return 0;
-  const cleaned = value.replace(/[$,]/g, "").trim();
-  const n = parseFloat(cleaned);
-  return Number.isFinite(n) ? n : 0;
-}
+type InvoiceDetailsUpdateResponse = {
+  success: boolean;
+  data: { body: { id: number; date: string } };
+  message?: string;
+};
+
+// ---------------------------------------------
+// Internal Transformation Helpers
+// ---------------------------------------------
 
 function normalizeLineItems(itemsResponse: InvoiceItemsBackendResponse | undefined): InvoiceItem[] {
   const lineItems = itemsResponse?.data?.body?.lineItems ?? [];
@@ -237,7 +211,6 @@ function normalizeTotals(
   return { discounts, subtotal, tax, total, paid, balance };
 }
 
-
 function buildInvoiceDetail(params: {
   detailsBody: InvoiceDetailsBackendBody | undefined;
   invoiceId: number;
@@ -273,15 +246,47 @@ function buildInvoiceDetail(params: {
   };
 }
 
+// ---------------------------------------------
+// Shared Fetch Helper
+// ---------------------------------------------
+
+async function fetchPaginatedList<T>(
+  url: string,
+  params: Record<string, string | number | boolean>,
+  entityName: string
+): Promise<PaginatedListResponse<T>> {
+  try {
+    const response = await apiClient.get<PaginatedListResponse<T>>(url, { params });
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.warn(`Invoice ${entityName} API returned no body:`, response.data);
+      return response.data;
+    }
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string; success?: boolean } } };
+    const errorMessage = apiError.response?.data?.message || `Failed to fetch invoice ${entityName}`;
+    return {
+      success: false,
+      data: { body: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
+      message: errorMessage,
+    };
+  }
+}
+
+// ---------------------------------------------
+// API Functions
+// ---------------------------------------------
+
 /**
  * Fetches detailed invoice information.
  *
- * Backend endpoint (as per Postman screenshot):
- * `GET /admin/v2/${location}/invoices/details/${invoiceId}`
- * 
- * @param location - The location identifier
- * @param invoiceId - The invoice ID
- * @returns Promise resolving to the invoice details response
+ * Endpoint: `GET /admin/v2/${location}/invoices/details/${invoiceId}`
  */
 export async function getInvoiceDetails(
   location: string,
@@ -294,7 +299,6 @@ export async function getInvoiceDetails(
       ),
       apiClient.get<InvoiceItemsBackendResponse>(
         `/admin/v2/${location}/invoices/items/${invoiceId}`,
-        // Based on Postman screenshot query param
         { params: { enable: false } }
       ),
       apiClient.get<InvoiceTotalsBackendResponse>(
@@ -330,9 +334,7 @@ export async function getInvoiceDetails(
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
-      data: {
-        body: {} as InvoiceDetail,
-      },
+      data: { body: {} as InvoiceDetail },
       message: apiError.response?.data?.message || "Failed to fetch invoice details",
     };
   }
@@ -373,15 +375,9 @@ export async function getInvoiceComments(
 }
 
 /**
- * Updates invoice information.
+ * Updates invoice details.
  *
- * NOTE: Backend contract may differ; this uses the most likely endpoint:
- * `PUT /admin/v2/${location}/invoices/details/${invoiceId}`
- * 
- * @param location - The location identifier
- * @param invoiceId - The invoice ID
- * @param data - The invoice data to update
- * @returns Promise resolving to the update response
+ * Endpoint: `PUT /admin/v2/${location}/invoices/details/${invoiceId}`
  */
 export async function updateInvoiceDetails(
   location: string,
@@ -389,28 +385,36 @@ export async function updateInvoiceDetails(
   data: UpdateInvoiceDetailsRequest
 ): Promise<UpdateInvoiceDetailsResponse | null> {
   try {
-    const response = await apiClient.put<InvoiceDetailsBackendResponse>(
-      `/admin/v2/${location}/invoices/details/${invoiceId}`,
-      data
-    );
+    const payload = {
+      ...(data.date !== undefined && { date: formatDateToISO(data.date) }),
+      ...(data.status !== undefined && { status: data.status }),
+      ...(data.customer && {
+        customer: {
+          customerId: data.customer.customerId,
+          customerName: data.customer.name,
+          phoneNumber: data.customer.phone,
+          email: data.customer.email,
+        },
+      }),
+      ...(data.message !== undefined && { message: data.message }),
+    };
 
-    const detail = buildInvoiceDetail({
-      detailsBody: response.data.data?.body,
-      invoiceId,
-    });
+    const response = await apiClient.put<InvoiceDetailsUpdateResponse>(
+      `/admin/v2/${location}/invoices/details/${invoiceId}`,
+      payload
+    );
 
     return {
       success: response.data.success,
-      data: detail,
+      data: response.data.data.body,
       message: response.data.message,
     };
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
-      data: {} as InvoiceDetail,
+      data: { id: invoiceId, date: "" },
       message: apiError.response?.data?.message || "Failed to update invoice details",
     };
   }
 }
-
