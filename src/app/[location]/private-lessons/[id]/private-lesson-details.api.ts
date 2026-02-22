@@ -861,50 +861,51 @@ export async function updateDiscount(
 
 // Update Price (Lesson Rate) API Types
 export interface UpdatePriceRequest {
-  lessonRatePerHour: string;
+  id: number;
+  programRate: number;
 }
 
 export interface UpdatePriceResponse {
   success: boolean;
   data: {
-    id: number;
-    lessonRatePerHour: string;
+    body: {
+      programRate: number;
+    };
   };
   message?: string;
 }
 
 /**
- * Updates lesson rate per hour via PUT API
- * For now, returns mock response
+ * Updates lesson rate per hour via PUT API.
+ * PUT /admin/v2/{location}/private-lesson/edit-price
  */
 export async function updatePrice(
   location: string,
-  privateLessonId: string,
+  _privateLessonId: string,
   data: UpdatePriceRequest
 ): Promise<UpdatePriceResponse | null> {
-  try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        id: Number(privateLessonId) || 0,
-        lessonRatePerHour: data.lessonRatePerHour,
-      },
-    };
-  } catch (error: unknown) {
-    console.error("Error updating price:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
-    return {
-      success: false,
-      data: {
-        id: Number(privateLessonId) || 0,
-        lessonRatePerHour: "",
-      },
-      message: apiError.response?.data?.message || "Failed to update price",
-    };
+  const response = await apiClient.put<UpdatePriceResponse>(
+    `/admin/v2/${location}/private-lesson/edit-price`,
+    data
+  );
+
+  const body = response.data;
+  const success = body?.success === true;
+  const message = body?.message;
+
+  if (!success) {
+    throw new Error(
+      typeof message === "string" && message.trim() !== ""
+        ? message
+        : "Failed to update price"
+    );
   }
+
+  return {
+    success: true,
+    data: body.data,
+    message,
+  };
 }
 
 // Comments API Response Types
