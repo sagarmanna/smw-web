@@ -20,7 +20,6 @@ import { editOnlineType } from "../../../../[id]/groupCourseDetails.api";
 import { SubstituteTeacherModal } from "../../../modals/SubstituteTeacherModal";
 import { EditOnlineTypeModal } from "../../../modals/EditOnlineTypeModal";
 import { toast } from "sonner";
-import { isDev } from "@/utils/env";
 
 interface LessonsTabProps {
   location: string;
@@ -87,18 +86,17 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
     setIsSubstituteModalOpen(true);
   };
 
+  const handleSubstituteSuccess = useCallback(() => {
+    setSelectedLessonIds(new Set());
+    dispatch(fetchGroupCourseTabsData({ location, courseId }));
+  }, [location, courseId, dispatch]);
+
   const handleEditOnlineType = () => {
     if (selectedLessons.length === 0) {
       toast.error("Please select at least one lesson");
       return;
     }
     setIsEditOnlineModalOpen(true);
-  };
-
-  const handleSubstituteSave = (teacherId: string, lessonIds: string[]) => {
-    // TODO: Implement API call to substitute teacher
-    toast.success(`Substitute teacher assigned to ${lessonIds.length} lesson(s)`);
-    setSelectedLessonIds(new Set());
   };
 
   const handleEditOnlineSave = async (isOnline: boolean, lessonIds: string[]) => {
@@ -186,7 +184,7 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={isDev() ? handleSubstituteTeacher : () => toast.info("This feature is in development.")}>
+                <DropdownMenuItem onClick={handleSubstituteTeacher}>
                   Substitute Teacher
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleEditOnlineType}>
@@ -231,8 +229,9 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
       <SubstituteTeacherModal
         open={isSubstituteModalOpen}
         onOpenChange={setIsSubstituteModalOpen}
+        location={location}
         selectedLessons={selectedLessons}
-        onSave={handleSubstituteSave}
+        onSuccess={handleSubstituteSuccess}
       />
 
       <EditOnlineTypeModal
