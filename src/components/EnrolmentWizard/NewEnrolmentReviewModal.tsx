@@ -10,8 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { format, parse } from "date-fns";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { LessonEditModal } from "./LessonEditModal";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { toast } from "sonner";
 
 export interface LessonPreview {
   index: number;
@@ -53,6 +55,8 @@ interface NewEnrolmentReviewModalProps {
   onConfirm?: () => void;
   isLoading?: boolean; // Loading state for Confirm Enrolment button
   onLessonUpdated?: () => void; // Callback when a lesson is updated
+  /** When provided, a delete action is shown per lesson and this is called on delete (e.g. group course review) */
+  onDeleteLesson?: (lessonId: number) => Promise<boolean | void>;
   location?: string; // Location slug for API calls
   courseId?: number; // Course ID for refreshing review data
   programId?: string; // Program ID for filtering teachers
@@ -70,6 +74,7 @@ export function NewEnrolmentReviewModal({
   onConfirm,
   isLoading = false,
   onLessonUpdated,
+  onDeleteLesson,
   location,
   courseId,
   programId,
@@ -85,6 +90,26 @@ export function NewEnrolmentReviewModal({
     programId?: string;
   } | null>(null);
   const [editModalOpen, setEditModalOpen] = React.useState(false);
+  const [deletingLessonId, setDeletingLessonId] = React.useState<number | null>(null);
+  const [lessonIdToDelete, setLessonIdToDelete] = React.useState<number | null>(null);
+
+  const handleDeleteLessonConfirm = React.useCallback(async () => {
+    if (lessonIdToDelete == null || !onDeleteLesson) return;
+    setDeletingLessonId(lessonIdToDelete);
+    try {
+      const ok = await onDeleteLesson(lessonIdToDelete);
+      if (ok !== false) {
+        toast.success("Lesson deleted successfully");
+        setLessonIdToDelete(null);
+      } else {
+        toast.error("Failed to delete lesson");
+      }
+    } catch {
+      toast.error("Failed to delete lesson");
+    } finally {
+      setDeletingLessonId(null);
+    }
+  }, [lessonIdToDelete, onDeleteLesson]);
 
   // Calculate summary statistics
   const summary = React.useMemo(() => {
@@ -495,30 +520,45 @@ export function NewEnrolmentReviewModal({
                           ) : null)}
                         </td>
                         <td className="px-3 py-2">
-                          {lesson.id && (
-                            <Pencil 
-                              className="h-4 w-4 text-blue-600 cursor-pointer hover:text-blue-800" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (lesson.id && location) {
-                                  // Extract time from date (UTC time stored in database)
+                          <div className="flex items-center gap-2">
+                            {lesson.id && location && (
+                              <Pencil
+                                className="h-4 w-4 text-blue-600 cursor-pointer hover:text-blue-800 shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   const lessonDate = new Date(lesson.date);
                                   const hours = lessonDate.getUTCHours();
                                   const minutes = lessonDate.getUTCMinutes();
-                                  const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                                  
-                                  // Open edit modal for this lesson
+                                  const timeStr = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
                                   setEditingLesson({
-                                    id: lesson.id,
+                                    id: lesson.id!,
                                     date: lesson.date,
                                     time: timeStr,
                                     duration: lesson.duration,
                                   });
                                   setEditModalOpen(true);
-                                }
-                              }}
-                            />
-                          )}
+                                }}
+                              />
+                            )}
+                            {lesson.id && onDeleteLesson && (
+                              <button
+                                type="button"
+                                aria-label="Delete lesson"
+                                disabled={deletingLessonId === lesson.id}
+                                className="text-destructive hover:text-destructive/80 disabled:opacity-50 shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (lesson.id) setLessonIdToDelete(lesson.id);
+                                }}
+                              >
+                                {deletingLessonId === lesson.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -576,6 +616,7 @@ export function NewEnrolmentReviewModal({
           lessonDuration={editingLesson.duration}
           location={location}
           programId={details?.programId != null ? String(details.programId) : programId}
+          courseId={courseId}
           currentTeacherId={details?.teacherId}
           onLessonUpdated={() => {
             setEditModalOpen(false);
@@ -599,6 +640,19 @@ export function NewEnrolmentReviewModal({
                 programId: programId,
               };
             })}
+        />
+      )}
+
+      {onDeleteLesson && (
+        <DeleteConfirmationModal
+          open={lessonIdToDelete != null}
+          onOpenChange={(open) => !open && setLessonIdToDelete(null)}
+          title="Delete lesson"
+          description="Are you sure you want to delete this lesson? This action cannot be undone."
+          onConfirm={handleDeleteLessonConfirm}
+          isDeleting={deletingLessonId != null}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
         />
       )}
     </Dialog>

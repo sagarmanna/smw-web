@@ -27,6 +27,7 @@ import {
   type TeacherScheduleLessonEvent,
 } from "@/app/[location]/teachers/[id]/teachers-details-tabs.api";
 import { updateLesson, updateLessonField, validateLessonUpdate, type UpdateLessonRequest, type UpdateLessonFieldRequest, type UpdateLessonFieldResponse, type ValidateLessonUpdateRequest, type ValidateLessonUpdateResponse } from "@/app/[location]/students/[id]/students-details.api";
+import { reviewGroupCourseLesson } from "@/app/[location]/group-courses/groupCourses.api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -40,6 +41,8 @@ interface LessonEditModalProps {
   currentTeacherId?: number;
   location: string;
   programId?: string; // Optional program ID to filter teachers
+  /** Optional course ID; when set, review API is triggered after a successful lesson update (group course flow) */
+  courseId?: number;
   onLessonUpdated?: () => void; // Callback when lesson is updated
   allLessons?: Array<{ id: number; date: string; time: string; duration: string }>; // All lessons for "Apply All"
 }
@@ -175,6 +178,7 @@ export function LessonEditModal({
   currentTeacherId,
   location,
   programId,
+  courseId,
   onLessonUpdated,
   allLessons = [],
 }: LessonEditModalProps) {
@@ -539,8 +543,15 @@ export function LessonEditModal({
       const updateRequest = buildUpdateFieldRequest(selectedDate, startTime, teacherId, '1');
       
       const result = await updateLessonField(location, lessonId, updateRequest);
-      
+
       if (result?.success) {
+        if (courseId != null) {
+          try {
+            await reviewGroupCourseLesson(location, courseId);
+          } catch (reviewError) {
+            console.error("Error triggering review after lesson update:", reviewError);
+          }
+        }
         toast.success("Lesson updated successfully");
         onLessonUpdated?.();
         onOpenChange(false);
@@ -576,6 +587,13 @@ export function LessonEditModal({
       const result = await updateLessonField(location, lessonId, updateRequest);
       
       if (result?.success) {
+        if (courseId != null) {
+          try {
+            await reviewGroupCourseLesson(location, courseId);
+          } catch (reviewError) {
+            console.error("Error triggering review after lesson update:", reviewError);
+          }
+        }
         const responseData = result.data as UpdateLessonFieldResponse['data'];
         const updatedCount = responseData?.updatedCount ?? 0;
         const totalCount = responseData?.totalCount ?? 0;
