@@ -289,7 +289,7 @@ export function usePrivateLessonDetails(
   const savePrice = React.useCallback(
     async (lessonRatePerHour: string): Promise<boolean> => {
       try {
-        await dispatch(
+        const result = await dispatch(
           updatePriceThunk({
             location,
             privateLessonId,
@@ -297,7 +297,11 @@ export function usePrivateLessonDetails(
           })
         ).unwrap();
 
-        toast.success("Price updated successfully");
+        toast.success(
+          typeof result.message === "string" && result.message.trim() !== ""
+            ? result.message
+            : "Price updated successfully"
+        );
         return true;
       } catch (error) {
         console.error("Failed to save price:", error);

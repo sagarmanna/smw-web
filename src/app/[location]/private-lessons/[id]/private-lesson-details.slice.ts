@@ -283,13 +283,19 @@ export const updatePriceThunk = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const result = await updatePrice(location, privateLessonId, { lessonRatePerHour });
+      // Strip $ and convert to number for API (API expects numeric programRate)
+      const programRate = parseFloat(lessonRatePerHour.replace("$", "").trim());
+
+      const result = await updatePrice(location, privateLessonId, {
+        id: Number(privateLessonId),
+        programRate,
+      });
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update price');
       }
 
-      return { data: result.data };
+      return { data: result.data, message: result.message };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update price');
     }
@@ -551,7 +557,9 @@ const privateLessonSlice = createSlice({
         state.isSaving = false;
         if (state.privateLessonInfo && action.payload) {
           const { data } = action.payload;
-          state.privateLessonInfo.details.totals.lessonRatePerHour = data.lessonRatePerHour;
+          // Format numeric programRate from API back to display string
+          const formatted = `$${data.body.programRate.toFixed(2)}`;
+          state.privateLessonInfo.details.totals.lessonRatePerHour = formatted;
         }
         state.error = null;
       })
