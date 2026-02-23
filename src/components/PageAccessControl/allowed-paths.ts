@@ -19,6 +19,7 @@ export const ALLOWED_PATHS: string[] = [
     // '/cities',
     // '/programs',
     '/dashboard',
+    '/pos',
     '/schedule',
     '/enrolments',
     '/students',
