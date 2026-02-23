@@ -91,6 +91,16 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
     dispatch(fetchGroupCourseTabsData({ location, courseId }));
   }, [location, courseId, dispatch]);
 
+  const handleLessonRowClick = useCallback(
+    (lesson: LessonData) => {
+      const base = (process.env.NEXT_PUBLIC_LEGACY_URL ?? "").replace(/\/$/, "");
+      if (!base || !lesson?.id) return;
+      const url = `${base}/${location}/lesson/view?id=${lesson.id}`;
+      window.location.href = url;
+    },
+    [location]
+  );
+
   const handleEditOnlineType = () => {
     if (selectedLessons.length === 0) {
       toast.error("Please select at least one lesson");
@@ -155,7 +165,10 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
           </div>
         ),
         cell: ({ row }: { row: { original: LessonData } }) => (
-          <div className="flex items-center justify-center">
+          <div
+            className="flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Checkbox
               checked={selectedLessonIds.has(row.original.id)}
               onCheckedChange={() => handleToggleSelection(row.original.id)}
@@ -213,6 +226,7 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
               enableFilter={false}
               className="border-0 w-full"
               isLoading={isLoading}
+              onRowClick={handleLessonRowClick}
               customEmptyState={
                 !isLoading && data.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
