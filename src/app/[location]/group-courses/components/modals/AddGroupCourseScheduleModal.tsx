@@ -25,10 +25,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { 
-  createGroupCourse, 
-  reviewGroupCourseLesson, 
-  confirmGroupCourse 
+import {
+  createGroupCourse,
+  reviewGroupCourseLesson,
+  confirmGroupCourse,
+  deleteReviewLesson,
 } from "../../groupCourses.api";
 import { NewEnrolmentReviewModal, type LessonPreview, type EnrolmentReviewDetails } from "@/components/EnrolmentWizard/NewEnrolmentReviewModal";
 import { toast } from "sonner";
@@ -168,6 +169,150 @@ export function AddGroupCourseScheduleModal({
   const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
   const [createdCourseId, setCreatedCourseId] = React.useState<number | null>(null);
   const [reviewDetails, setReviewDetails] = React.useState<EnrolmentReviewDetails>({});
+
+  type ReviewResult = Awaited<ReturnType<typeof reviewGroupCourseLesson>>;
+
+  const applyReviewResultToState = React.useCallback(
+    (reviewResult: ReviewResult, courseParam: Partial<GroupCourseRow> | null) => {
+      if (!reviewResult?.success || !reviewResult.data?.lessons) return;
+
+      const parseDateString = (dateStr: string): { date: Date; time: string } | null => {
+        if (!dateStr) return null;
+        const match = dateStr.match(/(\w+ \d+, \d+) at (\d+):(\d+) (AM|PM)/i);
+        if (match) {
+          const datePart = match[1];
+          const hour = parseInt(match[2], 10);
+          const minute = parseInt(match[3], 10);
+          const ampm = match[4].toUpperCase();
+          let hour24 = hour;
+          if (ampm === "PM" && hour !== 12) hour24 = hour + 12;
+          else if (ampm === "AM" && hour === 12) hour24 = 0;
+          const date = new Date(datePart);
+          date.setHours(hour24, minute, 0, 0);
+          const timeStr = `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+          return { date, time: timeStr };
+        }
+        return null;
+      };
+
+      const parsePeriod = (periodStr: string): { startDate?: string; endDate?: string } => {
+        if (!periodStr) return {};
+        const parts = periodStr.split(" - ");
+        if (parts.length === 2) {
+          try {
+            const startDate = parse(parts[0].trim(), "MMM dd, yyyy", new Date());
+            const endDate = parse(parts[1].trim(), "MMM dd, yyyy", new Date());
+            if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+              return {
+                startDate: format(startDate, "yyyy-MM-dd"),
+                endDate: format(endDate, "yyyy-MM-dd"),
+              };
+            }
+          } catch {
+            // ignore
+          }
+        }
+        return {};
+      };
+
+      const parseTime = (timeStr: string): string | undefined => {
+        if (!timeStr) return undefined;
+        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (match) {
+          let hour = parseInt(match[1], 10);
+          const minute = match[2];
+          const ampm = match[3].toUpperCase();
+          if (ampm === "PM" && hour !== 12) hour += 12;
+          else if (ampm === "AM" && hour === 12) hour = 0;
+          return `${String(hour).padStart(2, "0")}:${minute}`;
+        }
+        return undefined;
+      };
+
+      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const previews: LessonPreview[] = reviewResult.data.lessons.map((lesson, index) => {
+        const parsed = parseDateString(lesson.date);
+        if (!parsed) {
+          return {
+            index: index + 1,
+            id: lesson.id,
+            date: "",
+            day: "",
+            startTime: "",
+            duration: lesson.duration || "",
+            isHolidayConflict: lesson.isHolidayConflict,
+            isConflict: lesson.isConflict,
+            isUnscheduled: lesson.isUnscheduled,
+          };
+        }
+        const { date: lessonDate, time: startTime } = parsed;
+        if (isNaN(lessonDate.getTime())) {
+          return {
+            index: index + 1,
+            id: lesson.id,
+            date: "",
+            day: "",
+            startTime: "",
+            duration: lesson.duration || "",
+            isHolidayConflict: lesson.isHolidayConflict,
+            isConflict: lesson.isConflict,
+            isUnscheduled: lesson.isUnscheduled,
+          };
+        }
+        const dayName = dayNames[lessonDate.getDay()];
+        return {
+          index: index + 1,
+          id: lesson.id,
+          date: format(lessonDate, "yyyy-MM-dd"),
+          day: dayName,
+          startTime,
+          duration: lesson.duration || "",
+          isHolidayConflict: lesson.isHolidayConflict,
+          isConflict: lesson.isConflict,
+          isUnscheduled: lesson.isUnscheduled,
+        };
+      });
+
+      setLessonPreviews(previews);
+
+      const { startDate, endDate } = parsePeriod(reviewResult.data.period);
+      const startTime = parseTime(reviewResult.data.time);
+      const details: EnrolmentReviewDetails = {
+        programName: reviewResult.data.program,
+        teacherName: reviewResult.data.teacher,
+        teacherId: courseParam?.teacherId,
+        startDate,
+        endDate,
+        startTime,
+      };
+      setReviewDetails(details);
+    },
+    []
+  );
+
+  const handleLessonUpdated = React.useCallback(async () => {
+    if (!createdCourseId) return;
+    try {
+      const reviewResult = await reviewGroupCourseLesson(location, createdCourseId);
+      applyReviewResultToState(reviewResult, course);
+    } catch (e) {
+      console.error("Error refetching review after lesson update:", e);
+    }
+  }, [location, createdCourseId, course, applyReviewResultToState]);
+
+  const handleDeleteLesson = React.useCallback(
+    async (lessonId: number): Promise<boolean> => {
+      if (!createdCourseId) return false;
+      const result = await deleteReviewLesson(location, lessonId, createdCourseId);
+      if (result.success) {
+        await handleLessonUpdated();
+        return true;
+      }
+      toast.error(result.message || "Failed to delete lesson");
+      return false;
+    },
+    [location, createdCourseId, handleLessonUpdated]
+  );
 
   React.useEffect(() => {
     if (open) {
@@ -405,153 +550,7 @@ export function AddGroupCourseScheduleModal({
         return;
       }
 
-      // Parse date string in format "Jan 31, 2026 at 11:00 AM"
-      const parseDateString = (dateStr: string): { date: Date; time: string } | null => {
-        if (!dateStr) return null;
-        
-        // Format: "Jan 31, 2026 at 11:00 AM"
-        // Try to parse this format
-        const match = dateStr.match(/(\w+ \d+, \d+) at (\d+):(\d+) (AM|PM)/i);
-        if (match) {
-          const datePart = match[1]; // "Jan 31, 2026"
-          const hour = parseInt(match[2], 10);
-          const minute = parseInt(match[3], 10);
-          const ampm = match[4].toUpperCase();
-          
-          let hour24 = hour;
-          if (ampm === 'PM' && hour !== 12) {
-            hour24 = hour + 12;
-          } else if (ampm === 'AM' && hour === 12) {
-            hour24 = 0;
-          }
-          
-          const date = new Date(datePart);
-          date.setHours(hour24, minute, 0, 0);
-          
-          const timeStr = `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-          
-          return { date, time: timeStr };
-        }
-        
-        return null;
-      };
-
-      // Transform lessons to LessonPreview format
-      const previews: LessonPreview[] = reviewResult.data.lessons.map((lesson, index) => {
-        // Parse date string: "Jan 31, 2026 at 11:00 AM"
-        const parsed = parseDateString(lesson.date);
-        
-        if (!parsed) {
-          console.warn(`Lesson ${lesson.id} has invalid date format: ${lesson.date}`);
-          return {
-            index: index + 1,
-            id: lesson.id,
-            date: '',
-            day: '',
-            startTime: '',
-            duration: lesson.duration || '',
-            isHolidayConflict: lesson.isHolidayConflict,
-            isConflict: lesson.isConflict,
-            isUnscheduled: lesson.isUnscheduled,
-          };
-        }
-
-        const { date: lessonDate, time: startTime } = parsed;
-        
-        // Check if date is valid
-        if (isNaN(lessonDate.getTime())) {
-          console.warn(`Lesson ${lesson.id} has invalid date: ${lesson.date}`);
-          return {
-            index: index + 1,
-            id: lesson.id,
-            date: '',
-            day: '',
-            startTime: '',
-            duration: lesson.duration || '',
-            isHolidayConflict: lesson.isHolidayConflict,
-            isConflict: lesson.isConflict,
-            isUnscheduled: lesson.isUnscheduled,
-          };
-        }
-
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dayName = dayNames[lessonDate.getDay()];
-
-        return {
-          index: index + 1,
-          id: lesson.id,
-          date: format(lessonDate, 'yyyy-MM-dd'),
-          day: dayName,
-          startTime,
-          duration: lesson.duration || '',
-          isHolidayConflict: lesson.isHolidayConflict,
-          isConflict: lesson.isConflict,
-          isUnscheduled: lesson.isUnscheduled,
-        };
-      });
-
-      setLessonPreviews(previews);
-      
-      // Parse period string "Jan 31, 2026 - Feb 21, 2026" to extract start and end dates
-      const parsePeriod = (periodStr: string): { startDate?: string; endDate?: string } => {
-        if (!periodStr) return {};
-        
-        // Format: "Jan 31, 2026 - Feb 21, 2026"
-        const parts = periodStr.split(' - ');
-        if (parts.length === 2) {
-          try {
-            const startDate = parse(parts[0].trim(), 'MMM dd, yyyy', new Date());
-            const endDate = parse(parts[1].trim(), 'MMM dd, yyyy', new Date());
-            
-            if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-              return {
-                startDate: format(startDate, 'yyyy-MM-dd'),
-                endDate: format(endDate, 'yyyy-MM-dd'),
-              };
-            }
-          } catch (error) {
-            console.warn('Failed to parse period:', periodStr, error);
-          }
-        }
-        return {};
-      };
-
-      // Parse time string "11:00 AM" to extract time
-      const parseTime = (timeStr: string): string | undefined => {
-        if (!timeStr) return undefined;
-        
-        // Format: "11:00 AM"
-        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-        if (match) {
-          let hour = parseInt(match[1], 10);
-          const minute = match[2];
-          const ampm = match[3].toUpperCase();
-          
-          if (ampm === 'PM' && hour !== 12) {
-            hour += 12;
-          } else if (ampm === 'AM' && hour === 12) {
-            hour = 0;
-          }
-          
-          return `${String(hour).padStart(2, '0')}:${minute}`;
-        }
-        return undefined;
-      };
-
-      const { startDate, endDate } = parsePeriod(reviewResult.data.period);
-      const startTime = parseTime(reviewResult.data.time);
-      
-      // Prepare review details with period and time
-      const details: EnrolmentReviewDetails = {
-        programName: reviewResult.data.program,
-        teacherName: reviewResult.data.teacher,
-        teacherId: course?.teacherId,
-        startDate,
-        endDate,
-        startTime,
-      };
-      
-      setReviewDetails(details);
+      applyReviewResultToState(reviewResult, course);
       setIsReviewModalOpen(true);
       setIsLoadingPreview(false);
     } catch (error: unknown) {
@@ -699,7 +698,8 @@ export function AddGroupCourseScheduleModal({
       <Dialog open={calendarModalOpen} onOpenChange={setCalendarModalOpen}>
         <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-center">Select Day and Time</DialogTitle>
+            <DialogTitle className="text-center">Choose Date, Day and Time
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -772,6 +772,8 @@ export function AddGroupCourseScheduleModal({
         isLoading={isLoadingPreview}
         location={location}
         courseId={createdCourseId || undefined}
+        onLessonUpdated={handleLessonUpdated}
+        onDeleteLesson={handleDeleteLesson}
       />
     </Dialog>
   );
