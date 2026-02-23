@@ -403,7 +403,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       url: '/pos',
       source: 'modern' as 'legacy' | 'modern',
       items: [],
-      hidden: 'no' as const,
+      hidden: isDev() ? ('no' as const) : ('yes' as const),
     },
     {
       id: 'invoices',
