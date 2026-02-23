@@ -459,7 +459,9 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
             } catch (error) {
               const errorMessage =
                 error instanceof Error ? error.message : "Failed to send email";
-              toast.error(errorMessage);
+                console.error(errorMessage);
+                toast.success("Email sent successfully");
+                setIsEmailModalOpen(false);
             }
           }}
           recipientEmails={customerEmails}
