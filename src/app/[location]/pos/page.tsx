@@ -70,60 +70,60 @@ export default function POSPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white text-slate-900 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background text-foreground font-sans overflow-hidden">
       
      {/* HEADER */}
-      <header className="flex items-center justify-between px-6 py-3 bg-slate-50 border-b border-slate-300 flex-none shadow-sm">
+      <header className="flex items-center justify-between px-6 py-3 bg-muted/50 border-b border-border flex-none shadow-sm">
         
         {/* Balanced & Refined Customer Field */}
         <div className="flex flex-col w-[35%]">
-          <label className="text-[11px] font-bold text-blue-900 uppercase tracking-widest mb-1">
+          <label className="text-[11px] font-bold text-primary uppercase tracking-widest mb-1">
             Customer
           </label>
           <Input 
             value={customer}
             onChange={(e) => setCustomer(e.target.value)}
             placeholder="Search or Enter Name..." 
-            className="border border-slate-400 h-10 text-sm font-medium bg-white rounded-none 
+            className="border border-input h-10 text-sm font-medium bg-background rounded-none 
                        ring-offset-0 focus-visible:ring-0 focus:ring-0 
-                       focus:border-blue-700 focus:border-2 transition-all 
-                       placeholder:font-normal placeholder:text-slate-400"
+                       focus:border-primary focus:border-2 transition-all 
+                       placeholder:font-normal placeholder:text-muted-foreground"
           />
         </div>
 
         {/* Transaction Info */}
         <div className="flex gap-8">
           <div className="text-right">
-            <div className="text-[9px] font-bold text-slate-400 uppercase">Transaction ID</div>
-            <div className="text-sm font-bold text-slate-700">{transactionId}</div>
+            <div className="text-[9px] font-bold text-muted-foreground uppercase">Transaction ID</div>
+            <div className="text-sm font-bold text-foreground">{transactionId}</div>
           </div>
-          <div className="text-right border-l pl-8 border-slate-300">
-            <div className="text-[9px] font-bold text-slate-400 uppercase">Date</div>
-            <div className="text-sm font-medium">{transactionDate.replace(/\//g, '/')}</div>
+          <div className="text-right border-l pl-8 border-border">
+            <div className="text-[9px] font-bold text-muted-foreground uppercase">Date</div>
+            <div className="text-sm font-medium text-foreground">{transactionDate.replace(/\//g, '/')}</div>
           </div>
         </div>
         
       </header>
 
       {/* SCANNING BAR */}
-      <section className="p-3 bg-white border-b border-slate-300 flex gap-4 items-end flex-none">
+      <section className="p-3 bg-background border-b border-border flex gap-4 items-end flex-none">
         <div className="w-20">
-          <label className="text-[10px] font-bold mb-1 block uppercase text-slate-500">Qty</label>
+          <label className="text-[10px] font-bold mb-1 block uppercase text-muted-foreground">Qty</label>
           <Input 
             type="number" 
             value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value) || 1)}
-            className="border-slate-400 h-9 text-center font-bold rounded-none" 
+            className="border-input h-9 text-center font-bold rounded-none" 
           />
         </div>
         <div className="flex-1">
-          <label className="text-[10px] font-bold mb-1 block uppercase text-slate-500">Product Code / UPC</label>
+          <label className="text-[10px] font-bold mb-1 block uppercase text-muted-foreground">Product Code / UPC</label>
           <Input 
             ref={productRef}
             value={productCode}
             onChange={(e) => setProductCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleScan()}
-            className="border-slate-400 h-9 text-sm rounded-none" 
+            className="border-input h-9 text-sm rounded-none" 
           />
         </div>
       </section>
@@ -132,10 +132,10 @@ export default function POSPage() {
       <main className="flex flex-1 overflow-hidden">
         
         {/* LEFT: Table Section */}
-        <div className="flex-1 overflow-auto bg-white p-4">
+        <div className="flex-1 overflow-auto bg-background p-4">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-300 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
+              <tr className="border-b border-border text-muted-foreground text-[10px] uppercase tracking-widest font-bold">
                 <th className="pb-2 w-10"></th>
                 <th className="pb-2 w-16">Qty</th>
                 <th className="pb-2">Description</th>
@@ -143,19 +143,19 @@ export default function POSPage() {
                 <th className="pb-2 text-center w-32">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {items.length === 0 ? (
-                <tr><td colSpan={5} className="py-20 text-center text-slate-400 text-xs italic uppercase tracking-tighter">Ready for Scanning</td></tr>
+                <tr><td colSpan={5} className="py-20 text-center text-muted-foreground text-xs italic uppercase tracking-tighter">Ready for Scanning</td></tr>
               ) : (
                 items.map((item) => (
                   <tr key={item.id} className="text-sm">
                     <td className="py-2.5">
-                      <X className="h-4 w-4 text-slate-500 hover:text-red-600 cursor-pointer" onClick={() => removeItem(item.id)} />
+                      <X className="h-4 w-4 text-muted-foreground hover:text-red-600 cursor-pointer" onClick={() => removeItem(item.id)} />
                     </td>
                     <td className="py-2.5 font-bold">{item.quantity}</td>
                     <td className="py-2.5">
-                      <div className="font-normal text-slate-800 uppercase text-xs">{item.description}</div>
-                      <div className="text-[9px] text-slate-500 font-mono">UPC: {item.upc}</div>
+                      <div className="font-normal text-foreground uppercase text-xs">{item.description}</div>
+                      <div className="text-[9px] text-muted-foreground font-mono">UPC: {item.upc}</div>
                     </td>
                     <td className="py-2.5 text-right font-medium">${item.price.toFixed(2)}</td>
                     <td className="py-2.5 text-center">
@@ -174,44 +174,44 @@ export default function POSPage() {
         </div>
 
         {/* RIGHT: Sidebar */}
-       <aside className="w-72 bg-slate-50 border-l border-slate-300 flex flex-col p-5">
+       <aside className="w-72 bg-muted/50 border-l border-border flex flex-col p-5">
 
   <div className="mb-5">
-    <h3 className="text-xs font-black uppercase text-slate-500 mb-3 tracking-widest border-b border-slate-200 pb-2">
+    <h3 className="text-xs font-black uppercase text-muted-foreground mb-3 tracking-widest border-b border-border pb-2">
       Bill Summary
     </h3>
 
     <div className="space-y-3 py-1">
       <div className="flex justify-between text-sm">
-        <span className="text-slate-600">Subtotal</span>
+        <span className="text-muted-foreground">Subtotal</span>
         <span className="font-medium">${subtotal.toFixed(2)}</span>
       </div>
 
       <div className="flex justify-between text-sm">
-        <span className="text-slate-600">Discount</span>
-        <span className="text-emerald-700">-${discountAmount.toFixed(2)}</span>
+        <span className="text-muted-foreground">Discount</span>
+        <span className="text-emerald-700 dark:text-emerald-400">-${discountAmount.toFixed(2)}</span>
       </div>
 
-      <div className="flex justify-between text-sm border-b border-slate-200 pb-2">
-        <span className="text-slate-600">Tax</span>
+      <div className="flex justify-between text-sm border-b border-border pb-2">
+        <span className="text-muted-foreground">Tax</span>
         <span>$0.00</span>
       </div>
 
       <div className="flex justify-between items-baseline pt-2">
         <span className="font-bold text-sm uppercase">Total</span>
-        <span className="text-2xl font-black text-slate-900">
+        <span className="text-2xl font-black text-foreground">
           ${total.toFixed(2)}
         </span>
       </div>
 
-      <div className="flex justify-between text-xs text-slate-500">
+      <div className="flex justify-between text-xs text-muted-foreground">
         <span>Paid</span>
         <span>$0.00</span>
       </div>
 
-      <div className="flex justify-between pt-2 border-t border-slate-300">
+      <div className="flex justify-between pt-2 border-t border-border">
         <span className="font-bold text-sm uppercase">Balance</span>
-        <span className="font-bold text-lg text-rose-700">
+        <span className="font-bold text-lg text-rose-700 dark:text-rose-400">
           ${total.toFixed(2)}
         </span>
       </div>
@@ -293,7 +293,7 @@ export default function POSPage() {
                 className={`flex-1 h-12 rounded-none font-bold ${
                   discountType === "percentage"
                     ? "bg-primary text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    : "bg-muted text-foreground hover:bg-muted/80"
                 }`}
               >
                 Percentage %
@@ -303,7 +303,7 @@ export default function POSPage() {
                 className={`flex-1 h-12 rounded-none font-bold ${
                   discountType === "fixed"
                     ? "bg-primary text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    : "bg-muted text-foreground hover:bg-muted/80"
                 }`}
               >
                 Fixed Amount $
@@ -311,7 +311,7 @@ export default function POSPage() {
             </div>
 
             <div>
-              <label className="text-sm font-bold text-slate-700 mb-2 block">
+              <label className="text-sm font-bold text-foreground mb-2 block">
                 {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
               </label>
               <div className="relative">
@@ -320,10 +320,10 @@ export default function POSPage() {
                   value={discountValue}
                   onChange={(e) => setDiscountValue(e.target.value)}
                   placeholder={discountType === "percentage" ? "Enter percentage (e.g., 10)" : "Enter amount (e.g., 5.00)"}
-                  className="h-12 text-lg font-semibold rounded-none border-2 border-slate-300 focus:border-primary"
+                  className="h-12 text-lg font-semibold rounded-none border-2 border-input focus:border-primary"
                   autoFocus
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-lg">
                   {discountType === "percentage" ? "%" : "$"}
                 </span>
               </div>
