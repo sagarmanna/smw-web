@@ -59,6 +59,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
     toast.error("Invoice can be generated against completed scheduled lessons only.");
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUnscheduleSave = React.useCallback(async (_reason: string) => {
     // TODO: Implement unschedule API for single lesson (detail page context)
     toast.success("Lesson unscheduled successfully");

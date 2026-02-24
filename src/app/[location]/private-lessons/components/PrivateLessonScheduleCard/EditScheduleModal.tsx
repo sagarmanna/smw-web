@@ -1,7 +1,6 @@
 "use client";
 
-import * as React from "react";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DurationPicker } from "@/components/DurationPicker";
-import { parseDuration, formatDuration } from "@/utils/durationUtils";
+import { parseDuration } from "@/utils/durationUtils";
 import {
   mockGetTeacherSchedule,
   type TeacherScheduleData,
@@ -66,7 +65,6 @@ interface EditScheduleModalProps {
 export function EditScheduleModal({
   open,
   onOpenChange,
-  location,
   details,
 }: EditScheduleModalProps) {
   const [scheduleData, setScheduleData] = useState<TeacherScheduleData | null>(null);
@@ -79,6 +77,9 @@ export function EditScheduleModal({
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | undefined>(undefined);
   const [duration, setDuration] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const detailsRef = useRef(details);
+  detailsRef.current = details;
 
   const getMonday = useCallback((date: Date) => {
     const d = new Date(date);
@@ -192,12 +193,14 @@ export function EditScheduleModal({
     [details?.schedule.teacherId, showAllModal]
   );
 
-  // Initialize when modal opens
+  // Initialize when modal opens or the lesson changes.
+  // detailsRef holds the latest details without being a dependency,
+  // so this only re-runs on open toggle or lesson id change.
   useEffect(() => {
-    if (!open || !details) return;
+    if (!open || !detailsRef.current) return;
 
-    setSelectedTeacherId(details.schedule.teacherId);
-    setDuration(details.schedule.duration || "");
+    setSelectedTeacherId(detailsRef.current.schedule.teacherId);
+    setDuration(detailsRef.current.schedule.duration || "");
     setSelectedDate(new Date());
     setRescheduleDate(null);
     setShowAllModal(false);
