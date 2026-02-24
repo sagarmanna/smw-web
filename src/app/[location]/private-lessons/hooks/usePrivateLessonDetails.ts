@@ -14,6 +14,7 @@ import {
   updateCostThunk,
   updateDueDateThunk,
   updateDiscountThunk,
+  updateTaxThunk,
   updatePriceThunk,
   updateGroupLessonStudentDiscountThunk,
 } from "../[id]/private-lesson-details.slice";
@@ -48,6 +49,7 @@ type PrivateLessonDetailsHookReturn = {
   saveCost: (data: { costPerHour?: string; cost?: string; price?: string }) => Promise<boolean>;
   saveDueDate: (dueDate: string) => Promise<boolean>;
   saveDiscount: (discount: string) => Promise<boolean>;
+  saveTax: (tax: string) => Promise<boolean>;
   savePrice: (lessonRatePerHour: string) => Promise<boolean>;
   saveGroupStudentDiscount: (studentId: number, discount: string) => Promise<boolean>;
 };
@@ -312,6 +314,28 @@ export function usePrivateLessonDetails(
     [dispatch, location, privateLessonId]
   );
 
+  const saveTax = React.useCallback(
+    async (tax: string): Promise<boolean> => {
+      try {
+        await dispatch(
+          updateTaxThunk({
+            location,
+            privateLessonId,
+            tax,
+          })
+        ).unwrap();
+
+        toast.success("Tax updated successfully");
+        return true;
+      } catch (error) {
+        console.error("Failed to save tax:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to update tax. Please try again.");
+        return false;
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
   return {
     loading,
     error,
@@ -335,6 +359,7 @@ export function usePrivateLessonDetails(
     saveCost,
     saveDueDate,
     saveDiscount,
+    saveTax,
     savePrice,
     saveGroupStudentDiscount,
   };

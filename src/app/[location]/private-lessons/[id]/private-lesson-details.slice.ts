@@ -11,6 +11,7 @@ import {
   updateCost,
   updateDueDate,
   updateDiscount,
+  updateTax,
   updatePrice,
   updateGroupLessonStudentDiscount,
   type PaginationInfo,
@@ -247,6 +248,27 @@ export const updateDiscountThunk = createAsyncThunk(
       return { data: result.data };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update discount');
+    }
+  }
+);
+
+// Async thunk for updating tax
+export const updateTaxThunk = createAsyncThunk(
+  'privateLesson/updateTax',
+  async (
+    { location, privateLessonId, tax }: { location: string; privateLessonId: string; tax: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await updateTax(location, privateLessonId, { tax });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update tax');
+      }
+
+      return { data: result.data };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update tax');
     }
   }
 );
@@ -522,6 +544,23 @@ const privateLessonSlice = createSlice({
         state.error = null;
       })
       .addCase(updateDiscountThunk.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Update tax reducers
+      .addCase(updateTaxThunk.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updateTaxThunk.fulfilled, (state, action) => {
+        state.isSaving = false;
+        if (state.privateLessonInfo && action.payload) {
+          const { data } = action.payload;
+          state.privateLessonInfo.details.totals.tax = data.tax;
+        }
+        state.error = null;
+      })
+      .addCase(updateTaxThunk.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       })

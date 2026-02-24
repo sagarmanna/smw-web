@@ -61,6 +61,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     saveCost,
     saveDueDate,
     saveDiscount,
+    saveTax,
     savePrice,
     saveGroupStudentDiscount,
   } = usePrivateLessonDetails(location, privateLessonId);
@@ -507,6 +508,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                     details={details}
                     onSaveDiscount={saveDiscount}
                     onSavePrice={savePrice}
+                    onSaveTax={saveTax}
                     savingDetails={savingDetails}
                     isLoading={isLoading}
                   />
