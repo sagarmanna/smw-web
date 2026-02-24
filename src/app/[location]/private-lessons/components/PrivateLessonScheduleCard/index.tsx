@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { UnscheduleReasonModal } from "../UnscheduleReasonModal";
+import { EditScheduleModal } from "./EditScheduleModal";
 
 interface PrivateLessonScheduleCardProps {
   details: PrivateLessonDetails | null;
@@ -37,6 +38,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
 }: PrivateLessonScheduleCardProps) {
   const router = useRouter();
   const [isUnscheduleModalOpen, setIsUnscheduleModalOpen] = React.useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
 
   const handleTeacherClick = React.useCallback(() => {
     if (details?.schedule.teacherId) {
@@ -45,7 +47,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
   }, [details?.schedule.teacherId, location, router]);
 
   const handleEditClick = React.useCallback(() => {
-    toast.info("This feature is under process");
+    setIsEditModalOpen(true);
   }, []);
 
   const handleUnscheduleClick = React.useCallback(() => {
@@ -136,6 +138,12 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
         onOpenChange={setIsUnscheduleModalOpen}
         location={location}
         onSave={handleUnscheduleSave}
+      />
+      <EditScheduleModal
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        location={location}
+        details={details}
       />
     </>
   );
