@@ -68,6 +68,55 @@ const DEFAULT_PAGINATION = {
 
 const FETCH_ALL_LIMIT = 99999;
 
+// Add blank invoice API (formerly part of customers.api)
+export async function createBlankInvoice(
+  location: string,
+  customerId?: number
+): Promise<{
+  success: boolean;
+  data?: {
+    id: number;
+    invoiceNumber?: string;
+    date?: string;
+    status?: number;
+    type?: number;
+    total?: string;
+    balance?: string;
+    userId?: number;
+    locationId?: number;
+  };
+  message?: string;
+} | null> {
+  try {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        id: number;
+        invoiceNumber: string;
+        date: string;
+        status: number;
+        type: number;
+        total: string;
+        balance: string;
+        userId: number;
+        locationId: number;
+      };
+      message: string;
+    }>(
+      `/admin/v2/${location}/invoices/blank-invoice`,
+      customerId !== undefined ? { customerId } : {}
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to create blank invoice",
+    };
+  }
+}
+
 // Helper to build query parameters - DRY principle
 const buildInvoicesQueryParams = (query: InvoicesQuery): URLSearchParams => {
   const params = new URLSearchParams();

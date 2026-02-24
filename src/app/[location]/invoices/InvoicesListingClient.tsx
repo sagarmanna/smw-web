@@ -13,6 +13,7 @@ import { formatLocationName } from "@/utils/textUtils";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { createBlankInvoice } from "./invoicesListing.api";
 
 interface InvoicesListingClientProps {
   location: string;
@@ -111,8 +112,17 @@ export function InvoicesListingClient({ location }: InvoicesListingClientProps) 
   // Reusable Add Invoice Button
   const addInvoiceButton = React.useMemo(() => (
     <Button 
-      onClick={() => {
-        // Redirect to legacy invoice view page for adding new invoice temporarily
+      onClick={async () => {
+        try {
+          const res = await createBlankInvoice(location);
+          if (res && res.success && res.data?.id) {
+            router.push(`/${location}/invoices/${res.data.id}`);
+            return;
+          }
+        } catch (err) {
+          console.error("failed to create blank invoice", err);
+        }
+        // fallback to legacy path if API call fails or doesn't return id
         const legacyUrl = `${legacyBaseUrl}/${location}/invoice/view?id=1069881`;
         window.location.href = legacyUrl;
       }} 
@@ -121,7 +131,7 @@ export function InvoicesListingClient({ location }: InvoicesListingClientProps) 
       <Plus className="h-4 w-4 mr-2" />
       Add Invoice
     </Button>
-  ), [location, legacyBaseUrl]);
+  ), [location, legacyBaseUrl, router]);
 
   return (
     <ReportPageLayout

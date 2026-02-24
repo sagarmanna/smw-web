@@ -39,6 +39,23 @@ export interface UpdateInvoiceDetailsResponse {
   message?: string;
 }
 
+// ---------------------------------------------
+// Adjust Tax API Types
+// ---------------------------------------------
+
+export interface AdjustInvoiceTaxResponse {
+  success: boolean;
+  data: {
+    body: {
+      id: number;
+      tax: number | string;
+      total: number | string;
+      balance: number | string;
+    };
+  };
+  message?: string;
+}
+
 type InvoiceDetailsBackendBody = {
   invoice?: {
     id?: number;
@@ -416,5 +433,32 @@ export async function updateInvoiceDetails(
       data: { id: invoiceId, date: "" },
       message: apiError.response?.data?.message || "Failed to update invoice details",
     };
+  }
+}
+
+/**
+ * Adjusts the tax amount for an invoice on the server.
+ *
+ * Endpoint: PUT /admin/v2/${location}/invoices/adjust-tax/{invoiceId}
+ *
+ * Body: { taxAdjusted: number } – the new tax amount to set on the invoice
+ *
+ * Returns the updated totals for the invoice (tax, total, balance).
+ */
+export async function adjustInvoiceTax(
+  location: string,
+  invoiceId: number,
+  taxAdjusted: number
+): Promise<AdjustInvoiceTaxResponse | null> {
+  try {
+    const response = await apiClient.put<AdjustInvoiceTaxResponse>(
+      `/admin/v2/${location}/invoices/adjust-tax/${invoiceId}`,
+      { taxAdjusted }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("adjustInvoiceTax API error:", error);
+    return null;
   }
 }
