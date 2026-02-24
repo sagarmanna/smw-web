@@ -989,6 +989,55 @@ export async function getPrivateLessonComments(
   }
 }
 
+// Update Tax API Types
+export interface UpdateTaxRequest {
+  tax: string;
+}
+
+export interface UpdateTaxResponse {
+  success: boolean;
+  data: {
+    id: number;
+    tax: string;
+  };
+  message?: string;
+}
+
+/**
+ * Updates tax via PUT API
+ * TODO: Replace mock with actual API call when backend is ready
+ */
+export async function updateTax(
+  location: string,
+  privateLessonId: string,
+  data: UpdateTaxRequest
+): Promise<UpdateTaxResponse | null> {
+  try {
+    // TODO: Replace with actual API call when backend is ready
+    void location;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    return {
+      success: true,
+      data: {
+        id: Number(privateLessonId) || 0,
+        tax: data.tax,
+      },
+    };
+  } catch (error: unknown) {
+    console.error("Error updating tax:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        id: Number(privateLessonId) || 0,
+        tax: "",
+      },
+      message: apiError.response?.data?.message || "Failed to update tax",
+    };
+  }
+}
+
 // Delete Private Lesson API Types
 export interface DeletePrivateLessonResponse {
   success: boolean;
