@@ -235,13 +235,13 @@ export const StudentEnrolmentsCard = React.memo(function StudentEnrolmentsCard({
 
   const handleRowClick = React.useCallback(
     (enrolment: StudentEnrolment) => {
-      if (location === "burlington" || location === "training-location") {
+      // if (location === "burlington" || location === "training-location") {
         router.push(`/${location}/enrolments/${enrolment.id}`)
-      } else {
-        const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
-        const url = `${legacyBase}/${location}/enrolment/view?id=${enrolment.id}`;
-        window.location.href = url;
-      }
+      // } else {
+      //   const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      //   const url = `${legacyBase}/${location}/enrolment/view?id=${enrolment.id}`;
+      //   window.location.href = url;
+      // }
     },
     [location]
   );
