@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { TableCard } from "@/components/TableCard";
 import { InvoiceData, CUSTOMER_TABLE_CONFIGS } from "../../tableConfigs";
-import { createBlankInvoice } from "@/app/[location]/invoices/invoicesListing.api";
+import { createBlankInvoice } from "@/lib/api/legacyApiAdapter";
 import { getCustomerInvoices } from "../../customers.api";
 
 interface InvoiceTableProps {
@@ -25,7 +24,6 @@ export function InvoiceTable({
   location,
   customerId,
 }: InvoiceTableProps) {
-  const router = useRouter();
   const handlePrint = () => {
     const formatCurrencyPrint = (value: unknown) => {
       if (typeof value === "string") return value;
@@ -183,16 +181,11 @@ export function InvoiceTable({
           label: "Add Invoice",
           onClick: async () => {
             try {
-              const res = await createBlankInvoice(location, Number(customerId));
-              if (res && res.success && res.data && res.data.id) {
-                // navigate to new invoice detail page
-                router.push(`/${location}/invoices/${res.data.id}`);
-                return;
-              }
-              // fallback to refreshing and opening first invoice
+              await createBlankInvoice(location, customerId);
             } catch (error) {
               console.error("Error creating invoice:", error);
-            } finally {
+            }
+            finally {
               const invoices = await getCustomerInvoices(location, Number(customerId), 1);
               const firstInvoice = invoices[0];
               if (firstInvoice && firstInvoice.url) {
