@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import TipTapEmailEditor from "./TipTapEmailEditor";
+// @ts-ignore: allow side-effect import of CSS (declaration provided in global.d.ts)
 import "./tiptap-styles.css";
 import type { EmailModalProps } from "./types";
 
@@ -21,6 +22,8 @@ export function EmailModal({
   hstNumber,
   initialSubject,
   initialContent,
+  headerHtml,
+  footerHtml,
   privateLessonDueData = [],
   groupLessonDueData = [],
   invoiceData = [],
@@ -363,7 +366,6 @@ export function EmailModal({
         if (shouldUseInitialContentAsIs) {
           // Use complete HTML as-is (e.g., email statement with table, title, schedule)
           prevInitialContentRef.current = initialContent;
-          console.log("Updating email content from API (first 500 chars):", initialContent.substring(0, 500));
           setContent(initialContent);
         } else {
           console.log("Initial content does not contain HTML tags, skipping update:", initialContent.substring(0, 100));
@@ -683,6 +685,14 @@ export function EmailModal({
       >
         {/* Inner content constrained to a readable width like other modals */}
         <div className="space-y-4 w-full max-w-3xl mx-auto">
+        {/* Header from template (readonly) */}
+        {headerHtml && (
+          <div
+            className="mb-2 text-sm text-gray-700 dark:text-gray-300"
+            dangerouslySetInnerHTML={{ __html: headerHtml }}
+          />
+        )}
+
         {/* To Field with Email Tags */}
         <div className="space-y-2">
           <Label htmlFor="recipients">To</Label>
@@ -772,6 +782,7 @@ export function EmailModal({
             ✨ You can now edit both text AND table cells directly! Click on any cell to modify values.
           </p>
         </div>
+
       </div>
     </ReusableModal>
 
@@ -818,6 +829,14 @@ export function EmailModal({
         {/* Full Screen Content - TipTap Editor */}
         <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-6">
           <div className="max-w-[1400px] mx-auto">
+            {/* replicate header/footer outside editor when fullscreen */}
+            {headerHtml && (
+              <div
+                className="mb-2 text-sm text-gray-700 dark:text-gray-300"
+                dangerouslySetInnerHTML={{ __html: headerHtml }}
+              />
+            )}
+
             {/* TipTap Editor in Fullscreen */}
             <TipTapEmailEditor
               key={`email-editor-fullscreen-${open}-${initialContent ? 'api' : 'default'}`}
@@ -831,6 +850,7 @@ export function EmailModal({
               templates={editorTemplates}
               localStorageKey={defaultLocalStorageKey}
             />
+
           </div>
         </div>
 
