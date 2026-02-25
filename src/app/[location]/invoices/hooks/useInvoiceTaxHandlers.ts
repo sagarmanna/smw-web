@@ -6,56 +6,67 @@ import { AppDispatch } from "@/redux/store";
 import type { InvoiceDetail } from "../types";
 import { TaxAdjustmentData } from "../components/modals/AdjustTaxModal";
 import { updateTotals } from "../[id]/invoices-details.slice";
-import { recalculateTotals } from "../utils/totalsCalculator";
 import { TOAST_MESSAGES } from "../utils/constants";
+import { adjustInvoiceTax } from "../[id]/invoices-details.api";
+import { parseMoney } from "../[id]/invoices-details.utils";
+import { calculateTaxFromItems } from "../utils/totalsCalculator";
 
 interface UseInvoiceTaxHandlersProps {
+  location: string;
+  invoiceId: number;
   invoiceDetail: InvoiceDetail | null;
   dispatch: AppDispatch;
 }
 
 export function useInvoiceTaxHandlers({
+  location,
+  invoiceId,
   invoiceDetail,
   dispatch,
 }: UseInvoiceTaxHandlersProps) {
   const handleAdjustTax = React.useCallback(
-    (adjustmentData: TaxAdjustmentData) => {
+    async (adjustmentData: TaxAdjustmentData) => {
       if (!invoiceDetail) {
         toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
         return;
       }
 
       try {
-        // Calculate tax from items (sum of all item taxes)
-        const taxCalculated = invoiceDetail.items.reduce(
-          (sum, item) => sum + (item.tax || 0),
-          0
+        // Compute final tax amount using shared utility
+        const taxCalculated = calculateTaxFromItems(invoiceDetail.items);
+        const finalTax = Math.max(0, taxCalculated + adjustmentData.adjustment);
+
+        const response = await adjustInvoiceTax(
+          location,
+          invoiceId,
+          finalTax
         );
 
-        // Apply adjustment to calculated tax
-        const adjustedTax = Math.max(0, taxCalculated + adjustmentData.adjustment);
+        if (response && response.success && response.data?.body) {
+          const { tax, total, balance } = response.data.body;
 
-        // Recalculate totals using utility function
-        const totals = recalculateTotals(
-          invoiceDetail.items,
-          adjustedTax,
-          invoiceDetail.totals.paid
-        );
+          // Build a new totals object using returned values (preserve discounts/subtotal/paid)
+          const newTotals = {
+            ...invoiceDetail.totals,
+            tax: parseMoney(tax),
+            total: parseMoney(total),
+            balance: parseMoney(balance),
+          };
 
-        // Update Redux state
-        dispatch(updateTotals(totals));
-
-        toast.success(TOAST_MESSAGES.SUCCESS.TAX_ADJUSTED);
+          dispatch(updateTotals(newTotals));
+          toast.success(TOAST_MESSAGES.SUCCESS.TAX_ADJUSTED);
+        } else {
+          toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
+        }
       } catch (error) {
         console.error("Failed to adjust tax:", error);
         toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
       }
     },
-    [invoiceDetail, dispatch]
+    [location, invoiceId, invoiceDetail, dispatch]
   );
 
   return {
     handleAdjustTax,
   };
 }
-
