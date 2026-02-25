@@ -14,6 +14,9 @@ import {
   updateTax,
   updatePrice,
   updateGroupLessonStudentDiscount,
+  // new import for email statement API types
+  getPrivateLessonEmailStatement,
+  type PrivateLessonEmailStatementBody,
   type PaginationInfo,
 } from './private-lesson-details.api';
 import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment, PrivateLessonPayment } from '../types';
@@ -35,6 +38,11 @@ interface PrivateLessonState {
   paymentsLoading: boolean;
   paymentsError: string | null;
   paymentsSortDir: 'asc' | 'desc';
+
+  // Email statement state
+  emailStatement: PrivateLessonEmailStatementBody | null;
+  emailStatementLoading: boolean;
+  emailStatementError: string | null;
 }
 
 const initialState: PrivateLessonState = {
@@ -52,6 +60,9 @@ const initialState: PrivateLessonState = {
   paymentsLoading: false,
   paymentsError: null,
   paymentsSortDir: 'desc',
+  emailStatement: null,
+  emailStatementLoading: false,
+  emailStatementError: null,
 };
 
 // Async thunk for fetching private lesson info
@@ -352,6 +363,33 @@ export const fetchPrivateLessonHistory = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching private lesson email statement
+export const fetchEmailStatement = createAsyncThunk(
+  'privateLesson/fetchEmailStatement',
+  async (
+    { location, privateLessonId }: { location: string; privateLessonId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getPrivateLessonEmailStatement(location, privateLessonId);
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch private lesson email statement');
+      }
+      // The API historically returned the template inside `data.body.emailTemplate`,
+      // but newer responses place it at `data.emailTemplate` alongside the body.
+      // Merge the two so the rest of the code can always look in the same spot.
+      const merged: PrivateLessonEmailStatementBody = {
+        ...apiResult.data.body,
+        emailTemplate:
+          apiResult.data.body.emailTemplate || apiResult.data.emailTemplate || undefined,
+      };
+      return { data: merged };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch private lesson email statement');
+    }
+  }
+);
+
 // Async thunk for fetching private lesson payments independently
 export const fetchPrivateLessonPayments = createAsyncThunk(
   'privateLesson/fetchPrivateLessonPayments',
@@ -397,6 +435,9 @@ const privateLessonSlice = createSlice({
       state.paymentsLoading = false;
       state.paymentsError = null;
       state.paymentsSortDir = 'desc';
+      state.emailStatement = null;
+      state.emailStatementLoading = false;
+      state.emailStatementError = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -645,6 +686,19 @@ const privateLessonSlice = createSlice({
       .addCase(fetchPrivateLessonPayments.rejected, (state, action) => {
         state.paymentsLoading = false;
         state.paymentsError = action.payload as string;
+      })
+      // Email statement reducers
+      .addCase(fetchEmailStatement.pending, (state) => {
+        state.emailStatementLoading = true;
+        state.emailStatementError = null;
+      })
+      .addCase(fetchEmailStatement.fulfilled, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatement = action.payload.data;
+      })
+      .addCase(fetchEmailStatement.rejected, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatementError = action.payload as string;
       });
   },
 });
