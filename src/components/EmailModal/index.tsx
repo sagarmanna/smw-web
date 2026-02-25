@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import TipTapEmailEditor from "./TipTapEmailEditor";
-// @ts-ignore: allow side-effect import of CSS (declaration provided in global.d.ts)
 import "./tiptap-styles.css";
 import type { EmailModalProps } from "./types";
 
