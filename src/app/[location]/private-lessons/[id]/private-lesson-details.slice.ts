@@ -243,14 +243,16 @@ export const updateDueDateThunk = createAsyncThunk(
 );
 
 // Async thunk for updating discount
+import { applyDiscount, ApplyDiscountRequest } from "../actionApi/discount.api";
+
 export const updateDiscountThunk = createAsyncThunk(
   'privateLesson/updateDiscount',
   async (
-    { location, privateLessonId, discount }: { location: string; privateLessonId: string; discount: string },
+    { location, payload }: { location: string; payload: ApplyDiscountRequest },
     { rejectWithValue }
   ) => {
     try {
-      const result = await updateDiscount(location, privateLessonId, { discount });
+      const result = await applyDiscount(location, payload);
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update discount');
@@ -578,10 +580,8 @@ const privateLessonSlice = createSlice({
       })
       .addCase(updateDiscountThunk.fulfilled, (state, action) => {
         state.isSaving = false;
-        if (state.privateLessonInfo && action.payload) {
-          const { data } = action.payload;
-          state.privateLessonInfo.details.totals.discount = data.discount;
-        }
+        // The API does not return the updated discount value, so we do not update it here.
+        // Optionally, you could trigger a refetch of the lesson details after a successful update.
         state.error = null;
       })
       .addCase(updateDiscountThunk.rejected, (state, action) => {
