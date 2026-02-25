@@ -663,37 +663,36 @@ export interface UpdateAttendanceResponse {
 }
 
 /**
- * Updates attendance via PUT API
- * For now, returns mock response
+ * Updates attendance via PUT API.
+ * PUT /admin/v2/{location}/lesson/{privateLessonId}/attendance
  */
 export async function updateAttendance(
   location: string,
   privateLessonId: string,
   data: UpdateAttendanceRequest
 ): Promise<UpdateAttendanceResponse | null> {
-  try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        id: Number(privateLessonId) || 0,
-        present: data.present,
-      },
-    };
-  } catch (error: unknown) {
-    console.error("Error updating attendance:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
-    return {
-      success: false,
-      data: {
-        id: Number(privateLessonId) || 0,
-        present: false,
-      },
-      message: apiError.response?.data?.message || "Failed to update attendance",
-    };
+  const response = await apiClient.put<UpdateAttendanceResponse>(
+    `/admin/v2/${location}/lesson/${privateLessonId}/attendance`,
+    data
+  );
+
+  const body = response.data;
+  const success = body?.success === true;
+  const message = body?.message;
+
+  if (!success) {
+    throw new Error(
+      typeof message === "string" && message.trim() !== ""
+        ? message
+        : "Failed to update attendance"
+    );
   }
+
+  return {
+    success: true,
+    data: body.data,
+    message,
+  };
 }
 
 // Update Cost API Types
