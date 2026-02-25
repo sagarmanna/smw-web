@@ -109,9 +109,9 @@ interface SubstituteLessonApiResponse {
 
 /**
  * GET /admin/v2/{location}/teacher-substitute/lesson?ids=...&teacherId=...&resolvingConflicts=...
- * Performs teacher substitution for the given lessons. Returns new lesson ids, lessons, and conflicts.
- * resolvingConflicts defaults to false.
- * Throws on failure so callers can show API response message.
+ * - resolvingConflicts=false (default): Draft creation (teacher selected).
+ * - resolvingConflicts=true: Re-validate conflicts after updating a draft (e.g. after draft-lesson date change).
+ * Returns new lesson ids, lessons, and conflicts. Throws on failure.
  */
 export async function substituteLesson(
   location: string,
@@ -178,6 +178,52 @@ interface ConfirmTeacherSubstituteApiResponse {
   message?: string;
   errorCode?: string;
 }
+
+// --- Update draft lesson date/time (POST) ---
+
+export interface UpdateDraftLessonRequest {
+  date: string; // e.g. "2026-02-25 2:00 PM"
+  teacherId: number;
+}
+
+export interface UpdateDraftLessonResponse {
+  success: boolean;
+  data?: unknown;
+  message?: string;
+}
+
+/**
+ * POST /admin/v2/{location}/teacher-substitute/draft-lesson/:id
+ * Updates the date and/or time for a draft lesson. Date format: "yyyy-MM-dd h:mm a" (e.g. "2026-02-25 2:00 PM").
+ * Throws on failure so callers can show API response message.
+ */
+export async function updateDraftLessonDate(
+  location: string,
+  lessonId: number,
+  payload: UpdateDraftLessonRequest
+): Promise<UpdateDraftLessonResponse> {
+  const response = await apiClient.post<UpdateDraftLessonResponse>(
+    `/admin/v2/${location}/teacher-substitute/draft-lesson/${lessonId}`,
+    payload
+  );
+
+  const body = response.data;
+  if (body?.success !== true) {
+    throw new Error(
+      typeof body?.message === "string" && body.message.trim() !== ""
+        ? body.message
+        : "Failed to update draft lesson date"
+    );
+  }
+
+  return {
+    success: true,
+    data: body?.data,
+    message: body?.message,
+  };
+}
+
+// --- Confirm substitution (PUT) ---
 
 /**
  * PUT /admin/v2/{location}/teacher-substitute/confirm
