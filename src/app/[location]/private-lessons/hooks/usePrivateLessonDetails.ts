@@ -233,6 +233,9 @@ export function usePrivateLessonDetails(
           })
         ).unwrap();
 
+        // Refresh details so UI shows server-normalized dueDate
+        dispatch(fetchPrivateLesson({ location, privateLessonId }));
+
         toast.success("Due date updated successfully");
         return true;
       } catch (error) {

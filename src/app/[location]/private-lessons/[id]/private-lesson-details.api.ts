@@ -787,15 +787,24 @@ export async function updateDueDate(
   data: UpdateDueDateRequest
 ): Promise<UpdateDueDateResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    const response = await apiClient.put<UpdateDueDateResponse>(
+      `/admin/v2/${location}/lesson/${privateLessonId}/due-date`,
+      data
+    );
+
+    const body = response.data;
+    if (!body || body.success !== true) {
+      return body;
+    }
+
+    // Ensure we return a normalized object
     return {
       success: true,
       data: {
-        id: Number(privateLessonId) || 0,
-        dueDate: data.dueDate,
+        id: body.data?.id ?? Number(privateLessonId) ?? 0,
+        dueDate: body.data?.dueDate ?? data.dueDate,
       },
+      message: body.message,
     };
   } catch (error: unknown) {
     console.error("Error updating due date:", error);
