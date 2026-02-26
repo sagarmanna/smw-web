@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
+import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
 
 interface Item {
   id: string;
@@ -25,6 +26,7 @@ export default function POSPage() {
   const locationId = locationData?.id || 1;
   
   const { transactionId, transactionDate, isLoading, initializeTransaction } = usePOSTransaction(locationId);
+  const { isScanning, scanItem } = usePOSItemLookup(location);
   
   const productRef = useRef<HTMLInputElement>(null);
   const [quantity, setQuantity] = useState(1);
@@ -41,21 +43,30 @@ export default function POSPage() {
     initializeTransaction().then(() => {
       setTimeout(() => productRef.current?.focus(), 100);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleScan = () => {
+  const handleScan = async () => {
     if (!productCode.trim()) return;
-    const newItem: Item = {
-      id: Date.now().toString(),
-      upc: productCode,
-      description: "Item Description " + productCode,
-      quantity: quantity,
-      price: 25.00,
-    };
-    setItems([...items, newItem]);
-    setProductCode("");
-    setQuantity(1);
-    productRef.current?.focus();
+    
+    const itemData = await scanItem(productCode);
+    
+    if (itemData) {
+      const newItem: Item = {
+        id: Date.now().toString(),
+        upc: itemData.code,
+        description: itemData.description,
+        quantity: quantity,
+        price: itemData.price,
+      };
+      
+      setItems([...items, newItem]);
+      setProductCode("");
+      setQuantity(1);
+    }
+    
+    // Use setTimeout to ensure focus happens after React re-render
+    setTimeout(() => productRef.current?.focus(), 0);
   };
 
   const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
@@ -144,6 +155,7 @@ export default function POSPage() {
             value={productCode}
             onChange={(e) => setProductCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleScan()}
+            disabled={isScanning}
             className="border-input h-9 text-sm rounded-none" 
           />
         </div>

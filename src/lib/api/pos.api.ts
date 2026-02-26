@@ -12,6 +12,16 @@ export interface CreateTransactionResponse {
   };
 }
 
+export interface ItemLookupResponse {
+  success: boolean;
+  data: {
+    id: string;
+    code: string;
+    description: string;
+    price: number;
+  };
+}
+
 /**
  * Create a new POS transaction
  * 
@@ -27,7 +37,7 @@ export interface CreateTransactionResponse {
 export async function createPOSTransaction(
   locationId: number
 ): Promise<CreateTransactionResponse> {
-  const response = await fetch('/api/pos/transaction', {
+  const response = await fetch('/admin/v2/api/pos/transaction', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -37,6 +47,44 @@ export async function createPOSTransaction(
 
   if (!response.ok) {
     throw new Error('Failed to create transaction');
+  }
+
+  return response.json();
+}
+
+/**
+ * Lookup an item by code
+ * 
+ * @param location - The location slug
+ * @param code - The product code or UPC
+ * @returns Promise resolving to item data
+ * 
+ * @example
+ * ```typescript
+ * const item = await lookupItem('training-location', 'book');
+ * console.log(item.description); // "Book"
+ * ```
+ */
+export async function lookupItem(
+  location: string,
+  code: string
+): Promise<ItemLookupResponse> {
+  const response = await fetch(`/admin/v2/api/pos/items?location=${encodeURIComponent(location)}&code=${encodeURIComponent(code)}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = 'Failed to lookup item';
+    try {
+      const error = await response.json();
+      errorMessage = error.error || errorMessage;
+    } catch {
+      errorMessage = `API returned ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();
