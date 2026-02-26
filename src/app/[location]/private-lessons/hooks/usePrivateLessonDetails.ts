@@ -16,6 +16,7 @@ import {
   updateTaxThunk,
   updatePriceThunk,
   updateGroupLessonStudentDiscountThunk,
+  unscheduleLessonThunk,
 } from "../[id]/private-lesson-details.slice";
 import { toast } from "sonner";
 import {
@@ -57,6 +58,7 @@ type PrivateLessonDetailsHookReturn = {
   saveTax: (tax: string) => Promise<boolean>;
   savePrice: (lessonRatePerHour: string) => Promise<boolean>;
   saveGroupStudentDiscount: (studentId: number, discount: string) => Promise<boolean>;
+  saveUnschedule: (reason: string) => Promise<boolean>;
 };
 
 export function usePrivateLessonDetails(
@@ -369,6 +371,31 @@ export function usePrivateLessonDetails(
     [dispatch, location, privateLessonId]
   );
 
+  const saveUnschedule = React.useCallback(
+    async (reason: string): Promise<boolean> => {
+      try {
+        await dispatch(
+          unscheduleLessonThunk({
+            location,
+            privateLessonId,
+            reason,
+          })
+        ).unwrap();
+        toast.success("Lesson unscheduled successfully");
+        // Refresh details after unscheduling to get updated status and cleared schedule
+        await dispatch(fetchPrivateLesson({ location, privateLessonId }));
+        return true;
+      } catch (error) {
+        console.error("Failed to unschedule lesson:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to unschedule lesson. Please try again."
+        );
+        return false;
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
   return {
     loading,
     error,
@@ -395,5 +422,6 @@ export function usePrivateLessonDetails(
     saveTax,
     savePrice,
     saveGroupStudentDiscount,
+    saveUnschedule,
   };
 }

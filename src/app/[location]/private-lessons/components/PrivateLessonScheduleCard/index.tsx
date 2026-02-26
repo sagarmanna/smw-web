@@ -28,6 +28,10 @@ interface PrivateLessonScheduleCardProps {
    * Used for group lessons where invoice generation is not supported.
    */
   hideGenerateInvoice?: boolean;
+  /**
+   * Callback to unschedule the lesson. Should handle the API call and return promise.
+   */
+  onUnschedule?: (reason: string) => Promise<boolean>;
 }
 
 export const PrivateLessonScheduleCard = React.memo(function PrivateLessonScheduleCard({
@@ -35,6 +39,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
   isLoading = false,
   location,
   hideGenerateInvoice = false,
+  onUnschedule,
 }: PrivateLessonScheduleCardProps) {
   const router = useRouter();
   const [isUnscheduleModalOpen, setIsUnscheduleModalOpen] = React.useState(false);
@@ -60,12 +65,13 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
   }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleUnscheduleSave = React.useCallback(async (_reason: string) => {
-    // TODO: Implement unschedule API for single lesson (detail page context)
-    toast.success("Lesson unscheduled successfully");
-    setIsUnscheduleModalOpen(false);
-    return true;
-  }, []);
+  const handleUnscheduleSave = React.useCallback(async (reason: string) => {
+    if (!onUnschedule) {
+      toast.error("Unschedule function not available");
+      return false;
+    }
+    return await onUnschedule(reason);
+  }, [onUnschedule]);
 
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {

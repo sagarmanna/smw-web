@@ -19,6 +19,9 @@ import {
   type PrivateLessonEmailStatementBody,
   type PaginationInfo,
 } from './private-lesson-details.api';
+
+// action APIs
+import { unscheduleLessons } from '../actionApi/unschedule.api';
 import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment, PrivateLessonPayment } from '../types';
 
 interface PrivateLessonState {
@@ -392,6 +395,28 @@ export const fetchEmailStatement = createAsyncThunk(
   }
 );
 
+// Async thunk for unscheduling a single private lesson via API
+export const unscheduleLessonThunk = createAsyncThunk(
+  'privateLesson/unscheduleLesson',
+  async (
+    { location, privateLessonId, reason }: { location: string; privateLessonId: string; reason: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const lessonIds = [Number(privateLessonId)];
+      const result = await unscheduleLessons(location, { lessonIds, reason });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to unschedule lesson');
+      }
+
+      return { data: result.data, message: result.message };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to unschedule lesson');
+    }
+  }
+);
+
 // Async thunk for fetching private lesson payments independently
 export const fetchPrivateLessonPayments = createAsyncThunk(
   'privateLesson/fetchPrivateLessonPayments',
@@ -644,6 +669,31 @@ const privateLessonSlice = createSlice({
         state.error = null;
       })
       .addCase(updatePriceThunk.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Unschedule lesson reducers
+      .addCase(unscheduleLessonThunk.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(unscheduleLessonThunk.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // clear or reset schedule details and update status
+        if (state.privateLessonInfo) {
+          state.privateLessonInfo.details.status = 'Unscheduled';
+          state.privateLessonInfo.details.schedule = {
+            teacher: '',
+            teacherId: undefined,
+            scheduledDate: '',
+            time: '',
+            duration: '',
+            expiryDate: '',
+          };
+        }
+        state.error = null;
+      })
+      .addCase(unscheduleLessonThunk.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       })
