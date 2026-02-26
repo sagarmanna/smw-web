@@ -67,6 +67,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     saveTax,
     savePrice,
     saveGroupStudentDiscount,
+    saveUnschedule,
   } = usePrivateLessonDetails(location, privateLessonId);
 
   // selectors for email statement data loaded from slice
@@ -479,6 +480,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                     isLoading={isLoading}
                     location={location}
                     hideGenerateInvoice={isGroupLesson}
+                    onUnschedule={saveUnschedule}
                   />
 
                   <PrivateLessonCommentsCard
@@ -543,6 +545,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                     details={details}
                     isLoading={isLoading}
                     location={location}
+                    onUnschedule={saveUnschedule}
                   />
 
                   <PrivateLessonDueDateCard
