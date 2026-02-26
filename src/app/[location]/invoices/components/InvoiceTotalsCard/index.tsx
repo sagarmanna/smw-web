@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AdjustTaxModal, TaxAdjustmentData } from "../modals/AdjustTaxModal";
+import { calculateTaxFromItems } from "../../utils/totalsCalculator";
 import type { InvoiceItem } from "../../types";
 
 interface InvoiceTotalsCardProps {
@@ -43,7 +44,7 @@ export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
 
   // Calculate tax from items (sum of all item taxes)
   const taxCalculated = React.useMemo(() => {
-    return items.reduce((sum, item) => sum + (item.tax || 0), 0);
+    return calculateTaxFromItems(items);
   }, [items]);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {

@@ -10,6 +10,15 @@ export interface TotalsCalculationResult {
 }
 
 /**
+ * Calculates total tax from invoice items (sum of all item taxes)
+ * @param items - Array of invoice items
+ * @returns Total tax amount
+ */
+export function calculateTaxFromItems(items: InvoiceItem[]): number {
+  return items.reduce((sum, item) => sum + (item.tax || 0), 0);
+}
+
+/**
  * Recalculates invoice totals based on items, tax, and paid amount
  * @param items - Array of invoice items
  * @param currentTax - Current tax amount

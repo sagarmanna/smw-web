@@ -20,7 +20,14 @@ interface EditDiscountModalProps {
   onClose: () => void;
   discount: string;
   lessonPrice: string;
-  onSubmit: (discount: string) => Promise<boolean>;
+  // Accepts the full discount object
+  onSubmit: (discountFields: {
+    customerDiscount: number;
+    paymentFrequencyDiscount: number;
+    multiEnrolmentDiscount: number;
+    lineItemDiscount: number;
+    lineItemDiscountValueType: number;
+  }) => Promise<boolean>;
   saving?: boolean;
 }
 
@@ -56,57 +63,18 @@ export function EditDiscountModal({
     event.preventDefault();
     setError("");
 
-    // Calculate total discount amount from all fields
-    const basePrice = parseFloat(lessonPrice?.replace("$", "") || "0") || 0;
-    if (basePrice === 0) {
-      setError("Lesson price is required to calculate discount");
-      return;
-    }
+    // Prepare discount fields for API
+    const discountFields = {
+      customerDiscount: parseFloat(customerDiscount) || 0,
+      paymentFrequencyDiscount: parseFloat(paymentFrequencyDiscount) || 0,
+      multiEnrolmentDiscount: parseFloat(multipleEnrollmentDiscount) || 0,
+      lineItemDiscount: parseFloat(lineItemDiscount) || 0,
+      lineItemDiscountValueType: lineItemDiscountType === "$" ? 0 : 1,
+    };
 
-    let discountedPrice = basePrice;
-    let totalDiscount = 0;
+    // Optionally validate here (e.g., at least one field is set)
 
-    // Apply Payment Frequency Discount (percentage)
-    const pfDiscount = parseFloat(paymentFrequencyDiscount) || 0;
-    if (pfDiscount > 0) {
-      const discountAmount = discountedPrice * (pfDiscount / 100);
-      discountedPrice = discountedPrice - discountAmount;
-      totalDiscount += discountAmount;
-    }
-
-    // Apply Customer Discount (percentage)
-    const custDiscount = parseFloat(customerDiscount) || 0;
-    if (custDiscount > 0) {
-      const discountAmount = discountedPrice * (custDiscount / 100);
-      discountedPrice = discountedPrice - discountAmount;
-      totalDiscount += discountAmount;
-    }
-
-    // Apply Multiple Enrollment Discount (fixed $)
-    const multiEnrollDiscount = parseFloat(multipleEnrollmentDiscount) || 0;
-    if (multiEnrollDiscount > 0) {
-      discountedPrice = discountedPrice - multiEnrollDiscount;
-      totalDiscount += multiEnrollDiscount;
-    }
-
-    // Apply Line Item Discount (fixed $ or percentage)
-    const lineItemValue = parseFloat(lineItemDiscount) || 0;
-    if (lineItemValue > 0) {
-      if (lineItemDiscountType === "$") {
-        discountedPrice = discountedPrice - lineItemValue;
-        totalDiscount += lineItemValue;
-      } else {
-        // percentage
-        const discountAmount = discountedPrice * (lineItemValue / 100);
-        discountedPrice = discountedPrice - discountAmount;
-        totalDiscount += discountAmount;
-      }
-    }
-
-    // Format discount as dollar amount
-    const formattedDiscount = `$${totalDiscount.toFixed(2)}`;
-
-    const success = await onSubmit(formattedDiscount);
+    const success = await onSubmit(discountFields);
     if (success) {
       onClose();
     }

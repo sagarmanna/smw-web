@@ -20,7 +20,13 @@ import { EditTaxModal } from "../modals/EditTaxModal";
 
 interface PrivateLessonTotalsCardProps {
   details: PrivateLessonDetails | null;
-  onSaveDiscount: (discount: string) => Promise<boolean>;
+  onSaveDiscount: (discountFields: {
+    customerDiscount: number;
+    paymentFrequencyDiscount: number;
+    multiEnrolmentDiscount: number;
+    lineItemDiscount: number;
+    lineItemDiscountValueType: number;
+  }) => Promise<boolean>;
   onSaveTax: (tax: string) => Promise<boolean>;
   onSavePrice: (lessonRatePerHour: string) => Promise<boolean>;
   savingDetails?: boolean;
@@ -105,8 +111,14 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
   }, []);
 
   const handleDiscountSubmit = React.useCallback(
-    async (discount: string): Promise<boolean> => {
-      return await onSaveDiscount(discount);
+    async (discountFields: {
+      customerDiscount: number;
+      paymentFrequencyDiscount: number;
+      multiEnrolmentDiscount: number;
+      lineItemDiscount: number;
+      lineItemDiscountValueType: number;
+    }): Promise<boolean> => {
+      return await onSaveDiscount(discountFields);
     },
     [onSaveDiscount]
   );

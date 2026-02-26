@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
@@ -11,6 +11,8 @@ import { EmailModal, type EmailFormData } from "@/components/EmailModal";
 import { sendEmail } from "@/lib/api/legacyApiAdapter";
 import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
 import { usePrivateLessonDetails } from "../hooks/usePrivateLessonDetails";
+import { fetchEmailStatement } from "./private-lesson-details.slice";
+import { generateEmailContent } from "./utils/emailStatementHtmlGenerator";
 import { PrivateLessonDetailsCard } from "../components/PrivateLessonDetailsCard";
 import { PrivateLessonStudentCard } from "../components/PrivateLessonStudentCard";
 import { PrivateLessonAttendanceCard } from "../components/PrivateLessonAttendanceCard";
@@ -36,6 +38,7 @@ interface PrivateLessonDetailClientProps {
 
 export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailClientProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const privateLessonId = id;
 
   // Get loading and error from Redux - single source of truth
@@ -64,11 +67,49 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     saveTax,
     savePrice,
     saveGroupStudentDiscount,
+    saveUnschedule,
   } = usePrivateLessonDetails(location, privateLessonId);
+
+  // selectors for email statement data loaded from slice
+  const emailStatement = useAppSelector((state) => state.privateLesson.emailStatement);
+  const emailStatementLoading = useAppSelector((state) => state.privateLesson.emailStatementLoading);
+  const emailStatementError = useAppSelector((state) => state.privateLesson.emailStatementError);
 
   // Email modal state for sending private lesson statements
   const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
   const [customerEmails, setCustomerEmails] = React.useState<string[]>([]);
+
+  // memoized subject/content similar to group course detail page
+  const emailSubject = React.useMemo(() => {
+    return emailStatement?.emailTemplate?.subject || "";
+  }, [emailStatement]);
+
+  // extract header and footer separately so the modal can render them readonly
+  const emailHeaderHtml = React.useMemo(() => {
+    const header = emailStatement?.emailTemplate?.header?.trim() || "";
+    return header;
+  }, [emailStatement]);
+
+  const emailContent = React.useMemo(() => {
+    if (!emailStatement) return "";
+    // generate complete html including header/footer; we still render them outside editor
+    const content = generateEmailContent(emailStatement);
+    return content;
+  }, [emailStatement, isEmailModalOpen]);
+
+  const recipientEmails = React.useMemo(() => {
+    // if template defines a "to" list use that first (comma-separated string),
+    // otherwise fall back to the explicit emails array or the customer addresses.
+    const toField = emailStatement?.emailTemplate?.to;
+    if (toField && toField.trim() !== "") {
+      return toField
+        .split(",")
+        .map((e) => e.trim())
+        .filter((e) => e);
+    }
+
+    return emailStatement?.emails || customerEmails;
+  }, [emailStatement, customerEmails]);
 
   // Receive payment modal state
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
@@ -150,8 +191,16 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
 
   const handleMailClick = React.useCallback(() => {
+    // fetch data if not already loaded
+    if (!emailStatement && !emailStatementLoading) {
+      dispatch(fetchEmailStatement({ location, privateLessonId }));
+    }
     setIsEmailModalOpen(true);
-  }, []);
+  }, [dispatch, emailStatement, emailStatementLoading, location, privateLessonId]);
+
+  const handleRetryEmailStatement = React.useCallback(() => {
+    dispatch(fetchEmailStatement({ location, privateLessonId }));
+  }, [dispatch, location, privateLessonId]);
 
   const handleReceivePaymentClick = React.useCallback(() => {
     setIsReceivePaymentModalOpen(true);
@@ -431,6 +480,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                     isLoading={isLoading}
                     location={location}
                     hideGenerateInvoice={isGroupLesson}
+                    onUnschedule={saveUnschedule}
                   />
 
                   <PrivateLessonCommentsCard
@@ -495,6 +545,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                     details={details}
                     isLoading={isLoading}
                     location={location}
+                    onUnschedule={saveUnschedule}
                   />
 
                   <PrivateLessonDueDateCard
@@ -552,8 +603,48 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
       />
 
       {/* Email Modal - private lesson statement */}
+      {/* overlay while loading or error state similar to enrolment page */}
+      {isEmailModalOpen && emailStatementLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+            <LoadingAnimation size="md" text="Loading email statement..." />
+          </div>
+        </div>
+      )}
+
+      {isEmailModalOpen && emailStatementError && !emailStatementLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-md">
+            <ErrorDisplay
+              error={emailStatementError}
+              title="Failed to Load Email Statement"
+              fallbackMessage="Unable to load email statement data. Please try again."
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={handleRetryEmailStatement}
+                className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setIsEmailModalOpen(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <EmailModal
-        open={isEmailModalOpen}
+        open={
+          isEmailModalOpen &&
+          !emailStatementLoading &&
+          !!emailStatement &&
+          !emailStatementError
+        }
         onOpenChange={setIsEmailModalOpen}
         onSend={async (emailData: EmailFormData) => {
           if (!details?.studentId) {
@@ -562,7 +653,6 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           }
 
           try {
-            // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
             const response = await sendEmail(location, {
               objectId: 8,
               userId: details.studentId,
@@ -585,9 +675,11 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
             toast.error(errorMessage);
           }
         }}
-        recipientEmails={customerEmails}
+        recipientEmails={recipientEmails}
         locationName={location}
-        initialSubject="Private Lesson Statement from Arcadia Academy of Music"
+        initialSubject={emailSubject || undefined}
+        initialContent={emailContent || undefined}
+        headerHtml={emailHeaderHtml || undefined}
         localStorageKey={`private-lesson-email-${id}-${details?.studentId || "default"}`}
       />
 

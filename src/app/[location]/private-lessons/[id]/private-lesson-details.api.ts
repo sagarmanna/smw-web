@@ -427,6 +427,89 @@ export async function getPrivateLessonHistory(
   }
 }
 
+// Email statement API types -------------------------------------------------
+export interface PrivateLessonEmailStatementBody {
+  lesson: {
+    student: string;
+    customer: string;
+    teacher: string;
+    scheduledDate: string;
+    time: string;
+    duration: string;
+    status: string;
+    expiryDate: string;
+  };
+  // some endpoints may also return a list of recipient emails
+  emails?: string[];
+  // when the API returns an emailTemplate at the top level we merge it in
+  emailTemplate?: {
+    id: number;
+    to: string;
+    subject: string;
+    header: string;
+    footer: string;
+  };
+}
+
+export interface PrivateLessonEmailStatementApiResponse {
+  success: boolean;
+  data: {
+    body: PrivateLessonEmailStatementBody;
+    // some responses (newer) return the template alongside the body
+    emailTemplate?: {
+      id: number;
+      to: string;
+      subject: string;
+      header: string;
+      footer: string;
+    };
+  };
+  message?: string;
+}
+
+/**
+ * Fetches private lesson email statement from the API.
+ *
+ * Endpoint: GET /admin/v2/{location}/lesson/{privateLessonId}/email-statement
+ */
+export async function getPrivateLessonEmailStatement(
+  location: string,
+  privateLessonId: string
+): Promise<PrivateLessonEmailStatementApiResponse | null> {
+  try {
+    const response = await apiClient.get<PrivateLessonEmailStatementApiResponse>(
+      `/admin/v2/${location}/lesson/${privateLessonId}/email-statement`
+    );
+
+    if (!response.data.success || !response.data.data?.body) {
+      // if the call failed we propagate the data (so UI can show message) or null
+      return response.data.success === false ? response.data : null;
+    }
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: {
+          lesson: {
+            student: "",
+            customer: "",
+            teacher: "",
+            scheduledDate: "",
+            time: "",
+            duration: "",
+            status: "",
+            expiryDate: "",
+          },
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to fetch email statement",
+    };
+  }
+}
+
 /**
  * Transforms API response to match the PrivateLessonInfo interface
  */
@@ -663,37 +746,36 @@ export interface UpdateAttendanceResponse {
 }
 
 /**
- * Updates attendance via PUT API
- * For now, returns mock response
+ * Updates attendance via PUT API.
+ * PUT /admin/v2/{location}/lesson/{privateLessonId}/attendance
  */
 export async function updateAttendance(
   location: string,
   privateLessonId: string,
   data: UpdateAttendanceRequest
 ): Promise<UpdateAttendanceResponse | null> {
-  try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        id: Number(privateLessonId) || 0,
-        present: data.present,
-      },
-    };
-  } catch (error: unknown) {
-    console.error("Error updating attendance:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
-    return {
-      success: false,
-      data: {
-        id: Number(privateLessonId) || 0,
-        present: false,
-      },
-      message: apiError.response?.data?.message || "Failed to update attendance",
-    };
+  const response = await apiClient.put<UpdateAttendanceResponse>(
+    `/admin/v2/${location}/lesson/${privateLessonId}/attendance`,
+    data
+  );
+
+  const body = response.data;
+  const success = body?.success === true;
+  const message = body?.message;
+
+  if (!success) {
+    throw new Error(
+      typeof message === "string" && message.trim() !== ""
+        ? message
+        : "Failed to update attendance"
+    );
   }
+
+  return {
+    success: true,
+    data: body.data,
+    message,
+  };
 }
 
 // Update Cost API Types
@@ -1054,40 +1136,37 @@ export interface DeletePrivateLessonResponse {
 }
 
 /**
- * Deletes a private lesson via DELETE API
- * For now, returns mock response
- * 
- * @param location - The location identifier
- * @param privateLessonId - The private lesson ID
- * @returns Promise resolving to the delete response or null on error
+ * Deletes a private lesson via the new bulk-delete endpoint used by listing and
+ * detail pages.  We wrap the existing `deleteLessonsApi` so callers don't need
+ * to know the payload format.
  */
+import { deleteLessonsApi } from "../actionApi/deleteLessons.api";
+
 export async function deletePrivateLesson(
   location: string,
   privateLessonId: string
 ): Promise<DeletePrivateLessonResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.delete<DeletePrivateLessonResponse>(
-    //   `/admin/v2/${location}/private-lessons/${privateLessonId}`
-    // );
-    // return response.data;
-    
-    void location;
-    void privateLessonId;
-    
-    // Mock response
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    const lessonIdNum = Number(privateLessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    const result = await deleteLessonsApi(location, {
+      lessonIds: [lessonIdNum],
+    });
+
+    // deleteLessonsApi already throws on failure, so success path is simple
     return {
       success: true,
-      message: "Private lesson deleted successfully",
+      message: result.message,
     };
   } catch (error: unknown) {
     console.error("Error deleting private lesson:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { message?: string };
     return {
       success: false,
-      message: apiError.response?.data?.message || "Failed to delete private lesson",
+      message: apiError.message || (error instanceof Error ? error.message : "Failed to delete private lesson"),
     };
   }
 }

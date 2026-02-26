@@ -14,8 +14,14 @@ import {
   updateTax,
   updatePrice,
   updateGroupLessonStudentDiscount,
+  // new import for email statement API types
+  getPrivateLessonEmailStatement,
+  type PrivateLessonEmailStatementBody,
   type PaginationInfo,
 } from './private-lesson-details.api';
+
+// action APIs
+import { unscheduleLessons } from '../actionApi/unschedule.api';
 import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment, PrivateLessonPayment } from '../types';
 
 interface PrivateLessonState {
@@ -35,6 +41,11 @@ interface PrivateLessonState {
   paymentsLoading: boolean;
   paymentsError: string | null;
   paymentsSortDir: 'asc' | 'desc';
+
+  // Email statement state
+  emailStatement: PrivateLessonEmailStatementBody | null;
+  emailStatementLoading: boolean;
+  emailStatementError: string | null;
 }
 
 const initialState: PrivateLessonState = {
@@ -52,6 +63,9 @@ const initialState: PrivateLessonState = {
   paymentsLoading: false,
   paymentsError: null,
   paymentsSortDir: 'desc',
+  emailStatement: null,
+  emailStatementLoading: false,
+  emailStatementError: null,
 };
 
 // Async thunk for fetching private lesson info
@@ -232,14 +246,16 @@ export const updateDueDateThunk = createAsyncThunk(
 );
 
 // Async thunk for updating discount
+import { applyDiscount, ApplyDiscountRequest } from "../actionApi/discount.api";
+
 export const updateDiscountThunk = createAsyncThunk(
   'privateLesson/updateDiscount',
   async (
-    { location, privateLessonId, discount }: { location: string; privateLessonId: string; discount: string },
+    { location, payload }: { location: string; payload: ApplyDiscountRequest },
     { rejectWithValue }
   ) => {
     try {
-      const result = await updateDiscount(location, privateLessonId, { discount });
+      const result = await applyDiscount(location, payload);
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update discount');
@@ -352,6 +368,55 @@ export const fetchPrivateLessonHistory = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching private lesson email statement
+export const fetchEmailStatement = createAsyncThunk(
+  'privateLesson/fetchEmailStatement',
+  async (
+    { location, privateLessonId }: { location: string; privateLessonId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getPrivateLessonEmailStatement(location, privateLessonId);
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch private lesson email statement');
+      }
+      // The API historically returned the template inside `data.body.emailTemplate`,
+      // but newer responses place it at `data.emailTemplate` alongside the body.
+      // Merge the two so the rest of the code can always look in the same spot.
+      const merged: PrivateLessonEmailStatementBody = {
+        ...apiResult.data.body,
+        emailTemplate:
+          apiResult.data.body.emailTemplate || apiResult.data.emailTemplate || undefined,
+      };
+      return { data: merged };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch private lesson email statement');
+    }
+  }
+);
+
+// Async thunk for unscheduling a single private lesson via API
+export const unscheduleLessonThunk = createAsyncThunk(
+  'privateLesson/unscheduleLesson',
+  async (
+    { location, privateLessonId, reason }: { location: string; privateLessonId: string; reason: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const lessonIds = [Number(privateLessonId)];
+      const result = await unscheduleLessons(location, { lessonIds, reason });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to unschedule lesson');
+      }
+
+      return { data: result.data, message: result.message };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to unschedule lesson');
+    }
+  }
+);
+
 // Async thunk for fetching private lesson payments independently
 export const fetchPrivateLessonPayments = createAsyncThunk(
   'privateLesson/fetchPrivateLessonPayments',
@@ -397,6 +462,9 @@ const privateLessonSlice = createSlice({
       state.paymentsLoading = false;
       state.paymentsError = null;
       state.paymentsSortDir = 'desc';
+      state.emailStatement = null;
+      state.emailStatementLoading = false;
+      state.emailStatementError = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -537,10 +605,8 @@ const privateLessonSlice = createSlice({
       })
       .addCase(updateDiscountThunk.fulfilled, (state, action) => {
         state.isSaving = false;
-        if (state.privateLessonInfo && action.payload) {
-          const { data } = action.payload;
-          state.privateLessonInfo.details.totals.discount = data.discount;
-        }
+        // The API does not return the updated discount value, so we do not update it here.
+        // Optionally, you could trigger a refetch of the lesson details after a successful update.
         state.error = null;
       })
       .addCase(updateDiscountThunk.rejected, (state, action) => {
@@ -606,6 +672,31 @@ const privateLessonSlice = createSlice({
         state.isSaving = false;
         state.error = action.payload as string;
       })
+      // Unschedule lesson reducers
+      .addCase(unscheduleLessonThunk.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(unscheduleLessonThunk.fulfilled, (state, action) => {
+        state.isSaving = false;
+        // clear or reset schedule details and update status
+        if (state.privateLessonInfo) {
+          state.privateLessonInfo.details.status = 'Unscheduled';
+          state.privateLessonInfo.details.schedule = {
+            teacher: '',
+            teacherId: undefined,
+            scheduledDate: '',
+            time: '',
+            duration: '',
+            expiryDate: '',
+          };
+        }
+        state.error = null;
+      })
+      .addCase(unscheduleLessonThunk.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
       // Fetch private lesson history reducers
       .addCase(fetchPrivateLessonHistory.pending, (state) => {
         state.historyLoading = true;
@@ -645,6 +736,19 @@ const privateLessonSlice = createSlice({
       .addCase(fetchPrivateLessonPayments.rejected, (state, action) => {
         state.paymentsLoading = false;
         state.paymentsError = action.payload as string;
+      })
+      // Email statement reducers
+      .addCase(fetchEmailStatement.pending, (state) => {
+        state.emailStatementLoading = true;
+        state.emailStatementError = null;
+      })
+      .addCase(fetchEmailStatement.fulfilled, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatement = action.payload.data;
+      })
+      .addCase(fetchEmailStatement.rejected, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatementError = action.payload as string;
       });
   },
 });
