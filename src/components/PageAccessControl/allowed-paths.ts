@@ -27,6 +27,7 @@ export const ALLOWED_PATHS: string[] = [
     '/staffmembers',
     '/teachers',
     '/private-lessons',
+    '/group-lessons',
     '/group-courses',
     '/unscheduled-lessons',
     '/recurring-payments',
