@@ -231,7 +231,8 @@ export function PaymentsReceivePaymentModal({
             location,
             customerIdNum,
             1,
-            1
+            1,
+            "id"
           );
           
           if (paymentsResponse.data && paymentsResponse.data.length > 0) {
