@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { extractErrorMessage } from '../utils/errorUtils';
 import {
   getPrivateLessonDetails,
   getPrivateLessonPayments,
@@ -246,16 +247,7 @@ export const updateDiscountThunk = createAsyncThunk(
 
       return { data: result.data, message: result.message };
     } catch (error) {
-      const axiosError = error as { response?: { data?: { message?: string | string[] } } };
-      const responseMessage = axiosError.response?.data?.message;
-      const message = Array.isArray(responseMessage)
-        ? responseMessage[0]
-        : typeof responseMessage === 'string' && responseMessage.trim() !== ''
-        ? responseMessage
-        : error instanceof Error
-        ? error.message
-        : 'Failed to update discount';
-      return rejectWithValue(message);
+      return rejectWithValue(extractErrorMessage(error, 'Failed to update discount'));
     }
   }
 );
@@ -279,7 +271,7 @@ export const updateTaxThunk = createAsyncThunk(
 
       return { data: result.data, message: result.message };
     } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update tax');
+      return rejectWithValue(extractErrorMessage(error, 'Failed to update tax'));
     }
   }
 );
@@ -330,16 +322,7 @@ export const updatePriceThunk = createAsyncThunk(
 
       return { data: result.data, message: result.message };
     } catch (error) {
-      const axiosError = error as { response?: { data?: { message?: string | string[] } } };
-      const responseMessage = axiosError.response?.data?.message;
-      const message = Array.isArray(responseMessage)
-        ? responseMessage[0]
-        : typeof responseMessage === 'string' && responseMessage.trim() !== ''
-        ? responseMessage
-        : error instanceof Error
-        ? error.message
-        : 'Failed to update price';
-      return rejectWithValue(message);
+      return rejectWithValue(extractErrorMessage(error, 'Failed to update price'));
     }
   }
 );
