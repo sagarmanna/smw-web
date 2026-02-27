@@ -25,6 +25,7 @@ import {
   PrivateLessonHistory,
   PrivateLessonComment,
 } from "../types";
+import { extractErrorMessage, resolveMessage } from "../utils/errorUtils";
 
 type PrivateLessonDetailsHookReturn = {
   loading: boolean;
@@ -278,7 +279,7 @@ export function usePrivateLessonDetails(
           ...discountFields,
         };
 
-        await dispatch(
+        const discountResult = await dispatch(
           updateDiscountThunk({
             location,
             payload,
@@ -286,13 +287,11 @@ export function usePrivateLessonDetails(
         ).unwrap();
         // Refetch lesson details to get updated totals and avoid NaN
         await dispatch(fetchPrivateLesson({ location, privateLessonId }));
-        toast.success("Discount updated successfully");
+        toast.success(resolveMessage(discountResult.message, "Discount updated successfully"));
         return true;
       } catch (error) {
         console.error("Failed to save discount:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to update discount. Please try again."
-        );
+        toast.error(extractErrorMessage(error, "Failed to update discount. Please try again."));
         return false;
       }
     },
@@ -335,17 +334,11 @@ export function usePrivateLessonDetails(
             lessonRatePerHour,
           })
         ).unwrap();
-        toast.success(
-          typeof result.message === "string" && result.message.trim() !== ""
-            ? result.message
-            : "Price updated successfully"
-        );
+        toast.success(resolveMessage(result.message, "Price updated successfully"));
         return true;
       } catch (error) {
         console.error("Failed to save price:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to update price. Please try again."
-        );
+        toast.error(extractErrorMessage(error, "Failed to update price. Please try again."));
         return false;
       }
     },
@@ -355,20 +348,18 @@ export function usePrivateLessonDetails(
   const saveTax = React.useCallback(
     async (tax: string): Promise<boolean> => {
       try {
-        await dispatch(
+        const taxResult = await dispatch(
           updateTaxThunk({
             location,
             privateLessonId,
             tax,
           })
         ).unwrap();
-        toast.success("Tax updated successfully");
+        toast.success(resolveMessage(taxResult.message, "Tax updated successfully"));
         return true;
       } catch (error) {
         console.error("Failed to save tax:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to update tax. Please try again."
-        );
+        toast.error(extractErrorMessage(error, "Failed to update tax. Please try again."));
         return false;
       }
     },
