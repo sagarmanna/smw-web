@@ -9,6 +9,8 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
+import { addLineItem } from "@/lib/api/pos.api";
+import { toast } from "sonner";
 
 interface Item {
   id: string;
@@ -25,7 +27,7 @@ export default function POSPage() {
   const locationData = locations.find(loc => loc.slug === location);
   const locationId = locationData?.id || 1;
   
-  const { transactionId, transactionDate, isLoading, initializeTransaction } = usePOSTransaction(locationId);
+  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction } = usePOSTransaction(locationId, location);
   const { isScanning, scanItem } = usePOSItemLookup(location);
   
   const productRef = useRef<HTMLInputElement>(null);
@@ -63,9 +65,27 @@ export default function POSPage() {
       setItems([...items, newItem]);
       setProductCode("");
       setQuantity(1);
+
+      // Save to database
+      try {
+        console.log('[Line Item] Adding to transaction:', {
+          transactionId: numericTransactionId,
+          itemId: itemData.id,
+          quantity
+        });
+
+        await addLineItem(numericTransactionId, location, {
+          itemId: itemData.id,
+          quantity: quantity,
+        });
+
+        console.log('[Line Item] Successfully added');
+      } catch (error) {
+        toast.error('Failed to save item to transaction');
+        console.error('Failed to add line item:', error);
+      }
     }
     
-    // Use setTimeout to ensure focus happens after React re-render
     setTimeout(() => productRef.current?.focus(), 0);
   };
 
