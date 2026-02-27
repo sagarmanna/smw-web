@@ -30,11 +30,9 @@ export function EditTaxModal({
   const [value, setValue] = React.useState<string>("");
   const [error, setError] = React.useState<string>("");
 
-  // Initialize value when modal opens
   React.useEffect(() => {
     if (open) {
-      // Remove $ sign and any formatting for input
-      const cleanValue = tax?.replace("$", "").trim() || "";
+      const cleanValue = tax?.replace(/[$%]/g, "").trim() || "";
       setValue(cleanValue);
       setError("");
     }
@@ -43,19 +41,28 @@ export function EditTaxModal({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!value.trim()) {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
       setError("Tax is required.");
+      return;
+    }
+
+    const numeric = parseFloat(trimmed);
+
+    if (isNaN(numeric)) {
+      setError("Tax must be a valid number.");
+      return;
+    }
+
+    if (numeric <= 0) {
+      setError("Tax must be a positive number.");
       return;
     }
 
     setError("");
 
-    // Format with $ sign if not already present
-    const formattedValue = value.trim().startsWith("$")
-      ? value.trim()
-      : `$${value.trim()}`;
-
-    const success = await onSubmit(formattedValue);
+    const success = await onSubmit(String(numeric));
     if (success) {
       onClose();
     }
@@ -83,7 +90,7 @@ export function EditTaxModal({
               value={value}
               onChange={handleInputChange}
               placeholder="Enter tax"
-              className={error ? "border-red-500" : "border-green-500"}
+              className={error ? "border-red-500" : ""}
             />
             {error && (
               <p className="text-sm text-red-500">{error}</p>
