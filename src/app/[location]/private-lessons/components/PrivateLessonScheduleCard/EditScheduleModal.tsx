@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -28,22 +29,16 @@ import {
 import { DurationPicker } from "@/components/DurationPicker";
 import { parseDuration } from "@/utils/durationUtils";
 import {
-  mockGetTeacherSchedule,
+  getTeacherScheduleEvents,
   type TeacherScheduleData,
-  type LessonEvent,
-  type ScheduleAvailabilityEvent,
-} from "../../../teachers/[id]/mockScheduleData";
+  type TeacherScheduleLessonEvent,
+  type TeacherScheduleAvailabilityEvent,
+} from "../../../teachers/[id]/teachers-details-tabs.api";
+import { getTeacherView, getTeachersList } from "@/app/[location]/schedule/schedule.api";
+import { editLessonSchedule } from "../../[id]/private-lesson-details.api";
+import { extractErrorMessage, resolveMessage } from "../../utils/errorUtils";
 import { toast } from "sonner";
 import { PrivateLessonDetails } from "../../types";
-
-// Mock teachers list for development
-const MOCK_TEACHERS = [
-  { id: 1, title: "John Smith" },
-  { id: 2, title: "Emma Johnson" },
-  { id: 3, title: "Michael Brown" },
-  { id: 4, title: "Sarah Davis" },
-  { id: 5, title: "Robert Wilson" },
-];
 
 const DAY_RESOURCES = [
   { id: 1, title: "Monday" },
@@ -60,24 +55,29 @@ interface EditScheduleModalProps {
   onOpenChange: (open: boolean) => void;
   location: string;
   details: PrivateLessonDetails | null;
+  onSuccess?: () => void;
 }
 
 export function EditScheduleModal({
   open,
   onOpenChange,
+  location,
   details,
+  onSuccess,
 }: EditScheduleModalProps) {
   const [scheduleData, setScheduleData] = useState<TeacherScheduleData | null>(null);
-  const [scheduleLoading, setScheduleLoading] = useState<boolean>(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [rescheduleDate, setRescheduleDate] = useState<Date | null>(null);
-  const [showAllModal, setShowAllModal] = useState<boolean>(false);
-  const [goToDateOpen, setGoToDateOpen] = useState<boolean>(false);
+  const [showAllModal, setShowAllModal] = useState(false);
+  const [goToDateOpen, setGoToDateOpen] = useState(false);
+  const [eligibleTeachers, setEligibleTeachers] = useState<Array<{ id: number; title: string }>>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | undefined>(undefined);
-  const [duration, setDuration] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [duration, setDuration] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const router = useRouter();
   const detailsRef = useRef(details);
   detailsRef.current = details;
 
@@ -90,92 +90,51 @@ export function EditScheduleModal({
     return d;
   }, []);
 
-  const convertLessonsToEvents = useCallback(
-    (lessons: LessonEvent[], mondayDate: Date): CalendarEvent[] => {
-      return lessons.map((lesson) => {
-        const originalStart = new Date(lesson.start);
-        const originalEnd = new Date(lesson.end);
+  const toDateString = useCallback((date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, []);
 
-        const startHours = originalStart.getHours();
-        const startMinutes = originalStart.getMinutes();
-        const startSeconds = originalStart.getSeconds();
-        const endHours = originalEnd.getHours();
-        const endMinutes = originalEnd.getMinutes();
-        const endSeconds = originalEnd.getSeconds();
-
-        const eventStart = new Date(mondayDate);
-        eventStart.setHours(startHours, startMinutes, startSeconds, 0);
-
-        const eventEnd = new Date(mondayDate);
-        eventEnd.setHours(endHours, endMinutes, endSeconds, 0);
-
-        return {
-          id: `lesson-${lesson.lessonId}`,
-          title: lesson.title,
-          start: eventStart,
-          end: eventEnd,
-          resourceId: lesson.resourceId,
-          backgroundColor: lesson.backgroundColor,
-          borderColor: lesson.backgroundColor,
-          className: lesson.className,
-          extendedProps: {
-            lessonId: lesson.lessonId.toString(),
-            url: lesson.url,
-          },
-        };
-      });
+  // ─── Fetch eligible teachers by programId (or all teachers as fallback) ──────
+  const fetchEligibleTeachers = useCallback(
+    async (programId?: number, date?: Date) => {
+      try {
+        if (programId) {
+          const dateStr = toDateString(date ?? new Date());
+          const response = await getTeacherView(
+            location,
+            dateStr,
+            false,
+            programId.toString(),
+            undefined,
+            "all-teachers-by-program"
+          );
+          setEligibleTeachers(response?.data?.resources ?? []);
+        } else {
+          const response = await getTeachersList(location);
+          if (response?.success && response.data) {
+            setEligibleTeachers(response.data.map((t) => ({ id: t.id, title: t.name })));
+          } else {
+            setEligibleTeachers([]);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching eligible teachers:", err);
+        setEligibleTeachers([]);
+      }
     },
-    []
+    [location, toDateString]
   );
 
-  const convertAvailabilityToBackground = useCallback(
-    (availability: ScheduleAvailabilityEvent[], mondayDate: Date) => {
-      return availability.map((avail) => {
-        const originalStart = new Date(avail.start);
-        const originalEnd = new Date(avail.end);
-
-        const availStart = new Date(mondayDate);
-        availStart.setHours(
-          originalStart.getHours(),
-          originalStart.getMinutes(),
-          originalStart.getSeconds(),
-          0
-        );
-
-        const availEnd = new Date(mondayDate);
-        availEnd.setHours(
-          originalEnd.getHours(),
-          originalEnd.getMinutes(),
-          originalEnd.getSeconds(),
-          0
-        );
-
-        return {
-          resourceId: avail.resourceId,
-          title: "",
-          start: availStart.toISOString(),
-          end: availEnd.toISOString(),
-          rendering: avail.rendering,
-          className: avail.className,
-          backgroundColor: avail.backgroundColor,
-        };
-      });
-    },
-    []
-  );
-
+  // ─── Fetch teacher schedule events ───────────────────────────────────────────
   const fetchSchedule = useCallback(
-    async (baseDate: Date, targetTeacherId?: number) => {
+    async (baseDate: Date, teacherId: number) => {
       setScheduleLoading(true);
       setScheduleError(null);
       try {
-        const year = baseDate.getFullYear();
-        const month = String(baseDate.getMonth() + 1).padStart(2, "0");
-        const day = String(baseDate.getDate()).padStart(2, "0");
-        const dateString = `${year}-${month}-${day}`;
-
-        const teacherIdToUse = targetTeacherId || details?.schedule.teacherId || 1;
-        const result = await mockGetTeacherSchedule(teacherIdToUse, dateString, showAllModal);
+        const result = await getTeacherScheduleEvents(location, teacherId, toDateString(baseDate));
         if (result) {
           setScheduleData(result);
         } else {
@@ -190,31 +149,81 @@ export function EditScheduleModal({
         setScheduleLoading(false);
       }
     },
-    [details?.schedule.teacherId, showAllModal]
+    [location, toDateString]
   );
 
-  // Initialize when modal opens or the lesson changes.
-  // detailsRef holds the latest details without being a dependency,
-  // so this only re-runs on open toggle or lesson id change.
+  // ─── Initialise when modal opens ─────────────────────────────────────────────
   useEffect(() => {
     if (!open || !detailsRef.current) return;
 
-    setSelectedTeacherId(detailsRef.current.schedule.teacherId);
-    setDuration(detailsRef.current.schedule.duration || "");
+    const d = detailsRef.current;
+    setSelectedTeacherId(d.schedule.teacherId);
+    setDuration(d.schedule.duration || "");
     setSelectedDate(new Date());
     setRescheduleDate(null);
     setShowAllModal(false);
     setGoToDateOpen(false);
-  }, [open, details?.id]);
 
-  // Load schedule when modal opens or date/teacher changes
+    fetchEligibleTeachers(d.programId, new Date());
+  }, [open, details?.id, fetchEligibleTeachers]);
+
+  // ─── Reload schedule when date or teacher changes ────────────────────────────
   useEffect(() => {
     if (!open) return;
-    const teacherIdToUse = selectedTeacherId || details?.schedule.teacherId || 1;
-    fetchSchedule(selectedDate, teacherIdToUse);
+    const teacherId = selectedTeacherId ?? details?.schedule.teacherId;
+    if (!teacherId) return;
+    fetchSchedule(selectedDate, teacherId);
   }, [open, selectedDate, selectedTeacherId, details?.schedule.teacherId, fetchSchedule]);
 
   const mondayDate = useMemo(() => getMonday(selectedDate), [selectedDate, getMonday]);
+
+  // ─── Convert API lessons → CalendarEvent[] ───────────────────────────────────
+  const convertLessonsToEvents = useCallback(
+    (lessons: TeacherScheduleLessonEvent[], monday: Date): CalendarEvent[] =>
+      lessons.map((lesson) => {
+        const s = new Date(lesson.start);
+        const e = new Date(lesson.end);
+        const start = new Date(monday);
+        start.setHours(s.getHours(), s.getMinutes(), s.getSeconds(), 0);
+        const end = new Date(monday);
+        end.setHours(e.getHours(), e.getMinutes(), e.getSeconds(), 0);
+        return {
+          id: `lesson-${lesson.lessonId}`,
+          title: lesson.title,
+          start,
+          end,
+          resourceId: lesson.resourceId,
+          backgroundColor: lesson.backgroundColor,
+          borderColor: lesson.backgroundColor,
+          className: lesson.className,
+          extendedProps: { lessonId: lesson.lessonId.toString(), url: lesson.url },
+        };
+      }),
+    []
+  );
+
+  // ─── Convert API availability → background events ────────────────────────────
+  const convertAvailabilityToBackground = useCallback(
+    (availability: TeacherScheduleAvailabilityEvent[], monday: Date) =>
+      availability.map((avail) => {
+        const s = new Date(avail.start);
+        const e = new Date(avail.end);
+        const start = new Date(monday);
+        start.setHours(s.getHours(), s.getMinutes(), s.getSeconds(), 0);
+        const end = new Date(monday);
+        end.setHours(e.getHours(), e.getMinutes(), e.getSeconds(), 0);
+        return {
+          resourceId: avail.resourceId,
+          title: "",
+          start: start.toISOString(),
+          end: end.toISOString(),
+          rendering: avail.rendering,
+          className: avail.className,
+          backgroundColor: avail.backgroundColor,
+        };
+      }),
+    []
+  );
 
   const calendarEvents = useMemo<CalendarEvent[]>(() => {
     if (!scheduleData) return [];
@@ -222,25 +231,18 @@ export function EditScheduleModal({
 
     if (rescheduleDate && details && duration && selectedTeacherId) {
       const { hours, minutes } = parseDuration(duration);
-
-      const startHours = rescheduleDate.getHours();
-      const startMinutes = rescheduleDate.getMinutes();
-      const startSeconds = rescheduleDate.getSeconds();
-
       const endTime = new Date(rescheduleDate);
-      endTime.setHours(endTime.getHours() + hours);
-      endTime.setMinutes(endTime.getMinutes() + minutes);
+      endTime.setHours(endTime.getHours() + hours, endTime.getMinutes() + minutes);
 
       const dayOfWeek = rescheduleDate.getDay();
       const resourceId = dayOfWeek === 0 ? 7 : dayOfWeek;
 
       const previewStart = new Date(mondayDate);
-      previewStart.setHours(startHours, startMinutes, startSeconds, 0);
-
+      previewStart.setHours(rescheduleDate.getHours(), rescheduleDate.getMinutes(), 0, 0);
       const previewEnd = new Date(mondayDate);
-      previewEnd.setHours(endTime.getHours(), endTime.getMinutes(), endTime.getSeconds(), 0);
+      previewEnd.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
 
-      const previewEvent: CalendarEvent = {
+      const preview: CalendarEvent = {
         id: "preview-reschedule",
         title: details.student || "Rescheduled Lesson",
         start: previewStart,
@@ -252,90 +254,81 @@ export function EditScheduleModal({
         extendedProps: { lessonId: "preview" },
       };
 
-      return [...lessons, previewEvent];
+      return [...lessons, preview];
     }
 
     return lessons;
-  }, [
-    scheduleData,
-    convertLessonsToEvents,
-    mondayDate,
-    rescheduleDate,
-    details,
-    duration,
-    selectedTeacherId,
-  ]);
+  }, [scheduleData, convertLessonsToEvents, mondayDate, rescheduleDate, details, duration, selectedTeacherId]);
 
-  const calendarAvailability = useMemo(() => {
-    if (!scheduleData) return [];
-    return convertAvailabilityToBackground(scheduleData.availability || [], mondayDate);
-  }, [scheduleData, convertAvailabilityToBackground, mondayDate]);
+  const calendarAvailability = useMemo(
+    () => convertAvailabilityToBackground(scheduleData?.availability ?? [], mondayDate),
+    [scheduleData, convertAvailabilityToBackground, mondayDate]
+  );
 
-  const timeRange = useMemo(() => {
-    if (scheduleData?.time) {
-      return { minTime: scheduleData.time.from, maxTime: scheduleData.time.to };
-    }
-    return { minTime: "08:00:00", maxTime: "23:30:00" };
-  }, [scheduleData]);
+  const timeRange = useMemo(
+    () =>
+      scheduleData?.time
+        ? { minTime: scheduleData.time.from, maxTime: scheduleData.time.to }
+        : { minTime: "08:00:00", maxTime: "23:30:00" },
+    [scheduleData]
+  );
 
-  const handleClose = useCallback(() => {
-    onOpenChange(false);
-  }, [onOpenChange]);
-
+  // ─── Slot click → set reschedule date ────────────────────────────────────────
   const handleSelectSlot = useCallback(
     (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
       if (!selectedTeacherId) {
         toast.error("Please select a teacher first");
         return;
       }
-
       const resourceId =
         typeof slotInfo.resourceId === "string"
           ? parseInt(slotInfo.resourceId)
-          : slotInfo.resourceId || 1;
+          : slotInfo.resourceId ?? 1;
 
-      const selectedHours = slotInfo.start.getHours();
-      const selectedMinutes = slotInfo.start.getMinutes();
-      const selectedSeconds = slotInfo.start.getSeconds();
-
-      const selectedDayDate = new Date(mondayDate);
-      selectedDayDate.setDate(mondayDate.getDate() + (resourceId - 1));
-      selectedDayDate.setHours(selectedHours, selectedMinutes, selectedSeconds, 0);
-
-      setRescheduleDate(selectedDayDate);
+      const day = new Date(mondayDate);
+      day.setDate(mondayDate.getDate() + (resourceId - 1));
+      day.setHours(slotInfo.start.getHours(), slotInfo.start.getMinutes(), 0, 0);
+      setRescheduleDate(day);
     },
     [selectedTeacherId, mondayDate]
   );
 
+  // ─── Save ─────────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    if (!selectedTeacherId || !rescheduleDate) {
+    if (!details?.id || !selectedTeacherId || !rescheduleDate || !duration) {
       toast.error("Please select a teacher and reschedule date");
       return;
     }
 
+    // Format date: "YYYY-MM-DD hh:mm a" → e.g. "2025-02-27 07:00 AM"
+    const dateForApi = format(rescheduleDate, "yyyy-MM-dd hh:mm a");
+
+    // Format duration: DurationPicker gives "HH:mm", API expects "HH:MM:SS"
+    const durationParts = duration.split(":");
+    const durationForApi = durationParts.length === 2 ? `${duration}:00` : duration;
+
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success("Lesson rescheduled successfully");
+      const result = await editLessonSchedule(location, details.id, {
+        date: dateForApi,
+        duration: durationForApi,
+      });
+      toast.success(resolveMessage(result.message, "Lesson rescheduled successfully"));
       onOpenChange(false);
-    } catch {
-      toast.error("Failed to reschedule lesson. Please try again.");
+      onSuccess?.();
+
+      // Redirect using the lesson ID from the response URL.
+      // Response URL format: "admin/v2/{location}/private-lesson/{lessonId}"
+      const lessonId = result.data?.url?.split("/").pop();
+      if (lessonId) {
+        router.push(`/${location}/private-lessons/${lessonId}`);
+      }
+    } catch (error) {
+      toast.error(extractErrorMessage(error, "Failed to reschedule lesson. Please try again."));
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedTeacherId, rescheduleDate, onOpenChange]);
-
-  // Build teachers list: current lesson's teacher + mock list (no duplicates)
-  const teachers = useMemo(() => {
-    const mockList = [...MOCK_TEACHERS];
-    const currentId = details?.schedule.teacherId;
-    const currentName = details?.schedule.teacher;
-    if (currentId && currentName && !mockList.find((t) => t.id === currentId)) {
-      mockList.unshift({ id: currentId, title: currentName });
-    }
-    return mockList;
-  }, [details?.schedule.teacherId, details?.schedule.teacher]);
+  }, [details?.id, selectedTeacherId, rescheduleDate, duration, location, router, onOpenChange, onSuccess]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -362,7 +355,7 @@ export function EditScheduleModal({
                   <SelectValue placeholder="Select Teacher" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teachers.map((t) => (
+                  {eligibleTeachers.map((t) => (
                     <SelectItem key={t.id} value={t.id.toString()}>
                       {t.title}
                     </SelectItem>
@@ -380,11 +373,7 @@ export function EditScheduleModal({
             </div>
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground font-semibold">Expiry Date</div>
-              <Input
-                value={details?.schedule.expiryDate ?? ""}
-                readOnly
-                className="h-10"
-              />
+              <Input value={details?.schedule.expiryDate ?? ""} readOnly className="h-10" />
             </div>
           </div>
 
@@ -394,10 +383,9 @@ export function EditScheduleModal({
                 id="show-all-modal"
                 checked={showAllModal}
                 onCheckedChange={(checked) => {
-                  const val = Boolean(checked);
-                  setShowAllModal(val);
-                  const teacherIdToUse = selectedTeacherId || details?.schedule.teacherId || 1;
-                  fetchSchedule(selectedDate, teacherIdToUse);
+                  setShowAllModal(Boolean(checked));
+                  const teacherId = selectedTeacherId ?? details?.schedule.teacherId;
+                  if (teacherId) fetchSchedule(selectedDate, teacherId);
                 }}
               />
               <label htmlFor="show-all-modal" className="text-sm">
@@ -410,11 +398,12 @@ export function EditScheduleModal({
                 {format(addDays(mondayDate, 6), "dd-MMM-yyyy, EEEE")}
               </div>
             </div>
-            <div className="flex items-center justify-end">
+            <div className="flex flex-col items-end gap-1">
+              <div className="text-xs text-muted-foreground font-semibold">Go to Date</div>
               <Popover open={goToDateOpen} onOpenChange={setGoToDateOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
-                    Go to Date
+                  <Button variant="outline" size="sm" className="h-9 w-full justify-start font-normal">
+                    {format(selectedDate, "MMM dd, yyyy")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
@@ -450,10 +439,7 @@ export function EditScheduleModal({
               availability={calendarAvailability}
               resources={DAY_RESOURCES}
               date={mondayDate}
-              onNavigate={(newDate) => {
-                const monday = getMonday(newDate);
-                setSelectedDate(monday);
-              }}
+              onNavigate={(newDate) => setSelectedDate(getMonday(newDate))}
               onSelectSlot={handleSelectSlot}
               viewType="teacher"
               minTime={timeRange.minTime}
@@ -465,7 +451,7 @@ export function EditScheduleModal({
         )}
 
         <DialogFooter className="flex items-center justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button
