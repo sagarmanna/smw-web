@@ -32,6 +32,10 @@ interface PrivateLessonScheduleCardProps {
    * Callback to unschedule the lesson. Should handle the API call and return promise.
    */
   onUnschedule?: (reason: string) => Promise<boolean>;
+  /**
+   * Called after a successful schedule edit so the parent can refresh lesson data.
+   */
+  onScheduleEdited?: () => void;
 }
 
 export const PrivateLessonScheduleCard = React.memo(function PrivateLessonScheduleCard({
@@ -40,6 +44,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
   location,
   hideGenerateInvoice = false,
   onUnschedule,
+  onScheduleEdited,
 }: PrivateLessonScheduleCardProps) {
   const router = useRouter();
   const [isUnscheduleModalOpen, setIsUnscheduleModalOpen] = React.useState(false);
@@ -151,6 +156,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
         onOpenChange={setIsEditModalOpen}
         location={location}
         details={details}
+        onSuccess={onScheduleEdited}
       />
     </>
   );

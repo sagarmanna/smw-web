@@ -25,6 +25,7 @@ export interface PrivateLessonDetailsResponseBody {
   // New nested structure (from actual API)
   lesson?: {
     id: number;
+    programId?: number;
     programName: string;
     classroomName: string;
     status: string;
@@ -619,6 +620,7 @@ export function transformApiResponse(
   return {
     details: {
       id: (lessonData?.id ?? body.id) || 0,
+      programId: lessonData?.programId,
       program: (lessonData?.programName ?? body.program) || "",
       classroom: (lessonData?.classroomName ?? body.classroom) || "",
       status: (lessonData?.status ?? body.status) || "",
@@ -1100,6 +1102,64 @@ export async function updateTax(
       message: apiError.response?.data?.message || "Failed to update tax",
     };
   }
+}
+
+// Edit Schedule API Types
+export interface EditScheduleRequest {
+  /** Format: "YYYY-MM-DD hh:mm a" — e.g. "2025-02-27 07:00 AM" */
+  date: string;
+  /** Format: "HH:MM:SS" — e.g. "01:00:00" */
+  duration: string;
+}
+
+export interface EditScheduleResponseData {
+  lessonId: number;
+  isPrivateLesson: boolean;
+  isOwing: boolean;
+  isOwingRentalAgreement: boolean;
+  isOnline: boolean;
+  resourceId: number;
+  title: string;
+  start: string;
+  end: string;
+  url: string;
+  className: string;
+  backgroundColor: string;
+  tooltip: unknown[];
+}
+
+export interface EditScheduleResponse {
+  success: boolean;
+  data: EditScheduleResponseData;
+  message?: string;
+}
+
+/**
+ * Updates the schedule of a private lesson.
+ * PUT /admin/v2/{location}/lesson/edit-schedule/{lessonId}
+ *
+ * Throws on HTTP error so callers only run the success path after a real 200 response.
+ */
+export async function editLessonSchedule(
+  location: string,
+  lessonId: number,
+  data: EditScheduleRequest
+): Promise<EditScheduleResponse> {
+  const response = await apiClient.put<EditScheduleResponse>(
+    `/admin/v2/${location}/lesson/edit-schedule/${lessonId}`,
+    data
+  );
+
+  const body = response.data;
+  if (!body?.success) {
+    throw new Error(
+      typeof body?.message === "string" && body.message.trim() !== ""
+        ? body.message
+        : "Failed to update schedule"
+    );
+  }
+
+  return body;
 }
 
 // Delete Private Lesson API Types
