@@ -34,6 +34,18 @@ export interface AddLineItemResponse {
   };
 }
 
+export interface UpdateLineItemResponse {
+  success: boolean;
+  data: {
+    id: string;
+    transactionId: string;
+    itemId: string;
+    quantity: number;
+    price: number;
+    overridePrice: number;
+  };
+}
+
 /**
  * Create a new POS transaction
  * 
@@ -127,6 +139,37 @@ export async function addLineItem(
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to add line item');
+  }
+
+  return response.json();
+}
+
+/**
+ * Update line item price
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param lineItemId - The line item ID
+ * @param overridePrice - The new price
+ * @returns Promise resolving to updated line item data
+ */
+export async function updateLineItemPrice(
+  transactionId: string,
+  location: string,
+  lineItemId: string,
+  overridePrice: number
+): Promise<UpdateLineItemResponse> {
+  const response = await fetch(`/admin/v2/api/pos/transaction/${transactionId}/line-items/${lineItemId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ location, overridePrice }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to update line item price');
   }
 
   return response.json();
