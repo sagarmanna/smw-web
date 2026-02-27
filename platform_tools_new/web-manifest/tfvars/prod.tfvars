@@ -27,5 +27,5 @@ web_resource_config = {
 }
 
 #Open replay
-openreplay_project_key  = "ZmHgH6YaStrP2Ua7R7y1"
-openreplay_ingest_point = "https://openreplay.studiomanagerweb.com/ingest"
+openreplay_project_key  = "9kqcrYpTgvDj9lHXx7yG"
+openreplay_ingest_point = "https://openreplaynew.studiomanagerweb.com/ingest"
