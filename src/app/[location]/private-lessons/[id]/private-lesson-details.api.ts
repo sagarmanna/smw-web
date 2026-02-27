@@ -995,23 +995,26 @@ export interface PrivateLessonCommentsApiResponse {
 
 /**
  * Fetches private lesson comments from the API
- * For now, returns mock data
- * 
+ *
+ * Endpoint: GET /admin/v2/{location}/comments?id={lessonId}&type=lesson&page={page}
+ *
  * @param location - The location identifier
- * @param customerId - The customer ID (from lesson details response)
+ * @param lessonId - The lesson ID
  * @param page - The page number for pagination (default: 1)
  * @returns Promise resolving to the comments response or null on error
  */
 export async function getPrivateLessonComments(
   location: string,
-  customerId: number,
+  lessonId: string,
   page: number = 1
 ): Promise<PrivateLessonCommentsApiResponse | null> {
   try {
     const response = await apiClient.get<PrivateLessonCommentsApiResponse>(
-      `/admin/v2/${location}/customers/${customerId}/comments`,
+      `/admin/v2/${location}/comments`,
       {
         params: {
+          id: lessonId,
+          type: "lesson",
           page,
         },
       }
