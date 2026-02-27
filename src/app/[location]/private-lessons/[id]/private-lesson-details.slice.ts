@@ -207,11 +207,13 @@ export const updateAttendanceThunk = createAsyncThunk(
 export const updateCostThunk = createAsyncThunk(
   'privateLesson/updateCost',
   async (
-    { location, privateLessonId, data }: { location: string; privateLessonId: string; data: { costPerHour?: string; cost?: string; price?: string } },
+    { location, privateLessonId, data }: { location: string; privateLessonId: string; data: { costPerHour?: string } },
     { rejectWithValue }
   ) => {
     try {
-      const result = await updateCost(location, privateLessonId, data);
+      // Modal sends costPerHour as a formatted string (e.g. "$100.00") — convert to numeric teacherRate for the API
+      const teacherRate = parseFloat((data.costPerHour || "0").replace("$", "").trim());
+      const result = await updateCost(location, privateLessonId, { teacherRate });
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update cost');
@@ -276,7 +278,10 @@ export const updateTaxThunk = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const result = await updateTax(location, privateLessonId, { tax });
+      const result = await updateTax(location, privateLessonId, {
+        id: Number(privateLessonId),
+        tax: Number(tax),
+      });
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update tax');
@@ -622,7 +627,7 @@ const privateLessonSlice = createSlice({
         state.isSaving = false;
         if (state.privateLessonInfo && action.payload) {
           const { data } = action.payload;
-          state.privateLessonInfo.details.totals.tax = data.tax;
+          state.privateLessonInfo.details.totals.tax = String(data.body.tax);
         }
         state.error = null;
       })

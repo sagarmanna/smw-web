@@ -780,15 +780,12 @@ export async function updateAttendance(
 
 // Update Cost API Types
 export interface UpdateCostRequest {
-  costPerHour?: string;
-  cost?: string;
-  price?: string;
+  teacherRate: number;
 }
 
 export interface UpdateCostResponse {
   success: boolean;
   data: {
-    id: number;
     costPerHour: string;
     cost: string;
     price: string;
@@ -798,8 +795,9 @@ export interface UpdateCostResponse {
 }
 
 /**
- * Updates cost via PUT API
- * For now, returns mock response
+ * Updates teacher cost via PUT /admin/v2/{location}/lesson/{id}/edit-cost
+ * Request: { teacherRate: number }
+ * Response: { costPerHour, cost, price, profit }
  */
 export async function updateCost(
   location: string,
@@ -807,39 +805,17 @@ export async function updateCost(
   data: UpdateCostRequest
 ): Promise<UpdateCostResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const costPerHour = data.costPerHour || "$10.00";
-    const cost = data.cost || "$5.00";
-    const price = data.price || "$10.00";
-    // Calculate profit
-    const costNum = parseFloat(cost.replace("$", ""));
-    const priceNum = parseFloat(price.replace("$", ""));
-    const profit = `$${(priceNum - costNum).toFixed(2)}`;
-    
-    return {
-      success: true,
-      data: {
-        id: Number(privateLessonId) || 0,
-        costPerHour,
-        cost,
-        price,
-        profit,
-      },
-    };
+    const response = await apiClient.put<UpdateCostResponse>(
+      `/admin/v2/${location}/lesson/${privateLessonId}/edit-cost`,
+      { teacherRate: data.teacherRate }
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error updating cost:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
-      data: {
-        id: Number(privateLessonId) || 0,
-        costPerHour: "",
-        cost: "",
-        price: "",
-        profit: "",
-      },
+      data: { costPerHour: "", cost: "", price: "", profit: "" },
       message: apiError.response?.data?.message || "Failed to update cost",
     };
   }
@@ -1082,48 +1058,42 @@ export async function getPrivateLessonComments(
 
 // Update Tax API Types
 export interface UpdateTaxRequest {
-  tax: string;
+  id: number;
+  tax: number;
 }
 
 export interface UpdateTaxResponse {
   success: boolean;
   data: {
-    id: number;
-    tax: string;
+    body: {
+      tax: number;
+    };
   };
   message?: string;
 }
 
 /**
- * Updates tax via PUT API
- * TODO: Replace mock with actual API call when backend is ready
+ * Updates tax via PUT /admin/v2/{location}/private-lesson/edit-tax
+ * Request: { id: number, tax: number }
+ * Response: { data: { body: { tax: number } } }
  */
 export async function updateTax(
   location: string,
-  privateLessonId: string,
+  _privateLessonId: string,
   data: UpdateTaxRequest
 ): Promise<UpdateTaxResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    void location;
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    return {
-      success: true,
-      data: {
-        id: Number(privateLessonId) || 0,
-        tax: data.tax,
-      },
-    };
+    const response = await apiClient.put<UpdateTaxResponse>(
+      `/admin/v2/${location}/private-lesson/edit-tax`,
+      { id: data.id, tax: data.tax }
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error updating tax:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
-      data: {
-        id: Number(privateLessonId) || 0,
-        tax: "",
-      },
+      data: { body: { tax: 0 } },
       message: apiError.response?.data?.message || "Failed to update tax",
     };
   }
