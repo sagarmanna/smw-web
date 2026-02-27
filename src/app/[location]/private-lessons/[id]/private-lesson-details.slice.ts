@@ -10,7 +10,6 @@ import {
   updateAttendance,
   updateCost,
   updateDueDate,
-  updateDiscount,
   updateTax,
   updatePrice,
   updateGroupLessonStudentDiscount,
@@ -22,7 +21,7 @@ import {
 
 // action APIs
 import { unscheduleLessons } from '../actionApi/unschedule.api';
-import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment, PrivateLessonPayment } from '../types';
+import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonPayment } from '../types';
 
 interface PrivateLessonState {
   privateLessonInfo: PrivateLessonInfo | null;
@@ -245,9 +244,18 @@ export const updateDiscountThunk = createAsyncThunk(
         throw new Error(result?.message || 'Failed to update discount');
       }
 
-      return { data: result.data };
+      return { data: result.data, message: result.message };
     } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update discount');
+      const axiosError = error as { response?: { data?: { message?: string | string[] } } };
+      const responseMessage = axiosError.response?.data?.message;
+      const message = Array.isArray(responseMessage)
+        ? responseMessage[0]
+        : typeof responseMessage === 'string' && responseMessage.trim() !== ''
+        ? responseMessage
+        : error instanceof Error
+        ? error.message
+        : 'Failed to update discount';
+      return rejectWithValue(message);
     }
   }
 );
@@ -269,7 +277,7 @@ export const updateTaxThunk = createAsyncThunk(
         throw new Error(result?.message || 'Failed to update tax');
       }
 
-      return { data: result.data };
+      return { data: result.data, message: result.message };
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to update tax');
     }
@@ -322,7 +330,16 @@ export const updatePriceThunk = createAsyncThunk(
 
       return { data: result.data, message: result.message };
     } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update price');
+      const axiosError = error as { response?: { data?: { message?: string | string[] } } };
+      const responseMessage = axiosError.response?.data?.message;
+      const message = Array.isArray(responseMessage)
+        ? responseMessage[0]
+        : typeof responseMessage === 'string' && responseMessage.trim() !== ''
+        ? responseMessage
+        : error instanceof Error
+        ? error.message
+        : 'Failed to update price';
+      return rejectWithValue(message);
     }
   }
 );
@@ -590,10 +607,9 @@ const privateLessonSlice = createSlice({
         state.isSaving = true;
         state.error = null;
       })
-      .addCase(updateDiscountThunk.fulfilled, (state, action) => {
+      .addCase(updateDiscountThunk.fulfilled, (state) => {
         state.isSaving = false;
         // The API does not return the updated discount value, so we do not update it here.
-        // Optionally, you could trigger a refetch of the lesson details after a successful update.
         state.error = null;
       })
       .addCase(updateDiscountThunk.rejected, (state, action) => {
@@ -664,7 +680,7 @@ const privateLessonSlice = createSlice({
         state.isSaving = true;
         state.error = null;
       })
-      .addCase(unscheduleLessonThunk.fulfilled, (state, action) => {
+      .addCase(unscheduleLessonThunk.fulfilled, (state) => {
         state.isSaving = false;
         // clear or reset schedule details and update status
         if (state.privateLessonInfo) {

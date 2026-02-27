@@ -278,7 +278,7 @@ export function usePrivateLessonDetails(
           ...discountFields,
         };
 
-        await dispatch(
+        const discountResult = await dispatch(
           updateDiscountThunk({
             location,
             payload,
@@ -286,12 +286,20 @@ export function usePrivateLessonDetails(
         ).unwrap();
         // Refetch lesson details to get updated totals and avoid NaN
         await dispatch(fetchPrivateLesson({ location, privateLessonId }));
-        toast.success("Discount updated successfully");
+        toast.success(
+          typeof discountResult.message === "string" && discountResult.message.trim() !== ""
+            ? discountResult.message
+            : "Discount updated successfully"
+        );
         return true;
       } catch (error) {
         console.error("Failed to save discount:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to update discount. Please try again."
+          typeof error === "string" && error.trim() !== ""
+            ? error
+            : error instanceof Error
+            ? error.message
+            : "Failed to update discount. Please try again."
         );
         return false;
       }
@@ -344,7 +352,11 @@ export function usePrivateLessonDetails(
       } catch (error) {
         console.error("Failed to save price:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to update price. Please try again."
+          typeof error === "string" && error.trim() !== ""
+            ? error
+            : error instanceof Error
+            ? error.message
+            : "Failed to update price. Please try again."
         );
         return false;
       }
@@ -355,19 +367,27 @@ export function usePrivateLessonDetails(
   const saveTax = React.useCallback(
     async (tax: string): Promise<boolean> => {
       try {
-        await dispatch(
+        const taxResult = await dispatch(
           updateTaxThunk({
             location,
             privateLessonId,
             tax,
           })
         ).unwrap();
-        toast.success("Tax updated successfully");
+        toast.success(
+          typeof taxResult.message === "string" && taxResult.message.trim() !== ""
+            ? taxResult.message
+            : "Tax updated successfully"
+        );
         return true;
       } catch (error) {
         console.error("Failed to save tax:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to update tax. Please try again."
+          typeof error === "string" && error.trim() !== ""
+            ? error
+            : error instanceof Error
+            ? error.message
+            : "Failed to update tax. Please try again."
         );
         return false;
       }
