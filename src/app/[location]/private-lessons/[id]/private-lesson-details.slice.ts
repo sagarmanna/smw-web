@@ -82,29 +82,11 @@ export const fetchPrivateLesson = createAsyncThunk(
         throw new Error(details?.message || 'Failed to fetch private lesson info');
       }
 
-      // Extract customerId from details response (nested student or flat structure)
       const body = details.data?.body;
-      const studentData = body?.student as
-        | { customerId?: number }
-        | undefined;
 
-      const rawCustomerId =
-        (studentData && typeof studentData === 'object' && 'customerId' in studentData
-          ? studentData.customerId
-          : body?.customerId) ?? undefined;
-
-      const numericCustomerId =
-        typeof rawCustomerId === 'number'
-          ? rawCustomerId
-          : rawCustomerId != null
-          ? Number(rawCustomerId)
-          : undefined;
-
-      // 2. Fetch comments (payments & history are fetched separately via their own thunks)
+      // 2. Fetch comments by lesson ID (payments & history are fetched separately)
       const [commentsResult] = await Promise.allSettled([
-        numericCustomerId && !Number.isNaN(numericCustomerId)
-          ? getPrivateLessonComments(location, numericCustomerId, 1)
-          : Promise.resolve(null),
+        getPrivateLessonComments(location, privateLessonId, 1),
       ]);
 
       // Comments API is optional - log error but don't fail the entire fetch
