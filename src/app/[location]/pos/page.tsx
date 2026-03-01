@@ -83,15 +83,22 @@ export default function POSPage() {
           itemId: itemData.id,
           quantity: quantity,
         });
-
-        console.log('[Line Item] Successfully added:', response.data);
         
-        // Store backend's line item ID for future updates
-        setItems(prevItems => 
-          prevItems.map(item => 
-            item.id === newItem.id ? { ...item, lineItemId: response.data.id } : item
-          )
-        );
+        // Backend response is double-nested: { success: true, data: { data: {...}, success: true } }
+        const transactionData = response.data?.data || response.data;
+        const lineItems = transactionData?.lineItems;
+        
+        if (lineItems && lineItems.length > 0) {
+          const addedLineItem = lineItems[lineItems.length - 1];
+          const lineItemId = addedLineItem.id;
+          
+          // Store line item ID
+          setItems(prevItems => 
+            prevItems.map(item => 
+              item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
+            )
+          );
+        }
       } catch (error) {
         toast.error('Failed to save item to transaction');
         console.error('Failed to add line item:', error);
@@ -118,15 +125,18 @@ export default function POSPage() {
       setIsUpdatingPrice(true);
       
       try {
-        // Call API to update price in database
-        if (selectedItem.lineItemId) {
-          await updateLineItemPrice(
-            numericTransactionId,
-            location,
-            selectedItem.lineItemId,
-            price
-          );
+        if (!selectedItem.lineItemId) {
+          toast.error('Cannot update price: Line item ID not found');
+          setIsUpdatingPrice(false);
+          return;
         }
+        
+        await updateLineItemPrice(
+          numericTransactionId,
+          location,
+          selectedItem.lineItemId,
+          price
+        );
         
         // Update local state
         setItems(items.map(item => 
