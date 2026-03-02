@@ -200,11 +200,11 @@ export function usePrivateLessonsHandlers({
   }, [location, hasSelectedLessons, selectedLessons, clearSelection]);
 
   const handleRowClick = React.useCallback((row: PrivateLessonRow) => {
-    if (!isDev()){
-      router.push(`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/lesson/view?id=${row.id}`);
-    }else{
+    // if (!isDev()){
+    //   router.push(`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/lesson/view?id=${row.id}`);
+    // }else{
       router.push(`/${location}/private-lessons/${row.id}`);
-    }
+    // }
   }, [location, router]);
 
   // Save Handlers
