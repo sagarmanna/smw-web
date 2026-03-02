@@ -24,6 +24,10 @@ interface PrivateLessonScheduleCardProps {
   isLoading?: boolean;
   location: string;
   /**
+   * When true, lesson is already exploded and only edit action should be shown.
+   */
+  isExploded?: boolean;
+  /**
    * When true, hides the Generate Invoice action from the schedule header menu.
    * Used for group lessons where invoice generation is not supported.
    */
@@ -42,6 +46,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
   details,
   isLoading = false,
   location,
+  isExploded = false,
   hideGenerateInvoice = false,
   onUnschedule,
   onScheduleEdited,
@@ -133,10 +138,12 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
               <DropdownMenuItem onClick={handleEditClick}>
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleUnscheduleClick}>
-                Unschedule Lesson
-              </DropdownMenuItem>
-              {!hideGenerateInvoice && (
+              {!isExploded && (
+                <DropdownMenuItem onClick={handleUnscheduleClick}>
+                  Unschedule Lesson
+                </DropdownMenuItem>
+              )}
+              {!isExploded && !hideGenerateInvoice && (
                 <DropdownMenuItem onClick={handleGenerateInvoiceClick}>
                   Generate Invoice
                 </DropdownMenuItem>
