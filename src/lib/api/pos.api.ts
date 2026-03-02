@@ -53,7 +53,7 @@ export async function createPOSTransaction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const response = await apiClient.post<any>(
     `/admin/v2/${location}/pos/transaction`,
-    { locationId }
+    {}
   );
 
   const data = response.data.data || response.data;
