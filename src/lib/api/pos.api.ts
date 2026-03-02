@@ -28,11 +28,14 @@ export interface ItemLookupResponse {
 export interface AddLineItemResponse {
   success: boolean;
   data: {
-    id: string;
+    id: number;
     transactionId: string;
-    itemId: string;
-    quantity: number;
-    price: number;
+    lineItems: Array<{
+      id: number;
+      itemId: string;
+      quantity: number;
+      price: number;
+    }>;
   };
 }
 
@@ -47,12 +50,22 @@ export async function createPOSTransaction(
   locationId: number,
   location: string
 ): Promise<CreateTransactionResponse> {
-  const response = await apiClient.post<CreateTransactionResponse>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await apiClient.post<any>(
     `/admin/v2/${location}/pos/transaction`,
     { locationId }
   );
 
-  return response.data;
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      transactionId: data.transactionId,
+      numericTransactionId: data.id,
+      transactionDate: data.createdAt,
+      locationId: data.locationId,
+    },
+  };
 }
 
 /**
@@ -70,7 +83,16 @@ export async function lookupItem(
     `/admin/v2/${location}/pos/items?code=${encodeURIComponent(code)}`
   );
 
-  return response.data;
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      code: data.code,
+      description: data.description,
+      price: data.price,
+    },
+  };
 }
 
 /**
@@ -96,5 +118,13 @@ export async function addLineItem(
     itemData
   );
 
-  return response.data;
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      transactionId: data.transactionId,
+      lineItems: data.lineItems || [],
+    },
+  };
 }

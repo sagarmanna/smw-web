@@ -74,7 +74,7 @@ export default function POSPage() {
           quantity
         });
 
-        await addLineItem(numericTransactionId, location, {
+        await addLineItem(String(numericTransactionId), location, {
           itemId: itemData.id,
           quantity: quantity,
         });
@@ -98,7 +98,7 @@ export default function POSPage() {
     }
   };
 
-  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+  const subtotal = items.reduce((sum, item) => sum + (item.quantity * parseFloat(String(item.price))), 0);
   const discountAmount = discountType === "percentage" ? (subtotal * discount) / 100 : discount;
   const total = subtotal - discountAmount;
 
