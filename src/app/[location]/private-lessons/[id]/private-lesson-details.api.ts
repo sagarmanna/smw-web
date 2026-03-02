@@ -995,6 +995,10 @@ export interface PrivateLessonCommentsApiResponse {
   message?: string;
 }
 
+export interface CreatePrivateLessonCommentRequest {
+  content: string;
+}
+
 /**
  * Fetches private lesson comments from the API
  *
@@ -1057,6 +1061,83 @@ export async function getPrivateLessonComments(
         },
       },
       message: errorMessage,
+    };
+  }
+}
+
+/**
+ * Creates a private lesson comment and returns the updated comments list from server.
+ *
+ * Endpoint: POST /admin/v2/{location}/comments?instanceId={lessonId}&instanceType=3
+ * Body: { content: string }
+ */
+export async function createPrivateLessonComment(
+  location: string,
+  lessonId: string,
+  data: CreatePrivateLessonCommentRequest
+): Promise<PrivateLessonCommentsApiResponse | null> {
+  try {
+    const response = await apiClient.post<{
+      success: boolean;
+      message?: string;
+      data?: {
+        status?: boolean;
+        data?: {
+          body?: PrivateLessonCommentResponseBody[];
+          pagination?: PaginationInfo;
+        };
+      };
+    }>(
+      `/admin/v2/${location}/comments`,
+      data,
+      {
+        params: {
+          instanceId: lessonId,
+          instanceType: 3,
+        },
+      }
+    );
+
+    const nestedStatus = response.data?.data?.status as unknown;
+    const statusOk =
+      nestedStatus === undefined ||
+      nestedStatus === true ||
+      nestedStatus === 1 ||
+      nestedStatus === "true";
+    const success = response.data?.success === true && statusOk;
+    const body = response.data?.data?.data?.body ?? [];
+    const pagination = response.data?.data?.data?.pagination;
+
+    return {
+      success,
+      data: {
+        body,
+        pagination,
+      },
+      message: response.data?.message,
+    };
+  } catch (error: unknown) {
+    console.error("Error creating private lesson comment:", error);
+    const apiError = error as {
+      response?: {
+        data?: {
+          message?: string;
+        };
+      };
+    };
+
+    return {
+      success: false,
+      data: {
+        body: [],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to create private lesson comment",
     };
   }
 }

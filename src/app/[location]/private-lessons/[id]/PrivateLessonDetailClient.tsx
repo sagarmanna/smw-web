@@ -56,6 +56,12 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     paymentsSorting,
     setPaymentsSortingHandler,
     comments,
+    commentsPagination,
+    commentsLoading,
+    commentsError,
+    commentsSubmitting,
+    fetchComments,
+    addComment,
     history,
     historyPagination,
     historyLoading,
@@ -586,7 +592,12 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <PrivateLessonCommentsCard
               comments={comments}
-              isLoading={isLoading}
+              isLoading={commentsLoading || isLoading}
+              commentsError={commentsError}
+              pagination={commentsPagination}
+              onPageChange={fetchComments}
+              onAddComment={addComment}
+              isSubmitting={commentsSubmitting}
             />
 
             <PrivateLessonHistoryCard
