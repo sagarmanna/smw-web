@@ -6,6 +6,8 @@ import {
   fetchPrivateLesson,
   fetchPrivateLessonHistory,
   fetchPrivateLessonPayments,
+  fetchPrivateLessonComments,
+  createPrivateLessonCommentThunk,
   setPaymentsSorting,
   clearCache,
   updatePrivateLesson,
@@ -37,6 +39,12 @@ type PrivateLessonDetailsHookReturn = {
   paymentsSorting: SortingState;
   setPaymentsSortingHandler: (sorting: SortingState) => void;
   comments: PrivateLessonComment[];
+  commentsPagination: { page: number; limit: number; total: number; totalPages: number } | null;
+  commentsLoading: boolean;
+  commentsError: string | null;
+  commentsSubmitting: boolean;
+  fetchComments: (page?: number) => Promise<void>;
+  addComment: (content: string) => Promise<boolean>;
   history: PrivateLessonHistory[];
   historyPagination: { page: number; limit: number; total: number; totalPages: number } | null;
   historyLoading: boolean;
@@ -117,9 +125,11 @@ export function usePrivateLessonDetails(
   }, [historyData]);
 
   // Get comments from Redux store
-  const comments: PrivateLessonComment[] = React.useMemo(() => {
-    return privateLessonInfo?.comments || [];
-  }, [privateLessonInfo]);
+  const comments = useAppSelector((state) => state.privateLesson?.commentsData || []);
+  const commentsPagination = useAppSelector((state) => state.privateLesson?.commentsPagination);
+  const commentsLoading = useAppSelector((state) => state.privateLesson?.commentsLoading || false);
+  const commentsError = useAppSelector((state) => state.privateLesson?.commentsError);
+  const commentsSubmitting = useAppSelector((state) => state.privateLesson?.commentsSubmitting || false);
 
   // Sort change handler
   const setPaymentsSortingHandler = React.useCallback(
@@ -155,6 +165,45 @@ export function usePrivateLessonDetails(
         ).unwrap();
       } catch (error) {
         console.error("Failed to fetch history:", error);
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
+  // Fetch comments with pagination
+  const fetchComments = React.useCallback(
+    async (page: number = 1): Promise<void> => {
+      try {
+        await dispatch(
+          fetchPrivateLessonComments({
+            location,
+            privateLessonId,
+            page,
+          })
+        ).unwrap();
+      } catch (error) {
+        console.error("Failed to fetch comments:", error);
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
+  const addComment = React.useCallback(
+    async (content: string): Promise<boolean> => {
+      try {
+        const result = await dispatch(
+          createPrivateLessonCommentThunk({
+            location,
+            privateLessonId,
+            content: content.trim(),
+          })
+        ).unwrap();
+        toast.success(resolveMessage(result.message, "Comment added successfully"));
+        return true;
+      } catch (error) {
+        console.error("Failed to add comment:", error);
+        toast.error(extractErrorMessage(error, "Failed to create comment"));
+        return false;
       }
     },
     [dispatch, location, privateLessonId]
@@ -401,6 +450,12 @@ export function usePrivateLessonDetails(
     paymentsSorting,
     setPaymentsSortingHandler,
     comments,
+    commentsPagination,
+    commentsLoading,
+    commentsError,
+    commentsSubmitting,
+    fetchComments,
+    addComment,
     history,
     historyPagination,
     historyLoading,
