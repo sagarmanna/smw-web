@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { X } from "lucide-react";
+import { useAppSelector } from "@/redux/hooks";
+import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 
 interface Item {
   id: string;
@@ -15,6 +18,14 @@ interface Item {
 }
 
 export default function POSPage() {
+  const params = useParams();
+  const location = params.location as string;
+  const { locations } = useAppSelector((state) => state.locations);
+  const locationData = locations.find(loc => loc.slug === location);
+  const locationId = locationData?.id || 1;
+  
+  const { transactionId, transactionDate, isLoading, initializeTransaction } = usePOSTransaction(locationId);
+  
   const productRef = useRef<HTMLInputElement>(null);
   const [quantity, setQuantity] = useState(1);
   const [productCode, setProductCode] = useState("");
@@ -27,7 +38,9 @@ export default function POSPage() {
   const [discount, setDiscount] = useState(0);
 
   useEffect(() => {
-    productRef.current?.focus();
+    initializeTransaction().then(() => {
+      setTimeout(() => productRef.current?.focus(), 100);
+    });
   }, []);
 
   const handleScan = () => {
@@ -57,8 +70,6 @@ export default function POSPage() {
   const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
   const discountAmount = discountType === "percentage" ? (subtotal * discount) / 100 : discount;
   const total = subtotal - discountAmount;
-  const transactionId = "P-001-1024";
-  const transactionDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
 
   const handleApplyDiscount = () => {
     const value = parseFloat(discountValue);
@@ -70,7 +81,17 @@ export default function POSPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background text-foreground font-sans overflow-hidden relative">
+      
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+            <p className="text-lg font-semibold text-foreground">Initializing Transaction...</p>
+          </div>
+        </div>
+      )}
       
      {/* HEADER */}
       <header className="flex items-center justify-between px-6 py-3 bg-muted/50 border-b border-border flex-none shadow-sm">
@@ -99,7 +120,7 @@ export default function POSPage() {
           </div>
           <div className="text-right border-l pl-8 border-border">
             <div className="text-[9px] font-bold text-muted-foreground uppercase">Date</div>
-            <div className="text-sm font-medium text-foreground">{transactionDate.replace(/\//g, '/')}</div>
+            <div className="text-sm font-medium text-foreground">{transactionDate}</div>
           </div>
         </div>
         
