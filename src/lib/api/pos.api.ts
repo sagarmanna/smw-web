@@ -3,6 +3,8 @@
  * Handles all POS-related API calls
  */
 
+import { apiClient } from './client';
+
 export interface CreateTransactionResponse {
   success: boolean;
   data: {
@@ -45,19 +47,12 @@ export async function createPOSTransaction(
   locationId: number,
   location: string
 ): Promise<CreateTransactionResponse> {
-  const response = await fetch('/admin/v2/api/pos/transaction', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ locationId, location }),
-  });
+  const response = await apiClient.post<CreateTransactionResponse>(
+    `/admin/v2/${location}/pos/transaction`,
+    { locationId }
+  );
 
-  if (!response.ok) {
-    throw new Error('Failed to create transaction');
-  }
-
-  return response.json();
+  return response.data;
 }
 
 /**
@@ -66,36 +61,16 @@ export async function createPOSTransaction(
  * @param location - The location slug
  * @param code - The product code or UPC
  * @returns Promise resolving to item data
- * 
- * @example
- * ```typescript
- * const item = await lookupItem('training-location', 'book');
- * console.log(item.description); // "Book"
- * ```
  */
 export async function lookupItem(
   location: string,
   code: string
 ): Promise<ItemLookupResponse> {
-  const response = await fetch(`/admin/v2/api/pos/items?location=${encodeURIComponent(location)}&code=${encodeURIComponent(code)}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  const response = await apiClient.get<ItemLookupResponse>(
+    `/admin/v2/${location}/pos/items?code=${encodeURIComponent(code)}`
+  );
 
-  if (!response.ok) {
-    let errorMessage = 'Failed to lookup item';
-    try {
-      const error = await response.json();
-      errorMessage = error.error || errorMessage;
-    } catch {
-      errorMessage = `API returned ${response.status}: ${response.statusText}`;
-    }
-    throw new Error(errorMessage);
-  }
-
-  return response.json();
+  return response.data;
 }
 
 /**
@@ -116,18 +91,10 @@ export async function addLineItem(
     overridePrice?: number;
   }
 ): Promise<AddLineItemResponse> {
-  const response = await fetch(`/admin/v2/api/pos/transaction/${transactionId}/line-items`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ location, ...itemData }),
-  });
+  const response = await apiClient.post<AddLineItemResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/line-items`,
+    itemData
+  );
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to add line item');
-  }
-
-  return response.json();
+  return response.data;
 }
