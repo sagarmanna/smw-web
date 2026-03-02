@@ -1,31 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const BACKEND_URL = process.env.BACKEND_URL;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { locationId } = body;
+    const { locationId, location } = body;
 
-    if (!locationId) {
+    if (!locationId || !location) {
       return NextResponse.json(
-        { error: 'locationId is required' },
+        { error: 'locationId and location are required' },
         { status: 400 }
       );
     }
 
-    // Mock response - will be replaced with actual backend integration
-    const transactionId = `P-${locationId.toString().padStart(3, '0')}-${Date.now().toString().slice(-4)}`;
-    const transactionDate = new Date().toISOString();
+    // Call backend to create transaction
+    const backendUrl = `${BACKEND_URL}/admin/v2/${location}/pos/transaction`;
+    
+    const backendResponse = await fetch(backendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locationId: Number(locationId) }),
+    });
 
-    const response = {
+    if (!backendResponse.ok) {
+      const error = await backendResponse.json();
+      throw new Error(error.message || 'Backend failed to create transaction');
+    }
+
+    const backendData = await backendResponse.json();
+    
+    console.log('[Transaction Create] Backend response:', backendData.data);
+
+    return NextResponse.json({
       success: true,
       data: {
-        transactionId,
-        transactionDate,
-        locationId,
+        transactionId: backendData.data.transactionId,
+        numericTransactionId: backendData.data.id.toString(),
+        transactionDate: backendData.data.createdAt || new Date().toISOString(),
+        locationId: backendData.data.locationId,
       },
-    };
-
-    return NextResponse.json(response, { status: 201 });
+    }, { status: 201 });
   } catch (error) {
     console.error('Error creating POS transaction:', error);
     return NextResponse.json(

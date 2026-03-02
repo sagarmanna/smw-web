@@ -3,10 +3,13 @@
  * Handles all POS-related API calls
  */
 
+import { apiClient } from './client';
+
 export interface CreateTransactionResponse {
   success: boolean;
   data: {
     transactionId: string;
+    numericTransactionId: string;
     transactionDate: string;
     locationId: number;
   };
@@ -22,34 +25,47 @@ export interface ItemLookupResponse {
   };
 }
 
+export interface AddLineItemResponse {
+  success: boolean;
+  data: {
+    id: number;
+    transactionId: string;
+    lineItems: Array<{
+      id: number;
+      itemId: string;
+      quantity: number;
+      price: number;
+    }>;
+  };
+}
+
 /**
  * Create a new POS transaction
  * 
  * @param locationId - The location ID for the transaction
+ * @param location - The location slug
  * @returns Promise resolving to transaction data
- * 
- * @example
- * ```typescript
- * const transaction = await createPOSTransaction(1);
- * console.log(transaction.transactionId); // "P-001-1024"
- * ```
  */
 export async function createPOSTransaction(
-  locationId: number
+  locationId: number,
+  location: string
 ): Promise<CreateTransactionResponse> {
-  const response = await fetch('/admin/v2/api/pos/transaction', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await apiClient.post<any>(
+    `/admin/v2/${location}/pos/transaction`,
+    {}
+  );
+
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      transactionId: data.transactionId,
+      numericTransactionId: data.id,
+      transactionDate: data.createdAt,
+      locationId: data.locationId,
     },
-    body: JSON.stringify({ locationId }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to create transaction');
-  }
-
-  return response.json();
+  };
 }
 
 /**
@@ -58,34 +74,57 @@ export async function createPOSTransaction(
  * @param location - The location slug
  * @param code - The product code or UPC
  * @returns Promise resolving to item data
- * 
- * @example
- * ```typescript
- * const item = await lookupItem('training-location', 'book');
- * console.log(item.description); // "Book"
- * ```
  */
 export async function lookupItem(
   location: string,
   code: string
 ): Promise<ItemLookupResponse> {
-  const response = await fetch(`/admin/v2/api/pos/items?location=${encodeURIComponent(location)}&code=${encodeURIComponent(code)}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await apiClient.get<ItemLookupResponse>(
+    `/admin/v2/${location}/pos/items?code=${encodeURIComponent(code)}`
+  );
+
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      code: data.code,
+      description: data.description,
+      price: data.price,
     },
-  });
+  };
+}
 
-  if (!response.ok) {
-    let errorMessage = 'Failed to lookup item';
-    try {
-      const error = await response.json();
-      errorMessage = error.error || errorMessage;
-    } catch {
-      errorMessage = `API returned ${response.status}: ${response.statusText}`;
-    }
-    throw new Error(errorMessage);
+/**
+ * Add a line item to a transaction
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param itemData - Line item data (itemId, quantity, optional discount/overridePrice)
+ * @returns Promise resolving to line item data
+ */
+export async function addLineItem(
+  transactionId: string,
+  location: string,
+  itemData: {
+    itemId: string;
+    quantity: number;
+    discount?: number;
+    overridePrice?: number;
   }
+): Promise<AddLineItemResponse> {
+  const response = await apiClient.post<AddLineItemResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/line-items`,
+    itemData
+  );
 
-  return response.json();
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      transactionId: data.transactionId,
+      lineItems: data.lineItems || [],
+    },
+  };
 }
