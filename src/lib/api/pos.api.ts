@@ -174,3 +174,39 @@ export async function updateLineItemPrice(
 
   return response.json();
 }
+
+/**
+ * Update line item quantity
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param lineItemId - The line item ID
+ * @param quantity - The new quantity (1-999)
+ * @returns Promise resolving to updated line item data
+ */
+export async function updateLineItemQuantity(
+  transactionId: string,
+  location: string,
+  lineItemId: string,
+  quantity: number
+): Promise<UpdateLineItemResponse> {
+  // Validate quantity
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) {
+    throw new Error('Quantity must be an integer between 1 and 999');
+  }
+
+  const response = await fetch(`/admin/v2/api/pos/transaction/${transactionId}/line-items/${lineItemId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ location, quantity }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to update line item quantity');
+  }
+
+  return response.json();
+}

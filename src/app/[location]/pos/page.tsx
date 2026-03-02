@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem, updateLineItemPrice } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity } from "@/lib/api/pos.api";
 import { toast } from "sonner";
 
 interface Item {
@@ -19,6 +19,7 @@ interface Item {
   quantity: number;
   price: number;
   upc: string;
+  isUpdatingQuantity?: boolean;
 }
 
 export default function POSPage() {
@@ -45,6 +46,7 @@ export default function POSPage() {
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
   const [discount, setDiscount] = useState(0);
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
     initializeTransaction().then(() => {
@@ -85,8 +87,10 @@ export default function POSPage() {
         });
         
         // Backend response is double-nested: { success: true, data: { data: {...}, success: true } }
-        const transactionData = response.data?.data || response.data;
-        const lineItems = transactionData?.lineItems;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transactionData = (response.data as any)?.data || response.data;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lineItems = (transactionData as any)?.lineItems;
         
         if (lineItems && lineItems.length > 0) {
           const addedLineItem = lineItems[lineItems.length - 1];
@@ -109,6 +113,60 @@ export default function POSPage() {
   };
 
   const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
+
+  const handleQuantityChange = (itemId: string, newQuantity: string) => {
+    const qty = parseInt(newQuantity);
+    
+    // Validate input
+    if (newQuantity === '' || isNaN(qty)) {
+      return;
+    }
+    
+    if (qty < 1 || qty > 999) {
+      toast.error('Quantity must be between 1 and 999');
+      return;
+    }
+
+    // Update local state immediately
+    setItems(items.map(item => 
+      item.id === itemId ? { ...item, quantity: qty } : item
+    ));
+
+    // Clear existing timer for this item
+    if (debounceTimers.current[itemId]) {
+      clearTimeout(debounceTimers.current[itemId]);
+    }
+
+    // Set new debounced API call
+    debounceTimers.current[itemId] = setTimeout(async () => {
+      const item = items.find(i => i.id === itemId);
+      if (!item?.lineItemId) {
+        toast.error('Cannot update quantity: Line item ID not found');
+        return;
+      }
+
+      // Show loading state
+      setItems(prev => prev.map(i => 
+        i.id === itemId ? { ...i, isUpdatingQuantity: true } : i
+      ));
+
+      try {
+        await updateLineItemQuantity(
+          numericTransactionId,
+          location,
+          item.lineItemId,
+          qty
+        );
+      } catch (error) {
+        console.error('Failed to update quantity:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
+      } finally {
+        setItems(prev => prev.map(i => 
+          i.id === itemId ? { ...i, isUpdatingQuantity: false } : i
+        ));
+      }
+    }, 1000);
+  };
 
   const handleOverride = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -263,7 +321,24 @@ export default function POSPage() {
                     <td className="py-2.5">
                       <X className="h-4 w-4 text-muted-foreground hover:text-red-600 cursor-pointer" onClick={() => removeItem(item.id)} />
                     </td>
-                    <td className="py-2.5 font-bold">{item.quantity}</td>
+                    <td className="py-2.5">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="999"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                          className="w-16 h-8 text-center font-bold border-input rounded-none"
+                          disabled={item.isUpdatingQuantity}
+                        />
+                        {item.isUpdatingQuantity && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-2.5">
                       <div className="font-normal text-foreground uppercase text-xs">{item.description}</div>
                       <div className="text-[9px] text-muted-foreground font-mono">UPC: {item.upc}</div>
