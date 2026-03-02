@@ -1002,7 +1002,7 @@ export interface CreatePrivateLessonCommentRequest {
 export interface GeneratePrivateLessonInvoiceResponse {
   success: boolean;
   data?: {
-    status?: boolean;
+    status?: boolean | number | string | null;
     message?: string;
     customerId?: number;
     invoiceId?: number;
@@ -1010,6 +1010,18 @@ export interface GeneratePrivateLessonInvoiceResponse {
     url?: string;
   };
   message?: string;
+}
+
+function isSuccessfulInvoiceStatus(status: unknown): boolean {
+  const normalized = status?.toString?.()?.trim?.()?.toLowerCase?.();
+  return (
+    status === undefined ||
+    status === null ||
+    status === true ||
+    status === 1 ||
+    normalized === "true" ||
+    normalized === "1"
+  );
 }
 
 /**
@@ -1181,8 +1193,7 @@ export async function generatePrivateLessonInvoice(
     const body = response.data;
     const nestedStatus = body?.data?.status;
     const success =
-      body?.success === true &&
-      (nestedStatus === undefined || nestedStatus === true || nestedStatus === 1);
+      body?.success === true && isSuccessfulInvoiceStatus(nestedStatus);
 
     return {
       success,
