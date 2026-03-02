@@ -1134,6 +1134,103 @@ export interface EditScheduleResponse {
   message?: string;
 }
 
+// Explode status/action API types
+export interface PrivateLessonExplodeStatusChecks {
+  isPrivate?: boolean;
+  isUnscheduled?: boolean;
+  notExploded?: boolean;
+  notExpired?: boolean;
+  notInvoiced?: boolean;
+}
+
+export interface PrivateLessonExplodeStatusItem {
+  canExplode?: boolean;
+  lessonId?: number;
+  checks?: PrivateLessonExplodeStatusChecks;
+}
+
+export interface PrivateLessonExplodeStatusResponse {
+  success: boolean;
+  data: {
+    status: PrivateLessonExplodeStatusItem[];
+  };
+  message?: string;
+}
+
+export interface ExplodePrivateLessonResponse {
+  success: boolean;
+  data?: {
+    originalLessonId?: number;
+    explodedLessons?: Array<{
+      id: number;
+    }>;
+    redirectUrl?: string;
+    studentId?: number;
+  };
+  message?: string;
+}
+
+/**
+ * Fetches explode eligibility/status for a lesson.
+ * GET /admin/v2/{location}/lesson/explode/status?lessonIds={lessonId}
+ */
+export async function getPrivateLessonExplodeStatus(
+  location: string,
+  lessonId: string
+): Promise<PrivateLessonExplodeStatusResponse | null> {
+  try {
+    const response = await apiClient.get<PrivateLessonExplodeStatusResponse>(
+      `/admin/v2/${location}/lesson/explode/status`,
+      {
+        params: {
+          lessonIds: Number(lessonId),
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching explode status:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        status: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch explode status",
+    };
+  }
+}
+
+/**
+ * Explodes a private lesson.
+ * POST /admin/v2/{location}/lesson/explode/{lessonId}
+ */
+export async function explodePrivateLesson(
+  location: string,
+  lessonId: string
+): Promise<ExplodePrivateLessonResponse | null> {
+  try {
+    const lessonIdNum = Number(lessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    const response = await apiClient.post<ExplodePrivateLessonResponse>(
+      `/admin/v2/${location}/lesson/explode/${lessonIdNum}`
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error exploding private lesson:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to explode private lesson",
+    };
+  }
+}
+
 /**
  * Updates the schedule of a private lesson.
  * PUT /admin/v2/{location}/lesson/edit-schedule/{lessonId}

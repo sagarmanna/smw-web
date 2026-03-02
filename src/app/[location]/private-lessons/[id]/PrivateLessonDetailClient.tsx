@@ -13,6 +13,10 @@ import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
 import { usePrivateLessonDetails } from "../hooks/usePrivateLessonDetails";
 import { fetchEmailStatement } from "./private-lesson-details.slice";
 import { generateEmailContent } from "./utils/emailStatementHtmlGenerator";
+import {
+  explodePrivateLesson,
+  getPrivateLessonExplodeStatus,
+} from "./private-lesson-details.api";
 import { PrivateLessonDetailsCard } from "../components/PrivateLessonDetailsCard";
 import { PrivateLessonStudentCard } from "../components/PrivateLessonStudentCard";
 import { PrivateLessonAttendanceCard } from "../components/PrivateLessonAttendanceCard";
@@ -116,6 +120,13 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   // Receipt payment modal state (same flow as enrollment page)
   const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = React.useState<number | string | null>(null);
+  const [explodeStatus, setExplodeStatus] = React.useState<{
+    canExplode: boolean;
+    isExploded: boolean;
+  }>({
+    canExplode: false,
+    isExploded: false,
+  });
   const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<{
     date: string;
     paymentMethod: string;
@@ -133,6 +144,24 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
       router.replace(`/${location}/group-lessons/${id}`);
     }
   }, [details?.isGroup, location, id, router]);
+
+  const refreshExplodeStatus = React.useCallback(async () => {
+    const response = await getPrivateLessonExplodeStatus(location, privateLessonId);
+    const firstStatus = response?.data?.status?.[0];
+    const checks = firstStatus?.checks;
+
+    setExplodeStatus({
+      canExplode:
+        firstStatus?.canExplode === true &&
+        checks?.isUnscheduled === true &&
+        checks?.notExploded !== false,
+      isExploded: checks?.notExploded === false,
+    });
+  }, [location, privateLessonId]);
+
+  React.useEffect(() => {
+    refreshExplodeStatus();
+  }, [refreshExplodeStatus, details?.status]);
 
   // Fetch customer email addresses when email modal opens
   React.useEffect(() => {
@@ -348,6 +377,42 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     router.push(`/${location}/private-lessons`);
   }, [location, router]);
 
+  const handleExplodeClick = React.useCallback(async () => {
+    const result = await explodePrivateLesson(location, privateLessonId);
+    if (!result || !result.success) {
+      toast.error(result?.message || "Failed to explode lesson");
+      return;
+    }
+
+    const message = result.message || "Lesson exploded successfully";
+    toast.success(message);
+
+      const finalStudentId =
+        typeof result.data?.studentId === "number" && !Number.isNaN(result.data.studentId)
+          ? result.data.studentId
+          : undefined;
+
+      if (finalStudentId) {
+        setTimeout(() => {
+          router.push(`/${location}/students/${finalStudentId}`);
+        }, 100);
+        return;
+      }
+
+      // Fallback matches other modules: go back to list if student id is unavailable.
+      setTimeout(() => {
+        router.push(`/${location}/private-lessons`);
+      }, 100);
+    }, [location, privateLessonId, router]);
+
+  const handleUnscheduleWithStatusRefresh = React.useCallback(async (reason: string) => {
+    const success = await saveUnschedule(reason);
+    if (success) {
+      await refreshExplodeStatus();
+    }
+    return success;
+  }, [saveUnschedule, refreshExplodeStatus]);
+
   // Click payment row -> open receipt modal (view mode), same as enrollment page.
   const handlePaymentClick = React.useCallback((payment: PrivateLessonPayment) => {
     if (!payment.id || !details?.customerId) return;
@@ -356,26 +421,51 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     setIsReceiptModalOpen(true);
   }, [details?.customerId]);
 
-  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(() => [
-    {
-      label: "Action",
-      items: [
-        {
-          label: "Mail",
-          onClick: handleMailClick,
-        },
-        {
-          label: "Receive Payment",
-          onClick: handleReceivePaymentClick,
-        },
-        {
-          label: "Delete",
-          onClick: handleDeleteClick,
-          variant: "destructive",
-        },
-      ],
-    },
-  ], [handleMailClick, handleReceivePaymentClick, handleDeleteClick]);
+  const explodedFromStatusText = React.useMemo(
+    () => details?.status?.toLowerCase().includes("exploded") ?? false,
+    [details?.status]
+  );
+  const isExploded = explodeStatus.isExploded || explodedFromStatusText;
+  const shouldShowExplode = explodeStatus.canExplode && !isExploded;
+
+  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(() => {
+    const items = [
+      {
+        label: "Mail",
+        onClick: handleMailClick,
+      },
+      {
+        label: "Receive Payment",
+        onClick: handleReceivePaymentClick,
+      },
+      ...(shouldShowExplode
+        ? [
+            {
+              label: "Explode",
+              onClick: handleExplodeClick,
+            },
+          ]
+        : []),
+      {
+        label: "Delete",
+        onClick: handleDeleteClick,
+        variant: "destructive" as const,
+      },
+    ];
+
+    return [
+      {
+        label: "Action",
+        items,
+      },
+    ];
+  }, [
+    handleMailClick,
+    handleReceivePaymentClick,
+    shouldShowExplode,
+    handleExplodeClick,
+    handleDeleteClick,
+  ]);
 
   // Error state - show error but still render cards with skeleton
   const showError = error && !privateLessonInfo;
@@ -463,7 +553,8 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                 details={details}
                 isLoading={isLoading}
                 location={location}
-                onUnschedule={saveUnschedule}
+                isExploded={isExploded}
+                onUnschedule={handleUnscheduleWithStatusRefresh}
               />
 
               <PrivateLessonDueDateCard
