@@ -1013,20 +1013,15 @@ export interface GeneratePrivateLessonInvoiceResponse {
 }
 
 function isSuccessfulInvoiceStatus(status: unknown): boolean {
-  if (status === undefined || status === null) {
-    return true;
-  }
-  if (typeof status === "boolean") {
-    return status;
-  }
-  if (typeof status === "number") {
-    return status === 1;
-  }
-  if (typeof status === "string") {
-    const normalized = status.trim().toLowerCase();
-    return normalized === "1" || normalized === "true";
-  }
-  return false;
+  const normalized = status?.toString?.()?.trim?.()?.toLowerCase?.();
+  return (
+    status === undefined ||
+    status === null ||
+    status === true ||
+    status === 1 ||
+    normalized === "true" ||
+    normalized === "1"
+  );
 }
 
 /**
