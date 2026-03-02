@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { UnscheduleReasonModal } from "../UnscheduleReasonModal";
 import { EditScheduleModal } from "./EditScheduleModal";
+import { generatePrivateLessonInvoice } from "../../[id]/private-lesson-details.api";
 
 interface PrivateLessonScheduleCardProps {
   details: PrivateLessonDetails | null;
@@ -69,10 +70,80 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
     setIsUnscheduleModalOpen(true);
   }, []);
 
-  // No-op when hideGenerateInvoice is true (e.g. group lessons); menu item is not shown.
-  const handleGenerateInvoiceClick = React.useCallback(() => {
-    toast.error("Invoice can be generated against completed scheduled lessons only.");
-  }, []);
+  const handleGenerateInvoiceClick = React.useCallback(async () => {
+    const lessonId = details?.id;
+    if (!lessonId) {
+      toast.error("Lesson ID is missing");
+      return;
+    }
+
+    const response = await generatePrivateLessonInvoice(location, String(lessonId));
+
+    if (!response || !response.success) {
+      toast.error(response?.message || "Failed to generate invoice");
+      return;
+    }
+
+    const successMessage =
+      response.data?.message && response.data.message.trim() !== ""
+        ? response.data.message
+        : response.message && response.message.trim() !== ""
+          ? response.message
+          : "Invoice generated successfully";
+
+    toast.success(successMessage);
+
+    // Prefer valid redirect paths and ignore malformed values (e.g. containing "undefined").
+    const redirectPath =
+      [response.data?.legacyRedirectUrl, response.data?.url].find(
+        (value) =>
+          typeof value === "string" &&
+          value.trim() !== "" &&
+          !value.includes("undefined") &&
+          !value.includes("null")
+      ) ?? "";
+    const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL;
+
+    if (typeof redirectPath === "string" && redirectPath.trim() !== "") {
+      if (/^https?:\/\//i.test(redirectPath)) {
+        window.location.href = redirectPath;
+        return;
+      }
+
+      const normalizedPath = redirectPath.startsWith("/")
+        ? redirectPath
+        : `/${redirectPath}`;
+
+      // If API path already contains "/admin/...", navigate by origin to avoid
+      // duplicating location segments from NEXT_PUBLIC_LEGACY_URL.
+      if (normalizedPath.startsWith("/admin/")) {
+        if (legacyBase) {
+          try {
+            const origin = new URL(legacyBase).origin;
+            window.location.href = `${origin}${normalizedPath}`;
+            return;
+          } catch {
+            window.location.href = normalizedPath;
+            return;
+          }
+        }
+        window.location.href = normalizedPath;
+        return;
+      }
+
+      if (legacyBase) {
+        const base = legacyBase.replace(/\/+$/, "");
+        const path = normalizedPath.replace(/^\/+/, "");
+        window.location.href = `${base}/${path}`;
+        return;
+      }
+
+      window.location.href = normalizedPath;
+      return;
+    }
+
+    toast.info("Invoice generated but redirect URL was not provided.");
+  }, [details?.id, location]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUnscheduleSave = React.useCallback(async (reason: string) => {

@@ -999,6 +999,19 @@ export interface CreatePrivateLessonCommentRequest {
   content: string;
 }
 
+export interface GeneratePrivateLessonInvoiceResponse {
+  success: boolean;
+  data?: {
+    status?: boolean;
+    message?: string;
+    customerId?: number;
+    invoiceId?: number;
+    legacyRedirectUrl?: string;
+    url?: string;
+  };
+  message?: string;
+}
+
 /**
  * Fetches private lesson comments from the API
  *
@@ -1138,6 +1151,50 @@ export async function createPrivateLessonComment(
         },
       },
       message: apiError.response?.data?.message || "Failed to create private lesson comment",
+    };
+  }
+}
+
+/**
+ * Generates invoice for a private lesson.
+ *
+ * Endpoint: POST /admin/v2/{location}/lesson/generate-invoice
+ * Body: { lessonIds: [lessonId] }
+ */
+export async function generatePrivateLessonInvoice(
+  location: string,
+  lessonId: string
+): Promise<GeneratePrivateLessonInvoiceResponse | null> {
+  try {
+    const lessonIdNum = Number(lessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    const response = await apiClient.post<GeneratePrivateLessonInvoiceResponse>(
+      `/admin/v2/${location}/lesson/generate-invoice`,
+      {
+        lessonIds: [lessonIdNum],
+      }
+    );
+
+    const body = response.data;
+    const nestedStatus = body?.data?.status;
+    const success =
+      body?.success === true &&
+      (nestedStatus === undefined || nestedStatus === true || nestedStatus === 1);
+
+    return {
+      success,
+      data: body?.data,
+      message: body?.message,
+    };
+  } catch (error: unknown) {
+    console.error("Error generating private lesson invoice:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to generate invoice",
     };
   }
 }
