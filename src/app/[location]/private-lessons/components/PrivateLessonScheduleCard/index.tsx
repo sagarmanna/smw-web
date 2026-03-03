@@ -239,4 +239,3 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
     </>
   );
 });
-
