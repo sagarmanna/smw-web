@@ -10,6 +10,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
 import { addLineItem, updateLineItemPrice } from "@/lib/api/pos.api";
+import { isStorageAvailable } from "@/utils/pos-storage";
 import { toast } from "sonner";
 
 interface Item {
@@ -28,7 +29,7 @@ export default function POSPage() {
   const locationData = locations.find(loc => loc.slug === location);
   const locationId = locationData?.id || 1;
   
-  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction, resetTransaction } = usePOSTransaction(locationId, location);
+  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction, resetTransaction, clearStoredTransaction } = usePOSTransaction(locationId, location);
   const { isScanning, scanItem } = usePOSItemLookup(location);
   
   const productRef = useRef<HTMLInputElement>(null);
@@ -47,7 +48,30 @@ export default function POSPage() {
   const [discount, setDiscount] = useState(0);
 
   useEffect(() => {
-    initializeTransaction().then(() => {
+    // Check if localStorage is available (warn about incognito mode)
+    if (!isStorageAvailable()) {
+      toast.warning('POS may not work properly in incognito/private mode. Transaction data will not persist on refresh.');
+    }
+
+    // Initialize transaction and restore line items if any
+    initializeTransaction().then((restoredLineItems) => {
+      if (restoredLineItems && restoredLineItems.length > 0) {
+        console.log('[POS Page] Restoring', restoredLineItems.length, 'line items');
+        
+        // Map API line items to UI Item format
+        const restoredItems: Item[] = restoredLineItems.map((lineItem) => ({
+          id: `restored-${lineItem.id}`,
+          lineItemId: lineItem.id.toString(),
+          description: lineItem.item.description,
+          quantity: lineItem.quantity,
+          price: lineItem.overridePrice ? parseFloat(lineItem.overridePrice) : parseFloat(lineItem.price),
+          upc: lineItem.item.code,
+        }));
+        
+        setItems(restoredItems);
+        toast.success(`Restored ${restoredLineItems.length} item(s) from previous session`);
+      }
+      
       setTimeout(() => productRef.current?.focus(), 100);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -379,6 +403,7 @@ export default function POSPage() {
                 setItems([]);
                 setDiscount(0);
                 setShowCancelDialog(false);
+                clearStoredTransaction(); // Clear localStorage
                 resetTransaction();
               }}
               className="rounded-none"
