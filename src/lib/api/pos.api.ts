@@ -191,3 +191,42 @@ export async function updateLineItemPrice(
     },
   };
 }
+
+/**
+ * Update line item quantity
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param lineItemId - The line item ID
+ * @param quantity - The new quantity (1-999)
+ * @returns Promise resolving to updated line item data
+ */
+export async function updateLineItemQuantity(
+  transactionId: string,
+  location: string,
+  lineItemId: string,
+  quantity: number
+): Promise<UpdateLineItemResponse> {
+  // Validate quantity
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) {
+    throw new Error('Quantity must be an integer between 1 and 999');
+  }
+
+  const response = await apiClient.patch<UpdateLineItemResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/line-items/${lineItemId}`,
+    { quantity }
+  );
+
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      transactionId: data.transactionId,
+      itemId: data.itemId,
+      quantity: data.quantity,
+      price: data.price,
+      overridePrice: data.overridePrice,
+    },
+  };
+}
