@@ -1,5 +1,4 @@
 "use client";
-
 import * as React from "react";
 import { SortingState } from "@tanstack/react-table";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -7,6 +6,8 @@ import {
   fetchPrivateLesson,
   fetchPrivateLessonHistory,
   fetchPrivateLessonPayments,
+  fetchPrivateLessonComments,
+  createPrivateLessonCommentThunk,
   setPaymentsSorting,
   clearCache,
   updatePrivateLesson,
@@ -14,8 +15,10 @@ import {
   updateCostThunk,
   updateDueDateThunk,
   updateDiscountThunk,
+  updateTaxThunk,
   updatePriceThunk,
   updateGroupLessonStudentDiscountThunk,
+  unscheduleLessonThunk,
 } from "../[id]/private-lesson-details.slice";
 import { toast } from "sonner";
 import {
@@ -24,6 +27,7 @@ import {
   PrivateLessonHistory,
   PrivateLessonComment,
 } from "../types";
+import { extractErrorMessage, resolveMessage } from "../utils/errorUtils";
 
 type PrivateLessonDetailsHookReturn = {
   loading: boolean;
@@ -35,6 +39,12 @@ type PrivateLessonDetailsHookReturn = {
   paymentsSorting: SortingState;
   setPaymentsSortingHandler: (sorting: SortingState) => void;
   comments: PrivateLessonComment[];
+  commentsPagination: { page: number; limit: number; total: number; totalPages: number } | null;
+  commentsLoading: boolean;
+  commentsError: string | null;
+  commentsSubmitting: boolean;
+  fetchComments: (page?: number) => Promise<void>;
+  addComment: (content: string) => Promise<boolean>;
   history: PrivateLessonHistory[];
   historyPagination: { page: number; limit: number; total: number; totalPages: number } | null;
   historyLoading: boolean;
@@ -47,9 +57,17 @@ type PrivateLessonDetailsHookReturn = {
   saveAttendance: (present: boolean) => Promise<boolean>;
   saveCost: (data: { costPerHour?: string; cost?: string; price?: string }) => Promise<boolean>;
   saveDueDate: (dueDate: string) => Promise<boolean>;
-  saveDiscount: (discount: string) => Promise<boolean>;
+  saveDiscount: (discountFields: {
+    customerDiscount: number;
+    paymentFrequencyDiscount: number;
+    multiEnrolmentDiscount: number;
+    lineItemDiscount: number;
+    lineItemDiscountValueType: number;
+  }) => Promise<boolean>;
+  saveTax: (tax: string) => Promise<boolean>;
   savePrice: (lessonRatePerHour: string) => Promise<boolean>;
   saveGroupStudentDiscount: (studentId: number, discount: string) => Promise<boolean>;
+  saveUnschedule: (reason: string) => Promise<boolean>;
 };
 
 export function usePrivateLessonDetails(
@@ -74,7 +92,7 @@ export function usePrivateLessonDetails(
   const paymentsData = useAppSelector((state) => state.privateLesson?.paymentsData || []);
   const paymentsLoading = useAppSelector((state) => state.privateLesson?.paymentsLoading || false);
   const paymentsError = useAppSelector((state) => state.privateLesson?.paymentsError);
-  const paymentsSortDir = useAppSelector((state) => state.privateLesson?.paymentsSortDir || 'desc');
+  const paymentsSortDir = useAppSelector((state) => state.privateLesson?.paymentsSortDir || "desc");
 
   // Fetch payments on mount — keyed to prevent StrictMode double-dispatch
   const paymentsFetchKeyRef = React.useRef<string | null>(null);
@@ -86,9 +104,9 @@ export function usePrivateLessonDetails(
     dispatch(fetchPrivateLessonPayments({ location, privateLessonId }));
   }, [location, privateLessonId, dispatch]);
 
-  // Derive TanStack SortingState from Redux sort direction — same pattern as teachers/students
+  // Derive TanStack SortingState from Redux sort direction
   const paymentsSorting: SortingState = React.useMemo(
-    () => [{ id: 'amount', desc: paymentsSortDir === 'desc' }],
+    () => [{ id: "amount", desc: paymentsSortDir === "desc" }],
     [paymentsSortDir]
   );
 
@@ -107,15 +125,17 @@ export function usePrivateLessonDetails(
   }, [historyData]);
 
   // Get comments from Redux store
-  const comments: PrivateLessonComment[] = React.useMemo(() => {
-    return privateLessonInfo?.comments || [];
-  }, [privateLessonInfo]);
+  const comments = useAppSelector((state) => state.privateLesson?.commentsData || []);
+  const commentsPagination = useAppSelector((state) => state.privateLesson?.commentsPagination);
+  const commentsLoading = useAppSelector((state) => state.privateLesson?.commentsLoading || false);
+  const commentsError = useAppSelector((state) => state.privateLesson?.commentsError);
+  const commentsSubmitting = useAppSelector((state) => state.privateLesson?.commentsSubmitting || false);
 
-  // Sort change handler — updates Redux state then re-fetches with new sort direction
+  // Sort change handler
   const setPaymentsSortingHandler = React.useCallback(
     (newSorting: SortingState) => {
       const desc = newSorting[0]?.desc ?? true;
-      const sortDir = desc ? 'desc' : 'asc';
+      const sortDir = desc ? "desc" : "asc";
       dispatch(setPaymentsSorting({ sortDir }));
       dispatch(fetchPrivateLessonPayments({ location, privateLessonId, sortDir }));
     },
@@ -145,31 +165,70 @@ export function usePrivateLessonDetails(
         ).unwrap();
       } catch (error) {
         console.error("Failed to fetch history:", error);
-        // Error is already handled in Redux state
       }
     },
     [dispatch, location, privateLessonId]
   );
 
-  const saveDetails = React.useCallback(
-    async (details: Partial<PrivateLessonDetails>): Promise<boolean> => {
+  // Fetch comments with pagination
+  const fetchComments = React.useCallback(
+    async (page: number = 1): Promise<void> => {
+      try {
+        await dispatch(
+          fetchPrivateLessonComments({
+            location,
+            privateLessonId,
+            page,
+          })
+        ).unwrap();
+      } catch (error) {
+        console.error("Failed to fetch comments:", error);
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
+  const addComment = React.useCallback(
+    async (content: string): Promise<boolean> => {
       try {
         const result = await dispatch(
+          createPrivateLessonCommentThunk({
+            location,
+            privateLessonId,
+            content: content.trim(),
+          })
+        ).unwrap();
+        toast.success(resolveMessage(result.message, "Comment added successfully"));
+        return true;
+      } catch (error) {
+        console.error("Failed to add comment:", error);
+        toast.error(extractErrorMessage(error, "Failed to create comment"));
+        return false;
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
+  // Save general lesson details
+  const saveDetails = React.useCallback(
+    async (detailsToSave: Partial<PrivateLessonDetails>): Promise<boolean> => {
+      try {
+        await dispatch(
           updatePrivateLesson({
             location,
             privateLessonId,
-            data: details,
+            data: detailsToSave,
           })
         ).unwrap();
-
-        toast.success(
-          typeof result.message === "string" && result.message.trim() !== ""
-            ? result.message
-            : "Lesson details updated successfully"
-        );
+        toast.success("Details updated successfully");
         return true;
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to update private lesson details. Please try again.");
+        console.error("Failed to save details:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to update details. Please try again."
+        );
         return false;
       }
     },
@@ -186,12 +245,13 @@ export function usePrivateLessonDetails(
             present,
           })
         ).unwrap();
-
         toast.success("Attendance updated successfully");
         return true;
       } catch (error) {
         console.error("Failed to save attendance:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to update attendance. Please try again.");
+        toast.error(
+          error instanceof Error ? error.message : "Failed to update attendance. Please try again."
+        );
         return false;
       }
     },
@@ -208,12 +268,13 @@ export function usePrivateLessonDetails(
             data,
           })
         ).unwrap();
-
         toast.success("Cost updated successfully");
         return true;
       } catch (error) {
         console.error("Failed to save cost:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to update cost. Please try again.");
+        toast.error(
+          error instanceof Error ? error.message : "Failed to update cost. Please try again."
+        );
         return false;
       }
     },
@@ -231,11 +292,16 @@ export function usePrivateLessonDetails(
           })
         ).unwrap();
 
+        // Refresh details so UI shows server-normalized dueDate
+        dispatch(fetchPrivateLesson({ location, privateLessonId }));
+
         toast.success("Due date updated successfully");
         return true;
       } catch (error) {
         console.error("Failed to save due date:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to update due date. Please try again.");
+        toast.error(
+          error instanceof Error ? error.message : "Failed to update due date. Please try again."
+        );
         return false;
       }
     },
@@ -243,21 +309,38 @@ export function usePrivateLessonDetails(
   );
 
   const saveDiscount = React.useCallback(
-    async (discount: string): Promise<boolean> => {
+    async (discountFields: {
+      customerDiscount: number;
+      paymentFrequencyDiscount: number;
+      multiEnrolmentDiscount: number;
+      lineItemDiscount: number;
+      lineItemDiscountValueType: number;
+    }): Promise<boolean> => {
       try {
-        await dispatch(
+        const lessonIdNum = Number(privateLessonId);
+        if (!lessonIdNum || isNaN(lessonIdNum)) {
+          toast.error("Invalid lesson ID");
+          return false;
+        }
+
+        const payload = {
+          lessonIds: [lessonIdNum],
+          ...discountFields,
+        };
+
+        const discountResult = await dispatch(
           updateDiscountThunk({
             location,
-            privateLessonId,
-            discount,
+            payload,
           })
         ).unwrap();
-
-        toast.success("Discount updated successfully");
+        // Refetch lesson details to get updated totals and avoid NaN
+        await dispatch(fetchPrivateLesson({ location, privateLessonId }));
+        toast.success(resolveMessage(discountResult.message, "Discount updated successfully"));
         return true;
       } catch (error) {
         console.error("Failed to save discount:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to update discount. Please try again.");
+        toast.error(extractErrorMessage(error, "Failed to update discount. Please try again."));
         return false;
       }
     },
@@ -279,7 +362,11 @@ export function usePrivateLessonDetails(
         return true;
       } catch (error) {
         console.error("Failed to save student discount:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to update student discount. Please try again.");
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to update student discount. Please try again."
+        );
         return false;
       }
     },
@@ -296,16 +383,57 @@ export function usePrivateLessonDetails(
             lessonRatePerHour,
           })
         ).unwrap();
-
-        toast.success(
-          typeof result.message === "string" && result.message.trim() !== ""
-            ? result.message
-            : "Price updated successfully"
-        );
+        toast.success(resolveMessage(result.message, "Price updated successfully"));
         return true;
       } catch (error) {
         console.error("Failed to save price:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to update price. Please try again.");
+        toast.error(extractErrorMessage(error, "Failed to update price. Please try again."));
+        return false;
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
+  const saveTax = React.useCallback(
+    async (tax: string): Promise<boolean> => {
+      try {
+        const taxResult = await dispatch(
+          updateTaxThunk({
+            location,
+            privateLessonId,
+            tax,
+          })
+        ).unwrap();
+        toast.success(resolveMessage(taxResult.message, "Tax updated successfully"));
+        return true;
+      } catch (error) {
+        console.error("Failed to save tax:", error);
+        toast.error(extractErrorMessage(error, "Failed to update tax. Please try again."));
+        return false;
+      }
+    },
+    [dispatch, location, privateLessonId]
+  );
+
+  const saveUnschedule = React.useCallback(
+    async (reason: string): Promise<boolean> => {
+      try {
+        await dispatch(
+          unscheduleLessonThunk({
+            location,
+            privateLessonId,
+            reason,
+          })
+        ).unwrap();
+        toast.success("Lesson unscheduled successfully");
+        // Refresh details after unscheduling to get updated status and cleared schedule
+        await dispatch(fetchPrivateLesson({ location, privateLessonId }));
+        return true;
+      } catch (error) {
+        console.error("Failed to unschedule lesson:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to unschedule lesson. Please try again."
+        );
         return false;
       }
     },
@@ -322,6 +450,12 @@ export function usePrivateLessonDetails(
     paymentsSorting,
     setPaymentsSortingHandler,
     comments,
+    commentsPagination,
+    commentsLoading,
+    commentsError,
+    commentsSubmitting,
+    fetchComments,
+    addComment,
     history,
     historyPagination,
     historyLoading,
@@ -335,7 +469,9 @@ export function usePrivateLessonDetails(
     saveCost,
     saveDueDate,
     saveDiscount,
+    saveTax,
     savePrice,
     saveGroupStudentDiscount,
+    saveUnschedule,
   };
 }

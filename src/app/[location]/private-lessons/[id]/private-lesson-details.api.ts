@@ -25,6 +25,7 @@ export interface PrivateLessonDetailsResponseBody {
   // New nested structure (from actual API)
   lesson?: {
     id: number;
+    programId?: number;
     programName: string;
     classroomName: string;
     status: string;
@@ -427,6 +428,89 @@ export async function getPrivateLessonHistory(
   }
 }
 
+// Email statement API types -------------------------------------------------
+export interface PrivateLessonEmailStatementBody {
+  lesson: {
+    student: string;
+    customer: string;
+    teacher: string;
+    scheduledDate: string;
+    time: string;
+    duration: string;
+    status: string;
+    expiryDate: string;
+  };
+  // some endpoints may also return a list of recipient emails
+  emails?: string[];
+  // when the API returns an emailTemplate at the top level we merge it in
+  emailTemplate?: {
+    id: number;
+    to: string;
+    subject: string;
+    header: string;
+    footer: string;
+  };
+}
+
+export interface PrivateLessonEmailStatementApiResponse {
+  success: boolean;
+  data: {
+    body: PrivateLessonEmailStatementBody;
+    // some responses (newer) return the template alongside the body
+    emailTemplate?: {
+      id: number;
+      to: string;
+      subject: string;
+      header: string;
+      footer: string;
+    };
+  };
+  message?: string;
+}
+
+/**
+ * Fetches private lesson email statement from the API.
+ *
+ * Endpoint: GET /admin/v2/{location}/lesson/{privateLessonId}/email-statement
+ */
+export async function getPrivateLessonEmailStatement(
+  location: string,
+  privateLessonId: string
+): Promise<PrivateLessonEmailStatementApiResponse | null> {
+  try {
+    const response = await apiClient.get<PrivateLessonEmailStatementApiResponse>(
+      `/admin/v2/${location}/lesson/${privateLessonId}/email-statement`
+    );
+
+    if (!response.data.success || !response.data.data?.body) {
+      // if the call failed we propagate the data (so UI can show message) or null
+      return response.data.success === false ? response.data : null;
+    }
+
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: {
+          lesson: {
+            student: "",
+            customer: "",
+            teacher: "",
+            scheduledDate: "",
+            time: "",
+            duration: "",
+            status: "",
+            expiryDate: "",
+          },
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to fetch email statement",
+    };
+  }
+}
+
 /**
  * Transforms API response to match the PrivateLessonInfo interface
  */
@@ -536,6 +620,7 @@ export function transformApiResponse(
   return {
     details: {
       id: (lessonData?.id ?? body.id) || 0,
+      programId: lessonData?.programId,
       program: (lessonData?.programName ?? body.program) || "",
       classroom: (lessonData?.classroomName ?? body.classroom) || "",
       status: (lessonData?.status ?? body.status) || "",
@@ -663,50 +748,46 @@ export interface UpdateAttendanceResponse {
 }
 
 /**
- * Updates attendance via PUT API
- * For now, returns mock response
+ * Updates attendance via PUT API.
+ * PUT /admin/v2/{location}/lesson/{privateLessonId}/attendance
  */
 export async function updateAttendance(
   location: string,
   privateLessonId: string,
   data: UpdateAttendanceRequest
 ): Promise<UpdateAttendanceResponse | null> {
-  try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        id: Number(privateLessonId) || 0,
-        present: data.present,
-      },
-    };
-  } catch (error: unknown) {
-    console.error("Error updating attendance:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
-    return {
-      success: false,
-      data: {
-        id: Number(privateLessonId) || 0,
-        present: false,
-      },
-      message: apiError.response?.data?.message || "Failed to update attendance",
-    };
+  const response = await apiClient.put<UpdateAttendanceResponse>(
+    `/admin/v2/${location}/lesson/${privateLessonId}/attendance`,
+    data
+  );
+
+  const body = response.data;
+  const success = body?.success === true;
+  const message = body?.message;
+
+  if (!success) {
+    throw new Error(
+      typeof message === "string" && message.trim() !== ""
+        ? message
+        : "Failed to update attendance"
+    );
   }
+
+  return {
+    success: true,
+    data: body.data,
+    message,
+  };
 }
 
 // Update Cost API Types
 export interface UpdateCostRequest {
-  costPerHour?: string;
-  cost?: string;
-  price?: string;
+  teacherRate: number;
 }
 
 export interface UpdateCostResponse {
   success: boolean;
   data: {
-    id: number;
     costPerHour: string;
     cost: string;
     price: string;
@@ -716,8 +797,9 @@ export interface UpdateCostResponse {
 }
 
 /**
- * Updates cost via PUT API
- * For now, returns mock response
+ * Updates teacher cost via PUT /admin/v2/{location}/lesson/{id}/edit-cost
+ * Request: { teacherRate: number }
+ * Response: { costPerHour, cost, price, profit }
  */
 export async function updateCost(
   location: string,
@@ -725,39 +807,17 @@ export async function updateCost(
   data: UpdateCostRequest
 ): Promise<UpdateCostResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const costPerHour = data.costPerHour || "$10.00";
-    const cost = data.cost || "$5.00";
-    const price = data.price || "$10.00";
-    // Calculate profit
-    const costNum = parseFloat(cost.replace("$", ""));
-    const priceNum = parseFloat(price.replace("$", ""));
-    const profit = `$${(priceNum - costNum).toFixed(2)}`;
-    
-    return {
-      success: true,
-      data: {
-        id: Number(privateLessonId) || 0,
-        costPerHour,
-        cost,
-        price,
-        profit,
-      },
-    };
+    const response = await apiClient.put<UpdateCostResponse>(
+      `/admin/v2/${location}/lesson/${privateLessonId}/edit-cost`,
+      { teacherRate: data.teacherRate }
+    );
+    return response.data;
   } catch (error: unknown) {
     console.error("Error updating cost:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
-      data: {
-        id: Number(privateLessonId) || 0,
-        costPerHour: "",
-        cost: "",
-        price: "",
-        profit: "",
-      },
+      data: { costPerHour: "", cost: "", price: "", profit: "" },
       message: apiError.response?.data?.message || "Failed to update cost",
     };
   }
@@ -787,15 +847,24 @@ export async function updateDueDate(
   data: UpdateDueDateRequest
 ): Promise<UpdateDueDateResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    const response = await apiClient.put<UpdateDueDateResponse>(
+      `/admin/v2/${location}/lesson/${privateLessonId}/due-date`,
+      data
+    );
+
+    const body = response.data;
+    if (!body || body.success !== true) {
+      return body;
+    }
+
+    // Ensure we return a normalized object
     return {
       success: true,
       data: {
-        id: Number(privateLessonId) || 0,
-        dueDate: data.dueDate,
+        id: body.data?.id ?? Number(privateLessonId) ?? 0,
+        dueDate: body.data?.dueDate ?? data.dueDate,
       },
+      message: body.message,
     };
   } catch (error: unknown) {
     console.error("Error updating due date:", error);
@@ -926,25 +995,57 @@ export interface PrivateLessonCommentsApiResponse {
   message?: string;
 }
 
+export interface CreatePrivateLessonCommentRequest {
+  content: string;
+}
+
+export interface GeneratePrivateLessonInvoiceResponse {
+  success: boolean;
+  data?: {
+    status?: boolean | number | string | null;
+    message?: string;
+    customerId?: number;
+    invoiceId?: number;
+    legacyRedirectUrl?: string;
+    url?: string;
+  };
+  message?: string;
+}
+
+function isSuccessfulInvoiceStatus(status: unknown): boolean {
+  const normalized = status?.toString?.()?.trim?.()?.toLowerCase?.();
+  return (
+    status === undefined ||
+    status === null ||
+    status === true ||
+    status === 1 ||
+    normalized === "true" ||
+    normalized === "1"
+  );
+}
+
 /**
  * Fetches private lesson comments from the API
- * For now, returns mock data
- * 
+ *
+ * Endpoint: GET /admin/v2/{location}/comments?id={lessonId}&type=lesson&page={page}
+ *
  * @param location - The location identifier
- * @param customerId - The customer ID (from lesson details response)
+ * @param lessonId - The lesson ID
  * @param page - The page number for pagination (default: 1)
  * @returns Promise resolving to the comments response or null on error
  */
 export async function getPrivateLessonComments(
   location: string,
-  customerId: number,
+  lessonId: string,
   page: number = 1
 ): Promise<PrivateLessonCommentsApiResponse | null> {
   try {
     const response = await apiClient.get<PrivateLessonCommentsApiResponse>(
-      `/admin/v2/${location}/customers/${customerId}/comments`,
+      `/admin/v2/${location}/comments`,
       {
         params: {
+          id: lessonId,
+          type: "lesson",
           page,
         },
       }
@@ -989,6 +1090,324 @@ export async function getPrivateLessonComments(
   }
 }
 
+/**
+ * Creates a private lesson comment and returns the updated comments list from server.
+ *
+ * Endpoint: POST /admin/v2/{location}/comments?instanceId={lessonId}&instanceType=3
+ * Body: { content: string }
+ */
+export async function createPrivateLessonComment(
+  location: string,
+  lessonId: string,
+  data: CreatePrivateLessonCommentRequest
+): Promise<PrivateLessonCommentsApiResponse | null> {
+  try {
+    const response = await apiClient.post<{
+      success: boolean;
+      message?: string;
+      data?: {
+        status?: boolean;
+        data?: {
+          body?: PrivateLessonCommentResponseBody[];
+          pagination?: PaginationInfo;
+        };
+      };
+    }>(
+      `/admin/v2/${location}/comments`,
+      data,
+      {
+        params: {
+          instanceId: lessonId,
+          instanceType: 3,
+        },
+      }
+    );
+
+    const nestedStatus = response.data?.data?.status as unknown;
+    const statusOk =
+      nestedStatus === undefined ||
+      nestedStatus === true ||
+      nestedStatus === 1 ||
+      nestedStatus === "true";
+    const success = response.data?.success === true && statusOk;
+    const body = response.data?.data?.data?.body ?? [];
+    const pagination = response.data?.data?.data?.pagination;
+
+    return {
+      success,
+      data: {
+        body,
+        pagination,
+      },
+      message: response.data?.message,
+    };
+  } catch (error: unknown) {
+    console.error("Error creating private lesson comment:", error);
+    const apiError = error as {
+      response?: {
+        data?: {
+          message?: string;
+        };
+      };
+    };
+
+    return {
+      success: false,
+      data: {
+        body: [],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+        },
+      },
+      message: apiError.response?.data?.message || "Failed to create private lesson comment",
+    };
+  }
+}
+
+/**
+ * Generates invoice for a private lesson.
+ *
+ * Endpoint: POST /admin/v2/{location}/lesson/generate-invoice
+ * Body: { lessonIds: [lessonId] }
+ */
+export async function generatePrivateLessonInvoice(
+  location: string,
+  lessonId: string
+): Promise<GeneratePrivateLessonInvoiceResponse | null> {
+  try {
+    const lessonIdNum = Number(lessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    const response = await apiClient.post<GeneratePrivateLessonInvoiceResponse>(
+      `/admin/v2/${location}/lesson/generate-invoice`,
+      {
+        lessonIds: [lessonIdNum],
+      }
+    );
+
+    const body = response.data;
+    const nestedStatus = body?.data?.status;
+    const success =
+      body?.success === true && isSuccessfulInvoiceStatus(nestedStatus);
+
+    return {
+      success,
+      data: body?.data,
+      message: body?.message,
+    };
+  } catch (error: unknown) {
+    console.error("Error generating private lesson invoice:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to generate invoice",
+    };
+  }
+}
+
+// Update Tax API Types
+export interface UpdateTaxRequest {
+  id: number;
+  tax: number;
+}
+
+export interface UpdateTaxResponse {
+  success: boolean;
+  data: {
+    body: {
+      tax: number;
+    };
+  };
+  message?: string;
+}
+
+/**
+ * Updates tax via PUT /admin/v2/{location}/private-lesson/edit-tax
+ * Request: { id: number, tax: number }
+ * Response: { data: { body: { tax: number } } }
+ */
+export async function updateTax(
+  location: string,
+  _privateLessonId: string,
+  data: UpdateTaxRequest
+): Promise<UpdateTaxResponse | null> {
+  try {
+    const response = await apiClient.put<UpdateTaxResponse>(
+      `/admin/v2/${location}/private-lesson/edit-tax`,
+      { id: data.id, tax: data.tax }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error updating tax:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: { body: { tax: 0 } },
+      message: apiError.response?.data?.message || "Failed to update tax",
+    };
+  }
+}
+
+// Edit Schedule API Types
+export interface EditScheduleRequest {
+  /** Format: "YYYY-MM-DD hh:mm a" — e.g. "2025-02-27 07:00 AM" */
+  date: string;
+  /** Format: "HH:MM:SS" — e.g. "01:00:00" */
+  duration: string;
+}
+
+export interface EditScheduleResponseData {
+  lessonId: number;
+  isPrivateLesson: boolean;
+  isOwing: boolean;
+  isOwingRentalAgreement: boolean;
+  isOnline: boolean;
+  resourceId: number;
+  title: string;
+  start: string;
+  end: string;
+  url: string;
+  className: string;
+  backgroundColor: string;
+  tooltip: unknown[];
+}
+
+export interface EditScheduleResponse {
+  success: boolean;
+  data: EditScheduleResponseData;
+  message?: string;
+}
+
+// Explode status/action API types
+export interface PrivateLessonExplodeStatusChecks {
+  isPrivate?: boolean;
+  isUnscheduled?: boolean;
+  notExploded?: boolean;
+  notExpired?: boolean;
+  notInvoiced?: boolean;
+}
+
+export interface PrivateLessonExplodeStatusItem {
+  canExplode?: boolean;
+  lessonId?: number;
+  checks?: PrivateLessonExplodeStatusChecks;
+}
+
+export interface PrivateLessonExplodeStatusResponse {
+  success: boolean;
+  data: {
+    status: PrivateLessonExplodeStatusItem[];
+  };
+  message?: string;
+}
+
+export interface ExplodePrivateLessonResponse {
+  success: boolean;
+  data?: {
+    originalLessonId?: number;
+    explodedLessons?: Array<{
+      id: number;
+    }>;
+    redirectUrl?: string;
+    studentId?: number;
+  };
+  message?: string;
+}
+
+/**
+ * Fetches explode eligibility/status for a lesson.
+ * GET /admin/v2/{location}/lesson/explode/status?lessonIds={lessonId}
+ */
+export async function getPrivateLessonExplodeStatus(
+  location: string,
+  lessonId: string
+): Promise<PrivateLessonExplodeStatusResponse | null> {
+  try {
+    const response = await apiClient.get<PrivateLessonExplodeStatusResponse>(
+      `/admin/v2/${location}/lesson/explode/status`,
+      {
+        params: {
+          lessonIds: Number(lessonId),
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching explode status:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        status: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch explode status",
+    };
+  }
+}
+
+/**
+ * Explodes a private lesson.
+ * POST /admin/v2/{location}/lesson/explode/{lessonId}
+ */
+export async function explodePrivateLesson(
+  location: string,
+  lessonId: string
+): Promise<ExplodePrivateLessonResponse | null> {
+  try {
+    const lessonIdNum = Number(lessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    const response = await apiClient.post<ExplodePrivateLessonResponse>(
+      `/admin/v2/${location}/lesson/explode/${lessonIdNum}`
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error exploding private lesson:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to explode private lesson",
+    };
+  }
+}
+
+/**
+ * Updates the schedule of a private lesson.
+ * PUT /admin/v2/{location}/lesson/edit-schedule/{lessonId}
+ *
+ * Throws on HTTP error so callers only run the success path after a real 200 response.
+ */
+export async function editLessonSchedule(
+  location: string,
+  lessonId: number,
+  data: EditScheduleRequest
+): Promise<EditScheduleResponse> {
+  const response = await apiClient.put<EditScheduleResponse>(
+    `/admin/v2/${location}/lesson/edit-schedule/${lessonId}`,
+    data
+  );
+
+  const body = response.data;
+  if (!body?.success) {
+    throw new Error(
+      typeof body?.message === "string" && body.message.trim() !== ""
+        ? body.message
+        : "Failed to update schedule"
+    );
+  }
+
+  return body;
+}
+
 // Delete Private Lesson API Types
 export interface DeletePrivateLessonResponse {
   success: boolean;
@@ -996,40 +1415,37 @@ export interface DeletePrivateLessonResponse {
 }
 
 /**
- * Deletes a private lesson via DELETE API
- * For now, returns mock response
- * 
- * @param location - The location identifier
- * @param privateLessonId - The private lesson ID
- * @returns Promise resolving to the delete response or null on error
+ * Deletes a private lesson via the new bulk-delete endpoint used by listing and
+ * detail pages.  We wrap the existing `deleteLessonsApi` so callers don't need
+ * to know the payload format.
  */
+import { deleteLessonsApi } from "../actionApi/deleteLessons.api";
+
 export async function deletePrivateLesson(
   location: string,
   privateLessonId: string
 ): Promise<DeletePrivateLessonResponse | null> {
   try {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await apiClient.delete<DeletePrivateLessonResponse>(
-    //   `/admin/v2/${location}/private-lessons/${privateLessonId}`
-    // );
-    // return response.data;
-    
-    void location;
-    void privateLessonId;
-    
-    // Mock response
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    const lessonIdNum = Number(privateLessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    const result = await deleteLessonsApi(location, {
+      lessonIds: [lessonIdNum],
+    });
+
+    // deleteLessonsApi already throws on failure, so success path is simple
     return {
       success: true,
-      message: "Private lesson deleted successfully",
+      message: result.message,
     };
   } catch (error: unknown) {
     console.error("Error deleting private lesson:", error);
-    const apiError = error as { response?: { data?: { message?: string } } };
+    const apiError = error as { message?: string };
     return {
       success: false,
-      message: apiError.response?.data?.message || "Failed to delete private lesson",
+      message: apiError.message || (error instanceof Error ? error.message : "Failed to delete private lesson"),
     };
   }
 }

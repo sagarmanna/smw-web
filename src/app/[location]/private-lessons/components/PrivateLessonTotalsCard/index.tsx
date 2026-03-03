@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { ChevronDown } from "lucide-react";
-import { toast } from "sonner";
 import {
   SectionCard,
 } from "@/components/SectionCard";
@@ -17,10 +16,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { EditDiscountModal } from "../modals/EditDiscountModal";
 import { EditPriceModal } from "../modals/EditPriceModal";
+import { EditTaxModal } from "../modals/EditTaxModal";
 
 interface PrivateLessonTotalsCardProps {
   details: PrivateLessonDetails | null;
-  onSaveDiscount: (discount: string) => Promise<boolean>;
+  onSaveDiscount: (discountFields: {
+    customerDiscount: number;
+    paymentFrequencyDiscount: number;
+    multiEnrolmentDiscount: number;
+    lineItemDiscount: number;
+    lineItemDiscountValueType: number;
+  }) => Promise<boolean>;
+  onSaveTax: (tax: string) => Promise<boolean>;
   onSavePrice: (lessonRatePerHour: string) => Promise<boolean>;
   savingDetails?: boolean;
   isLoading?: boolean;
@@ -30,11 +37,13 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
   details,
   onSaveDiscount,
   onSavePrice,
+  onSaveTax,
   savingDetails = false,
   isLoading = false,
 }: PrivateLessonTotalsCardProps) {
   const [isDiscountModalOpen, setIsDiscountModalOpen] = React.useState(false);
   const [isPriceModalOpen, setIsPriceModalOpen] = React.useState(false);
+  const [isTaxModalOpen, setIsTaxModalOpen] = React.useState(false);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
     return [
@@ -82,7 +91,7 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
   }, []);
 
   const handleEditTaxClick = React.useCallback(() => {
-    toast.info("This feature is under process");
+    setIsTaxModalOpen(true);
   }, []);
 
   const handleEditPriceClick = React.useCallback(() => {
@@ -97,9 +106,19 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
     setIsPriceModalOpen(false);
   }, []);
 
+  const handleTaxClose = React.useCallback(() => {
+    setIsTaxModalOpen(false);
+  }, []);
+
   const handleDiscountSubmit = React.useCallback(
-    async (discount: string): Promise<boolean> => {
-      return await onSaveDiscount(discount);
+    async (discountFields: {
+      customerDiscount: number;
+      paymentFrequencyDiscount: number;
+      multiEnrolmentDiscount: number;
+      lineItemDiscount: number;
+      lineItemDiscountValueType: number;
+    }): Promise<boolean> => {
+      return await onSaveDiscount(discountFields);
     },
     [onSaveDiscount]
   );
@@ -109,6 +128,13 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
       return await onSavePrice(rate);
     },
     [onSavePrice]
+  );
+
+  const handleTaxSubmit = React.useCallback(
+    async (tax: string): Promise<boolean> => {
+      return await onSaveTax(tax);
+    },
+    [onSaveTax]
   );
 
   return (
@@ -152,6 +178,13 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
         onClose={handlePriceClose}
         lessonRatePerHour={details?.totals.lessonRatePerHour || ""}
         onSubmit={handlePriceSubmit}
+        saving={savingDetails}
+      />
+      <EditTaxModal
+        open={isTaxModalOpen}
+        onClose={handleTaxClose}
+        tax={details?.totals.tax || ""}
+        onSubmit={handleTaxSubmit}
         saving={savingDetails}
       />
     </>

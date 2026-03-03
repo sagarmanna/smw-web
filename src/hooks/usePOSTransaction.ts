@@ -2,10 +2,6 @@ import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { createPOSTransaction } from '@/lib/api/pos.api';
 
-/**
- * Custom hook for POS transaction management
- * Handles all POS-related API calls and state
- */
 export function usePOSTransaction(locationId: number, location: string) {
   const [transactionId, setTransactionId] = useState('Loading...');
   const [numericTransactionId, setNumericTransactionId] = useState<string>('');
@@ -42,7 +38,6 @@ export function usePOSTransaction(locationId: number, location: string) {
       console.error('Failed to create transaction:', error);
       toast.error('Failed to create transaction. Using fallback values.');
       
-      // Set fallback values
       const fallbackId = Date.now();
       setTransactionId('P-001-1024');
       setNumericTransactionId(fallbackId.toString());

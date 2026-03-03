@@ -81,16 +81,14 @@ export default function POSPage() {
           quantity
         });
 
-        const response = await addLineItem(numericTransactionId, location, {
+        const response = await addLineItem(String(numericTransactionId), location, {
           itemId: itemData.id,
           quantity: quantity,
         });
         
-        // Backend response is double-nested: { success: true, data: { data: {...}, success: true } }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const transactionData = (response.data as any)?.data || response.data;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const lineItems = (transactionData as any)?.lineItems;
+        // apiClient returns axios response with data property
+        const transactionData = response.data || response;
+        const lineItems = transactionData?.lineItems;
         
         if (lineItems && lineItems.length > 0) {
           const addedLineItem = lineItems[lineItems.length - 1];
@@ -190,7 +188,7 @@ export default function POSPage() {
         }
         
         await updateLineItemPrice(
-          numericTransactionId,
+          String(numericTransactionId),
           location,
           selectedItem.lineItemId,
           price
@@ -214,7 +212,7 @@ export default function POSPage() {
     }
   };
 
-  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+  const subtotal = items.reduce((sum, item) => sum + (item.quantity * parseFloat(String(item.price))), 0);
   const discountAmount = discountType === "percentage" ? (subtotal * discount) / 100 : discount;
   const total = subtotal - discountAmount;
 

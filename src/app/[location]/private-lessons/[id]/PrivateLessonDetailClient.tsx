@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppSelector, useAppDispatch } from "@/redux/hooks";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { ActionMenuGroup } from "@/components/DetailHeader";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
@@ -11,6 +11,12 @@ import { EmailModal, type EmailFormData } from "@/components/EmailModal";
 import { sendEmail } from "@/lib/api/legacyApiAdapter";
 import { getCustomerEmailAddresses } from "@/lib/api/customer.api";
 import { usePrivateLessonDetails } from "../hooks/usePrivateLessonDetails";
+import { fetchEmailStatement } from "./private-lesson-details.slice";
+import { generateEmailContent } from "./utils/emailStatementHtmlGenerator";
+import {
+  explodePrivateLesson,
+  getPrivateLessonExplodeStatus,
+} from "./private-lesson-details.api";
 import { PrivateLessonDetailsCard } from "../components/PrivateLessonDetailsCard";
 import { PrivateLessonStudentCard } from "../components/PrivateLessonStudentCard";
 import { PrivateLessonAttendanceCard } from "../components/PrivateLessonAttendanceCard";
@@ -22,7 +28,6 @@ import { PrivateLessonPaymentsCard } from "../components/PrivateLessonPaymentsCa
 import { PrivateLessonCommentsCard } from "../components/PrivateLessonCommentsCard";
 import { PrivateLessonHistoryCard } from "../components/PrivateLessonHistoryCard";
 import { DeletePrivateLessonModal } from "../components/modals/DeletePrivateLessonModal";
-import { GroupLessonTabsSection } from "../components/GroupLessonTabsSection";
 import { PrivateLessonPayment } from "../types";
 import { ReceivePaymentModal, type ReceivePaymentData } from "@/components/modal/ReceivePaymentModal";
 import { PaymentReceiptModalContainer, getPaymentReceiptData } from "@/components/modal/PaymentReceiptModal";
@@ -36,6 +41,7 @@ interface PrivateLessonDetailClientProps {
 
 export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailClientProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const privateLessonId = id;
 
   // Get loading and error from Redux - single source of truth
@@ -50,6 +56,12 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     paymentsSorting,
     setPaymentsSortingHandler,
     comments,
+    commentsPagination,
+    commentsLoading,
+    commentsError,
+    commentsSubmitting,
+    fetchComments,
+    addComment,
     history,
     historyPagination,
     historyLoading,
@@ -61,13 +73,52 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     saveCost,
     saveDueDate,
     saveDiscount,
+    saveTax,
     savePrice,
     saveGroupStudentDiscount,
+    saveUnschedule,
   } = usePrivateLessonDetails(location, privateLessonId);
+
+  // selectors for email statement data loaded from slice
+  const emailStatement = useAppSelector((state) => state.privateLesson.emailStatement);
+  const emailStatementLoading = useAppSelector((state) => state.privateLesson.emailStatementLoading);
+  const emailStatementError = useAppSelector((state) => state.privateLesson.emailStatementError);
 
   // Email modal state for sending private lesson statements
   const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
   const [customerEmails, setCustomerEmails] = React.useState<string[]>([]);
+
+  // memoized subject/content similar to group course detail page
+  const emailSubject = React.useMemo(() => {
+    return emailStatement?.emailTemplate?.subject || "";
+  }, [emailStatement]);
+
+  // extract header and footer separately so the modal can render them readonly
+  const emailHeaderHtml = React.useMemo(() => {
+    const header = emailStatement?.emailTemplate?.header?.trim() || "";
+    return header;
+  }, [emailStatement]);
+
+  const emailContent = React.useMemo(() => {
+    if (!emailStatement) return "";
+    // generate complete html including header/footer; we still render them outside editor
+    const content = generateEmailContent(emailStatement);
+    return content;
+  }, [emailStatement, isEmailModalOpen]);
+
+  const recipientEmails = React.useMemo(() => {
+    // if template defines a "to" list use that first (comma-separated string),
+    // otherwise fall back to the explicit emails array or the customer addresses.
+    const toField = emailStatement?.emailTemplate?.to;
+    if (toField && toField.trim() !== "") {
+      return toField
+        .split(",")
+        .map((e) => e.trim())
+        .filter((e) => e);
+    }
+
+    return emailStatement?.emails || customerEmails;
+  }, [emailStatement, customerEmails]);
 
   // Receive payment modal state
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
@@ -75,6 +126,13 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   // Receipt payment modal state (same flow as enrollment page)
   const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = React.useState<number | string | null>(null);
+  const [explodeStatus, setExplodeStatus] = React.useState<{
+    canExplode: boolean;
+    isExploded: boolean;
+  }>({
+    canExplode: false,
+    isExploded: false,
+  });
   const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<{
     date: string;
     paymentMethod: string;
@@ -85,6 +143,31 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     invoices?: Array<{ date: string; number: string; amount: string; payment: string; balance: string }>;
     credits?: Array<{ type: string; reference: string; paymentMethod?: string; amount: string; amountUsed: string }>;
   } | null>(null);
+
+  // Redirect to group-lessons route if this lesson is actually a group lesson
+  React.useEffect(() => {
+    if (details?.isGroup === true) {
+      router.replace(`/${location}/group-lessons/${id}`);
+    }
+  }, [details?.isGroup, location, id, router]);
+
+  const refreshExplodeStatus = React.useCallback(async () => {
+    const response = await getPrivateLessonExplodeStatus(location, privateLessonId);
+    const firstStatus = response?.data?.status?.[0];
+    const checks = firstStatus?.checks;
+
+    setExplodeStatus({
+      canExplode:
+        firstStatus?.canExplode === true &&
+        checks?.isUnscheduled === true &&
+        checks?.notExploded !== false,
+      isExploded: checks?.notExploded === false,
+    });
+  }, [location, privateLessonId]);
+
+  React.useEffect(() => {
+    refreshExplodeStatus();
+  }, [refreshExplodeStatus, details?.status]);
 
   // Fetch customer email addresses when email modal opens
   React.useEffect(() => {
@@ -118,39 +201,34 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   // History is fetched once in page.tsx during initial load
   // No need to fetch here - component only displays data from Redux state
 
-  // All hooks must be called before any early returns
-  
-  // Determine if this is a group lesson (must be defined before pageTitle and breadcrumbItems)
-  const isGroupLesson = React.useMemo(() => {
-    const result = details?.isGroup === true;
-    console.log('[PrivateLessonDetailClient] Checking isGroup:', {
-      'details?.isGroup': details?.isGroup,
-      'isGroupLesson': result,
-      'details': details
-    });
-    return result;
-  }, [details]);
-
   const pageTitle = React.useMemo(() => {
-    if (!details) return isGroupLesson ? `Group Lesson #${id}` : `Private Lesson #${id}`;
-    return `${details.program || (isGroupLesson ? `Group Lesson #${id}` : `Private Lesson #${id}`)}`;
-  }, [details, id, isGroupLesson]);
+    if (!details) return `Private Lesson #${id}`;
+    return details.program || `Private Lesson #${id}`;
+  }, [details, id]);
 
   const breadcrumbItems = React.useMemo(
     () => [
       {
-        label: isGroupLesson ? "Group Lessons" : "Private Lessons",
+        label: "Private Lessons",
         onClick: () => router.push(`/${location}/private-lessons`),
       },
     ],
-    [location, router, isGroupLesson]
+    [location, router]
   );
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
 
   const handleMailClick = React.useCallback(() => {
+    // fetch data if not already loaded
+    if (!emailStatement && !emailStatementLoading) {
+      dispatch(fetchEmailStatement({ location, privateLessonId }));
+    }
     setIsEmailModalOpen(true);
-  }, []);
+  }, [dispatch, emailStatement, emailStatementLoading, location, privateLessonId]);
+
+  const handleRetryEmailStatement = React.useCallback(() => {
+    dispatch(fetchEmailStatement({ location, privateLessonId }));
+  }, [dispatch, location, privateLessonId]);
 
   const handleReceivePaymentClick = React.useCallback(() => {
     setIsReceivePaymentModalOpen(true);
@@ -305,6 +383,42 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     router.push(`/${location}/private-lessons`);
   }, [location, router]);
 
+  const handleExplodeClick = React.useCallback(async () => {
+    const result = await explodePrivateLesson(location, privateLessonId);
+    if (!result || !result.success) {
+      toast.error(result?.message || "Failed to explode lesson");
+      return;
+    }
+
+    const message = result.message || "Lesson exploded successfully";
+    toast.success(message);
+
+      const finalStudentId =
+        typeof result.data?.studentId === "number" && !Number.isNaN(result.data.studentId)
+          ? result.data.studentId
+          : undefined;
+
+      if (finalStudentId) {
+        setTimeout(() => {
+          router.push(`/${location}/students/${finalStudentId}`);
+        }, 100);
+        return;
+      }
+
+      // Fallback matches other modules: go back to list if student id is unavailable.
+      setTimeout(() => {
+        router.push(`/${location}/private-lessons`);
+      }, 100);
+    }, [location, privateLessonId, router]);
+
+  const handleUnscheduleWithStatusRefresh = React.useCallback(async (reason: string) => {
+    const success = await saveUnschedule(reason);
+    if (success) {
+      await refreshExplodeStatus();
+    }
+    return success;
+  }, [saveUnschedule, refreshExplodeStatus]);
+
   // Click payment row -> open receipt modal (view mode), same as enrollment page.
   const handlePaymentClick = React.useCallback((payment: PrivateLessonPayment) => {
     if (!payment.id || !details?.customerId) return;
@@ -313,44 +427,51 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     setIsReceiptModalOpen(true);
   }, [details?.customerId]);
 
-  // Action menu: group lessons = Mail only; private lessons = Mail, Receive Payment, Delete.
-  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(() => {
-    if (isGroupLesson) {
-      return [
-        {
-          label: "Action",
-          items: [
-            {
-              label: "Mail",
-              onClick: handleMailClick,
-            },
-          ],
-        },
-      ];
-    }
+  const explodedFromStatusText = React.useMemo(
+    () => details?.status?.toLowerCase().includes("exploded") ?? false,
+    [details?.status]
+  );
+  const isExploded = explodeStatus.isExploded || explodedFromStatusText;
+  const shouldShowExplode = explodeStatus.canExplode && !isExploded;
 
-    // For private lessons, keep full action set
+  const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(() => {
+    const items = [
+      {
+        label: "Mail",
+        onClick: handleMailClick,
+      },
+      {
+        label: "Receive Payment",
+        onClick: handleReceivePaymentClick,
+      },
+      ...(shouldShowExplode
+        ? [
+            {
+              label: "Explode",
+              onClick: handleExplodeClick,
+            },
+          ]
+        : []),
+      {
+        label: "Delete",
+        onClick: handleDeleteClick,
+        variant: "destructive" as const,
+      },
+    ];
+
     return [
       {
         label: "Action",
-        items: [
-          {
-            label: "Mail",
-            onClick: handleMailClick,
-          },
-          {
-            label: "Receive Payment",
-            onClick: handleReceivePaymentClick,
-          },
-          {
-            label: "Delete",
-            onClick: handleDeleteClick,
-            variant: "destructive",
-          },
-        ],
+        items,
       },
     ];
-  }, [handleMailClick, handleReceivePaymentClick, handleDeleteClick, isGroupLesson]);
+  }, [
+    handleMailClick,
+    handleReceivePaymentClick,
+    shouldShowExplode,
+    handleExplodeClick,
+    handleDeleteClick,
+  ]);
 
   // Error state - show error but still render cards with skeleton
   const showError = error && !privateLessonInfo;
@@ -398,147 +519,96 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           profileIconSize="md"
         />
 
-        {/* Main Content - Conditional rendering based on isGroup flag */}
+        {/* Private Lesson Layout */}
         <div className="space-y-3 sm:space-y-4 mt-4">
-          {isGroupLesson ? (
-            // Group Lesson Layout
-            <>
-              {/* Two Column Layout: Left (Details, Cost) | Right (Schedule, Comments) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                {/* Left Column */}
-                <div className="space-y-3 sm:space-y-4">
-                  <PrivateLessonDetailsCard
-                    details={details}
-                    onSaveDetails={saveDetails}
-                    savingDetails={savingDetails}
-                    isLoading={isLoading}
-                    location={location}
-                  />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+            {/* Left Column */}
+            <div className="space-y-3 sm:space-y-4">
+              <PrivateLessonDetailsCard
+                details={details}
+                onSaveDetails={saveDetails}
+                savingDetails={savingDetails}
+                isLoading={isLoading}
+                location={location}
+              />
 
-                  <PrivateLessonCostCard
-                    details={details}
-                    onSaveCost={saveCost}
-                    savingDetails={savingDetails}
-                    isLoading={isLoading}
-                  />
-                </div>
+              <PrivateLessonStudentCard
+                details={details}
+                isLoading={isLoading}
+                location={location}
+              />
 
-                {/* Right Column */}
-                <div className="space-y-3 sm:space-y-4">
-                  <PrivateLessonScheduleCard
-                    details={details}
-                    isLoading={isLoading}
-                    location={location}
-                    hideGenerateInvoice={isGroupLesson}
-                  />
-
-                  <PrivateLessonCommentsCard
-                    comments={comments}
-                    isLoading={isLoading}
-                  />
-                </div>
-              </div>
-
-              {/* Tabs Section (Students & History) */}
-              <GroupLessonTabsSection
-                students={privateLessonInfo?.students || []}
-                history={history}
-                historyPagination={historyPagination}
-                historyLoading={historyLoading}
-                historyError={historyError}
-                onHistoryPageChange={fetchHistory}
-                onSaveStudentDiscount={saveGroupStudentDiscount}
+              <PrivateLessonAttendanceCard
+                details={details}
+                onSaveAttendance={saveAttendance}
                 savingDetails={savingDetails}
                 isLoading={isLoading}
               />
-            </>
-          ) : (
-            // Private Lesson Layout (Original)
-            <>
-              {/* Two Column Layout: Left Column (Details, Student, Attendance, Cost) | Right Column (Schedule, Due Date, Totals) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                {/* Left Column */}
-                <div className="space-y-3 sm:space-y-4">
-                  <PrivateLessonDetailsCard
-                    details={details}
-                    onSaveDetails={saveDetails}
-                    savingDetails={savingDetails}
-                    isLoading={isLoading}
-                    location={location}
-                  />
 
-                  <PrivateLessonStudentCard
-                    details={details}
-                    isLoading={isLoading}
-                    location={location}
-                  />
+              <PrivateLessonCostCard
+                details={details}
+                onSaveCost={saveCost}
+                savingDetails={savingDetails}
+                isLoading={isLoading}
+              />
+            </div>
 
-                  <PrivateLessonAttendanceCard
-                    details={details}
-                    onSaveAttendance={saveAttendance}
-                    savingDetails={savingDetails}
-                    isLoading={isLoading}
-                  />
-
-                  <PrivateLessonCostCard
-                    details={details}
-                    onSaveCost={saveCost}
-                    savingDetails={savingDetails}
-                    isLoading={isLoading}
-                  />
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-3 sm:space-y-4">
-                  <PrivateLessonScheduleCard
-                    details={details}
-                    isLoading={isLoading}
-                    location={location}
-                  />
-
-                  <PrivateLessonDueDateCard
-                    details={details}
-                    onSaveDueDate={saveDueDate}
-                    savingDetails={savingDetails}
-                    isLoading={isLoading}
-                  />
-
-                  <PrivateLessonTotalsCard
-                    details={details}
-                    onSaveDiscount={saveDiscount}
-                    onSavePrice={savePrice}
-                    savingDetails={savingDetails}
-                    isLoading={isLoading}
-                  />
-                </div>
-              </div>
-
-              {/* Full Width Sections */}
-              <PrivateLessonPaymentsCard
-                payments={payments}
-                isLoading={paymentsLoading}
-                sorting={paymentsSorting}
-                onSortingChange={setPaymentsSortingHandler}
-                onPaymentClick={handlePaymentClick}
+            {/* Right Column */}
+            <div className="space-y-3 sm:space-y-4">
+              <PrivateLessonScheduleCard
+                details={details}
+                isLoading={isLoading}
+                location={location}
+                isExploded={isExploded}
+                onUnschedule={handleUnscheduleWithStatusRefresh}
               />
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                <PrivateLessonCommentsCard
-                  comments={comments}
-                  isLoading={isLoading}
-                />
+              <PrivateLessonDueDateCard
+                details={details}
+                onSaveDueDate={saveDueDate}
+                savingDetails={savingDetails}
+                isLoading={isLoading}
+              />
 
-                <PrivateLessonHistoryCard
-                  history={history}
-                  isLoading={isLoading}
-                  pagination={historyPagination}
-                  historyLoading={historyLoading}
-                  historyError={historyError}
-                  onPageChange={fetchHistory}
-                />
-              </div>
-            </>
-          )}
+              <PrivateLessonTotalsCard
+                details={details}
+                onSaveDiscount={saveDiscount}
+                onSavePrice={savePrice}
+                onSaveTax={saveTax}
+                savingDetails={savingDetails}
+                isLoading={isLoading}
+              />
+            </div>
+          </div>
+
+          <PrivateLessonPaymentsCard
+            payments={payments}
+            isLoading={paymentsLoading}
+            sorting={paymentsSorting}
+            onSortingChange={setPaymentsSortingHandler}
+            onPaymentClick={handlePaymentClick}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+            <PrivateLessonCommentsCard
+              comments={comments}
+              isLoading={commentsLoading || isLoading}
+              commentsError={commentsError}
+              pagination={commentsPagination}
+              onPageChange={fetchComments}
+              onAddComment={addComment}
+              isSubmitting={commentsSubmitting}
+            />
+
+            <PrivateLessonHistoryCard
+              history={history}
+              isLoading={isLoading}
+              pagination={historyPagination}
+              historyLoading={historyLoading}
+              historyError={historyError}
+              onPageChange={fetchHistory}
+            />
+          </div>
         </div>
       </div>
       <DeletePrivateLessonModal
@@ -550,8 +620,48 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
       />
 
       {/* Email Modal - private lesson statement */}
+      {/* overlay while loading or error state similar to enrolment page */}
+      {isEmailModalOpen && emailStatementLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+            <LoadingAnimation size="md" text="Loading email statement..." />
+          </div>
+        </div>
+      )}
+
+      {isEmailModalOpen && emailStatementError && !emailStatementLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-md">
+            <ErrorDisplay
+              error={emailStatementError}
+              title="Failed to Load Email Statement"
+              fallbackMessage="Unable to load email statement data. Please try again."
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={handleRetryEmailStatement}
+                className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setIsEmailModalOpen(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <EmailModal
-        open={isEmailModalOpen}
+        open={
+          isEmailModalOpen &&
+          !emailStatementLoading &&
+          !!emailStatement &&
+          !emailStatementError
+        }
         onOpenChange={setIsEmailModalOpen}
         onSend={async (emailData: EmailFormData) => {
           if (!details?.studentId) {
@@ -560,7 +670,6 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
           }
 
           try {
-            // EmailObject::OBJECT_CUSTOMER_STATEMENT = 8
             const response = await sendEmail(location, {
               objectId: 8,
               userId: details.studentId,
@@ -583,9 +692,11 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
             toast.error(errorMessage);
           }
         }}
-        recipientEmails={customerEmails}
+        recipientEmails={recipientEmails}
         locationName={location}
-        initialSubject="Private Lesson Statement from Arcadia Academy of Music"
+        initialSubject={emailSubject || undefined}
+        initialContent={emailContent || undefined}
+        headerHtml={emailHeaderHtml || undefined}
         localStorageKey={`private-lesson-email-${id}-${details?.studentId || "default"}`}
       />
 

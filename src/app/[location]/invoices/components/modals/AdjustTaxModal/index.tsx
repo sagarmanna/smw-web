@@ -35,21 +35,20 @@ export function AdjustTaxModal({
   const [adjustment, setAdjustment] = React.useState<string>("");
   const [isPositive, setIsPositive] = React.useState<boolean>(true);
 
-  // Calculate current adjustment from currentTax and taxCalculated
+  // Reset adjustment to zero when modal opens (user starts fresh adjustment)
   React.useEffect(() => {
     if (open) {
-      const currentAdjustment = currentTax - taxCalculated;
-      setAdjustment(Math.abs(currentAdjustment).toFixed(2));
-      setIsPositive(currentAdjustment >= 0);
+      setAdjustment("0.00");
+      setIsPositive(true);
     }
-  }, [open, currentTax, taxCalculated]);
+  }, [open]);
 
   const handleToggleSign = () => {
     setIsPositive((prev) => !prev);
   };
 
   const adjustmentValue = parseFloat(adjustment) || 0;
-  const adjustedTax = taxCalculated + (isPositive ? adjustmentValue : -adjustmentValue);
+  const adjustedTax = currentTax + (isPositive ? adjustmentValue : -adjustmentValue);
 
   const handleCancel = () => {
     setAdjustment("");
@@ -83,13 +82,13 @@ export function AdjustTaxModal({
             <Label htmlFor="tax-calculated">Tax Calculated</Label>
             <Input
               id="tax-calculated"
-              value={formatCurrency(taxCalculated)}
+              value={formatCurrency(currentTax)}
               disabled
               className="bg-muted"
               aria-describedby="tax-calculated-description"
             />
             <p id="tax-calculated-description" className="sr-only">
-              The calculated tax amount from invoice items
+              The current tax amount on the invoice
             </p>
           </div>
 

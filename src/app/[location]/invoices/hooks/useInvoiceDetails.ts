@@ -52,7 +52,7 @@ type InvoiceDetailsHookReturn = {
   handleSaveDiscount: (selectedItemIds: string[], discountData: DiscountData) => void;
   handleSaveItem: (updatedItem: InvoiceItem) => void;
   handleDeleteItem: (itemId: string) => void;
-  handleAdjustTax: (adjustmentData: TaxAdjustmentData) => void;
+  handleAdjustTax: (adjustmentData: TaxAdjustmentData) => Promise<void>;
   handleSaveMessage: (message: string) => void;
   handleAddComment: (content: string) => Promise<void>;
   handleReturnConfirm: () => void;
@@ -118,6 +118,8 @@ export function useInvoiceDetails(
   });
 
   const { handleAdjustTax } = useInvoiceTaxHandlers({
+    location,
+    invoiceId,
     invoiceDetail,
     dispatch,
   });
