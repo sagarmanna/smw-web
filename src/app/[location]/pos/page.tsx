@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem, updateLineItemPrice } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity } from "@/lib/api/pos.api";
 import { isStorageAvailable } from "@/utils/pos-storage";
 import { toast } from "sonner";
 
@@ -83,49 +83,82 @@ export default function POSPage() {
     const itemData = await scanItem(productCode);
     
     if (itemData) {
-      const newItem: Item = {
-        id: Date.now().toString(),
-        upc: itemData.code,
-        description: itemData.description,
-        quantity: quantity,
-        price: itemData.price,
-      };
-      
-      setItems([...items, newItem]);
-      setProductCode("");
-      setQuantity(1);
+      // Check if item already exists in cart (by UPC)
+      const existingItem = items.find(item => item.upc === itemData.code);
 
-      // Save to database
-      try {
-        console.log('[Line Item] Adding to transaction:', {
-          transactionId: numericTransactionId,
-          itemId: itemData.id,
-          quantity
-        });
+      if (existingItem) {
+        // Item exists - increase quantity
+        const newQuantity = existingItem.quantity + quantity;
+        
+        setItems(items.map(item => 
+          item.upc === itemData.code 
+            ? { ...item, quantity: newQuantity } 
+            : item
+        ));
+        
+        setProductCode("");
+        setQuantity(1);
 
-        const response = await addLineItem(String(numericTransactionId), location, {
-          itemId: itemData.id,
-          quantity: quantity,
-        });
-        
-        // apiClient returns axios response with data property
-        const transactionData = response.data || response;
-        const lineItems = transactionData?.lineItems;
-        
-        if (lineItems && lineItems.length > 0) {
-          const addedLineItem = lineItems[lineItems.length - 1];
-          const lineItemId = addedLineItem.id;
-          
-          // Store line item ID
-          setItems(prevItems => 
-            prevItems.map(item => 
-              item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
-            )
-          );
+        // Update quantity in database if lineItemId exists
+        if (existingItem.lineItemId) {
+          try {
+            await updateLineItemQuantity(
+              String(numericTransactionId),
+              location,
+              existingItem.lineItemId,
+              newQuantity
+            );
+          } catch (error) {
+            console.error('Failed to update quantity:', error);
+            toast.error('Failed to update quantity in database');
+          }
         }
-      } catch (error) {
-        toast.error('Failed to save item to transaction');
-        console.error('Failed to add line item:', error);
+      } else {
+        // New item - add to cart
+        const newItem: Item = {
+          id: Date.now().toString(),
+          upc: itemData.code,
+          description: itemData.description,
+          quantity: quantity,
+          price: itemData.price,
+        };
+        
+        setItems([...items, newItem]);
+        setProductCode("");
+        setQuantity(1);
+
+        // Save to database
+        try {
+          console.log('[Line Item] Adding to transaction:', {
+            transactionId: numericTransactionId,
+            itemId: itemData.id,
+            quantity
+          });
+
+          const response = await addLineItem(String(numericTransactionId), location, {
+            itemId: itemData.id,
+            quantity: quantity,
+          });
+          
+          // apiClient returns axios response with data property
+          const transactionData = response.data || response;
+          const lineItems = transactionData?.lineItems;
+          
+          if (lineItems && lineItems.length > 0) {
+            const addedLineItem = lineItems[lineItems.length - 1];
+            const lineItemId = addedLineItem.id;
+            
+            // Store line item ID
+            setItems(prevItems => 
+              prevItems.map(item => 
+                item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
+              )
+            );
+          }
+        } catch (error) {
+          toast.error('Failed to save item to transaction');
+          console.error('Failed to add line item:', error);
+        }
       }
     }
     
