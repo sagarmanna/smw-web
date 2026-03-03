@@ -2,7 +2,12 @@
 
 import { use, useEffect, useRef } from 'react';
 import { useAppDispatch } from '@/redux/hooks';
-import { fetchPrivateLesson, fetchPrivateLessonHistory, clearPrivateLesson } from './private-lesson-details.slice';
+import {
+  fetchPrivateLesson,
+  fetchPrivateLessonHistory,
+  fetchPrivateLessonComments,
+  clearPrivateLesson,
+} from './private-lesson-details.slice';
 import { PrivateLessonDetailClient } from "./PrivateLessonDetailClient";
 
 interface PrivateLessonDetailPageProps {
@@ -48,6 +53,7 @@ export default function PrivateLessonDetailPage({ params }: PrivateLessonDetailP
     // Payments are fetched independently by the hook
     dispatch(fetchPrivateLesson({ location, privateLessonId }));
     dispatch(fetchPrivateLessonHistory({ location, privateLessonId, page: 1 }));
+    dispatch(fetchPrivateLessonComments({ location, privateLessonId, page: 1 }));
   }, [location, privateLessonId, dispatch]);
 
   // Render the client component that displays the details

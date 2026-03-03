@@ -73,6 +73,11 @@ const legacyRouteMap: LegacyRouteConfig[] = [
       `/classroom/view?id=${params.id || ''}`
   },
   {
+    pattern: /^\/[^/]+\/private-lessons\/[^/]+$/, // Matches /[location]/private-lessons/[id]
+    legacyUrl: (params) =>
+      `/lesson/view?id=${params.id || ''}`
+  },
+  {
     pattern: /^\/[^/]+\/locations\/[^/]+$/, // Matches /[location]/locations/[id]
     legacyUrl: '/location-view'
   },

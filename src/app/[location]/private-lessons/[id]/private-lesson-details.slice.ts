@@ -1,21 +1,29 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { extractErrorMessage } from '../utils/errorUtils';
 import {
   getPrivateLessonDetails,
   getPrivateLessonPayments,
   getPrivateLessonHistory,
   getPrivateLessonComments,
+  createPrivateLessonComment,
   getGroupLessonStudents,
   transformApiResponse,
   updatePrivateLessonDetails,
   updateAttendance,
   updateCost,
   updateDueDate,
-  updateDiscount,
+  updateTax,
   updatePrice,
   updateGroupLessonStudentDiscount,
+  // new import for email statement API types
+  getPrivateLessonEmailStatement,
+  type PrivateLessonEmailStatementBody,
   type PaginationInfo,
 } from './private-lesson-details.api';
-import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonComment, PrivateLessonPayment } from '../types';
+
+// action APIs
+import { unscheduleLessons } from '../actionApi/unschedule.api';
+import type { PrivateLessonInfo, PrivateLessonDetails, PrivateLessonHistory, PrivateLessonPayment } from '../types';
 
 interface PrivateLessonState {
   privateLessonInfo: PrivateLessonInfo | null;
@@ -34,6 +42,17 @@ interface PrivateLessonState {
   paymentsLoading: boolean;
   paymentsError: string | null;
   paymentsSortDir: 'asc' | 'desc';
+  // Comments state (server-side pagination)
+  commentsData: PrivateLessonInfo['comments'];
+  commentsPagination: PaginationInfo | null;
+  commentsLoading: boolean;
+  commentsError: string | null;
+  commentsSubmitting: boolean;
+
+  // Email statement state
+  emailStatement: PrivateLessonEmailStatementBody | null;
+  emailStatementLoading: boolean;
+  emailStatementError: string | null;
 }
 
 const initialState: PrivateLessonState = {
@@ -51,6 +70,14 @@ const initialState: PrivateLessonState = {
   paymentsLoading: false,
   paymentsError: null,
   paymentsSortDir: 'desc',
+  commentsData: [],
+  commentsPagination: null,
+  commentsLoading: false,
+  commentsError: null,
+  commentsSubmitting: false,
+  emailStatement: null,
+  emailStatementLoading: false,
+  emailStatementError: null,
 };
 
 // Async thunk for fetching private lesson info
@@ -61,49 +88,15 @@ export const fetchPrivateLesson = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // 1. Fetch details first (required) so we can derive customerId for comments API
+      // 1. Fetch details first (required)
       const details = await getPrivateLessonDetails(location, privateLessonId);
       if (!details || !details.success) {
         throw new Error(details?.message || 'Failed to fetch private lesson info');
       }
 
-      // Extract customerId from details response (nested student or flat structure)
       const body = details.data?.body;
-      const studentData = body?.student as
-        | { customerId?: number }
-        | undefined;
 
-      const rawCustomerId =
-        (studentData && typeof studentData === 'object' && 'customerId' in studentData
-          ? studentData.customerId
-          : body?.customerId) ?? undefined;
-
-      const numericCustomerId =
-        typeof rawCustomerId === 'number'
-          ? rawCustomerId
-          : rawCustomerId != null
-          ? Number(rawCustomerId)
-          : undefined;
-
-      // 2. Fetch comments (payments & history are fetched separately via their own thunks)
-      const [commentsResult] = await Promise.allSettled([
-        numericCustomerId && !Number.isNaN(numericCustomerId)
-          ? getPrivateLessonComments(location, numericCustomerId, 1)
-          : Promise.resolve(null),
-      ]);
-
-      // Comments API is optional - log error but don't fail the entire fetch
-      let comments: Awaited<ReturnType<typeof getPrivateLessonComments>> = null;
-      if (commentsResult.status === 'fulfilled') {
-        comments = commentsResult.value as Awaited<ReturnType<typeof getPrivateLessonComments>> | null;
-        if (comments && !comments.success) {
-          console.warn('Comments API failed:', comments?.message || 'Unknown error');
-        }
-      } else if (commentsResult.status === 'rejected') {
-        console.warn('Comments API error:', commentsResult.reason);
-      }
-
-      // 3. If this is a group lesson, fetch the students list
+      // 2. If this is a group lesson, fetch the students list
       let groupStudents: Awaited<ReturnType<typeof getGroupLessonStudents>> = null;
       const isGroupLesson = body?.lesson?.isGroup ?? false;
       if (isGroupLesson) {
@@ -117,8 +110,8 @@ export const fetchPrivateLesson = createAsyncThunk(
         }
       }
 
-      // Payments and history are fetched separately via their own thunks
-      const transformedData = transformApiResponse(details, null, null, comments, groupStudents);
+      // Payments, comments, and history are fetched separately via their own thunks
+      const transformedData = transformApiResponse(details, null, null, null, groupStudents);
 
       return { data: transformedData };
     } catch (error) {
@@ -192,11 +185,13 @@ export const updateAttendanceThunk = createAsyncThunk(
 export const updateCostThunk = createAsyncThunk(
   'privateLesson/updateCost',
   async (
-    { location, privateLessonId, data }: { location: string; privateLessonId: string; data: { costPerHour?: string; cost?: string; price?: string } },
+    { location, privateLessonId, data }: { location: string; privateLessonId: string; data: { costPerHour?: string } },
     { rejectWithValue }
   ) => {
     try {
-      const result = await updateCost(location, privateLessonId, data);
+      // Modal sends costPerHour as a formatted string (e.g. "$100.00") — convert to numeric teacherRate for the API
+      const teacherRate = parseFloat((data.costPerHour || "0").replace("$", "").trim());
+      const result = await updateCost(location, privateLessonId, { teacherRate });
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update cost');
@@ -231,22 +226,48 @@ export const updateDueDateThunk = createAsyncThunk(
 );
 
 // Async thunk for updating discount
+import { applyDiscount, ApplyDiscountRequest } from "../actionApi/discount.api";
+
 export const updateDiscountThunk = createAsyncThunk(
   'privateLesson/updateDiscount',
   async (
-    { location, privateLessonId, discount }: { location: string; privateLessonId: string; discount: string },
+    { location, payload }: { location: string; payload: ApplyDiscountRequest },
     { rejectWithValue }
   ) => {
     try {
-      const result = await updateDiscount(location, privateLessonId, { discount });
+      const result = await applyDiscount(location, payload);
 
       if (!result || !result.success) {
         throw new Error(result?.message || 'Failed to update discount');
       }
 
-      return { data: result.data };
+      return { data: result.data, message: result.message };
     } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update discount');
+      return rejectWithValue(extractErrorMessage(error, 'Failed to update discount'));
+    }
+  }
+);
+
+// Async thunk for updating tax
+export const updateTaxThunk = createAsyncThunk(
+  'privateLesson/updateTax',
+  async (
+    { location, privateLessonId, tax }: { location: string; privateLessonId: string; tax: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await updateTax(location, privateLessonId, {
+        id: Number(privateLessonId),
+        tax: Number(tax),
+      });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to update tax');
+      }
+
+      return { data: result.data, message: result.message };
+    } catch (error) {
+      return rejectWithValue(extractErrorMessage(error, 'Failed to update tax'));
     }
   }
 );
@@ -297,7 +318,7 @@ export const updatePriceThunk = createAsyncThunk(
 
       return { data: result.data, message: result.message };
     } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Failed to update price');
+      return rejectWithValue(extractErrorMessage(error, 'Failed to update price'));
     }
   }
 );
@@ -326,6 +347,110 @@ export const fetchPrivateLessonHistory = createAsyncThunk(
       return rejectWithValue(
         error instanceof Error ? error.message : 'Failed to fetch private lesson history data'
       );
+    }
+  }
+);
+
+// Async thunk for fetching private lesson comments with pagination
+export const fetchPrivateLessonComments = createAsyncThunk(
+  'privateLesson/fetchPrivateLessonComments',
+  async (
+    { location, privateLessonId, page = 1 }: { location: string; privateLessonId: string; page?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getPrivateLessonComments(location, privateLessonId, page);
+
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch private lesson comments');
+      }
+
+      return {
+        data: apiResult.data.body || [],
+        pagination: apiResult.data.pagination,
+        privateLessonId,
+      };
+    } catch (error) {
+      console.error('Error in fetchPrivateLessonComments:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to fetch private lesson comments data'
+      );
+    }
+  }
+);
+
+// Async thunk for creating a private lesson comment (returns server-paginated list)
+export const createPrivateLessonCommentThunk = createAsyncThunk(
+  'privateLesson/createPrivateLessonComment',
+  async (
+    { location, privateLessonId, content }: { location: string; privateLessonId: string; content: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await createPrivateLessonComment(location, privateLessonId, { content });
+      const hasBody = Boolean(result?.data?.body);
+      if (!result || (!result.success && !hasBody)) {
+        throw new Error(result?.message || 'Failed to create private lesson comment');
+      }
+
+      return {
+        data: result.data.body || [],
+        pagination: result.data.pagination,
+        message: result.message,
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to create private lesson comment'
+      );
+    }
+  }
+);
+
+// Async thunk for fetching private lesson email statement
+export const fetchEmailStatement = createAsyncThunk(
+  'privateLesson/fetchEmailStatement',
+  async (
+    { location, privateLessonId }: { location: string; privateLessonId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiResult = await getPrivateLessonEmailStatement(location, privateLessonId);
+      if (!apiResult || !apiResult.success) {
+        throw new Error(apiResult?.message || 'Failed to fetch private lesson email statement');
+      }
+      // The API historically returned the template inside `data.body.emailTemplate`,
+      // but newer responses place it at `data.emailTemplate` alongside the body.
+      // Merge the two so the rest of the code can always look in the same spot.
+      const merged: PrivateLessonEmailStatementBody = {
+        ...apiResult.data.body,
+        emailTemplate:
+          apiResult.data.body.emailTemplate || apiResult.data.emailTemplate || undefined,
+      };
+      return { data: merged };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch private lesson email statement');
+    }
+  }
+);
+
+// Async thunk for unscheduling a single private lesson via API
+export const unscheduleLessonThunk = createAsyncThunk(
+  'privateLesson/unscheduleLesson',
+  async (
+    { location, privateLessonId, reason }: { location: string; privateLessonId: string; reason: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const lessonIds = [Number(privateLessonId)];
+      const result = await unscheduleLessons(location, { lessonIds, reason });
+
+      if (!result || !result.success) {
+        throw new Error(result?.message || 'Failed to unschedule lesson');
+      }
+
+      return { data: result.data, message: result.message };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to unschedule lesson');
     }
   }
 );
@@ -375,6 +500,14 @@ const privateLessonSlice = createSlice({
       state.paymentsLoading = false;
       state.paymentsError = null;
       state.paymentsSortDir = 'desc';
+      state.commentsData = [];
+      state.commentsPagination = null;
+      state.commentsLoading = false;
+      state.commentsError = null;
+      state.commentsSubmitting = false;
+      state.emailStatement = null;
+      state.emailStatementLoading = false;
+      state.emailStatementError = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -513,15 +646,29 @@ const privateLessonSlice = createSlice({
         state.isSaving = true;
         state.error = null;
       })
-      .addCase(updateDiscountThunk.fulfilled, (state, action) => {
+      .addCase(updateDiscountThunk.fulfilled, (state) => {
         state.isSaving = false;
-        if (state.privateLessonInfo && action.payload) {
-          const { data } = action.payload;
-          state.privateLessonInfo.details.totals.discount = data.discount;
-        }
+        // The API does not return the updated discount value, so we do not update it here.
         state.error = null;
       })
       .addCase(updateDiscountThunk.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
+      // Update tax reducers
+      .addCase(updateTaxThunk.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(updateTaxThunk.fulfilled, (state, action) => {
+        state.isSaving = false;
+        if (state.privateLessonInfo && action.payload) {
+          const { data } = action.payload;
+          state.privateLessonInfo.details.totals.tax = String(data.body.tax);
+        }
+        state.error = null;
+      })
+      .addCase(updateTaxThunk.rejected, (state, action) => {
         state.isSaving = false;
         state.error = action.payload as string;
       })
@@ -567,6 +714,31 @@ const privateLessonSlice = createSlice({
         state.isSaving = false;
         state.error = action.payload as string;
       })
+      // Unschedule lesson reducers
+      .addCase(unscheduleLessonThunk.pending, (state) => {
+        state.isSaving = true;
+        state.error = null;
+      })
+      .addCase(unscheduleLessonThunk.fulfilled, (state) => {
+        state.isSaving = false;
+        // clear or reset schedule details and update status
+        if (state.privateLessonInfo) {
+          state.privateLessonInfo.details.status = 'Unscheduled';
+          state.privateLessonInfo.details.schedule = {
+            teacher: '',
+            teacherId: undefined,
+            scheduledDate: '',
+            time: '',
+            duration: '',
+            expiryDate: '',
+          };
+        }
+        state.error = null;
+      })
+      .addCase(unscheduleLessonThunk.rejected, (state, action) => {
+        state.isSaving = false;
+        state.error = action.payload as string;
+      })
       // Fetch private lesson history reducers
       .addCase(fetchPrivateLessonHistory.pending, (state) => {
         state.historyLoading = true;
@@ -606,6 +778,61 @@ const privateLessonSlice = createSlice({
       .addCase(fetchPrivateLessonPayments.rejected, (state, action) => {
         state.paymentsLoading = false;
         state.paymentsError = action.payload as string;
+      })
+      // Fetch private lesson comments reducers
+      .addCase(fetchPrivateLessonComments.pending, (state) => {
+        state.commentsLoading = true;
+        state.commentsError = null;
+      })
+      .addCase(fetchPrivateLessonComments.fulfilled, (state, action) => {
+        state.commentsLoading = false;
+        state.commentsData = action.payload.data.map((item) => ({
+          id: item.id,
+          content: item.content || "",
+          createdUser: item.createdUser || "",
+          avatar: item.avatar || "",
+          createdOn: item.createdOn || "",
+        }));
+        state.commentsPagination = action.payload.pagination || null;
+        state.commentsError = null;
+      })
+      .addCase(fetchPrivateLessonComments.rejected, (state, action) => {
+        state.commentsLoading = false;
+        state.commentsError = action.payload as string;
+      })
+      // Create private lesson comment reducers
+      .addCase(createPrivateLessonCommentThunk.pending, (state) => {
+        state.commentsSubmitting = true;
+        state.commentsError = null;
+      })
+      .addCase(createPrivateLessonCommentThunk.fulfilled, (state, action) => {
+        state.commentsSubmitting = false;
+        state.commentsData = action.payload.data.map((item) => ({
+          id: item.id,
+          content: item.content || "",
+          createdUser: item.createdUser || "",
+          avatar: item.avatar || "",
+          createdOn: item.createdOn || "",
+        }));
+        state.commentsPagination = action.payload.pagination || state.commentsPagination;
+        state.commentsError = null;
+      })
+      .addCase(createPrivateLessonCommentThunk.rejected, (state, action) => {
+        state.commentsSubmitting = false;
+        state.commentsError = action.payload as string;
+      })
+      // Email statement reducers
+      .addCase(fetchEmailStatement.pending, (state) => {
+        state.emailStatementLoading = true;
+        state.emailStatementError = null;
+      })
+      .addCase(fetchEmailStatement.fulfilled, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatement = action.payload.data;
+      })
+      .addCase(fetchEmailStatement.rejected, (state, action) => {
+        state.emailStatementLoading = false;
+        state.emailStatementError = action.payload as string;
       });
   },
 });

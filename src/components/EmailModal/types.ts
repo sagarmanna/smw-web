@@ -68,6 +68,14 @@ export interface EmailModalProps {
    */
   initialContent?: string;
   /**
+   * HTML snippet to render above the editor (readonly header from template)
+   */
+  headerHtml?: string;
+  /**
+   * HTML snippet to render below the editor (readonly footer from template)
+   */
+  footerHtml?: string;
+  /**
    * Private lesson due data for generating tables
    */
   privateLessonDueData?: PrivateLessonDueData[];

@@ -11,6 +11,7 @@ export interface PrivateLessonDetails {
   customer: string;
   customerId?: number;
   phone: string;
+  programId?: number;
   isPrivate?: boolean;
   isGroup?: boolean;
   attendance: {

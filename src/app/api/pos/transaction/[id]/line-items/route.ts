@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const BACKEND_URL = process.env.BACKEND_URL;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -16,7 +18,7 @@ export async function POST(
       );
     }
 
-    const backendUrl = `http://localhost:3005/admin/v2/${location}/pos/transaction/${id}/line-items`;
+    const backendUrl = `${BACKEND_URL}/admin/v2/${location}/pos/transaction/${id}/line-items`;
     
     const response = await fetch(backendUrl, {
       method: 'POST',

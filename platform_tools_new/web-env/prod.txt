@@ -1,5 +1,5 @@
 NEXT_PUBLIC_API_URL: https://prod-api.studiomanagerweb.com
 NEXT_PUBLIC_LEGACY_URL: https://smw.arcadiamusicacademy.com/admin
 NEXT_PUBLIC_ENV: production
-NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY: ZmHgH6YaStrP2Ua7R7y1
-NEXT_PUBLIC_OPENREPLAY_INGEST_POINT: https://openreplay.studiomanagerweb.com/ingest
+NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY: 9kqcrYpTgvDj9lHXx7yG
+NEXT_PUBLIC_OPENREPLAY_INGEST_POINT: https://openreplaynew.studiomanagerweb.com/ingest
