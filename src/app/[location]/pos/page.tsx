@@ -9,11 +9,12 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice } from "@/lib/api/pos.api";
 import { toast } from "sonner";
 
 interface Item {
   id: string;
+  lineItemId?: string;
   description: string;
   quantity: number;
   price: number;
@@ -37,6 +38,10 @@ export default function POSPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
+  const [showEditPriceDialog, setShowEditPriceDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [newPrice, setNewPrice] = useState("");
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
   const [discount, setDiscount] = useState(0);
@@ -74,12 +79,26 @@ export default function POSPage() {
           quantity
         });
 
-        await addLineItem(String(numericTransactionId), location, {
+        const response = await addLineItem(String(numericTransactionId), location, {
           itemId: itemData.id,
           quantity: quantity,
         });
-
-        console.log('[Line Item] Successfully added');
+        
+        // apiClient returns axios response with data property
+        const transactionData = response.data || response;
+        const lineItems = transactionData?.lineItems;
+        
+        if (lineItems && lineItems.length > 0) {
+          const addedLineItem = lineItems[lineItems.length - 1];
+          const lineItemId = addedLineItem.id;
+          
+          // Store line item ID
+          setItems(prevItems => 
+            prevItems.map(item => 
+              item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
+            )
+          );
+        }
       } catch (error) {
         toast.error('Failed to save item to transaction');
         console.error('Failed to add line item:', error);
@@ -92,9 +111,48 @@ export default function POSPage() {
   const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
 
   const handleOverride = (id: string) => {
-    const newPrice = window.prompt("Enter new price:");
-    if (newPrice && !isNaN(parseFloat(newPrice))) {
-      setItems(items.map(item => item.id === id ? { ...item, price: parseFloat(newPrice) } : item));
+    const item = items.find(i => i.id === id);
+    if (item) {
+      setSelectedItem(item);
+      setNewPrice(item.price.toString());
+      setShowEditPriceDialog(true);
+    }
+  };
+
+  const handleApplyPriceChange = async () => {
+    const price = parseFloat(newPrice);
+    if (!isNaN(price) && price >= 0 && selectedItem) {
+      setIsUpdatingPrice(true);
+      
+      try {
+        if (!selectedItem.lineItemId) {
+          toast.error('Cannot update price: Line item ID not found');
+          setIsUpdatingPrice(false);
+          return;
+        }
+        
+        await updateLineItemPrice(
+          String(numericTransactionId),
+          location,
+          selectedItem.lineItemId,
+          price
+        );
+        
+        // Update local state
+        setItems(items.map(item => 
+          item.id === selectedItem.id ? { ...item, price } : item
+        ));
+        
+        setShowEditPriceDialog(false);
+        setNewPrice("");
+        setSelectedItem(null);
+        toast.success('Price updated successfully');
+      } catch (error) {
+        console.error('Failed to update price:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to update price');
+      } finally {
+        setIsUpdatingPrice(false);
+      }
     }
   };
 
@@ -411,6 +469,68 @@ export default function POSPage() {
               className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-none"
             >
               Apply Discount
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Price Dialog */}
+      <Dialog open={showEditPriceDialog} onOpenChange={setShowEditPriceDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Edit Price</DialogTitle>
+            <DialogDescription>
+              Enter the new price for this item
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-muted/50 p-3 rounded border border-border">
+              <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Item</div>
+              <div className="text-sm font-bold text-foreground">{selectedItem?.description}</div>
+            </div>
+
+            <div className="flex justify-between items-center py-2 border-b border-border">
+              <span className="text-sm font-bold text-muted-foreground uppercase">Current Price</span>
+              <span className="text-xl font-bold text-foreground">${selectedItem?.price.toFixed(2)}</span>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-foreground mb-2 block uppercase">
+                New Price
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                placeholder="0.00"
+                className="h-12 text-2xl font-bold text-center rounded-none border-2 border-input focus:border-primary"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditPriceDialog(false);
+                setNewPrice("");
+                setSelectedItem(null);
+              }}
+              disabled={isUpdatingPrice}
+              className="rounded-none"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleApplyPriceChange}
+              disabled={!newPrice || isNaN(parseFloat(newPrice)) || parseFloat(newPrice) < 0 || isUpdatingPrice}
+              className="bg-primary hover:bg-primary/90 text-white rounded-none"
+            >
+              {isUpdatingPrice ? 'Updating...' : 'Apply'}
             </Button>
           </DialogFooter>
         </DialogContent>

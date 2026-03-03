@@ -145,7 +145,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
     toast.info("Invoice generated but redirect URL was not provided.");
   }, [details?.id, location]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const handleUnscheduleSave = React.useCallback(async (reason: string) => {
     if (!onUnschedule) {
       toast.error("Unschedule function not available");
@@ -239,4 +239,3 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
     </>
   );
 });
-

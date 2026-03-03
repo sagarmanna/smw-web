@@ -39,6 +39,18 @@ export interface AddLineItemResponse {
   };
 }
 
+export interface UpdateLineItemResponse {
+  success: boolean;
+  data: {
+    id: string;
+    transactionId: string;
+    itemId: string;
+    quantity: number;
+    price: number;
+    overridePrice: number;
+  };
+}
+
 /**
  * Create a new POS transaction
  * 
@@ -125,6 +137,40 @@ export async function addLineItem(
       id: data.id,
       transactionId: data.transactionId,
       lineItems: data.lineItems || [],
+    },
+  };
+}
+
+/**
+ * Update line item price
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param lineItemId - The line item ID
+ * @param overridePrice - The new price
+ * @returns Promise resolving to updated line item data
+ */
+export async function updateLineItemPrice(
+  transactionId: string,
+  location: string,
+  lineItemId: string,
+  overridePrice: number
+): Promise<UpdateLineItemResponse> {
+  const response = await apiClient.patch<UpdateLineItemResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/line-items/${lineItemId}`,
+    { overridePrice }
+  );
+
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      transactionId: data.transactionId,
+      itemId: data.itemId,
+      quantity: data.quantity,
+      price: data.price,
+      overridePrice: data.overridePrice,
     },
   };
 }
