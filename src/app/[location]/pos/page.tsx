@@ -66,74 +66,106 @@ export default function POSPage() {
     const itemData = await scanItem(productCode);
     
     if (itemData) {
-      const newItem: Item = {
-        id: Date.now().toString(),
-        upc: itemData.code,
-        description: itemData.description,
-        quantity: quantity,
-        price: itemData.price,
-      };
+      // Check if item already exists
+      const existingItem = items.find(i => i.upc === itemData.code);
       
-      setItems([...items, newItem]);
+      if (existingItem && existingItem.lineItemId) {
+        // Update quantity of existing item in DB
+        const newQty = existingItem.quantity + quantity;
+        try {
+          await updateLineItemQuantity(
+            String(numericTransactionId),
+            location,
+            existingItem.lineItemId,
+            newQty
+          );
+          setItems(items.map(item => 
+            item.upc === itemData.code 
+              ? { ...item, quantity: newQty }
+              : item
+          ));
+          toast.success('Quantity updated');
+        } catch (error) {
+          toast.error('Failed to update quantity');
+          console.error('Failed to update quantity:', error);
+        }
+      } else if (existingItem) {
+        // Item exists locally but not in DB yet, just update local state
+        setItems(items.map(item => 
+          item.upc === itemData.code 
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        ));
+      } else {
+        // Add new item
+        const newItem: Item = {
+          id: Date.now().toString(),
+          upc: itemData.code,
+          description: itemData.description,
+          quantity: quantity,
+          price: itemData.price,
+        };
+        setItems([...items, newItem]);
+        
+        // Save to database
+        try {
+          const response = await addLineItem(String(numericTransactionId), location, {
+            itemId: itemData.id,
+            quantity: quantity,
+          });
+          
+          const transactionData = response.data || response;
+          const lineItems = transactionData?.lineItems;
+          
+          if (lineItems && lineItems.length > 0) {
+            const addedLineItem = lineItems[lineItems.length - 1];
+            const lineItemId = addedLineItem.id;
+            
+            setItems(prevItems => 
+              prevItems.map(item => 
+                item.upc === itemData.code && !item.lineItemId ? { ...item, lineItemId: lineItemId.toString() } : item
+              )
+            );
+          }
+        } catch (error) {
+          toast.error('Failed to save item to transaction');
+          console.error('Failed to add line item:', error);
+        }
+      }
+      
       setProductCode("");
       setQuantity(1);
-
-      // Save to database
-      try {
-        console.log('[Line Item] Adding to transaction:', {
-          transactionId: numericTransactionId,
-          itemId: itemData.id,
-          quantity
-        });
-
-        const response = await addLineItem(String(numericTransactionId), location, {
-          itemId: itemData.id,
-          quantity: quantity,
-        });
-        
-        // apiClient returns axios response with data property
-        const transactionData = response.data || response;
-        const lineItems = transactionData?.lineItems;
-        
-        if (lineItems && lineItems.length > 0) {
-          const addedLineItem = lineItems[lineItems.length - 1];
-          const lineItemId = addedLineItem.id;
-          
-          // Store line item ID
-          setItems(prevItems => 
-            prevItems.map(item => 
-              item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
-            )
-          );
-        }
-      } catch (error) {
-        toast.error('Failed to save item to transaction');
-        console.error('Failed to add line item:', error);
-      }
     }
     
     setTimeout(() => productRef.current?.focus(), 0);
   };
 
   const removeItem = async (id: string) => {
-    const item = items.find(i => i.id === id);
-    if (!item?.lineItemId) {
-      setItems(items.filter((item) => item.id !== id));
-      return;
-    }
+    setItems(prevItems => {
+      const item = prevItems.find(i => i.id === id);
+      if (!item?.lineItemId) {
+        return prevItems.filter((item) => item.id !== id);
+      }
 
-    try {
-      await deleteLineItem(
-        String(numericTransactionId),
-        location,
-        item.lineItemId
-      );
-      setItems(items.filter((item) => item.id !== id));
-      toast.success('Item removed from transaction');
-    } catch (error) {
-      console.error('Failed to delete line item:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to remove item');
-    }
+      // Make API call without blocking state update
+      (async () => {
+        try {
+          await deleteLineItem(
+            String(numericTransactionId),
+            location,
+            item.lineItemId as string
+          );
+          toast.success('Item removed from transaction');
+        } catch (error) {
+          console.error('Failed to delete line item:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to remove item');
+          // Revert removal on error
+          setItems(prevItems => [...prevItems, item]);
+        }
+      })();
+
+      return prevItems.filter((item) => item.id !== id);
+    });
   };
 
   const handleQuantityChange = (itemId: string, newQuantity: string) => {
