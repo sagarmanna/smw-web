@@ -19,6 +19,7 @@ import { EditPriceModal } from "../modals/EditPriceModal";
 import { EditTaxModal } from "../modals/EditTaxModal";
 
 interface PrivateLessonTotalsCardProps {
+  location: string;
   details: PrivateLessonDetails | null;
   onSaveDiscount: (discountFields: {
     customerDiscount: number;
@@ -34,6 +35,7 @@ interface PrivateLessonTotalsCardProps {
 }
 
 export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCard({
+  location,
   details,
   onSaveDiscount,
   onSavePrice,
@@ -168,8 +170,8 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
       <EditDiscountModal
         open={isDiscountModalOpen}
         onClose={handleDiscountClose}
-        discount={details?.totals.discount || ""}
-        lessonPrice={details?.totals.lessonPrice || "$0.00"}
+        location={location}
+        lessonId={details?.id ?? null}
         onSubmit={handleDiscountSubmit}
         saving={savingDetails}
       />
