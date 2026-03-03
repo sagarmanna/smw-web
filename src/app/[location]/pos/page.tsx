@@ -20,6 +20,7 @@ interface Item {
   price: number;
   upc: string;
   isUpdatingQuantity?: boolean;
+  isDeletingItem?: boolean;
 }
 
 export default function POSPage() {
@@ -143,11 +144,20 @@ export default function POSPage() {
   const removeItem = async (id: string) => {
     setItems(prevItems => {
       const item = prevItems.find(i => i.id === id);
-      if (!item?.lineItemId) {
+      if (!item) return prevItems;
+      if (item.isDeletingItem) return prevItems;
+      
+      if (!item.lineItemId) {
+        toast.info('Item removed (was not saved to transaction)');
         return prevItems.filter((item) => item.id !== id);
       }
 
-      // Make API call without blocking state update
+      // Set loading state
+      const updatedItems = prevItems.map(i => 
+        i.id === id ? { ...i, isDeletingItem: true } : i
+      );
+
+      // Make API call
       (async () => {
         try {
           await deleteLineItem(
@@ -155,16 +165,18 @@ export default function POSPage() {
             location,
             item.lineItemId as string
           );
+          setItems(prevItems => prevItems.filter((item) => item.id !== id));
           toast.success('Item removed from transaction');
         } catch (error) {
           console.error('Failed to delete line item:', error);
           toast.error(error instanceof Error ? error.message : 'Failed to remove item');
-          // Revert removal on error
-          setItems(prevItems => [...prevItems, item]);
+          setItems(prevItems => prevItems.map(i => 
+            i.id === id ? { ...i, isDeletingItem: false } : i
+          ));
         }
       })();
 
-      return prevItems.filter((item) => item.id !== id);
+      return updatedItems;
     });
   };
 
@@ -383,7 +395,19 @@ export default function POSPage() {
                 items.map((item) => (
                   <tr key={item.id} className="text-sm">
                     <td className="py-2.5">
-                      <X className="h-4 w-4 text-muted-foreground hover:text-red-600 cursor-pointer" onClick={() => removeItem(item.id)} />
+                      <div className="relative inline-block">
+                        <X 
+                          className={`h-4 w-4 text-muted-foreground hover:text-red-600 ${
+                            item.isDeletingItem ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                          }`} 
+                          onClick={() => !item.isDeletingItem && removeItem(item.id)} 
+                        />
+                        {item.isDeletingItem && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="animate-spin h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5">
                       <div className="relative">
