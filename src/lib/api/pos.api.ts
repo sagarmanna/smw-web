@@ -156,18 +156,21 @@ export async function updateLineItemPrice(
   lineItemId: string,
   overridePrice: number
 ): Promise<UpdateLineItemResponse> {
-  const response = await fetch(`/admin/v2/api/pos/transaction/${transactionId}/line-items/${lineItemId}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await apiClient.patch<UpdateLineItemResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/line-items/${lineItemId}`,
+    { overridePrice }
+  );
+
+  const data = response.data.data || response.data;
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      transactionId: data.transactionId,
+      itemId: data.itemId,
+      quantity: data.quantity,
+      price: data.price,
+      overridePrice: data.overridePrice,
     },
-    body: JSON.stringify({ location, overridePrice }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to update line item price');
-  }
-
-  return response.json();
+  };
 }

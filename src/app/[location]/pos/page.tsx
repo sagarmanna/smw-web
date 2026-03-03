@@ -132,7 +132,7 @@ export default function POSPage() {
         }
         
         await updateLineItemPrice(
-          numericTransactionId,
+          String(numericTransactionId),
           location,
           selectedItem.lineItemId,
           price
