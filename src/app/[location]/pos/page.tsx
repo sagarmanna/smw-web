@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem, updateLineItemPrice, updateLineItemQuantity } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity, deleteLineItem } from "@/lib/api/pos.api";
 import { toast } from "sonner";
 
 interface Item {
@@ -110,7 +110,26 @@ export default function POSPage() {
     setTimeout(() => productRef.current?.focus(), 0);
   };
 
-  const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
+  const removeItem = async (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (!item?.lineItemId) {
+      setItems(items.filter((item) => item.id !== id));
+      return;
+    }
+
+    try {
+      await deleteLineItem(
+        String(numericTransactionId),
+        location,
+        item.lineItemId
+      );
+      setItems(items.filter((item) => item.id !== id));
+      toast.success('Item removed from transaction');
+    } catch (error) {
+      console.error('Failed to delete line item:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to remove item');
+    }
+  };
 
   const handleQuantityChange = (itemId: string, newQuantity: string) => {
     const qty = parseInt(newQuantity);
