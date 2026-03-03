@@ -5,6 +5,12 @@
 
 import { apiClient } from './client';
 
+// In-flight deduplication: if a createTransaction call is already running,
+// return the same promise instead of making a second HTTP call.
+// This is the definitive fix for React Strict Mode double-mount + Redux re-render
+// causing duplicate transaction creation on page load.
+let _createTransactionInFlight: Promise<CreateTransactionResponse> | null = null;
+
 export interface CreateTransactionResponse {
   success: boolean;
   data: {
@@ -46,26 +52,37 @@ export interface AddLineItemResponse {
  * @param location - The location slug
  * @returns Promise resolving to transaction data
  */
-export async function createPOSTransaction(
+export function createPOSTransaction(
   locationId: number,
   location: string
 ): Promise<CreateTransactionResponse> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const response = await apiClient.post<any>(
-    `/admin/v2/${location}/pos/transaction`,
-    {}
-  );
+  // If a call is already in-flight, return the same promise (deduplicate)
+  if (_createTransactionInFlight) {
+    console.log('[POS API] Transaction creation already in-flight, deduplicating');
+    return _createTransactionInFlight;
+  }
 
-  const data = response.data.data || response.data;
-  return {
-    success: true,
-    data: {
-      transactionId: data.transactionId,
-      numericTransactionId: data.id,
-      transactionDate: data.createdAt,
-      locationId: data.locationId,
-    },
-  };
+  _createTransactionInFlight = apiClient
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .post<any>(`/admin/v2/${location}/pos/transaction`, { locationId })
+    .then((response) => {
+      const data = response.data.data || response.data;
+      return {
+        success: true,
+        data: {
+          transactionId: data.transactionId,
+          numericTransactionId: data.id,
+          transactionDate: data.createdAt,
+          locationId: data.locationId,
+        },
+      } as CreateTransactionResponse;
+    })
+    .finally(() => {
+      // Clear after resolution so next page load can create a fresh transaction
+      _createTransactionInFlight = null;
+    });
+
+  return _createTransactionInFlight;
 }
 
 /**
