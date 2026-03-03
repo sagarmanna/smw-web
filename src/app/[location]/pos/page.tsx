@@ -28,7 +28,7 @@ export default function POSPage() {
   const locationData = locations.find(loc => loc.slug === location);
   const locationId = locationData?.id || 1;
   
-  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction } = usePOSTransaction(locationId, location);
+  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction, resetTransaction } = usePOSTransaction(locationId, location);
   const { isScanning, scanItem } = usePOSItemLookup(location);
   
   const productRef = useRef<HTMLInputElement>(null);
@@ -379,6 +379,7 @@ export default function POSPage() {
                 setItems([]);
                 setDiscount(0);
                 setShowCancelDialog(false);
+                resetTransaction();
               }}
               className="rounded-none"
             >
