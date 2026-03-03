@@ -76,7 +76,7 @@ export function createPOSTransaction(
 
   _createTransactionInFlight = apiClient
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .post<any>(`/admin/v2/${location}/pos/transaction`, { locationId })
+    .post<any>(`/admin/v2/${location}/pos/transaction`, {})
     .then((response) => {
       const data = response.data.data || response.data;
       return {
