@@ -14,12 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getDiscountValues } from "../../actionApi/discount.api";
 
 interface EditDiscountModalProps {
   open: boolean;
   onClose: () => void;
-  discount: string;
-  lessonPrice: string;
+  location: string;
+  lessonId: number | null;
   // Accepts the full discount object
   onSubmit: (discountFields: {
     customerDiscount: number;
@@ -34,8 +35,8 @@ interface EditDiscountModalProps {
 export function EditDiscountModal({
   open,
   onClose,
-  discount,
-  lessonPrice,
+  location,
+  lessonId,
   onSubmit,
   saving = false,
 }: EditDiscountModalProps) {
@@ -45,19 +46,67 @@ export function EditDiscountModal({
   const [lineItemDiscountType, setLineItemDiscountType] = React.useState<"$" | "%">("$");
   const [lineItemDiscount, setLineItemDiscount] = React.useState<string>("");
   const [error, setError] = React.useState<string>("");
+  const [isLoadingDiscount, setIsLoadingDiscount] = React.useState(false);
 
-  // Initialize values when modal opens
+  const resetToZero = React.useCallback(() => {
+    setPaymentFrequencyDiscount("0");
+    setCustomerDiscount("0");
+    setMultipleEnrollmentDiscount("0");
+    setLineItemDiscountType("$");
+    setLineItemDiscount("0");
+  }, []);
+
+  // Always load latest persisted discount values when modal opens.
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (!lessonId || Number.isNaN(lessonId)) {
+      resetToZero();
+      setError("Invalid lesson id.");
+      return;
+    }
+
+    let isCancelled = false;
+    setIsLoadingDiscount(true);
+    setError("");
+
+    getDiscountValues(location, [lessonId])
+      .then((response) => {
+        if (isCancelled) return;
+        const body = response.data?.body;
+        setPaymentFrequencyDiscount(String(body?.paymentFrequencyDiscount ?? 0));
+        setCustomerDiscount(String(body?.customerDiscount ?? 0));
+        setMultipleEnrollmentDiscount(String(body?.multiEnrolmentDiscount ?? 0));
+        setLineItemDiscount(String(body?.lineItemDiscount ?? 0));
+        setLineItemDiscountType(body?.lineItemDiscountValueType === 1 ? "%" : "$");
+      })
+      .catch((fetchError: unknown) => {
+        if (isCancelled) return;
+        resetToZero();
+        const message =
+          fetchError instanceof Error && fetchError.message.trim() !== ""
+            ? fetchError.message
+            : "Failed to load discount values";
+        setError(message);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingDiscount(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open, location, lessonId, resetToZero]);
+
   React.useEffect(() => {
     if (open) {
-      // Parse discount value if needed (for now, just set defaults)
-      setPaymentFrequencyDiscount("10");
-      setCustomerDiscount("0");
-      setMultipleEnrollmentDiscount("1.25");
-      setLineItemDiscountType("$");
-      setLineItemDiscount("0");
       setError("");
     }
-  }, [open, discount]);
+  }, [open]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -198,12 +247,12 @@ export function EditDiscountModal({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={saving}
+              disabled={saving || isLoadingDiscount}
             >
               Close
             </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+            <Button type="submit" disabled={saving || isLoadingDiscount}>
+              {isLoadingDiscount ? "Loading..." : saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </form>

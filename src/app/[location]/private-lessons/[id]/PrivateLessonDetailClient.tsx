@@ -571,6 +571,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
               />
 
               <PrivateLessonTotalsCard
+                location={location}
                 details={details}
                 onSaveDiscount={saveDiscount}
                 onSavePrice={savePrice}
