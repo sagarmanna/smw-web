@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem, updateLineItemPrice, updateLineItemQuantity } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity, deleteLineItem } from "@/lib/api/pos.api";
 import { isStorageAvailable } from "@/utils/pos-storage";
 import { toast } from "sonner";
 
@@ -20,6 +20,8 @@ interface Item {
   quantity: number;
   price: number;
   upc: string;
+  isUpdatingQuantity?: boolean;
+  isDeletingItem?: boolean;
 }
 
 export default function POSPage() {
@@ -46,6 +48,12 @@ export default function POSPage() {
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
   const [discount, setDiscount] = useState(0);
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const transactionIdRef = useRef(numericTransactionId);
+
+  useEffect(() => {
+    transactionIdRef.current = numericTransactionId;
+  }, [numericTransactionId]);
 
   useEffect(() => {
     // Check if localStorage is available (warn about incognito mode)
@@ -129,18 +137,11 @@ export default function POSPage() {
 
         // Save to database
         try {
-          console.log('[Line Item] Adding to transaction:', {
-            transactionId: numericTransactionId,
-            itemId: itemData.id,
-            quantity
-          });
-
           const response = await addLineItem(String(numericTransactionId), location, {
             itemId: itemData.id,
             quantity: quantity,
           });
           
-          // apiClient returns axios response with data property
           const transactionData = response.data || response;
           const lineItems = transactionData?.lineItems;
           
@@ -148,7 +149,6 @@ export default function POSPage() {
             const addedLineItem = lineItems[lineItems.length - 1];
             const lineItemId = addedLineItem.id;
             
-            // Store line item ID
             setItems(prevItems => 
               prevItems.map(item => 
                 item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
@@ -165,7 +165,108 @@ export default function POSPage() {
     setTimeout(() => productRef.current?.focus(), 0);
   };
 
-  const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
+  const removeItem = async (id: string) => {
+    setItems(prevItems => {
+      const item = prevItems.find(i => i.id === id);
+      if (!item) return prevItems;
+      if (item.isDeletingItem) return prevItems;
+      
+      if (!item.lineItemId) {
+        toast.info('Item removed (was not saved to transaction)');
+        return prevItems.filter((item) => item.id !== id);
+      }
+
+      // Set loading state
+      const updatedItems = prevItems.map(i => 
+        i.id === id ? { ...i, isDeletingItem: true } : i
+      );
+
+      // Make API call
+      (async () => {
+        try {
+          await deleteLineItem(
+            String(numericTransactionId),
+            location,
+            item.lineItemId as string
+          );
+          setItems(prevItems => prevItems.filter((item) => item.id !== id));
+          toast.success('Item removed from transaction');
+        } catch (error) {
+          console.error('Failed to delete line item:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to remove item');
+          setItems(prevItems => prevItems.map(i => 
+            i.id === id ? { ...i, isDeletingItem: false } : i
+          ));
+        }
+      })();
+
+      return updatedItems;
+    });
+  };
+
+  const handleQuantityChange = (itemId: string, newQuantity: string) => {
+    const qty = parseInt(newQuantity);
+    
+    // Validate input
+    if (newQuantity === '' || isNaN(qty)) {
+      return;
+    }
+    
+    if (qty < 1 || qty > 999) {
+      toast.error('Quantity must be between 1 and 999');
+      return;
+    }
+
+    // Update local state immediately
+    setItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, quantity: qty } : item
+    ));
+
+    // Clear existing timer for this item
+    if (debounceTimers.current[itemId]) {
+      clearTimeout(debounceTimers.current[itemId]);
+    }
+
+    // Set new debounced API call
+    debounceTimers.current[itemId] = setTimeout(() => {
+      setItems(prev => {
+        const item = prev.find(i => i.id === itemId);
+        if (!item?.lineItemId) {
+          toast.error('Cannot update quantity: Line item ID not found');
+          return prev;
+        }
+
+        const lineItemId = item.lineItemId;
+
+        // Show loading state
+        const updatedItems = prev.map(i => 
+          i.id === itemId ? { ...i, isUpdatingQuantity: true } : i
+        );
+
+        // Make API call
+        (async () => {
+          try {
+            await updateLineItemQuantity(
+              numericTransactionId,
+              location,
+              lineItemId,
+              qty
+            );
+            toast.success('Quantity updated successfully');
+          } catch (error) {
+            console.error('Failed to update quantity:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
+          } finally {
+            setItems(prev => prev.map(i => 
+              i.id === itemId ? { ...i, isUpdatingQuantity: false } : i
+            ));
+          }
+        })();
+
+        return updatedItems;
+      });
+    }, 1000);
+  };
 
   const handleOverride = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -318,9 +419,38 @@ export default function POSPage() {
                 items.map((item) => (
                   <tr key={item.id} className="text-sm">
                     <td className="py-2.5">
-                      <X className="h-4 w-4 text-muted-foreground hover:text-red-600 cursor-pointer" onClick={() => removeItem(item.id)} />
+                      <div className="relative inline-block">
+                        <X 
+                          className={`h-4 w-4 text-muted-foreground hover:text-red-600 ${
+                            item.isDeletingItem ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                          }`} 
+                          onClick={() => !item.isDeletingItem && removeItem(item.id)} 
+                        />
+                        {item.isDeletingItem && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="animate-spin h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-2.5 font-bold">{item.quantity}</td>
+                    <td className="py-2.5">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="999"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                          className="w-16 h-8 text-center font-bold border-input rounded-none"
+                          disabled={item.isUpdatingQuantity}
+                        />
+                        {item.isUpdatingQuantity && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-2.5">
                       <div className="font-normal text-foreground uppercase text-xs">{item.description}</div>
                       <div className="text-[9px] text-muted-foreground font-mono">UPC: {item.upc}</div>

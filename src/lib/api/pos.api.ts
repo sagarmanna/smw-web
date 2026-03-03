@@ -240,7 +240,7 @@ export async function updateLineItemPrice(
  * @param transactionId - The transaction ID
  * @param location - The location slug
  * @param lineItemId - The line item ID
- * @param quantity - The new quantity
+ * @param quantity - The new quantity (1-999)
  * @returns Promise resolving to updated line item data
  */
 export async function updateLineItemQuantity(
@@ -249,6 +249,11 @@ export async function updateLineItemQuantity(
   lineItemId: string,
   quantity: number
 ): Promise<UpdateLineItemResponse> {
+  // Validate quantity
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) {
+    throw new Error('Quantity must be an integer between 1 and 999');
+  }
+
   const response = await apiClient.patch<UpdateLineItemResponse>(
     `/admin/v2/${location}/pos/transaction/${transactionId}/line-items/${lineItemId}`,
     { quantity }
@@ -266,4 +271,24 @@ export async function updateLineItemQuantity(
       overridePrice: data.overridePrice,
     },
   };
+}
+
+/**
+ * Delete a line item from a transaction
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param lineItemId - The line item ID to delete
+ * @returns Promise resolving to success response
+ */
+export async function deleteLineItem(
+  transactionId: string,
+  location: string,
+  lineItemId: string
+): Promise<{ success: boolean }> {
+  await apiClient.delete(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/line-items/${lineItemId}`
+  );
+
+  return { success: true };
 }
