@@ -47,6 +47,11 @@ export default function POSPage() {
   const [discountValue, setDiscountValue] = useState("");
   const [discount, setDiscount] = useState(0);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const transactionIdRef = useRef(numericTransactionId);
+
+  useEffect(() => {
+    transactionIdRef.current = numericTransactionId;
+  }, [numericTransactionId]);
 
   useEffect(() => {
     initializeTransaction().then(() => {
@@ -126,7 +131,7 @@ export default function POSPage() {
     }
 
     // Update local state immediately
-    setItems(items.map(item => 
+    setItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, quantity: qty } : item
     ));
 
@@ -136,33 +141,43 @@ export default function POSPage() {
     }
 
     // Set new debounced API call
-    debounceTimers.current[itemId] = setTimeout(async () => {
-      const item = items.find(i => i.id === itemId);
-      if (!item?.lineItemId) {
-        toast.error('Cannot update quantity: Line item ID not found');
-        return;
-      }
+    debounceTimers.current[itemId] = setTimeout(() => {
+      setItems(prev => {
+        const item = prev.find(i => i.id === itemId);
+        if (!item?.lineItemId) {
+          toast.error('Cannot update quantity: Line item ID not found');
+          return prev;
+        }
 
-      // Show loading state
-      setItems(prev => prev.map(i => 
-        i.id === itemId ? { ...i, isUpdatingQuantity: true } : i
-      ));
+        const lineItemId = item.lineItemId;
 
-      try {
-        await updateLineItemQuantity(
-          numericTransactionId,
-          location,
-          item.lineItemId,
-          qty
+        // Show loading state
+        const updatedItems = prev.map(i => 
+          i.id === itemId ? { ...i, isUpdatingQuantity: true } : i
         );
-      } catch (error) {
-        console.error('Failed to update quantity:', error);
-        toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
-      } finally {
-        setItems(prev => prev.map(i => 
-          i.id === itemId ? { ...i, isUpdatingQuantity: false } : i
-        ));
-      }
+
+        // Make API call
+        (async () => {
+          try {
+            await updateLineItemQuantity(
+              numericTransactionId,
+              location,
+              lineItemId,
+              qty
+            );
+            toast.success('Quantity updated successfully');
+          } catch (error) {
+            console.error('Failed to update quantity:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
+          } finally {
+            setItems(prev => prev.map(i => 
+              i.id === itemId ? { ...i, isUpdatingQuantity: false } : i
+            ));
+          }
+        })();
+
+        return updatedItems;
+      });
     }, 1000);
   };
 
