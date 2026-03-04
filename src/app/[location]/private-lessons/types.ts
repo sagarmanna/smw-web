@@ -80,6 +80,9 @@ export interface PrivateLessonInfo {
 // Group Lesson Student Interface (for isGroup: true)
 export interface GroupLessonStudent {
   id: number;
+  lessonId?: number;
+  enrolmentId?: number;
+  studentId?: number;
   studentName: string;
   customerName: string;
   dueDate: string;
@@ -87,6 +90,9 @@ export interface GroupLessonStudent {
   discount: string;
   netPrice: string;
   owing: string;
+  hasInvoice?: boolean;
+  invoiceId?: number;
+  hasPayment?: boolean;
 }
 
 // Group Lesson Cost Data

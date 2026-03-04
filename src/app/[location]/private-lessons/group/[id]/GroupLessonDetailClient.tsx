@@ -140,6 +140,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
 
         {/* Tabs Section (Students & History) */}
         <GroupLessonTabsSection
+          location={location}
           students={students || []}
           history={history}
           historyPagination={null}

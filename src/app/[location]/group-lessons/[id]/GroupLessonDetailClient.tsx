@@ -73,7 +73,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
   const emailContent = React.useMemo(() => {
     if (!emailStatement) return "";
     return generateEmailContent(emailStatement);
-  }, [emailStatement, isEmailModalOpen]);
+  }, [emailStatement]);
 
   const recipientEmails = React.useMemo(() => {
     const toField = emailStatement?.emailTemplate?.to;
@@ -83,24 +83,27 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
     return emailStatement?.emails || customerEmails;
   }, [emailStatement, customerEmails]);
 
+  const customerId = details?.customerId;
+  const isGroupLesson = details?.isGroup;
+
   // Redirect to private-lessons if this ID is not a group lesson
   React.useEffect(() => {
-    if (details && details.isGroup === false) {
+    if (isGroupLesson === false) {
       router.replace(`/${location}/private-lessons/${id}`);
     }
-  }, [details?.isGroup, location, id, router]);
+  }, [isGroupLesson, location, id, router]);
 
   // Fetch customer emails when mail modal opens
   React.useEffect(() => {
     const fetchCustomerEmails = async () => {
-      if (isEmailModalOpen && details?.customerId) {
+      if (isEmailModalOpen && customerId) {
         try {
-          const customerId =
-            typeof details.customerId === "number"
-              ? details.customerId
-              : Number(details.customerId);
-          if (customerId && !isNaN(customerId)) {
-            const emails = await getCustomerEmailAddresses(location, customerId);
+          const normalizedCustomerId =
+            typeof customerId === "number"
+              ? customerId
+              : Number(customerId);
+          if (normalizedCustomerId && !isNaN(normalizedCustomerId)) {
+            const emails = await getCustomerEmailAddresses(location, normalizedCustomerId);
             setCustomerEmails(emails);
           } else {
             setCustomerEmails([]);
@@ -113,7 +116,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
       }
     };
     fetchCustomerEmails();
-  }, [isEmailModalOpen, details?.customerId, location]);
+  }, [isEmailModalOpen, customerId, location]);
 
   const pageTitle = React.useMemo(() => {
     if (!details) return `Group Lesson #${id}`;
@@ -238,6 +241,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
           </div>
 
           <GroupLessonTabsSection
+            location={location}
             students={privateLessonInfo?.students || []}
             history={history}
             historyPagination={historyPagination}

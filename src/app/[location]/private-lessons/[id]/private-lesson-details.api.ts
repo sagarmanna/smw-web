@@ -86,6 +86,10 @@ export interface PrivateLessonDetailsResponseBody {
   // Note: Students data may come from a separate API call
   students?: Array<{
     id: number;
+    groupLessonId?: number;
+    lessonId?: number;
+    enrolmentId?: number;
+    studentId?: number;
     studentName: string;
     customerName: string;
     dueDate: string;
@@ -93,6 +97,9 @@ export interface PrivateLessonDetailsResponseBody {
     discount: string;
     netPrice: string;
     owing: string;
+    hasInvoice?: boolean;
+    invoiceId?: number;
+    hasPayment?: boolean;
   }>;
   costPerStudent?: string;
 }
@@ -179,7 +186,11 @@ export async function getPrivateLessonDetails(
 
 // Group Lesson Students API Response Types
 export interface GroupLessonStudentResponseBody {
-  id: number;
+  id?: number;
+  groupLessonId?: number;
+  lessonId?: number;
+  enrolmentId?: number;
+  studentId?: number;
   studentName: string;
   customerName: string;
   dueDate: string;
@@ -187,6 +198,9 @@ export interface GroupLessonStudentResponseBody {
   discount: string;
   netPrice: string;
   owing: string;
+  hasInvoice?: boolean;
+  invoiceId?: number;
+  hasPayment?: boolean;
 }
 
 export interface GroupLessonStudentsApiResponse {
@@ -210,49 +224,20 @@ export async function getGroupLessonStudents(
   lessonId: string
 ): Promise<GroupLessonStudentsApiResponse | null> {
   try {
-    // TODO: Replace with actual endpoint when backend provides it
-    // For now, return mock data for group lessons
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const mockStudents: GroupLessonStudentResponseBody[] = [
-      {
-        id: 1,
-        studentName: "Test studentseng",
-        customerName: "Test customerseng",
-        dueDate: "Dec 18, 2025",
-        grossPrice: "$28.75",
-        discount: "$0.00",
-        netPrice: "$28.75",
-        owing: "$0.00",
-      },
-      {
-        id: 2,
-        studentName: "Anna Winston",
-        customerName: "Anna Winston",
-        dueDate: "Dec 18, 2025",
-        grossPrice: "$28.75",
-        discount: "$0.00",
-        netPrice: "$25.88",
-        owing: "$25.88",
-      },
-      {
-        id: 3,
-        studentName: "Aisha Lee",
-        customerName: "Aisha Lee",
-        dueDate: "Dec 18, 2025",
-        grossPrice: "$28.75",
-        discount: "$0.00",
-        netPrice: "$25.14",
-        owing: "$25.14",
-      },
-    ];
-    
-    return {
-      success: true,
-      data: {
-        body: mockStudents,
-      },
-    };
+    const response = await apiClient.get<GroupLessonStudentsApiResponse>(
+      `/admin/v2/${location}/lesson/details/${lessonId}/group-students`
+    );
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.error("Group lesson students API returned no body:", response.data);
+      return response.data;
+    }
+
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching group lesson students:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
@@ -600,7 +585,10 @@ export function transformApiResponse(
   // Get group lesson students (from separate API call if provided, otherwise from body)
   const studentsBody = groupStudentsResponse?.data?.body || body.students || [];
   const students = studentsBody.map((student) => ({
-    id: student.id,
+    id: student.groupLessonId || student.id || 0,
+    lessonId: student.lessonId,
+    enrolmentId: student.enrolmentId,
+    studentId: student.studentId,
     studentName: student.studentName || "",
     customerName: student.customerName || "",
     dueDate: student.dueDate || "",
@@ -608,6 +596,9 @@ export function transformApiResponse(
     discount: student.discount || "",
     netPrice: student.netPrice || "",
     owing: student.owing || "",
+    hasInvoice: student.hasInvoice ?? false,
+    invoiceId: student.invoiceId,
+    hasPayment: student.hasPayment ?? false,
   }));
 
   // Get group cost data (if isGroup: true)
