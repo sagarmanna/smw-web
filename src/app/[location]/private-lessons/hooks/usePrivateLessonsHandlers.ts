@@ -395,18 +395,7 @@ export function usePrivateLessonsHandlers({
               : "Lesson substitution processed"
         );
 
-        // Redirect using URL from API (same pattern as customers/InvoicesTable: legacy base + path from response)
-        const redirectPath = confirmResponse.data?.url;
-        const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL;
-        if (typeof redirectPath === "string" && redirectPath.trim() !== "" && legacyBase) {
-          const path = redirectPath.replace(/^\//, "");
-          const redirectUrl = `${legacyBase}/${path}`;
-          window.location.href = redirectUrl;
-        } else if (!redirectPath?.trim()) {
-          toast.info("Redirect URL was not provided. You can continue from the current page.");
-        } else if (!legacyBase) {
-          toast.info("Redirect is not configured. You can continue from the current page.");
-        }
+        // Redirect disabled for now; stay on current page.
         return true;
       } catch (error) {
         const message = extractErrorMessage(error, "Failed to substitute teacher");
@@ -414,8 +403,8 @@ export function usePrivateLessonsHandlers({
         return false;
       }
     },
-    [location, dispatch, clearSelection, modalState]
-  );
+      [location, dispatch, clearSelection, modalState]
+    );
 
   const handleEditDiscountSave = React.useCallback(
     async (data: LessonDiscountData, lessonIds: number[]) => {
