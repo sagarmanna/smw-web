@@ -37,6 +37,12 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
   const {
     details,
     comments,
+    commentsPagination,
+    commentsLoading,
+    commentsError,
+    commentsSubmitting,
+    fetchComments,
+    addComment,
     history,
     historyPagination,
     historyLoading,
@@ -221,7 +227,12 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
               />
               <PrivateLessonCommentsCard
                 comments={comments}
-                isLoading={isLoading}
+                isLoading={commentsLoading || isLoading}
+                commentsError={commentsError}
+                pagination={commentsPagination}
+                onPageChange={fetchComments}
+                onAddComment={addComment}
+                isSubmitting={commentsSubmitting}
               />
             </div>
           </div>
