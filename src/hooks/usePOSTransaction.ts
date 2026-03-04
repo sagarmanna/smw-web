@@ -12,23 +12,27 @@ export function usePOSTransaction(locationId: number, location: string) {
 
   /**
    * Initialize or restore transaction
-   * Returns line items array (empty for new transaction, populated for restored)
+   * Returns transaction data including line items and discount info
    */
-  const initializeTransaction = async (): Promise<Array<{
-    id: number;
-    quantity: number;
-    price: string;
-    overridePrice?: string;
-    item: {
-      id: string;
-      code: string;
-      description: string;
-      price: number;
-    };
-  }>> => {
+  const initializeTransaction = async (): Promise<{
+    lineItems: Array<{
+      id: number;
+      quantity: number;
+      price: string;
+      overridePrice?: string;
+      item: {
+        id: string;
+        code: string;
+        description: string;
+        price: number;
+      };
+    }>;
+    discountAmount?: string;
+    totalAmount?: string;
+  }> => {
     if (isInitializedRef.current) {
       console.log('[Transaction Init] Already initialized, skipping');
-      return [];
+      return { lineItems: [] };
     }
     isInitializedRef.current = true;
 
@@ -57,8 +61,12 @@ export function usePOSTransaction(locationId: number, location: string) {
           }));
           setIsLoading(false);
           
-          // Return line items for UI restoration
-          return existingTransaction.data.lineItems;
+          // Return line items and discount info for UI restoration
+          return {
+            lineItems: existingTransaction.data.lineItems,
+            discountAmount: existingTransaction.data.discountAmount,
+            totalAmount: existingTransaction.data.totalAmount,
+          };
         } else {
           // Transaction is completed (PAID/CANCELLED)
           console.log('[Transaction Init] Stored transaction is completed, creating new');
@@ -94,12 +102,12 @@ export function usePOSTransaction(locationId: number, location: string) {
       // Step 5: Store new transaction ID
       setStoredTransactionId(location, result.data.numericTransactionId);
       
-      return []; // New transaction has no line items
+      return { lineItems: [] }; // New transaction has no line items
     } catch (error) {
       console.error('Failed to create transaction:', error);
       toast.error('Failed to create transaction. Please refresh.');
       isInitializedRef.current = false; // Allow retry on error
-      return [];
+      return { lineItems: [] };
     } finally {
       setIsLoading(false);
     }
