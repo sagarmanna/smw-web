@@ -8,6 +8,7 @@ import { GroupLessonStudent, PrivateLessonHistory } from "../../types";
 import { PaginationInfo } from "../../[id]/private-lesson-details.api";
 
 interface GroupLessonTabsSectionProps {
+  location: string;
   students: GroupLessonStudent[];
   history: PrivateLessonHistory[];
   historyPagination: PaginationInfo | null;
@@ -20,6 +21,7 @@ interface GroupLessonTabsSectionProps {
 }
 
 export function GroupLessonTabsSection({
+  location,
   students,
   history,
   historyPagination,
@@ -52,6 +54,7 @@ export function GroupLessonTabsSection({
 
         <TabsContent value="students" className="mt-4">
           <GroupStudentsTab
+            location={location}
             students={students}
             isLoading={isLoading}
             onSaveStudentDiscount={onSaveStudentDiscount}

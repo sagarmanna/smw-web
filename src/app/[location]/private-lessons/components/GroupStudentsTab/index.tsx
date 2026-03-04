@@ -1,15 +1,19 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { GroupLessonStudent } from "../../types";
+import { generatePrivateLessonInvoice } from "../../[id]/private-lesson-details.api";
 import { GroupStudentDiscountModal } from "../modals/GroupStudentDiscountModal";
 import { GroupStudentPaymentsModal } from "../modals/GroupStudentPaymentsModal";
 
 interface GroupStudentsTabProps {
+  location: string;
   students: GroupLessonStudent[];
   isLoading?: boolean;
   onSaveStudentDiscount: (studentId: number, discount: string) => Promise<boolean>;
@@ -17,14 +21,25 @@ interface GroupStudentsTabProps {
 }
 
 export function GroupStudentsTab({
+  location,
   students,
   isLoading = false,
   onSaveStudentDiscount,
   savingDiscount = false,
 }: GroupStudentsTabProps) {
+  const router = useRouter();
   const [discountModalOpen, setDiscountModalOpen] = React.useState(false);
   const [paymentsModalOpen, setPaymentsModalOpen] = React.useState(false);
   const [selectedStudent, setSelectedStudent] = React.useState<GroupLessonStudent | null>(null);
+
+  const isTruthyFlag = React.useCallback((value: unknown): boolean => {
+    if (value === true || value === 1) return true;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      return normalized === "true" || normalized === "1" || normalized === "yes";
+    }
+    return false;
+  }, []);
 
   const handleEditDiscountClick = React.useCallback((student: GroupLessonStudent) => {
     setSelectedStudent(student);
@@ -39,7 +54,8 @@ export function GroupStudentsTab({
   const handleDiscountSubmit = React.useCallback(
     async (discount: string): Promise<boolean> => {
       if (!selectedStudent) return false;
-      const success = await onSaveStudentDiscount(selectedStudent.id, discount);
+      const targetStudentId = selectedStudent.studentId ?? selectedStudent.id;
+      const success = await onSaveStudentDiscount(targetStudentId, discount);
       if (success) handleDiscountClose();
       return success;
     },
@@ -55,6 +71,39 @@ export function GroupStudentsTab({
     setPaymentsModalOpen(false);
     setSelectedStudent(null);
   }, []);
+
+  const handleViewInvoiceClick = React.useCallback(
+    (student: GroupLessonStudent) => {
+      if (!student.invoiceId) return;
+      router.push(`/${location}/invoices/${student.invoiceId}`);
+    },
+    [router, location]
+  );
+
+  const handleCreateInvoiceClick = React.useCallback(
+    async (student: GroupLessonStudent) => {
+      const lessonId = student.lessonId;
+      if (!lessonId) {
+        toast.error("Lesson ID is required to create invoice");
+        return;
+      }
+
+      const response = await generatePrivateLessonInvoice(location, String(lessonId));
+      if (!response?.success) {
+        toast.error(response?.message || "Failed to create invoice");
+        return;
+      }
+
+      const invoiceId = response.data?.invoiceId;
+      if (invoiceId) {
+        router.push(`/${location}/invoices/${invoiceId}`);
+        return;
+      }
+
+      toast.success(response.message || "Invoice created successfully");
+    },
+    [location, router]
+  );
 
   const columns = React.useMemo<ColumnDef<GroupLessonStudent>[]>(
     () => [
@@ -109,37 +158,62 @@ export function GroupStudentsTab({
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 text-white text-xs px-3 py-1"
-              onClick={() => handleEditDiscountClick(row.original)}
-            >
-              Edit Discount
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white text-xs px-3 py-1"
-            >
-              Create Invoice
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 text-white text-xs px-3 py-1"
-              onClick={() => handleViewPaymentClick(row.original)}
-            >
-              View Payment
-            </Button>
-          </div>
-        ),
+        header: () => <div className="text-right" />,
+        cell: ({ row }) => {
+          const student = row.original;
+          const hasInvoice = isTruthyFlag(student.hasInvoice) || Boolean(student.invoiceId);
+          const hasPayment = isTruthyFlag(student.hasPayment);
+
+          return (
+            <div className="flex items-center justify-end gap-2">
+              {!hasInvoice && (
+                <>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                    onClick={() => handleEditDiscountClick(student)}
+                  >
+                    Edit Discount
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-2"
+                    onClick={() => handleCreateInvoiceClick(student)}
+                  >
+                    Create Invoice
+                  </Button>
+                </>
+              )}
+
+              {hasInvoice && student.invoiceId && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                  onClick={() => handleViewInvoiceClick(student)}
+                >
+                  View Invoice
+                </Button>
+              )}
+
+              {hasPayment && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                  onClick={() => handleViewPaymentClick(student)}
+                >
+                  View Payment
+                </Button>
+              )}
+            </div>
+          );
+        },
       },
     ],
-    [handleEditDiscountClick, handleViewPaymentClick]
+    [handleCreateInvoiceClick, handleEditDiscountClick, handleViewInvoiceClick, handleViewPaymentClick, isTruthyFlag]
   );
 
   return (
@@ -148,7 +222,7 @@ export function GroupStudentsTab({
         data={students}
         columns={columns}
         size="compact"
-        variant="striped"
+        variant="default"
         enableSorting={false}
         enableExport={false}
         enablePrint={false}
