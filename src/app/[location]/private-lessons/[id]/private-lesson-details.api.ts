@@ -65,6 +65,7 @@ export interface PrivateLessonDetailsResponseBody {
   schedule?: {
     teacher: string;
     teacherId?: number;
+    originalDate?: string;
     scheduledDate: string;
     time: string;
     duration: string;
@@ -81,6 +82,9 @@ export interface PrivateLessonDetailsResponseBody {
     total: string;
     paid: string;
     balance: string;
+    invoiceId?: number;
+    invoiceNumber?: string;
+    invoiceOwing?: string;
   };
   // Group lesson specific fields (when isGroup: true)
   // Note: Students data may come from a separate API call
@@ -636,6 +640,7 @@ export function transformApiResponse(
       schedule: {
         teacher: body.schedule?.teacher || "",
         teacherId: body.schedule?.teacherId,
+        originalDate: body.schedule?.originalDate || "",
         scheduledDate: body.schedule?.scheduledDate || "",
         time: body.schedule?.time || "",
         duration: body.schedule?.duration || "",
@@ -652,6 +657,9 @@ export function transformApiResponse(
         total: body.totals?.total || "",
         paid: body.totals?.paid || "",
         balance: body.totals?.balance || "",
+        invoiceId: body.totals?.invoiceId,
+        invoiceNumber: body.totals?.invoiceNumber || "",
+        invoiceOwing: body.totals?.invoiceOwing || "",
       },
     },
     payments: payments,

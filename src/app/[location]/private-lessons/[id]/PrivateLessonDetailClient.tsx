@@ -431,6 +431,10 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     () => details?.status?.toLowerCase().includes("exploded") ?? false,
     [details?.status]
   );
+  const isAbsentOrCompletedStatus = React.useMemo(() => {
+    const status = details?.status?.toLowerCase() || "";
+    return status.includes("absent") || status.includes("completed");
+  }, [details?.status]);
   const isExploded = explodeStatus.isExploded || explodedFromStatusText;
   const shouldShowExplode = explodeStatus.canExplode && !isExploded;
 
@@ -452,11 +456,15 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
             },
           ]
         : []),
-      {
-        label: "Delete",
-        onClick: handleDeleteClick,
-        variant: "destructive" as const,
-      },
+      ...(!isAbsentOrCompletedStatus
+        ? [
+            {
+              label: "Delete",
+              onClick: handleDeleteClick,
+              variant: "destructive" as const,
+            },
+          ]
+        : []),
     ];
 
     return [
@@ -470,6 +478,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     handleReceivePaymentClick,
     shouldShowExplode,
     handleExplodeClick,
+    isAbsentOrCompletedStatus,
     handleDeleteClick,
   ]);
 
