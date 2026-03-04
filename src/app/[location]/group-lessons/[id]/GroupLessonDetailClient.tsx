@@ -53,7 +53,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
     saveCost,
     saveGroupStudentDiscount,
     saveUnschedule,
-  } = usePrivateLessonDetails(location, lessonId);
+  } = usePrivateLessonDetails(location, lessonId, { enablePaymentsFetch: false });
 
   const emailStatement = useAppSelector((state) => state.privateLesson.emailStatement);
   const emailStatementLoading = useAppSelector((state) => state.privateLesson.emailStatementLoading);

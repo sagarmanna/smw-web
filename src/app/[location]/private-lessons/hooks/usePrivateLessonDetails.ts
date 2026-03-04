@@ -72,9 +72,11 @@ type PrivateLessonDetailsHookReturn = {
 
 export function usePrivateLessonDetails(
   location: string,
-  privateLessonId: string
+  privateLessonId: string,
+  options?: { enablePaymentsFetch?: boolean }
 ): PrivateLessonDetailsHookReturn {
   const dispatch = useAppDispatch();
+  const enablePaymentsFetch = options?.enablePaymentsFetch ?? true;
 
   // Get private lesson data from Redux store
   const privateLessonInfo = useAppSelector((state) => state.privateLesson?.privateLessonInfo);
@@ -97,12 +99,13 @@ export function usePrivateLessonDetails(
   // Fetch payments on mount — keyed to prevent StrictMode double-dispatch
   const paymentsFetchKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
+    if (!enablePaymentsFetch) return;
     if (!location || !privateLessonId) return;
     const key = `${location}-${privateLessonId}`;
     if (paymentsFetchKeyRef.current === key) return;
     paymentsFetchKeyRef.current = key;
     dispatch(fetchPrivateLessonPayments({ location, privateLessonId }));
-  }, [location, privateLessonId, dispatch]);
+  }, [location, privateLessonId, dispatch, enablePaymentsFetch]);
 
   // Derive TanStack SortingState from Redux sort direction
   const paymentsSorting: SortingState = React.useMemo(
