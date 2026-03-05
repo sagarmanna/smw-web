@@ -63,6 +63,10 @@ export function GroupStudentsTab({
   );
 
   const handleViewPaymentClick = React.useCallback((student: GroupLessonStudent) => {
+    if (!student.lessonId || !student.enrolmentId) {
+      toast.error("Lesson or enrolment ID is missing for payment details");
+      return;
+    }
     setSelectedStudent(student);
     setPaymentsModalOpen(true);
   }, []);
@@ -267,6 +271,9 @@ export function GroupStudentsTab({
         <GroupStudentPaymentsModal
           open={paymentsModalOpen}
           onClose={handlePaymentsClose}
+          location={location}
+          lessonId={selectedStudent.lessonId}
+          enrolmentId={selectedStudent.enrolmentId}
           studentName={selectedStudent.studentName}
         />
       )}
