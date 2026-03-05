@@ -576,7 +576,6 @@ export default function POSPage() {
                 setItems([]);
                 setDiscount(0);
                 setShowCancelDialog(false);
-                clearStoredTransaction(); // Clear localStorage
                 resetTransaction();
               }}
               className="rounded-none"
