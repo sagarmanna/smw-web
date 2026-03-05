@@ -21,6 +21,8 @@ import { type LocationTimeBlock } from "./components/LocationAvailabilityCalenda
 import { LocationDetailsCard } from "./components/LocationDetailsCard";
 import { LocationAddressCard } from "./components/LocationAddressCard";
 import { LocationAvailabilityTabsSection } from "./components/LocationAvailabilityTabsSection";
+import { useAppSelector } from "@/redux/hooks";
+import { formatLocationName } from "@/utils";
 
 interface LocationDetailClientProps {
   location: string;
@@ -30,7 +32,9 @@ interface LocationDetailClientProps {
 
 export function LocationDetailClient({ location, slug: slugProp }: LocationDetailClientProps) {
   const router = useRouter();
+  const { userInfo } = useAppSelector((state: RootState) => state.user);
   const { currentLocation, locations } = useSelector((state: RootState) => state.locations);
+  const isAdministrator = userInfo?.role === "administrator";
   const slug =
     slugProp ??
     currentLocation ??
@@ -156,8 +160,8 @@ export function LocationDetailClient({ location, slug: slugProp }: LocationDetai
             />
           </div>
         )}
-
-        <DetailHeader
+        
+        {isAdministrator ? (<DetailHeader
           breadcrumbItems={[
             {
               label: "Locations",
@@ -179,11 +183,14 @@ export function LocationDetailClient({ location, slug: slugProp }: LocationDetai
               <Pencil className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
             </Button>
           }
-        />
+        />)
+        : <div className="text-xl font-bold mt-6">
+        {formatLocationName(location)}</div>}
+        
 
         <div className="space-y-3 sm:space-y-4 mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-            <LocationDetailsCard details={details} />
+            <LocationDetailsCard details={details} showAdminFields={isAdministrator} />
             <LocationAddressCard details={details} />
           </div>
 

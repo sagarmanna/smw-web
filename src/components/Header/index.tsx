@@ -357,7 +357,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
           {/* Latest Features & Updates */}
           {/* TODO: Remove this once we have a new latest updates page */}
-          {(location === 'burlington' || location === 'training-location') && (
+          {/* {(location === 'burlington' || location === 'training-location') && ( */}
             <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -372,7 +372,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          )}
+          {/* )} */}
 
           {/* User Profile Section */}
           <DropdownMenu>

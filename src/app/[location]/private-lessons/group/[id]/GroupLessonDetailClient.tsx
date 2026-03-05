@@ -116,6 +116,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
 
             <PrivateLessonCostCard
               details={details}
+              groupCost={data.groupCost}
               onSaveCost={async () => true}
               savingDetails={false}
               isLoading={false}
@@ -140,6 +141,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
 
         {/* Tabs Section (Students & History) */}
         <GroupLessonTabsSection
+          location={location}
           students={students || []}
           history={history}
           historyPagination={null}

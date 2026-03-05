@@ -212,3 +212,62 @@ export async function setUserPassword(
   }
 }
 
+// User Import API
+export interface UserImportResponse {
+  successCount: number;
+  studentCount: number;
+  customerCount: number;
+  errors: string[];
+  totalRows: number;
+}
+
+export interface UserImportApiResponse {
+  success: boolean;
+  message: string;
+  data: UserImportResponse;
+}
+
+export interface UserImportErrorResponse {
+  success: false;
+  errorCode: string;
+  message: string;
+}
+
+/**
+ * Import users (customers) and students from a CSV file.
+ * @param location - Location slug
+ * @param file - CSV file (File from input or drag-drop)
+ * @returns Import result with counts and any row errors
+ */
+export async function importUsersCsv(
+  location: string,
+  file: File
+): Promise<UserImportApiResponse> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<UserImportApiResponse>(
+      `/admin/v2/${location}/user/import`,
+      formData,
+      {
+        headers: {
+          ...apiClient.defaults.headers.common,
+          'Content-Type': undefined,
+        } as Record<string, string | undefined>,
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Error importing users CSV:', error);
+    const axiosError = error as { response?: { data?: UserImportErrorResponse }; message?: string };
+    if (axiosError.response?.data) {
+      throw axiosError.response.data as UserImportErrorResponse;
+    }
+    throw {
+      success: false,
+      errorCode: 'INTERNAL_SERVER_ERROR',
+      message: axiosError.message || 'Failed to import CSV',
+    } as UserImportErrorResponse;
+  }
+}
+

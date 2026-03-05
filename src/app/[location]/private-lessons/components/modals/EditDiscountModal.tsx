@@ -14,21 +14,29 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getDiscountValues } from "../../actionApi/discount.api";
 
 interface EditDiscountModalProps {
   open: boolean;
   onClose: () => void;
-  discount: string;
-  lessonPrice: string;
-  onSubmit: (discount: string) => Promise<boolean>;
+  location: string;
+  lessonId: number | null;
+  // Accepts the full discount object
+  onSubmit: (discountFields: {
+    customerDiscount: number;
+    paymentFrequencyDiscount: number;
+    multiEnrolmentDiscount: number;
+    lineItemDiscount: number;
+    lineItemDiscountValueType: number;
+  }) => Promise<boolean>;
   saving?: boolean;
 }
 
 export function EditDiscountModal({
   open,
   onClose,
-  discount,
-  lessonPrice,
+  location,
+  lessonId,
   onSubmit,
   saving = false,
 }: EditDiscountModalProps) {
@@ -38,75 +46,84 @@ export function EditDiscountModal({
   const [lineItemDiscountType, setLineItemDiscountType] = React.useState<"$" | "%">("$");
   const [lineItemDiscount, setLineItemDiscount] = React.useState<string>("");
   const [error, setError] = React.useState<string>("");
+  const [isLoadingDiscount, setIsLoadingDiscount] = React.useState(false);
 
-  // Initialize values when modal opens
+  const resetToZero = React.useCallback(() => {
+    setPaymentFrequencyDiscount("0");
+    setCustomerDiscount("0");
+    setMultipleEnrollmentDiscount("0");
+    setLineItemDiscountType("$");
+    setLineItemDiscount("0");
+  }, []);
+
+  // Always load latest persisted discount values when modal opens.
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (!lessonId || Number.isNaN(lessonId)) {
+      resetToZero();
+      setError("Invalid lesson id.");
+      return;
+    }
+
+    let isCancelled = false;
+    setIsLoadingDiscount(true);
+    setError("");
+
+    getDiscountValues(location, [lessonId])
+      .then((response) => {
+        if (isCancelled) return;
+        const body = response.data?.body;
+        setPaymentFrequencyDiscount(String(body?.paymentFrequencyDiscount ?? 0));
+        setCustomerDiscount(String(body?.customerDiscount ?? 0));
+        setMultipleEnrollmentDiscount(String(body?.multiEnrolmentDiscount ?? 0));
+        setLineItemDiscount(String(body?.lineItemDiscount ?? 0));
+        setLineItemDiscountType(body?.lineItemDiscountValueType === 1 ? "%" : "$");
+      })
+      .catch((fetchError: unknown) => {
+        if (isCancelled) return;
+        resetToZero();
+        const message =
+          fetchError instanceof Error && fetchError.message.trim() !== ""
+            ? fetchError.message
+            : "Failed to load discount values";
+        setError(message);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingDiscount(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open, location, lessonId, resetToZero]);
+
   React.useEffect(() => {
     if (open) {
-      // Parse discount value if needed (for now, just set defaults)
-      setPaymentFrequencyDiscount("10");
-      setCustomerDiscount("0");
-      setMultipleEnrollmentDiscount("1.25");
-      setLineItemDiscountType("$");
-      setLineItemDiscount("0");
       setError("");
     }
-  }, [open, discount]);
+  }, [open]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
-    // Calculate total discount amount from all fields
-    const basePrice = parseFloat(lessonPrice?.replace("$", "") || "0") || 0;
-    if (basePrice === 0) {
-      setError("Lesson price is required to calculate discount");
-      return;
-    }
+    // Prepare discount fields for API
+    const discountFields = {
+      customerDiscount: parseFloat(customerDiscount) || 0,
+      paymentFrequencyDiscount: parseFloat(paymentFrequencyDiscount) || 0,
+      multiEnrolmentDiscount: parseFloat(multipleEnrollmentDiscount) || 0,
+      lineItemDiscount: parseFloat(lineItemDiscount) || 0,
+      lineItemDiscountValueType: lineItemDiscountType === "$" ? 0 : 1,
+    };
 
-    let discountedPrice = basePrice;
-    let totalDiscount = 0;
+    // Optionally validate here (e.g., at least one field is set)
 
-    // Apply Payment Frequency Discount (percentage)
-    const pfDiscount = parseFloat(paymentFrequencyDiscount) || 0;
-    if (pfDiscount > 0) {
-      const discountAmount = discountedPrice * (pfDiscount / 100);
-      discountedPrice = discountedPrice - discountAmount;
-      totalDiscount += discountAmount;
-    }
-
-    // Apply Customer Discount (percentage)
-    const custDiscount = parseFloat(customerDiscount) || 0;
-    if (custDiscount > 0) {
-      const discountAmount = discountedPrice * (custDiscount / 100);
-      discountedPrice = discountedPrice - discountAmount;
-      totalDiscount += discountAmount;
-    }
-
-    // Apply Multiple Enrollment Discount (fixed $)
-    const multiEnrollDiscount = parseFloat(multipleEnrollmentDiscount) || 0;
-    if (multiEnrollDiscount > 0) {
-      discountedPrice = discountedPrice - multiEnrollDiscount;
-      totalDiscount += multiEnrollDiscount;
-    }
-
-    // Apply Line Item Discount (fixed $ or percentage)
-    const lineItemValue = parseFloat(lineItemDiscount) || 0;
-    if (lineItemValue > 0) {
-      if (lineItemDiscountType === "$") {
-        discountedPrice = discountedPrice - lineItemValue;
-        totalDiscount += lineItemValue;
-      } else {
-        // percentage
-        const discountAmount = discountedPrice * (lineItemValue / 100);
-        discountedPrice = discountedPrice - discountAmount;
-        totalDiscount += discountAmount;
-      }
-    }
-
-    // Format discount as dollar amount
-    const formattedDiscount = `$${totalDiscount.toFixed(2)}`;
-
-    const success = await onSubmit(formattedDiscount);
+    const success = await onSubmit(discountFields);
     if (success) {
       onClose();
     }
@@ -230,12 +247,12 @@ export function EditDiscountModal({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={saving}
+              disabled={saving || isLoadingDiscount}
             >
               Close
             </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+            <Button type="submit" disabled={saving || isLoadingDiscount}>
+              {isLoadingDiscount ? "Loading..." : saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </form>

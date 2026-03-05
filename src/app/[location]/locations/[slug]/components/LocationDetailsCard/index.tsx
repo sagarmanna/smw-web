@@ -9,9 +9,11 @@ import { InfoRow } from "../InfoRow";
 
 interface LocationDetailsCardProps {
   details: LocationDetails | null;
+  /** When false, hides Royalty, Advertisement, and Conversion Date (e.g. for non-administrators). Default true for backward compatibility. */
+  showAdminFields?: boolean;
 }
 
-export function LocationDetailsCard({ details }: LocationDetailsCardProps) {
+export function LocationDetailsCard({ details, showAdminFields = true }: LocationDetailsCardProps) {
   return (
     <Card>
       <CardHeader className="py-4">
@@ -21,23 +23,27 @@ export function LocationDetailsCard({ details }: LocationDetailsCardProps) {
         <div className="space-y-1">
           <InfoRow label="Email" value={details?.email || ""} />
           <InfoRow label="Phone" value={details?.phoneNumber || ""} />
-          <InfoRow
-            label="Royalty"
-            value={
-              details?.royaltyPercent !== undefined && details?.royaltyPercent !== null
-                ? `${details.royaltyPercent}%`
-                : ""
-            }
-          />
-          <InfoRow
-            label="Advertisement"
-            value={
-              details?.advertisementPercent !== undefined && details?.advertisementPercent !== null
-                ? `${details.advertisementPercent}%`
-                : ""
-            }
-          />
-          <InfoRow label="Conversion Date" value={formatDisplayDate(details?.conversionDate)} />
+          {showAdminFields && (
+            <>
+              <InfoRow
+                label="Royalty"
+                value={
+                  details?.royaltyPercent !== undefined && details?.royaltyPercent !== null
+                    ? `${details.royaltyPercent}%`
+                    : ""
+                }
+              />
+              <InfoRow
+                label="Advertisement"
+                value={
+                  details?.advertisementPercent !== undefined && details?.advertisementPercent !== null
+                    ? `${details.advertisementPercent}%`
+                    : ""
+                }
+              />
+              <InfoRow label="Conversion Date" value={formatDisplayDate(details?.conversionDate)} />
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

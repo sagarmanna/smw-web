@@ -266,6 +266,43 @@ export async function reviewGroupCourseLesson(
   }
 }
 
+/**
+ * Delete a lesson from the course review-lesson page
+ * Endpoint: DELETE /admin/v2/{location}/course/review-lesson/{lessonId}?courseId={courseId}
+ */
+export async function deleteReviewLesson(
+  location: string,
+  lessonId: number,
+  courseId: number
+): Promise<{ success: boolean; message?: string; errorCode?: string }> {
+  try {
+    const response = await apiClient.delete(
+      `/admin/v2/${location}/course/review-lesson/${lessonId}`,
+      { params: { courseId: courseId.toString() } }
+    );
+    const data = response.data as { success?: boolean; message?: string; data?: unknown };
+    return {
+      success: data?.success !== false,
+      message: data?.message,
+    };
+  } catch (error: unknown) {
+    console.error("Error deleting review lesson:", error);
+    const apiError = error as {
+      response?: {
+        data?: { message?: string; errorCode?: string; success?: boolean };
+      };
+    };
+    const message =
+      apiError.response?.data?.message || "Failed to delete lesson";
+    const errorCode = apiError.response?.data?.errorCode;
+    return {
+      success: false,
+      message,
+      ...(errorCode && { errorCode }),
+    };
+  }
+}
+
 export interface ConfirmGroupCourseRequest {
   courseId: number;
 }

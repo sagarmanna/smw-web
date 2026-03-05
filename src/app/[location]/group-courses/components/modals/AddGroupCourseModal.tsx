@@ -42,7 +42,7 @@ export function AddGroupCourseModal({
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
   const [programOptions, setProgramOptions] = React.useState<SearchableSelectOption[]>([]);
   const [teacherOptions, setTeacherOptions] = React.useState<SearchableSelectOption[]>([]);
-  const [duration, setDuration] = React.useState<string>("01:00");
+  const [duration, setDuration] = React.useState<string>("00:30");
   const [numberOfWeeks, setNumberOfWeeks] = React.useState<string>("");
   const [isOnline, setIsOnline] = React.useState<boolean>(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -112,7 +112,7 @@ export function AddGroupCourseModal({
       setSelectedProgramId("");
       setSelectedTeacherId("");
       setTeacherOptions([]);
-      setDuration("01:00");
+      setDuration("00:30");
       setNumberOfWeeks("");
       setIsOnline(false);
       setSubmitting(false);
@@ -184,7 +184,7 @@ export function AddGroupCourseModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && !submitting && onClose()}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Add Group Course</DialogTitle>
+          <DialogTitle>Create Group Course</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

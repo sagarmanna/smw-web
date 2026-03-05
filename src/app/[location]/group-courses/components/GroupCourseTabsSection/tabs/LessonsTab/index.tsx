@@ -20,7 +20,6 @@ import { editOnlineType } from "../../../../[id]/groupCourseDetails.api";
 import { SubstituteTeacherModal } from "../../../modals/SubstituteTeacherModal";
 import { EditOnlineTypeModal } from "../../../modals/EditOnlineTypeModal";
 import { toast } from "sonner";
-import { isDev } from "@/utils/env";
 
 interface LessonsTabProps {
   location: string;
@@ -87,18 +86,27 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
     setIsSubstituteModalOpen(true);
   };
 
+  const handleSubstituteSuccess = useCallback(() => {
+    setSelectedLessonIds(new Set());
+    dispatch(fetchGroupCourseTabsData({ location, courseId }));
+  }, [location, courseId, dispatch]);
+
+  const handleLessonRowClick = useCallback(
+    (lesson: LessonData) => {
+      const base = (process.env.NEXT_PUBLIC_LEGACY_URL ?? "").replace(/\/$/, "");
+      if (!base || !lesson?.id) return;
+      const url = `${base}/${location}/lesson/view?id=${lesson.id}`;
+      window.location.href = url;
+    },
+    [location]
+  );
+
   const handleEditOnlineType = () => {
     if (selectedLessons.length === 0) {
       toast.error("Please select at least one lesson");
       return;
     }
     setIsEditOnlineModalOpen(true);
-  };
-
-  const handleSubstituteSave = (teacherId: string, lessonIds: string[]) => {
-    // TODO: Implement API call to substitute teacher
-    toast.success(`Substitute teacher assigned to ${lessonIds.length} lesson(s)`);
-    setSelectedLessonIds(new Set());
   };
 
   const handleEditOnlineSave = async (isOnline: boolean, lessonIds: string[]) => {
@@ -157,7 +165,10 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
           </div>
         ),
         cell: ({ row }: { row: { original: LessonData } }) => (
-          <div className="flex items-center justify-center">
+          <div
+            className="flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Checkbox
               checked={selectedLessonIds.has(row.original.id)}
               onCheckedChange={() => handleToggleSelection(row.original.id)}
@@ -186,7 +197,7 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={isDev() ? handleSubstituteTeacher : () => toast.info("This feature is in development.")}>
+                <DropdownMenuItem onClick={handleSubstituteTeacher}>
                   Substitute Teacher
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleEditOnlineType}>
@@ -215,6 +226,7 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
               enableFilter={false}
               className="border-0 w-full"
               isLoading={isLoading}
+              onRowClick={handleLessonRowClick}
               customEmptyState={
                 !isLoading && data.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8">
@@ -231,8 +243,9 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
       <SubstituteTeacherModal
         open={isSubstituteModalOpen}
         onOpenChange={setIsSubstituteModalOpen}
+        location={location}
         selectedLessons={selectedLessons}
-        onSave={handleSubstituteSave}
+        onSuccess={handleSubstituteSuccess}
       />
 
       <EditOnlineTypeModal

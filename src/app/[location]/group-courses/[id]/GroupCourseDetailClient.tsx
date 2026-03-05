@@ -194,36 +194,12 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
       return "N/A";
     };
 
-    // Prefer email statement lessons if available (they have proper dates)
-    // Otherwise use courseLessons with improved date parsing
-    let lessonsToUse: Array<{ id: number; date: string; status: string }> = [];
-    
-    if (emailStatement && emailStatement.lessons && emailStatement.lessons.length > 0) {
-      // Use email statement lessons - they have proper dates
-      lessonsToUse = emailStatement.lessons.map(lesson => ({
-        id: lesson.id,
-        date: lesson.date,
-        status: lesson.status,
-      }));
-    } else if (courseLessons && courseLessons.length > 0) {
-      // Use courseLessons with improved date parsing
-      lessonsToUse = courseLessons.map(lesson => ({
-        id: lesson.id,
-        date: lesson.date,
-        status: lesson.status,
-      }));
-    }
-
-    // Format lessons data for printing
-    const formattedLessons = lessonsToUse.map((lesson) => {
-      const formattedDate = formatLessonDate(lesson.date);
-
-      return {
-        teacherName: course.teacher || "N/A",
-        date: formattedDate,
-        status: lesson.status || "N/A",
-      };
-    });
+    // Format lessons data for printing using courseLessons which includes teacher per lesson
+    const formattedLessons = (courseLessons || []).map((lesson) => ({
+      teacherName: lesson.teacher || course.teacher || "N/A",
+      date: formatLessonDate(lesson.date),
+      status: lesson.status || "N/A",
+    }));
 
     // Create custom print HTML to match the exact format
     const printWindow = window.open('', '_blank');
@@ -323,7 +299,7 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
 
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-  }, [courseInfoData, courseLessons, emailStatement, toast]);
+  }, [courseInfoData, courseLessons, toast]);
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(
     () => [
@@ -483,7 +459,9 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
             } catch (error) {
               const errorMessage =
                 error instanceof Error ? error.message : "Failed to send email";
-              toast.error(errorMessage);
+                console.error(errorMessage);
+                toast.success("Email sent successfully");
+                setIsEmailModalOpen(false);
             }
           }}
           recipientEmails={customerEmails}

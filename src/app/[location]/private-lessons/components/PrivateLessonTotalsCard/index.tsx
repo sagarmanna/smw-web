@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { toast } from "sonner";
 import {
   SectionCard,
 } from "@/components/SectionCard";
@@ -17,27 +17,52 @@ import {
 import { Button } from "@/components/ui/button";
 import { EditDiscountModal } from "../modals/EditDiscountModal";
 import { EditPriceModal } from "../modals/EditPriceModal";
+import { EditTaxModal } from "../modals/EditTaxModal";
+import { useAppSelector } from "@/redux/hooks";
 
 interface PrivateLessonTotalsCardProps {
+  location: string;
   details: PrivateLessonDetails | null;
-  onSaveDiscount: (discount: string) => Promise<boolean>;
+  onSaveDiscount: (discountFields: {
+    customerDiscount: number;
+    paymentFrequencyDiscount: number;
+    multiEnrolmentDiscount: number;
+    lineItemDiscount: number;
+    lineItemDiscountValueType: number;
+  }) => Promise<boolean>;
+  onSaveTax: (tax: string) => Promise<boolean>;
   onSavePrice: (lessonRatePerHour: string) => Promise<boolean>;
   savingDetails?: boolean;
   isLoading?: boolean;
 }
 
 export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCard({
+  location,
   details,
   onSaveDiscount,
   onSavePrice,
+  onSaveTax,
   savingDetails = false,
   isLoading = false,
 }: PrivateLessonTotalsCardProps) {
+  const router = useRouter();
+  const { userInfo } = useAppSelector((state) => state.user);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = React.useState(false);
   const [isPriceModalOpen, setIsPriceModalOpen] = React.useState(false);
+  const [isTaxModalOpen, setIsTaxModalOpen] = React.useState(false);
+
+  const canEditPrice =
+    userInfo?.role === "administrator";
+
+  const handleInvoiceClick = React.useCallback(() => {
+    const invoiceId = details?.totals?.invoiceId;
+    if (typeof invoiceId === "number") {
+      router.push(`/${location}/invoices/${invoiceId}`);
+    }
+  }, [details?.totals?.invoiceId, location, router]);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
-    return [
+    const rows: SectionCardDataRow[] = [
       {
         label: "Lesson Rate/hr",
         value: details?.totals.lessonRatePerHour || "N/A",
@@ -75,14 +100,51 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
         value: details?.totals.balance || "N/A",
       },
     ];
-  }, [details]);
+
+    const status = details?.status?.toLowerCase() || "";
+    const isAbsentOrCompleted =
+      status.includes("absent") || status.includes("completed");
+    if (isAbsentOrCompleted) {
+      const invoiceLabel =
+        (details?.totals?.invoiceNumber && details.totals.invoiceNumber.trim() !== "")
+          ? details.totals.invoiceNumber
+          : (typeof details?.totals?.invoiceId === "number" ? String(details.totals.invoiceId) : "N/A");
+
+      const invoiceValue =
+        typeof details?.totals.invoiceId === "number" ? (
+          <span
+            onClick={handleInvoiceClick}
+            className="text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
+          >
+            {invoiceLabel}
+          </span>
+        ) : (
+          invoiceLabel
+        );
+
+      rows.push({
+        label: "Invoice",
+        value: invoiceValue,
+      });
+
+      rows.push({
+        label: "Owing",
+        value:
+          (details?.totals?.invoiceOwing && details.totals.invoiceOwing.trim() !== "")
+            ? details.totals.invoiceOwing
+            : (details?.totals?.balance || "N/A"),
+      });
+    }
+
+    return rows;
+  }, [details, handleInvoiceClick]);
 
   const handleEditDiscountClick = React.useCallback(() => {
     setIsDiscountModalOpen(true);
   }, []);
 
   const handleEditTaxClick = React.useCallback(() => {
-    toast.info("This feature is under process");
+    setIsTaxModalOpen(true);
   }, []);
 
   const handleEditPriceClick = React.useCallback(() => {
@@ -97,9 +159,19 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
     setIsPriceModalOpen(false);
   }, []);
 
+  const handleTaxClose = React.useCallback(() => {
+    setIsTaxModalOpen(false);
+  }, []);
+
   const handleDiscountSubmit = React.useCallback(
-    async (discount: string): Promise<boolean> => {
-      return await onSaveDiscount(discount);
+    async (discountFields: {
+      customerDiscount: number;
+      paymentFrequencyDiscount: number;
+      multiEnrolmentDiscount: number;
+      lineItemDiscount: number;
+      lineItemDiscountValueType: number;
+    }): Promise<boolean> => {
+      return await onSaveDiscount(discountFields);
     },
     [onSaveDiscount]
   );
@@ -109,6 +181,13 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
       return await onSavePrice(rate);
     },
     [onSavePrice]
+  );
+
+  const handleTaxSubmit = React.useCallback(
+    async (tax: string): Promise<boolean> => {
+      return await onSaveTax(tax);
+    },
+    [onSaveTax]
   );
 
   return (
@@ -132,9 +211,11 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
               <DropdownMenuItem onClick={handleEditTaxClick}>
                 Edit Tax...
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleEditPriceClick}>
-                Edit Price...
-              </DropdownMenuItem>
+              {canEditPrice && (
+                <DropdownMenuItem onClick={handleEditPriceClick}>
+                  Edit Price...
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         }
@@ -142,8 +223,8 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
       <EditDiscountModal
         open={isDiscountModalOpen}
         onClose={handleDiscountClose}
-        discount={details?.totals.discount || ""}
-        lessonPrice={details?.totals.lessonPrice || "$0.00"}
+        location={location}
+        lessonId={details?.id ?? null}
         onSubmit={handleDiscountSubmit}
         saving={savingDetails}
       />
@@ -152,6 +233,13 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
         onClose={handlePriceClose}
         lessonRatePerHour={details?.totals.lessonRatePerHour || ""}
         onSubmit={handlePriceSubmit}
+        saving={savingDetails}
+      />
+      <EditTaxModal
+        open={isTaxModalOpen}
+        onClose={handleTaxClose}
+        tax={details?.totals.tax || ""}
+        onSubmit={handleTaxSubmit}
         saving={savingDetails}
       />
     </>

@@ -30,11 +30,11 @@ import {
   bulkRescheduleLessons,
   applyTeacherSubstituteResult,
 } from "../privateLessonsListing.slice";
-import { calculateDiscountedPricesForLessons } from "../utils/discountCalculations";
 import type { EmailFormData } from "@/components/EmailModal";
 import type { LessonDiscountData } from "../privateLessonsListing.slice";
 import { isDev } from "@/utils/env";
 import { extractErrorMessage } from "@/utils/api/createCrudApi";
+import { getEmailMultiCustomer } from "../actionApi/emailMultiCustomer.api";
 
 function mapSubstituteLessonsToRows(lessons: SubstituteLessonItem[]): PrivateLessonRow[] {
   const statusMap: Record<number, string> = {
@@ -66,6 +66,7 @@ interface UsePrivateLessonsHandlersProps {
   hasSelectedLessons: boolean;
   clearSelection: () => void;
   modalState: ReturnType<typeof import("./usePrivateLessonsModals").usePrivateLessonsModals>;
+  refetchList?: () => Promise<void> | void;
 }
 
 export function usePrivateLessonsHandlers({
@@ -74,10 +75,20 @@ export function usePrivateLessonsHandlers({
   hasSelectedLessons,
   clearSelection,
   modalState,
+  refetchList,
 }: UsePrivateLessonsHandlersProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [isDeleteInProgress, setIsDeleteInProgress] = React.useState(false);
+
+  const refetchAfterMutation = React.useCallback(async () => {
+    if (!refetchList) return;
+    try {
+      await refetchList();
+    } catch (error) {
+      console.error("Failed to refetch private lessons list:", error);
+    }
+  }, [refetchList]);
 
   // Click Handlers
   const handleSubstituteTeacherClick = React.useCallback(() => {
@@ -150,12 +161,20 @@ export function usePrivateLessonsHandlers({
     modalState.setIsDeleteModalOpen(true);
   }, [hasSelectedLessons, modalState]);
 
-  const handleEmailSelectedClick = React.useCallback(() => {
-    if (!hasSelectedLessons) {
-      return;
+  const handleEmailSelectedClick = React.useCallback(async () => {
+    if (!hasSelectedLessons || selectedLessons.length === 0) return;
+    const lessonIds = selectedLessons.map((l) => l.id);
+    try {
+      const response = await getEmailMultiCustomer(location, lessonIds);
+      const emails = response.data?.body?.emails ?? [];
+      const subject = response.data?.body?.subject ?? "Message from Arcadia Academy of Music";
+      modalState.setEmailModalInitialData({ emails, subject });
+      modalState.setIsEmailModalOpen(true);
+    } catch (error) {
+      const message = extractErrorMessage(error, "Failed to load email recipients");
+      toast.error(message);
     }
-    modalState.setIsEmailModalOpen(true);
-  }, [hasSelectedLessons, modalState]);
+  }, [hasSelectedLessons, selectedLessons, location, modalState]);
 
   const handleUnscheduleClick = React.useCallback(() => {
     if (!hasSelectedLessons) {
@@ -184,18 +203,19 @@ export function usePrivateLessonsHandlers({
           : "Invoice generated successfully"
       );
       clearSelection();
+      await refetchAfterMutation();
     } catch (error) {
       const message = extractErrorMessage(error, "Failed to generate invoice");
       toast.error(message);
     }
-  }, [location, hasSelectedLessons, selectedLessons, clearSelection]);
+  }, [location, hasSelectedLessons, selectedLessons, clearSelection, refetchAfterMutation]);
 
   const handleRowClick = React.useCallback((row: PrivateLessonRow) => {
-    if (!isDev()){
-      router.push(`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/lesson/view?id=${row.id}`);
-    }else{
+    // if (!isDev()){
+    //   router.push(`${process.env.NEXT_PUBLIC_LEGACY_URL}/${location}/lesson/view?id=${row.id}`);
+    // }else{
       router.push(`/${location}/private-lessons/${row.id}`);
-    }
+    // }
   }, [location, router]);
 
   // Save Handlers
@@ -233,6 +253,7 @@ export function usePrivateLessonsHandlers({
 
         clearSelection();
         modalState.setIsUnscheduleReasonModalOpen(false);
+        await refetchAfterMutation();
         toast.success(
           typeof response.message === "string" && response.message.trim() !== ""
             ? response.message
@@ -245,7 +266,7 @@ export function usePrivateLessonsHandlers({
         return false;
       }
     },
-    [location, selectedLessons, dispatch, clearSelection, modalState]
+    [location, selectedLessons, dispatch, clearSelection, modalState, refetchAfterMutation]
   );
 
   const handleBulkRescheduleSave = React.useCallback(
@@ -294,6 +315,7 @@ export function usePrivateLessonsHandlers({
 
         clearSelection();
         modalState.setIsBulkRescheduleModalOpen(false);
+        await refetchAfterMutation();
         toast.success(
           typeof response.message === "string" && response.message.trim() !== ""
             ? response.message
@@ -306,7 +328,7 @@ export function usePrivateLessonsHandlers({
         return false;
       }
     },
-    [location, selectedLessons, dispatch, clearSelection, modalState]
+    [location, selectedLessons, dispatch, clearSelection, modalState, refetchAfterMutation]
   );
 
   const handleDeleteConfirm = React.useCallback(async () => {
@@ -320,6 +342,7 @@ export function usePrivateLessonsHandlers({
       dispatch(deleteLessons({ lessonIds }));
       clearSelection();
       modalState.setIsDeleteModalOpen(false);
+      await refetchAfterMutation();
       toast.success(
         typeof response.message === "string" && response.message.trim() !== ""
           ? response.message
@@ -331,7 +354,7 @@ export function usePrivateLessonsHandlers({
     } finally {
       setIsDeleteInProgress(false);
     }
-  }, [location, selectedLessons, dispatch, clearSelection, modalState]);
+  }, [location, selectedLessons, dispatch, clearSelection, modalState, refetchAfterMutation]);
 
   const handleSubstituteSave = React.useCallback(
     async (
@@ -359,6 +382,7 @@ export function usePrivateLessonsHandlers({
           );
           clearSelection();
           modalState.setIsSubstituteModalOpen(false);
+          await refetchAfterMutation();
           return true;
         }
 
@@ -378,6 +402,7 @@ export function usePrivateLessonsHandlers({
 
         clearSelection();
         modalState.setIsSubstituteModalOpen(false);
+        await refetchAfterMutation();
         toast.success(
           typeof confirmResponse.message === "string" && confirmResponse.message.trim() !== ""
             ? confirmResponse.message
@@ -386,17 +411,7 @@ export function usePrivateLessonsHandlers({
               : "Lesson substitution processed"
         );
 
-        const redirectPath = confirmResponse.data?.url;
-        const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL;
-        if (typeof redirectPath === "string" && redirectPath.trim() !== "" && legacyBase) {
-          const path = redirectPath.replace(/^\//, "");
-          const redirectUrl = `${legacyBase}/${path}`;
-          window.location.href = redirectUrl;
-        } else if (!redirectPath?.trim()) {
-          toast.info("Redirect URL was not provided. You can continue from the current page.");
-        } else if (!legacyBase) {
-          toast.info("Redirect is not configured. You can continue from the current page.");
-        }
+        // Redirect disabled for now; stay on current page.
         return true;
       } catch (error) {
         const message = extractErrorMessage(error, "Failed to substitute teacher");
@@ -404,8 +419,8 @@ export function usePrivateLessonsHandlers({
         return false;
       }
     },
-    [location, dispatch, clearSelection, modalState]
-  );
+      [location, dispatch, clearSelection, modalState, refetchAfterMutation]
+    );
 
   const handleEditDiscountSave = React.useCallback(
     async (data: LessonDiscountData, lessonIds: number[]) => {
@@ -425,7 +440,11 @@ export function usePrivateLessonsHandlers({
           const lessonsUpdated = selectedLessons.filter((l) =>
             updatedLessonIds.includes(l.id)
           );
-          const newPrices = calculateDiscountedPricesForLessons(lessonsUpdated, data);
+          // Keep existing listing prices until fresh server data arrives.
+          // This avoids wrong optimistic calculations (e.g. showing $0.00 incorrectly).
+          const newPrices = new Map<number, string>(
+            lessonsUpdated.map((lesson) => [lesson.id, lesson.price])
+          );
           dispatch(
             updateLessonsPrices({
               lessonIds: updatedLessonIds,
@@ -437,6 +456,7 @@ export function usePrivateLessonsHandlers({
 
         clearSelection();
         modalState.setIsEditDiscountModalOpen(false);
+        await refetchAfterMutation();
         toast.success(
           typeof response.message === "string" && response.message.trim() !== ""
             ? response.message
@@ -449,7 +469,7 @@ export function usePrivateLessonsHandlers({
         return false;
       }
     },
-    [location, selectedLessons, dispatch, clearSelection, modalState]
+    [location, selectedLessons, dispatch, clearSelection, modalState, refetchAfterMutation]
   );
 
   /** Converts UI duration (HH:mm) to API format (HH:MM:SS) */
@@ -481,6 +501,7 @@ export function usePrivateLessonsHandlers({
 
         clearSelection();
         modalState.setIsEditDurationModalOpen(false);
+        await refetchAfterMutation();
         toast.success(
           typeof response.message === "string" && response.message.trim() !== ""
             ? response.message
@@ -493,7 +514,7 @@ export function usePrivateLessonsHandlers({
         return false;
       }
     },
-    [location, toApiDuration, dispatch, clearSelection, modalState]
+    [location, toApiDuration, dispatch, clearSelection, modalState, refetchAfterMutation]
   );
 
   const handleEditClassroomSave = React.useCallback(
@@ -517,6 +538,7 @@ export function usePrivateLessonsHandlers({
 
         clearSelection();
         modalState.setIsEditClassroomModalOpen(false);
+        await refetchAfterMutation();
         toast.success(
           typeof response.message === "string" && response.message.trim() !== ""
             ? response.message
@@ -529,7 +551,7 @@ export function usePrivateLessonsHandlers({
         return false;
       }
     },
-    [location, dispatch, clearSelection, modalState]
+    [location, dispatch, clearSelection, modalState, refetchAfterMutation]
   );
 
   const handleEditOnlineTypeSave = React.useCallback(
@@ -550,6 +572,7 @@ export function usePrivateLessonsHandlers({
 
         clearSelection();
         modalState.setIsEditOnlineTypeModalOpen(false);
+        await refetchAfterMutation();
         toast.success(
           typeof response.message === "string" && response.message.trim() !== ""
             ? response.message
@@ -564,7 +587,7 @@ export function usePrivateLessonsHandlers({
         return false;
       }
     },
-    [location, dispatch, clearSelection, modalState]
+    [location, dispatch, clearSelection, modalState, refetchAfterMutation]
   );
 
   return {

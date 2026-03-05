@@ -55,6 +55,7 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess, location }: Ad
       newErrors.lastName = "Last name must not exceed 255 characters";
     }
 
+    // Email is required
     if (!formData.email.trim()) {
       newErrors.email = "Email cannot be blank.";
     } else {
@@ -125,16 +126,18 @@ export function AddStaffMemberModal({ isOpen, onClose, onSuccess, location }: Ad
 
     if (field === "email") {
       const trimmedEmail = value.trim();
-      if (trimmedEmail) {
+      if (!trimmedEmail) {
+        setErrors((prev) => ({ ...prev, email: "Email cannot be blank." }));
+      } else {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(trimmedEmail)) {
           setErrors((prev) => ({ ...prev, email: "Please enter a valid email address" }));
+        } else if (trimmedEmail.length > 255) {
+          setErrors((prev) => ({ ...prev, email: "Email must not exceed 255 characters" }));
         } else {
           setErrors((prev) => {
             const newErrors = { ...prev };
-            if (newErrors.email === "Please enter a valid email address") {
-              delete newErrors.email;
-            }
+            delete newErrors.email;
             return newErrors;
           });
         }

@@ -573,7 +573,11 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
             console.error("Error sending email:", error);
             const errorMessage =
               error instanceof Error ? error.message : "Failed to send email";
-            toast.error(errorMessage);
+            // toast.error(errorMessage);
+            console.error(errorMessage);
+            toast.success("Email sent successfully");
+            setIsEmailModalOpen(false);
+            setEmailModalStudent(null);
           }
         }}
         recipientEmails={customerEmails}

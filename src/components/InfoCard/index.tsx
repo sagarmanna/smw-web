@@ -69,7 +69,7 @@ export function InfoCard({
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 min-w-0 overflow-hidden">
         {children}
       </CardContent>
     </Card>

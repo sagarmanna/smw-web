@@ -59,8 +59,8 @@ export function EditDueDateModal({
 
     setError("");
 
-    // Format date to "MMM dd, yyyy" format (e.g., "Sep 15, 2025")
-    const formattedDate = format(selectedDate, "MMM dd, yyyy");
+    // Format date to API-required ISO format "yyyy-MM-dd" (e.g., "2025-09-15")
+    const formattedDate = format(selectedDate, "yyyy-MM-dd");
     const success = await onSubmit(formattedDate);
 
     if (success) {

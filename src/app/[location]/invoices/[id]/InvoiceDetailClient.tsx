@@ -16,6 +16,7 @@ import { InvoiceCommentsCard } from "../components/InvoiceCommentsCard";
 import { InvoiceHistoryCard } from "../components/InvoiceHistoryCard";
 import { ReturnInvoiceModal } from "../components/modals/ReturnInvoiceModal";
 import { VoidInvoiceModal } from "../components/modals/VoidInvoiceModal";
+import { InvoiceEmailModal, type InvoiceEmailData } from "../components/modals/InvoiceEmailModal";
 import { InvoiceDiscountWarningBanner } from "../components/InvoiceDiscountWarningBanner";
 import { useInvoiceDetails } from "../hooks/useInvoiceDetails";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   
   const [showReturnModal, setShowReturnModal] = React.useState(false);
   const [showVoidModal, setShowVoidModal] = React.useState(false);
+  const [showEmailModal, setShowEmailModal] = React.useState(false);
 
   // Use main invoice details hook
   const {
@@ -99,6 +101,19 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const handleReturnClick = React.useCallback(() => {
     setShowReturnModal(true);
   }, []);
+
+  const handleEmailInvoice = React.useCallback(() => {
+    setShowEmailModal(true);
+  }, []);
+
+  const handleSendInvoiceEmail = React.useCallback(
+    async (emailData: InvoiceEmailData) => {
+      console.log("Sending invoice email:", emailData);
+      // TODO: Implement actual email API call
+      toast.success("Email sent successfully");
+    },
+    []
+  );
 
   // Wrap return confirm to close modal
   const handleReturnConfirmWithClose = React.useCallback(() => {
@@ -193,9 +208,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-gray-500 hover:text-gray-700"
-                        onClick={() => {
-                          toast.info(TOAST_MESSAGES.INFO.FEATURE_UNDER_PROCESS);
-                        }}
+                        onClick={handleEmailInvoice}
                         aria-label="Email invoice"
                       >
                         <Mail className="h-4 w-4" />
@@ -303,6 +316,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
           {/* Items Section - Full Width */}
           <InvoiceItemsCard
+            location={location}
             items={invoiceDetail.items}
             isLoading={isLoading}
             isVoided={isVoided}
@@ -368,6 +382,17 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
         onConfirm={handleVoidConfirmWithClose}
         isVoiding={isVoiding}
       />
+
+      {/* Email Invoice Modal */}
+      {invoiceDetail && (
+        <InvoiceEmailModal
+          open={showEmailModal}
+          onOpenChange={setShowEmailModal}
+          onSend={handleSendInvoiceEmail}
+          location={location}
+          invoiceId={invoiceId}
+        />
+      )}
     </>
   );
 }

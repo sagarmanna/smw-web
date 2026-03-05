@@ -63,62 +63,62 @@ export function PrivateLessonsToolbar({
         </Tooltip>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onSubstituteTeacherClick}
+            onClick={onSubstituteTeacherClick}
             disabled={!hasSelection}
           >
             Substitute Teacher
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onEditDiscountClick}
+            onClick={onEditDiscountClick}
             disabled={!hasSelection}
           >
             Edit Discount
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onEditDurationClick}
+            onClick={onEditDurationClick}
             disabled={!hasSelection}
           >
             Edit Duration
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onDeleteClick}
+            onClick={onDeleteClick}
             disabled={!hasSelection}
             className="text-destructive focus:text-destructive"
           >
             Delete
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onEditClassroomClick}
+            onClick={onEditClassroomClick}
             disabled={!hasSelection}
           >
             Edit Classroom
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onEditOnlineTypeClick}
+            onClick={onEditOnlineTypeClick}
             disabled={!hasSelection}
           >
             Edit Online Type
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onEmailSelectedClick}
+            onClick={onEmailSelectedClick}
             disabled={!hasSelection}
           >
             Email Selected
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onUnscheduleClick}
+            onClick={onUnscheduleClick}
             disabled={!hasSelection}
           >
             Unschedule
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onBulkRescheduleClick}
+            onClick={onBulkRescheduleClick}
             disabled={!hasSelection}
           >
             Bulk Reschedule
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={!isDev() ? showtoast : onGenerateInvoiceClick}
+            onClick={onGenerateInvoiceClick}
             disabled={!hasSelection}
           >
             Generate Invoice

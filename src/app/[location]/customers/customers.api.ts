@@ -837,14 +837,15 @@ export async function getCustomerPayments(
   location: string,
   customerId: number,
   page?: number,
-  limit?: number
+  limit?: number,
+  orderBy?: string
 ): Promise<PaymentsResult> {
   try {
     const params = new URLSearchParams();
     if (page) params.append("page", page.toString());
     if (limit)
       params.append("limit", limit === -1 ? "99999" : limit.toString());
-
+    if (orderBy) params.append("orderBy", orderBy);
     const response = await apiClient.get<PaymentsResponse>(
       `/admin/v2/${location}/customers/${customerId}/payments`,
       { params }

@@ -48,6 +48,7 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
     hasSelectedLessons: selection.hasSelectedLessons,
     clearSelection: selection.clearSelection,
     modalState,
+    refetchList: fetchData,
   });
 
   // Add checkbox column to columns

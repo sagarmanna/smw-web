@@ -66,10 +66,11 @@ export const PrivateLessonDetailsCard = React.memo(function PrivateLessonDetails
   }, []);
 
   const handleSubmit = React.useCallback(
-    async (data: { classroom?: string; colorCode?: string; online?: boolean }): Promise<boolean> => {
+    async (data: { classroom?: string; classroomId?: number; colorCode?: string; online?: boolean }): Promise<boolean> => {
       if (!location) return false;
       const updatedDetails: Partial<PrivateLessonDetails> = {
         classroom: data.classroom,
+        classroomId: data.classroomId,
         colorCode: data.colorCode,
         online: data.online,
       };

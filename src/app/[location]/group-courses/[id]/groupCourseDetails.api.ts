@@ -54,6 +54,7 @@ export interface CourseLesson {
   id: number;
   date: string;
   status: string;
+  teacher?: string;
   online?: string;
 }
 

@@ -2,6 +2,7 @@ export interface PrivateLessonDetails {
   id: number;
   program: string;
   classroom: string;
+  classroomId?: number;
   status: string;
   colorCode: string;
   online: boolean;
@@ -10,6 +11,7 @@ export interface PrivateLessonDetails {
   customer: string;
   customerId?: number;
   phone: string;
+  programId?: number;
   isPrivate?: boolean;
   isGroup?: boolean;
   attendance: {
@@ -24,6 +26,7 @@ export interface PrivateLessonDetails {
   schedule: {
     teacher: string;
     teacherId?: number;
+    originalDate?: string;
     scheduledDate: string;
     time: string;
     duration: string;
@@ -40,6 +43,9 @@ export interface PrivateLessonDetails {
     total: string;
     paid: string;
     balance: string;
+    invoiceId?: number;
+    invoiceNumber?: string;
+    invoiceOwing?: string;
   };
 }
 
@@ -78,6 +84,9 @@ export interface PrivateLessonInfo {
 // Group Lesson Student Interface (for isGroup: true)
 export interface GroupLessonStudent {
   id: number;
+  lessonId?: number;
+  enrolmentId?: number;
+  studentId?: number;
   studentName: string;
   customerName: string;
   dueDate: string;
@@ -85,6 +94,9 @@ export interface GroupLessonStudent {
   discount: string;
   netPrice: string;
   owing: string;
+  hasInvoice?: boolean;
+  invoiceId?: number;
+  hasPayment?: boolean;
 }
 
 // Group Lesson Cost Data

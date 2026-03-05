@@ -135,11 +135,9 @@ export function EditStaffMemberLoginModal({
 
   const handleCanLoginChange = (checked: boolean) => {
     setCanLogin(checked);
-    if (!checked) {
-      // Clear password fields when unchecked
-      setPassword("");
-      setConfirmPassword("");
-    }
+    // Keep password fields empty when revealing (expected empty inputs)
+    setPassword("");
+    setConfirmPassword("");
     if (error) setError(null);
   };
 
@@ -170,9 +168,10 @@ export function EditStaffMemberLoginModal({
             </Label>
             <Input
               id="pin"
-              type="text"
+              type="password"
               inputMode="numeric"
               pattern="[0-9]*"
+              autoComplete="off"
               value={pin}
               onChange={(e) => {
                 // Only allow numeric input, max 4 digits

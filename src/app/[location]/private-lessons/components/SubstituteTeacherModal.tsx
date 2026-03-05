@@ -15,7 +15,6 @@ import {
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
 import { PrivateLessonRow } from "../privateLessonsListing.api";
-import { Pencil } from "lucide-react";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
@@ -78,6 +77,7 @@ export function SubstituteTeacherModal({
   const [isLoadingReview, setIsLoadingReview] = React.useState(false);
   const [reviewLoadError, setReviewLoadError] = React.useState<string | null>(null);
 
+  // Load substitute teachers for selected lesson ids when modal opens (same pattern as other action APIs)
   React.useEffect(() => {
     if (!open || selectedLessons.length === 0) return;
 
@@ -108,6 +108,7 @@ export function SubstituteTeacherModal({
     return () => { isCancelled = true; };
   }, [open, location, selectedLessons]);
 
+  // Call review API when teacher is selected (GET with ids + teacherId)
   React.useEffect(() => {
     if (!open || !selectedTeacher || selectedLessons.length === 0) {
       setReviewResponse(null);
@@ -225,15 +226,6 @@ export function SubstituteTeacherModal({
             </span>
           );
         },
-      },
-      {
-        id: "actions",
-        header: "",
-        cell: () => (
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-primary hover:text-primary" onClick={() => {}}>
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-        ),
       },
     ];
   }, []);

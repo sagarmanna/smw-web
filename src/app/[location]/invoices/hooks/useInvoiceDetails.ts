@@ -116,6 +116,8 @@ export function useInvoiceDetails(
   });
 
   const { handleSaveItem, handleDeleteItem } = useInvoiceItemHandlers({
+    location,
+    invoiceId,
     invoiceDetail,
     dispatch,
   });
