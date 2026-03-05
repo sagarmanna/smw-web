@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,72 +67,82 @@ export default function POSPage() {
     const itemData = await scanItem(productCode);
     
     if (itemData) {
-      // Check if item already exists
-      const existingItem = items.find(i => i.upc === itemData.code);
-      
-      if (existingItem && existingItem.lineItemId) {
-        // Update quantity of existing item in DB
-        const newQty = existingItem.quantity + quantity;
-        try {
-          await updateLineItemQuantity(
-            String(numericTransactionId),
-            location,
-            existingItem.lineItemId,
-            newQty
-          );
-          setItems(items.map(item => 
+      setItems(prevItems => {
+        // Check if item already exists
+        const existingItem = prevItems.find(i => i.upc === itemData.code);
+        
+        if (existingItem && existingItem.lineItemId) {
+          // Update quantity of existing item in DB
+          const newQty = existingItem.quantity + quantity;
+          
+          // Make API call
+          (async () => {
+            try {
+              await updateLineItemQuantity(
+                String(numericTransactionId),
+                location,
+                existingItem.lineItemId!,
+                newQty
+              );
+              toast.success('Quantity updated');
+            } catch (error) {
+              toast.error('Failed to update quantity');
+              console.error('Failed to update quantity:', error);
+            }
+          })();
+          
+          return prevItems.map(item => 
             item.upc === itemData.code 
               ? { ...item, quantity: newQty }
               : item
-          ));
-          toast.success('Quantity updated');
-        } catch (error) {
-          toast.error('Failed to update quantity');
-          console.error('Failed to update quantity:', error);
-        }
-      } else if (existingItem) {
-        // Item exists locally but not in DB yet, just update local state
-        setItems(items.map(item => 
-          item.upc === itemData.code 
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        ));
-      } else {
-        // Add new item
-        const newItem: Item = {
-          id: Date.now().toString(),
-          upc: itemData.code,
-          description: itemData.description,
-          quantity: quantity,
-          price: itemData.price,
-        };
-        setItems([...items, newItem]);
-        
-        // Save to database
-        try {
-          const response = await addLineItem(String(numericTransactionId), location, {
-            itemId: itemData.id,
+          );
+        } else if (existingItem) {
+          // Item exists locally but not in DB yet, just update local state
+          return prevItems.map(item => 
+            item.upc === itemData.code 
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+        } else {
+          // Add new item
+          const newItem: Item = {
+            id: Date.now().toString(),
+            upc: itemData.code,
+            description: itemData.description,
             quantity: quantity,
-          });
+            price: itemData.price,
+          };
           
-          const transactionData = response.data || response;
-          const lineItems = transactionData?.lineItems;
+          // Save to database
+          (async () => {
+            try {
+              const response = await addLineItem(String(numericTransactionId), location, {
+                itemId: itemData.id,
+                quantity: quantity,
+              });
+              
+              const transactionData = response.data || response;
+              const lineItems = transactionData?.lineItems;
+              
+              if (lineItems && lineItems.length > 0) {
+                const addedLineItem = lineItems[lineItems.length - 1];
+                const lineItemId = addedLineItem.id;
+                
+                setItems(prevItems => 
+                  prevItems.map(item => 
+                    item.upc === itemData.code && !item.lineItemId ? { ...item, lineItemId: lineItemId.toString() } : item
+                  )
+                );
+              }
+            } catch (error) {
+              toast.error('Failed to save item to transaction');
+              console.error('Failed to add line item:', error);
+            }
+          })();
           
-          if (lineItems && lineItems.length > 0) {
-            const addedLineItem = lineItems[lineItems.length - 1];
-            const lineItemId = addedLineItem.id;
-            
-            setItems(prevItems => 
-              prevItems.map(item => 
-                item.upc === itemData.code && !item.lineItemId ? { ...item, lineItemId: lineItemId.toString() } : item
-              )
-            );
-          }
-        } catch (error) {
-          toast.error('Failed to save item to transaction');
-          console.error('Failed to add line item:', error);
+          return [...prevItems, newItem];
         }
-      }
+      });
       
       setProductCode("");
       setQuantity(1);
@@ -141,7 +151,7 @@ export default function POSPage() {
     setTimeout(() => productRef.current?.focus(), 0);
   };
 
-  const removeItem = async (id: string) => {
+  const removeItem = useCallback(async (id: string) => {
     setItems(prevItems => {
       const item = prevItems.find(i => i.id === id);
       if (!item) return prevItems;
@@ -178,7 +188,7 @@ export default function POSPage() {
 
       return updatedItems;
     });
-  };
+  }, [location, numericTransactionId]);
 
   const handleQuantityChange = (itemId: string, newQuantity: string) => {
     const qty = parseInt(newQuantity);
