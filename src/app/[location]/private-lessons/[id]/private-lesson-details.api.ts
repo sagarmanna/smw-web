@@ -351,6 +351,62 @@ export async function getPrivateLessonPayments(
 }
 
 /**
+ * Fetches group lesson payments for a specific enrolment from the API.
+ *
+ * Endpoint: GET /admin/v2/{location}/lesson/details/{lessonId}/payments
+ * Query params: enrolmentId, sort, order
+ *
+ * @param location - The location identifier
+ * @param lessonId - The lesson ID
+ * @param enrolmentId - The enrolment ID
+ * @param sort - Optional sort field (for example: "amount")
+ * @param order - Optional sort direction ("asc" | "desc")
+ */
+export async function getGroupLessonPayments(
+  location: string,
+  lessonId: string,
+  enrolmentId: string,
+  sort?: string,
+  order?: "asc" | "desc"
+): Promise<PrivateLessonPaymentsApiResponse | null> {
+  try {
+    const params: Record<string, string> = { enrolmentId };
+    if (sort) {
+      params.sort = sort;
+    }
+    if (sort && order) {
+      params.order = order;
+    }
+
+    const response = await apiClient.get<PrivateLessonPaymentsApiResponse>(
+      `/admin/v2/${location}/lesson/details/${lessonId}/payments`,
+      { params }
+    );
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.error("Group lesson payments API returned no body:", response.data);
+      return response.data;
+    }
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching group lesson payments:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch group lesson payments",
+    };
+  }
+}
+
+/**
  * Fetches private lesson history from the API with pagination.
  *
  * Endpoint: GET /admin/v2/{location}/history?type=lesson&id={privateLessonId}&page={page}
