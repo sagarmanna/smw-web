@@ -9,15 +9,17 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity } from "@/lib/api/pos.api";
 import { toast } from "sonner";
 
 interface Item {
   id: string;
+  lineItemId?: string;
   description: string;
   quantity: number;
   price: number;
   upc: string;
+  isUpdatingQuantity?: boolean;
 }
 
 export default function POSPage() {
@@ -27,7 +29,7 @@ export default function POSPage() {
   const locationData = locations.find(loc => loc.slug === location);
   const locationId = locationData?.id || 1;
   
-  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction } = usePOSTransaction(locationId, location);
+  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction, resetTransaction } = usePOSTransaction(locationId, location);
   const { isScanning, scanItem } = usePOSItemLookup(location);
   
   const productRef = useRef<HTMLInputElement>(null);
@@ -37,9 +39,19 @@ export default function POSPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
+  const [showEditPriceDialog, setShowEditPriceDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [newPrice, setNewPrice] = useState("");
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
   const [discount, setDiscount] = useState(0);
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const transactionIdRef = useRef(numericTransactionId);
+
+  useEffect(() => {
+    transactionIdRef.current = numericTransactionId;
+  }, [numericTransactionId]);
 
   useEffect(() => {
     initializeTransaction().then(() => {
@@ -74,12 +86,26 @@ export default function POSPage() {
           quantity
         });
 
-        await addLineItem(String(numericTransactionId), location, {
+        const response = await addLineItem(String(numericTransactionId), location, {
           itemId: itemData.id,
           quantity: quantity,
         });
-
-        console.log('[Line Item] Successfully added');
+        
+        // apiClient returns axios response with data property
+        const transactionData = response.data || response;
+        const lineItems = transactionData?.lineItems;
+        
+        if (lineItems && lineItems.length > 0) {
+          const addedLineItem = lineItems[lineItems.length - 1];
+          const lineItemId = addedLineItem.id;
+          
+          // Store line item ID
+          setItems(prevItems => 
+            prevItems.map(item => 
+              item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
+            )
+          );
+        }
       } catch (error) {
         toast.error('Failed to save item to transaction');
         console.error('Failed to add line item:', error);
@@ -91,10 +117,113 @@ export default function POSPage() {
 
   const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
 
+  const handleQuantityChange = (itemId: string, newQuantity: string) => {
+    const qty = parseInt(newQuantity);
+    
+    // Validate input
+    if (newQuantity === '' || isNaN(qty)) {
+      return;
+    }
+    
+    if (qty < 1 || qty > 999) {
+      toast.error('Quantity must be between 1 and 999');
+      return;
+    }
+
+    // Update local state immediately
+    setItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, quantity: qty } : item
+    ));
+
+    // Clear existing timer for this item
+    if (debounceTimers.current[itemId]) {
+      clearTimeout(debounceTimers.current[itemId]);
+    }
+
+    // Set new debounced API call
+    debounceTimers.current[itemId] = setTimeout(() => {
+      setItems(prev => {
+        const item = prev.find(i => i.id === itemId);
+        if (!item?.lineItemId) {
+          toast.error('Cannot update quantity: Line item ID not found');
+          return prev;
+        }
+
+        const lineItemId = item.lineItemId;
+
+        // Show loading state
+        const updatedItems = prev.map(i => 
+          i.id === itemId ? { ...i, isUpdatingQuantity: true } : i
+        );
+
+        // Make API call
+        (async () => {
+          try {
+            await updateLineItemQuantity(
+              numericTransactionId,
+              location,
+              lineItemId,
+              qty
+            );
+            toast.success('Quantity updated successfully');
+          } catch (error) {
+            console.error('Failed to update quantity:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
+          } finally {
+            setItems(prev => prev.map(i => 
+              i.id === itemId ? { ...i, isUpdatingQuantity: false } : i
+            ));
+          }
+        })();
+
+        return updatedItems;
+      });
+    }, 1000);
+  };
+
   const handleOverride = (id: string) => {
-    const newPrice = window.prompt("Enter new price:");
-    if (newPrice && !isNaN(parseFloat(newPrice))) {
-      setItems(items.map(item => item.id === id ? { ...item, price: parseFloat(newPrice) } : item));
+    const item = items.find(i => i.id === id);
+    if (item) {
+      setSelectedItem(item);
+      setNewPrice(item.price.toString());
+      setShowEditPriceDialog(true);
+    }
+  };
+
+  const handleApplyPriceChange = async () => {
+    const price = parseFloat(newPrice);
+    if (!isNaN(price) && price >= 0 && selectedItem) {
+      setIsUpdatingPrice(true);
+      
+      try {
+        if (!selectedItem.lineItemId) {
+          toast.error('Cannot update price: Line item ID not found');
+          setIsUpdatingPrice(false);
+          return;
+        }
+        
+        await updateLineItemPrice(
+          String(numericTransactionId),
+          location,
+          selectedItem.lineItemId,
+          price
+        );
+        
+        // Update local state
+        setItems(items.map(item => 
+          item.id === selectedItem.id ? { ...item, price } : item
+        ));
+        
+        setShowEditPriceDialog(false);
+        setNewPrice("");
+        setSelectedItem(null);
+        toast.success('Price updated successfully');
+      } catch (error) {
+        console.error('Failed to update price:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to update price');
+      } finally {
+        setIsUpdatingPrice(false);
+      }
     }
   };
 
@@ -205,7 +334,24 @@ export default function POSPage() {
                     <td className="py-2.5">
                       <X className="h-4 w-4 text-muted-foreground hover:text-red-600 cursor-pointer" onClick={() => removeItem(item.id)} />
                     </td>
-                    <td className="py-2.5 font-bold">{item.quantity}</td>
+                    <td className="py-2.5">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="999"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                          className="w-16 h-8 text-center font-bold border-input rounded-none"
+                          disabled={item.isUpdatingQuantity}
+                        />
+                        {item.isUpdatingQuantity && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-2.5">
                       <div className="font-normal text-foreground uppercase text-xs">{item.description}</div>
                       <div className="text-[9px] text-muted-foreground font-mono">UPC: {item.upc}</div>
@@ -321,6 +467,7 @@ export default function POSPage() {
                 setItems([]);
                 setDiscount(0);
                 setShowCancelDialog(false);
+                resetTransaction();
               }}
               className="rounded-none"
             >
@@ -411,6 +558,68 @@ export default function POSPage() {
               className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-none"
             >
               Apply Discount
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Price Dialog */}
+      <Dialog open={showEditPriceDialog} onOpenChange={setShowEditPriceDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Edit Price</DialogTitle>
+            <DialogDescription>
+              Enter the new price for this item
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-muted/50 p-3 rounded border border-border">
+              <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Item</div>
+              <div className="text-sm font-bold text-foreground">{selectedItem?.description}</div>
+            </div>
+
+            <div className="flex justify-between items-center py-2 border-b border-border">
+              <span className="text-sm font-bold text-muted-foreground uppercase">Current Price</span>
+              <span className="text-xl font-bold text-foreground">${selectedItem?.price.toFixed(2)}</span>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-foreground mb-2 block uppercase">
+                New Price
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                placeholder="0.00"
+                className="h-12 text-2xl font-bold text-center rounded-none border-2 border-input focus:border-primary"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditPriceDialog(false);
+                setNewPrice("");
+                setSelectedItem(null);
+              }}
+              disabled={isUpdatingPrice}
+              className="rounded-none"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleApplyPriceChange}
+              disabled={!newPrice || isNaN(parseFloat(newPrice)) || parseFloat(newPrice) < 0 || isUpdatingPrice}
+              className="bg-primary hover:bg-primary/90 text-white rounded-none"
+            >
+              {isUpdatingPrice ? 'Updating...' : 'Apply'}
             </Button>
           </DialogFooter>
         </DialogContent>

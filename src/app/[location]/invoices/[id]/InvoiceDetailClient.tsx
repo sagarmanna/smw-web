@@ -315,6 +315,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
           {/* Items Section - Full Width */}
           <InvoiceItemsCard
+            location={location}
             items={invoiceDetail.items}
             isLoading={isLoading}
             isVoided={isVoided}

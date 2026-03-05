@@ -14,9 +14,8 @@ export function usePOSTransaction(locationId: number, location: string) {
       console.log('[Transaction Init] Already initialized, skipping');
       return;
     }
-
-    console.log('[Transaction Init] Creating new transaction');
     isInitializedRef.current = true;
+    console.log('[Transaction Init] Creating new transaction');
 
     try {
       const result = await createPOSTransaction(locationId, location);
@@ -36,19 +35,20 @@ export function usePOSTransaction(locationId: number, location: string) {
       }));
     } catch (error) {
       console.error('Failed to create transaction:', error);
-      toast.error('Failed to create transaction. Using fallback values.');
-      
-      const fallbackId = Date.now();
-      setTransactionId('P-001-1024');
-      setNumericTransactionId(fallbackId.toString());
-      setTransactionDate(new Date().toLocaleDateString('en-US', { 
-        month: '2-digit', 
-        day: '2-digit', 
-        year: '2-digit' 
-      }));
+      toast.error('Failed to create transaction. Please refresh.');
+      isInitializedRef.current = false; // Allow retry on error
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const resetTransaction = () => {
+    console.log('[Transaction Reset] Clearing transaction state');
+    isInitializedRef.current = false;
+    setTransactionId('Loading...');
+    setNumericTransactionId('');
+    setTransactionDate('');
+    setIsLoading(true);
   };
 
   return {
@@ -57,5 +57,6 @@ export function usePOSTransaction(locationId: number, location: string) {
     transactionDate,
     isLoading,
     initializeTransaction,
+    resetTransaction,
   };
 }
