@@ -429,6 +429,7 @@ export interface PrivateLessonEmailStatementBody {
     duration: string;
     status: string;
     expiryDate: string;
+    rescheduleStatement?: string;
   };
   // some endpoints may also return a list of recipient emails
   emails?: string[];
@@ -493,6 +494,7 @@ export async function getPrivateLessonEmailStatement(
             duration: "",
             status: "",
             expiryDate: "",
+            rescheduleStatement: "",
           },
         },
       },
