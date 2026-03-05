@@ -26,6 +26,7 @@ export interface PrivateLessonDetails {
   schedule: {
     teacher: string;
     teacherId?: number;
+    originalDate?: string;
     scheduledDate: string;
     time: string;
     duration: string;
@@ -42,6 +43,9 @@ export interface PrivateLessonDetails {
     total: string;
     paid: string;
     balance: string;
+    invoiceId?: number;
+    invoiceNumber?: string;
+    invoiceOwing?: string;
   };
 }
 

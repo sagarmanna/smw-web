@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import {
   SectionCard,
@@ -43,12 +44,20 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
   savingDetails = false,
   isLoading = false,
 }: PrivateLessonTotalsCardProps) {
+  const router = useRouter();
   const [isDiscountModalOpen, setIsDiscountModalOpen] = React.useState(false);
   const [isPriceModalOpen, setIsPriceModalOpen] = React.useState(false);
   const [isTaxModalOpen, setIsTaxModalOpen] = React.useState(false);
 
+  const handleInvoiceClick = React.useCallback(() => {
+    const invoiceId = details?.totals?.invoiceId;
+    if (typeof invoiceId === "number") {
+      router.push(`/${location}/invoices/${invoiceId}`);
+    }
+  }, [details?.totals?.invoiceId, location, router]);
+
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
-    return [
+    const rows: SectionCardDataRow[] = [
       {
         label: "Lesson Rate/hr",
         value: details?.totals.lessonRatePerHour || "N/A",
@@ -86,7 +95,44 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
         value: details?.totals.balance || "N/A",
       },
     ];
-  }, [details]);
+
+    const status = details?.status?.toLowerCase() || "";
+    const isAbsentOrCompleted =
+      status.includes("absent") || status.includes("completed");
+    if (isAbsentOrCompleted) {
+      const invoiceLabel =
+        (details?.totals?.invoiceNumber && details.totals.invoiceNumber.trim() !== "")
+          ? details.totals.invoiceNumber
+          : (typeof details?.totals?.invoiceId === "number" ? String(details.totals.invoiceId) : "N/A");
+
+      const invoiceValue =
+        typeof details?.totals.invoiceId === "number" ? (
+          <span
+            onClick={handleInvoiceClick}
+            className="text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
+          >
+            {invoiceLabel}
+          </span>
+        ) : (
+          invoiceLabel
+        );
+
+      rows.push({
+        label: "Invoice",
+        value: invoiceValue,
+      });
+
+      rows.push({
+        label: "Owing",
+        value:
+          (details?.totals?.invoiceOwing && details.totals.invoiceOwing.trim() !== "")
+            ? details.totals.invoiceOwing
+            : (details?.totals?.balance || "N/A"),
+      });
+    }
+
+    return rows;
+  }, [details, handleInvoiceClick]);
 
   const handleEditDiscountClick = React.useCallback(() => {
     setIsDiscountModalOpen(true);
