@@ -26,13 +26,25 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Normalize template HTML alignment so private-lesson email preview stays left-aligned.
+ * This is scoped to private lesson statement generation only.
+ */
+function forceLeftAlignHtml(html: string): string {
+  return html
+    .replace(/\balign\s*=\s*"(center|right|justify)"/gi, 'align="left"')
+    .replace(/\balign\s*=\s*'(center|right|justify)'/gi, "align='left'")
+    .replace(/text-align\s*:\s*(center|right|justify)\s*;?/gi, "text-align:left;");
+}
+
+/**
  * Create a table row with a label and value.
  */
 function row(label: string, value: string): string {
-  const th = `text-align:left;border:1px solid #ddd;padding:6px;background-color:#f3f4f6;font-weight:600;`;
-  const td = `border:1px solid #ddd;padding:6px;text-align:left;`;
+  const th = `text-align:left !important;border:1px solid #ddd;padding:6px;background-color:#f3f4f6;font-weight:600;`;
+  const td = `border:1px solid #ddd;padding:6px;text-align:left !important;`;
+  const text = `text-align:left !important;margin:0;`;
   return `
-      <tr><th style="${th}">${escapeHtml(label)}</th><td style="${td}">${escapeHtml(value)}</td></tr>`;
+      <tr><th style="${th}"><p style="${text}">${escapeHtml(label)}</p></th><td style="${td}"><p style="${text}">${escapeHtml(value)}</p></td></tr>`;
 }
 
 /**
@@ -54,7 +66,7 @@ function generateLessonTableHTML(
   ].join('');
 
   return `
-    <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:system-ui,-apple-system,sans-serif;color:#111;margin:16px 0;">
+    <table class="private-lesson-email-statement" style="width:100%;border-collapse:collapse;font-size:12px;font-family:system-ui,-apple-system,sans-serif;color:#111;margin:16px 0;">
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -65,12 +77,14 @@ function generateLessonTableHTML(
 export function generateEmailContent(
   emailStatement: PrivateLessonEmailStatementBody
 ): string {
-  const header =
+  const header = forceLeftAlignHtml(
     emailStatement.emailTemplate?.header?.trim() ||
-    `<p style="text-align:left;">Please find the lesson below</p>`;
-  const footer =
+      `<p style="text-align:left;">Please find the lesson below</p>`
+  );
+  const footer = forceLeftAlignHtml(
     emailStatement.emailTemplate?.footer?.trim() ||
-    `<p>Thank you,<br/>Arcadia Academy of Music</p>`;
+      `<p>Thank you,<br/>Arcadia Academy of Music</p>`
+  );
   const subjectText = emailStatement.emailTemplate?.subject || "";
   const subjectHtml = subjectText
     ? `<h2 style="font-size:16px;font-weight:600;font-family:system-ui,-apple-system,sans-serif;color:#111;margin:0 0 12px 0;">${escapeHtml(subjectText)}</h2>`
