@@ -214,6 +214,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
               />
               <PrivateLessonCostCard
                 details={details}
+                groupCost={privateLessonInfo?.groupCost}
                 onSaveCost={saveCost}
                 savingDetails={savingDetails}
                 isLoading={isLoading}
