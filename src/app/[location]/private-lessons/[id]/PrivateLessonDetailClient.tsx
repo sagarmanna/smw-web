@@ -48,6 +48,7 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   const isLoading = useAppSelector((state) => state.privateLesson?.isLoading || false);
   const error = useAppSelector((state) => state.privateLesson?.error);
   const privateLessonInfo = useAppSelector((state) => state.privateLesson?.privateLessonInfo);
+  const { userInfo } = useAppSelector((state) => state.user);
 
   const {
     details,
@@ -437,6 +438,8 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
   }, [details?.status]);
   const isExploded = explodeStatus.isExploded || explodedFromStatusText;
   const shouldShowExplode = explodeStatus.canExplode && !isExploded;
+  const canViewCostCard =
+    userInfo?.role === "administrator" || userInfo?.role === "owner";
 
   const actionMenuGroups = React.useMemo<ActionMenuGroup[]>(() => {
     const items = [
@@ -554,12 +557,14 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                 isLoading={isLoading}
               />
 
-              <PrivateLessonCostCard
-                details={details}
-                onSaveCost={saveCost}
-                savingDetails={savingDetails}
-                isLoading={isLoading}
-              />
+              {canViewCostCard && (
+                <PrivateLessonCostCard
+                  details={details}
+                  onSaveCost={saveCost}
+                  savingDetails={savingDetails}
+                  isLoading={isLoading}
+                />
+              )}
             </div>
 
             {/* Right Column */}
