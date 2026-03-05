@@ -79,9 +79,11 @@ export function GroupStudentsTab({
   const handleViewInvoiceClick = React.useCallback(
     (student: GroupLessonStudent) => {
       if (!student.invoiceId) return;
-      router.push(`/${location}/invoices/${student.invoiceId}`);
+      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      const url = `${legacyBase}/${location}/invoice/view?id=${student.invoiceId}`;
+      window.location.href = url;
     },
-    [router, location]
+    [location]
   );
 
   const handleCreateInvoiceClick = React.useCallback(
