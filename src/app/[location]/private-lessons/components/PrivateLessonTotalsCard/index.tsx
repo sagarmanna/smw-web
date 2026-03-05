@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { EditDiscountModal } from "../modals/EditDiscountModal";
 import { EditPriceModal } from "../modals/EditPriceModal";
 import { EditTaxModal } from "../modals/EditTaxModal";
+import { useAppSelector } from "@/redux/hooks";
 
 interface PrivateLessonTotalsCardProps {
   location: string;
@@ -45,9 +46,13 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
   isLoading = false,
 }: PrivateLessonTotalsCardProps) {
   const router = useRouter();
+  const { userInfo } = useAppSelector((state) => state.user);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = React.useState(false);
   const [isPriceModalOpen, setIsPriceModalOpen] = React.useState(false);
   const [isTaxModalOpen, setIsTaxModalOpen] = React.useState(false);
+
+  const canEditPrice =
+    userInfo?.role === "administrator";
 
   const handleInvoiceClick = React.useCallback(() => {
     const invoiceId = details?.totals?.invoiceId;
@@ -206,9 +211,11 @@ export const PrivateLessonTotalsCard = React.memo(function PrivateLessonTotalsCa
               <DropdownMenuItem onClick={handleEditTaxClick}>
                 Edit Tax...
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleEditPriceClick}>
-                Edit Price...
-              </DropdownMenuItem>
+              {canEditPrice && (
+                <DropdownMenuItem onClick={handleEditPriceClick}>
+                  Edit Price...
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         }
