@@ -436,6 +436,16 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
     const status = details?.status?.toLowerCase() || "";
     return status.includes("absent") || status.includes("completed");
   }, [details?.status]);
+  const isUnscheduledStatus = React.useMemo(() => {
+    const normalizedStatus = (details?.status || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    return (
+      normalizedStatus === "unscheduled" ||
+      normalizedStatus === "unscheduled (exploded)"
+    );
+  }, [details?.status]);
   const isExploded = explodeStatus.isExploded || explodedFromStatusText;
   const shouldShowExplode = explodeStatus.canExplode && !isExploded;
   const canViewCostCard =
@@ -550,12 +560,14 @@ export function PrivateLessonDetailClient({ location, id }: PrivateLessonDetailC
                 location={location}
               />
 
-              <PrivateLessonAttendanceCard
-                details={details}
-                onSaveAttendance={saveAttendance}
-                savingDetails={savingDetails}
-                isLoading={isLoading}
-              />
+              {!isUnscheduledStatus ? (
+                <PrivateLessonAttendanceCard
+                  details={details}
+                  onSaveAttendance={saveAttendance}
+                  savingDetails={savingDetails}
+                  isLoading={isLoading}
+                />
+              ) : null}
 
               {canViewCostCard && (
                 <PrivateLessonCostCard
