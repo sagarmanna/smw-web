@@ -295,6 +295,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             <InvoiceCustomerCard
               customer={invoiceDetail.customer}
               location={location}
+              invoiceId={invoiceId}
               isLoading={isLoading}
               onCustomerChange={handleCustomerChange}
             />

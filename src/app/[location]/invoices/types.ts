@@ -40,6 +40,7 @@ export interface InvoiceCustomer {
   phone: string;
   email: string;
   customerId?: number;
+  type?: 1 | 2;
 }
 
 export interface InvoiceTotals {

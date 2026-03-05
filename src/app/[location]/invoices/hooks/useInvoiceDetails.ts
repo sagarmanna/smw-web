@@ -48,6 +48,7 @@ type InvoiceDetailsHookReturn = {
     phone: string;
     email: string;
     customerId?: number;
+    type?: 1 | 2;
   }) => void;
   handleSaveDiscount: (selectedItemIds: string[], discountData: DiscountData) => void;
   handleSaveItem: (updatedItem: InvoiceItem) => void;
@@ -104,6 +105,8 @@ export function useInvoiceDetails(
   const { handleCustomerChange } = useInvoiceCustomerHandlers({
     invoiceDetail,
     dispatch,
+    location,
+    invoiceId,
   });
 
   const { handleSaveDiscount } = useInvoiceDiscountHandlers({
