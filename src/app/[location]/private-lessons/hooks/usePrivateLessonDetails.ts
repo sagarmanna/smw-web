@@ -386,6 +386,8 @@ export function usePrivateLessonDetails(
             lessonRatePerHour,
           })
         ).unwrap();
+        // Refresh details so totals card reflects server-calculated values
+        await dispatch(fetchPrivateLesson({ location, privateLessonId }));
         toast.success(resolveMessage(result.message, "Price updated successfully"));
         return true;
       } catch (error) {
@@ -407,6 +409,8 @@ export function usePrivateLessonDetails(
             tax,
           })
         ).unwrap();
+        // Refresh details so totals card reflects server-calculated values
+        await dispatch(fetchPrivateLesson({ location, privateLessonId }));
         toast.success(resolveMessage(taxResult.message, "Tax updated successfully"));
         return true;
       } catch (error) {
