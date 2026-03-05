@@ -61,6 +61,7 @@ export interface PrivateLessonDetailsResponseBody {
     cost: string;
     price: string;
     profit: string;
+    costPerStudent?: string;
   };
   schedule?: {
     teacher: string;
@@ -609,7 +610,7 @@ export function transformApiResponse(
   const groupCost = isGroup ? {
     costPerHour: body.cost?.costPerHour || "",
     cost: body.cost?.cost || "",
-    costPerStudent: body.costPerStudent || "",
+    costPerStudent: body.cost?.costPerStudent || body.costPerStudent || "",
   } : undefined;
   
   return {

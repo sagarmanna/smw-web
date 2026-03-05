@@ -116,6 +116,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
 
             <PrivateLessonCostCard
               details={details}
+              groupCost={data.groupCost}
               onSaveCost={async () => true}
               savingDetails={false}
               isLoading={false}
