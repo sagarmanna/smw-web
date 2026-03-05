@@ -89,7 +89,11 @@ export function generateEmailContent(
   const subjectHtml = subjectText
     ? `<h2 style="font-size:16px;font-weight:600;font-family:system-ui,-apple-system,sans-serif;color:#111;margin:0 0 12px 0;">${escapeHtml(subjectText)}</h2>`
     : "";
+  const rescheduleStatement = emailStatement.lesson?.rescheduleStatement?.trim() || "";
+  const rescheduleHtml = rescheduleStatement
+    ? `<p style="text-align:left;margin:0 0 12px 0;">${escapeHtml(rescheduleStatement)}</p>`
+    : "";
 
   const table = generateLessonTableHTML(emailStatement.lesson);
-  return header + subjectHtml + table + footer;
+  return header + subjectHtml + table + rescheduleHtml + footer;
 }
