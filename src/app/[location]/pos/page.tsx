@@ -54,7 +54,6 @@ export default function POSPage() {
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
-  const [discount, setDiscount] = useState(0);
   const [backendDiscountAmount, setBackendDiscountAmount] = useState(0);
   const [backendTotal, setBackendTotal] = useState(0);
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
@@ -374,8 +373,23 @@ export default function POSPage() {
   const total = backendTotal || (subtotal - discountAmount);
 
   const handleApplyDiscount = async () => {
+    if (!numericTransactionId) {
+      toast.error('Transaction not ready');
+      return;
+    }
+    
     const value = parseFloat(discountValue);
     if (!isNaN(value) && value >= 0) {
+      if (discountType === "percentage" && value > 100) {
+        toast.error('Percentage discount cannot exceed 100%');
+        return;
+      }
+      
+      if (discountType === "fixed" && value > subtotal) {
+        toast.error('Discount amount cannot exceed subtotal');
+        return;
+      }
+      
       const finalDiscountAmount = discountType === "percentage" ? (subtotal * value) / 100 : value;
       
       setIsApplyingDiscount(true);
@@ -386,7 +400,6 @@ export default function POSPage() {
         const data = response.data;
         setBackendDiscountAmount(parseFloat(data.discountAmount));
         setBackendTotal(parseFloat(data.totalAmount));
-        setDiscount(value);
         
         setShowDiscountDialog(false);
         setDiscountValue("");
@@ -637,7 +650,6 @@ export default function POSPage() {
               variant="destructive"
               onClick={async () => {
                 setItems([]);
-                setDiscount(0);
                 setShowCancelDialog(false);
                 resetTransaction();
                 await initializeTransaction();
@@ -650,7 +662,10 @@ export default function POSPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDiscountDialog} onOpenChange={setShowDiscountDialog}>
+      <Dialog open={showDiscountDialog} onOpenChange={(open) => {
+        setShowDiscountDialog(open);
+        if (!open) setDiscountValue("");
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Apply Discount</DialogTitle>
