@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/CustomTable";
@@ -29,6 +30,7 @@ export function GroupStudentsTab({
   onSaveStudentDiscount,
   savingDiscount = false,
 }: GroupStudentsTabProps) {
+  const router = useRouter();
   const [studentsData, setStudentsData] = React.useState<GroupLessonStudent[]>(students);
   const [discountModalOpen, setDiscountModalOpen] = React.useState(false);
   const [paymentsModalOpen, setPaymentsModalOpen] = React.useState(false);
@@ -148,6 +150,19 @@ export function GroupStudentsTab({
     [location, refreshStudents]
   );
 
+  const handleRowClick = React.useCallback(
+    (student: GroupLessonStudent) => {
+      const targetStudentId = student.studentId;
+      if (!targetStudentId) {
+        toast.error("Student ID is missing");
+        return;
+      }
+
+      router.push(`/${location}/students/${targetStudentId}`);
+    },
+    [location, router]
+  );
+
   const columns = React.useMemo<ColumnDef<GroupLessonStudent>[]>(
     () => [
       {
@@ -216,7 +231,10 @@ export function GroupStudentsTab({
                 variant="default"
                 size="sm"
                 className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
-                onClick={() => handleEditDiscountClick(student)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleEditDiscountClick(student);
+                }}
               >
                 Edit Discount
               </Button>
@@ -227,7 +245,10 @@ export function GroupStudentsTab({
                 variant="default"
                 size="sm"
                 className="w-full bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-2"
-                onClick={() => handleCreateInvoiceClick(student)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleCreateInvoiceClick(student);
+                }}
               >
                 Create Invoice
               </Button>
@@ -239,7 +260,10 @@ export function GroupStudentsTab({
                 variant="default"
                 size="sm"
                 className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
-                onClick={() => handleViewInvoiceClick(student)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleViewInvoiceClick(student);
+                }}
               >
                 View Invoice
               </Button>
@@ -253,7 +277,10 @@ export function GroupStudentsTab({
                 variant="default"
                 size="sm"
                 className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
-                onClick={() => handleViewPaymentClick(student)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleViewPaymentClick(student);
+                }}
               >
                 View Payment
               </Button>
@@ -293,6 +320,7 @@ export function GroupStudentsTab({
         enablePrint={false}
         enableSearch={false}
         enableFilter={false}
+        onRowClick={handleRowClick}
         className="border-0 w-full"
         isLoading={isLoading}
         customLoadingState={
