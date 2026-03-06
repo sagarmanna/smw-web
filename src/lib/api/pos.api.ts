@@ -57,6 +57,30 @@ export interface UpdateLineItemResponse {
   };
 }
 
+export interface GetTransactionResponse {
+  success: boolean;
+  data: {
+    id: number;
+    transactionId: string;
+    locationId: number;
+    status: string;
+    createdAt: string;
+    lineItems: Array<{
+      id: number;
+      quantity: number;
+      price: string;
+      overridePrice?: string;
+      item: {
+        id: string;
+        code: string;
+        description: string;
+        price: number;
+      };
+    }>;
+  };
+  message: string;
+}
+
 /**
  * Create a new POS transaction
  * 
@@ -156,6 +180,24 @@ export async function addLineItem(
       lineItems: data.lineItems || [],
     },
   };
+}
+
+/**
+ * Get an existing transaction by ID
+ * 
+ * @param transactionId - The numeric transaction ID
+ * @param location - The location slug
+ * @returns Promise resolving to transaction data with line items
+ */
+export async function getTransaction(
+  transactionId: string,
+  location: string
+): Promise<GetTransactionResponse> {
+  const response = await apiClient.get<GetTransactionResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}`
+  );
+
+  return response.data;
 }
 
 /**
