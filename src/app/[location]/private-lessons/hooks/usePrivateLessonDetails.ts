@@ -223,6 +223,13 @@ export function usePrivateLessonDetails(
             data: detailsToSave,
           })
         ).unwrap();
+        // Ensure latest lesson + group students are reloaded after successful PUT.
+        await dispatch(
+          fetchPrivateLesson({
+            location,
+            privateLessonId,
+          })
+        ).unwrap();
         toast.success("Details updated successfully");
         return true;
       } catch (error) {
@@ -269,6 +276,13 @@ export function usePrivateLessonDetails(
             location,
             privateLessonId,
             data,
+          })
+        ).unwrap();
+        // Ensure latest lesson + group students are reloaded after successful PUT.
+        await dispatch(
+          fetchPrivateLesson({
+            location,
+            privateLessonId,
           })
         ).unwrap();
         toast.success("Cost updated successfully");
