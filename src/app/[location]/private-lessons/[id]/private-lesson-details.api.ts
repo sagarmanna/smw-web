@@ -1070,6 +1070,17 @@ export interface GeneratePrivateLessonInvoiceResponse {
   message?: string;
 }
 
+export interface GenerateGroupLessonInvoiceResponse {
+  success: boolean;
+  data?: {
+    invoiceId?: number;
+    invoiceNumber?: string;
+    alreadyExists?: boolean;
+    message?: string;
+  };
+  message?: string;
+}
+
 function isSuccessfulInvoiceStatus(status: unknown): boolean {
   const normalized = status?.toString?.()?.trim?.()?.toLowerCase?.();
   return (
@@ -1264,6 +1275,50 @@ export async function generatePrivateLessonInvoice(
     return {
       success: false,
       message: apiError.response?.data?.message || "Failed to generate invoice",
+    };
+  }
+}
+
+/**
+ * Generates invoice for a group lesson student enrolment.
+ *
+ * Endpoint: POST /admin/v2/{location}/lesson/details/{lessonId}/group-invoice
+ * Body: { enrolmentId: number }
+ */
+export async function generateGroupLessonInvoice(
+  location: string,
+  lessonId: string,
+  enrolmentId: number
+): Promise<GenerateGroupLessonInvoiceResponse | null> {
+  try {
+    const lessonIdNum = Number(lessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    if (!Number.isFinite(enrolmentId)) {
+      throw new Error("Invalid enrolment id");
+    }
+
+    const response = await apiClient.post<GenerateGroupLessonInvoiceResponse>(
+      `/admin/v2/${location}/lesson/details/${lessonIdNum}/group-invoice`,
+      {
+        enrolmentId,
+      }
+    );
+
+    const body = response.data;
+    return {
+      success: body?.success === true,
+      data: body?.data,
+      message: body?.message,
+    };
+  } catch (error: unknown) {
+    console.error("Error generating group lesson invoice:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to generate group lesson invoice",
     };
   }
 }
