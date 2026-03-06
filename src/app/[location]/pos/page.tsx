@@ -572,11 +572,12 @@ export default function POSPage() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
+              onClick={async () => {
                 setItems([]);
                 setDiscount(0);
                 setShowCancelDialog(false);
                 resetTransaction();
+                await initializeTransaction();
               }}
               className="rounded-none"
             >
