@@ -14,7 +14,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { createInvoiceWalkIn, updateInvoiceWalkIn } from "../../[id]/invoices-details.api";
 import { ChooseCustomerModal } from "../modals/ChooseCustomerModal";
+import {
+  AddWalkInModal,
+  type WalkInFormData,
+  type WalkInInitialData,
+} from "../modals/AddWalkInModal";
 
 interface InvoiceCustomerCardProps {
   customer: {
@@ -22,25 +29,47 @@ interface InvoiceCustomerCardProps {
     phone: string;
     email: string;
     customerId?: number;
+    type?: 1 | 2;
   };
   location: string;
+  invoiceId: number;
   isLoading?: boolean;
   onCustomerChange?: (customer: {
     name: string;
     phone: string;
     email: string;
     customerId?: number;
+    type?: 1 | 2;
   }) => void;
 }
 
 export const InvoiceCustomerCard = React.memo(function InvoiceCustomerCard({
   customer,
   location,
+  invoiceId,
   isLoading = false,
   onCustomerChange,
 }: InvoiceCustomerCardProps) {
   const router = useRouter();
   const [isChooseCustomerModalOpen, setIsChooseCustomerModalOpen] = React.useState(false);
+  const [isWalkInModalOpen, setIsWalkInModalOpen] = React.useState(false);
+  const [isSavingWalkIn, setIsSavingWalkIn] = React.useState(false);
+  const [walkInMode, setWalkInMode] = React.useState<"add" | "edit">("add");
+  const [walkInModalTitle, setWalkInModalTitle] = React.useState("Add Walkin");
+  const [walkInInitialData, setWalkInInitialData] = React.useState<WalkInInitialData | undefined>(undefined);
+
+  const hasCustomer = React.useMemo(() => {
+    return Boolean(
+      customer.customerId ||
+      customer.name?.trim() ||
+      customer.phone?.trim() ||
+      customer.email?.trim()
+    );
+  }, [customer.customerId, customer.name, customer.phone, customer.email]);
+
+  const customerType = Number(customer.type);
+  const isWalkInCustomer = customerType === 2;
+  const isRegularCustomer = customerType === 1;
 
   const handleCustomerClick = React.useCallback(() => {
     if (customer.customerId) {
@@ -76,14 +105,86 @@ export const InvoiceCustomerCard = React.memo(function InvoiceCustomerCard({
           phone: selectedCustomer.phone || "",
           email: selectedCustomer.email || "",
           customerId: selectedCustomer.customerId,
+          type: 1,
         });
       }
     },
     [onCustomerChange]
   );
 
+  const handleAddWalkInWithName = React.useCallback(() => {
+    setWalkInMode("add");
+    setWalkInModalTitle("Add Walkin");
+    setWalkInInitialData(undefined);
+    setIsWalkInModalOpen(true);
+  }, []);
+
+  const handleEditWalkIn = React.useCallback(() => {
+    const nameParts = (customer.name || "").trim().split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ");
+
+    setWalkInMode("edit");
+    setWalkInModalTitle("Edit Walk-in");
+    setWalkInInitialData({
+      firstName,
+      lastName,
+      email: customer.email || "",
+    });
+    setIsWalkInModalOpen(true);
+  }, [customer.name, customer.email]);
+
+  const handleWalkInSave = React.useCallback(async (data: WalkInFormData) => {
+    setIsSavingWalkIn(true);
+
+    try {
+      const isEditWalkIn = walkInMode === "edit";
+      const walkInPayload = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+      };
+
+      const result = isEditWalkIn
+        ? await updateInvoiceWalkIn(location, invoiceId, walkInPayload)
+        : await createInvoiceWalkIn(location, invoiceId, walkInPayload);
+
+      if (!result?.success) {
+        return {
+          ok: false,
+          message: result?.message || (isEditWalkIn ? "Failed to update walk-in customer" : "Failed to add walk-in customer"),
+        };
+      }
+
+      if (onCustomerChange) {
+        const fullName = `${data.firstName} ${data.lastName}`.trim();
+        onCustomerChange({
+          name: result.data?.customerName || fullName,
+          phone: "",
+          email: result.data?.email || data.email,
+          customerId: result.data?.body?.customerId ?? result.data?.customerId,
+          type: 2,
+        });
+      }
+
+      toast.success(result.message || (isEditWalkIn ? "Walk-in customer updated" : "Walk-in customer added"));
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Failed to save walk-in customer",
+      };
+    } finally {
+      setIsSavingWalkIn(false);
+    }
+  }, [
+    invoiceId,
+    location,
+    onCustomerChange,
+    walkInMode,
+  ]);
+
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
-    // Always style customer name as clickable link (blue) for better UX
     const isClickable = !!customer.customerId;
     const customerName = customer.name || "N/A";
     
@@ -104,21 +205,43 @@ export const InvoiceCustomerCard = React.memo(function InvoiceCustomerCard({
       </span>
     );
 
-    return [
-      {
-        label: "Name",
-        value: customerValue,
-      },
-      {
-        label: "Phone",
-        value: customer.phone || "N/A",
-      },
-      {
-        label: "Email",
-        value: customer.email || "N/A",
-      },
-    ];
-  }, [customer, handleCustomerClick, handleCustomerKeyDown]);
+    if (!hasCustomer) {
+      return [];
+    }
+
+    const hasPhone = Boolean(customer.phone?.trim());
+    const hasEmail = Boolean(customer.email?.trim());
+    const buildRows = (options: { includePhone: boolean; includeEmail: boolean }): SectionCardDataRow[] => {
+      const rows: SectionCardDataRow[] = [
+        {
+          label: "Name",
+          value: customerValue,
+        },
+      ];
+
+      if (options.includePhone && hasPhone) {
+        rows.push({
+          label: "Phone",
+          value: customer.phone,
+        });
+      }
+
+      if (options.includeEmail && hasEmail) {
+        rows.push({
+          label: "Email",
+          value: customer.email,
+        });
+      }
+
+      return rows;
+    };
+
+    if (isRegularCustomer) {
+      return buildRows({ includePhone: true, includeEmail: true });
+    }
+
+    return buildRows({ includePhone: false, includeEmail: true });
+  }, [customer, hasCustomer, isRegularCustomer, handleCustomerClick, handleCustomerKeyDown]);
 
   return (
     <>
@@ -135,15 +258,30 @@ export const InvoiceCustomerCard = React.memo(function InvoiceCustomerCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsChooseCustomerModalOpen(true)}>
-                  Change Customer...
-                </DropdownMenuItem>
+                {!hasCustomer ? (
+                  <>
+                    <DropdownMenuItem onClick={() => setIsChooseCustomerModalOpen(true)}>
+                      Add Existing Customer...
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleAddWalkInWithName}>
+                      Add Walk-in With Name...
+                    </DropdownMenuItem>
+                  </>
+                ) : isWalkInCustomer ? (
+                  <DropdownMenuItem onClick={handleEditWalkIn}>
+                    Edit Walk-in...
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => setIsChooseCustomerModalOpen(true)}>
+                    Change Customer...
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : undefined
         }
       >
-        <div className="flex justify-center">
+        <div className="flex justify-center min-h-[64px]">
           <dl className="text-sm">
             {detailRows.map((item) => (
               <div
@@ -169,6 +307,22 @@ export const InvoiceCustomerCard = React.memo(function InvoiceCustomerCard({
           currentCustomerId={customer.customerId}
         />
       )}
+
+      <AddWalkInModal
+        open={isWalkInModalOpen}
+        onOpenChange={(open) => {
+          setIsWalkInModalOpen(open);
+          if (!open) {
+            setWalkInInitialData(undefined);
+            setWalkInModalTitle("Add Walkin");
+            setWalkInMode("add");
+          }
+        }}
+        isSaving={isSavingWalkIn}
+        title={walkInModalTitle}
+        initialData={walkInInitialData}
+        onSave={handleWalkInSave}
+      />
     </>
   );
 });
