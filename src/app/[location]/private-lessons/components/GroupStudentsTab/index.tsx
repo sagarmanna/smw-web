@@ -167,51 +167,73 @@ export function GroupStudentsTab({
           const student = row.original;
           const hasInvoice = isTruthyFlag(student.hasInvoice) || Boolean(student.invoiceId);
           const hasPayment = isTruthyFlag(student.hasPayment);
+          const canEditOrCreateInvoice = !hasInvoice;
+          const actionButtons: React.ReactNode[] = [];
+
+          if (canEditOrCreateInvoice) {
+            actionButtons.push(
+              <Button
+                key="edit-discount"
+                variant="default"
+                size="sm"
+                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                onClick={() => handleEditDiscountClick(student)}
+              >
+                Edit Discount
+              </Button>
+            );
+            actionButtons.push(
+              <Button
+                key="create-invoice"
+                variant="default"
+                size="sm"
+                className="w-full bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-2"
+                onClick={() => handleCreateInvoiceClick(student)}
+              >
+                Create Invoice
+              </Button>
+            );
+          } else if (hasInvoice && student.invoiceId) {
+            actionButtons.push(
+              <Button
+                key="view-invoice"
+                variant="default"
+                size="sm"
+                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                onClick={() => handleViewInvoiceClick(student)}
+              >
+                View Invoice
+              </Button>
+            );
+          }
+
+          if (hasPayment) {
+            actionButtons.push(
+              <Button
+                key="view-payment"
+                variant="default"
+                size="sm"
+                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                onClick={() => handleViewPaymentClick(student)}
+              >
+                View Payment
+              </Button>
+            );
+          }
 
           return (
-            <div className="flex items-center justify-end gap-2">
-              {!hasInvoice && (
-                <>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
-                    onClick={() => handleEditDiscountClick(student)}
-                  >
-                    Edit Discount
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-2"
-                    onClick={() => handleCreateInvoiceClick(student)}
-                  >
-                    Create Invoice
-                  </Button>
-                </>
-              )}
+            <div className="grid grid-cols-3 gap-2 justify-items-start w-[372px] ml-auto">
+              <div className="w-[120px]">
+                {actionButtons[0] ?? <div className="h-9" />}
+              </div>
 
-              {hasInvoice && student.invoiceId && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
-                  onClick={() => handleViewInvoiceClick(student)}
-                >
-                  View Invoice
-                </Button>
-              )}
+              <div className="w-[120px]">
+                {actionButtons[1] ?? <div className="h-9" />}
+              </div>
 
-              {hasPayment && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
-                  onClick={() => handleViewPaymentClick(student)}
-                >
-                  View Payment
-                </Button>
-              )}
+              <div className="w-[120px]">
+                {actionButtons[2] ?? <div className="h-9" />}
+              </div>
             </div>
           );
         },
