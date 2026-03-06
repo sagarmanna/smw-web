@@ -65,6 +65,9 @@ export interface GetTransactionResponse {
     locationId: number;
     status: string;
     createdAt: string;
+    subtotal?: string;
+    discountAmount?: string;
+    totalAmount?: string;
     lineItems: Array<{
       id: number;
       quantity: number;
@@ -77,6 +80,18 @@ export interface GetTransactionResponse {
         price: number;
       };
     }>;
+  };
+  message: string;
+}
+
+export interface ApplyDiscountResponse {
+  success: boolean;
+  data: {
+    id: number;
+    transactionId: string;
+    discountAmount: string;
+    subtotal: string;
+    totalAmount: string;
   };
   message: string;
 }
@@ -291,4 +306,25 @@ export async function deleteLineItem(
   );
 
   return { success: true };
+}
+
+/**
+ * Apply discount to a transaction
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param discountAmount - The discount amount to apply
+ * @returns Promise resolving to updated transaction data
+ */
+export async function applyDiscount(
+  transactionId: string,
+  location: string,
+  discountAmount: number
+): Promise<ApplyDiscountResponse> {
+  const response = await apiClient.patch<ApplyDiscountResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/discount`,
+    { discountAmount }
+  );
+
+  return response.data;
 }

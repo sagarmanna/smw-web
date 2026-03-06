@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem, updateLineItemPrice, updateLineItemQuantity, deleteLineItem } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity, deleteLineItem, applyDiscount, getTransaction } from "@/lib/api/pos.api";
 import { isStorageAvailable } from "@/utils/pos-storage";
 import { toast } from "sonner";
 
@@ -54,7 +54,9 @@ export default function POSPage() {
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
-  const [discount, setDiscount] = useState(0);
+  const [backendDiscountAmount, setBackendDiscountAmount] = useState(0);
+  const [backendTotal, setBackendTotal] = useState(0);
+  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
@@ -64,12 +66,12 @@ export default function POSPage() {
     }
 
     // Initialize transaction and restore line items if any
-    initializeTransaction().then((restoredLineItems) => {
-      if (restoredLineItems && restoredLineItems.length > 0) {
-        console.log('[POS Page] Restoring', restoredLineItems.length, 'line items');
+    initializeTransaction().then((transactionData) => {
+      if (transactionData.lineItems && transactionData.lineItems.length > 0) {
+        console.log('[POS Page] Restoring', transactionData.lineItems.length, 'line items');
         
         // Map API line items to UI Item format
-        const restoredItems: Item[] = restoredLineItems.map((lineItem) => ({
+        const restoredItems: Item[] = transactionData.lineItems.map((lineItem) => ({
           id: `restored-${lineItem.id}`,
           lineItemId: lineItem.id.toString(),
           description: lineItem.item.description,
@@ -79,7 +81,14 @@ export default function POSPage() {
         }));
         
         setItems(restoredItems);
-        toast.success(`Restored ${restoredLineItems.length} item(s) from previous session`);
+        toast.success(`Restored ${transactionData.lineItems.length} item(s) from previous session`);
+      }
+      
+      // Restore discount if exists
+      if (transactionData.discountAmount && parseFloat(transactionData.discountAmount) > 0) {
+        setBackendDiscountAmount(parseFloat(transactionData.discountAmount));
+        setBackendTotal(parseFloat(transactionData.totalAmount || '0'));
+        console.log('[POS Page] Restored discount:', transactionData.discountAmount);
       }
       
       setTimeout(() => productRef.current?.focus(), 100);
@@ -223,7 +232,24 @@ export default function POSPage() {
         location,
         item.lineItemId
       );
+      
+      const remainingItems = items.filter((item) => item.id !== id);
       setItems(prevItems => prevItems.filter((existingItem) => existingItem.id !== id));
+      
+      // Fetch updated transaction to sync bill with backend
+      const updatedTransaction = await getTransaction(String(numericTransactionId), location);
+      
+      // If no items left, clear discount
+      if (remainingItems.length === 0 && parseFloat(updatedTransaction.data.discountAmount || '0') > 0) {
+        await applyDiscount(String(numericTransactionId), location, 0);
+        setBackendDiscountAmount(0);
+        setBackendTotal(0);
+      } else {
+        // Update with backend values
+        setBackendDiscountAmount(parseFloat(updatedTransaction.data.discountAmount || '0'));
+        setBackendTotal(parseFloat(updatedTransaction.data.totalAmount || '0'));
+      }
+      
       toast.success('Item removed from transaction');
     } catch (error) {
       console.error('Failed to delete line item:', error);
@@ -343,15 +369,47 @@ export default function POSPage() {
   };
 
   const subtotal = items.reduce((sum, item) => sum + (item.quantity * parseFloat(String(item.price))), 0);
-  const discountAmount = discountType === "percentage" ? (subtotal * discount) / 100 : discount;
-  const total = subtotal - discountAmount;
+  const discountAmount = backendDiscountAmount || 0;
+  const total = backendTotal || (subtotal - discountAmount);
 
-  const handleApplyDiscount = () => {
+  const handleApplyDiscount = async () => {
+    if (!numericTransactionId) {
+      toast.error('Transaction not ready');
+      return;
+    }
+    
     const value = parseFloat(discountValue);
     if (!isNaN(value) && value >= 0) {
-      setDiscount(value);
-      setShowDiscountDialog(false);
-      setDiscountValue("");
+      if (discountType === "percentage" && value > 100) {
+        toast.error('Percentage discount cannot exceed 100%');
+        return;
+      }
+      
+      if (discountType === "fixed" && value > subtotal) {
+        toast.error('Discount amount cannot exceed subtotal');
+        return;
+      }
+      
+      const finalDiscountAmount = discountType === "percentage" ? (subtotal * value) / 100 : value;
+      
+      setIsApplyingDiscount(true);
+      try {
+        const response = await applyDiscount(String(numericTransactionId), location, finalDiscountAmount);
+        
+        // Use backend-calculated values
+        const data = response.data;
+        setBackendDiscountAmount(parseFloat(data.discountAmount));
+        setBackendTotal(parseFloat(data.totalAmount));
+        
+        setShowDiscountDialog(false);
+        setDiscountValue("");
+        toast.success('Discount applied successfully');
+      } catch (error) {
+        console.error('Failed to apply discount:', error);
+        toast.error('Failed to apply discount');
+      } finally {
+        setIsApplyingDiscount(false);
+      }
     }
   };
 
@@ -592,7 +650,6 @@ export default function POSPage() {
               variant="destructive"
               onClick={async () => {
                 setItems([]);
-                setDiscount(0);
                 setShowCancelDialog(false);
                 resetTransaction();
                 await initializeTransaction();
@@ -605,7 +662,10 @@ export default function POSPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDiscountDialog} onOpenChange={setShowDiscountDialog}>
+      <Dialog open={showDiscountDialog} onOpenChange={(open) => {
+        setShowDiscountDialog(open);
+        if (!open) setDiscountValue("");
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Apply Discount</DialogTitle>
@@ -677,15 +737,17 @@ export default function POSPage() {
                 setShowDiscountDialog(false);
                 setDiscountValue("");
               }}
+              disabled={isApplyingDiscount}
               className="rounded-none"
             >
               Cancel
             </Button>
             <Button
               onClick={handleApplyDiscount}
+              disabled={isApplyingDiscount}
               className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-none"
             >
-              Apply Discount
+              {isApplyingDiscount ? 'Applying...' : 'Apply Discount'}
             </Button>
           </DialogFooter>
         </DialogContent>
