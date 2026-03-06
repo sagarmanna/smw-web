@@ -230,3 +230,23 @@ export async function updateLineItemQuantity(
     },
   };
 }
+
+/**
+ * Delete a line item from a transaction
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param lineItemId - The line item ID to delete
+ * @returns Promise resolving to success response
+ */
+export async function deleteLineItem(
+  transactionId: string,
+  location: string,
+  lineItemId: string
+): Promise<{ success: boolean }> {
+  await apiClient.delete(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/line-items/${lineItemId}`
+  );
+
+  return { success: true };
+}

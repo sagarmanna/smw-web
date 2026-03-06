@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem, updateLineItemPrice, updateLineItemQuantity } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity, deleteLineItem } from "@/lib/api/pos.api";
 import { toast } from "sonner";
 
 interface Item {
@@ -20,6 +20,7 @@ interface Item {
   price: number;
   upc: string;
   isUpdatingQuantity?: boolean;
+  isDeletingItem?: boolean;
 }
 
 export default function POSPage() {
@@ -47,11 +48,6 @@ export default function POSPage() {
   const [discountValue, setDiscountValue] = useState("");
   const [discount, setDiscount] = useState(0);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const transactionIdRef = useRef(numericTransactionId);
-
-  useEffect(() => {
-    transactionIdRef.current = numericTransactionId;
-  }, [numericTransactionId]);
 
   useEffect(() => {
     initializeTransaction().then(() => {
@@ -66,58 +62,130 @@ export default function POSPage() {
     const itemData = await scanItem(productCode);
     
     if (itemData) {
-      const newItem: Item = {
-        id: Date.now().toString(),
-        upc: itemData.code,
-        description: itemData.description,
-        quantity: quantity,
-        price: itemData.price,
-      };
+      setItems(prevItems => {
+        // Check if item already exists
+        const existingItem = prevItems.find(i => i.upc === itemData.code);
+        
+        if (existingItem && existingItem.lineItemId) {
+          // Update quantity of existing item in DB
+          const newQty = existingItem.quantity + quantity;
+          
+          // Make API call
+          (async () => {
+            try {
+              await updateLineItemQuantity(
+                String(numericTransactionId),
+                location,
+                existingItem.lineItemId!,
+                newQty
+              );
+              toast.success('Quantity updated');
+            } catch (error) {
+              toast.error('Failed to update quantity');
+              console.error('Failed to update quantity:', error);
+            }
+          })();
+          
+          return prevItems.map(item => 
+            item.upc === itemData.code 
+              ? { ...item, quantity: newQty }
+              : item
+          );
+        } else if (existingItem) {
+          // Item exists locally but not in DB yet, just update local state
+          return prevItems.map(item => 
+            item.upc === itemData.code 
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+        } else {
+          // Add new item
+          const newItem: Item = {
+            id: Date.now().toString(),
+            upc: itemData.code,
+            description: itemData.description,
+            quantity: quantity,
+            price: itemData.price,
+          };
+          
+          // Save to database
+          (async () => {
+            try {
+              const response = await addLineItem(String(numericTransactionId), location, {
+                itemId: itemData.id,
+                quantity: quantity,
+              });
+              
+              const transactionData = response.data || response;
+              const lineItems = transactionData?.lineItems;
+              
+              if (lineItems && lineItems.length > 0) {
+                const addedLineItem = lineItems[lineItems.length - 1];
+                const lineItemId = addedLineItem.id;
+                
+                setItems(prevItems => 
+                  prevItems.map(item => 
+                    item.upc === itemData.code && !item.lineItemId ? { ...item, lineItemId: lineItemId.toString() } : item
+                  )
+                );
+              }
+            } catch (error) {
+              toast.error('Failed to save item to transaction');
+              console.error('Failed to add line item:', error);
+            }
+          })();
+          
+          return [...prevItems, newItem];
+        }
+      });
       
-      setItems([...items, newItem]);
       setProductCode("");
       setQuantity(1);
-
-      // Save to database
-      try {
-        console.log('[Line Item] Adding to transaction:', {
-          transactionId: numericTransactionId,
-          itemId: itemData.id,
-          quantity
-        });
-
-        const response = await addLineItem(String(numericTransactionId), location, {
-          itemId: itemData.id,
-          quantity: quantity,
-        });
-        
-        // apiClient returns axios response with data property
-        const transactionData = response.data || response;
-        const lineItems = transactionData?.lineItems;
-        
-        if (lineItems && lineItems.length > 0) {
-          const addedLineItem = lineItems[lineItems.length - 1];
-          const lineItemId = addedLineItem.id;
-          
-          // Store line item ID
-          setItems(prevItems => 
-            prevItems.map(item => 
-              item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
-            )
-          );
-        }
-      } catch (error) {
-        toast.error('Failed to save item to transaction');
-        console.error('Failed to add line item:', error);
-      }
     }
     
     setTimeout(() => productRef.current?.focus(), 0);
   };
 
-  const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
+  const removeItem = useCallback(async (id: string) => {
+    setItems(prevItems => {
+      const item = prevItems.find(i => i.id === id);
+      if (!item) return prevItems;
+      if (item.isDeletingItem) return prevItems;
+      
+      if (!item.lineItemId) {
+        toast.info('Item removed (was not saved to transaction)');
+        return prevItems.filter((item) => item.id !== id);
+      }
 
-  const handleQuantityChange = (itemId: string, newQuantity: string) => {
+      // Set loading state
+      const updatedItems = prevItems.map(i => 
+        i.id === id ? { ...i, isDeletingItem: true } : i
+      );
+
+      // Make API call
+      (async () => {
+        try {
+          await deleteLineItem(
+            String(numericTransactionId),
+            location,
+            item.lineItemId as string
+          );
+          setItems(prevItems => prevItems.filter((item) => item.id !== id));
+          toast.success('Item removed from transaction');
+        } catch (error) {
+          console.error('Failed to delete line item:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to remove item');
+          setItems(prevItems => prevItems.map(i => 
+            i.id === id ? { ...i, isDeletingItem: false } : i
+          ));
+        }
+      })();
+
+      return updatedItems;
+    });
+  }, [location, numericTransactionId]);
+
+  const handleQuantityChange = useCallback((itemId: string, newQuantity: string) => {
     const qty = parseInt(newQuantity);
     
     // Validate input
@@ -179,7 +247,7 @@ export default function POSPage() {
         return updatedItems;
       });
     }, 1000);
-  };
+  }, [location, numericTransactionId]);
 
   const handleOverride = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -332,7 +400,19 @@ export default function POSPage() {
                 items.map((item) => (
                   <tr key={item.id} className="text-sm">
                     <td className="py-2.5">
-                      <X className="h-4 w-4 text-muted-foreground hover:text-red-600 cursor-pointer" onClick={() => removeItem(item.id)} />
+                      <div className="relative inline-block">
+                        <X 
+                          className={`h-4 w-4 text-muted-foreground hover:text-red-600 ${
+                            item.isDeletingItem ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                          }`} 
+                          onClick={() => !item.isDeletingItem && removeItem(item.id)} 
+                        />
+                        {item.isDeletingItem && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="animate-spin h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5">
                       <div className="relative">
