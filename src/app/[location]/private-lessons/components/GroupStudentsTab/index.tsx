@@ -1,14 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { GroupLessonStudent } from "../../types";
-import { generatePrivateLessonInvoice } from "../../[id]/private-lesson-details.api";
+import {
+  generateGroupLessonInvoice,
+  getGroupLessonStudents,
+} from "../../[id]/private-lesson-details.api";
 import { GroupStudentDiscountModal } from "../modals/GroupStudentDiscountModal";
 import { GroupStudentPaymentsModal } from "../modals/GroupStudentPaymentsModal";
 
@@ -27,10 +29,14 @@ export function GroupStudentsTab({
   onSaveStudentDiscount,
   savingDiscount = false,
 }: GroupStudentsTabProps) {
-  const router = useRouter();
+  const [studentsData, setStudentsData] = React.useState<GroupLessonStudent[]>(students);
   const [discountModalOpen, setDiscountModalOpen] = React.useState(false);
   const [paymentsModalOpen, setPaymentsModalOpen] = React.useState(false);
   const [selectedStudent, setSelectedStudent] = React.useState<GroupLessonStudent | null>(null);
+
+  React.useEffect(() => {
+    setStudentsData(students);
+  }, [students]);
 
   const isTruthyFlag = React.useCallback((value: unknown): boolean => {
     if (value === true || value === 1) return true;
@@ -86,6 +92,36 @@ export function GroupStudentsTab({
     [location]
   );
 
+  const refreshStudents = React.useCallback(
+    async (lessonId: number) => {
+      const studentsResponse = await getGroupLessonStudents(location, String(lessonId));
+      if (!studentsResponse?.success) {
+        toast.error(studentsResponse?.message || "Failed to refresh students");
+        return;
+      }
+
+      const latestStudents: GroupLessonStudent[] = (studentsResponse.data?.body || []).map((student) => ({
+        id: student.groupLessonId || student.id || 0,
+        lessonId: student.lessonId,
+        enrolmentId: student.enrolmentId,
+        studentId: student.studentId,
+        studentName: student.studentName || "",
+        customerName: student.customerName || "",
+        dueDate: student.dueDate || "",
+        grossPrice: student.grossPrice || "",
+        discount: student.discount || "",
+        netPrice: student.netPrice || "",
+        owing: student.owing || "",
+        hasInvoice: student.hasInvoice ?? false,
+        invoiceId: student.invoiceId,
+        hasPayment: student.hasPayment ?? false,
+      }));
+
+      setStudentsData(latestStudents);
+    },
+    [location]
+  );
+
   const handleCreateInvoiceClick = React.useCallback(
     async (student: GroupLessonStudent) => {
       const lessonId = student.lessonId;
@@ -94,21 +130,22 @@ export function GroupStudentsTab({
         return;
       }
 
-      const response = await generatePrivateLessonInvoice(location, String(lessonId));
+      const enrolmentId = student.enrolmentId;
+      if (!enrolmentId) {
+        toast.error("Enrolment ID is required to create invoice");
+        return;
+      }
+
+      const response = await generateGroupLessonInvoice(location, String(lessonId), enrolmentId);
       if (!response?.success) {
         toast.error(response?.message || "Failed to create invoice");
         return;
       }
 
-      const invoiceId = response.data?.invoiceId;
-      if (invoiceId) {
-        router.push(`/${location}/invoices/${invoiceId}`);
-        return;
-      }
-
-      toast.success(response.message || "Invoice created successfully");
+      toast.success(response.message || response.data?.message || "Invoice created successfully");
+      await refreshStudents(lessonId);
     },
-    [location, router]
+    [location, refreshStudents]
   );
 
   const columns = React.useMemo<ColumnDef<GroupLessonStudent>[]>(
@@ -247,7 +284,7 @@ export function GroupStudentsTab({
   return (
     <div>
       <CustomTable
-        data={students}
+        data={studentsData}
         columns={columns}
         size="compact"
         variant="default"
@@ -268,7 +305,7 @@ export function GroupStudentsTab({
           </div>
         }
         customEmptyState={
-          !isLoading && students.length === 0 ? (
+          !isLoading && studentsData.length === 0 ? (
             <div 
               className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8"
               role="status"
