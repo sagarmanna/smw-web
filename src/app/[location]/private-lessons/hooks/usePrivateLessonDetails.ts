@@ -17,10 +17,10 @@ import {
   updateDiscountThunk,
   updateTaxThunk,
   updatePriceThunk,
-  updateGroupLessonStudentDiscountThunk,
   unscheduleLessonThunk,
 } from "../[id]/private-lesson-details.slice";
 import { toast } from "sonner";
+import { applyGroupLessonDiscount } from "../[id]/private-lesson-details.api";
 import {
   PrivateLessonDetails,
   PrivateLessonPayment,
@@ -367,14 +367,52 @@ export function usePrivateLessonDetails(
   const saveGroupStudentDiscount = React.useCallback(
     async (studentId: number, discount: string): Promise<boolean> => {
       try {
-        await dispatch(
-          updateGroupLessonStudentDiscountThunk({
-            location,
-            lessonId: privateLessonId,
-            studentId,
-            discount,
-          })
-        ).unwrap();
+        const lessonIdNum = Number(privateLessonId);
+        if (!lessonIdNum || Number.isNaN(lessonIdNum)) {
+          toast.error("Invalid lesson ID");
+          return false;
+        }
+
+        const targetStudent = privateLessonInfo?.students?.find(
+          (student) => student.studentId === studentId || student.id === studentId
+        );
+
+        const enrolmentId = targetStudent?.enrolmentId;
+        if (!enrolmentId) {
+          toast.error("Enrolment ID is required to update discount");
+          return false;
+        }
+
+        const normalized = discount.trim();
+        let valueType = 0;
+        let value = 0;
+
+        if (normalized.endsWith("%")) {
+          valueType = 1;
+          value = Number(normalized.replace("%", "").trim());
+        } else {
+          valueType = 0;
+          value = Number(normalized.replace("$", "").trim());
+        }
+
+        if (!Number.isFinite(value) || value < 0) {
+          toast.error("Invalid discount value");
+          return false;
+        }
+
+        const response = await applyGroupLessonDiscount(location, {
+          lessonId: lessonIdNum,
+          enrolmentId,
+          value,
+          valueType,
+        });
+
+        if (!response?.success) {
+          toast.error(response?.message || "Failed to update student discount");
+          return false;
+        }
+
+        await dispatch(fetchPrivateLesson({ location, privateLessonId })).unwrap();
         toast.success("Student discount updated successfully");
         return true;
       } catch (error) {
@@ -387,7 +425,7 @@ export function usePrivateLessonDetails(
         return false;
       }
     },
-    [dispatch, location, privateLessonId]
+    [dispatch, location, privateLessonId, privateLessonInfo?.students]
   );
 
   const savePrice = React.useCallback(

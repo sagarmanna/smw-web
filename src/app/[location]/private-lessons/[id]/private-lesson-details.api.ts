@@ -270,6 +270,90 @@ export interface UpdateGroupLessonStudentDiscountResponse {
   message?: string;
 }
 
+export interface GroupLessonDiscountBody {
+  lessonId: number;
+  enrolmentId: number;
+  value: number;
+  valueType: number; // 0 => $, 1 => %
+}
+
+export interface GetGroupLessonDiscountResponse {
+  success: boolean;
+  data: {
+    body?: GroupLessonDiscountBody;
+    message?: string;
+  };
+  message?: string;
+}
+
+export interface ApplyGroupLessonDiscountRequest {
+  lessonId: number;
+  enrolmentId: number;
+  value: number;
+  valueType: number;
+}
+
+export interface ApplyGroupLessonDiscountResponse {
+  success: boolean;
+  data?: GroupLessonDiscountBody;
+  message?: string;
+}
+
+/**
+ * Gets group lesson discount for a specific enrolment.
+ * GET /admin/v2/{location}/group-lesson/apply-discount?lessonId={lessonId}&enrolmentId={enrolmentId}
+ */
+export async function getGroupLessonDiscount(
+  location: string,
+  lessonId: number,
+  enrolmentId: number
+): Promise<GetGroupLessonDiscountResponse | null> {
+  try {
+    const response = await apiClient.get<GetGroupLessonDiscountResponse>(
+      `/admin/v2/${location}/group-lesson/apply-discount`,
+      {
+        params: {
+          lessonId,
+          enrolmentId,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching group lesson discount:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {},
+      message: apiError.response?.data?.message || "Failed to fetch group lesson discount",
+    };
+  }
+}
+
+/**
+ * Applies group lesson discount for a specific enrolment.
+ * PUT /admin/v2/{location}/group-lesson/apply-discount
+ */
+export async function applyGroupLessonDiscount(
+  location: string,
+  payload: ApplyGroupLessonDiscountRequest
+): Promise<ApplyGroupLessonDiscountResponse | null> {
+  try {
+    const response = await apiClient.put<ApplyGroupLessonDiscountResponse>(
+      `/admin/v2/${location}/group-lesson/apply-discount`,
+      payload
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error applying group lesson discount:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to apply group lesson discount",
+    };
+  }
+}
+
 /**
  * Updates a group lesson student's discount via API.
  * For now, returns mock response.
