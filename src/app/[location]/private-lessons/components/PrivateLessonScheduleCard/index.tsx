@@ -55,6 +55,18 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
   const router = useRouter();
   const [isUnscheduleModalOpen, setIsUnscheduleModalOpen] = React.useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const normalizedStatus = details?.status?.toLowerCase() || "";
+  const hasScheduledDate = Boolean(details?.schedule?.scheduledDate);
+  const isUnscheduledStatus = normalizedStatus.includes("unscheduled") || !hasScheduledDate;
+  const isRescheduled = normalizedStatus.includes("rescheduled");
+  const isAbsentOrCompletedStatus =
+    normalizedStatus.includes("absent") || normalizedStatus.includes("completed");
+  const isExplodedStatus = /\bexploded\b/i.test(normalizedStatus);
+  const shouldForceShowAllActions = isRescheduled;
+  const shouldHideSecondaryActions = isUnscheduledStatus && !isExplodedStatus;
+  const shouldShowSecondaryActions =
+    !shouldHideSecondaryActions && (shouldForceShowAllActions || !isExploded);
+  const shouldShowHeaderActions = !isAbsentOrCompletedStatus;
 
   const handleTeacherClick = React.useCallback(() => {
     if (details?.schedule.teacherId) {
@@ -145,7 +157,6 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
     toast.info("Invoice generated but redirect URL was not provided.");
   }, [details?.id, location]);
 
-   
   const handleUnscheduleSave = React.useCallback(async (reason: string) => {
     if (!onUnschedule) {
       toast.error("Unschedule function not available");
@@ -156,6 +167,10 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
 
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
+    const status = details?.status?.toLowerCase() || "";
+    const isUnscheduled = status.includes("unscheduled");
+    const isRescheduled = status.includes("rescheduled");
+
     const teacherValue = details?.schedule.teacherId ? (
       <span
         onClick={handleTeacherClick}
@@ -167,14 +182,10 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
       details?.schedule.teacher || "N/A"
     );
 
-    return [
+    const rows: SectionCardDataRow[] = [
       {
         label: "Teacher",
         value: teacherValue,
-      },
-      {
-        label: "Scheduled Date",
-        value: details?.schedule.scheduledDate || "N/A",
       },
       {
         label: "Time",
@@ -184,11 +195,39 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
         label: "Duration",
         value: details?.schedule.duration || "N/A",
       },
-      {
+    ];
+
+    if (!details?.isGroup) {
+      rows.push({
         label: "Expiry Date",
         value: details?.schedule.expiryDate || "N/A",
-      },
-    ];
+      });
+    }
+
+    if (isRescheduled) {
+      rows.splice(1, 0,
+        {
+          label: "Original Date",
+          value: details?.schedule.originalDate || "N/A",
+        },
+        {
+          label: "Scheduled Date",
+          value: details?.schedule.scheduledDate || "N/A",
+        }
+      );
+    } else if (isUnscheduled) {
+      rows.splice(1, 0, {
+        label: "Original Date",
+        value: details?.schedule.originalDate || "N/A",
+      });
+    } else {
+      rows.splice(1, 0, {
+        label: "Scheduled Date",
+        value: details?.schedule.scheduledDate || "N/A",
+      });
+    }
+
+    return rows;
   }, [details, handleTeacherClick]);
 
   return (
@@ -198,7 +237,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
         data={detailRows}
         isLoading={isLoading}
         className="self-start h-fit [&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1 [&>div:last-child]:px-4 [&>div:last-child]:py-1 [&>div:last-child]:pt-0 [&>div:last-child]:pb-2 [&>div:last-child>div>dl>div]:py-1 [&>div:last-child>div>dl>div]:mb-1"
-        headerActions={
+        headerActions={shouldShowHeaderActions ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -209,19 +248,19 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
               <DropdownMenuItem onClick={handleEditClick}>
                 Edit
               </DropdownMenuItem>
-              {!isExploded && (
+              {shouldShowSecondaryActions && (
                 <DropdownMenuItem onClick={handleUnscheduleClick}>
                   Unschedule Lesson
                 </DropdownMenuItem>
               )}
-              {!isExploded && !hideGenerateInvoice && (
+              {shouldShowSecondaryActions && !hideGenerateInvoice && (
                 <DropdownMenuItem onClick={handleGenerateInvoiceClick}>
                   Generate Invoice
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-        }
+        ) : undefined}
       />
       <UnscheduleReasonModal
         open={isUnscheduleModalOpen}

@@ -308,6 +308,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             <InvoiceCustomerCard
               customer={invoiceDetail.customer}
               location={location}
+              invoiceId={invoiceId}
               isLoading={isLoading}
               onCustomerChange={handleCustomerChange}
             />
@@ -315,6 +316,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
           {/* Items Section - Full Width */}
           <InvoiceItemsCard
+            location={location}
             items={invoiceDetail.items}
             isLoading={isLoading}
             isVoided={isVoided}

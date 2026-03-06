@@ -29,6 +29,7 @@ export const TOAST_MESSAGES = {
     FAILED_TO_LOAD: "Failed to load invoice",
     CONTENT_REQUIRED: "Content cannot be blank.",
     ITEM_SELECTION_REQUIRED: "Please select at least one item to edit discount!",
+    ITEM_TAX_SELECTION_REQUIRED: "Please select at least one item to edit tax!",
   },
   INFO: {
     FEATURE_UNDER_PROCESS: "This feature is under process",

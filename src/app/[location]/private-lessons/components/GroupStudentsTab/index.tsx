@@ -1,15 +1,23 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { GroupLessonStudent } from "../../types";
+import {
+  generateGroupLessonInvoice,
+  getGroupLessonDiscount,
+  getGroupLessonStudents,
+} from "../../[id]/private-lesson-details.api";
 import { GroupStudentDiscountModal } from "../modals/GroupStudentDiscountModal";
 import { GroupStudentPaymentsModal } from "../modals/GroupStudentPaymentsModal";
 
 interface GroupStudentsTabProps {
+  location: string;
   students: GroupLessonStudent[];
   isLoading?: boolean;
   onSaveStudentDiscount: (studentId: number, discount: string) => Promise<boolean>;
@@ -17,29 +25,73 @@ interface GroupStudentsTabProps {
 }
 
 export function GroupStudentsTab({
+  location,
   students,
   isLoading = false,
   onSaveStudentDiscount,
   savingDiscount = false,
 }: GroupStudentsTabProps) {
+  const router = useRouter();
+  const [studentsData, setStudentsData] = React.useState<GroupLessonStudent[]>(students);
   const [discountModalOpen, setDiscountModalOpen] = React.useState(false);
   const [paymentsModalOpen, setPaymentsModalOpen] = React.useState(false);
   const [selectedStudent, setSelectedStudent] = React.useState<GroupLessonStudent | null>(null);
+  const [selectedDiscount, setSelectedDiscount] = React.useState<string>("");
+  const [discountLoading, setDiscountLoading] = React.useState(false);
 
-  const handleEditDiscountClick = React.useCallback((student: GroupLessonStudent) => {
-    setSelectedStudent(student);
-    setDiscountModalOpen(true);
+  React.useEffect(() => {
+    setStudentsData(students);
+  }, [students]);
+
+  const isTruthyFlag = React.useCallback((value: unknown): boolean => {
+    if (value === true || value === 1) return true;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      return normalized === "true" || normalized === "1" || normalized === "yes";
+    }
+    return false;
   }, []);
+
+  const formatApiDiscount = React.useCallback((value: number, valueType: number): string => {
+    return valueType === 1 ? `${value.toFixed(2)}%` : `$${value.toFixed(2)}`;
+  }, []);
+
+  const handleEditDiscountClick = React.useCallback(async (student: GroupLessonStudent) => {
+    setSelectedStudent(student);
+    setSelectedDiscount(student.discount || "");
+    setDiscountModalOpen(true);
+
+    const lessonId = student.lessonId;
+    const enrolmentId = student.enrolmentId;
+    if (!lessonId || !enrolmentId) return;
+
+    setDiscountLoading(true);
+    try {
+      const response = await getGroupLessonDiscount(location, lessonId, enrolmentId);
+      if (!response?.success) {
+        return;
+      }
+
+      const body = response.data?.body;
+      if (body && Number.isFinite(body.value)) {
+        setSelectedDiscount(formatApiDiscount(body.value, body.valueType));
+      }
+    } finally {
+      setDiscountLoading(false);
+    }
+  }, [formatApiDiscount, location]);
 
   const handleDiscountClose = React.useCallback(() => {
     setDiscountModalOpen(false);
     setSelectedStudent(null);
+    setSelectedDiscount("");
   }, []);
 
   const handleDiscountSubmit = React.useCallback(
     async (discount: string): Promise<boolean> => {
       if (!selectedStudent) return false;
-      const success = await onSaveStudentDiscount(selectedStudent.id, discount);
+      const targetStudentId = selectedStudent.studentId ?? selectedStudent.id;
+      const success = await onSaveStudentDiscount(targetStudentId, discount);
       if (success) handleDiscountClose();
       return success;
     },
@@ -47,6 +99,10 @@ export function GroupStudentsTab({
   );
 
   const handleViewPaymentClick = React.useCallback((student: GroupLessonStudent) => {
+    if (!student.lessonId || !student.enrolmentId) {
+      toast.error("Lesson or enrolment ID is missing for payment details");
+      return;
+    }
     setSelectedStudent(student);
     setPaymentsModalOpen(true);
   }, []);
@@ -55,6 +111,85 @@ export function GroupStudentsTab({
     setPaymentsModalOpen(false);
     setSelectedStudent(null);
   }, []);
+
+  const handleViewInvoiceClick = React.useCallback(
+    (student: GroupLessonStudent) => {
+      if (!student.invoiceId) return;
+      const legacyBase = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+      const url = `${legacyBase}/${location}/invoice/view?id=${student.invoiceId}`;
+      window.location.href = url;
+    },
+    [location]
+  );
+
+  const refreshStudents = React.useCallback(
+    async (lessonId: number) => {
+      const studentsResponse = await getGroupLessonStudents(location, String(lessonId));
+      if (!studentsResponse?.success) {
+        toast.error(studentsResponse?.message || "Failed to refresh students");
+        return;
+      }
+
+      const latestStudents: GroupLessonStudent[] = (studentsResponse.data?.body || []).map((student) => ({
+        id: student.groupLessonId || student.id || 0,
+        lessonId: student.lessonId,
+        enrolmentId: student.enrolmentId,
+        studentId: student.studentId,
+        studentName: student.studentName || "",
+        customerName: student.customerName || "",
+        dueDate: student.dueDate || "",
+        grossPrice: student.grossPrice || "",
+        discount: student.discount || "",
+        netPrice: student.netPrice || "",
+        owing: student.owing || "",
+        hasInvoice: student.hasInvoice ?? false,
+        invoiceId: student.invoiceId,
+        hasPayment: student.hasPayment ?? false,
+      }));
+
+      setStudentsData(latestStudents);
+    },
+    [location]
+  );
+
+  const handleCreateInvoiceClick = React.useCallback(
+    async (student: GroupLessonStudent) => {
+      const lessonId = student.lessonId;
+      if (!lessonId) {
+        toast.error("Lesson ID is required to create invoice");
+        return;
+      }
+
+      const enrolmentId = student.enrolmentId;
+      if (!enrolmentId) {
+        toast.error("Enrolment ID is required to create invoice");
+        return;
+      }
+
+      const response = await generateGroupLessonInvoice(location, String(lessonId), enrolmentId);
+      if (!response?.success) {
+        toast.error(response?.message || "Failed to create invoice");
+        return;
+      }
+
+      toast.success(response.message || response.data?.message || "Invoice created successfully");
+      await refreshStudents(lessonId);
+    },
+    [location, refreshStudents]
+  );
+
+  const handleRowClick = React.useCallback(
+    (student: GroupLessonStudent) => {
+      const targetStudentId = student.studentId;
+      if (!targetStudentId) {
+        toast.error("Student ID is missing");
+        return;
+      }
+
+      router.push(`/${location}/students/${targetStudentId}`);
+    },
+    [location, router]
+  );
 
   const columns = React.useMemo<ColumnDef<GroupLessonStudent>[]>(
     () => [
@@ -109,51 +244,111 @@ export function GroupStudentsTab({
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 text-white text-xs px-3 py-1"
-              onClick={() => handleEditDiscountClick(row.original)}
-            >
-              Edit Discount
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white text-xs px-3 py-1"
-            >
-              Create Invoice
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700 text-white text-xs px-3 py-1"
-              onClick={() => handleViewPaymentClick(row.original)}
-            >
-              View Payment
-            </Button>
-          </div>
-        ),
+        header: () => <div className="text-right" />,
+        cell: ({ row }) => {
+          const student = row.original;
+          const hasInvoice = isTruthyFlag(student.hasInvoice) || Boolean(student.invoiceId);
+          const hasPayment = isTruthyFlag(student.hasPayment);
+          const canEditOrCreateInvoice = !hasInvoice;
+          const actionButtons: React.ReactNode[] = [];
+
+          if (canEditOrCreateInvoice) {
+            actionButtons.push(
+              <Button
+                key="edit-discount"
+                variant="default"
+                size="sm"
+                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleEditDiscountClick(student);
+                }}
+              >
+                Edit Discount
+              </Button>
+            );
+            actionButtons.push(
+              <Button
+                key="create-invoice"
+                variant="default"
+                size="sm"
+                className="w-full bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-2"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleCreateInvoiceClick(student);
+                }}
+              >
+                Create Invoice
+              </Button>
+            );
+          } else if (hasInvoice && student.invoiceId) {
+            actionButtons.push(
+              <Button
+                key="view-invoice"
+                variant="default"
+                size="sm"
+                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleViewInvoiceClick(student);
+                }}
+              >
+                View Invoice
+              </Button>
+            );
+          }
+
+          if (hasPayment) {
+            actionButtons.push(
+              <Button
+                key="view-payment"
+                variant="default"
+                size="sm"
+                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-sm px-3 py-2"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleViewPaymentClick(student);
+                }}
+              >
+                View Payment
+              </Button>
+            );
+          }
+
+          return (
+            <div className="grid grid-cols-3 gap-2 justify-items-start w-[372px] ml-auto">
+              <div className="w-[120px]">
+                {actionButtons[0] ?? <div className="h-9" />}
+              </div>
+
+              <div className="w-[120px]">
+                {actionButtons[1] ?? <div className="h-9" />}
+              </div>
+
+              <div className="w-[120px]">
+                {actionButtons[2] ?? <div className="h-9" />}
+              </div>
+            </div>
+          );
+        },
       },
     ],
-    [handleEditDiscountClick, handleViewPaymentClick]
+    [handleCreateInvoiceClick, handleEditDiscountClick, handleViewInvoiceClick, handleViewPaymentClick, isTruthyFlag]
   );
 
   return (
     <div>
       <CustomTable
-        data={students}
+        data={studentsData}
         columns={columns}
         size="compact"
-        variant="striped"
+        variant="default"
         enableSorting={false}
         enableExport={false}
         enablePrint={false}
         enableSearch={false}
         enableFilter={false}
+        onRowClick={handleRowClick}
         className="border-0 w-full"
         isLoading={isLoading}
         customLoadingState={
@@ -166,7 +361,7 @@ export function GroupStudentsTab({
           </div>
         }
         customEmptyState={
-          !isLoading && students.length === 0 ? (
+          !isLoading && studentsData.length === 0 ? (
             <div 
               className="flex flex-col items-center justify-center gap-2 text-muted-foreground py-8"
               role="status"
@@ -183,9 +378,9 @@ export function GroupStudentsTab({
         <GroupStudentDiscountModal
           open={discountModalOpen}
           onClose={handleDiscountClose}
-          discount={selectedStudent.discount || ""}
+          discount={selectedDiscount}
           onSubmit={handleDiscountSubmit}
-          saving={savingDiscount}
+          saving={savingDiscount || discountLoading}
         />
       )}
 
@@ -193,6 +388,9 @@ export function GroupStudentsTab({
         <GroupStudentPaymentsModal
           open={paymentsModalOpen}
           onClose={handlePaymentsClose}
+          location={location}
+          lessonId={selectedStudent.lessonId}
+          enrolmentId={selectedStudent.enrolmentId}
           studentName={selectedStudent.studentName}
         />
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,13 @@ interface Item {
   isDeletingItem?: boolean;
 }
 
+interface TransactionLineItem {
+  id: number;
+  itemId: string;
+  quantity: number;
+  price: number;
+}
+
 export default function POSPage() {
   const params = useParams();
   const location = params.location as string;
@@ -31,7 +38,7 @@ export default function POSPage() {
   const locationData = locations.find(loc => loc.slug === location);
   const locationId = locationData?.id || 1;
   
-  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction, resetTransaction, clearStoredTransaction } = usePOSTransaction(locationId, location);
+  const { transactionId, numericTransactionId, transactionDate, isLoading, initializeTransaction, resetTransaction } = usePOSTransaction(locationId, location);
   const { isScanning, scanItem } = usePOSItemLookup(location);
   
   const productRef = useRef<HTMLInputElement>(null);
@@ -52,11 +59,6 @@ export default function POSPage() {
   const [backendTotal, setBackendTotal] = useState(0);
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const transactionIdRef = useRef(numericTransactionId);
-
-  useEffect(() => {
-    transactionIdRef.current = numericTransactionId;
-  }, [numericTransactionId]);
 
   useEffect(() => {
     // Check if localStorage is available (warn about incognito mode)
@@ -95,145 +97,174 @@ export default function POSPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      Object.values(timers).forEach((timer) => clearTimeout(timer));
+    };
+  }, []);
+
+  const resolveAddedLineItemId = useCallback((lineItems: TransactionLineItem[] | undefined, itemId: string) => {
+    if (!lineItems || lineItems.length === 0) return undefined;
+
+    const matching = lineItems.filter((lineItem) => String(lineItem.itemId) === String(itemId));
+    if (matching.length === 0) return undefined;
+
+    const latest = matching.reduce((currentLatest, lineItem) =>
+      lineItem.id > currentLatest.id ? lineItem : currentLatest
+    );
+
+    return latest.id.toString();
+  }, []);
+
   const handleScan = async () => {
     if (!productCode.trim()) return;
     
     const itemData = await scanItem(productCode);
     
     if (itemData) {
-      // Check if item already exists in cart (by UPC)
-      const existingItem = items.find(item => item.upc === itemData.code);
+      // Check if item already exists
+      const existingItem = items.find(i => i.upc === itemData.code);
 
-      if (existingItem) {
-        // Item exists - increase quantity
-        const newQuantity = existingItem.quantity + quantity;
-        
-        setItems(items.map(item => 
-          item.upc === itemData.code 
-            ? { ...item, quantity: newQuantity } 
-            : item
-        ));
-        
-        setProductCode("");
-        setQuantity(1);
+      if (existingItem && existingItem.lineItemId) {
+        const originalQty = existingItem.quantity;
+        const newQty = originalQty + quantity;
 
-        // Update quantity in database if lineItemId exists
-        if (existingItem.lineItemId) {
-          try {
-            await updateLineItemQuantity(
-              String(numericTransactionId),
-              location,
-              existingItem.lineItemId,
-              newQuantity
-            );
-          } catch (error) {
-            console.error('Failed to update quantity:', error);
-            toast.error('Failed to update quantity in database');
-          }
+        setItems(prevItems =>
+          prevItems.map(item =>
+            item.id === existingItem.id
+              ? { ...item, quantity: newQty }
+              : item
+          )
+        );
+
+        try {
+          await updateLineItemQuantity(
+            String(numericTransactionId),
+            location,
+            existingItem.lineItemId,
+            newQty
+          );
+          toast.success('Quantity updated');
+        } catch (error) {
+          toast.error('Failed to update quantity');
+          console.error('Failed to update quantity:', error);
+          setItems(prevItems =>
+            prevItems.map(item =>
+              item.id === existingItem.id
+                ? { ...item, quantity: originalQty }
+                : item
+            )
+          );
         }
+      } else if (existingItem) {
+        setItems(prevItems =>
+          prevItems.map(item =>
+            item.id === existingItem.id
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          )
+        );
+        toast.warning('Item is still syncing. Please try again.');
       } else {
-        // New item - add to cart
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const newItem: Item = {
-          id: Date.now().toString(),
+          id: tempId,
           upc: itemData.code,
           description: itemData.description,
           quantity: quantity,
           price: itemData.price,
         };
-        
-        setItems([...items, newItem]);
-        setProductCode("");
-        setQuantity(1);
 
-        // Save to database
+        // Optimistic UI update
+        setItems(prevItems => [...prevItems, newItem]);
+
         try {
           const response = await addLineItem(String(numericTransactionId), location, {
             itemId: itemData.id,
             quantity: quantity,
           });
-          
+
           const transactionData = response.data || response;
-          const lineItems = transactionData?.lineItems;
-          
-          if (lineItems && lineItems.length > 0) {
-            const addedLineItem = lineItems[lineItems.length - 1];
-            const lineItemId = addedLineItem.id;
-            
-            setItems(prevItems => 
-              prevItems.map(item => 
-                item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
+          const lineItemId = resolveAddedLineItemId(transactionData?.lineItems, itemData.id);
+
+          if (!lineItemId) {
+            toast.error('Item added but failed to link line item ID');
+          } else {
+            setItems(prevItems =>
+              prevItems.map(item =>
+                item.id === tempId ? { ...item, lineItemId } : item
               )
             );
           }
         } catch (error) {
           toast.error('Failed to save item to transaction');
           console.error('Failed to add line item:', error);
+          setItems(prevItems => prevItems.filter((item) => item.id !== tempId));
         }
       }
+      
+      setProductCode("");
+      setQuantity(1);
     }
     
     setTimeout(() => productRef.current?.focus(), 0);
   };
 
   const removeItem = async (id: string) => {
-    setItems(prevItems => {
-      const item = prevItems.find(i => i.id === id);
-      if (!item) return prevItems;
-      if (item.isDeletingItem) return prevItems;
-      
-      if (!item.lineItemId) {
-        toast.info('Item removed (was not saved to transaction)');
-        return prevItems.filter((item) => item.id !== id);
-      }
+    const item = items.find(i => i.id === id);
+    if (!item || item.isDeletingItem) return;
 
-      // Set loading state
-      const updatedItems = prevItems.map(i => 
-        i.id === id ? { ...i, isDeletingItem: true } : i
+    if (!item.lineItemId) {
+      toast.info('Item removed (was not saved to transaction)');
+      setItems(prevItems => prevItems.filter((existingItem) => existingItem.id !== id));
+      return;
+    }
+
+    setItems(prevItems =>
+      prevItems.map(existingItem =>
+        existingItem.id === id ? { ...existingItem, isDeletingItem: true } : existingItem
+      )
+    );
+
+    try {
+      await deleteLineItem(
+        String(numericTransactionId),
+        location,
+        item.lineItemId
       );
-
-      // Make API call
-      (async () => {
-        try {
-          await deleteLineItem(
-            String(numericTransactionId),
-            location,
-            item.lineItemId as string
-          );
-          
-          const remainingItems = prevItems.filter((item) => item.id !== id);
-          setItems(remainingItems);
-          
-          // Fetch updated transaction to sync bill with backend
-          const updatedTransaction = await getTransaction(String(numericTransactionId), location);
-          const newSubtotal = parseFloat(updatedTransaction.data.subtotal || '0');
-          
-          // If no items left, clear discount
-          if (remainingItems.length === 0 && parseFloat(updatedTransaction.data.discountAmount || '0') > 0) {
-            await applyDiscount(String(numericTransactionId), location, 0);
-            setBackendDiscountAmount(0);
-            setBackendTotal(0);
-          } else {
-            // Update with backend values
-            setBackendDiscountAmount(parseFloat(updatedTransaction.data.discountAmount || '0'));
-            setBackendTotal(parseFloat(updatedTransaction.data.totalAmount || '0'));
-          }
-          
-          toast.success('Item removed from transaction');
-        } catch (error) {
-          console.error('Failed to delete line item:', error);
-          toast.error(error instanceof Error ? error.message : 'Failed to remove item');
-          setItems(prevItems => prevItems.map(i => 
-            i.id === id ? { ...i, isDeletingItem: false } : i
-          ));
-        }
-      })();
-
-      return updatedItems;
-    });
+      
+      const remainingItems = items.filter((item) => item.id !== id);
+      setItems(prevItems => prevItems.filter((existingItem) => existingItem.id !== id));
+      
+      // Fetch updated transaction to sync bill with backend
+      const updatedTransaction = await getTransaction(String(numericTransactionId), location);
+      
+      // If no items left, clear discount
+      if (remainingItems.length === 0 && parseFloat(updatedTransaction.data.discountAmount || '0') > 0) {
+        await applyDiscount(String(numericTransactionId), location, 0);
+        setBackendDiscountAmount(0);
+        setBackendTotal(0);
+      } else {
+        // Update with backend values
+        setBackendDiscountAmount(parseFloat(updatedTransaction.data.discountAmount || '0'));
+        setBackendTotal(parseFloat(updatedTransaction.data.totalAmount || '0'));
+      }
+      
+      toast.success('Item removed from transaction');
+    } catch (error) {
+      console.error('Failed to delete line item:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to remove item');
+      setItems(prevItems =>
+        prevItems.map(existingItem =>
+          existingItem.id === id ? { ...existingItem, isDeletingItem: false } : existingItem
+        )
+      );
+    }
   };
 
-  const handleQuantityChange = (itemId: string, newQuantity: string) => {
-    const qty = parseInt(newQuantity);
+  const handleQuantityChange = useCallback((itemId: string, newQuantity: string) => {
+    const qty = parseInt(newQuantity, 10);
     
     // Validate input
     if (newQuantity === '' || isNaN(qty)) {
@@ -257,44 +288,40 @@ export default function POSPage() {
 
     // Set new debounced API call
     debounceTimers.current[itemId] = setTimeout(() => {
-      setItems(prev => {
-        const item = prev.find(i => i.id === itemId);
-        if (!item?.lineItemId) {
-          toast.error('Cannot update quantity: Line item ID not found');
-          return prev;
-        }
+      const item = items.find(i => i.id === itemId);
+      if (!item?.lineItemId) {
+        toast.error('Cannot update quantity: Line item ID not found');
+        return;
+      }
 
-        const lineItemId = item.lineItemId;
-
-        // Show loading state
-        const updatedItems = prev.map(i => 
+      setItems(prev =>
+        prev.map(i =>
           i.id === itemId ? { ...i, isUpdatingQuantity: true } : i
-        );
+        )
+      );
 
-        // Make API call
-        (async () => {
-          try {
-            await updateLineItemQuantity(
-              numericTransactionId,
-              location,
-              lineItemId,
-              qty
-            );
-            toast.success('Quantity updated successfully');
-          } catch (error) {
-            console.error('Failed to update quantity:', error);
-            toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
-          } finally {
-            setItems(prev => prev.map(i => 
+      (async () => {
+        try {
+          await updateLineItemQuantity(
+            numericTransactionId,
+            location,
+            item.lineItemId as string,
+            qty
+          );
+          toast.success('Quantity updated successfully');
+        } catch (error) {
+          console.error('Failed to update quantity:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
+        } finally {
+          setItems(prev =>
+            prev.map(i =>
               i.id === itemId ? { ...i, isUpdatingQuantity: false } : i
-            ));
-          }
-        })();
-
-        return updatedItems;
-      });
+            )
+          );
+        }
+      })();
     }, 1000);
-  };
+  }, [items, location, numericTransactionId]);
 
   const handleOverride = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -325,7 +352,7 @@ export default function POSPage() {
         );
         
         // Update local state
-        setItems(items.map(item => 
+        setItems(prevItems => prevItems.map(item => 
           item.id === selectedItem.id ? { ...item, price } : item
         ));
         
@@ -608,12 +635,12 @@ export default function POSPage() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
+              onClick={async () => {
                 setItems([]);
                 setDiscount(0);
                 setShowCancelDialog(false);
-                clearStoredTransaction(); // Clear localStorage
                 resetTransaction();
+                await initializeTransaction();
               }}
               className="rounded-none"
             >

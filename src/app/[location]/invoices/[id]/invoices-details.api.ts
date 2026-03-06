@@ -39,6 +39,49 @@ export interface UpdateInvoiceDetailsResponse {
   message?: string;
 }
 
+export interface CreateInvoiceWalkInRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface CreateInvoiceWalkInResponse {
+  success: boolean;
+  data?: {
+    body?: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      customerId?: number;
+    };
+    id?: number;
+    customerId?: number;
+    customerName?: string;
+    email?: string;
+    type?: number;
+  };
+  errorCode?: string;
+  message?: string;
+}
+
+export interface AssignInvoiceCustomerRequest {
+  customerId: number;
+}
+
+export interface AssignInvoiceCustomerResponse {
+  success: boolean;
+  data?: {
+    id?: number;
+    customerId?: number;
+    customerName?: string;
+    email?: string;
+    phoneNumber?: string;
+    type?: number;
+  };
+  errorCode?: string;
+  message?: string;
+}
+
 // ---------------------------------------------
 // Adjust Tax API Types
 // ---------------------------------------------
@@ -56,6 +99,42 @@ export interface AdjustInvoiceTaxResponse {
   message?: string;
 }
 
+export interface AddInvoiceLineItemRequest {
+  itemId: number;
+}
+
+export interface AddInvoiceLineItemResponse {
+  success: boolean;
+  data: {
+    id: number;
+  };
+  message?: string;
+}
+
+export interface UpdateInvoiceLineItemRequest {
+  description: string;
+  amount: number;
+  unit: number;
+  cost: number;
+  royaltyFree: number;
+}
+
+export interface UpdateInvoiceLineItemResponse {
+  success: boolean;
+  data: {
+    id: number;
+  };
+  message?: string;
+}
+
+export interface DeleteInvoiceLineItemResponse {
+  success: boolean;
+  data: {
+    id: number;
+  };
+  message?: string;
+}
+
 type InvoiceDetailsBackendBody = {
   invoice?: {
     id?: number;
@@ -68,6 +147,8 @@ type InvoiceDetailsBackendBody = {
     customerName?: string;
     phoneNumber?: string;
     email?: string;
+    type?: number;
+    customerType?: number;
   };
   payments?: InvoiceDetail["payments"];
   message?: string;
@@ -89,6 +170,8 @@ type InvoiceItemsBackendResponse = {
     body?: {
       lineItems?: Array<{
         id?: number | string;
+        code?: string;
+        itemCode?: string;
         description?: string;
         qty?: number | string;
         price?: number | string; // e.g. "$26.68"
@@ -175,6 +258,21 @@ type InvoiceDetailsUpdateResponse = {
   message?: string;
 };
 
+type ApiErrorShape = {
+  response?: {
+    data?: {
+      message?: string;
+      success?: boolean;
+    };
+  };
+};
+
+type LineItemMutationFailure = {
+  success: false;
+  data: { id: number };
+  message: string;
+};
+
 // ---------------------------------------------
 // Internal Transformation Helpers
 // ---------------------------------------------
@@ -192,6 +290,7 @@ function normalizeLineItems(itemsResponse: InvoiceItemsBackendResponse | undefin
 
     normalized.push({
       id: li.id !== undefined ? String(li.id) : `${Date.now()}`,
+      code: li.code ?? li.itemCode ?? "",
       description: li.description ?? "",
       qty,
       price,
@@ -240,6 +339,9 @@ function buildInvoiceDetail(params: {
   const invoice = detailsBody?.invoice;
   const customer = detailsBody?.customer;
 
+  const parsedCustomerTypeRaw = customer?.type ?? customer?.customerType;
+  const parsedCustomerType = Number(parsedCustomerTypeRaw);
+
   const items = normalizeLineItems(itemsResponse);
   const totals = normalizeTotals(totalsResponse, items);
 
@@ -253,6 +355,7 @@ function buildInvoiceDetail(params: {
       name: customer?.customerName ?? "",
       phone: customer?.phoneNumber ?? "",
       email: customer?.email ?? "",
+      type: parsedCustomerType === 1 ? 1 : parsedCustomerType === 2 ? 2 : undefined,
     },
     items,
     payments: paymentsResponse?.data?.body ?? detailsBody?.payments ?? [],
@@ -286,14 +389,26 @@ async function fetchPaginatedList<T>(
 
     return response.data;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { message?: string; success?: boolean } } };
-    const errorMessage = apiError.response?.data?.message || `Failed to fetch invoice ${entityName}`;
+    const errorMessage = getApiErrorMessage(error, `Failed to fetch invoice ${entityName}`);
     return {
       success: false,
       data: { body: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
       message: errorMessage,
     };
   }
+}
+
+function getApiErrorMessage(error: unknown, fallbackMessage: string): string {
+  const apiError = error as ApiErrorShape;
+  return apiError.response?.data?.message || fallbackMessage;
+}
+
+function createLineItemFailureResponse(id: number, fallbackMessage: string, error: unknown): LineItemMutationFailure {
+  return {
+    success: false,
+    data: { id },
+    message: getApiErrorMessage(error, fallbackMessage),
+  };
 }
 
 // ---------------------------------------------
@@ -348,11 +463,10 @@ export async function getInvoiceDetails(
       message: detailsRes.value.data.message,
     };
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
       data: { body: {} as InvoiceDetail },
-      message: apiError.response?.data?.message || "Failed to fetch invoice details",
+      message: getApiErrorMessage(error, "Failed to fetch invoice details"),
     };
   }
 }
@@ -427,11 +541,10 @@ export async function updateInvoiceDetails(
       message: response.data.message,
     };
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { message?: string } } };
     return {
       success: false,
       data: { id: invoiceId, date: "" },
-      message: apiError.response?.data?.message || "Failed to update invoice details",
+      message: getApiErrorMessage(error, "Failed to update invoice details"),
     };
   }
 }
@@ -460,5 +573,135 @@ export async function adjustInvoiceTax(
   } catch (error: unknown) {
     console.error("adjustInvoiceTax API error:", error);
     return null;
+  }
+}
+
+export async function createInvoiceWalkIn(
+  location: string,
+  invoiceId: number,
+  payload: CreateInvoiceWalkInRequest
+): Promise<CreateInvoiceWalkInResponse | null> {
+  return saveInvoiceWalkIn(location, invoiceId, payload, "post");
+}
+
+export async function updateInvoiceWalkIn(
+  location: string,
+  invoiceId: number,
+  payload: CreateInvoiceWalkInRequest
+): Promise<CreateInvoiceWalkInResponse | null> {
+  return saveInvoiceWalkIn(location, invoiceId, payload, "put");
+}
+
+async function saveInvoiceWalkIn(
+  location: string,
+  invoiceId: number,
+  payload: CreateInvoiceWalkInRequest,
+  method: "post" | "put"
+): Promise<CreateInvoiceWalkInResponse | null> {
+  try {
+    const response = await apiClient[method]<CreateInvoiceWalkInResponse>(
+      `/admin/v2/${location}/invoices/${invoiceId}/walkin`,
+      {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
+    return {
+      success: false,
+      errorCode: apiError.response?.data?.errorCode,
+      message: apiError.response?.data?.message || (method === "put" ? "Failed to update walk-in customer" : "Failed to add walk-in customer"),
+    };
+  }
+}
+
+export async function assignInvoiceCustomer(
+  location: string,
+  invoiceId: number,
+  payload: AssignInvoiceCustomerRequest
+): Promise<AssignInvoiceCustomerResponse | null> {
+  try {
+    const response = await apiClient.put<AssignInvoiceCustomerResponse>(
+      `/admin/v2/${location}/invoices/${invoiceId}/customer`,
+      {
+        customerId: payload.customerId,
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string; errorCode?: string } } };
+    return {
+      success: false,
+      errorCode: apiError.response?.data?.errorCode,
+      message: apiError.response?.data?.message || "Failed to assign customer to invoice",
+    };
+}
+}
+/**
+ * Adds a catalog item as an invoice line item.
+ *
+ * Endpoint: POST /admin/v2/${location}/invoices/${invoiceId}/line-items
+ *
+ * Body: { itemId: number }
+ */
+export async function addInvoiceLineItem(
+  location: string,
+  invoiceId: number,
+  payload: AddInvoiceLineItemRequest
+): Promise<AddInvoiceLineItemResponse | null> {
+  try {
+    const response = await apiClient.post<AddInvoiceLineItemResponse>(
+      `/admin/v2/${location}/invoices/${invoiceId}/line-items`,
+      payload
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return createLineItemFailureResponse(0, "Failed to add line item", error);
+  }
+}
+
+/**
+ * Updates an existing invoice line item.
+ *
+ * Endpoint: PUT /admin/v2/${location}/invoices/line-items/${lineItemId}
+ */
+export async function updateInvoiceLineItem(
+  location: string,
+  lineItemId: number,
+  payload: UpdateInvoiceLineItemRequest
+): Promise<UpdateInvoiceLineItemResponse | null> {
+  try {
+    const response = await apiClient.put<UpdateInvoiceLineItemResponse>(
+      `/admin/v2/${location}/invoices/line-items/${lineItemId}`,
+      payload
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return createLineItemFailureResponse(lineItemId, "Failed to update line item", error);
+  }
+}
+
+/**
+ * Deletes an invoice line item.
+ *
+ * Endpoint: DELETE /admin/v2/${location}/invoices/line-items/${lineItemId}
+ */
+export async function deleteInvoiceLineItem(
+  location: string,
+  lineItemId: number
+): Promise<DeleteInvoiceLineItemResponse | null> {
+  try {
+    const response = await apiClient.delete<DeleteInvoiceLineItemResponse>(
+      `/admin/v2/${location}/invoices/line-items/${lineItemId}`
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return createLineItemFailureResponse(lineItemId, "Failed to delete line item", error);
   }
 }

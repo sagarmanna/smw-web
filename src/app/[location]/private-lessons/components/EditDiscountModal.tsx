@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { PrivateLessonRow } from "../privateLessonsListing.api";
-import { calculateDiscountPreview } from "../utils/discountCalculations";
 import type { LessonDiscountData } from "../privateLessonsListing.slice";
 import { getDiscountValues } from "../actionApi/discount.api";
 
@@ -111,38 +110,6 @@ export function EditDiscountModal({
       isCancelled = true;
     };
   }, [open, location, selectedLessons, initialDiscountData]);
-
-  // Prepare discount data object for calculations
-  const discountData = React.useMemo<PrivateLessonsDiscountFormData>(
-    () => ({
-      paymentFrequencyDiscountPercent,
-      customerDiscountPercent,
-      multipleEnrollmentDiscountAmount,
-      lineItemDiscountType,
-      lineItemDiscountValue,
-    }),
-    [
-      paymentFrequencyDiscountPercent,
-      customerDiscountPercent,
-      multipleEnrollmentDiscountAmount,
-      lineItemDiscountType,
-      lineItemDiscountValue,
-    ]
-  );
-
-  // Calculate total discount amount and new price for preview
-  const discountPreview = React.useMemo(() => {
-    if (selectedLessons.length === 0) return null;
-
-    // Use the first lesson's price as reference
-    const firstLessonPrice = selectedLessons[0]?.price || "0";
-    const preview = calculateDiscountPreview(firstLessonPrice, discountData);
-
-    return {
-      ...preview,
-      affectedLessons: selectedLessons.length,
-    };
-  }, [selectedLessons, discountData]);
 
   const handleSave = async () => {
     const lessonIds = selectedLessons.map((lesson) => lesson.id);
@@ -277,34 +244,6 @@ export function EditDiscountModal({
               </div>
             </div>
           </div>
-
-          {/* Discount Preview */}
-          {hasAnyValue && discountPreview && (
-            <div className="mt-6 p-4 bg-muted rounded-lg border">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Original Price:</span>
-                  <span className="text-sm">${discountPreview.originalPrice}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Discount Amount:</span>
-                  <span className="text-sm text-green-600 dark:text-green-400">
-                    -${discountPreview.discountAmount}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-base font-semibold">New Price:</span>
-                  <span className="text-base font-semibold">
-                    ${discountPreview.newPrice}
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground pt-1">
-                  Applied to {discountPreview.affectedLessons} lesson
-                  {discountPreview.affectedLessons !== 1 ? "s" : ""}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         <DialogFooter className="flex justify-end gap-2">

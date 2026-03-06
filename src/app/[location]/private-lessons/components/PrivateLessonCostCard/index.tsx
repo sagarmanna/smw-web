@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Eye, EyeOff, Pencil } from "lucide-react";
-import { PrivateLessonDetails } from "../../types";
+import type { GroupLessonCost, PrivateLessonDetails } from "../../types";
 import { EditCostModal } from "../modals/EditCostModal";
 
 interface CostItem {
@@ -15,6 +15,7 @@ interface CostItem {
 
 interface PrivateLessonCostCardProps {
   details: PrivateLessonDetails | null;
+  groupCost?: GroupLessonCost;
   onSaveCost: (data: { costPerHour?: string; cost?: string; price?: string }) => Promise<boolean>;
   savingDetails?: boolean;
   isLoading?: boolean;
@@ -22,6 +23,7 @@ interface PrivateLessonCostCardProps {
 
 export const PrivateLessonCostCard = React.memo(function PrivateLessonCostCard({
   details,
+  groupCost,
   onSaveCost,
   savingDetails = false,
   isLoading = false,
@@ -31,14 +33,22 @@ export const PrivateLessonCostCard = React.memo(function PrivateLessonCostCard({
 
   const costData = React.useMemo<CostItem[]>(() => {
     if (!details?.cost) return [];
-    
+
+    if (details?.isGroup) {
+      return [
+        { name: "Cost/hr", amount: groupCost?.costPerHour || details.cost.costPerHour || "N/A" },
+        { name: "Cost", amount: groupCost?.cost || details.cost.cost || "N/A" },
+        { name: "Cost Per Student", amount: groupCost?.costPerStudent || "N/A" },
+      ];
+    }
+
     return [
       { name: "Cost/hr", amount: details.cost.costPerHour || "N/A" },
       { name: "Cost", amount: details.cost.cost || "N/A" },
       { name: "Price", amount: details.cost.price || "N/A" },
       { name: "Profit", amount: details.cost.profit || "N/A" },
     ];
-  }, [details]);
+  }, [details, groupCost]);
 
   const handleEditClick = React.useCallback(() => {
     setIsEditModalOpen(true);
