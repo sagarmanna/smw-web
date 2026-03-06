@@ -10,6 +10,7 @@ import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { GroupLessonStudent } from "../../types";
 import {
   generateGroupLessonInvoice,
+  getGroupLessonDiscount,
   getGroupLessonStudents,
 } from "../../[id]/private-lesson-details.api";
 import { GroupStudentDiscountModal } from "../modals/GroupStudentDiscountModal";
@@ -35,6 +36,8 @@ export function GroupStudentsTab({
   const [discountModalOpen, setDiscountModalOpen] = React.useState(false);
   const [paymentsModalOpen, setPaymentsModalOpen] = React.useState(false);
   const [selectedStudent, setSelectedStudent] = React.useState<GroupLessonStudent | null>(null);
+  const [selectedDiscount, setSelectedDiscount] = React.useState<string>("");
+  const [discountLoading, setDiscountLoading] = React.useState(false);
 
   React.useEffect(() => {
     setStudentsData(students);
@@ -49,14 +52,39 @@ export function GroupStudentsTab({
     return false;
   }, []);
 
-  const handleEditDiscountClick = React.useCallback((student: GroupLessonStudent) => {
-    setSelectedStudent(student);
-    setDiscountModalOpen(true);
+  const formatApiDiscount = React.useCallback((value: number, valueType: number): string => {
+    return valueType === 1 ? `${value.toFixed(2)}%` : `$${value.toFixed(2)}`;
   }, []);
+
+  const handleEditDiscountClick = React.useCallback(async (student: GroupLessonStudent) => {
+    setSelectedStudent(student);
+    setSelectedDiscount(student.discount || "");
+    setDiscountModalOpen(true);
+
+    const lessonId = student.lessonId;
+    const enrolmentId = student.enrolmentId;
+    if (!lessonId || !enrolmentId) return;
+
+    setDiscountLoading(true);
+    try {
+      const response = await getGroupLessonDiscount(location, lessonId, enrolmentId);
+      if (!response?.success) {
+        return;
+      }
+
+      const body = response.data?.body;
+      if (body && Number.isFinite(body.value)) {
+        setSelectedDiscount(formatApiDiscount(body.value, body.valueType));
+      }
+    } finally {
+      setDiscountLoading(false);
+    }
+  }, [formatApiDiscount, location]);
 
   const handleDiscountClose = React.useCallback(() => {
     setDiscountModalOpen(false);
     setSelectedStudent(null);
+    setSelectedDiscount("");
   }, []);
 
   const handleDiscountSubmit = React.useCallback(
@@ -350,9 +378,9 @@ export function GroupStudentsTab({
         <GroupStudentDiscountModal
           open={discountModalOpen}
           onClose={handleDiscountClose}
-          discount={selectedStudent.discount || ""}
+          discount={selectedDiscount}
           onSubmit={handleDiscountSubmit}
-          saving={savingDiscount}
+          saving={savingDiscount || discountLoading}
         />
       )}
 
