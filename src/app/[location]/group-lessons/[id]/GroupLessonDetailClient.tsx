@@ -37,6 +37,12 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
   const {
     details,
     comments,
+    commentsPagination,
+    commentsLoading,
+    commentsError,
+    commentsSubmitting,
+    fetchComments,
+    addComment,
     history,
     historyPagination,
     historyLoading,
@@ -47,7 +53,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
     saveCost,
     saveGroupStudentDiscount,
     saveUnschedule,
-  } = usePrivateLessonDetails(location, lessonId);
+  } = usePrivateLessonDetails(location, lessonId, { enablePaymentsFetch: false });
 
   const emailStatement = useAppSelector((state) => state.privateLesson.emailStatement);
   const emailStatementLoading = useAppSelector((state) => state.privateLesson.emailStatementLoading);
@@ -67,7 +73,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
   const emailContent = React.useMemo(() => {
     if (!emailStatement) return "";
     return generateEmailContent(emailStatement);
-  }, [emailStatement, isEmailModalOpen]);
+  }, [emailStatement]);
 
   const recipientEmails = React.useMemo(() => {
     const toField = emailStatement?.emailTemplate?.to;
@@ -77,24 +83,27 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
     return emailStatement?.emails || customerEmails;
   }, [emailStatement, customerEmails]);
 
+  const customerId = details?.customerId;
+  const isGroupLesson = details?.isGroup;
+
   // Redirect to private-lessons if this ID is not a group lesson
   React.useEffect(() => {
-    if (details && details.isGroup === false) {
+    if (isGroupLesson === false) {
       router.replace(`/${location}/private-lessons/${id}`);
     }
-  }, [details?.isGroup, location, id, router]);
+  }, [isGroupLesson, location, id, router]);
 
   // Fetch customer emails when mail modal opens
   React.useEffect(() => {
     const fetchCustomerEmails = async () => {
-      if (isEmailModalOpen && details?.customerId) {
+      if (isEmailModalOpen && customerId) {
         try {
-          const customerId =
-            typeof details.customerId === "number"
-              ? details.customerId
-              : Number(details.customerId);
-          if (customerId && !isNaN(customerId)) {
-            const emails = await getCustomerEmailAddresses(location, customerId);
+          const normalizedCustomerId =
+            typeof customerId === "number"
+              ? customerId
+              : Number(customerId);
+          if (normalizedCustomerId && !isNaN(normalizedCustomerId)) {
+            const emails = await getCustomerEmailAddresses(location, normalizedCustomerId);
             setCustomerEmails(emails);
           } else {
             setCustomerEmails([]);
@@ -107,7 +116,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
       }
     };
     fetchCustomerEmails();
-  }, [isEmailModalOpen, details?.customerId, location]);
+  }, [isEmailModalOpen, customerId, location]);
 
   const pageTitle = React.useMemo(() => {
     if (!details) return `Group Lesson #${id}`;
@@ -205,6 +214,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
               />
               <PrivateLessonCostCard
                 details={details}
+                groupCost={privateLessonInfo?.groupCost}
                 onSaveCost={saveCost}
                 savingDetails={savingDetails}
                 isLoading={isLoading}
@@ -221,12 +231,18 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
               />
               <PrivateLessonCommentsCard
                 comments={comments}
-                isLoading={isLoading}
+                isLoading={commentsLoading || isLoading}
+                commentsError={commentsError}
+                pagination={commentsPagination}
+                onPageChange={fetchComments}
+                onAddComment={addComment}
+                isSubmitting={commentsSubmitting}
               />
             </div>
           </div>
 
           <GroupLessonTabsSection
+            location={location}
             students={privateLessonInfo?.students || []}
             history={history}
             historyPagination={historyPagination}

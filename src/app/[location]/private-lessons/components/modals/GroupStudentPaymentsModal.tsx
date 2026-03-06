@@ -12,39 +12,28 @@ import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { PrivateLessonPayment } from "../../types";
+import { getGroupLessonPayments } from "../../[id]/private-lesson-details.api";
+import { toast } from "sonner";
 
 interface GroupStudentPaymentsModalProps {
   open: boolean;
   onClose: () => void;
+  location: string;
+  lessonId?: number;
+  enrolmentId?: number;
   studentName?: string;
 }
-
-const MOCK_PAYMENTS: PrivateLessonPayment[] = [
-  {
-    id: 1,
-    date: "Dec 18, 2025",
-    paymentMethod: "Cash",
-    number: "",
-    amount: "$28.75",
-  },
-  {
-    id: 2,
-    date: "Jan 28, 2026",
-    paymentMethod: "Credit Used",
-    number: "I-99974",
-    amount: "-$28.75",
-  },
-];
 
 export function GroupStudentPaymentsModal({
   open,
   onClose,
+  location,
+  lessonId,
+  enrolmentId,
   studentName,
 }: GroupStudentPaymentsModalProps) {
   const [payments, setPayments] = React.useState<PrivateLessonPayment[]>([]);
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "amount", desc: false },
-  ]);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [isLoading, setIsLoading] = React.useState(false);
 
   const columns = React.useMemo<ColumnDef<PrivateLessonPayment>[]>(
@@ -56,6 +45,7 @@ export function GroupStudentPaymentsModal({
         accessorKey: "amount",
         header: "Amount",
         enableSorting: true,
+        enableSortingRemoval: false,
       },
     ],
     []
@@ -63,29 +53,46 @@ export function GroupStudentPaymentsModal({
 
   const fetchPayments = React.useCallback(
     async (currentSorting: SortingState) => {
-      setIsLoading(true);
-      // Simulate server-side fetch
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      const data = [...MOCK_PAYMENTS];
-      const sort = currentSorting[0];
-      if (sort && sort.id === "amount") {
-        data.sort((a, b) => {
-          const parseAmount = (v: string) =>
-            parseFloat(v.replace("$", "").replace(",", ""));
-          const aVal = parseAmount(a.amount);
-          const bVal = parseAmount(b.amount);
-          return aVal - bVal;
-        });
-        if (sort.desc) {
-          data.reverse();
-        }
+      if (!lessonId || !enrolmentId) {
+        setPayments([]);
+        return;
       }
 
-      setPayments(data);
-      setIsLoading(false);
+      setIsLoading(true);
+      try {
+        const sort = currentSorting[0];
+        const sortField = sort?.id ? String(sort.id) : undefined;
+        const order = sort?.id ? (sort.desc ? "desc" : "asc") : undefined;
+
+        const response = await getGroupLessonPayments(
+          location,
+          String(lessonId),
+          String(enrolmentId),
+          sortField,
+          order
+        );
+
+        if (!response?.success) {
+          toast.error(response?.message || "Failed to fetch payments");
+          setPayments([]);
+          return;
+        }
+
+        const rows = response.data?.body || [];
+        setPayments(
+          rows.map((item) => ({
+            id: item.id,
+            date: item.date || "",
+            paymentMethod: item.paymentMethod || "",
+            number: item.number || "",
+            amount: item.amount || "",
+          }))
+        );
+      } finally {
+        setIsLoading(false);
+      }
     },
-    []
+    [enrolmentId, lessonId, location]
   );
 
   React.useEffect(() => {

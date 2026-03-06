@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import {
   fetchPrivateLesson,
   fetchPrivateLessonHistory,
+  fetchPrivateLessonComments,
   clearPrivateLesson,
 } from '../../private-lessons/[id]/private-lesson-details.slice';
 import { GroupLessonDetailClient } from './GroupLessonDetailClient';
@@ -50,6 +51,7 @@ export default function GroupLessonDetailPage({ params }: GroupLessonDetailPageP
 
     dispatch(fetchPrivateLesson({ location, privateLessonId: lessonId }));
     dispatch(fetchPrivateLessonHistory({ location, privateLessonId: lessonId, page: 1 }));
+    dispatch(fetchPrivateLessonComments({ location, privateLessonId: lessonId, page: 1 }));
   }, [location, lessonId, dispatch, currentLessonId, hasData]);
 
   return <GroupLessonDetailClient location={location} id={id} />;

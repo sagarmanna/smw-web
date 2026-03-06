@@ -197,22 +197,24 @@ export function EditLineItemModal({
             </Label>
           </div>
 
-          <DialogFooter className="flex justify-between">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDeleteClick}
-              disabled={!onDelete || isSaving}
-            >
-              Delete
-            </Button>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                Cancel
+          <DialogFooter className="w-full">
+            <div className="w-full flex items-center justify-between">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDeleteClick}
+                disabled={!onDelete || isSaving}
+              >
+                Delete
               </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? "Saving..." : "save"}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? "Saving..." : "save"}
+                </Button>
+              </div>
             </div>
           </DialogFooter>
         </form>

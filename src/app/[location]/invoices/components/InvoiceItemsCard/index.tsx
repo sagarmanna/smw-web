@@ -17,10 +17,14 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import type { InvoiceItem } from "../../types";
 import { InvoiceDiscountModal, DiscountData } from "../modals/InvoiceDiscountModal";
 import { EditLineItemModal } from "../modals/EditLineItemModal";
+import { AddLineItemsModal } from "../modals/AddLineItemsModal";
+import { EditItemTaxModal, ItemTaxStatus } from "../modals/EditItemTaxModal";
+import type { ItemRow } from "../../../items/itemsListing.api";
 import { toast } from "sonner";
 import { TOAST_MESSAGES } from "../../utils/constants";
 
 interface InvoiceItemsCardProps {
+  location: string;
   items: InvoiceItem[];
   isLoading?: boolean;
   isVoided?: boolean;
@@ -30,6 +34,7 @@ interface InvoiceItemsCardProps {
 }
 
 export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
+  location,
   items,
   isLoading = false,
   isVoided = false,
@@ -39,7 +44,9 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
 }: InvoiceItemsCardProps) {
   const [selectedItems, setSelectedItems] = React.useState<Set<string>>(new Set());
   const [isDiscountModalOpen, setIsDiscountModalOpen] = React.useState(false);
+  const [isEditTaxModalOpen, setIsEditTaxModalOpen] = React.useState(false);
   const [isEditLineItemModalOpen, setIsEditLineItemModalOpen] = React.useState(false);
+  const [isAddLineItemsModalOpen, setIsAddLineItemsModalOpen] = React.useState(false);
   const [selectedItem, setSelectedItem] = React.useState<InvoiceItem | null>(null);
 
   const handleSelectAll = React.useCallback(
@@ -74,6 +81,38 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
     setIsDiscountModalOpen(true);
   }, [selectedItems, isVoided]);
 
+  const handleOpenEditTaxModal = React.useCallback(() => {
+    if (isVoided) return;
+    if (selectedItems.size === 0) {
+      toast.error(TOAST_MESSAGES.ERROR.ITEM_TAX_SELECTION_REQUIRED);
+      return;
+    }
+    setIsEditTaxModalOpen(true);
+  }, [selectedItems, isVoided]);
+
+  const handleSaveItemTax = React.useCallback(
+    (taxStatus: ItemTaxStatus) => {
+      if (!onSaveItem) return;
+
+      const taxRate = taxStatus === "GST Only" ? 0.05 : 0;
+
+      items.forEach((item) => {
+        if (!selectedItems.has(item.id)) return;
+
+        const updatedItem: InvoiceItem = {
+          ...item,
+          taxStatus,
+          tax: Number((item.price * taxRate).toFixed(2)),
+        };
+
+        onSaveItem(updatedItem);
+      });
+
+      toast.success("Tax updated successfully");
+    },
+    [items, onSaveItem, selectedItems]
+  );
+
   const handleRowClick = React.useCallback(
     (item: InvoiceItem) => {
       if (isVoided) return;
@@ -103,6 +142,33 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
       setSelectedItem(null);
     },
     [onDeleteItem]
+  );
+
+  const handleAddItemFromList = React.useCallback(
+    (item: ItemRow) => {
+      if (!onSaveItem) return;
+
+      const now = Date.now();
+      const generatedId = `${item.id}-${now}`;
+      const price = Number(item.price || 0);
+
+      const newItem: InvoiceItem = {
+        id: generatedId,
+        code: item.code,
+        description: item.description,
+        qty: 1,
+        price,
+        unitPrice: price,
+        cost: 0,
+        discount: 0,
+        tax: 0,
+        taxStatus: item.tax || "No Tax",
+        royalty: item.royaltyFree || "No",
+      };
+
+      onSaveItem(newItem);
+    },
+    [onSaveItem]
   );
 
   // Controls whether we show the compact (Description / Qty / Price) view or the full detail view
@@ -188,19 +254,11 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
       baseSelectColumn,
       {
         accessorKey: "royalty",
-        header: "Royalty",
+        header: "Royalty Free",
         enableSorting: true,
         cell: ({ getValue }) => {
           const value = getValue() as string | undefined;
           return <span>{value || "No"}</span>;
-        },
-      },
-      {
-        accessorKey: "free",
-        header: "Free",
-        cell: ({ getValue }) => {
-          const value = getValue() as string | undefined;
-          return <span>{value || ""}</span>;
         },
       },
       descriptionColumn,
@@ -265,14 +323,26 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem disabled>Add Item...</DropdownMenuItem>
-              <DropdownMenuItem disabled>Edit Tax...</DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleOpenDiscountModal}
-                disabled={isVoided}
-              >
-                Edit Discount...
-              </DropdownMenuItem>
+              {items.length === 0 ? (
+                <DropdownMenuItem onClick={() => setIsAddLineItemsModalOpen(true)}>
+                  Add Item...
+                </DropdownMenuItem>
+              ) : (
+                <>
+                  <DropdownMenuItem onClick={() => setIsAddLineItemsModalOpen(true)}>
+                    Add Item...
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenEditTaxModal} disabled={isVoided}>
+                    Edit Tax...
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleOpenDiscountModal}
+                    disabled={isVoided}
+                  >
+                    Edit Discount...
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -331,6 +401,17 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
         item={selectedItem}
         onSave={onSaveItem ? handleSaveItem : undefined}
         onDelete={onDeleteItem ? handleDeleteItem : undefined}
+      />
+      <AddLineItemsModal
+        open={isAddLineItemsModalOpen}
+        onClose={() => setIsAddLineItemsModalOpen(false)}
+        location={location}
+        onSelectItem={handleAddItemFromList}
+      />
+      <EditItemTaxModal
+        open={isEditTaxModalOpen}
+        onClose={() => setIsEditTaxModalOpen(false)}
+        onSave={onSaveItem ? handleSaveItemTax : undefined}
       />
     </SectionCard>
   );

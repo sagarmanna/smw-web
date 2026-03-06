@@ -22,6 +22,16 @@ interface CustomerOption {
   phone?: string;
 }
 
+type CustomerListRow = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  students: string;
+  phone?: string;
+  phoneNumber?: string;
+};
+
 interface ChooseCustomerModalProps {
   location: string;
   open: boolean;
@@ -57,12 +67,13 @@ export function ChooseCustomerModal({
         });
 
         const body = result?.success ? result.data.body : [];
-        const mapped: CustomerOption[] = (body || []).map((c) => ({
+        const mapped: CustomerOption[] = ((body || []) as CustomerListRow[]).map((c) => ({
           firstName: c.firstName || "",
           lastName: c.lastName || "",
           email: c.email || "",
           students: c.students || "",
           customerId: c.id,
+          phone: c.phone || c.phoneNumber || "",
         }));
 
         if (!cancelled) setCustomers(mapped);

@@ -49,11 +49,6 @@ export default function POSPage() {
   const [discountValue, setDiscountValue] = useState("");
   const [discount, setDiscount] = useState(0);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const transactionIdRef = useRef(numericTransactionId);
-
-  useEffect(() => {
-    transactionIdRef.current = numericTransactionId;
-  }, [numericTransactionId]);
 
   useEffect(() => {
     // Check if localStorage is available (warn about incognito mode)
@@ -214,7 +209,7 @@ export default function POSPage() {
     });
   }, [location, numericTransactionId]);
 
-  const handleQuantityChange = (itemId: string, newQuantity: string) => {
+  const handleQuantityChange = useCallback((itemId: string, newQuantity: string) => {
     const qty = parseInt(newQuantity);
     
     // Validate input
@@ -276,7 +271,7 @@ export default function POSPage() {
         return updatedItems;
       });
     }, 1000);
-  };
+  }, [location, numericTransactionId]);
 
   const handleOverride = (id: string) => {
     const item = items.find(i => i.id === id);

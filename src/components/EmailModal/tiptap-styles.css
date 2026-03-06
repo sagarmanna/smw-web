@@ -241,6 +241,14 @@
   text-align: right !important;
 }
 
+/* Private lesson statement table should keep every cell left aligned */
+.tiptap-editor-content table.private-lesson-email-statement th,
+.tiptap-editor-content table.private-lesson-email-statement td,
+.ProseMirror table.private-lesson-email-statement th,
+.ProseMirror table.private-lesson-email-statement td {
+  text-align: left !important;
+}
+
 .tiptap-editor-content table tbody tr:hover,
 .ProseMirror table tbody tr:hover {
   background-color: #f9fafb;

@@ -61,10 +61,12 @@ export interface PrivateLessonDetailsResponseBody {
     cost: string;
     price: string;
     profit: string;
+    costPerStudent?: string;
   };
   schedule?: {
     teacher: string;
     teacherId?: number;
+    originalDate?: string;
     scheduledDate: string;
     time: string;
     duration: string;
@@ -81,11 +83,18 @@ export interface PrivateLessonDetailsResponseBody {
     total: string;
     paid: string;
     balance: string;
+    invoiceId?: number;
+    invoiceNumber?: string;
+    invoiceOwing?: string;
   };
   // Group lesson specific fields (when isGroup: true)
   // Note: Students data may come from a separate API call
   students?: Array<{
     id: number;
+    groupLessonId?: number;
+    lessonId?: number;
+    enrolmentId?: number;
+    studentId?: number;
     studentName: string;
     customerName: string;
     dueDate: string;
@@ -93,6 +102,9 @@ export interface PrivateLessonDetailsResponseBody {
     discount: string;
     netPrice: string;
     owing: string;
+    hasInvoice?: boolean;
+    invoiceId?: number;
+    hasPayment?: boolean;
   }>;
   costPerStudent?: string;
 }
@@ -179,7 +191,11 @@ export async function getPrivateLessonDetails(
 
 // Group Lesson Students API Response Types
 export interface GroupLessonStudentResponseBody {
-  id: number;
+  id?: number;
+  groupLessonId?: number;
+  lessonId?: number;
+  enrolmentId?: number;
+  studentId?: number;
   studentName: string;
   customerName: string;
   dueDate: string;
@@ -187,6 +203,9 @@ export interface GroupLessonStudentResponseBody {
   discount: string;
   netPrice: string;
   owing: string;
+  hasInvoice?: boolean;
+  invoiceId?: number;
+  hasPayment?: boolean;
 }
 
 export interface GroupLessonStudentsApiResponse {
@@ -210,49 +229,20 @@ export async function getGroupLessonStudents(
   lessonId: string
 ): Promise<GroupLessonStudentsApiResponse | null> {
   try {
-    // TODO: Replace with actual endpoint when backend provides it
-    // For now, return mock data for group lessons
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const mockStudents: GroupLessonStudentResponseBody[] = [
-      {
-        id: 1,
-        studentName: "Test studentseng",
-        customerName: "Test customerseng",
-        dueDate: "Dec 18, 2025",
-        grossPrice: "$28.75",
-        discount: "$0.00",
-        netPrice: "$28.75",
-        owing: "$0.00",
-      },
-      {
-        id: 2,
-        studentName: "Anna Winston",
-        customerName: "Anna Winston",
-        dueDate: "Dec 18, 2025",
-        grossPrice: "$28.75",
-        discount: "$0.00",
-        netPrice: "$25.88",
-        owing: "$25.88",
-      },
-      {
-        id: 3,
-        studentName: "Aisha Lee",
-        customerName: "Aisha Lee",
-        dueDate: "Dec 18, 2025",
-        grossPrice: "$28.75",
-        discount: "$0.00",
-        netPrice: "$25.14",
-        owing: "$25.14",
-      },
-    ];
-    
-    return {
-      success: true,
-      data: {
-        body: mockStudents,
-      },
-    };
+    const response = await apiClient.get<GroupLessonStudentsApiResponse>(
+      `/admin/v2/${location}/lesson/details/${lessonId}/group-students`
+    );
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.error("Group lesson students API returned no body:", response.data);
+      return response.data;
+    }
+
+    return response.data;
   } catch (error: unknown) {
     console.error("Error fetching group lesson students:", error);
     const apiError = error as { response?: { data?: { message?: string } } };
@@ -361,6 +351,62 @@ export async function getPrivateLessonPayments(
 }
 
 /**
+ * Fetches group lesson payments for a specific enrolment from the API.
+ *
+ * Endpoint: GET /admin/v2/{location}/lesson/details/{lessonId}/payments
+ * Query params: enrolmentId, sort, order
+ *
+ * @param location - The location identifier
+ * @param lessonId - The lesson ID
+ * @param enrolmentId - The enrolment ID
+ * @param sort - Optional sort field (for example: "amount")
+ * @param order - Optional sort direction ("asc" | "desc")
+ */
+export async function getGroupLessonPayments(
+  location: string,
+  lessonId: string,
+  enrolmentId: string,
+  sort?: string,
+  order?: "asc" | "desc"
+): Promise<PrivateLessonPaymentsApiResponse | null> {
+  try {
+    const params: Record<string, string> = { enrolmentId };
+    if (sort) {
+      params.sort = sort;
+    }
+    if (sort && order) {
+      params.order = order;
+    }
+
+    const response = await apiClient.get<PrivateLessonPaymentsApiResponse>(
+      `/admin/v2/${location}/lesson/details/${lessonId}/payments`,
+      { params }
+    );
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.error("Group lesson payments API returned no body:", response.data);
+      return response.data;
+    }
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching group lesson payments:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch group lesson payments",
+    };
+  }
+}
+
+/**
  * Fetches private lesson history from the API with pagination.
  *
  * Endpoint: GET /admin/v2/{location}/history?type=lesson&id={privateLessonId}&page={page}
@@ -439,6 +485,7 @@ export interface PrivateLessonEmailStatementBody {
     duration: string;
     status: string;
     expiryDate: string;
+    rescheduleStatement?: string;
   };
   // some endpoints may also return a list of recipient emails
   emails?: string[];
@@ -503,6 +550,7 @@ export async function getPrivateLessonEmailStatement(
             duration: "",
             status: "",
             expiryDate: "",
+            rescheduleStatement: "",
           },
         },
       },
@@ -600,7 +648,10 @@ export function transformApiResponse(
   // Get group lesson students (from separate API call if provided, otherwise from body)
   const studentsBody = groupStudentsResponse?.data?.body || body.students || [];
   const students = studentsBody.map((student) => ({
-    id: student.id,
+    id: student.groupLessonId || student.id || 0,
+    lessonId: student.lessonId,
+    enrolmentId: student.enrolmentId,
+    studentId: student.studentId,
     studentName: student.studentName || "",
     customerName: student.customerName || "",
     dueDate: student.dueDate || "",
@@ -608,13 +659,16 @@ export function transformApiResponse(
     discount: student.discount || "",
     netPrice: student.netPrice || "",
     owing: student.owing || "",
+    hasInvoice: student.hasInvoice ?? false,
+    invoiceId: student.invoiceId,
+    hasPayment: student.hasPayment ?? false,
   }));
 
   // Get group cost data (if isGroup: true)
   const groupCost = isGroup ? {
     costPerHour: body.cost?.costPerHour || "",
     cost: body.cost?.cost || "",
-    costPerStudent: body.costPerStudent || "",
+    costPerStudent: body.cost?.costPerStudent || body.costPerStudent || "",
   } : undefined;
   
   return {
@@ -645,6 +699,7 @@ export function transformApiResponse(
       schedule: {
         teacher: body.schedule?.teacher || "",
         teacherId: body.schedule?.teacherId,
+        originalDate: body.schedule?.originalDate || "",
         scheduledDate: body.schedule?.scheduledDate || "",
         time: body.schedule?.time || "",
         duration: body.schedule?.duration || "",
@@ -661,6 +716,9 @@ export function transformApiResponse(
         total: body.totals?.total || "",
         paid: body.totals?.paid || "",
         balance: body.totals?.balance || "",
+        invoiceId: body.totals?.invoiceId,
+        invoiceNumber: body.totals?.invoiceNumber || "",
+        invoiceOwing: body.totals?.invoiceOwing || "",
       },
     },
     payments: payments,
@@ -1012,6 +1070,17 @@ export interface GeneratePrivateLessonInvoiceResponse {
   message?: string;
 }
 
+export interface GenerateGroupLessonInvoiceResponse {
+  success: boolean;
+  data?: {
+    invoiceId?: number;
+    invoiceNumber?: string;
+    alreadyExists?: boolean;
+    message?: string;
+  };
+  message?: string;
+}
+
 function isSuccessfulInvoiceStatus(status: unknown): boolean {
   const normalized = status?.toString?.()?.trim?.()?.toLowerCase?.();
   return (
@@ -1206,6 +1275,50 @@ export async function generatePrivateLessonInvoice(
     return {
       success: false,
       message: apiError.response?.data?.message || "Failed to generate invoice",
+    };
+  }
+}
+
+/**
+ * Generates invoice for a group lesson student enrolment.
+ *
+ * Endpoint: POST /admin/v2/{location}/lesson/details/{lessonId}/group-invoice
+ * Body: { enrolmentId: number }
+ */
+export async function generateGroupLessonInvoice(
+  location: string,
+  lessonId: string,
+  enrolmentId: number
+): Promise<GenerateGroupLessonInvoiceResponse | null> {
+  try {
+    const lessonIdNum = Number(lessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    if (!Number.isFinite(enrolmentId)) {
+      throw new Error("Invalid enrolment id");
+    }
+
+    const response = await apiClient.post<GenerateGroupLessonInvoiceResponse>(
+      `/admin/v2/${location}/lesson/details/${lessonIdNum}/group-invoice`,
+      {
+        enrolmentId,
+      }
+    );
+
+    const body = response.data;
+    return {
+      success: body?.success === true,
+      data: body?.data,
+      message: body?.message,
+    };
+  } catch (error: unknown) {
+    console.error("Error generating group lesson invoice:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to generate group lesson invoice",
     };
   }
 }

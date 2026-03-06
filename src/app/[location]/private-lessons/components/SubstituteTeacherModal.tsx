@@ -15,7 +15,6 @@ import {
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
 import { PrivateLessonRow } from "../privateLessonsListing.api";
-import { Pencil } from "lucide-react";
 import { CustomTable } from "@/components/CustomTable";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
@@ -227,15 +226,6 @@ export function SubstituteTeacherModal({
             </span>
           );
         },
-      },
-      {
-        id: "actions",
-        header: "",
-        cell: () => (
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-primary hover:text-primary" onClick={() => {}}>
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-        ),
       },
     ];
   }, []);

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { DetailHeaderWithProfile } from "@/app/[location]/customers/components/DetailHeaderWithProfile";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -11,7 +12,11 @@ import { PrivateLessonCommentsCard } from "../../components/PrivateLessonComment
 import { PrivateLessonDetailsCard } from "../../components/PrivateLessonDetailsCard";
 import { PrivateLessonCostCard } from "../../components/PrivateLessonCostCard";
 import { Button } from "@/components/ui/button";
-import type { PrivateLessonInfo } from "../../types";
+import type { PrivateLessonDetails, PrivateLessonInfo } from "../../types";
+import {
+  updateCost,
+  updatePrivateLessonDetails,
+} from "../../[id]/private-lesson-details.api";
 import { fetchGroupLessonDetails } from "./group-lesson-details.api";
 
 interface GroupLessonDetailClientProps {
@@ -24,6 +29,23 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
   const [data, setData] = React.useState<PrivateLessonInfo | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [savingDetails, setSavingDetails] = React.useState(false);
+
+  const refetchLessonInfo = React.useCallback(async (): Promise<boolean> => {
+    try {
+      const result = await fetchGroupLessonDetails(location, id);
+      if (!result.lessonInfo.details.isGroup) {
+        setError("This lesson is not a group lesson.");
+        return false;
+      }
+      setData(result.lessonInfo);
+      setError(null);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load group lesson details.");
+      return false;
+    }
+  }, [location, id]);
 
   const breadcrumbItems = React.useMemo(
     () => [
@@ -63,6 +85,61 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
       cancelled = true;
     };
   }, [location, id]);
+
+  const handleSaveDetails = React.useCallback(
+    async (detailsToSave: Partial<PrivateLessonDetails>): Promise<boolean> => {
+      try {
+        setSavingDetails(true);
+        const result = await updatePrivateLessonDetails(location, id, {
+          classroomId: detailsToSave.classroomId,
+          colorCode: detailsToSave.colorCode,
+          isOnline: detailsToSave.online,
+        });
+
+        if (!result?.success) {
+          toast.error(result?.message || "Failed to update lesson details");
+          return false;
+        }
+
+        toast.success(result.message || "Details updated successfully");
+        return await refetchLessonInfo();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to update lesson details");
+        return false;
+      } finally {
+        setSavingDetails(false);
+      }
+    },
+    [location, id, refetchLessonInfo]
+  );
+
+  const handleSaveCost = React.useCallback(
+    async (costData: { costPerHour?: string; cost?: string; price?: string }): Promise<boolean> => {
+      try {
+        setSavingDetails(true);
+        const teacherRate = parseFloat((costData.costPerHour || "0").replace("$", "").trim());
+        if (Number.isNaN(teacherRate)) {
+          toast.error("Invalid teacher cost value");
+          return false;
+        }
+
+        const result = await updateCost(location, id, { teacherRate });
+        if (!result?.success) {
+          toast.error(result?.message || "Failed to update cost");
+          return false;
+        }
+
+        toast.success(result.message || "Cost updated successfully");
+        return await refetchLessonInfo();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to update cost");
+        return false;
+      } finally {
+        setSavingDetails(false);
+      }
+    },
+    [location, id, refetchLessonInfo]
+  );
 
   if (loading) {
     return (
@@ -108,16 +185,17 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
           <div className="space-y-3 sm:space-y-4">
             <PrivateLessonDetailsCard
               details={details}
-              onSaveDetails={async () => true}
-              savingDetails={false}
+              onSaveDetails={handleSaveDetails}
+              savingDetails={savingDetails}
               isLoading={false}
               location={location}
             />
 
             <PrivateLessonCostCard
               details={details}
-              onSaveCost={async () => true}
-              savingDetails={false}
+              groupCost={data.groupCost}
+              onSaveCost={handleSaveCost}
+              savingDetails={savingDetails}
               isLoading={false}
             />
           </div>
@@ -140,6 +218,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
 
         {/* Tabs Section (Students & History) */}
         <GroupLessonTabsSection
+          location={location}
           students={students || []}
           history={history}
           historyPagination={null}
@@ -147,7 +226,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
           historyError={null}
           onHistoryPageChange={() => {}}
           onSaveStudentDiscount={async () => true}
-          savingDetails={false}
+          savingDetails={savingDetails}
           isLoading={false}
         />
       </div>
