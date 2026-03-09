@@ -93,7 +93,7 @@ export function LessonsTab({ location, courseId }: LessonsTabProps) {
 
   const handleLessonRowClick = useCallback(
     (lesson: LessonData) => {
-      if(location === "burlington" || location === "training-location") {
+      if(location === "training-location") {
         const url = `/admin/v2/${location}/group-lessons/${lesson.id}`;
       window.location.href = url;   
         return;
