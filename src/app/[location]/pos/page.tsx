@@ -415,7 +415,10 @@ export default function POSPage() {
   };
 
   const handleCancelTransaction = async () => {
-    if (!numericTransactionId) return;
+    if (!numericTransactionId) {
+      toast.error('Transaction not ready');
+      return;
+    }
 
     setIsCancelling(true);
     try {
