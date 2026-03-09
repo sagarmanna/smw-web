@@ -256,7 +256,6 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
               size="icon"
               className="h-8 w-8"
               onClick={async () => {
-                if(isDev()) {
                   const enrolmentId = row.original.enrolmentId?.toString();
                   if (!enrolmentId) {
                     toast.error("Enrolment ID is required to print");
@@ -304,10 +303,8 @@ export function StudentsTab({ location, courseId }: StudentsTabProps) {
                       error instanceof Error ? error.message : "Failed to print enrolment details";
                     toast.error(errorMessage);
                   }
-                } else {
-                  toast.info("This feature is in development.");
-                }
-              }}
+                } 
+              }
             >
               <Printer className="h-4 w-4" />
             </Button>
