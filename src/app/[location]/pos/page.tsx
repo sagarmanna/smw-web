@@ -414,6 +414,27 @@ export default function POSPage() {
     }
   };
 
+  const handleCancelTransaction = async () => {
+    if (!numericTransactionId) return;
+
+    setIsCancelling(true);
+    try {
+      await cancelTransaction(String(numericTransactionId), location);
+      setItems([]);
+      setBackendDiscountAmount(0);
+      setBackendTotal(0);
+      setShowCancelDialog(false);
+      resetTransaction();
+      toast.success('Transaction cancelled successfully');
+      await initializeTransaction();
+    } catch (error) {
+      console.error('Failed to cancel transaction:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel transaction');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background text-foreground font-sans overflow-hidden relative">
       
@@ -650,24 +671,7 @@ export default function POSPage() {
             </Button>
             <Button
               variant="destructive"
-              onClick={async () => {
-                setIsCancelling(true);
-                try {
-                  await cancelTransaction(String(numericTransactionId), location);
-                  setItems([]);
-                  setBackendDiscountAmount(0);
-                  setBackendTotal(0);
-                  setShowCancelDialog(false);
-                  resetTransaction();
-                  toast.success('Transaction cancelled successfully');
-                  await initializeTransaction();
-                } catch (error) {
-                  console.error('Failed to cancel transaction:', error);
-                  toast.error(error instanceof Error ? error.message : 'Failed to cancel transaction');
-                } finally {
-                  setIsCancelling(false);
-                }
-              }}
+              onClick={handleCancelTransaction}
               disabled={isCancelling}
               className="rounded-none"
             >
