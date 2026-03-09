@@ -43,6 +43,10 @@ export interface UpdateInvoiceMessageRequest {
   message: string;
 }
 
+export interface CreateInvoiceMessageRequest {
+  message: string;
+}
+
 export interface UpdateInvoiceMessageResponse {
   success: boolean;
   data: {
@@ -51,6 +55,8 @@ export interface UpdateInvoiceMessageResponse {
   };
   message?: string;
 }
+
+export type CreateInvoiceMessageResponse = UpdateInvoiceMessageResponse;
 
 export interface CreateInvoiceWalkInRequest {
   firstName: string;
@@ -562,6 +568,48 @@ export async function updateInvoiceDetails(
   }
 }
 
+async function saveInvoiceMessage(
+  location: string,
+  invoiceId: number,
+  data: { message: string },
+  method: "post" | "put",
+  fallbackMessage: string
+): Promise<UpdateInvoiceMessageResponse | null> {
+  try {
+    const response = await apiClient[method]<UpdateInvoiceMessageResponse>(
+      `/admin/v2/${location}/invoices/message/${invoiceId}`,
+      { message: data.message }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: { id: invoiceId, message: data.message },
+      message: getApiErrorMessage(error, fallbackMessage),
+    };
+  }
+}
+
+/**
+ * Creates invoice message.
+ *
+ * Endpoint: `POST /admin/v2/${location}/invoices/message/${invoiceId}`
+ */
+export async function createInvoiceMessage(
+  location: string,
+  invoiceId: number,
+  data: CreateInvoiceMessageRequest
+): Promise<CreateInvoiceMessageResponse | null> {
+  return saveInvoiceMessage(
+    location,
+    invoiceId,
+    data,
+    "post",
+    "Failed to create invoice message"
+  );
+}
+
 /**
  * Updates invoice message.
  *
@@ -572,20 +620,13 @@ export async function updateInvoiceMessage(
   invoiceId: number,
   data: UpdateInvoiceMessageRequest
 ): Promise<UpdateInvoiceMessageResponse | null> {
-  try {
-    const response = await apiClient.put<UpdateInvoiceMessageResponse>(
-      `/admin/v2/${location}/invoices/message/${invoiceId}`,
-      { message: data.message }
-    );
-
-    return response.data;
-  } catch (error: unknown) {
-    return {
-      success: false,
-      data: { id: invoiceId, message: data.message },
-      message: getApiErrorMessage(error, "Failed to update invoice message"),
-    };
-  }
+  return saveInvoiceMessage(
+    location,
+    invoiceId,
+    data,
+    "put",
+    "Failed to update invoice message"
+  );
 }
 
 /**

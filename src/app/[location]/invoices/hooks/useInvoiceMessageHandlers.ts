@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { AppDispatch } from "@/redux/store";
 import type { InvoiceDetail } from "../types";
 import { updateMessage } from "../[id]/invoices-details.slice";
-import { updateInvoiceMessage } from "../[id]/invoices-details.api";
+import { createInvoiceMessage, updateInvoiceMessage } from "../[id]/invoices-details.api";
 import { TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceMessageHandlersProps {
@@ -29,7 +29,21 @@ export function useInvoiceMessageHandlers({
       }
 
       try {
-        const result = await updateInvoiceMessage(location, invoiceId, { message });
+        const hasExistingMessage = (invoiceDetail.message ?? "").trim().length > 0;
+        let result = hasExistingMessage
+          ? await updateInvoiceMessage(location, invoiceId, { message })
+          : await createInvoiceMessage(location, invoiceId, { message });
+
+        // Fallback for stale UI state or backend-side message state mismatch.
+        if (!result?.success) {
+          const errorMessage = (result?.message || "").toLowerCase();
+
+          if (hasExistingMessage && errorMessage.includes("no existing message")) {
+            result = await createInvoiceMessage(location, invoiceId, { message });
+          } else if (!hasExistingMessage && errorMessage.includes("already exists")) {
+            result = await updateInvoiceMessage(location, invoiceId, { message });
+          }
+        }
 
         if (!result?.success) {
           toast.error(result?.message || TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
