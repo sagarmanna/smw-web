@@ -154,6 +154,14 @@ export interface DeleteInvoiceLineItemResponse {
   message?: string;
 }
 
+export interface VoidInvoiceResponse {
+  success: boolean;
+  data?: {
+    status?: boolean;
+  };
+  message?: string;
+}
+
 type InvoiceDetailsBackendBody = {
   invoice?: {
     id?: number;
@@ -783,5 +791,29 @@ export async function deleteInvoiceLineItem(
     return response.data;
   } catch (error: unknown) {
     return createLineItemFailureResponse(lineItemId, "Failed to delete line item", error);
+  }
+}
+
+/**
+ * Voids an invoice.
+ *
+ * Endpoint: POST /admin/v2/${location}/invoices/${invoiceId}/void
+ */
+export async function voidInvoice(
+  location: string,
+  invoiceId: number,
+  canBeUnscheduled: boolean = true
+): Promise<VoidInvoiceResponse | null> {
+  try {
+    const response = await apiClient.post<VoidInvoiceResponse>(
+      `/admin/v2/${location}/invoices/${invoiceId}/void`,
+      { canBeUnscheduled }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: getApiErrorMessage(error, "Failed to void invoice"),
+    };
   }
 }
