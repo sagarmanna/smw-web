@@ -39,6 +39,25 @@ export interface UpdateInvoiceDetailsResponse {
   message?: string;
 }
 
+export interface UpdateInvoiceMessageRequest {
+  message: string;
+}
+
+export interface CreateInvoiceMessageRequest {
+  message: string;
+}
+
+export interface UpdateInvoiceMessageResponse {
+  success: boolean;
+  data: {
+    id: number;
+    message: string;
+  };
+  message?: string;
+}
+
+export type CreateInvoiceMessageResponse = UpdateInvoiceMessageResponse;
+
 export interface CreateInvoiceWalkInRequest {
   firstName: string;
   lastName: string;
@@ -547,6 +566,67 @@ export async function updateInvoiceDetails(
       message: getApiErrorMessage(error, "Failed to update invoice details"),
     };
   }
+}
+
+async function saveInvoiceMessage(
+  location: string,
+  invoiceId: number,
+  data: { message: string },
+  method: "post" | "put",
+  fallbackMessage: string
+): Promise<UpdateInvoiceMessageResponse | null> {
+  try {
+    const response = await apiClient[method]<UpdateInvoiceMessageResponse>(
+      `/admin/v2/${location}/invoices/message/${invoiceId}`,
+      { message: data.message }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: { id: invoiceId, message: data.message },
+      message: getApiErrorMessage(error, fallbackMessage),
+    };
+  }
+}
+
+/**
+ * Creates invoice message.
+ *
+ * Endpoint: `POST /admin/v2/${location}/invoices/message/${invoiceId}`
+ */
+export async function createInvoiceMessage(
+  location: string,
+  invoiceId: number,
+  data: CreateInvoiceMessageRequest
+): Promise<CreateInvoiceMessageResponse | null> {
+  return saveInvoiceMessage(
+    location,
+    invoiceId,
+    data,
+    "post",
+    "Failed to create invoice message"
+  );
+}
+
+/**
+ * Updates invoice message.
+ *
+ * Endpoint: `PUT /admin/v2/${location}/invoices/message/${invoiceId}`
+ */
+export async function updateInvoiceMessage(
+  location: string,
+  invoiceId: number,
+  data: UpdateInvoiceMessageRequest
+): Promise<UpdateInvoiceMessageResponse | null> {
+  return saveInvoiceMessage(
+    location,
+    invoiceId,
+    data,
+    "put",
+    "Failed to update invoice message"
+  );
 }
 
 /**

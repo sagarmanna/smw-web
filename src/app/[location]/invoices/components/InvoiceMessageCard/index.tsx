@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   SectionCard,
   AddButton,
+  EditButton,
 } from "@/components/SectionCard";
 import { EditMessageModal } from "../modals/EditMessageModal";
 
@@ -19,6 +20,7 @@ export const InvoiceMessageCard = React.memo(function InvoiceMessageCard({
   onSaveMessage,
 }: InvoiceMessageCardProps) {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const hasMessage = (message ?? "").trim().length > 0;
 
   const handleOpenModal = React.useCallback(() => {
     setIsModalOpen(true);
@@ -42,7 +44,11 @@ export const InvoiceMessageCard = React.memo(function InvoiceMessageCard({
         className="[&>div:first-child]:px-4 [&>div:first-child]:py-2 [&>div:first-child]:pb-1"
         headerActions={
           <>
-            <AddButton onClick={handleOpenModal} />
+            {hasMessage ? (
+              <EditButton onClick={handleOpenModal} ariaLabel="Edit message" />
+            ) : (
+              <AddButton onClick={handleOpenModal} ariaLabel="Add message" />
+            )}
           </>
         }
       >
