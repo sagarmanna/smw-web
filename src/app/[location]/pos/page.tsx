@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem, updateLineItemPrice, updateLineItemQuantity, deleteLineItem, applyDiscount, getTransaction } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity, deleteLineItem, applyDiscount, getTransaction, cancelTransaction } from "@/lib/api/pos.api";
 import { isStorageAvailable } from "@/utils/pos-storage";
 import { toast } from "sonner";
 
@@ -58,6 +58,7 @@ export default function POSPage() {
   const [backendTotal, setBackendTotal] = useState(0);
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     // Check if localStorage is available (warn about incognito mode)
@@ -413,6 +414,30 @@ export default function POSPage() {
     }
   };
 
+  const handleCancelTransaction = async () => {
+    if (!numericTransactionId) {
+      toast.error('Transaction not ready');
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      await cancelTransaction(String(numericTransactionId), location);
+      setItems([]);
+      setBackendDiscountAmount(0);
+      setBackendTotal(0);
+      setShowCancelDialog(false);
+      resetTransaction();
+      toast.success('Transaction cancelled successfully');
+      await initializeTransaction();
+    } catch (error) {
+      console.error('Failed to cancel transaction:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel transaction');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background text-foreground font-sans overflow-hidden relative">
       
@@ -642,21 +667,18 @@ export default function POSPage() {
             <Button
               variant="outline"
               onClick={() => setShowCancelDialog(false)}
+              disabled={isCancelling}
               className="rounded-none"
             >
               No, Keep Items
             </Button>
             <Button
               variant="destructive"
-              onClick={async () => {
-                setItems([]);
-                setShowCancelDialog(false);
-                resetTransaction();
-                await initializeTransaction();
-              }}
+              onClick={handleCancelTransaction}
+              disabled={isCancelling}
               className="rounded-none"
             >
-              Yes, Cancel
+              {isCancelling ? 'Cancelling...' : 'Yes, Cancel'}
             </Button>
           </DialogFooter>
         </DialogContent>

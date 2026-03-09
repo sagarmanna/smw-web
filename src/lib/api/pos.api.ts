@@ -96,6 +96,37 @@ export interface ApplyDiscountResponse {
   message: string;
 }
 
+export interface CancelTransactionResponse {
+  id: number;
+  transactionId: string;
+  locationId: number;
+  transactionSequence: number;
+  type: string;
+  date: string;
+  customerInfo: string;
+  status: string;
+  subtotal: number;
+  discountAmount: number;
+  tax: number;
+  totalAmount: number;
+  paidAmount: number;
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+  lineItems: Array<{
+    id: number;
+    quantity: number;
+    price: number;
+    discount: number;
+    overridePrice: number | null;
+    item: {
+      id: number;
+      code: string;
+      description: string;
+    };
+  }>;
+}
+
 /**
  * Create a new POS transaction
  * 
@@ -324,6 +355,24 @@ export async function applyDiscount(
   const response = await apiClient.patch<ApplyDiscountResponse>(
     `/admin/v2/${location}/pos/transaction/${transactionId}/discount`,
     { discountAmount }
+  );
+
+  return response.data;
+}
+
+/**
+ * Cancel a transaction
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @returns Promise resolving to cancelled transaction data
+ */
+export async function cancelTransaction(
+  transactionId: string,
+  location: string
+): Promise<CancelTransactionResponse> {
+  const response = await apiClient.patch<CancelTransactionResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/cancel`
   );
 
   return response.data;
