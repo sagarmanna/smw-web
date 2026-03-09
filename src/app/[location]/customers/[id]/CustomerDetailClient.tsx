@@ -806,7 +806,8 @@ export function CustomerDetailClient({
             location,
             Number(id),
             1,
-            1
+            1,
+            "id"
           );
           if (paymentsResponse.data && paymentsResponse.data.length > 0) {
             const latestPayment = paymentsResponse.data[0];

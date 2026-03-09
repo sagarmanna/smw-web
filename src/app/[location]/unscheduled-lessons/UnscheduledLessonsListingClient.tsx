@@ -9,6 +9,7 @@ import { ReportPageLayout } from "@/components/ReportPageLayout";
 import { useExportableData } from "@/hooks/useExportableData";
 import { useUnscheduledLessonsListing } from "./hooks/useUnscheduledLessonsListing";
 import { formatLocationName } from "@/utils/textUtils";
+import { useRouter } from "next/navigation";
 
 interface UnscheduledLessonsListingClientProps {
   location: string;
@@ -34,10 +35,14 @@ export function UnscheduledLessonsListingClient({ location }: UnscheduledLessons
     handleServerSideFilterChange,
   } = useUnscheduledLessonsListing(location);
 
+  const router = useRouter();
+
   const handleRowClick = React.useCallback((row: UnscheduledLessonRow) => {
-    const legacyBaseUrl = process.env.NEXT_PUBLIC_LEGACY_URL || "";
-    const legacyUrl = `${legacyBaseUrl}/${location}/lesson/view?id=${row.id}`;
-    window.location.href = legacyUrl;
+    // const legacyBaseUrl = process.env.NEXT_PUBLIC_LEGACY_URL || "";
+    // const legacyUrl = `${legacyBaseUrl}/${location}/lesson/view?id=${row.id}`;
+
+    // window.location.href = legacyUrl;
+    router.push(`/${location}/private-lessons/${row.id}`);
   }, [location]);
 
   // Create export-specific columns
