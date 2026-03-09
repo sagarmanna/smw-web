@@ -39,6 +39,19 @@ export interface UpdateInvoiceDetailsResponse {
   message?: string;
 }
 
+export interface UpdateInvoiceMessageRequest {
+  message: string;
+}
+
+export interface UpdateInvoiceMessageResponse {
+  success: boolean;
+  data: {
+    id: number;
+    message: string;
+  };
+  message?: string;
+}
+
 export interface CreateInvoiceWalkInRequest {
   firstName: string;
   lastName: string;
@@ -545,6 +558,32 @@ export async function updateInvoiceDetails(
       success: false,
       data: { id: invoiceId, date: "" },
       message: getApiErrorMessage(error, "Failed to update invoice details"),
+    };
+  }
+}
+
+/**
+ * Updates invoice message.
+ *
+ * Endpoint: `PUT /admin/v2/${location}/invoices/message/${invoiceId}`
+ */
+export async function updateInvoiceMessage(
+  location: string,
+  invoiceId: number,
+  data: UpdateInvoiceMessageRequest
+): Promise<UpdateInvoiceMessageResponse | null> {
+  try {
+    const response = await apiClient.put<UpdateInvoiceMessageResponse>(
+      `/admin/v2/${location}/invoices/message/${invoiceId}`,
+      { message: data.message }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: { id: invoiceId, message: data.message },
+      message: getApiErrorMessage(error, "Failed to update invoice message"),
     };
   }
 }
