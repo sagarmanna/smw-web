@@ -17,11 +17,8 @@ import { GroupCourseScheduleCard } from "../components/GroupCourseScheduleCard";
 import { GroupCourseTabsSection } from "../components/GroupCourseTabsSection";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { usePrintReport } from "@/hooks/usePrintReport";
-import { formatLocationName } from "@/utils/textUtils";
 import { formatDisplayDate } from "@/utils/dateUtils";
 import { toast } from "sonner";
-import { ColumnDef } from "@tanstack/react-table";
-import { isDev } from "@/utils/env";
 
 interface GroupCourseDetailClientProps {
   location: string;
@@ -62,8 +59,6 @@ export function GroupCourseDetailClient({ location, id }: GroupCourseDetailClien
     return emailStatement?.emails || [];
   }, [emailStatement]);
   
-  const { handlePrint: printReport } = usePrintReport();
-
   // All hooks must be called before any early returns
   const pageTitle = React.useMemo(() => {
     if (!courseInfoData || !courseInfoData.course) return `Group Course #${id}`;
