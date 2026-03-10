@@ -4,13 +4,16 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, User } from "lucide-react";
 import type { InvoiceComment } from "../../types";
 import { TOAST_MESSAGES } from "../../utils/constants";
 
 interface InvoiceCommentsCardProps {
   comments?: InvoiceComment[];
   isLoading?: boolean;
+  pagination?: { page: number; limit: number; total: number; totalPages: number } | null;
+  commentsLoading?: boolean;
+  onPageChange?: (page: number) => void;
   onAddComment?: (content: string) => void;
 }
 
@@ -66,11 +69,30 @@ CommentItem.displayName = "CommentItem";
 export const InvoiceCommentsCard = React.memo(function InvoiceCommentsCard({
   comments = [],
   isLoading = false,
+  pagination,
+  commentsLoading = false,
+  onPageChange,
   onAddComment,
 }: InvoiceCommentsCardProps) {
   const [commentInput, setCommentInput] = React.useState<string>("");
   const [commentLoading, setCommentLoading] = React.useState<boolean>(false);
   const [commentError, setCommentError] = React.useState<string | null>(null);
+  const currentPage = pagination?.page || 1;
+  const totalPages = pagination?.totalPages || 1;
+  const totalRows = pagination?.total || 0;
+  const rowsPerPage = pagination?.limit || 20;
+
+  const handlePreviousPage = React.useCallback(() => {
+    if (currentPage > 1 && !commentsLoading && onPageChange) {
+      onPageChange(currentPage - 1);
+    }
+  }, [commentsLoading, currentPage, onPageChange]);
+
+  const handleNextPage = React.useCallback(() => {
+    if (currentPage < totalPages && !commentsLoading && onPageChange) {
+      onPageChange(currentPage + 1);
+    }
+  }, [commentsLoading, currentPage, onPageChange, totalPages]);
 
   const handleAddComment = React.useCallback(async () => {
     if (!commentInput.trim()) {
@@ -166,6 +188,36 @@ export const InvoiceCommentsCard = React.memo(function InvoiceCommentsCard({
       </CardHeader>
       <CardContent className="pt-0">
         {commentsContent}
+        {totalRows > 0 && (
+          <nav className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows} entries
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1 || commentsLoading}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages || commentsLoading}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </nav>
+        )}
         {commentsBottomContent}
       </CardContent>
     </Card>
