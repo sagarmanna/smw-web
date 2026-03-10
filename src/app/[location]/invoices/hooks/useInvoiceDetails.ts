@@ -43,7 +43,7 @@ type InvoiceDetailsHookReturn = {
     customerId?: number;
     type?: 1 | 2;
   }) => void;
-  handleSaveDiscount: (selectedItemIds: string[], discountData: DiscountData) => void;
+  handleSaveDiscount: (selectedItemIds: string[], discountData: DiscountData) => Promise<boolean>;
   handleSaveItem: (updatedItem: InvoiceItem) => void;
   handleDeleteItem: (itemId: string) => void;
   handleAdjustTax: (adjustmentData: TaxAdjustmentData) => Promise<void>;
@@ -103,6 +103,7 @@ export function useInvoiceDetails(
   });
 
   const { handleSaveDiscount } = useInvoiceDiscountHandlers({
+    location,
     invoiceDetail,
     dispatch,
     onDiscountWarning: setShowDiscountWarning,

@@ -28,7 +28,7 @@ interface InvoiceItemsCardProps {
   items: InvoiceItem[];
   isLoading?: boolean;
   isVoided?: boolean;
-  onSaveDiscount?: (selectedItemIds: string[], discountData: DiscountData) => void;
+  onSaveDiscount?: (selectedItemIds: string[], discountData: DiscountData) => Promise<boolean>;
   onSaveItem?: (item: InvoiceItem) => void;
   onDeleteItem?: (itemId: string) => void;
 }
@@ -382,12 +382,14 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
         />
       </div>
       <InvoiceDiscountModal
+        location={location}
+        selectedItemIds={Array.from(selectedItems)}
         open={isDiscountModalOpen}
         onClose={() => setIsDiscountModalOpen(false)}
         onSave={
           onSaveDiscount
             ? (discountData) => {
-                onSaveDiscount(Array.from(selectedItems), discountData);
+                return onSaveDiscount(Array.from(selectedItems), discountData);
               }
             : undefined
         }

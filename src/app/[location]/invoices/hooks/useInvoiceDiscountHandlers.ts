@@ -1,31 +1,45 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import { AppDispatch } from "@/redux/store";
 import type { InvoiceDetail, InvoiceItem } from "../types";
 import { DiscountData } from "../components/modals/InvoiceDiscountModal";
+import { getInvoiceDetails, updateInvoiceLineItemsDiscount } from "../[id]/invoices-details.api";
 import { updateItems, updateTotals } from "../[id]/invoices-details.slice";
 import { recalculateTotals } from "../utils/totalsCalculator";
 import { TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceDiscountHandlersProps {
+  location: string;
   invoiceDetail: InvoiceDetail | null;
   dispatch: AppDispatch;
   onDiscountWarning?: (show: boolean) => void;
 }
 
 export function useInvoiceDiscountHandlers({
+  location,
   invoiceDetail,
   dispatch,
   onDiscountWarning,
 }: UseInvoiceDiscountHandlersProps) {
   const handleSaveDiscount = React.useCallback(
-    (selectedItemIds: string[], discountData: DiscountData) => {
+    async (selectedItemIds: string[], discountData: DiscountData): Promise<boolean> => {
       if (!invoiceDetail) {
-        return;
+        toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
+        return false;
       }
 
       try {
+        const lineItemIds = selectedItemIds
+          .map((id) => Number(id))
+          .filter((id) => !Number.isNaN(id));
+
+        if (lineItemIds.length === 0) {
+          toast.error(TOAST_MESSAGES.ERROR.ITEM_SELECTION_REQUIRED);
+          return false;
+        }
+
         // Check if any discount value is non-zero (non-approved discount)
         const hasNonApprovedDiscount =
           discountData.paymentFrequencyDiscountPercent > 0 ||
@@ -36,6 +50,28 @@ export function useInvoiceDiscountHandlers({
         // Show warning banner if there's a non-approved discount
         if (hasNonApprovedDiscount && onDiscountWarning) {
           onDiscountWarning(true);
+        }
+
+        const saveDiscountResponse = await updateInvoiceLineItemsDiscount(location, {
+          lineItemIds,
+          lineItemDiscount: Number(discountData.lineItemDiscountValue) || 0,
+          lineItemDiscountValueType: discountData.lineItemDiscountType === "percentage" ? 1 : 0,
+          customerDiscount: Number(discountData.customerDiscountPercent) || 0,
+          paymentFrequencyDiscount: Number(discountData.paymentFrequencyDiscountPercent) || 0,
+          multiEnrolmentDiscount: Number(discountData.multipleEnrollmentDiscountAmount) || 0,
+        });
+
+        if (!saveDiscountResponse?.success) {
+          toast.error(saveDiscountResponse?.message || TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
+          return false;
+        }
+
+        const latestInvoiceResponse = await getInvoiceDetails(location, invoiceDetail.id);
+        if (latestInvoiceResponse?.success && latestInvoiceResponse.data?.body) {
+          dispatch(updateItems(latestInvoiceResponse.data.body.items));
+          dispatch(updateTotals(latestInvoiceResponse.data.body.totals));
+          toast.success(saveDiscountResponse.message || TOAST_MESSAGES.SUCCESS.DISCOUNT_APPLIED);
+          return true;
         }
 
         // Update selected items with the discount
@@ -104,12 +140,15 @@ export function useInvoiceDiscountHandlers({
         // Update Redux state
         dispatch(updateItems(updatedItems));
         dispatch(updateTotals(totals));
+        toast.success(saveDiscountResponse.message || TOAST_MESSAGES.SUCCESS.DISCOUNT_APPLIED);
+        return true;
       } catch (error) {
         console.error("Failed to apply discount:", error);
-        // Error toast is handled by the component calling this
+        toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
+        return false;
       }
     },
-    [invoiceDetail, dispatch, onDiscountWarning]
+    [location, invoiceDetail, dispatch, onDiscountWarning]
   );
 
   return {
