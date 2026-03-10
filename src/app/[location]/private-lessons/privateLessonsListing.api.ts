@@ -5,6 +5,7 @@ export interface PrivateLessonRow {
   id: number;
   date: string;
   student: string;
+  customerEmail?: string | null;
   program: string;
   teacher: string;
   duration: string;

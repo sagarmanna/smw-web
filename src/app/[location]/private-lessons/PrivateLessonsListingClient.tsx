@@ -67,6 +67,9 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
     reportTitle: `Private Lessons list for ${formatLocationName(location)}`,
     columns: exportColumns,
     data: rows,
+    columnWidths: {
+      Date: 38,
+    },
     location: location,
   });
 

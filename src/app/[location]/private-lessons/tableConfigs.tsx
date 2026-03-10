@@ -233,6 +233,11 @@ export const exportColumns: ColumnDef<PrivateLessonRow>[] = [
     meta: { printable: true, printableName: "Student" },
   },
   {
+    accessorKey: "customerEmail",
+    header: "Email",
+    meta: { printable: true, printableName: "Email" },
+  },
+  {
     accessorKey: "program",
     header: "Program",
     meta: { printable: true, printableName: "Program" },
