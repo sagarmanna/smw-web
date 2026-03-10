@@ -4,7 +4,8 @@ import * as React from "react";
 import { toast } from "sonner";
 import { ReceivePaymentModal, type ReceivePaymentData } from "@/components/modal/ReceivePaymentModal";
 import { PaymentReceiptModalContainer, getPaymentReceiptData } from "@/components/modal/PaymentReceiptModal";
-import { getCustomerPayments } from "@/app/[location]/customers/customers.api";
+import { getCustomerInfo, getCustomerPayments } from "@/app/[location]/customers/customers.api";
+import { formatCurrency } from "@/utils/formatCurrency";
 
 type DirectPaymentReceiptData = {
   date: string;
@@ -21,6 +22,8 @@ interface InvoiceReceivePaymentActionProps {
   location: string;
   customerId: number | null;
   customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
   onPaymentSaved?: () => Promise<void> | void;
   openRequestKey?: number;
   children?: (props: { onClick: () => void; disabled: boolean }) => React.ReactNode;
@@ -30,6 +33,8 @@ export function InvoiceReceivePaymentAction({
   location,
   customerId,
   customerName,
+  customerEmail,
+  customerPhone,
   onPaymentSaved,
   openRequestKey,
   children,
@@ -37,6 +42,21 @@ export function InvoiceReceivePaymentAction({
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
   const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<DirectPaymentReceiptData | null>(null);
+  const [receiptCustomerName, setReceiptCustomerName] = React.useState(customerName || "");
+  const [receiptCustomerEmail, setReceiptCustomerEmail] = React.useState(customerEmail || "");
+  const [receiptCustomerPhone, setReceiptCustomerPhone] = React.useState(customerPhone || "");
+
+  React.useEffect(() => {
+    setReceiptCustomerName(customerName || "");
+  }, [customerName]);
+
+  React.useEffect(() => {
+    setReceiptCustomerEmail(customerEmail || "");
+  }, [customerEmail]);
+
+  React.useEffect(() => {
+    setReceiptCustomerPhone(customerPhone || "");
+  }, [customerPhone]);
 
   const handleOpenReceivePayment = React.useCallback(() => {
     if (!customerId) {
@@ -143,6 +163,74 @@ export function InvoiceReceivePaymentAction({
         await onPaymentSaved?.();
 
         try {
+          const customerInfo = await getCustomerInfo(location, customerId);
+          if (customerInfo?.success && customerInfo.data) {
+            const profile = customerInfo.data.profile;
+            const emails = customerInfo.data.email || [];
+            const phones = customerInfo.data.phone || [];
+            const primaryEmail = emails.find((email) => email.isPrimary) || emails[0];
+            const primaryPhone = phones.find((phone) => phone.isPrimary) || phones[0];
+
+            setReceiptCustomerName(profile?.name || customerName || `Customer ${customerId}`);
+            setReceiptCustomerEmail(primaryEmail?.email || customerEmail || "");
+            setReceiptCustomerPhone(primaryPhone?.number || customerPhone || "");
+          }
+        } catch (customerInfoError) {
+          console.error("Error fetching customer info:", customerInfoError);
+        }
+
+        const paymentMethodName = paymentData.paymentMethodName || paymentData.paymentMethod;
+        const credits: Array<{
+          type: string;
+          reference: string;
+          paymentMethod?: string;
+          amount: string;
+          amountUsed: string;
+        }> = [];
+
+        const creditDetailsMap = new Map<string, { id: string; reference: string; payment: string; type: string }>();
+        if (paymentData.creditDetails && Array.isArray(paymentData.creditDetails)) {
+          paymentData.creditDetails.forEach((credit) => {
+            creditDetailsMap.set(credit.id, credit);
+          });
+        }
+
+        if (paymentData.invoiceCredits && Object.keys(paymentData.invoiceCredits).length > 0) {
+          Object.entries(paymentData.invoiceCredits).forEach(([creditId, amount]) => {
+            const creditDetail = creditDetailsMap.get(creditId);
+            const invoiceRef = creditDetail?.reference || (creditId.startsWith("I-") ? creditId : `I-${creditId}`);
+            credits.push({
+              type: "Invoice Credit",
+              reference: invoiceRef,
+              paymentMethod: "",
+              amount: "$0.00",
+              amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount),
+            });
+          });
+        }
+
+        if (paymentData.paymentCredits && Object.keys(paymentData.paymentCredits).length > 0) {
+          Object.entries(paymentData.paymentCredits).forEach(([creditId, amount]) => {
+            const creditDetail = creditDetailsMap.get(creditId);
+            credits.push({
+              type: "Payment Credit",
+              reference: "",
+              paymentMethod: paymentData.paymentMethodName || "",
+              amount: formatCurrency(amount),
+              amountUsed: creditDetail ? formatCurrency(parseFloat(creditDetail.payment)) : formatCurrency(amount),
+            });
+          });
+        }
+
+        const fallbackDirectData: DirectPaymentReceiptData = {
+          date: paymentData.date,
+          paymentMethod: paymentMethodName,
+          reference: paymentData.reference || "",
+          amount: finalAmount,
+          credits: credits.length > 0 ? credits : undefined,
+        };
+
+        try {
           const paymentsResponse = await getCustomerPayments(location, customerId, 1, 1);
           if (paymentsResponse.data && paymentsResponse.data.length > 0) {
             const latestPayment = paymentsResponse.data[0] as { id?: number | string };
@@ -153,7 +241,7 @@ export function InvoiceReceivePaymentAction({
 
               const directData = {
                 date: receiptData.info?.date ?? paymentData.date,
-                paymentMethod: receiptData.info?.paymentMethod ?? "",
+                paymentMethod: receiptData.info?.paymentMethod ?? paymentMethodName,
                 reference: receiptData.info?.reference ?? paymentData.reference ?? "",
                 amount: receiptData.info?.amount ?? finalAmount,
                 lessons: receiptData.lessons.data.map((lesson) => ({
@@ -179,21 +267,30 @@ export function InvoiceReceivePaymentAction({
                   payment: invoice.payment,
                   balance: invoice.balance ?? "$0.00",
                 })),
+                credits: credits.length > 0 ? credits : undefined,
               };
 
               setDirectPaymentReceiptData(directData);
               setIsReceiptModalOpen(true);
+            } else {
+              setDirectPaymentReceiptData(fallbackDirectData);
+              setIsReceiptModalOpen(true);
             }
+          } else {
+            setDirectPaymentReceiptData(fallbackDirectData);
+            setIsReceiptModalOpen(true);
           }
         } catch (receiptError) {
           console.error("Error fetching payment receipt data:", receiptError);
+          setDirectPaymentReceiptData(fallbackDirectData);
+          setIsReceiptModalOpen(true);
         }
       } catch (error) {
         console.error("Error receiving payment:", error);
         toast.error(error instanceof Error ? error.message : "Failed to receive payment");
       }
     },
-    [customerId, location, onPaymentSaved]
+    [customerEmail, customerId, customerName, customerPhone, location, onPaymentSaved]
   );
 
   return (
@@ -222,7 +319,9 @@ export function InvoiceReceivePaymentAction({
           }}
           location={location}
           customerId={customerId}
-          customerName={customerName}
+          customerName={receiptCustomerName}
+          customerEmail={receiptCustomerEmail}
+          customerPhone={receiptCustomerPhone}
           mode="new"
           directPaymentData={directPaymentReceiptData}
         />
