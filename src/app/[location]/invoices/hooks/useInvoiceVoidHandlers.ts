@@ -3,18 +3,23 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { AppDispatch } from "@/redux/store";
-import type { InvoiceDetail, InvoiceStatus } from "../types";
-import { updateInvoiceDetail, addHistoryEntry } from "../[id]/invoices-details.slice";
-import { API_DELAY, TOAST_MESSAGES } from "../utils/constants";
+import type { InvoiceDetail } from "../types";
+import { fetchInvoice } from "../[id]/invoices-details.slice";
+import { voidInvoice } from "../[id]/invoices-details.api";
+import { TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceVoidHandlersProps {
   invoiceDetail: InvoiceDetail | null;
   dispatch: AppDispatch;
+  location: string;
+  invoiceId: number;
 }
 
 export function useInvoiceVoidHandlers({
   invoiceDetail,
   dispatch,
+  location,
+  invoiceId,
 }: UseInvoiceVoidHandlersProps) {
   const [isVoiding, setIsVoiding] = React.useState(false);
 
@@ -27,40 +32,12 @@ export function useInvoiceVoidHandlers({
     setIsVoiding(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, API_DELAY.MEDIUM));
+      const response = await voidInvoice(location, invoiceId, true);
+      if (!response?.success) {
+        throw new Error(response?.message || "Failed to void invoice");
+      }
 
-      // Update invoice to voided state
-      const updatedStatus: InvoiceStatus = "Voided";
-
-      // Update Redux state
-      dispatch(updateInvoiceDetail({
-        status: updatedStatus,
-        items: [], // Clear items
-        payments: [], // Clear payments
-        totals: {
-          discounts: 0,
-          subtotal: 0,
-          tax: 0,
-          total: 0,
-          paid: 0,
-          balance: 0,
-        },
-      }));
-
-      // Add history entry
-      dispatch(addHistoryEntry({
-        id: Date.now(),
-        createdOn: new Date().toLocaleString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        }),
-        message: `Invoice ${invoiceDetail.number} voided`,
-      }));
+      await dispatch(fetchInvoice({ location, invoiceId })).unwrap();
 
       setIsVoiding(false);
       toast.success(TOAST_MESSAGES.SUCCESS.INVOICE_VOIDED);
@@ -69,7 +46,7 @@ export function useInvoiceVoidHandlers({
       setIsVoiding(false);
       toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
     }
-  }, [invoiceDetail, dispatch]);
+  }, [invoiceDetail, dispatch, location, invoiceId]);
 
   return {
     handleVoidConfirm,
