@@ -487,6 +487,14 @@ export function usePrivateLessonDetails(
         toast.success("Lesson unscheduled successfully");
         // Refresh details after unscheduling to get updated status and cleared schedule
         await dispatch(fetchPrivateLesson({ location, privateLessonId }));
+        // Refresh comments so latest unschedule-related comments/history entries are visible
+        await dispatch(
+          fetchPrivateLessonComments({
+            location,
+            privateLessonId,
+            page: commentsPagination?.page ?? 1,
+          })
+        );
         return true;
       } catch (error) {
         console.error("Failed to unschedule lesson:", error);
@@ -496,7 +504,7 @@ export function usePrivateLessonDetails(
         return false;
       }
     },
-    [dispatch, location, privateLessonId]
+    [dispatch, location, privateLessonId, commentsPagination?.page]
   );
 
   return {
