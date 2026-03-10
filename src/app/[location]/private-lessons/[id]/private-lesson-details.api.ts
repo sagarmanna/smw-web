@@ -1456,6 +1456,10 @@ export interface EditScheduleRequest {
   date: string;
   /** Format: "HH:MM:SS" — e.g. "01:00:00" */
   duration: string;
+  /** Selected teacher id for reassignment during schedule edit */
+  teacherId: number;
+  /** Private lessons require expiryDate in payload */
+  expiryDate?: string;
 }
 
 export interface EditScheduleResponseData {
@@ -1477,6 +1481,21 @@ export interface EditScheduleResponseData {
 export interface EditScheduleResponse {
   success: boolean;
   data: EditScheduleResponseData;
+  message?: string;
+}
+
+export interface ValidateEditScheduleRequest {
+  duration: string;
+  date: string;
+  teacherId: number;
+}
+
+export interface ValidateEditScheduleResponse {
+  success: boolean;
+  data?: {
+    date?: string[];
+    [key: string]: unknown;
+  };
   message?: string;
 }
 
@@ -1603,6 +1622,28 @@ export async function editLessonSchedule(
   }
 
   return body;
+}
+
+/**
+ * Validates a proposed lesson schedule edit.
+ * GET /admin/v2/{location}/lesson/{lessonId}/validate-edit-schedule
+ */
+export async function validateEditSchedule(
+  location: string,
+  lessonId: number,
+  params: ValidateEditScheduleRequest
+): Promise<ValidateEditScheduleResponse> {
+  const response = await apiClient.get<ValidateEditScheduleResponse>(
+    `/admin/v2/${location}/lesson/${lessonId}/validate-edit-schedule`,
+    { params }
+  );
+
+  const body = response.data;
+  return {
+    success: body?.success === true,
+    data: body?.data,
+    message: body?.message,
+  };
 }
 
 // Delete Private Lesson API Types
