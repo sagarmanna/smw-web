@@ -18,6 +18,7 @@ import { ReturnInvoiceModal } from "../components/modals/ReturnInvoiceModal";
 import { VoidInvoiceModal } from "../components/modals/VoidInvoiceModal";
 import { InvoiceEmailModal, type InvoiceEmailData } from "../components/modals/InvoiceEmailModal";
 import { InvoiceDiscountWarningBanner } from "../components/InvoiceDiscountWarningBanner";
+import { InvoiceReceivePaymentAction } from "../components/actions/InvoiceReceivePaymentAction";
 import { useInvoiceDetails } from "../hooks/useInvoiceDetails";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { TOAST_MESSAGES } from "../utils/constants";
 
 interface InvoiceDetailClientProps {
   location: string;
@@ -50,6 +50,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const [showReturnModal, setShowReturnModal] = React.useState(false);
   const [showVoidModal, setShowVoidModal] = React.useState(false);
   const [showEmailModal, setShowEmailModal] = React.useState(false);
+  const [receivePaymentOpenRequest, setReceivePaymentOpenRequest] = React.useState(0);
 
   // Use main invoice details hook
   const {
@@ -61,7 +62,10 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     historyLoading,
     fetchHistory,
     commentsData,
+    commentsPagination,
     commentsLoading,
+    fetchComments,
+    refresh,
     handleSaveDetails,
     handleCustomerChange,
     handleSaveDiscount,
@@ -79,6 +83,11 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     showDiscountWarning,
     setShowDiscountWarning,
   } = useInvoiceDetails(location, invoiceId);
+
+  const customerId = React.useMemo(() => {
+    const idFromInvoice = invoiceDetail?.customer?.customerId;
+    return typeof idFromInvoice === "number" && idFromInvoice > 0 ? idFromInvoice : null;
+  }, [invoiceDetail?.customer?.customerId]);
 
   const pageTitle = React.useMemo(() => {
     if (!invoiceDetail) return `Invoice #${id}`;
@@ -269,9 +278,8 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
-                      onClick={() => {
-                        toast.info("This feature is under process");
-                      }}
+                      onClick={() => setReceivePaymentOpenRequest((prev) => prev + 1)}
+                      disabled={!customerId}
                     >
                       Receive Payment
                     </DropdownMenuItem>
@@ -334,8 +342,14 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
           {/* Payments and Totals Side by Side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <InvoicePaymentsCard
+              location={location}
+              customerId={customerId ?? undefined}
+              customerName={invoiceDetail.customer.name || ""}
+              customerEmail={invoiceDetail.customer.email || ""}
+              customerPhone={invoiceDetail.customer.phone || ""}
               payments={invoiceDetail.payments}
               isLoading={isLoading}
+              onPaymentUpdated={refresh}
             />
 
             <InvoiceTotalsCard
@@ -357,7 +371,10 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
             <InvoiceCommentsCard
               comments={commentsData}
-              isLoading={commentsLoading}
+              isLoading={isLoading}
+              pagination={commentsPagination}
+              commentsLoading={commentsLoading}
+              onPageChange={fetchComments}
               onAddComment={handleAddComment}
             />
 
@@ -399,6 +416,16 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
           invoiceId={invoiceId}
         />
       )}
+
+      <InvoiceReceivePaymentAction
+        location={location}
+        customerId={customerId}
+        customerName={invoiceDetail.customer.name || ""}
+        customerEmail={invoiceDetail.customer.email || ""}
+        customerPhone={invoiceDetail.customer.phone || ""}
+        onPaymentSaved={refresh}
+        openRequestKey={receivePaymentOpenRequest}
+      />
     </>
   );
 }

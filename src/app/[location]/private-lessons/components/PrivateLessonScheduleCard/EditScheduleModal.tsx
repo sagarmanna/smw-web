@@ -14,7 +14,7 @@ import {
   CalendarEvent,
 } from "@/components/Calendar/ReactBigCalendarWrapper";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format, addDays } from "date-fns";
+import { format, addDays, parse, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { DurationPicker } from "@/components/DurationPicker";
 import { parseDuration } from "@/utils/durationUtils";
+import { parseTimeVoucherString } from "@/utils/dateUtils";
 import {
   getTeacherScheduleEvents,
   type TeacherScheduleData,
@@ -35,7 +36,7 @@ import {
   type TeacherScheduleAvailabilityEvent,
 } from "../../../teachers/[id]/teachers-details-tabs.api";
 import { getTeacherView, getTeachersList } from "@/app/[location]/schedule/schedule.api";
-import { editLessonSchedule } from "../../[id]/private-lesson-details.api";
+import { editLessonSchedule, validateEditSchedule } from "../../[id]/private-lesson-details.api";
 import { extractErrorMessage, resolveMessage } from "../../utils/errorUtils";
 import { toast } from "sonner";
 import { PrivateLessonDetails } from "../../types";
@@ -72,9 +73,11 @@ export function EditScheduleModal({
   const [rescheduleDate, setRescheduleDate] = useState<Date | null>(null);
   const [showAllModal, setShowAllModal] = useState(false);
   const [goToDateOpen, setGoToDateOpen] = useState(false);
+  const [expiryDateOpen, setExpiryDateOpen] = useState(false);
   const [eligibleTeachers, setEligibleTeachers] = useState<Array<{ id: number; title: string }>>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | undefined>(undefined);
   const [duration, setDuration] = useState("");
+  const [expiryDate, setExpiryDate] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const router = useRouter();
@@ -96,6 +99,37 @@ export function EditScheduleModal({
     const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }, []);
+
+  const parseExpiryDate = useCallback((value?: string): Date | null => {
+    if (!value || value.trim() === "") return null;
+
+    const trimmed = value.trim();
+    const parsedShort = parse(trimmed, "MMM dd, yyyy", new Date());
+    if (isValid(parsedShort)) return parsedShort;
+
+    const parsedLong = parse(trimmed, "MMMM dd, yyyy", new Date());
+    if (isValid(parsedLong)) return parsedLong;
+
+    const fallback = new Date(trimmed);
+    return isValid(fallback) ? fallback : null;
+  }, []);
+
+  const parseScheduledDateTime = useCallback(
+    (scheduledDate?: string, time?: string): Date | null => {
+      if (!scheduledDate || !time) return null;
+
+      const combined = `${scheduledDate?.trim()} ${time?.trim()}`.trim();
+      const parsedFromUtil = parseTimeVoucherString(combined);
+      if (parsedFromUtil) return parsedFromUtil;
+
+      const parsedShort = parse(combined, "MMM dd, yyyy hh:mm a", new Date());
+      if (isValid(parsedShort)) return parsedShort;
+
+      const parsedIsoLike = parse(combined, "yyyy-MM-dd hh:mm a", new Date());
+      return isValid(parsedIsoLike) ? parsedIsoLike : null;
+    },
+    []
+  );
 
   // ─── Fetch eligible teachers by programId (or all teachers as fallback) ──────
   const fetchEligibleTeachers = useCallback(
@@ -157,15 +191,21 @@ export function EditScheduleModal({
     if (!open || !detailsRef.current) return;
 
     const d = detailsRef.current;
+    const initialRescheduleDate = parseScheduledDateTime(
+      d.schedule.scheduledDate,
+      d.schedule.time
+    ) ?? new Date();
     setSelectedTeacherId(d.schedule.teacherId);
     setDuration(d.schedule.duration || "");
-    setSelectedDate(new Date());
-    setRescheduleDate(null);
+    setSelectedDate(initialRescheduleDate);
+    setRescheduleDate(initialRescheduleDate);
+    setExpiryDate(parseExpiryDate(d.schedule.expiryDate));
     setShowAllModal(false);
     setGoToDateOpen(false);
+    setExpiryDateOpen(false);
 
-    fetchEligibleTeachers(d.programId, new Date());
-  }, [open, details?.id, fetchEligibleTeachers]);
+    fetchEligibleTeachers(d.programId, initialRescheduleDate);
+  }, [open, details?.id, fetchEligibleTeachers, parseExpiryDate, parseScheduledDateTime]);
 
   // ─── Reload schedule when date or teacher changes ────────────────────────────
   useEffect(() => {
@@ -275,9 +315,13 @@ export function EditScheduleModal({
 
   // ─── Slot click → set reschedule date ────────────────────────────────────────
   const handleSelectSlot = useCallback(
-    (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
+    async (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
       if (!selectedTeacherId) {
         toast.error("Please select a teacher first");
+        return;
+      }
+      if (!details?.id) {
+        toast.error("Lesson ID is missing");
         return;
       }
       const resourceId =
@@ -288,9 +332,37 @@ export function EditScheduleModal({
       const day = new Date(mondayDate);
       day.setDate(mondayDate.getDate() + (resourceId - 1));
       day.setHours(slotInfo.start.getHours(), slotInfo.start.getMinutes(), 0, 0);
-      setRescheduleDate(day);
+
+      const validationDate = format(day, "yyyy-MM-dd hh:mm a");
+      const validationDuration = duration.split(":").length === 3
+        ? duration.slice(0, 5)
+        : duration;
+
+      try {
+        const validation = await validateEditSchedule(location, details.id, {
+          duration: validationDuration,
+          date: validationDate,
+          teacherId: selectedTeacherId,
+        });
+
+        const dateErrors = Array.isArray(validation.data?.date) ? validation.data.date : [];
+        const dateErrorMessage = dateErrors.find(
+          (message): message is string => typeof message === "string" && message.trim() !== ""
+        );
+
+        if (!validation.success || dateErrors.length > 0) {
+          toast.error(
+            dateErrorMessage || validation.message || "Selected slot is not valid for this lesson"
+          );
+          return;
+        }
+
+        setRescheduleDate(day);
+      } catch (error) {
+        toast.error(extractErrorMessage(error, "Failed to validate selected slot"));
+      }
     },
-    [selectedTeacherId, mondayDate]
+    [selectedTeacherId, details?.id, mondayDate, duration, location]
   );
 
   // ─── Save ─────────────────────────────────────────────────────────────────────
@@ -309,10 +381,27 @@ export function EditScheduleModal({
 
     setIsSubmitting(true);
     try {
-      const result = await editLessonSchedule(location, details.id, {
+      const payload: {
+        teacherId: number;
+        date: string;
+        duration: string;
+        expiryDate?: string;
+      } = {
+        teacherId: selectedTeacherId,
         date: dateForApi,
         duration: durationForApi,
-      });
+      };
+
+      // Private lesson: send default/current expiryDate in payload.
+      // Group lesson: omit expiryDate.
+      if (!details.isGroup) {
+        payload.expiryDate =
+          expiryDate
+            ? format(expiryDate, "MMM dd, yyyy")
+            : (details.schedule.expiryDate || "");
+      }
+
+      const result = await editLessonSchedule(location, details.id, payload);
       toast.success(resolveMessage(result.message, "Lesson rescheduled successfully"));
       onOpenChange(false);
       onSuccess?.();
@@ -328,7 +417,7 @@ export function EditScheduleModal({
     } finally {
       setIsSubmitting(false);
     }
-  }, [details?.id, selectedTeacherId, rescheduleDate, duration, location, router, onOpenChange, onSuccess]);
+  }, [details?.id, details?.isGroup, details?.schedule?.expiryDate, selectedTeacherId, rescheduleDate, duration, expiryDate, location, router, onOpenChange, onSuccess]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -373,7 +462,34 @@ export function EditScheduleModal({
             </div>
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground font-semibold">Expiry Date</div>
-              <Input value={details?.schedule.expiryDate ?? ""} readOnly className="h-10" />
+              <Popover open={expiryDateOpen} onOpenChange={setExpiryDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full justify-start font-normal"
+                  >
+                    {expiryDate
+                      ? format(expiryDate, "MMM dd, yyyy")
+                      : (details?.schedule.expiryDate || "Select expiry date")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={expiryDate ?? undefined}
+                    defaultMonth={expiryDate ?? selectedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setExpiryDate(date);
+                        setExpiryDateOpen(false);
+                      }
+                    }}
+                    captionLayout="dropdown"
+                    fromYear={2005}
+                    toYear={2125}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

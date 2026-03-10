@@ -33,6 +33,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
   const isLoading = useAppSelector((state) => state.privateLesson?.isLoading || false);
   const error = useAppSelector((state) => state.privateLesson?.error);
   const privateLessonInfo = useAppSelector((state) => state.privateLesson?.privateLessonInfo);
+  const { userInfo } = useAppSelector((state) => state.user);
 
   const {
     details,
@@ -85,6 +86,8 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
 
   const customerId = details?.customerId;
   const isGroupLesson = details?.isGroup;
+  const canViewCostCard =
+    userInfo?.role === "administrator" || userInfo?.role === "owner";
 
   // Redirect to private-lessons if this ID is not a group lesson
   React.useEffect(() => {
@@ -212,13 +215,15 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
                 isLoading={isLoading}
                 location={location}
               />
-              <PrivateLessonCostCard
-                details={details}
-                groupCost={privateLessonInfo?.groupCost}
-                onSaveCost={saveCost}
-                savingDetails={savingDetails}
-                isLoading={isLoading}
-              />
+              {canViewCostCard && (
+                <PrivateLessonCostCard
+                  details={details}
+                  groupCost={privateLessonInfo?.groupCost}
+                  onSaveCost={saveCost}
+                  savingDetails={savingDetails}
+                  isLoading={isLoading}
+                />
+              )}
             </div>
 
             <div className="space-y-3 sm:space-y-4">

@@ -270,6 +270,90 @@ export interface UpdateGroupLessonStudentDiscountResponse {
   message?: string;
 }
 
+export interface GroupLessonDiscountBody {
+  lessonId: number;
+  enrolmentId: number;
+  value: number;
+  valueType: number; // 0 => $, 1 => %
+}
+
+export interface GetGroupLessonDiscountResponse {
+  success: boolean;
+  data: {
+    body?: GroupLessonDiscountBody;
+    message?: string;
+  };
+  message?: string;
+}
+
+export interface ApplyGroupLessonDiscountRequest {
+  lessonId: number;
+  enrolmentId: number;
+  value: number;
+  valueType: number;
+}
+
+export interface ApplyGroupLessonDiscountResponse {
+  success: boolean;
+  data?: GroupLessonDiscountBody;
+  message?: string;
+}
+
+/**
+ * Gets group lesson discount for a specific enrolment.
+ * GET /admin/v2/{location}/group-lesson/apply-discount?lessonId={lessonId}&enrolmentId={enrolmentId}
+ */
+export async function getGroupLessonDiscount(
+  location: string,
+  lessonId: number,
+  enrolmentId: number
+): Promise<GetGroupLessonDiscountResponse | null> {
+  try {
+    const response = await apiClient.get<GetGroupLessonDiscountResponse>(
+      `/admin/v2/${location}/group-lesson/apply-discount`,
+      {
+        params: {
+          lessonId,
+          enrolmentId,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching group lesson discount:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {},
+      message: apiError.response?.data?.message || "Failed to fetch group lesson discount",
+    };
+  }
+}
+
+/**
+ * Applies group lesson discount for a specific enrolment.
+ * PUT /admin/v2/{location}/group-lesson/apply-discount
+ */
+export async function applyGroupLessonDiscount(
+  location: string,
+  payload: ApplyGroupLessonDiscountRequest
+): Promise<ApplyGroupLessonDiscountResponse | null> {
+  try {
+    const response = await apiClient.put<ApplyGroupLessonDiscountResponse>(
+      `/admin/v2/${location}/group-lesson/apply-discount`,
+      payload
+    );
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error applying group lesson discount:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to apply group lesson discount",
+    };
+  }
+}
+
 /**
  * Updates a group lesson student's discount via API.
  * For now, returns mock response.
@@ -346,6 +430,62 @@ export async function getPrivateLessonPayments(
         body: [],
       },
       message: apiError.response?.data?.message || "Failed to fetch private lesson payments",
+    };
+  }
+}
+
+/**
+ * Fetches group lesson payments for a specific enrolment from the API.
+ *
+ * Endpoint: GET /admin/v2/{location}/lesson/details/{lessonId}/payments
+ * Query params: enrolmentId, sort, order
+ *
+ * @param location - The location identifier
+ * @param lessonId - The lesson ID
+ * @param enrolmentId - The enrolment ID
+ * @param sort - Optional sort field (for example: "amount")
+ * @param order - Optional sort direction ("asc" | "desc")
+ */
+export async function getGroupLessonPayments(
+  location: string,
+  lessonId: string,
+  enrolmentId: string,
+  sort?: string,
+  order?: "asc" | "desc"
+): Promise<PrivateLessonPaymentsApiResponse | null> {
+  try {
+    const params: Record<string, string> = { enrolmentId };
+    if (sort) {
+      params.sort = sort;
+    }
+    if (sort && order) {
+      params.order = order;
+    }
+
+    const response = await apiClient.get<PrivateLessonPaymentsApiResponse>(
+      `/admin/v2/${location}/lesson/details/${lessonId}/payments`,
+      { params }
+    );
+
+    if (!response.data.success) {
+      return response.data;
+    }
+
+    if (!response.data.data?.body) {
+      console.error("Group lesson payments API returned no body:", response.data);
+      return response.data;
+    }
+
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error fetching group lesson payments:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      data: {
+        body: [],
+      },
+      message: apiError.response?.data?.message || "Failed to fetch group lesson payments",
     };
   }
 }
@@ -1014,6 +1154,17 @@ export interface GeneratePrivateLessonInvoiceResponse {
   message?: string;
 }
 
+export interface GenerateGroupLessonInvoiceResponse {
+  success: boolean;
+  data?: {
+    invoiceId?: number;
+    invoiceNumber?: string;
+    alreadyExists?: boolean;
+    message?: string;
+  };
+  message?: string;
+}
+
 function isSuccessfulInvoiceStatus(status: unknown): boolean {
   const normalized = status?.toString?.()?.trim?.()?.toLowerCase?.();
   return (
@@ -1212,6 +1363,50 @@ export async function generatePrivateLessonInvoice(
   }
 }
 
+/**
+ * Generates invoice for a group lesson student enrolment.
+ *
+ * Endpoint: POST /admin/v2/{location}/lesson/details/{lessonId}/group-invoice
+ * Body: { enrolmentId: number }
+ */
+export async function generateGroupLessonInvoice(
+  location: string,
+  lessonId: string,
+  enrolmentId: number
+): Promise<GenerateGroupLessonInvoiceResponse | null> {
+  try {
+    const lessonIdNum = Number(lessonId);
+    if (Number.isNaN(lessonIdNum)) {
+      throw new Error("Invalid lesson id");
+    }
+
+    if (!Number.isFinite(enrolmentId)) {
+      throw new Error("Invalid enrolment id");
+    }
+
+    const response = await apiClient.post<GenerateGroupLessonInvoiceResponse>(
+      `/admin/v2/${location}/lesson/details/${lessonIdNum}/group-invoice`,
+      {
+        enrolmentId,
+      }
+    );
+
+    const body = response.data;
+    return {
+      success: body?.success === true,
+      data: body?.data,
+      message: body?.message,
+    };
+  } catch (error: unknown) {
+    console.error("Error generating group lesson invoice:", error);
+    const apiError = error as { response?: { data?: { message?: string } } };
+    return {
+      success: false,
+      message: apiError.response?.data?.message || "Failed to generate group lesson invoice",
+    };
+  }
+}
+
 // Update Tax API Types
 export interface UpdateTaxRequest {
   id: number;
@@ -1261,6 +1456,10 @@ export interface EditScheduleRequest {
   date: string;
   /** Format: "HH:MM:SS" — e.g. "01:00:00" */
   duration: string;
+  /** Selected teacher id for reassignment during schedule edit */
+  teacherId: number;
+  /** Private lessons require expiryDate in payload */
+  expiryDate?: string;
 }
 
 export interface EditScheduleResponseData {
@@ -1282,6 +1481,21 @@ export interface EditScheduleResponseData {
 export interface EditScheduleResponse {
   success: boolean;
   data: EditScheduleResponseData;
+  message?: string;
+}
+
+export interface ValidateEditScheduleRequest {
+  duration: string;
+  date: string;
+  teacherId: number;
+}
+
+export interface ValidateEditScheduleResponse {
+  success: boolean;
+  data?: {
+    date?: string[];
+    [key: string]: unknown;
+  };
   message?: string;
 }
 
@@ -1408,6 +1622,28 @@ export async function editLessonSchedule(
   }
 
   return body;
+}
+
+/**
+ * Validates a proposed lesson schedule edit.
+ * GET /admin/v2/{location}/lesson/{lessonId}/validate-edit-schedule
+ */
+export async function validateEditSchedule(
+  location: string,
+  lessonId: number,
+  params: ValidateEditScheduleRequest
+): Promise<ValidateEditScheduleResponse> {
+  const response = await apiClient.get<ValidateEditScheduleResponse>(
+    `/admin/v2/${location}/lesson/${lessonId}/validate-edit-schedule`,
+    { params }
+  );
+
+  const body = response.data;
+  return {
+    success: body?.success === true,
+    data: body?.data,
+    message: body?.message,
+  };
 }
 
 // Delete Private Lesson API Types

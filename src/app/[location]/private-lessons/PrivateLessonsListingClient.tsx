@@ -19,6 +19,10 @@ interface PrivateLessonsListingClientProps {
   location: string;
 }
 
+interface ExportPrivateLessonRow extends PrivateLessonRow {
+  [key: string]: unknown;
+}
+
 export function PrivateLessonsListingClient({ location }: PrivateLessonsListingClientProps) {
   const {
     rows,
@@ -63,10 +67,93 @@ export function PrivateLessonsListingClient({ location }: PrivateLessonsListingC
     return [checkboxColumn, ...privateLessonColumns] as ColumnDef<PrivateLessonRow>[];
   }, [rows, selection.selectedRows, selection.setSelectedRows, selection.clearSelection]);
 
-  const { exportToCsv, exportToPdf, exportToHtml, exportToJson, exportToText, exportToExcel } = useExportableData<PrivateLessonRow>({
+  const getEmailColumns = React.useCallback((data: PrivateLessonRow[]): ColumnDef<ExportPrivateLessonRow>[] => {
+    const maxEmailCount = Math.max(
+      ...data.map((row) => {
+        const source = row.customerEmails || row.customerEmail || "";
+        return source
+          .split(",")
+          .map((email) => email.trim())
+          .filter(Boolean).length;
+      }),
+      0
+    );
+
+    return Array.from({ length: maxEmailCount }, (_, index) => ({
+      accessorKey: `email${index + 1}`,
+      header: `Email ${index + 1}`,
+      meta: {
+        printable: true,
+        printableName: `Email ${index + 1}`,
+      },
+    }));
+  }, []);
+
+  const transformDataForExport = React.useCallback((data: PrivateLessonRow[]): ExportPrivateLessonRow[] => {
+    return data.map((row) => {
+      const source = row.customerEmails || row.customerEmail || "";
+      const emails = source
+        .split(",")
+        .map((email) => email.trim())
+        .filter(Boolean);
+
+      const transformedRow: ExportPrivateLessonRow = { ...row };
+      emails.forEach((email, index) => {
+        transformedRow[`email${index + 1}`] = email;
+      });
+      return transformedRow;
+    });
+  }, []);
+
+  const dynamicExportColumns = React.useMemo((): ColumnDef<ExportPrivateLessonRow>[] => {
+    const baseColumns = exportColumns.filter((column) => {
+      const accessorKey = "accessorKey" in column ? column.accessorKey : undefined;
+      return accessorKey !== "customerEmail";
+    }) as ColumnDef<ExportPrivateLessonRow>[];
+
+    const emailColumns = getEmailColumns(rows);
+
+    const studentColumnIndex = baseColumns.findIndex((column) => {
+      const accessorKey = "accessorKey" in column ? column.accessorKey : undefined;
+      return accessorKey === "student";
+    });
+
+    if (studentColumnIndex === -1 || emailColumns.length === 0) {
+      return [...baseColumns, ...emailColumns];
+    }
+
+    return [
+      ...baseColumns.slice(0, studentColumnIndex + 1),
+      ...emailColumns,
+      ...baseColumns.slice(studentColumnIndex + 1),
+    ];
+  }, [rows, getEmailColumns]);
+
+  const exportData = React.useMemo(() => transformDataForExport(rows), [rows, transformDataForExport]);
+
+  const {
+    exportToCsv,
+    exportToHtml,
+    exportToJson,
+    exportToText,
+    exportToExcel,
+  } = useExportableData<ExportPrivateLessonRow>({
+    reportTitle: `Private Lessons list for ${formatLocationName(location)}`,
+    columns: dynamicExportColumns,
+    data: exportData,
+    columnWidths: {
+      Date: 38,
+    },
+    location: location,
+  });
+
+  const { exportToPdf } = useExportableData<PrivateLessonRow>({
     reportTitle: `Private Lessons list for ${formatLocationName(location)}`,
     columns: exportColumns,
     data: rows,
+    columnWidths: {
+      Date: 38,
+    },
     location: location,
   });
 

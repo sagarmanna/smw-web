@@ -57,6 +57,76 @@ export interface UpdateLineItemResponse {
   };
 }
 
+export interface GetTransactionResponse {
+  success: boolean;
+  data: {
+    id: number;
+    transactionId: string;
+    locationId: number;
+    status: string;
+    createdAt: string;
+    subtotal?: string;
+    discountAmount?: string;
+    totalAmount?: string;
+    lineItems: Array<{
+      id: number;
+      quantity: number;
+      price: string;
+      overridePrice?: string;
+      item: {
+        id: string;
+        code: string;
+        description: string;
+        price: number;
+      };
+    }>;
+  };
+  message: string;
+}
+
+export interface ApplyDiscountResponse {
+  success: boolean;
+  data: {
+    id: number;
+    transactionId: string;
+    discountAmount: string;
+    subtotal: string;
+    totalAmount: string;
+  };
+  message: string;
+}
+
+export interface CancelTransactionResponse {
+  id: number;
+  transactionId: string;
+  locationId: number;
+  transactionSequence: number;
+  type: string;
+  date: string;
+  customerInfo: string;
+  status: string;
+  subtotal: number;
+  discountAmount: number;
+  tax: number;
+  totalAmount: number;
+  paidAmount: number;
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+  lineItems: Array<{
+    id: number;
+    quantity: number;
+    price: number;
+    discount: number;
+    overridePrice: number | null;
+    item: {
+      id: number;
+      code: string;
+      description: string;
+    };
+  }>;
+}
+
 /**
  * Create a new POS transaction
  * 
@@ -159,6 +229,24 @@ export async function addLineItem(
 }
 
 /**
+ * Get an existing transaction by ID
+ * 
+ * @param transactionId - The numeric transaction ID
+ * @param location - The location slug
+ * @returns Promise resolving to transaction data with line items
+ */
+export async function getTransaction(
+  transactionId: string,
+  location: string
+): Promise<GetTransactionResponse> {
+  const response = await apiClient.get<GetTransactionResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}`
+  );
+
+  return response.data;
+}
+
+/**
  * Update line item price
  * 
  * @param transactionId - The transaction ID
@@ -229,4 +317,63 @@ export async function updateLineItemQuantity(
       overridePrice: data.overridePrice,
     },
   };
+}
+
+/**
+ * Delete a line item from a transaction
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param lineItemId - The line item ID to delete
+ * @returns Promise resolving to success response
+ */
+export async function deleteLineItem(
+  transactionId: string,
+  location: string,
+  lineItemId: string
+): Promise<{ success: boolean }> {
+  await apiClient.delete(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/line-items/${lineItemId}`
+  );
+
+  return { success: true };
+}
+
+/**
+ * Apply discount to a transaction
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @param discountAmount - The discount amount to apply
+ * @returns Promise resolving to updated transaction data
+ */
+export async function applyDiscount(
+  transactionId: string,
+  location: string,
+  discountAmount: number
+): Promise<ApplyDiscountResponse> {
+  const response = await apiClient.patch<ApplyDiscountResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/discount`,
+    { discountAmount }
+  );
+
+  return response.data;
+}
+
+/**
+ * Cancel a transaction
+ * 
+ * @param transactionId - The transaction ID
+ * @param location - The location slug
+ * @returns Promise resolving to cancelled transaction data
+ */
+export async function cancelTransaction(
+  transactionId: string,
+  location: string
+): Promise<CancelTransactionResponse> {
+  const response = await apiClient.patch<CancelTransactionResponse>(
+    `/admin/v2/${location}/pos/transaction/${transactionId}/cancel`
+  );
+
+  return response.data;
 }

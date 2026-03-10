@@ -7,15 +7,8 @@ import {
   fetchInvoiceHistory,
   fetchInvoiceComments,
   clearCache,
-  updateInvoiceDetail,
-  updateCustomer,
-  updateItems,
-  updateTotals,
-  updateMessage,
-  addComment,
-  addHistoryEntry,
 } from "../[id]/invoices-details.slice";
-import type { InvoiceDetail, InvoiceItem, InvoiceComment, InvoiceStatus, InvoiceHistoryEntry } from "../types";
+import type { InvoiceDetail, InvoiceItem, InvoiceComment, InvoiceHistoryEntry } from "../types";
 import { useInvoiceItemHandlers } from "./useInvoiceItemHandlers";
 import { useInvoiceDiscountHandlers } from "./useInvoiceDiscountHandlers";
 import { useInvoiceDetailsHandlers } from "./useInvoiceDetailsHandlers";
@@ -28,7 +21,7 @@ import { useInvoiceVoidHandlers } from "./useInvoiceVoidHandlers";
 import type { InvoiceItemsTaxEditConfigData } from "../[id]/invoices-details.api";
 import { DiscountData } from "../components/modals/InvoiceDiscountModal";
 import { TaxAdjustmentData } from "../components/modals/AdjustTaxModal";
-import { DISCOUNT_WARNING_DURATION, TOAST_MESSAGES } from "../utils/constants";
+import { DISCOUNT_WARNING_DURATION } from "../utils/constants";
 
 type InvoiceDetailsHookReturn = {
   loading: boolean;
@@ -142,6 +135,8 @@ export function useInvoiceDetails(
   const { handleAddComment } = useInvoiceCommentsHandlers({
     invoiceDetail,
     dispatch,
+    location,
+    invoiceId,
   });
 
   const { handleReturnConfirm, isReturning } = useInvoiceReturnHandlers({
@@ -152,6 +147,8 @@ export function useInvoiceDetails(
   const { handleVoidConfirm, isVoiding } = useInvoiceVoidHandlers({
     invoiceDetail,
     dispatch,
+    location,
+    invoiceId,
   });
 
   const fetchHistory = React.useCallback(

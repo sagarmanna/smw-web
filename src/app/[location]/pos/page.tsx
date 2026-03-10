@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import { X } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { usePOSTransaction } from "@/hooks/usePOSTransaction";
 import { usePOSItemLookup } from "@/hooks/usePOSItemLookup";
-import { addLineItem, updateLineItemPrice, updateLineItemQuantity } from "@/lib/api/pos.api";
+import { addLineItem, updateLineItemPrice, updateLineItemQuantity, deleteLineItem, applyDiscount, getTransaction, cancelTransaction } from "@/lib/api/pos.api";
+import { isStorageAvailable } from "@/utils/pos-storage";
 import { toast } from "sonner";
 
 interface Item {
@@ -20,6 +21,14 @@ interface Item {
   price: number;
   upc: string;
   isUpdatingQuantity?: boolean;
+  isDeletingItem?: boolean;
+}
+
+interface TransactionLineItem {
+  id: number;
+  itemId: string;
+  quantity: number;
+  price: number;
 }
 
 export default function POSPage() {
@@ -45,19 +54,67 @@ export default function POSPage() {
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
-  const [discount, setDiscount] = useState(0);
+  const [backendDiscountAmount, setBackendDiscountAmount] = useState(0);
+  const [backendTotal, setBackendTotal] = useState(0);
+  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
-  const transactionIdRef = useRef(numericTransactionId);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
-    transactionIdRef.current = numericTransactionId;
-  }, [numericTransactionId]);
+    // Check if localStorage is available (warn about incognito mode)
+    if (!isStorageAvailable()) {
+      toast.warning('POS may not work properly in incognito/private mode. Transaction data will not persist on refresh.');
+    }
 
-  useEffect(() => {
-    initializeTransaction().then(() => {
+    // Initialize transaction and restore line items if any
+    initializeTransaction().then((transactionData) => {
+      if (transactionData.lineItems && transactionData.lineItems.length > 0) {
+        console.log('[POS Page] Restoring', transactionData.lineItems.length, 'line items');
+        
+        // Map API line items to UI Item format
+        const restoredItems: Item[] = transactionData.lineItems.map((lineItem) => ({
+          id: `restored-${lineItem.id}`,
+          lineItemId: lineItem.id.toString(),
+          description: lineItem.item.description,
+          quantity: lineItem.quantity,
+          price: lineItem.overridePrice ? parseFloat(lineItem.overridePrice) : parseFloat(lineItem.price),
+          upc: lineItem.item.code,
+        }));
+        
+        setItems(restoredItems);
+        toast.success(`Restored ${transactionData.lineItems.length} item(s) from previous session`);
+      }
+      
+      // Restore discount if exists
+      if (transactionData.discountAmount && parseFloat(transactionData.discountAmount) > 0) {
+        setBackendDiscountAmount(parseFloat(transactionData.discountAmount));
+        setBackendTotal(parseFloat(transactionData.totalAmount || '0'));
+        console.log('[POS Page] Restored discount:', transactionData.discountAmount);
+      }
+      
       setTimeout(() => productRef.current?.focus(), 100);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      Object.values(timers).forEach((timer) => clearTimeout(timer));
+    };
+  }, []);
+
+  const resolveAddedLineItemId = useCallback((lineItems: TransactionLineItem[] | undefined, itemId: string) => {
+    if (!lineItems || lineItems.length === 0) return undefined;
+
+    const matching = lineItems.filter((lineItem) => String(lineItem.itemId) === String(itemId));
+    if (matching.length === 0) return undefined;
+
+    const latest = matching.reduce((currentLatest, lineItem) =>
+      lineItem.id > currentLatest.id ? lineItem : currentLatest
+    );
+
+    return latest.id.toString();
   }, []);
 
   const handleScan = async () => {
@@ -66,59 +123,148 @@ export default function POSPage() {
     const itemData = await scanItem(productCode);
     
     if (itemData) {
-      const newItem: Item = {
-        id: Date.now().toString(),
-        upc: itemData.code,
-        description: itemData.description,
-        quantity: quantity,
-        price: itemData.price,
-      };
-      
-      setItems([...items, newItem]);
-      setProductCode("");
-      setQuantity(1);
+      // Check if item already exists
+      const existingItem = items.find(i => i.upc === itemData.code);
 
-      // Save to database
-      try {
-        console.log('[Line Item] Adding to transaction:', {
-          transactionId: numericTransactionId,
-          itemId: itemData.id,
-          quantity
-        });
+      if (existingItem && existingItem.lineItemId) {
+        const originalQty = existingItem.quantity;
+        const newQty = originalQty + quantity;
 
-        const response = await addLineItem(String(numericTransactionId), location, {
-          itemId: itemData.id,
-          quantity: quantity,
-        });
-        
-        // apiClient returns axios response with data property
-        const transactionData = response.data || response;
-        const lineItems = transactionData?.lineItems;
-        
-        if (lineItems && lineItems.length > 0) {
-          const addedLineItem = lineItems[lineItems.length - 1];
-          const lineItemId = addedLineItem.id;
-          
-          // Store line item ID
-          setItems(prevItems => 
-            prevItems.map(item => 
-              item.id === newItem.id ? { ...item, lineItemId: lineItemId.toString() } : item
+        setItems(prevItems =>
+          prevItems.map(item =>
+            item.id === existingItem.id
+              ? { ...item, quantity: newQty }
+              : item
+          )
+        );
+
+        try {
+          await updateLineItemQuantity(
+            String(numericTransactionId),
+            location,
+            existingItem.lineItemId,
+            newQty
+          );
+          toast.success('Quantity updated');
+        } catch (error) {
+          toast.error('Failed to update quantity');
+          console.error('Failed to update quantity:', error);
+          setItems(prevItems =>
+            prevItems.map(item =>
+              item.id === existingItem.id
+                ? { ...item, quantity: originalQty }
+                : item
             )
           );
         }
-      } catch (error) {
-        toast.error('Failed to save item to transaction');
-        console.error('Failed to add line item:', error);
+      } else if (existingItem) {
+        setItems(prevItems =>
+          prevItems.map(item =>
+            item.id === existingItem.id
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          )
+        );
+        toast.warning('Item is still syncing. Please try again.');
+      } else {
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const newItem: Item = {
+          id: tempId,
+          upc: itemData.code,
+          description: itemData.description,
+          quantity: quantity,
+          price: itemData.price,
+        };
+
+        // Optimistic UI update
+        setItems(prevItems => [...prevItems, newItem]);
+
+        try {
+          const response = await addLineItem(String(numericTransactionId), location, {
+            itemId: itemData.id,
+            quantity: quantity,
+          });
+
+          const transactionData = response.data || response;
+          const lineItemId = resolveAddedLineItemId(transactionData?.lineItems, itemData.id);
+
+          if (!lineItemId) {
+            toast.error('Item added but failed to link line item ID');
+          } else {
+            setItems(prevItems =>
+              prevItems.map(item =>
+                item.id === tempId ? { ...item, lineItemId } : item
+              )
+            );
+          }
+        } catch (error) {
+          toast.error('Failed to save item to transaction');
+          console.error('Failed to add line item:', error);
+          setItems(prevItems => prevItems.filter((item) => item.id !== tempId));
+        }
       }
+      
+      setProductCode("");
+      setQuantity(1);
     }
     
     setTimeout(() => productRef.current?.focus(), 0);
   };
 
-  const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
+  const removeItem = async (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (!item || item.isDeletingItem) return;
 
-  const handleQuantityChange = (itemId: string, newQuantity: string) => {
-    const qty = parseInt(newQuantity);
+    if (!item.lineItemId) {
+      toast.info('Item removed (was not saved to transaction)');
+      setItems(prevItems => prevItems.filter((existingItem) => existingItem.id !== id));
+      return;
+    }
+
+    setItems(prevItems =>
+      prevItems.map(existingItem =>
+        existingItem.id === id ? { ...existingItem, isDeletingItem: true } : existingItem
+      )
+    );
+
+    try {
+      await deleteLineItem(
+        String(numericTransactionId),
+        location,
+        item.lineItemId
+      );
+      
+      const remainingItems = items.filter((item) => item.id !== id);
+      setItems(prevItems => prevItems.filter((existingItem) => existingItem.id !== id));
+      
+      // Fetch updated transaction to sync bill with backend
+      const updatedTransaction = await getTransaction(String(numericTransactionId), location);
+      
+      // If no items left, clear discount
+      if (remainingItems.length === 0 && parseFloat(updatedTransaction.data.discountAmount || '0') > 0) {
+        await applyDiscount(String(numericTransactionId), location, 0);
+        setBackendDiscountAmount(0);
+        setBackendTotal(0);
+      } else {
+        // Update with backend values
+        setBackendDiscountAmount(parseFloat(updatedTransaction.data.discountAmount || '0'));
+        setBackendTotal(parseFloat(updatedTransaction.data.totalAmount || '0'));
+      }
+      
+      toast.success('Item removed from transaction');
+    } catch (error) {
+      console.error('Failed to delete line item:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to remove item');
+      setItems(prevItems =>
+        prevItems.map(existingItem =>
+          existingItem.id === id ? { ...existingItem, isDeletingItem: false } : existingItem
+        )
+      );
+    }
+  };
+
+  const handleQuantityChange = useCallback((itemId: string, newQuantity: string) => {
+    const qty = parseInt(newQuantity, 10);
     
     // Validate input
     if (newQuantity === '' || isNaN(qty)) {
@@ -142,44 +288,40 @@ export default function POSPage() {
 
     // Set new debounced API call
     debounceTimers.current[itemId] = setTimeout(() => {
-      setItems(prev => {
-        const item = prev.find(i => i.id === itemId);
-        if (!item?.lineItemId) {
-          toast.error('Cannot update quantity: Line item ID not found');
-          return prev;
-        }
+      const item = items.find(i => i.id === itemId);
+      if (!item?.lineItemId) {
+        toast.error('Cannot update quantity: Line item ID not found');
+        return;
+      }
 
-        const lineItemId = item.lineItemId;
-
-        // Show loading state
-        const updatedItems = prev.map(i => 
+      setItems(prev =>
+        prev.map(i =>
           i.id === itemId ? { ...i, isUpdatingQuantity: true } : i
-        );
+        )
+      );
 
-        // Make API call
-        (async () => {
-          try {
-            await updateLineItemQuantity(
-              numericTransactionId,
-              location,
-              lineItemId,
-              qty
-            );
-            toast.success('Quantity updated successfully');
-          } catch (error) {
-            console.error('Failed to update quantity:', error);
-            toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
-          } finally {
-            setItems(prev => prev.map(i => 
+      (async () => {
+        try {
+          await updateLineItemQuantity(
+            numericTransactionId,
+            location,
+            item.lineItemId as string,
+            qty
+          );
+          toast.success('Quantity updated successfully');
+        } catch (error) {
+          console.error('Failed to update quantity:', error);
+          toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
+        } finally {
+          setItems(prev =>
+            prev.map(i =>
               i.id === itemId ? { ...i, isUpdatingQuantity: false } : i
-            ));
-          }
-        })();
-
-        return updatedItems;
-      });
+            )
+          );
+        }
+      })();
     }, 1000);
-  };
+  }, [items, location, numericTransactionId]);
 
   const handleOverride = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -210,7 +352,7 @@ export default function POSPage() {
         );
         
         // Update local state
-        setItems(items.map(item => 
+        setItems(prevItems => prevItems.map(item => 
           item.id === selectedItem.id ? { ...item, price } : item
         ));
         
@@ -228,15 +370,71 @@ export default function POSPage() {
   };
 
   const subtotal = items.reduce((sum, item) => sum + (item.quantity * parseFloat(String(item.price))), 0);
-  const discountAmount = discountType === "percentage" ? (subtotal * discount) / 100 : discount;
-  const total = subtotal - discountAmount;
+  const discountAmount = backendDiscountAmount || 0;
+  const total = backendTotal || (subtotal - discountAmount);
 
-  const handleApplyDiscount = () => {
+  const handleApplyDiscount = async () => {
+    if (!numericTransactionId) {
+      toast.error('Transaction not ready');
+      return;
+    }
+    
     const value = parseFloat(discountValue);
     if (!isNaN(value) && value >= 0) {
-      setDiscount(value);
-      setShowDiscountDialog(false);
-      setDiscountValue("");
+      if (discountType === "percentage" && value > 100) {
+        toast.error('Percentage discount cannot exceed 100%');
+        return;
+      }
+      
+      if (discountType === "fixed" && value > subtotal) {
+        toast.error('Discount amount cannot exceed subtotal');
+        return;
+      }
+      
+      const finalDiscountAmount = discountType === "percentage" ? (subtotal * value) / 100 : value;
+      
+      setIsApplyingDiscount(true);
+      try {
+        const response = await applyDiscount(String(numericTransactionId), location, finalDiscountAmount);
+        
+        // Use backend-calculated values
+        const data = response.data;
+        setBackendDiscountAmount(parseFloat(data.discountAmount));
+        setBackendTotal(parseFloat(data.totalAmount));
+        
+        setShowDiscountDialog(false);
+        setDiscountValue("");
+        toast.success('Discount applied successfully');
+      } catch (error) {
+        console.error('Failed to apply discount:', error);
+        toast.error('Failed to apply discount');
+      } finally {
+        setIsApplyingDiscount(false);
+      }
+    }
+  };
+
+  const handleCancelTransaction = async () => {
+    if (!numericTransactionId) {
+      toast.error('Transaction not ready');
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      await cancelTransaction(String(numericTransactionId), location);
+      setItems([]);
+      setBackendDiscountAmount(0);
+      setBackendTotal(0);
+      setShowCancelDialog(false);
+      resetTransaction();
+      toast.success('Transaction cancelled successfully');
+      await initializeTransaction();
+    } catch (error) {
+      console.error('Failed to cancel transaction:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel transaction');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -332,7 +530,19 @@ export default function POSPage() {
                 items.map((item) => (
                   <tr key={item.id} className="text-sm">
                     <td className="py-2.5">
-                      <X className="h-4 w-4 text-muted-foreground hover:text-red-600 cursor-pointer" onClick={() => removeItem(item.id)} />
+                      <div className="relative inline-block">
+                        <X 
+                          className={`h-4 w-4 text-muted-foreground hover:text-red-600 ${
+                            item.isDeletingItem ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                          }`} 
+                          onClick={() => !item.isDeletingItem && removeItem(item.id)} 
+                        />
+                        {item.isDeletingItem && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="animate-spin h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5">
                       <div className="relative">
@@ -457,27 +667,27 @@ export default function POSPage() {
             <Button
               variant="outline"
               onClick={() => setShowCancelDialog(false)}
+              disabled={isCancelling}
               className="rounded-none"
             >
               No, Keep Items
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                setItems([]);
-                setDiscount(0);
-                setShowCancelDialog(false);
-                resetTransaction();
-              }}
+              onClick={handleCancelTransaction}
+              disabled={isCancelling}
               className="rounded-none"
             >
-              Yes, Cancel
+              {isCancelling ? 'Cancelling...' : 'Yes, Cancel'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDiscountDialog} onOpenChange={setShowDiscountDialog}>
+      <Dialog open={showDiscountDialog} onOpenChange={(open) => {
+        setShowDiscountDialog(open);
+        if (!open) setDiscountValue("");
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Apply Discount</DialogTitle>
@@ -549,15 +759,17 @@ export default function POSPage() {
                 setShowDiscountDialog(false);
                 setDiscountValue("");
               }}
+              disabled={isApplyingDiscount}
               className="rounded-none"
             >
               Cancel
             </Button>
             <Button
               onClick={handleApplyDiscount}
+              disabled={isApplyingDiscount}
               className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-none"
             >
-              Apply Discount
+              {isApplyingDiscount ? 'Applying...' : 'Apply Discount'}
             </Button>
           </DialogFooter>
         </DialogContent>

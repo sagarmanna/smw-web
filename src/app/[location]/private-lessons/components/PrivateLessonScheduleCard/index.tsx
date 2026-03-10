@@ -56,17 +56,31 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
   const [isUnscheduleModalOpen, setIsUnscheduleModalOpen] = React.useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const normalizedStatus = details?.status?.toLowerCase() || "";
+  const invoiceId = details?.totals?.invoiceId;
+  const hasGeneratedInvoice = typeof invoiceId === "number" && Number.isFinite(invoiceId);
   const hasScheduledDate = Boolean(details?.schedule?.scheduledDate);
+  const isGroupLesson = details?.isGroup === true;
   const isUnscheduledStatus = normalizedStatus.includes("unscheduled") || !hasScheduledDate;
   const isRescheduled = normalizedStatus.includes("rescheduled");
+  const isCompletedStatus = normalizedStatus.includes("completed");
   const isAbsentOrCompletedStatus =
     normalizedStatus.includes("absent") || normalizedStatus.includes("completed");
   const isExplodedStatus = /\bexploded\b/i.test(normalizedStatus);
+  const shouldForceShowAllActionsForCompletedWithoutInvoice =
+    !isGroupLesson && isCompletedStatus && !hasGeneratedInvoice;
+  const shouldAlwaysShowEditAndUnscheduleForGroup = isGroupLesson;
   const shouldForceShowAllActions = isRescheduled;
   const shouldHideSecondaryActions = isUnscheduledStatus && !isExplodedStatus;
   const shouldShowSecondaryActions =
-    !shouldHideSecondaryActions && (shouldForceShowAllActions || !isExploded);
-  const shouldShowHeaderActions = !isAbsentOrCompletedStatus;
+    shouldAlwaysShowEditAndUnscheduleForGroup ||
+    shouldForceShowAllActionsForCompletedWithoutInvoice ||
+    (!shouldHideSecondaryActions && (shouldForceShowAllActions || !isExploded));
+  const shouldShowHeaderActions =
+    shouldAlwaysShowEditAndUnscheduleForGroup ||
+    shouldForceShowAllActionsForCompletedWithoutInvoice ||
+    !isAbsentOrCompletedStatus;
+  const shouldShowGenerateInvoice =
+    shouldShowSecondaryActions && !hideGenerateInvoice && !hasGeneratedInvoice;
 
   const handleTeacherClick = React.useCallback(() => {
     if (details?.schedule.teacherId) {
@@ -253,7 +267,7 @@ export const PrivateLessonScheduleCard = React.memo(function PrivateLessonSchedu
                   Unschedule Lesson
                 </DropdownMenuItem>
               )}
-              {shouldShowSecondaryActions && !hideGenerateInvoice && (
+              {shouldShowGenerateInvoice && (
                 <DropdownMenuItem onClick={handleGenerateInvoiceClick}>
                   Generate Invoice
                 </DropdownMenuItem>
