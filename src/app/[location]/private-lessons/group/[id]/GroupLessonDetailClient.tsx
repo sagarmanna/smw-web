@@ -13,6 +13,7 @@ import { PrivateLessonDetailsCard } from "../../components/PrivateLessonDetailsC
 import { PrivateLessonCostCard } from "../../components/PrivateLessonCostCard";
 import { Button } from "@/components/ui/button";
 import type { PrivateLessonDetails, PrivateLessonInfo } from "../../types";
+import { unscheduleLessons } from "../../actionApi/unschedule.api";
 import {
   updateCost,
   updatePrivateLessonDetails,
@@ -141,6 +142,23 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
     [location, id, refetchLessonInfo]
   );
 
+  const handleUnschedule = React.useCallback(async (reason: string): Promise<boolean> => {
+    const lessonId = Number(id);
+    if (Number.isNaN(lessonId) || lessonId <= 0) {
+      toast.error("Invalid lesson ID");
+      return false;
+    }
+
+    try {
+      await unscheduleLessons(location, { lessonIds: [lessonId], reason });
+      toast.success("Lesson unscheduled successfully");
+      return await refetchLessonInfo();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to unschedule lesson");
+      return false;
+    }
+  }, [id, location, refetchLessonInfo]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -207,6 +225,7 @@ export function GroupLessonDetailClient({ location, id }: GroupLessonDetailClien
               isLoading={false}
               location={location}
               hideGenerateInvoice={true}
+              onUnschedule={handleUnschedule}
             />
 
             <PrivateLessonCommentsCard
