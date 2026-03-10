@@ -9,8 +9,11 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
   {
     accessorKey: "date",
     header: () => <span>Date</span>,
+    size: 160,
+    minSize: 160,
+    maxSize: 180,
     cell: ({ row }: { row: { original: PrivateLessonRow } }) => (
-      <span className="truncate block max-w-[220px]" title={row.original.date}>
+      <span className="truncate block max-w-[150px] xl:max-w-[170px]" title={row.original.date}>
         {row.original.date}
       </span>
     ),
@@ -18,6 +21,9 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
     filter: {
       type: "date-range",
       quickPreset: "privateLessons",
+      hideClearButton: true,
+      compactDateLabel: true,
+      controlClassName: "!w-full min-w-0",
       initialValue: {
         from: startOfDay(new Date()),
         to: endOfDay(new Date()),
@@ -28,42 +34,54 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
   {
     accessorKey: "student",
     header: () => <span>Student</span>,
+    size: 120,
+    minSize: 110,
+    maxSize: 150,
     cell: ({ row }: { row: { original: PrivateLessonRow } }) => (
-      <span className="truncate block max-w-[220px]" title={row.original.student}>
+      <span className="truncate block max-w-[110px] xl:max-w-[130px]" title={row.original.student}>
         {row.original.student}
       </span>
     ),
     enableSorting: true,
     filter: {
-      type: "string"
+      type: "string",
+      controlClassName: "min-w-[90px] xl:min-w-[120px]",
     },
     meta: { printable: true, printableName: "Student" },
   } as ColumnDef<PrivateLessonRow> & { filter: { type: string } },
   {
     accessorKey: "program",
     header: () => <span>Program</span>,
+    size: 120,
+    minSize: 110,
+    maxSize: 150,
     cell: ({ row }: { row: { original: PrivateLessonRow } }) => (
-      <span className="truncate block max-w-[220px]" title={row.original.program}>
+      <span className="truncate block max-w-[110px] xl:max-w-[130px]" title={row.original.program}>
         {row.original.program}
       </span>
     ),
     enableSorting: true,
     filter: {
-      type: "string"
+      type: "string",
+      controlClassName: "min-w-[90px] xl:min-w-[120px]",
     },
     meta: { printable: true, printableName: "Program" },
   } as ColumnDef<PrivateLessonRow> & { filter: { type: string } },
   {
     accessorKey: "teacher",
     header: () => <span>Teacher</span>,
+    size: 130,
+    minSize: 120,
+    maxSize: 160,
     cell: ({ row }: { row: { original: PrivateLessonRow } }) => (
-      <span className="truncate block max-w-[260px]" title={row.original.teacher}>
+      <span className="truncate block max-w-[120px] xl:max-w-[145px]" title={row.original.teacher}>
         {row.original.teacher}
       </span>
     ),
     enableSorting: true,
     filter: {
-      type: "string"
+      type: "string",
+      controlClassName: "min-w-[90px] xl:min-w-[120px]",
     },
     meta: { 
       printable: true, 
@@ -73,10 +91,13 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
   {
     accessorKey: "duration",
     header: () => <span>Duration</span>,
+    size: 60,
+    minSize: 56,
+    maxSize: 70,
     cell: ({ getValue }) => {
       const duration = getValue() as string;
       return (
-        <span className="truncate block max-w-[120px]" title={duration || ""}>
+        <span className="truncate block max-w-[58px] xl:max-w-[70px]" title={duration || ""}>
           {duration || "-"}
         </span>
       );
@@ -87,6 +108,9 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
   {
     accessorKey: "online",
     header: () => <span>Online</span>,
+    size: 72,
+    minSize: 68,
+    maxSize: 80,
     cell: ({ getValue }) => {
       const online = getValue() as string;
       const isOnline = online?.toLowerCase() === "yes";
@@ -103,6 +127,8 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
     enableSorting: false,
     filter: {
       type: "dropdown",
+      showLeadingFilterIcon: false,
+      controlClassName: "!w-full min-w-0",
       options: [
         { value: "Yes", label: "Yes" },
         { value: "No", label: "No" },
@@ -113,6 +139,9 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
   {
     accessorKey: "status",
     header: () => <span>Status</span>,
+    size: 88,
+    minSize: 84,
+    maxSize: 100,
     cell: ({ getValue }) => {
       const status = getValue() as string;
       const isCompleted = status?.toLowerCase() === "completed";
@@ -129,6 +158,8 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
     enableSorting: false,
     filter: {
       type: "dropdown",
+      showLeadingFilterIcon: false,
+      controlClassName: "!w-full min-w-0",
       options: [
         { value: "Completed", label: "Completed" },
         { value: "Scheduled", label: "Scheduled" },
@@ -142,6 +173,9 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
   {
     accessorKey: "payment",
     header: () => <span>Payment</span>,
+    size: 80,
+    minSize: 76,
+    maxSize: 90,
     cell: ({ getValue }) => {
       const payment = getValue() as string;
       const isOwing = payment?.toLowerCase() === "owing";
@@ -158,6 +192,8 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
     enableSorting: false,
     filter: {
       type: "dropdown",
+      showLeadingFilterIcon: false,
+      controlClassName: "!w-full min-w-0",
       options: [
         { value: "Paid", label: "Paid" },
         { value: "Owing", label: "Owing" },
@@ -168,10 +204,13 @@ export const privateLessonColumns: ColumnDef<PrivateLessonRow>[] = [
   {
     accessorKey: "price",
     header: () => <span>Price</span>,
+    size: 60,
+    minSize: 56,
+    maxSize: 70,
     cell: ({ getValue }) => {
       const price = getValue() as string;
       return (
-        <span className="truncate block max-w-[120px]" title={price || ""}>
+        <span className="truncate block max-w-[58px] xl:max-w-[70px]" title={price || ""}>
           {price || "-"}
         </span>
       );
@@ -192,6 +231,11 @@ export const exportColumns: ColumnDef<PrivateLessonRow>[] = [
     accessorKey: "student",
     header: "Student",
     meta: { printable: true, printableName: "Student" },
+  },
+  {
+    accessorKey: "customerEmail",
+    header: "Email",
+    meta: { printable: true, printableName: "Email" },
   },
   {
     accessorKey: "program",

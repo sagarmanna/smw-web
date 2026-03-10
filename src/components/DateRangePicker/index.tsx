@@ -18,6 +18,9 @@ interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (range: DateRange) => void;
   className?: string;
+  triggerClassName?: string;
+  compactLabel?: boolean;
+  fitContainer?: boolean;
   preset?: "default" | "payments" | "timeVoucher" | "receivePayment" | "privateLessons";
 }
 
@@ -227,7 +230,15 @@ const privateLessonsQuickOptions = [
   },
 ];
 
-export function DateRangePicker({ value, onChange, className, preset = "default" }: DateRangePickerProps) {
+export function DateRangePicker({
+  value,
+  onChange,
+  className,
+  triggerClassName,
+  compactLabel = false,
+  fitContainer = false,
+  preset = "default",
+}: DateRangePickerProps) {
   const quickOptions = 
     preset === "payments" ? paymentsQuickOptions :
     preset === "timeVoucher" ? timeVoucherQuickOptions :
@@ -329,24 +340,28 @@ export function DateRangePicker({ value, onChange, className, preset = "default"
 
   const formatDateRange = (range: DateRange | undefined) => {
     if (!range) return "Select date range";
+    if (compactLabel) {
+      return `${format(range.from, "MMM dd")} - ${format(range.to, "MMM dd")}`;
+    }
     return `${format(range.from, "MMM dd")} - ${format(range.to, "MMM dd, yyyy")}`;
   };
 
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative", fitContainer && "w-full min-w-0", className)}>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             className={cn(
-              "w-[280px] justify-start text-left font-normal",
+              "w-[280px] min-w-0 justify-start text-left font-normal overflow-hidden",
+              triggerClassName,
               !selectedRange && "text-muted-foreground"
             )}
           >
-            <Calendar className="mr-2 h-4 w-4" />
-            {formatDateRange(selectedRange)}
-            <ChevronDown className="ml-auto h-4 w-4" />
+            <Calendar className="mr-2 h-4 w-4 shrink-0" />
+            <span className="truncate">{formatDateRange(selectedRange)}</span>
+            <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start" ref={popoverRef}>
