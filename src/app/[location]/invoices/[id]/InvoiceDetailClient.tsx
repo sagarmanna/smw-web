@@ -62,7 +62,9 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     historyLoading,
     fetchHistory,
     commentsData,
+    commentsPagination,
     commentsLoading,
+    fetchComments,
     refresh,
     handleSaveDetails,
     handleCustomerChange,
@@ -363,7 +365,10 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
             <InvoiceCommentsCard
               comments={commentsData}
-              isLoading={commentsLoading}
+              isLoading={isLoading}
+              pagination={commentsPagination}
+              commentsLoading={commentsLoading}
+              onPageChange={fetchComments}
               onAddComment={handleAddComment}
             />
 

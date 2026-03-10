@@ -518,18 +518,37 @@ export async function getInvoiceHistory(
 /**
  * Fetches invoice comments from the API with pagination.
  *
- * Endpoint: GET /admin/v2/{location}/comments?page={page}&limit=20&type=invoice&id={invoiceId}
+ * Endpoint: GET /admin/v2/{location}/comments?id={invoiceId}&type=invoice&page={page}&limit=20
  */
 export async function getInvoiceComments(
   location: string,
   invoiceId: number,
   page: number = 1
 ): Promise<InvoiceCommentsApiResponse | null> {
-  return fetchPaginatedList<InvoiceComment>(
-    `/admin/v2/${location}/comments`,
-    { type: "invoice", id: invoiceId, page, limit: 20 },
-    "comments"
-  );
+  try {
+    const response = await apiClient.get<InvoiceCommentsApiResponse>(
+      `/admin/v2/${location}/comments`,
+      {
+        params: {
+          id: invoiceId,
+          type: "invoice",
+          page,
+          limit: 20,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {
+        body: [],
+        pagination: { page, limit: 20, total: 0, totalPages: 0 },
+      },
+      message: getApiErrorMessage(error, "Failed to fetch invoice comments"),
+    };
+  }
 }
 
 /**

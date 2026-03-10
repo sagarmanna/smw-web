@@ -132,6 +132,8 @@ export function useInvoiceDetails(
   const { handleAddComment } = useInvoiceCommentsHandlers({
     invoiceDetail,
     dispatch,
+    location,
+    invoiceId,
   });
 
   const { handleReturnConfirm, isReturning } = useInvoiceReturnHandlers({
