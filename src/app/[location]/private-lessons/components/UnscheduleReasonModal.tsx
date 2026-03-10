@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import { getReasonToUnschedule, type ReasonToUnscheduleItem } from "../actionApi/unschedule.api";
 
 interface UnscheduleReasonModalProps {
@@ -27,6 +28,7 @@ export function UnscheduleReasonModal({
   onSave,
 }: UnscheduleReasonModalProps) {
   const [selectedReason, setSelectedReason] = React.useState<string>("");
+  const [otherReasonNote, setOtherReasonNote] = React.useState<string>("");
   const [reasons, setReasons] = React.useState<ReasonToUnscheduleItem[]>([]);
   const [title, setTitle] = React.useState<string>("Reason To Unschedule");
   const [isLoadingReasons, setIsLoadingReasons] = React.useState(false);
@@ -36,6 +38,7 @@ export function UnscheduleReasonModal({
   React.useEffect(() => {
     if (!open) {
       setSelectedReason("");
+      setOtherReasonNote("");
       return;
     }
 
@@ -60,21 +63,34 @@ export function UnscheduleReasonModal({
     };
   }, [open, location]);
 
+  const isOtherReasonSelected = React.useMemo(
+    () => selectedReason.trim().toLowerCase() === "other",
+    [selectedReason]
+  );
+
+  const canSave = React.useMemo(() => {
+    if (!selectedReason || isLoadingReasons || isSaving) return false;
+    if (!isOtherReasonSelected) return true;
+    return otherReasonNote.trim().length > 0;
+  }, [selectedReason, isLoadingReasons, isSaving, isOtherReasonSelected, otherReasonNote]);
+
   const handleSave = React.useCallback(async () => {
-    if (!selectedReason) return;
+    if (!canSave) return;
+    const reasonToSave = isOtherReasonSelected ? otherReasonNote.trim() : selectedReason;
     setIsSaving(true);
     try {
-      const success = await onSave(selectedReason);
+      const success = await onSave(reasonToSave);
       if (success) {
         onOpenChange(false);
       }
     } finally {
       setIsSaving(false);
     }
-  }, [selectedReason, onSave, onOpenChange]);
+  }, [canSave, isOtherReasonSelected, otherReasonNote, selectedReason, onSave, onOpenChange]);
 
   const handleCancel = React.useCallback(() => {
     setSelectedReason("");
+    setOtherReasonNote("");
     onOpenChange(false);
   }, [onOpenChange]);
 
@@ -106,6 +122,22 @@ export function UnscheduleReasonModal({
               ))}
             </RadioGroup>
           )}
+          {isOtherReasonSelected && (
+            <div className="space-y-2">
+              <Label htmlFor="unschedule-other-note" className="font-normal">
+                Please specify
+              </Label>
+              <Textarea
+                id="unschedule-other-note"
+                value={otherReasonNote}
+                onChange={(e) => setOtherReasonNote(e.target.value)}
+                placeholder="Enter note"
+                rows={3}
+                disabled={isSaving}
+                className="resize-none"
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -114,7 +146,7 @@ export function UnscheduleReasonModal({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!selectedReason || isSaving || isLoadingReasons}
+            disabled={!canSave}
           >
             {isSaving ? "Saving..." : "Save"}
           </Button>
