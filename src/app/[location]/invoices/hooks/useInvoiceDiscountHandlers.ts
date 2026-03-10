@@ -97,7 +97,6 @@ export function useInvoiceDiscountHandlers({
         // Recalculate totals using utility function
         const totals = recalculateTotals(
           updatedItems,
-          invoiceDetail.totals.tax,
           invoiceDetail.totals.paid
         );
 

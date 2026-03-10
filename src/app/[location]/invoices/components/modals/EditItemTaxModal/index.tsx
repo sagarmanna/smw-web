@@ -18,25 +18,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type ItemTaxStatus = "No Tax" | "GST Only";
+export type ItemTaxStatus = string;
 
 interface EditItemTaxModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (taxStatus: ItemTaxStatus) => void;
+  onSave?: (taxStatus: ItemTaxStatus) => Promise<boolean | void> | boolean | void;
   initialTaxStatus?: ItemTaxStatus;
+  taxStatusOptions?: ItemTaxStatus[];
+  taxRateByStatus?: Record<string, number>;
 }
-
-const TAX_RATE_MAP: Record<ItemTaxStatus, number> = {
-  "No Tax": 0,
-  "GST Only": 5,
-};
 
 export function EditItemTaxModal({
   open,
   onClose,
   onSave,
-  initialTaxStatus = "GST Only",
+  initialTaxStatus = "Default",
+  taxStatusOptions = [],
+  taxRateByStatus = {},
 }: EditItemTaxModalProps) {
   const [taxStatus, setTaxStatus] = React.useState<ItemTaxStatus>(initialTaxStatus);
 
@@ -46,10 +45,17 @@ export function EditItemTaxModal({
     }
   }, [open, initialTaxStatus]);
 
-  const handleSave = React.useCallback(() => {
-    onSave?.(taxStatus);
+  const handleSave = React.useCallback(async () => {
+    const result = await onSave?.(taxStatus);
+    if (result === false) {
+      return;
+    }
     onClose();
   }, [onSave, onClose, taxStatus]);
+
+  const displayTaxRate = Number.isFinite(taxRateByStatus[taxStatus])
+    ? taxRateByStatus[taxStatus]
+    : 0;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -66,15 +72,18 @@ export function EditItemTaxModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="No Tax">No Tax</SelectItem>
-                <SelectItem value="GST Only">GST Only</SelectItem>
+                {taxStatusOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex items-center justify-between gap-4">
             <Label className="text-base font-semibold">Tax Rate</Label>
-            <span className="text-2xl font-semibold">{TAX_RATE_MAP[taxStatus]} %</span>
+            <span className="text-2xl font-semibold">{displayTaxRate} %</span>
           </div>
         </div>
 

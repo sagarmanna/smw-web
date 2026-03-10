@@ -25,6 +25,7 @@ import { useInvoiceTaxHandlers } from "./useInvoiceTaxHandlers";
 import { useInvoiceMessageHandlers } from "./useInvoiceMessageHandlers";
 import { useInvoiceCommentsHandlers } from "./useInvoiceCommentsHandlers";
 import { useInvoiceVoidHandlers } from "./useInvoiceVoidHandlers";
+import type { InvoiceItemsTaxEditConfigData } from "../[id]/invoices-details.api";
 import { DiscountData } from "../components/modals/InvoiceDiscountModal";
 import { TaxAdjustmentData } from "../components/modals/AdjustTaxModal";
 import { DISCOUNT_WARNING_DURATION, TOAST_MESSAGES } from "../utils/constants";
@@ -52,6 +53,8 @@ type InvoiceDetailsHookReturn = {
   }) => void;
   handleSaveDiscount: (selectedItemIds: string[], discountData: DiscountData) => void;
   handleSaveItem: (updatedItem: InvoiceItem) => void;
+  handleSaveItemTax: (selectedItemIds: string[], taxStatus: string) => Promise<{ success: boolean; taxRate: number }>;
+  handleLoadItemTaxOptions: (selectedItemIds: string[]) => Promise<InvoiceItemsTaxEditConfigData | null>;
   handleDeleteItem: (itemId: string) => void;
   handleAdjustTax: (adjustmentData: TaxAdjustmentData) => Promise<void>;
   handleSaveMessage: (message: string) => void;
@@ -115,7 +118,7 @@ export function useInvoiceDetails(
     onDiscountWarning: setShowDiscountWarning,
   });
 
-  const { handleSaveItem, handleDeleteItem } = useInvoiceItemHandlers({
+  const { handleSaveItem, handleDeleteItem, handleSaveItemTax, handleLoadItemTaxOptions } = useInvoiceItemHandlers({
     location,
     invoiceId,
     invoiceDetail,
@@ -203,6 +206,8 @@ export function useInvoiceDetails(
     handleCustomerChange,
     handleSaveDiscount,
     handleSaveItem,
+    handleSaveItemTax,
+    handleLoadItemTaxOptions,
     handleDeleteItem,
     handleAdjustTax,
     handleSaveMessage,

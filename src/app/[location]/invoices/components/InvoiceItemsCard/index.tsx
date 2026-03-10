@@ -19,6 +19,7 @@ import { InvoiceDiscountModal, DiscountData } from "../modals/InvoiceDiscountMod
 import { EditLineItemModal } from "../modals/EditLineItemModal";
 import { AddLineItemsModal } from "../modals/AddLineItemsModal";
 import { EditItemTaxModal, ItemTaxStatus } from "../modals/EditItemTaxModal";
+import type { InvoiceItemsTaxEditConfigData } from "../../[id]/invoices-details.api";
 import type { ItemRow } from "../../../items/itemsListing.api";
 import { toast } from "sonner";
 import { TOAST_MESSAGES } from "../../utils/constants";
@@ -28,8 +29,11 @@ interface InvoiceItemsCardProps {
   items: InvoiceItem[];
   isLoading?: boolean;
   isVoided?: boolean;
+  lockItemAndTaxActions?: boolean;
   onSaveDiscount?: (selectedItemIds: string[], discountData: DiscountData) => void;
   onSaveItem?: (item: InvoiceItem) => void;
+  onSaveItemTax?: (selectedItemIds: string[], taxStatus: string) => Promise<{ success: boolean; taxRate: number }>;
+  onLoadItemTaxOptions?: (selectedItemIds: string[]) => Promise<InvoiceItemsTaxEditConfigData | null>;
   onDeleteItem?: (itemId: string) => void;
 }
 
@@ -38,16 +42,74 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
   items,
   isLoading = false,
   isVoided = false,
+  lockItemAndTaxActions = false,
   onSaveDiscount,
   onSaveItem,
+  onSaveItemTax,
+  onLoadItemTaxOptions,
   onDeleteItem,
 }: InvoiceItemsCardProps) {
+  const isItemAndTaxActionsLocked = isVoided || lockItemAndTaxActions;
+
   const [selectedItems, setSelectedItems] = React.useState<Set<string>>(new Set());
   const [isDiscountModalOpen, setIsDiscountModalOpen] = React.useState(false);
   const [isEditTaxModalOpen, setIsEditTaxModalOpen] = React.useState(false);
   const [isEditLineItemModalOpen, setIsEditLineItemModalOpen] = React.useState(false);
   const [isAddLineItemsModalOpen, setIsAddLineItemsModalOpen] = React.useState(false);
   const [selectedItem, setSelectedItem] = React.useState<InvoiceItem | null>(null);
+  const [taxRateOverrides, setTaxRateOverrides] = React.useState<Record<string, number>>({});
+  const [modalTaxStatusOptions, setModalTaxStatusOptions] = React.useState<string[]>([]);
+  const [modalInitialTaxStatus, setModalInitialTaxStatus] = React.useState<string>("Default");
+
+  const fallbackTaxStatusOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((item) => {
+      const status = (item.taxStatus || "").trim();
+      if (status) {
+        set.add(status);
+      }
+    });
+
+    return Array.from(set);
+  }, [items]);
+
+  const taxRateByStatus = React.useMemo(() => {
+    const derived: Record<string, number> = {};
+
+    items.forEach((item) => {
+      const status = (item.taxStatus || "").trim();
+      if (!status) return;
+
+      const price = Number(item.price || 0);
+      const tax = Number(item.tax || 0);
+
+      if (price > 0) {
+        derived[status] = Number(((tax / price) * 100).toFixed(2));
+      }
+    });
+
+    return {
+      ...derived,
+      ...taxRateOverrides,
+    };
+  }, [items, taxRateOverrides]);
+
+  const selectedTaxStatus = React.useMemo(() => {
+    for (const item of items) {
+      if (!selectedItems.has(item.id)) continue;
+      const status = (item.taxStatus || "").trim();
+      if (status) return status;
+    }
+    return "Default";
+  }, [items, selectedItems]);
+
+  const effectiveModalTaxStatusOptions = React.useMemo(() => {
+    const options = modalTaxStatusOptions.filter((option) => option.trim().length > 0);
+    if (!options.includes(modalInitialTaxStatus)) {
+      return [modalInitialTaxStatus, ...options];
+    }
+    return options;
+  }, [modalInitialTaxStatus, modalTaxStatusOptions]);
 
   const handleSelectAll = React.useCallback(
     (checked: boolean) => {
@@ -81,36 +143,75 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
     setIsDiscountModalOpen(true);
   }, [selectedItems, isVoided]);
 
-  const handleOpenEditTaxModal = React.useCallback(() => {
-    if (isVoided) return;
+  const handleOpenAddItemModal = React.useCallback(() => {
+    if (isItemAndTaxActionsLocked) return;
+    setIsAddLineItemsModalOpen(true);
+  }, [isItemAndTaxActionsLocked]);
+
+  const handleOpenEditTaxModal = React.useCallback(async () => {
+    if (isItemAndTaxActionsLocked) return;
     if (selectedItems.size === 0) {
       toast.error(TOAST_MESSAGES.ERROR.ITEM_TAX_SELECTION_REQUIRED);
       return;
     }
+
+    const selectedIds = Array.from(selectedItems);
+    setModalInitialTaxStatus(selectedTaxStatus);
+    setModalTaxStatusOptions(fallbackTaxStatusOptions);
+
+    if (onLoadItemTaxOptions) {
+      const taxConfig = await onLoadItemTaxOptions(selectedIds);
+      if (taxConfig) {
+        setModalInitialTaxStatus(taxConfig.currentTaxStatus || selectedTaxStatus);
+
+        if (taxConfig.currentTaxStatus) {
+          setTaxRateOverrides((prev) => ({
+            ...prev,
+            [taxConfig.currentTaxStatus]: Number(taxConfig.currentTaxRate || 0),
+          }));
+        }
+
+        if (taxConfig.availableTaxStatuses.length > 0) {
+          setModalTaxStatusOptions(taxConfig.availableTaxStatuses.map((status) => status.name));
+          setTaxRateOverrides((prev) => {
+            const next = { ...prev };
+            taxConfig.availableTaxStatuses.forEach((status) => {
+              next[status.name] = Number(status.rate || 0);
+            });
+            return next;
+          });
+        }
+      }
+    }
+
     setIsEditTaxModalOpen(true);
-  }, [selectedItems, isVoided]);
+  }, [
+    fallbackTaxStatusOptions,
+    isItemAndTaxActionsLocked,
+    onLoadItemTaxOptions,
+    selectedItems,
+    selectedTaxStatus,
+  ]);
 
   const handleSaveItemTax = React.useCallback(
-    (taxStatus: ItemTaxStatus) => {
-      if (!onSaveItem) return;
+    async (taxStatus: ItemTaxStatus) => {
+      if (!onSaveItemTax) return false;
 
-      const taxRate = taxStatus === "GST Only" ? 0.05 : 0;
+      const selectedIds = Array.from(selectedItems);
+      const result = await onSaveItemTax(selectedIds, taxStatus);
 
-      items.forEach((item) => {
-        if (!selectedItems.has(item.id)) return;
+      if (result.success) {
+        setTaxRateOverrides((prev) => ({
+          ...prev,
+          [taxStatus]: result.taxRate,
+        }));
+        setIsExpanded(true);
+        return true;
+      }
 
-        const updatedItem: InvoiceItem = {
-          ...item,
-          taxStatus,
-          tax: Number((item.price * taxRate).toFixed(2)),
-        };
-
-        onSaveItem(updatedItem);
-      });
-
-      toast.success("Tax updated successfully");
+      return false;
     },
-    [items, onSaveItem, selectedItems]
+    [onSaveItemTax, selectedItems]
   );
 
   const handleRowClick = React.useCallback(
@@ -324,15 +425,15 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {items.length === 0 ? (
-                <DropdownMenuItem onClick={() => setIsAddLineItemsModalOpen(true)}>
+                <DropdownMenuItem onClick={handleOpenAddItemModal} disabled={isItemAndTaxActionsLocked}>
                   Add Item...
                 </DropdownMenuItem>
               ) : (
                 <>
-                  <DropdownMenuItem onClick={() => setIsAddLineItemsModalOpen(true)}>
+                  <DropdownMenuItem onClick={handleOpenAddItemModal} disabled={isItemAndTaxActionsLocked}>
                     Add Item...
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenEditTaxModal} disabled={isVoided}>
+                  <DropdownMenuItem onClick={handleOpenEditTaxModal} disabled={isItemAndTaxActionsLocked}>
                     Edit Tax...
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -411,7 +512,10 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
       <EditItemTaxModal
         open={isEditTaxModalOpen}
         onClose={() => setIsEditTaxModalOpen(false)}
-        onSave={onSaveItem ? handleSaveItemTax : undefined}
+        onSave={onSaveItemTax ? handleSaveItemTax : undefined}
+        initialTaxStatus={modalInitialTaxStatus}
+        taxStatusOptions={effectiveModalTaxStatusOptions}
+        taxRateByStatus={taxRateByStatus}
       />
     </SectionCard>
   );

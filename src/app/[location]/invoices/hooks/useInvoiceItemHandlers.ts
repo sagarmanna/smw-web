@@ -4,8 +4,15 @@ import * as React from "react";
 import { toast } from "sonner";
 import { AppDispatch } from "@/redux/store";
 import type { InvoiceItem, InvoiceDetail } from "../types";
-import { updateItems, updateTotals } from "../[id]/invoices-details.slice";
-import { addInvoiceLineItem, deleteInvoiceLineItem, updateInvoiceLineItem } from "../[id]/invoices-details.api";
+import { fetchInvoice, updateItems, updateTotals } from "../[id]/invoices-details.slice";
+import {
+  addInvoiceLineItem,
+  deleteInvoiceLineItem,
+  editInvoiceItemsTax,
+  getInvoiceItemsTaxEditConfig,
+  type InvoiceItemsTaxEditConfigData,
+  updateInvoiceLineItem,
+} from "../[id]/invoices-details.api";
 import { recalculateTotals } from "../utils/totalsCalculator";
 import { TOAST_MESSAGES } from "../utils/constants";
 
@@ -21,9 +28,27 @@ function applyItemUpdate(
   updatedItems: InvoiceItem[],
   currentTotals: InvoiceDetail["totals"]
 ) {
-  const totals = recalculateTotals(updatedItems, currentTotals.tax, currentTotals.paid);
+  const totals = recalculateTotals(updatedItems, currentTotals.paid);
   dispatch(updateItems(updatedItems));
   dispatch(updateTotals(totals));
+}
+
+function extractLineItemIds(selectedItemIds: string[]): number[] {
+  const parsedIds = new Set<number>();
+
+  selectedItemIds.forEach((rawValue) => {
+    String(rawValue)
+      .split(",")
+      .forEach((chunk) => {
+        const normalized = chunk.trim().split("-")[0];
+        const numericId = Number(normalized);
+        if (!Number.isNaN(numericId) && numericId > 0) {
+          parsedIds.add(numericId);
+        }
+      });
+  });
+
+  return Array.from(parsedIds);
 }
 
 export function useInvoiceItemHandlers({
@@ -32,6 +57,43 @@ export function useInvoiceItemHandlers({
   invoiceDetail,
   dispatch,
 }: UseInvoiceItemHandlersProps) {
+  const handleLoadItemTaxOptions = React.useCallback(
+    async (
+      selectedItemIds: string[]
+    ): Promise<InvoiceItemsTaxEditConfigData | null> => {
+      const lineItemIds = extractLineItemIds(selectedItemIds);
+
+      if (lineItemIds.length === 0) {
+        return null;
+      }
+
+      try {
+        const response = await getInvoiceItemsTaxEditConfig(location, lineItemIds);
+        if (!response?.success) {
+          toast.error(response?.message || "Failed to load item tax options");
+          return null;
+        }
+
+        return {
+          currentTaxStatus: response.data.currentTaxStatus,
+          currentTaxRate: Number(response.data.currentTaxRate ?? 0) || 0,
+          availableTaxStatuses: response.data.availableTaxStatuses
+            .map((status) => ({
+              id: Number(status.id),
+              name: status.name,
+              rate: Number(status.rate ?? 0) || 0,
+            }))
+            .filter((status) => status.name.length > 0),
+        };
+      } catch (error) {
+        console.error("Failed to load item tax options:", error);
+        toast.error("Failed to load item tax options");
+        return null;
+      }
+    },
+    [location]
+  );
+
   const handleSaveItem = React.useCallback(
     async (updatedItem: InvoiceItem) => {
       if (!invoiceDetail) {
@@ -142,9 +204,75 @@ export function useInvoiceItemHandlers({
     [invoiceDetail, dispatch, location]
   );
 
+  const handleSaveItemTax = React.useCallback(
+    async (
+      selectedItemIds: string[],
+      taxStatus: string
+    ): Promise<{ success: boolean; taxRate: number }> => {
+      if (!invoiceDetail) {
+        toast.error(TOAST_MESSAGES.ERROR.INVOICE_NOT_FOUND);
+        return { success: false, taxRate: 0 };
+      }
+
+      const lineItemIds = extractLineItemIds(selectedItemIds);
+
+      if (lineItemIds.length === 0) {
+        toast.error("No valid line items selected");
+        return { success: false, taxRate: 0 };
+      }
+
+      try {
+        const response = await editInvoiceItemsTax(location, {
+          lineItemIds,
+          taxStatus,
+        });
+
+        if (!response?.success) {
+          toast.error(response?.message || "Failed to update item tax");
+          return { success: false, taxRate: 0 };
+        }
+
+        const taxRatePercent = Number(response.data?.taxRate ?? 0);
+        const taxMultiplier = Number.isFinite(taxRatePercent) ? taxRatePercent / 100 : 0;
+        const selectedSet = new Set(lineItemIds);
+
+        const updatedItems = invoiceDetail.items.map((item) => {
+          const normalizedItemId = Number(String(item.id).split("-")[0]);
+          if (!selectedSet.has(normalizedItemId)) return item;
+
+          const qty = Number(item.qty || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          const baseLineAmount = qty > 0 && unitPrice > 0
+            ? unitPrice * qty
+            : Number(item.price || 0);
+
+          return {
+            ...item,
+            taxStatus,
+            tax: Number((baseLineAmount * taxMultiplier).toFixed(2)),
+          };
+        });
+
+        applyItemUpdate(dispatch, updatedItems, invoiceDetail.totals);
+        // Keep the UI in sync with server-calculated values after save.
+        await dispatch(fetchInvoice({ location, invoiceId })).unwrap();
+        toast.success(response.message || "Tax updated successfully");
+
+        return { success: true, taxRate: taxRatePercent };
+      } catch (error) {
+        console.error("Failed to update item tax:", error);
+        toast.error("Failed to update item tax");
+        return { success: false, taxRate: 0 };
+      }
+    },
+    [invoiceDetail, dispatch, location]
+  );
+
   return {
     handleSaveItem,
     handleDeleteItem,
+    handleSaveItemTax,
+    handleLoadItemTaxOptions,
   };
 }
 
