@@ -35,7 +35,7 @@ import {
   type TeacherScheduleAvailabilityEvent,
 } from "../../../teachers/[id]/teachers-details-tabs.api";
 import { getTeacherView, getTeachersList } from "@/app/[location]/schedule/schedule.api";
-import { editLessonSchedule } from "../../[id]/private-lesson-details.api";
+import { editLessonSchedule, validateEditSchedule } from "../../[id]/private-lesson-details.api";
 import { extractErrorMessage, resolveMessage } from "../../utils/errorUtils";
 import { toast } from "sonner";
 import { PrivateLessonDetails } from "../../types";
@@ -275,9 +275,13 @@ export function EditScheduleModal({
 
   // ─── Slot click → set reschedule date ────────────────────────────────────────
   const handleSelectSlot = useCallback(
-    (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
+    async (slotInfo: { start: Date; end: Date; resourceId?: number | string }) => {
       if (!selectedTeacherId) {
         toast.error("Please select a teacher first");
+        return;
+      }
+      if (!details?.id) {
+        toast.error("Lesson ID is missing");
         return;
       }
       const resourceId =
@@ -288,9 +292,37 @@ export function EditScheduleModal({
       const day = new Date(mondayDate);
       day.setDate(mondayDate.getDate() + (resourceId - 1));
       day.setHours(slotInfo.start.getHours(), slotInfo.start.getMinutes(), 0, 0);
-      setRescheduleDate(day);
+
+      const validationDate = format(day, "yyyy-MM-dd hh:mm a");
+      const validationDuration = duration.split(":").length === 3
+        ? duration.slice(0, 5)
+        : duration;
+
+      try {
+        const validation = await validateEditSchedule(location, details.id, {
+          duration: validationDuration,
+          date: validationDate,
+          teacherId: selectedTeacherId,
+        });
+
+        const dateErrors = Array.isArray(validation.data?.date) ? validation.data.date : [];
+        const dateErrorMessage = dateErrors.find(
+          (message): message is string => typeof message === "string" && message.trim() !== ""
+        );
+
+        if (!validation.success || dateErrors.length > 0) {
+          toast.error(
+            dateErrorMessage || validation.message || "Selected slot is not valid for this lesson"
+          );
+          return;
+        }
+
+        setRescheduleDate(day);
+      } catch (error) {
+        toast.error(extractErrorMessage(error, "Failed to validate selected slot"));
+      }
     },
-    [selectedTeacherId, mondayDate]
+    [selectedTeacherId, details?.id, mondayDate, duration, location]
   );
 
   // ─── Save ─────────────────────────────────────────────────────────────────────
@@ -309,10 +341,24 @@ export function EditScheduleModal({
 
     setIsSubmitting(true);
     try {
-      const result = await editLessonSchedule(location, details.id, {
+      const payload: {
+        teacherId: number;
+        date: string;
+        duration: string;
+        expiryDate?: string;
+      } = {
+        teacherId: selectedTeacherId,
         date: dateForApi,
         duration: durationForApi,
-      });
+      };
+
+      // Private lesson: send default/current expiryDate in payload.
+      // Group lesson: omit expiryDate.
+      if (!details.isGroup) {
+        payload.expiryDate = details.schedule.expiryDate || "";
+      }
+
+      const result = await editLessonSchedule(location, details.id, payload);
       toast.success(resolveMessage(result.message, "Lesson rescheduled successfully"));
       onOpenChange(false);
       onSuccess?.();
@@ -328,7 +374,7 @@ export function EditScheduleModal({
     } finally {
       setIsSubmitting(false);
     }
-  }, [details?.id, selectedTeacherId, rescheduleDate, duration, location, router, onOpenChange, onSuccess]);
+  }, [details?.id, details?.isGroup, details?.schedule?.expiryDate, selectedTeacherId, rescheduleDate, duration, location, router, onOpenChange, onSuccess]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
