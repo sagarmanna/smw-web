@@ -334,8 +334,14 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
           {/* Payments and Totals Side by Side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <InvoicePaymentsCard
+              location={location}
+              customerId={customerId ?? undefined}
+              customerName={invoiceDetail.customer.name || ""}
+              customerEmail={invoiceDetail.customer.email || ""}
+              customerPhone={invoiceDetail.customer.phone || ""}
               payments={invoiceDetail.payments}
               isLoading={isLoading}
+              onPaymentUpdated={refresh}
             />
 
             <InvoiceTotalsCard
@@ -404,6 +410,8 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
         location={location}
         customerId={customerId}
         customerName={invoiceDetail.customer.name || ""}
+        customerEmail={invoiceDetail.customer.email || ""}
+        customerPhone={invoiceDetail.customer.phone || ""}
         onPaymentSaved={refresh}
         openRequestKey={receivePaymentOpenRequest}
       />
