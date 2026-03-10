@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Filter, X, Search } from "lucide-react";
+import { Filter, X, Search, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { convertToDate } from "@/utils/dateUtils";
@@ -78,6 +78,7 @@ export function ColumnFilterComponent({
                 className={cn(
                   "h-8 w-full px-2 text-sm justify-center font-normal",
                   !hasValue && "text-muted-foreground",
+                  filter.controlClassName,
                   className
                 )}
               >
@@ -123,12 +124,17 @@ export function ColumnFilterComponent({
             placeholder={placeholder}
             className={cn(
               "h-8 w-full min-w-[160px] text-sm text-foreground placeholder:text-muted-foreground/80 placeholder:font-normal focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:ring-offset-0 border-border/50 focus-visible:border-ring/50",
+              filter.controlClassName,
               className
             )}
           />
         );
 
       case "dropdown":
+        const selectedLabel = hasValue
+          ? filter.options?.find(opt => opt.value === currentValue)?.label || (isString(currentValue) ? currentValue : String(currentValue))
+          : "Filter";
+        const showLeadingFilterIcon = filter.showLeadingFilterIcon !== false;
         return (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -136,16 +142,17 @@ export function ColumnFilterComponent({
                 variant="outline"
                 size="sm"
                 className={cn(
-                  "h-8 w-full px-2 text-sm justify-center font-normal",
+                  "h-8 w-full px-2 text-sm justify-between font-normal gap-1 overflow-hidden",
                   !hasValue && "text-muted-foreground",
+                  filter.controlClassName,
                   className
                 )}
               >
-                <Filter className="mr-1 h-3 w-3" />
-                {hasValue 
-                  ? filter.options?.find(opt => opt.value === currentValue)?.label || (isString(currentValue) ? currentValue : String(currentValue))
-                  : "Filter"
-                }
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  {showLeadingFilterIcon && <Filter className="h-3 w-3 shrink-0" />}
+                  <span className="truncate">{selectedLabel}</span>
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-56 p-0" align="start">
@@ -191,7 +198,10 @@ export function ColumnFilterComponent({
             onChange={(range) => {
               onValueChange(range);
             }}
-            className="min-w-[240px]"
+            fitContainer={true}
+            className="w-full min-w-0"
+            triggerClassName={cn("min-w-[240px]", filter.controlClassName)}
+            compactLabel={filter.compactDateLabel}
           />
         );
 
@@ -201,9 +211,9 @@ export function ColumnFilterComponent({
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex w-full min-w-0 items-center gap-1">
       {renderFilterContent()}
-      {hasValue && filter.type !== "date" && (
+      {hasValue && filter.type !== "date" && !filter.hideClearButton && (
         <Button
           variant="ghost"
           size="sm"

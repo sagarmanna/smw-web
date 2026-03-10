@@ -33,6 +33,10 @@ export interface ColumnFilter {
   options?: { value: string; label: string }[]; // For dropdown type
   disabled?: (date: Date) => boolean; // Function to disable specific dates
   quickPreset?: "default" | "payments" | "timeVoucher" | "receivePayment" | "privateLessons"; // Optional preset for components like DateRangePicker
+  controlClassName?: string; // Optional per-column control sizing/styling
+  hideClearButton?: boolean; // Optional per-column clear control toggle
+  showLeadingFilterIcon?: boolean; // Optional per-column dropdown icon toggle
+  compactDateLabel?: boolean; // Optional compact label format for date-range trigger
 }
 
 export interface CustomTableProps<TData, TValue> {
