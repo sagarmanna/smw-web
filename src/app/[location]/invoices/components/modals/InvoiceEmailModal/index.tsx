@@ -3,8 +3,8 @@
 import * as React from "react";
 import {
   getInvoiceEmailStatement,
-  type InvoiceEmailStatementBody,
 } from "../../../[id]/invoiceEmailStatement.api";
+import { generateInvoiceEmailStatementContent } from "../../../[id]/invoiceEmailStatementHtml";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,7 @@ export interface InvoiceEmailData {
 interface InvoiceEmailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSend: (emailData: InvoiceEmailData) => void;
+  onSend: (emailData: InvoiceEmailData) => Promise<boolean>;
   location: string;
   invoiceId: number;
 }
@@ -46,65 +46,13 @@ export function InvoiceEmailModal({
   const [subject, setSubject] = React.useState<string>("");
   const [content, setContent] = React.useState<string>("");
   const [isLoadingStatement, setIsLoadingStatement] = React.useState(false);
+  const [isSending, setIsSending] = React.useState(false);
   const [statementError, setStatementError] = React.useState<string | null>(null);
   const [errors, setErrors] = React.useState<{
     recipients?: string;
     subject?: string;
     content?: string;
   }>({});
-
-  const generateEmailContentFromApi = React.useCallback((body?: InvoiceEmailStatementBody): string => {
-    const template = body?.emailTemplate;
-    const apiContent = body?.content;
-
-    const messageHtml = apiContent?.message ? `<p>${apiContent.message}</p>` : "";
-
-    const lineItemsHtml = apiContent?.lineItems?.length
-      ? `
-<table>
-  <thead>
-    <tr>
-      <th>Code</th>
-      <th>Description</th>
-      <th>Qty</th>
-      <th>Price</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${apiContent.lineItems
-      .map(
-        (item) => `
-    <tr>
-      <td>${item.code || "-"}</td>
-      <td>${item.description || ""}</td>
-      <td>${item.qty ?? ""}</td>
-      <td>${item.price || ""}</td>
-    </tr>
-    `
-      )
-      .join("")}
-  </tbody>
-</table>`
-      : "";
-
-    const totals = apiContent?.totals;
-    const totalsHtml = totals
-      ? `
-<table>
-  <tbody>
-    <tr><td>SubTotal</td><td>${totals.subtotal || "$0.00"}</td></tr>
-    <tr><td>Tax</td><td>${totals.tax || "$0.00"}</td></tr>
-    <tr><td>Total</td><td>${totals.total || "$0.00"}</td></tr>
-    <tr><td>Paid</td><td>${totals.paid || "$0.00"}</td></tr>
-    <tr><td>Balance</td><td>${totals.balance || "$0.00"}</td></tr>
-  </tbody>
-</table>`
-      : "";
-
-    const hstHtml = apiContent?.hstNumber ? `<p><strong>HST# ${apiContent.hstNumber}</strong></p>` : "";
-
-    return `${template?.header || ""}${lineItemsHtml}${messageHtml}${totalsHtml}${hstHtml}${template?.footer || ""}`;
-  }, []);
 
   // Initialize form when modal opens
   React.useEffect(() => {
@@ -129,7 +77,7 @@ export function InvoiceEmailModal({
 
         const body = response.data.body;
         const template = body.emailTemplate;
-        const contentHtml = generateEmailContentFromApi(body);
+        const contentHtml = generateInvoiceEmailStatementContent(body);
 
         setRecipients(template?.to ? [template.to] : []);
         setSubject(template?.subject || "");
@@ -154,7 +102,7 @@ export function InvoiceEmailModal({
     return () => {
       cancelled = true;
     };
-  }, [open, location, invoiceId, generateEmailContentFromApi]);
+  }, [open, location, invoiceId]);
 
   const handleAddRecipient = () => {
     const trimmedEmail = emailInput.trim();
@@ -184,7 +132,7 @@ export function InvoiceEmailModal({
     setRecipients((prev) => prev.filter((r) => r !== email));
   };
 
-  const handleSendEmail = () => {
+  const handleSendEmail = async () => {
     const newErrors: typeof errors = {};
 
     if (recipients.length === 0) {
@@ -210,8 +158,15 @@ export function InvoiceEmailModal({
       content,
     };
 
-    onSend(emailData);
-    handleClose();
+    setIsSending(true);
+    try {
+      const isSent = await onSend(emailData);
+      if (isSent) {
+        handleClose();
+      }
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleClose = () => {
@@ -328,7 +283,11 @@ export function InvoiceEmailModal({
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSendEmail} disabled={isLoadingStatement || !!statementError}>
+          <Button
+            type="button"
+            onClick={() => void handleSendEmail()}
+            disabled={isLoadingStatement || !!statementError || isSending}
+          >
             Send Email
           </Button>
         </DialogFooter>
