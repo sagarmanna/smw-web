@@ -12,6 +12,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  extractInvoiceLineItemsDiscountValues,
+  getInvoiceLineItemsDiscount,
+} from "../../../[id]/invoices-details.api";
+
+function formatNumericInputValue(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return "";
+  }
+
+  return String(parsed);
+}
 
 export interface DiscountData {
   paymentFrequencyDiscountPercent: number;
@@ -22,12 +39,20 @@ export interface DiscountData {
 }
 
 interface InvoiceDiscountModalProps {
+  location: string;
+  selectedItemIds: string[];
   open: boolean;
   onClose: () => void;
-  onSave?: (discountData: DiscountData) => void;
+  onSave?: (discountData: DiscountData) => Promise<boolean>;
 }
 
-export function InvoiceDiscountModal({ open, onClose, onSave }: InvoiceDiscountModalProps) {
+export function InvoiceDiscountModal({
+  location,
+  selectedItemIds,
+  open,
+  onClose,
+  onSave,
+}: InvoiceDiscountModalProps) {
   const [paymentFrequencyDiscountPercent, setPaymentFrequencyDiscountPercent] =
     React.useState<string>("");
   const [customerDiscountPercent, setCustomerDiscountPercent] =
@@ -38,17 +63,61 @@ export function InvoiceDiscountModal({ open, onClose, onSave }: InvoiceDiscountM
     React.useState<"fixed" | "percentage">("fixed");
   const [lineItemDiscountValue, setLineItemDiscountValue] =
     React.useState<string>("");
+  const [isLessonItem, setIsLessonItem] = React.useState(false);
+  const [isLoadingDiscount, setIsLoadingDiscount] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
 
-  // Reset form when modal opens
+  // Reset form and fetch current discount values when modal opens.
   React.useEffect(() => {
-    if (open) {
+    if (!open) {
       setPaymentFrequencyDiscountPercent("");
       setCustomerDiscountPercent("");
       setMultipleEnrollmentDiscountAmount("");
       setLineItemDiscountType("fixed");
       setLineItemDiscountValue("");
+      setIsLessonItem(false);
+      return;
     }
-  }, [open]);
+
+    const lineItemIds = selectedItemIds
+      .map((id) => Number(id))
+      .filter((id) => !Number.isNaN(id));
+
+    if (lineItemIds.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+    setIsLoadingDiscount(true);
+
+    getInvoiceLineItemsDiscount(location, lineItemIds)
+      .then((response) => {
+        if (isCancelled) {
+          return;
+        }
+
+        const body = extractInvoiceLineItemsDiscountValues(response);
+        if (!body) {
+          return;
+        }
+
+        setIsLessonItem(body.isLessonItem === true);
+        setPaymentFrequencyDiscountPercent(formatNumericInputValue(body.paymentFrequencyDiscount));
+        setCustomerDiscountPercent(formatNumericInputValue(body.customerDiscount));
+        setMultipleEnrollmentDiscountAmount(formatNumericInputValue(body.multiEnrolmentDiscount));
+        setLineItemDiscountValue(formatNumericInputValue(body.lineItemDiscount));
+        setLineItemDiscountType(body.lineItemDiscountValueType === 1 ? "percentage" : "fixed");
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingDiscount(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open, location, selectedItemIds]);
 
   const hasAnyValue =
     !!paymentFrequencyDiscountPercent ||
@@ -60,7 +129,7 @@ export function InvoiceDiscountModal({ open, onClose, onSave }: InvoiceDiscountM
     onClose();
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!onSave) {
       onClose();
       return;
@@ -74,8 +143,15 @@ export function InvoiceDiscountModal({ open, onClose, onSave }: InvoiceDiscountM
       lineItemDiscountValue: parseFloat(lineItemDiscountValue) || 0,
     };
 
-    onSave(discountData);
-    onClose();
+    setIsSaving(true);
+    try {
+      const success = await onSave(discountData);
+      if (success) {
+        onClose();
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -86,24 +162,9 @@ export function InvoiceDiscountModal({ open, onClose, onSave }: InvoiceDiscountM
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Payment Frequency Discount */}
-          <div className="flex items-center justify-between gap-4">
-            <Label className="font-semibold">Payment Frequency Discount</Label>
-            <div className="flex items-center gap-2 w-64">
-              <Input
-                type="number"
-                value={paymentFrequencyDiscountPercent}
-                onChange={(e) => setPaymentFrequencyDiscountPercent(e.target.value)}
-                placeholder="0"
-                className="text-right"
-                min="0"
-                max="100"
-                step="0.01"
-              />
-              <span className="w-6 text-sm text-muted-foreground text-center">%</span>
-            </div>
-          </div>
-
+          {isLoadingDiscount && (
+            <p className="text-sm text-muted-foreground">Loading discount values...</p>
+          )}
           {/* Customer Discount */}
           <div className="flex items-center justify-between gap-4">
             <Label className="font-semibold">Customer Discount</Label>
@@ -119,25 +180,6 @@ export function InvoiceDiscountModal({ open, onClose, onSave }: InvoiceDiscountM
                 step="0.01"
               />
               <span className="w-6 text-sm text-muted-foreground text-center">%</span>
-            </div>
-          </div>
-
-          {/* Multiple Enrollment Discount */}
-          <div className="flex items-center justify-between gap-4">
-            <Label className="font-semibold">Multiple Enrollment Discount</Label>
-            <div className="flex items-center gap-2 w-64">
-              <span className="w-4 text-sm text-muted-foreground text-center">$</span>
-              <Input
-                type="number"
-                value={multipleEnrollmentDiscountAmount}
-                onChange={(e) =>
-                  setMultipleEnrollmentDiscountAmount(e.target.value)
-                }
-                placeholder="0"
-                className="text-right"
-                min="0"
-                step="0.01"
-              />
             </div>
           </div>
 
@@ -172,13 +214,53 @@ export function InvoiceDiscountModal({ open, onClose, onSave }: InvoiceDiscountM
               </div>
             </div>
           </div>
+
+          {/* Lesson-only discount fields */}
+          {isLessonItem && (
+            <>
+              <div className="flex items-center justify-between gap-4">
+                <Label className="font-semibold">Payment Frequency Discount</Label>
+                <div className="flex items-center gap-2 w-64">
+                  <Input
+                    type="number"
+                    value={paymentFrequencyDiscountPercent}
+                    onChange={(e) => setPaymentFrequencyDiscountPercent(e.target.value)}
+                    placeholder="0"
+                    className="text-right"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                  />
+                  <span className="w-6 text-sm text-muted-foreground text-center">%</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <Label className="font-semibold">Multiple Enrollment Discount</Label>
+                <div className="flex items-center gap-2 w-64">
+                  <span className="w-4 text-sm text-muted-foreground text-center">$</span>
+                  <Input
+                    type="number"
+                    value={multipleEnrollmentDiscountAmount}
+                    onChange={(e) =>
+                      setMultipleEnrollmentDiscountAmount(e.target.value)
+                    }
+                    placeholder="0"
+                    className="text-right"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter className="flex justify-end gap-2">
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!hasAnyValue}>
+          <Button onClick={handleSave} disabled={!hasAnyValue || isSaving}>
             Save
           </Button>
         </DialogFooter>

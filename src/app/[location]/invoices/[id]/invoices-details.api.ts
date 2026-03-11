@@ -154,6 +154,109 @@ export interface DeleteInvoiceLineItemResponse {
   message?: string;
 }
 
+export interface EditInvoiceItemsTaxRequest {
+  lineItemIds: number[];
+  taxStatus: string;
+}
+
+export interface InvoiceItemsTaxStatusOption {
+  id: number;
+  name: string;
+  rate: number;
+}
+
+export interface GetInvoiceItemsTaxEditConfigResponse {
+  success: boolean;
+  data: {
+    currentTaxStatus: string;
+    currentTaxRate: number;
+    availableTaxStatuses: InvoiceItemsTaxStatusOption[];
+  };
+  message?: string;
+}
+
+export type InvoiceItemsTaxEditConfigData = GetInvoiceItemsTaxEditConfigResponse["data"];
+
+export interface EditInvoiceItemsTaxResponse {
+  success: boolean;
+  data: {
+    updatedCount: number;
+    taxRate: number;
+  };
+  message?: string;
+}
+
+type EditInvoiceItemsTaxBackendResponse = {
+  success: boolean;
+  data?: {
+    updatedCount?: number;
+    taxRate?: number | string;
+    body?: {
+      updatedCount?: number;
+      taxRate?: number | string;
+    };
+  };
+  message?: string;
+};
+
+type GetInvoiceItemsTaxEditConfigBackendResponse = {
+  success: boolean;
+  data?: {
+    currentTaxStatus?: string;
+    currentTaxRate?: number | string;
+    availableTaxStatuses?: Array<{
+      id?: number | string;
+      name?: string;
+      rate?: number | string;
+    }>;
+  };
+  message?: string;
+};
+export interface InvoiceLineItemsDiscountValues {
+  lineItemIds?: number[];
+  lineItemDiscount?: number | string | null;
+  lineItemDiscountValueType?: number;
+  customerDiscount?: number | string | null;
+  paymentFrequencyDiscount?: number | string | null;
+  multiEnrolmentDiscount?: number | string | null;
+  isLessonItem?: boolean;
+}
+
+export interface GetInvoiceLineItemsDiscountResponse {
+  success: boolean;
+  data: InvoiceLineItemsDiscountValues & {
+    body?: InvoiceLineItemsDiscountValues;
+  };
+  message?: string;
+}
+
+export interface UpdateInvoiceLineItemsDiscountRequest {
+  lineItemIds: number[];
+  lineItemDiscount?: number;
+  lineItemDiscountValueType?: 0 | 1;
+  customerDiscount?: number;
+  paymentFrequencyDiscount?: number;
+  multiEnrolmentDiscount?: number;
+}
+
+export interface UpdateInvoiceLineItemsDiscountResponse {
+  success: boolean;
+  data?: {
+    lineItemIds?: number[];
+  };
+  message?: string;
+}
+
+export function extractInvoiceLineItemsDiscountValues(
+  response: GetInvoiceLineItemsDiscountResponse | null | undefined
+): InvoiceLineItemsDiscountValues | null {
+  if (!response?.success || !response.data) {
+    return null;
+  }
+
+  return response.data.body ?? response.data;
+}
+
 export interface VoidInvoiceResponse {
   success: boolean;
   data?: {
@@ -259,8 +362,14 @@ type InvoiceItemsBackendResponse = {
         id?: number | string;
         code?: string;
         itemCode?: string;
+        royaltyFree?: string;
         description?: string;
         qty?: number | string;
+        discount?: number | string;
+        taxStatus?: string;
+        tax?: number | string;
+        unitPrice?: number | string;
+        cost?: number | string;
         price?: number | string; // e.g. "$26.68"
       }>;
     };
@@ -373,15 +482,21 @@ function normalizeLineItems(itemsResponse: InvoiceItemsBackendResponse | undefin
 
     const qty = parseMoney(li.qty);
     const price = parseMoney(li.price);
-    const unitPrice = qty !== 0 ? price / qty : price;
+    const backendUnitPrice = parseMoney(li.unitPrice);
+    const unitPrice = backendUnitPrice > 0 ? backendUnitPrice : qty !== 0 ? price / qty : price;
 
     normalized.push({
       id: li.id !== undefined ? String(li.id) : `${Date.now()}`,
       code: li.code ?? li.itemCode ?? "",
+      royalty: li.royaltyFree ?? "No",
       description: li.description ?? "",
       qty,
+      discount: parseMoney(li.discount),
+      taxStatus: li.taxStatus ?? "",
+      tax: parseMoney(li.tax),
       price,
       unitPrice,
+      cost: parseMoney(li.cost),
     });
   }
 
@@ -518,7 +633,7 @@ export async function getInvoiceDetails(
       ),
       apiClient.get<InvoiceItemsBackendResponse>(
         `/admin/v2/${location}/invoices/items/${invoiceId}`,
-        { params: { enable: false } }
+        { params: { enable: true } }
       ),
       apiClient.get<InvoiceTotalsBackendResponse>(
         `/admin/v2/${location}/invoices/${invoiceId}/totals`
@@ -578,18 +693,37 @@ export async function getInvoiceHistory(
 /**
  * Fetches invoice comments from the API with pagination.
  *
- * Endpoint: GET /admin/v2/{location}/comments?page={page}&limit=20&type=invoice&id={invoiceId}
+ * Endpoint: GET /admin/v2/{location}/comments?id={invoiceId}&type=invoice&page={page}&limit=20
  */
 export async function getInvoiceComments(
   location: string,
   invoiceId: number,
   page: number = 1
 ): Promise<InvoiceCommentsApiResponse | null> {
-  return fetchPaginatedList<InvoiceComment>(
-    `/admin/v2/${location}/comments`,
-    { type: "invoice", id: invoiceId, page, limit: 20 },
-    "comments"
-  );
+  try {
+    const response = await apiClient.get<InvoiceCommentsApiResponse>(
+      `/admin/v2/${location}/comments`,
+      {
+        params: {
+          id: invoiceId,
+          type: "invoice",
+          page,
+          limit: 20,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {
+        body: [],
+        pagination: { page, limit: 20, total: 0, totalPages: 0 },
+      },
+      message: getApiErrorMessage(error, "Failed to fetch invoice comments"),
+    };
+  }
 }
 
 /**
@@ -851,6 +985,149 @@ export async function deleteInvoiceLineItem(
     return response.data;
   } catch (error: unknown) {
     return createLineItemFailureResponse(lineItemId, "Failed to delete line item", error);
+  }
+}
+
+/**
+ * Bulk updates tax status for invoice line items.
+ *
+ * Endpoint: PUT /admin/v2/${location}/invoices/line-items/edit-tax
+ * Body: { lineItemIds: number[], taxStatus: string }
+ */
+export async function editInvoiceItemsTax(
+  location: string,
+  payload: EditInvoiceItemsTaxRequest
+): Promise<EditInvoiceItemsTaxResponse | null> {
+  try {
+    const response = await apiClient.put<EditInvoiceItemsTaxBackendResponse>(
+      `/admin/v2/${location}/invoices/line-items/edit-tax`,
+      payload
+    );
+
+    const responseData = response.data?.data;
+    const body = responseData?.body;
+    const updatedCount = Number(body?.updatedCount ?? responseData?.updatedCount ?? 0);
+    const taxRate = Number(body?.taxRate ?? responseData?.taxRate ?? 0);
+
+    return {
+      success: response.data.success,
+      data: {
+        updatedCount: Number.isFinite(updatedCount) ? updatedCount : 0,
+        taxRate: Number.isFinite(taxRate) ? taxRate : 0,
+      },
+      message: response.data.message,
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {
+        updatedCount: 0,
+        taxRate: 0,
+      },
+      message: getApiErrorMessage(error, "Failed to update item tax"),
+    };
+  }
+}
+
+/**
+ * Fetches available tax statuses and current tax selection for selected invoice line items.
+ *
+ * Endpoint: GET /admin/v2/${location}/invoices/line-items/edit-tax?lineItemIds=1&lineItemIds=2
+ */
+export async function getInvoiceItemsTaxEditConfig(
+  location: string,
+  lineItemIds: number[]
+): Promise<GetInvoiceItemsTaxEditConfigResponse | null> {
+  try {
+    const searchParams = new URLSearchParams();
+    lineItemIds.forEach((id) => {
+      searchParams.append("lineItemIds", String(id));
+    });
+
+    const response = await apiClient.get<GetInvoiceItemsTaxEditConfigBackendResponse>(
+      `/admin/v2/${location}/invoices/line-items/edit-tax?${searchParams.toString()}`
+    );
+
+    const responseData = response.data?.data;
+    const rawOptions = responseData?.availableTaxStatuses ?? [];
+
+    return {
+      success: response.data.success,
+      data: {
+        currentTaxStatus: responseData?.currentTaxStatus ?? "Default",
+        currentTaxRate: Number(responseData?.currentTaxRate ?? 0) || 0,
+        availableTaxStatuses: rawOptions
+          .map((option) => ({
+            id: Number(option.id),
+            name: (option.name || "").trim(),
+            rate: Number(option.rate ?? 0) || 0,
+          }))
+          .filter((option) => Number.isFinite(option.id) && option.name.length > 0),
+      },
+      message: response.data.message,
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {
+        currentTaxStatus: "Default",
+        currentTaxRate: 0,
+        availableTaxStatuses: [],
+      },
+      message: getApiErrorMessage(error, "Failed to load tax settings"),
+    };
+  }
+}
+
+/**
+ * Fetches discount values for selected invoice line items.
+ *
+ * Endpoint: GET /admin/v2/${location}/invoices/line-items/discount?ids=1,2,3
+ */
+export async function getInvoiceLineItemsDiscount(
+  location: string,
+  ids: number[]
+): Promise<GetInvoiceLineItemsDiscountResponse | null> {
+  try {
+    const params = new URLSearchParams();
+    params.set("ids", ids.join(","));
+
+    const response = await apiClient.get<GetInvoiceLineItemsDiscountResponse>(
+      `/admin/v2/${location}/invoices/line-items/discount`,
+      { params }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {},
+      message: getApiErrorMessage(error, "Failed to fetch discount values"),
+    };
+  }
+}
+
+/**
+ * Updates discount values for selected invoice line items.
+ *
+ * Endpoint: PUT /admin/v2/${location}/invoices/line-items/discount
+ */
+export async function updateInvoiceLineItemsDiscount(
+  location: string,
+  payload: UpdateInvoiceLineItemsDiscountRequest
+): Promise<UpdateInvoiceLineItemsDiscountResponse | null> {
+  try {
+    const response = await apiClient.put<UpdateInvoiceLineItemsDiscountResponse>(
+      `/admin/v2/${location}/invoices/line-items/discount`,
+      payload
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: getApiErrorMessage(error, "Failed to update discount values"),
+    };
   }
 }
 

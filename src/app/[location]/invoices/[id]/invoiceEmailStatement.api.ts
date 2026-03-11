@@ -41,6 +41,23 @@ export interface InvoiceEmailStatementResponse {
   message?: string;
 }
 
+export interface SendInvoiceEmailStatementRequest {
+  to?: string[];
+  subject?: string;
+  content?: string;
+}
+
+export interface SendInvoiceEmailStatementResponse {
+  success: boolean;
+  data?: {
+    body?: {
+      invoiceId?: number;
+      isSent?: boolean;
+    };
+  };
+  message?: string;
+}
+
 export async function getInvoiceEmailStatement(
   location: string,
   invoiceId: number
@@ -48,6 +65,22 @@ export async function getInvoiceEmailStatement(
   try {
     const response = await apiClient.get<InvoiceEmailStatementResponse>(
       `/admin/v2/${location}/invoices/${invoiceId}/email-statement`
+    );
+    return response.data;
+  } catch {
+    return null;
+  }
+}
+
+export async function sendInvoiceEmailStatement(
+  location: string,
+  invoiceId: number,
+  payload: SendInvoiceEmailStatementRequest
+): Promise<SendInvoiceEmailStatementResponse | null> {
+  try {
+    const response = await apiClient.post<SendInvoiceEmailStatementResponse>(
+      `/admin/v2/${location}/invoices/${invoiceId}/send-email`,
+      payload
     );
     return response.data;
   } catch {

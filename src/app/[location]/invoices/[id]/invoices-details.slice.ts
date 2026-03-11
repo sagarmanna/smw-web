@@ -197,7 +197,6 @@ const invoiceSlice = createSlice({
         // Recalculate totals
         const totals = recalculateTotals(
           action.payload,
-          state.invoiceDetail.totals.tax,
           state.invoiceDetail.totals.paid
         );
         state.invoiceDetail.totals = totals;

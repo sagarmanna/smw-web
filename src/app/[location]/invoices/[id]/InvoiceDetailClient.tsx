@@ -39,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { sendInvoiceEmailStatement } from "./invoiceEmailStatement.api";
 
 interface InvoiceDetailClientProps {
   location: string;
@@ -64,12 +65,16 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     historyLoading,
     fetchHistory,
     commentsData,
+    commentsPagination,
     commentsLoading,
+    fetchComments,
     refresh,
     handleSaveDetails,
     handleCustomerChange,
     handleSaveDiscount,
     handleSaveItem,
+    handleSaveItemTax,
+    handleLoadItemTaxOptions,
     handleDeleteItem,
     handleAdjustTax,
     handleSaveMessage,
@@ -150,11 +155,21 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
   const handleSendInvoiceEmail = React.useCallback(
     async (emailData: InvoiceEmailData) => {
-      console.log("Sending invoice email:", emailData);
-      // TODO: Implement actual email API call
-      toast.success("Email sent successfully");
+      const response = await sendInvoiceEmailStatement(location, invoiceId, {
+        to: emailData.recipients,
+        subject: emailData.subject,
+        content: emailData.content,
+      });
+
+      if (!response?.success) {
+        toast.error(response?.message || "Failed to send invoice email");
+        return false;
+      }
+
+      toast.success(response.message || "Mail has been sent successfully");
+      return true;
     },
-    []
+    [location, invoiceId]
   );
 
   // Wrap return confirm to close modal
@@ -172,6 +187,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const isReturned = invoiceDetail?.status === "Returned";
   const isVoided = invoiceDetail?.status === "Voided";
   const isBlankInvoice = !invoiceDetail?.customer?.customerId && !invoiceDetail?.customer?.name?.trim();
+  const hasHistoryEntries = historyData.length > 0;
 
   if (isLoading) {
     return (
@@ -362,8 +378,11 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             items={invoiceDetail.items}
             isLoading={isLoading}
             isVoided={isVoided}
+            lockItemAndTaxActions={hasHistoryEntries}
             onSaveDiscount={handleSaveDiscount}
             onSaveItem={handleSaveItem}
+            onSaveItemTax={handleSaveItemTax}
+            onLoadItemTaxOptions={handleLoadItemTaxOptions}
             onDeleteItem={handleDeleteItem}
           />
 
@@ -399,7 +418,10 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
             <InvoiceCommentsCard
               comments={commentsData}
-              isLoading={commentsLoading}
+              isLoading={isLoading}
+              pagination={commentsPagination}
+              commentsLoading={commentsLoading}
+              onPageChange={fetchComments}
               onAddComment={handleAddComment}
             />
 
