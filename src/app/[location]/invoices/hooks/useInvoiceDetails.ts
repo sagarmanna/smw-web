@@ -107,6 +107,7 @@ export function useInvoiceDetails(
 
   const { handleSaveDiscount } = useInvoiceDiscountHandlers({
     location,
+    invoiceId,
     invoiceDetail,
     dispatch,
     onDiscountWarning: setShowDiscountWarning,
@@ -143,6 +144,8 @@ export function useInvoiceDetails(
   const { handleReturnConfirm, isReturning } = useInvoiceReturnHandlers({
     invoiceDetail,
     dispatch,
+    location,
+    invoiceId,
   });
 
   const { handleVoidConfirm, isVoiding } = useInvoiceVoidHandlers({

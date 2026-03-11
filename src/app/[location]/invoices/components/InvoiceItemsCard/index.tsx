@@ -29,6 +29,7 @@ interface InvoiceItemsCardProps {
   items: InvoiceItem[];
   isLoading?: boolean;
   isVoided?: boolean;
+  isReturned?: boolean;
   lockItemAndTaxActions?: boolean;
   onSaveDiscount?: (selectedItemIds: string[], discountData: DiscountData) => Promise<boolean>;
   onSaveItem?: (item: InvoiceItem) => void;
@@ -42,6 +43,7 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
   items,
   isLoading = false,
   isVoided = false,
+  isReturned = false,
   lockItemAndTaxActions = false,
   onSaveDiscount,
   onSaveItem,
@@ -49,7 +51,7 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
   onLoadItemTaxOptions,
   onDeleteItem,
 }: InvoiceItemsCardProps) {
-  const isItemAndTaxActionsLocked = isVoided || lockItemAndTaxActions;
+  const isItemAndTaxActionsLocked = isVoided || isReturned || lockItemAndTaxActions;
 
   const [selectedItems, setSelectedItems] = React.useState<Set<string>>(new Set());
   const [isDiscountModalOpen, setIsDiscountModalOpen] = React.useState(false);

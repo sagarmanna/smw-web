@@ -265,7 +265,7 @@ export function useInvoiceItemHandlers({
         return { success: false, taxRate: 0 };
       }
     },
-    [invoiceDetail, dispatch, location]
+    [invoiceDetail, dispatch, location, invoiceId]
   );
 
   return {

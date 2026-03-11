@@ -265,6 +265,16 @@ export interface VoidInvoiceResponse {
   message?: string;
 }
 
+export interface ReturnInvoiceResponse {
+  success: boolean;
+  data?: {
+    creditInvoiceId?: number;
+    creditInvoiceNumber?: string;
+    originalInvoiceId?: number;
+  };
+  message?: string;
+}
+
 export interface InvoicePrintDataResponse {
   success: boolean;
   data: {
@@ -551,7 +561,7 @@ function buildInvoiceDetail(params: {
     id: invoice?.id ?? invoiceId,
     number: invoice?.number ?? `Invoice #${invoiceId}`,
     date: invoice?.date ?? "",
-    status: (invoice?.status ?? "Owing") as InvoiceDetail["status"],
+    status: String(invoice?.status ?? ""),
     customer: {
       customerId: customer?.customerId,
       name: customer?.customerName ?? "",
@@ -1151,6 +1161,28 @@ export async function voidInvoice(
     return {
       success: false,
       message: getApiErrorMessage(error, "Failed to void invoice"),
+    };
+  }
+}
+
+/**
+ * Returns an invoice.
+ *
+ * Endpoint: POST /admin/v2/${location}/invoices/${invoiceId}/return
+ */
+export async function returnInvoice(
+  location: string,
+  invoiceId: number
+): Promise<ReturnInvoiceResponse | null> {
+  try {
+    const response = await apiClient.post<ReturnInvoiceResponse>(
+      `/admin/v2/${location}/invoices/${invoiceId}/return`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: getApiErrorMessage(error, "Failed to return invoice"),
     };
   }
 }
