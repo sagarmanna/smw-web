@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { sendInvoiceEmailStatement } from "./invoiceEmailStatement.api";
 
 interface InvoiceDetailClientProps {
   location: string;
@@ -119,11 +120,21 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
   const handleSendInvoiceEmail = React.useCallback(
     async (emailData: InvoiceEmailData) => {
-      console.log("Sending invoice email:", emailData);
-      // TODO: Implement actual email API call
-      toast.success("Email sent successfully");
+      const response = await sendInvoiceEmailStatement(location, invoiceId, {
+        to: emailData.recipients,
+        subject: emailData.subject,
+        content: emailData.content,
+      });
+
+      if (!response?.success) {
+        toast.error(response?.message || "Failed to send invoice email");
+        return false;
+      }
+
+      toast.success(response.message || "Mail has been sent successfully");
+      return true;
     },
-    []
+    [location, invoiceId]
   );
 
   // Wrap return confirm to close modal
