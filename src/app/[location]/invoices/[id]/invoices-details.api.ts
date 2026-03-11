@@ -212,6 +212,51 @@ type GetInvoiceItemsTaxEditConfigBackendResponse = {
   };
   message?: string;
 };
+export interface InvoiceLineItemsDiscountValues {
+  lineItemIds?: number[];
+  lineItemDiscount?: number | string | null;
+  lineItemDiscountValueType?: number;
+  customerDiscount?: number | string | null;
+  paymentFrequencyDiscount?: number | string | null;
+  multiEnrolmentDiscount?: number | string | null;
+  isLessonItem?: boolean;
+}
+
+export interface GetInvoiceLineItemsDiscountResponse {
+  success: boolean;
+  data: InvoiceLineItemsDiscountValues & {
+    body?: InvoiceLineItemsDiscountValues;
+  };
+  message?: string;
+}
+
+export interface UpdateInvoiceLineItemsDiscountRequest {
+  lineItemIds: number[];
+  lineItemDiscount?: number;
+  lineItemDiscountValueType?: 0 | 1;
+  customerDiscount?: number;
+  paymentFrequencyDiscount?: number;
+  multiEnrolmentDiscount?: number;
+}
+
+export interface UpdateInvoiceLineItemsDiscountResponse {
+  success: boolean;
+  data?: {
+    lineItemIds?: number[];
+  };
+  message?: string;
+}
+
+export function extractInvoiceLineItemsDiscountValues(
+  response: GetInvoiceLineItemsDiscountResponse | null | undefined
+): InvoiceLineItemsDiscountValues | null {
+  if (!response?.success || !response.data) {
+    return null;
+  }
+
+  return response.data.body ?? response.data;
+}
+
 export interface VoidInvoiceResponse {
   success: boolean;
   data?: {
@@ -970,6 +1015,58 @@ export async function getInvoiceItemsTaxEditConfig(
         availableTaxStatuses: [],
       },
       message: getApiErrorMessage(error, "Failed to load tax settings"),
+    };
+  }
+}
+
+/**
+ * Fetches discount values for selected invoice line items.
+ *
+ * Endpoint: GET /admin/v2/${location}/invoices/line-items/discount?ids=1,2,3
+ */
+export async function getInvoiceLineItemsDiscount(
+  location: string,
+  ids: number[]
+): Promise<GetInvoiceLineItemsDiscountResponse | null> {
+  try {
+    const params = new URLSearchParams();
+    params.set("ids", ids.join(","));
+
+    const response = await apiClient.get<GetInvoiceLineItemsDiscountResponse>(
+      `/admin/v2/${location}/invoices/line-items/discount`,
+      { params }
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {},
+      message: getApiErrorMessage(error, "Failed to fetch discount values"),
+    };
+  }
+}
+
+/**
+ * Updates discount values for selected invoice line items.
+ *
+ * Endpoint: PUT /admin/v2/${location}/invoices/line-items/discount
+ */
+export async function updateInvoiceLineItemsDiscount(
+  location: string,
+  payload: UpdateInvoiceLineItemsDiscountRequest
+): Promise<UpdateInvoiceLineItemsDiscountResponse | null> {
+  try {
+    const response = await apiClient.put<UpdateInvoiceLineItemsDiscountResponse>(
+      `/admin/v2/${location}/invoices/line-items/discount`,
+      payload
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: getApiErrorMessage(error, "Failed to update discount values"),
     };
   }
 }
