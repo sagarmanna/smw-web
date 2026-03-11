@@ -165,7 +165,10 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     setShowVoidModal(false);
   }, [handleVoidConfirm]);
 
-  const isReturnedByStatus = invoiceDetail?.status === "Returned";
+  const normalizedInvoiceStatus = String(invoiceDetail?.status ?? "")
+    .trim()
+    .toLowerCase();
+  const isReturnedByStatus = normalizedInvoiceStatus === "returned";
   const isCreditInvoice = Boolean(
     invoiceDetail &&
       (invoiceDetail.totals.total < 0 ||
@@ -173,7 +176,8 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
         invoiceDetail.items.some((item) => item.qty < 0 || item.price < 0))
   );
   const isReturned = isReturnedByStatus || isCreditInvoice;
-  const isVoided = invoiceDetail?.status === "Voided";
+  const isVoided =
+    normalizedInvoiceStatus === "voided" || normalizedInvoiceStatus === "void";
   const hasHistoryEntries = historyData.length > 0;
 
   if (isLoading) {
@@ -283,7 +287,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                {invoiceDetail.status === "Paid" || isReturned ? (
+                {normalizedInvoiceStatus === "paid" || isReturned ? (
                   <span className="text-sm font-semibold ml-2">
                     {invoiceDetail.status} {formatCurrency(invoiceDetail.totals.total)}
                   </span>

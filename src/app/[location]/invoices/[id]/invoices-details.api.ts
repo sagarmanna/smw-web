@@ -557,23 +557,11 @@ function buildInvoiceDetail(params: {
   const items = normalizeLineItems(itemsResponse);
   const totals = normalizeTotals(totalsResponse, items);
 
-  const normalizeInvoiceStatus = (statusRaw: unknown): InvoiceDetail["status"] => {
-    const normalized = String(statusRaw ?? "").trim().toLowerCase();
-
-    if (normalized === "returned") return "Returned";
-    if (normalized === "paid") return "Paid";
-    if (normalized === "voided" || normalized === "void") return "Voided";
-    if (normalized === "cancelled" || normalized === "canceled") return "Cancelled";
-    if (normalized === "owing" || normalized === "outstanding") return "Owing";
-
-    return "Owing";
-  };
-
   return {
     id: invoice?.id ?? invoiceId,
     number: invoice?.number ?? `Invoice #${invoiceId}`,
     date: invoice?.date ?? "",
-    status: normalizeInvoiceStatus(invoice?.status),
+    status: String(invoice?.status ?? ""),
     customer: {
       customerId: customer?.customerId,
       name: customer?.customerName ?? "",
