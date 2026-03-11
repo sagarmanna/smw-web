@@ -136,7 +136,14 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     setShowVoidModal(false);
   }, [handleVoidConfirm]);
 
-  const isReturned = invoiceDetail?.status === "Returned";
+  const isReturnedByStatus = invoiceDetail?.status === "Returned";
+  const isCreditInvoice = Boolean(
+    invoiceDetail &&
+      (invoiceDetail.totals.total < 0 ||
+        invoiceDetail.totals.balance < 0 ||
+        invoiceDetail.items.some((item) => item.qty < 0 || item.price < 0))
+  );
+  const isReturned = isReturnedByStatus || isCreditInvoice;
   const isVoided = invoiceDetail?.status === "Voided";
 
   if (isLoading) {
@@ -251,7 +258,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                 </TooltipProvider>
                 {invoiceDetail.status === "Paid" || isReturned ? (
                   <span className="text-sm font-semibold ml-2">
-                    {isReturned ? "PAID" : invoiceDetail.status} {formatCurrency(invoiceDetail.totals.total)}
+                    {invoiceDetail.status} {formatCurrency(invoiceDetail.totals.total)}
                   </span>
                 ) : isVoided ? (
                   <span className="text-sm font-semibold ml-2">
@@ -328,6 +335,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             items={invoiceDetail.items}
             isLoading={isLoading}
             isVoided={isVoided}
+            isReturned={isReturned}
             onSaveDiscount={handleSaveDiscount}
             onSaveItem={handleSaveItem}
             onDeleteItem={handleDeleteItem}

@@ -207,6 +207,16 @@ export interface VoidInvoiceResponse {
   message?: string;
 }
 
+export interface ReturnInvoiceResponse {
+  success: boolean;
+  data?: {
+    creditInvoiceId?: number;
+    creditInvoiceNumber?: string;
+    originalInvoiceId?: number;
+  };
+  message?: string;
+}
+
 type InvoiceDetailsBackendBody = {
   invoice?: {
     id?: number;
@@ -417,11 +427,23 @@ function buildInvoiceDetail(params: {
   const items = normalizeLineItems(itemsResponse);
   const totals = normalizeTotals(totalsResponse, items);
 
+  const normalizeInvoiceStatus = (statusRaw: unknown): InvoiceDetail["status"] => {
+    const normalized = String(statusRaw ?? "").trim().toLowerCase();
+
+    if (normalized === "returned") return "Returned";
+    if (normalized === "paid") return "Paid";
+    if (normalized === "voided" || normalized === "void") return "Voided";
+    if (normalized === "cancelled" || normalized === "canceled") return "Cancelled";
+    if (normalized === "owing" || normalized === "outstanding") return "Owing";
+
+    return "Owing";
+  };
+
   return {
     id: invoice?.id ?? invoiceId,
     number: invoice?.number ?? `Invoice #${invoiceId}`,
     date: invoice?.date ?? "",
-    status: (invoice?.status ?? "Owing") as InvoiceDetail["status"],
+    status: normalizeInvoiceStatus(invoice?.status),
     customer: {
       customerId: customer?.customerId,
       name: customer?.customerName ?? "",
@@ -930,6 +952,28 @@ export async function voidInvoice(
     return {
       success: false,
       message: getApiErrorMessage(error, "Failed to void invoice"),
+    };
+  }
+}
+
+/**
+ * Returns an invoice.
+ *
+ * Endpoint: POST /admin/v2/${location}/invoices/${invoiceId}/return
+ */
+export async function returnInvoice(
+  location: string,
+  invoiceId: number
+): Promise<ReturnInvoiceResponse | null> {
+  try {
+    const response = await apiClient.post<ReturnInvoiceResponse>(
+      `/admin/v2/${location}/invoices/${invoiceId}/return`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: getApiErrorMessage(error, "Failed to return invoice"),
     };
   }
 }

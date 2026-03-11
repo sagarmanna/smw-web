@@ -28,6 +28,7 @@ interface InvoiceItemsCardProps {
   items: InvoiceItem[];
   isLoading?: boolean;
   isVoided?: boolean;
+  isReturned?: boolean;
   onSaveDiscount?: (selectedItemIds: string[], discountData: DiscountData) => Promise<boolean>;
   onSaveItem?: (item: InvoiceItem) => void;
   onDeleteItem?: (itemId: string) => void;
@@ -38,6 +39,7 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
   items,
   isLoading = false,
   isVoided = false,
+  isReturned = false,
   onSaveDiscount,
   onSaveItem,
   onDeleteItem,
@@ -324,15 +326,15 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {items.length === 0 ? (
-                <DropdownMenuItem onClick={() => setIsAddLineItemsModalOpen(true)}>
+                <DropdownMenuItem onClick={() => setIsAddLineItemsModalOpen(true)} disabled={isReturned}>
                   Add Item...
                 </DropdownMenuItem>
               ) : (
                 <>
-                  <DropdownMenuItem onClick={() => setIsAddLineItemsModalOpen(true)}>
+                  <DropdownMenuItem onClick={() => setIsAddLineItemsModalOpen(true)} disabled={isReturned}>
                     Add Item...
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenEditTaxModal} disabled={isVoided}>
+                  <DropdownMenuItem onClick={handleOpenEditTaxModal} disabled={isVoided || isReturned}>
                     Edit Tax...
                   </DropdownMenuItem>
                   <DropdownMenuItem
