@@ -81,13 +81,14 @@ export function InvoiceReceivePaymentAction({
 
   const shouldRenderReceiptModal = customerId && (directPaymentReceiptData || receiptPaymentData);
 
-  const handleReceiptModalOpenChange = React.useCallback((open: boolean) => {
+  const handleReceiptModalOpenChange = (open: boolean) => {
     setIsReceiptModalOpen(open);
     if (!open) {
       setReceiptPaymentData(null);
       setDirectPaymentReceiptData(null);
+      void onPaymentSaved?.();
     }
-  }, []);
+  };
 
   const transformedReceiptData = React.useMemo<DirectPaymentReceiptData | undefined>(() => {
     if (!receiptPaymentData) return undefined;
@@ -425,14 +426,12 @@ export function InvoiceReceivePaymentAction({
         }
 
         setIsReceiptModalOpen(true);
-
-        await onPaymentSaved?.();
       } catch (error) {
         console.error("Error receiving payment:", error);
         toast.error(error instanceof Error ? error.message : "Failed to receive payment");
       }
     },
-    [customerEmail, customerId, customerName, customerPhone, location, onPaymentSaved]
+    [customerEmail, customerId, customerName, customerPhone, location]
   );
 
   return (
