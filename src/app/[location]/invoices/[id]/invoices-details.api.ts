@@ -265,6 +265,66 @@ export interface VoidInvoiceResponse {
   message?: string;
 }
 
+export interface InvoicePrintDataResponse {
+  success: boolean;
+  data: {
+    invoice: {
+      id: number;
+      number: string;
+      date: string;
+      status: string;
+      type: string;
+      notes: string;
+      reminderNotes: string;
+    };
+    customer: {
+      id: number;
+      name: string;
+      address: string;
+      city: string;
+      province: string;
+      postalCode: string;
+      phone: string;
+      email: string;
+    };
+    location: {
+      name: string;
+      address: string;
+      city: string;
+      province: string;
+      postalCode: string;
+      phone: string;
+      email: string;
+      hstRegistrationNo: string;
+    };
+    lineItems: Array<{
+      id: number;
+      code: string;
+      description: string;
+      qty: number;
+      price: string;
+      unitPrice: string;
+      tax: string;
+    }>;
+    payments: Array<{
+      date: string;
+      type: string;
+      reference: string;
+      notes: string;
+      amount: string;
+    }>;
+    totals: {
+      discount: string;
+      subTotal: string;
+      tax: string;
+      total: string;
+      paid: string;
+      balance: string;
+    };
+  };
+  message?: string;
+}
+
 type InvoiceDetailsBackendBody = {
   invoice?: {
     id?: number;
@@ -1091,6 +1151,65 @@ export async function voidInvoice(
     return {
       success: false,
       message: getApiErrorMessage(error, "Failed to void invoice"),
+    };
+  }
+}
+
+export async function getInvoicePrintData(
+  location: string,
+  invoiceId: number
+): Promise<InvoicePrintDataResponse | null> {
+  try {
+    const response = await apiClient.get<InvoicePrintDataResponse>(
+      `/admin/v2/${location}/invoices/${invoiceId}/print`
+    );
+
+    return response.data;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {
+        invoice: {
+          id: invoiceId,
+          number: "",
+          date: "",
+          status: "",
+          type: "Invoice",
+          notes: "",
+          reminderNotes: "",
+        },
+        customer: {
+          id: 0,
+          name: "",
+          address: "",
+          city: "",
+          province: "",
+          postalCode: "",
+          phone: "",
+          email: "",
+        },
+        location: {
+          name: "",
+          address: "",
+          city: "",
+          province: "",
+          postalCode: "",
+          phone: "",
+          email: "",
+          hstRegistrationNo: "",
+        },
+        lineItems: [],
+        payments: [],
+        totals: {
+          discount: "$0.00",
+          subTotal: "$0.00",
+          tax: "$0.00",
+          total: "$0.00",
+          paid: "$0.00",
+          balance: "$0.00",
+        },
+      },
+      message: getApiErrorMessage(error, "Failed to fetch invoice print data"),
     };
   }
 }
