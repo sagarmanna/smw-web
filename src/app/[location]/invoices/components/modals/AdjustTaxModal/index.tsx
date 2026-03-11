@@ -21,7 +21,6 @@ interface AdjustTaxModalProps {
   open: boolean;
   onClose: () => void;
   onSave?: (adjustmentData: TaxAdjustmentData) => void;
-  taxCalculated: number;
   currentTax: number;
 }
 
@@ -29,30 +28,22 @@ export function AdjustTaxModal({
   open,
   onClose,
   onSave,
-  taxCalculated,
   currentTax,
 }: AdjustTaxModalProps) {
   const [adjustment, setAdjustment] = React.useState<string>("");
-  const [isPositive, setIsPositive] = React.useState<boolean>(true);
 
   // Reset adjustment to zero when modal opens (user starts fresh adjustment)
   React.useEffect(() => {
     if (open) {
       setAdjustment("0.00");
-      setIsPositive(true);
     }
   }, [open]);
 
-  const handleToggleSign = () => {
-    setIsPositive((prev) => !prev);
-  };
-
   const adjustmentValue = parseFloat(adjustment) || 0;
-  const adjustedTax = currentTax + (isPositive ? adjustmentValue : -adjustmentValue);
+  const adjustedTax = currentTax + adjustmentValue;
 
   const handleCancel = () => {
     setAdjustment("");
-    setIsPositive(true);
     onClose();
   };
 
@@ -63,7 +54,7 @@ export function AdjustTaxModal({
     }
 
     const adjustmentData: TaxAdjustmentData = {
-      adjustment: isPositive ? adjustmentValue : -adjustmentValue,
+      adjustment: adjustmentValue,
     };
 
     onSave(adjustmentData);
@@ -94,17 +85,13 @@ export function AdjustTaxModal({
 
           <div className="space-y-2">
             <Label htmlFor="adjustment">Adjustment</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleToggleSign}
-                className="px-3"
-                aria-label={isPositive ? "Make adjustment negative" : "Make adjustment positive"}
-                aria-pressed={isPositive}
+            <div className="flex items-center gap-2">
+              <div
+                className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-foreground"
+                aria-hidden="true"
               >
-                {isPositive ? "+" : "-"} $
-              </Button>
+                +/- $
+              </div>
               <Input
                 id="adjustment"
                 type="number"
@@ -117,7 +104,7 @@ export function AdjustTaxModal({
               />
             </div>
             <p id="adjustment-description" className="sr-only">
-              Enter the tax adjustment amount. Use the +/- button to toggle between positive and negative adjustment.
+              Enter a positive or negative tax adjustment amount.
             </p>
           </div>
 
