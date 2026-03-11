@@ -3,7 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { ReceivePaymentModal, type ReceivePaymentData } from "@/components/modal/ReceivePaymentModal";
-import { PaymentReceiptModalContainer, getPaymentReceiptData } from "@/components/modal/PaymentReceiptModal";
+import { PaymentReceiptModalContainer } from "@/components/modal/PaymentReceiptModal";
 import { getCustomerInfo, getCustomerPayments } from "@/app/[location]/customers/customers.api";
 import { formatCurrency } from "@/utils/formatCurrency";
 
@@ -41,6 +41,7 @@ export function InvoiceReceivePaymentAction({
 }: InvoiceReceivePaymentActionProps) {
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = React.useState<number | string | null>(null);
   const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<DirectPaymentReceiptData | null>(null);
   const [receiptCustomerName, setReceiptCustomerName] = React.useState(customerName || "");
   const [receiptCustomerEmail, setReceiptCustomerEmail] = React.useState(customerEmail || "");
@@ -71,6 +72,14 @@ export function InvoiceReceivePaymentAction({
       handleOpenReceivePayment();
     }
   }, [openRequestKey, handleOpenReceivePayment]);
+
+  const handleReceiptModalOpenChange = React.useCallback((open: boolean) => {
+    setIsReceiptModalOpen(open);
+    if (!open) {
+      setSelectedPaymentId(null);
+      setDirectPaymentReceiptData(null);
+    }
+  }, []);
 
   const handleReceivePayment = React.useCallback(
     async (paymentData: ReceivePaymentData) => {
@@ -231,57 +240,27 @@ export function InvoiceReceivePaymentAction({
         };
 
         try {
-          const paymentsResponse = await getCustomerPayments(location, customerId, 1, 1);
+          const paymentsResponse = await getCustomerPayments(location, customerId, 1, 1, "id");
           if (paymentsResponse.data && paymentsResponse.data.length > 0) {
             const latestPayment = paymentsResponse.data[0] as { id?: number | string };
             const paymentId = latestPayment.id;
             if (paymentId != null) {
-              await new Promise((resolve) => setTimeout(resolve, 500));
-              const receiptData = await getPaymentReceiptData(location, paymentId);
-
-              const directData = {
-                date: receiptData.info?.date ?? paymentData.date,
-                paymentMethod: receiptData.info?.paymentMethod ?? paymentMethodName,
-                reference: receiptData.info?.reference ?? paymentData.reference ?? "",
-                amount: receiptData.info?.amount ?? finalAmount,
-                lessons: receiptData.lessons.data.map((lesson) => ({
-                  date: lesson.date,
-                  student: lesson.student,
-                  program: lesson.program,
-                  teacher: lesson.teacher,
-                  amount: lesson.amount,
-                  payment: lesson.payment,
-                  balance: lesson.balance ?? "$0.00",
-                })),
-                groupLessons: receiptData.groupLessons.data.map((groupLesson) => ({
-                  date: groupLesson.date,
-                  student: groupLesson.student,
-                  program: groupLesson.program,
-                  amount: groupLesson.amount,
-                  balance: groupLesson.balance ?? "$0.00",
-                })),
-                invoices: receiptData.invoices.data.map((invoice) => ({
-                  date: invoice.date,
-                  number: invoice.number,
-                  amount: invoice.amount,
-                  payment: invoice.payment,
-                  balance: invoice.balance ?? "$0.00",
-                })),
-                credits: credits.length > 0 ? credits : undefined,
-              };
-
-              setDirectPaymentReceiptData(directData);
+              setSelectedPaymentId(paymentId);
+              setDirectPaymentReceiptData(null);
               setIsReceiptModalOpen(true);
             } else {
+              setSelectedPaymentId(null);
               setDirectPaymentReceiptData(fallbackDirectData);
               setIsReceiptModalOpen(true);
             }
           } else {
+            setSelectedPaymentId(null);
             setDirectPaymentReceiptData(fallbackDirectData);
             setIsReceiptModalOpen(true);
           }
         } catch (receiptError) {
           console.error("Error fetching payment receipt data:", receiptError);
+          setSelectedPaymentId(null);
           setDirectPaymentReceiptData(fallbackDirectData);
           setIsReceiptModalOpen(true);
         }
@@ -308,15 +287,30 @@ export function InvoiceReceivePaymentAction({
         />
       )}
 
+      {customerId && selectedPaymentId != null && (
+        <PaymentReceiptModalContainer
+          open={isReceiptModalOpen}
+          onOpenChange={handleReceiptModalOpenChange}
+          location={location}
+          customerId={customerId}
+          paymentId={selectedPaymentId}
+          customerName={receiptCustomerName}
+          customerEmail={receiptCustomerEmail}
+          customerPhone={receiptCustomerPhone}
+          mode="view"
+          onEdit={() => {
+            void onPaymentSaved?.();
+          }}
+          onDelete={() => {
+            void onPaymentSaved?.();
+          }}
+        />
+      )}
+
       {customerId && directPaymentReceiptData && (
         <PaymentReceiptModalContainer
           open={isReceiptModalOpen}
-          onOpenChange={(open) => {
-            setIsReceiptModalOpen(open);
-            if (!open) {
-              setDirectPaymentReceiptData(null);
-            }
-          }}
+          onOpenChange={handleReceiptModalOpenChange}
           location={location}
           customerId={customerId}
           customerName={receiptCustomerName}
@@ -324,6 +318,12 @@ export function InvoiceReceivePaymentAction({
           customerPhone={receiptCustomerPhone}
           mode="new"
           directPaymentData={directPaymentReceiptData}
+          onEdit={() => {
+            void onPaymentSaved?.();
+          }}
+          onDelete={() => {
+            void onPaymentSaved?.();
+          }}
         />
       )}
     </>
