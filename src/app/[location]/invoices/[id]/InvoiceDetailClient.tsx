@@ -20,8 +20,10 @@ import { InvoiceEmailModal, type InvoiceEmailData } from "../components/modals/I
 import { InvoiceDiscountWarningBanner } from "../components/InvoiceDiscountWarningBanner";
 import { InvoiceReceivePaymentAction } from "../components/actions/InvoiceReceivePaymentAction";
 import { useInvoiceDetails } from "../hooks/useInvoiceDetails";
+import { getInvoicePrintData } from "./invoices-details.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { printInvoice } from "@/components/PrintInvoice";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Mail, Printer, Settings, ArrowLeft } from "lucide-react";
 import {
@@ -37,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { sendInvoiceEmailStatement } from "./invoiceEmailStatement.api";
 
 interface InvoiceDetailClientProps {
   location: string;
@@ -70,6 +73,8 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     handleCustomerChange,
     handleSaveDiscount,
     handleSaveItem,
+    handleSaveItemTax,
+    handleLoadItemTaxOptions,
     handleDeleteItem,
     handleAdjustTax,
     handleSaveMessage,
@@ -115,13 +120,37 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     setShowEmailModal(true);
   }, []);
 
+  const handlePrintInvoice = React.useCallback(async () => {
+    const response = await getInvoicePrintData(location, invoiceId);
+
+    if (!response?.success) {
+      toast.error(response?.message || "Failed to load invoice print data");
+      return;
+    }
+
+    const success = printInvoice(response.data);
+    if (!success) {
+      toast.error("Failed to open print dialog. Please check if pop-ups are blocked.");
+    }
+  }, [invoiceId, location]);
+
   const handleSendInvoiceEmail = React.useCallback(
     async (emailData: InvoiceEmailData) => {
-      console.log("Sending invoice email:", emailData);
-      // TODO: Implement actual email API call
-      toast.success("Email sent successfully");
+      const response = await sendInvoiceEmailStatement(location, invoiceId, {
+        to: emailData.recipients,
+        subject: emailData.subject,
+        content: emailData.content,
+      });
+
+      if (!response?.success) {
+        toast.error(response?.message || "Failed to send invoice email");
+        return false;
+      }
+
+      toast.success(response.message || "Mail has been sent successfully");
+      return true;
     },
-    []
+    [location, invoiceId]
   );
 
   // Wrap return confirm to close modal
@@ -145,6 +174,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   );
   const isReturned = isReturnedByStatus || isCreditInvoice;
   const isVoided = invoiceDetail?.status === "Voided";
+  const hasHistoryEntries = historyData.length > 0;
 
   if (isLoading) {
     return (
@@ -242,10 +272,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-gray-500 hover:text-gray-700"
-                        onClick={() => {
-                          // TODO: Implement print functionality
-                          window.print();
-                        }}
+                        onClick={handlePrintInvoice}
                         aria-label="Print invoice"
                       >
                         <Printer className="h-4 w-4" />
@@ -336,8 +363,11 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             isLoading={isLoading}
             isVoided={isVoided}
             isReturned={isReturned}
+            lockItemAndTaxActions={hasHistoryEntries}
             onSaveDiscount={handleSaveDiscount}
             onSaveItem={handleSaveItem}
+            onSaveItemTax={handleSaveItemTax}
+            onLoadItemTaxOptions={handleLoadItemTaxOptions}
             onDeleteItem={handleDeleteItem}
           />
 

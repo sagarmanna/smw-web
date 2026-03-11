@@ -19,26 +19,26 @@ export function calculateTaxFromItems(items: InvoiceItem[]): number {
 }
 
 /**
- * Recalculates invoice totals based on items, tax, and paid amount
+ * Recalculates invoice totals based on item values and paid amount.
+ * Tax is derived from the sum of line item tax values.
  * @param items - Array of invoice items
- * @param currentTax - Current tax amount
  * @param paid - Amount already paid
  * @returns Calculated totals object
  */
 export function recalculateTotals(
   items: InvoiceItem[],
-  currentTax: number,
   paid: number
 ): TotalsCalculationResult {
   const subtotal = items.reduce((sum, item) => sum + item.price, 0);
   const discounts = items.reduce((sum, item) => sum + (item.discount || 0), 0);
-  const total = subtotal + currentTax;
+  const tax = calculateTaxFromItems(items);
+  const total = subtotal + tax;
   const balance = total - paid;
 
   return {
     discounts,
     subtotal,
-    tax: currentTax,
+    tax,
     total,
     paid,
     balance,
