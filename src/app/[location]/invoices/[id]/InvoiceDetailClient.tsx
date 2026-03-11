@@ -20,8 +20,10 @@ import { InvoiceEmailModal, type InvoiceEmailData } from "../components/modals/I
 import { InvoiceDiscountWarningBanner } from "../components/InvoiceDiscountWarningBanner";
 import { InvoiceReceivePaymentAction } from "../components/actions/InvoiceReceivePaymentAction";
 import { useInvoiceDetails } from "../hooks/useInvoiceDetails";
+import { getInvoicePrintData } from "./invoices-details.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { printInvoice } from "@/components/PrintInvoice";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Mail, Printer, Settings, ArrowLeft } from "lucide-react";
 import {
@@ -112,6 +114,20 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const handleEmailInvoice = React.useCallback(() => {
     setShowEmailModal(true);
   }, []);
+
+  const handlePrintInvoice = React.useCallback(async () => {
+    const response = await getInvoicePrintData(location, invoiceId);
+
+    if (!response?.success) {
+      toast.error(response?.message || "Failed to load invoice print data");
+      return;
+    }
+
+    const success = printInvoice(response.data);
+    if (!success) {
+      toast.error("Failed to open print dialog. Please check if pop-ups are blocked.");
+    }
+  }, [invoiceId, location]);
 
   const handleSendInvoiceEmail = React.useCallback(
     async (emailData: InvoiceEmailData) => {
@@ -233,10 +249,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-gray-500 hover:text-gray-700"
-                        onClick={() => {
-                          // TODO: Implement print functionality
-                          window.print();
-                        }}
+                        onClick={handlePrintInvoice}
                         aria-label="Print invoice"
                       >
                         <Printer className="h-4 w-4" />
