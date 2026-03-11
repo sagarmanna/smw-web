@@ -41,7 +41,7 @@ export function InvoiceReceivePaymentAction({
 }: InvoiceReceivePaymentActionProps) {
   const [isReceivePaymentModalOpen, setIsReceivePaymentModalOpen] = React.useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
-  const [selectedPaymentId, setSelectedPaymentId] = React.useState<number | string | null>(null);
+  const [receiptPaymentData, setReceiptPaymentData] = React.useState<ReceivePaymentData | null>(null);
   const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<DirectPaymentReceiptData | null>(null);
   const [receiptCustomerName, setReceiptCustomerName] = React.useState(customerName || "");
   const [receiptCustomerEmail, setReceiptCustomerEmail] = React.useState(customerEmail || "");
@@ -73,13 +73,150 @@ export function InvoiceReceivePaymentAction({
     }
   }, [openRequestKey, handleOpenReceivePayment]);
 
+  const shouldRenderReceiptModal = customerId && (directPaymentReceiptData || receiptPaymentData);
+
   const handleReceiptModalOpenChange = React.useCallback((open: boolean) => {
     setIsReceiptModalOpen(open);
     if (!open) {
-      setSelectedPaymentId(null);
+      setReceiptPaymentData(null);
       setDirectPaymentReceiptData(null);
     }
   }, []);
+
+  const transformedReceiptData = React.useMemo<DirectPaymentReceiptData | undefined>(() => {
+    if (!receiptPaymentData) return undefined;
+
+    const paymentMethodNames: Record<string, string> = {
+      "1": "Cash",
+      "2": "Credit Card",
+      "3": "Preauthorized",
+      "4": "Cheque",
+      "5": "Debit",
+      "6": "E-Transfer",
+      "7": "Gift Card",
+      "8": "Account Entry",
+    };
+
+    const formatCurrencyAmount = (amount: number): string => formatCurrency(amount);
+    const paymentMethodName =
+      receiptPaymentData.paymentMethodName ||
+      paymentMethodNames[receiptPaymentData.paymentMethod] ||
+      "Cash";
+
+    const credits: NonNullable<DirectPaymentReceiptData["credits"]> = [];
+    const creditDetailsMap = new Map<string, { id: string; reference: string; payment: string; type: string }>();
+
+    if (receiptPaymentData.creditDetails && Array.isArray(receiptPaymentData.creditDetails)) {
+      receiptPaymentData.creditDetails.forEach((credit) => {
+        creditDetailsMap.set(credit.id, credit);
+      });
+    }
+
+    if (receiptPaymentData.invoiceCredits && Object.keys(receiptPaymentData.invoiceCredits).length > 0) {
+      Object.entries(receiptPaymentData.invoiceCredits).forEach(([id, amount]) => {
+        const creditDetail = creditDetailsMap.get(id);
+        const invoiceRef = creditDetail?.reference || (id.startsWith("I-") ? id : `I-${id}`);
+
+        credits.push({
+          type: "Invoice Credit",
+          reference: invoiceRef,
+          paymentMethod: "",
+          amount: "$0.00",
+          amountUsed: creditDetail
+            ? formatCurrencyAmount(parseFloat(creditDetail.payment))
+            : formatCurrencyAmount(amount),
+        });
+      });
+    }
+
+    if (receiptPaymentData.paymentCredits && Object.keys(receiptPaymentData.paymentCredits).length > 0) {
+      Object.entries(receiptPaymentData.paymentCredits).forEach(([id, amount]) => {
+        const creditDetail = creditDetailsMap.get(id);
+
+        credits.push({
+          type: "Payment Credit",
+          reference: "",
+          paymentMethod: receiptPaymentData.paymentMethodName || "Cash",
+          amount: formatCurrencyAmount(amount),
+          amountUsed: creditDetail
+            ? formatCurrencyAmount(parseFloat(creditDetail.payment))
+            : formatCurrencyAmount(amount),
+        });
+      });
+    }
+
+    const lessons =
+      receiptPaymentData.lessonDetails && receiptPaymentData.lessonDetails.length > 0
+        ? receiptPaymentData.lessonDetails.map((lesson) => ({
+            date: lesson.date,
+            student: lesson.student,
+            program: lesson.program,
+            teacher: lesson.teacher,
+            amount: formatCurrencyAmount(lesson.amount),
+            payment: formatCurrencyAmount(parseFloat(lesson.payment)),
+            balance: "$0.00",
+          }))
+        : Object.entries(receiptPaymentData.lessonPayments || {})
+            .filter(([, amount]) => amount > 0)
+            .map(([, amount]) => ({
+              date: receiptPaymentData.date,
+              student: "Student",
+              program: "Program",
+              teacher: "Teacher",
+              amount: formatCurrencyAmount(amount),
+              payment: formatCurrencyAmount(amount),
+              balance: "$0.00",
+            }));
+
+    const groupLessons =
+      receiptPaymentData.groupLessonDetails && receiptPaymentData.groupLessonDetails.length > 0
+        ? receiptPaymentData.groupLessonDetails.map((groupLesson) => ({
+            date: groupLesson.date,
+            student: groupLesson.student,
+            program: groupLesson.program,
+            amount: formatCurrencyAmount(groupLesson.amount),
+            balance: "$0.00",
+          }))
+        : Object.entries(receiptPaymentData.groupLessonPayments || {})
+            .filter(([, amount]) => amount > 0)
+            .map(([, amount]) => ({
+              date: receiptPaymentData.date,
+              student: "Student",
+              program: "Program",
+              amount: formatCurrencyAmount(amount),
+              balance: "$0.00",
+            }));
+
+    const invoices =
+      receiptPaymentData.invoiceDetails && receiptPaymentData.invoiceDetails.length > 0
+        ? receiptPaymentData.invoiceDetails.map((invoice) => ({
+            date: invoice.date,
+            number: invoice.number,
+            amount: formatCurrencyAmount(invoice.amount),
+            payment: formatCurrencyAmount(parseFloat(invoice.payment)),
+            balance: "$0.00",
+          }))
+        : Object.entries(receiptPaymentData.invoicePayments || {})
+            .filter(([, amount]) => amount > 0)
+            .map(([id, amount]) => ({
+              date: receiptPaymentData.date,
+              number: id,
+              amount: formatCurrencyAmount(amount),
+              payment: formatCurrencyAmount(amount),
+              balance: "$0.00",
+            }));
+
+    return {
+      date: receiptPaymentData.date,
+      paymentMethod: paymentMethodName,
+      reference: receiptPaymentData.reference || "",
+      amount: receiptPaymentData.amountReceived,
+      lessons: lessons.length > 0 ? lessons : undefined,
+      groupLessons: groupLessons.length > 0 ? groupLessons : undefined,
+      invoices: invoices.length > 0 ? invoices : undefined,
+      credits: credits.length > 0 ? credits : undefined,
+    };
+  }, [receiptPaymentData]);
 
   const handleReceivePayment = React.useCallback(
     async (paymentData: ReceivePaymentData) => {
@@ -167,9 +304,9 @@ export function InvoiceReceivePaymentAction({
           return;
         }
 
+        setReceiptPaymentData(paymentData);
         setIsReceivePaymentModalOpen(false);
         toast.success(`Payment of $${finalAmount.toFixed(2)} received successfully`);
-        await onPaymentSaved?.();
 
         try {
           const customerInfo = await getCustomerInfo(location, customerId);
@@ -188,7 +325,6 @@ export function InvoiceReceivePaymentAction({
           console.error("Error fetching customer info:", customerInfoError);
         }
 
-        const paymentMethodName = paymentData.paymentMethodName || paymentData.paymentMethod;
         const credits: Array<{
           type: string;
           reference: string;
@@ -231,39 +367,64 @@ export function InvoiceReceivePaymentAction({
           });
         }
 
-        const fallbackDirectData: DirectPaymentReceiptData = {
-          date: paymentData.date,
-          paymentMethod: paymentMethodName,
-          reference: paymentData.reference || "",
-          amount: finalAmount,
-          credits: credits.length > 0 ? credits : undefined,
-        };
-
         try {
           const paymentsResponse = await getCustomerPayments(location, customerId, 1, 1, "id");
           if (paymentsResponse.data && paymentsResponse.data.length > 0) {
             const latestPayment = paymentsResponse.data[0] as { id?: number | string };
             const paymentId = latestPayment.id;
             if (paymentId != null) {
-              setSelectedPaymentId(paymentId);
-              setDirectPaymentReceiptData(null);
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              const { getPaymentReceiptData } = await import("@/components/modal/PaymentReceiptModal");
+              const receiptData = await getPaymentReceiptData(location, paymentId);
+
+              let resolvedPaymentMethodName = paymentData.paymentMethodName;
+              if (!resolvedPaymentMethodName) {
+                resolvedPaymentMethodName = receiptData.info?.paymentMethod || paymentData.paymentMethod;
+              }
+
+              setDirectPaymentReceiptData({
+                date: receiptData.info?.date || paymentData.date,
+                paymentMethod: resolvedPaymentMethodName,
+                reference: receiptData.info?.reference || paymentData.reference || "",
+                amount: receiptData.info?.amount || paymentData.amountReceived,
+                lessons: receiptData.lessons.data.map((lesson) => ({
+                  date: lesson.date,
+                  student: lesson.student,
+                  program: lesson.program,
+                  teacher: lesson.teacher,
+                  amount: lesson.amount,
+                  payment: lesson.payment,
+                  balance: "$0.00",
+                })),
+                groupLessons: receiptData.groupLessons.data.map((groupLesson) => ({
+                  date: groupLesson.date,
+                  student: groupLesson.student,
+                  program: groupLesson.program,
+                  amount: groupLesson.amount,
+                  balance: "$0.00",
+                })),
+                invoices: receiptData.invoices.data.map((invoice) => ({
+                  date: invoice.date,
+                  number: invoice.number,
+                  amount: invoice.amount,
+                  payment: invoice.payment,
+                  balance: "$0.00",
+                })),
+                credits: credits.length > 0 ? credits : undefined,
+              });
               setIsReceiptModalOpen(true);
             } else {
-              setSelectedPaymentId(null);
-              setDirectPaymentReceiptData(fallbackDirectData);
               setIsReceiptModalOpen(true);
             }
           } else {
-            setSelectedPaymentId(null);
-            setDirectPaymentReceiptData(fallbackDirectData);
             setIsReceiptModalOpen(true);
           }
         } catch (receiptError) {
           console.error("Error fetching payment receipt data:", receiptError);
-          setSelectedPaymentId(null);
-          setDirectPaymentReceiptData(fallbackDirectData);
           setIsReceiptModalOpen(true);
         }
+
+        await onPaymentSaved?.();
       } catch (error) {
         console.error("Error receiving payment:", error);
         toast.error(error instanceof Error ? error.message : "Failed to receive payment");
@@ -287,27 +448,7 @@ export function InvoiceReceivePaymentAction({
         />
       )}
 
-      {customerId && selectedPaymentId != null && (
-        <PaymentReceiptModalContainer
-          open={isReceiptModalOpen}
-          onOpenChange={handleReceiptModalOpenChange}
-          location={location}
-          customerId={customerId}
-          paymentId={selectedPaymentId}
-          customerName={receiptCustomerName}
-          customerEmail={receiptCustomerEmail}
-          customerPhone={receiptCustomerPhone}
-          mode="view"
-          onEdit={() => {
-            void onPaymentSaved?.();
-          }}
-          onDelete={() => {
-            void onPaymentSaved?.();
-          }}
-        />
-      )}
-
-      {customerId && directPaymentReceiptData && (
+      {shouldRenderReceiptModal && (
         <PaymentReceiptModalContainer
           open={isReceiptModalOpen}
           onOpenChange={handleReceiptModalOpenChange}
@@ -317,7 +458,7 @@ export function InvoiceReceivePaymentAction({
           customerEmail={receiptCustomerEmail}
           customerPhone={receiptCustomerPhone}
           mode="new"
-          directPaymentData={directPaymentReceiptData}
+          directPaymentData={directPaymentReceiptData ?? transformedReceiptData}
           onEdit={() => {
             void onPaymentSaved?.();
           }}
