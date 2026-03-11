@@ -70,6 +70,8 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     handleCustomerChange,
     handleSaveDiscount,
     handleSaveItem,
+    handleSaveItemTax,
+    handleLoadItemTaxOptions,
     handleDeleteItem,
     handleAdjustTax,
     handleSaveMessage,
@@ -138,6 +140,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
   const isReturned = invoiceDetail?.status === "Returned";
   const isVoided = invoiceDetail?.status === "Voided";
+  const hasHistoryEntries = historyData.length > 0;
 
   if (isLoading) {
     return (
@@ -328,8 +331,11 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             items={invoiceDetail.items}
             isLoading={isLoading}
             isVoided={isVoided}
+            lockItemAndTaxActions={hasHistoryEntries}
             onSaveDiscount={handleSaveDiscount}
             onSaveItem={handleSaveItem}
+            onSaveItemTax={handleSaveItemTax}
+            onLoadItemTaxOptions={handleLoadItemTaxOptions}
             onDeleteItem={handleDeleteItem}
           />
 

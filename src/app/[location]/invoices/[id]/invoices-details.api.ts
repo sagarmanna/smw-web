@@ -154,6 +154,64 @@ export interface DeleteInvoiceLineItemResponse {
   message?: string;
 }
 
+export interface EditInvoiceItemsTaxRequest {
+  lineItemIds: number[];
+  taxStatus: string;
+}
+
+export interface InvoiceItemsTaxStatusOption {
+  id: number;
+  name: string;
+  rate: number;
+}
+
+export interface GetInvoiceItemsTaxEditConfigResponse {
+  success: boolean;
+  data: {
+    currentTaxStatus: string;
+    currentTaxRate: number;
+    availableTaxStatuses: InvoiceItemsTaxStatusOption[];
+  };
+  message?: string;
+}
+
+export type InvoiceItemsTaxEditConfigData = GetInvoiceItemsTaxEditConfigResponse["data"];
+
+export interface EditInvoiceItemsTaxResponse {
+  success: boolean;
+  data: {
+    updatedCount: number;
+    taxRate: number;
+  };
+  message?: string;
+}
+
+type EditInvoiceItemsTaxBackendResponse = {
+  success: boolean;
+  data?: {
+    updatedCount?: number;
+    taxRate?: number | string;
+    body?: {
+      updatedCount?: number;
+      taxRate?: number | string;
+    };
+  };
+  message?: string;
+};
+
+type GetInvoiceItemsTaxEditConfigBackendResponse = {
+  success: boolean;
+  data?: {
+    currentTaxStatus?: string;
+    currentTaxRate?: number | string;
+    availableTaxStatuses?: Array<{
+      id?: number | string;
+      name?: string;
+      rate?: number | string;
+    }>;
+  };
+  message?: string;
+};
 export interface InvoiceLineItemsDiscountValues {
   lineItemIds?: number[];
   lineItemDiscount?: number | string | null;
@@ -244,8 +302,14 @@ type InvoiceItemsBackendResponse = {
         id?: number | string;
         code?: string;
         itemCode?: string;
+        royaltyFree?: string;
         description?: string;
         qty?: number | string;
+        discount?: number | string;
+        taxStatus?: string;
+        tax?: number | string;
+        unitPrice?: number | string;
+        cost?: number | string;
         price?: number | string; // e.g. "$26.68"
       }>;
     };
@@ -358,15 +422,21 @@ function normalizeLineItems(itemsResponse: InvoiceItemsBackendResponse | undefin
 
     const qty = parseMoney(li.qty);
     const price = parseMoney(li.price);
-    const unitPrice = qty !== 0 ? price / qty : price;
+    const backendUnitPrice = parseMoney(li.unitPrice);
+    const unitPrice = backendUnitPrice > 0 ? backendUnitPrice : qty !== 0 ? price / qty : price;
 
     normalized.push({
       id: li.id !== undefined ? String(li.id) : `${Date.now()}`,
       code: li.code ?? li.itemCode ?? "",
+      royalty: li.royaltyFree ?? "No",
       description: li.description ?? "",
       qty,
+      discount: parseMoney(li.discount),
+      taxStatus: li.taxStatus ?? "",
+      tax: parseMoney(li.tax),
       price,
       unitPrice,
+      cost: parseMoney(li.cost),
     });
   }
 
@@ -503,7 +573,7 @@ export async function getInvoiceDetails(
       ),
       apiClient.get<InvoiceItemsBackendResponse>(
         `/admin/v2/${location}/invoices/items/${invoiceId}`,
-        { params: { enable: false } }
+        { params: { enable: true } }
       ),
       apiClient.get<InvoiceTotalsBackendResponse>(
         `/admin/v2/${location}/invoices/${invoiceId}/totals`
@@ -855,6 +925,97 @@ export async function deleteInvoiceLineItem(
     return response.data;
   } catch (error: unknown) {
     return createLineItemFailureResponse(lineItemId, "Failed to delete line item", error);
+  }
+}
+
+/**
+ * Bulk updates tax status for invoice line items.
+ *
+ * Endpoint: PUT /admin/v2/${location}/invoices/line-items/edit-tax
+ * Body: { lineItemIds: number[], taxStatus: string }
+ */
+export async function editInvoiceItemsTax(
+  location: string,
+  payload: EditInvoiceItemsTaxRequest
+): Promise<EditInvoiceItemsTaxResponse | null> {
+  try {
+    const response = await apiClient.put<EditInvoiceItemsTaxBackendResponse>(
+      `/admin/v2/${location}/invoices/line-items/edit-tax`,
+      payload
+    );
+
+    const responseData = response.data?.data;
+    const body = responseData?.body;
+    const updatedCount = Number(body?.updatedCount ?? responseData?.updatedCount ?? 0);
+    const taxRate = Number(body?.taxRate ?? responseData?.taxRate ?? 0);
+
+    return {
+      success: response.data.success,
+      data: {
+        updatedCount: Number.isFinite(updatedCount) ? updatedCount : 0,
+        taxRate: Number.isFinite(taxRate) ? taxRate : 0,
+      },
+      message: response.data.message,
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {
+        updatedCount: 0,
+        taxRate: 0,
+      },
+      message: getApiErrorMessage(error, "Failed to update item tax"),
+    };
+  }
+}
+
+/**
+ * Fetches available tax statuses and current tax selection for selected invoice line items.
+ *
+ * Endpoint: GET /admin/v2/${location}/invoices/line-items/edit-tax?lineItemIds=1&lineItemIds=2
+ */
+export async function getInvoiceItemsTaxEditConfig(
+  location: string,
+  lineItemIds: number[]
+): Promise<GetInvoiceItemsTaxEditConfigResponse | null> {
+  try {
+    const searchParams = new URLSearchParams();
+    lineItemIds.forEach((id) => {
+      searchParams.append("lineItemIds", String(id));
+    });
+
+    const response = await apiClient.get<GetInvoiceItemsTaxEditConfigBackendResponse>(
+      `/admin/v2/${location}/invoices/line-items/edit-tax?${searchParams.toString()}`
+    );
+
+    const responseData = response.data?.data;
+    const rawOptions = responseData?.availableTaxStatuses ?? [];
+
+    return {
+      success: response.data.success,
+      data: {
+        currentTaxStatus: responseData?.currentTaxStatus ?? "Default",
+        currentTaxRate: Number(responseData?.currentTaxRate ?? 0) || 0,
+        availableTaxStatuses: rawOptions
+          .map((option) => ({
+            id: Number(option.id),
+            name: (option.name || "").trim(),
+            rate: Number(option.rate ?? 0) || 0,
+          }))
+          .filter((option) => Number.isFinite(option.id) && option.name.length > 0),
+      },
+      message: response.data.message,
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      data: {
+        currentTaxStatus: "Default",
+        currentTaxRate: 0,
+        availableTaxStatuses: [],
+      },
+      message: getApiErrorMessage(error, "Failed to load tax settings"),
+    };
   }
 }
 
