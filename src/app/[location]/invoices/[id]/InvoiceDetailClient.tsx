@@ -23,7 +23,7 @@ import { useInvoiceDetails } from "../hooks/useInvoiceDetails";
 import { getInvoicePrintData } from "./invoices-details.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { printInvoice } from "@/components/PrintInvoice";
+import { openInvoicePrintWindow, printInvoice } from "@/components/PrintInvoice";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Mail, Printer, Settings, ArrowLeft } from "lucide-react";
 import {
@@ -116,16 +116,35 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   }, []);
 
   const handlePrintInvoice = React.useCallback(async () => {
-    const response = await getInvoicePrintData(location, invoiceId);
-
-    if (!response?.success) {
-      toast.error(response?.message || "Failed to load invoice print data");
+    const printWindow = openInvoicePrintWindow();
+    if (!printWindow) {
+      toast.error("Failed to open print dialog. Please check if pop-ups are blocked.");
       return;
     }
 
-    const success = printInvoice(response.data);
-    if (!success) {
-      toast.error("Failed to open print dialog. Please check if pop-ups are blocked.");
+    try {
+      const response = await getInvoicePrintData(location, invoiceId);
+      if (!response?.success) {
+        try {
+          printWindow.close();
+        } catch {}
+        toast.error(response?.message || "Failed to load invoice print data");
+        return;
+      }
+
+      const success = printInvoice(response.data, printWindow);
+      if (!success) {
+        try {
+          printWindow.close();
+        } catch {}
+        toast.error("Failed to open print dialog. Please check if pop-ups are blocked.");
+      }
+    } catch (error) {
+      try {
+        printWindow.close();
+      } catch {}
+      console.error("Failed to load invoice print data:", error);
+      toast.error("Failed to load invoice print data");
     }
   }, [invoiceId, location]);
 
