@@ -43,6 +43,7 @@ export function InvoiceReceivePaymentAction({
   const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
   const [receiptPaymentData, setReceiptPaymentData] = React.useState<ReceivePaymentData | null>(null);
   const [directPaymentReceiptData, setDirectPaymentReceiptData] = React.useState<DirectPaymentReceiptData | null>(null);
+  const lastHandledOpenRequestKeyRef = React.useRef(openRequestKey ?? 0);
   const [receiptCustomerName, setReceiptCustomerName] = React.useState(customerName || "");
   const [receiptCustomerEmail, setReceiptCustomerEmail] = React.useState(customerEmail || "");
   const [receiptCustomerPhone, setReceiptCustomerPhone] = React.useState(customerPhone || "");
@@ -68,7 +69,12 @@ export function InvoiceReceivePaymentAction({
   }, [customerId]);
 
   React.useEffect(() => {
-    if (typeof openRequestKey === "number" && openRequestKey > 0) {
+    if (
+      typeof openRequestKey === "number" &&
+      openRequestKey > 0 &&
+      openRequestKey > lastHandledOpenRequestKeyRef.current
+    ) {
+      lastHandledOpenRequestKeyRef.current = openRequestKey;
       handleOpenReceivePayment();
     }
   }, [openRequestKey, handleOpenReceivePayment]);
@@ -412,17 +418,13 @@ export function InvoiceReceivePaymentAction({
                 })),
                 credits: credits.length > 0 ? credits : undefined,
               });
-              setIsReceiptModalOpen(true);
-            } else {
-              setIsReceiptModalOpen(true);
             }
-          } else {
-            setIsReceiptModalOpen(true);
           }
         } catch (receiptError) {
           console.error("Error fetching payment receipt data:", receiptError);
-          setIsReceiptModalOpen(true);
         }
+
+        setIsReceiptModalOpen(true);
 
         await onPaymentSaved?.();
       } catch (error) {
