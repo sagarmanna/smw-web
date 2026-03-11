@@ -6,24 +6,13 @@ export type { InvoicePrintData } from "@/components/PrintInvoice/types";
 const DEFAULT_LOGO_URL = "/admin/v2/arcadia-master-logo.png";
 const DEFAULT_WEBSITE = "www.arcadiamusicacademy.com";
 
-const escapeHtml = (value: string | number | null | undefined): string => {
-  if (value === null || value === undefined) return "";
-
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
+const buildAddressLines = (parts: Array<string | null | undefined>): string[] =>
+  parts.map((part) => (part || "").trim()).filter(Boolean);
 
 const sanitizeRichHtml = (html: string | null | undefined): string => {
   if (!html) return "";
   return DOMPurify.sanitize(html);
 };
-
-const buildAddressLines = (parts: Array<string | null | undefined>): string[] =>
-  parts.map((part) => (part || "").trim()).filter(Boolean);
 
 export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
   const baseUrl =
@@ -54,12 +43,12 @@ export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
     .map(
       (item) => `
         <tr>
-          <td>${escapeHtml(item.code)}</td>
-          <td>${escapeHtml(item.description)}</td>
-          <td class="num">${escapeHtml(item.qty)}</td>
-          <td class="num">${escapeHtml(item.unitPrice)}</td>
-          <td class="num">${escapeHtml(item.tax)}</td>
-          <td class="num">${escapeHtml(item.price)}</td>
+          <td>${item.code}</td>
+          <td>${item.description}</td>
+          <td class="num">${item.qty}</td>
+          <td class="num">${item.unitPrice}</td>
+          <td class="num">${item.tax}</td>
+          <td class="num">${item.price}</td>
         </tr>
       `
     )
@@ -69,11 +58,11 @@ export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
     .map(
       (payment) => `
         <tr>
-          <td>${escapeHtml(payment.date)}</td>
-          <td>${escapeHtml(payment.type)}</td>
-          <td>${escapeHtml(payment.reference)}</td>
-          <td>${escapeHtml(payment.notes)}</td>
-          <td class="num">${escapeHtml(payment.amount)}</td>
+          <td>${payment.date}</td>
+          <td>${payment.type}</td>
+          <td>${payment.reference}</td>
+          <td>${payment.notes}</td>
+          <td class="num">${payment.amount}</td>
         </tr>
       `
     )
@@ -83,7 +72,7 @@ export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>${escapeHtml(data.invoice.number)}</title>
+        <title>${data.invoice.number}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>
           @page { size: A4; margin: 14mm; }
@@ -195,27 +184,76 @@ export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
         </style>
+        <script>
+          (function() {
+            var hasPrinted = false;
+            var printWhenReady = function() {
+              if (hasPrinted) return;
+              hasPrinted = true;
+              window.focus();
+              setTimeout(function() {
+                try {
+                  window.print();
+                } catch (error) {
+                  console.error('Failed to open print dialog:', error);
+                }
+              }, 300);
+            };
+
+            window.addEventListener('load', function() {
+              var images = Array.prototype.slice.call(document.images || []);
+              if (!images.length) {
+                printWhenReady();
+                return;
+              }
+
+              var pending = images.filter(function(img) {
+                return !img.complete;
+              }).length;
+
+              if (!pending) {
+                printWhenReady();
+                return;
+              }
+
+              var resolve = function() {
+                pending -= 1;
+                if (pending <= 0) {
+                  printWhenReady();
+                }
+              };
+
+              images.forEach(function(img) {
+                if (img.complete) return;
+                img.addEventListener('load', resolve, { once: true });
+                img.addEventListener('error', resolve, { once: true });
+              });
+
+              setTimeout(printWhenReady, 1200);
+            }, { once: true });
+          })();
+        </script>
       </head>
       <body>
         <div class="page">
           <div class="brand">
             <img class="logo" src="${logoUrl}" alt="Arcadia Academy Of Music" />
             <div class="invoice-meta">
-              <h1>${escapeHtml(data.invoice.type || "Invoice")}</h1>
-              <div class="meta-row"><strong>${escapeHtml(data.invoice.number)}</strong></div>
-              <div class="meta-row">Date: ${escapeHtml(data.invoice.date)}</div>
-              <div class="meta-row">Status: ${escapeHtml(data.invoice.status)}</div>
+              <h1>${data.invoice.type || "Invoice"}</h1>
+              <div class="meta-row"><strong>${data.invoice.number}</strong></div>
+              <div class="meta-row">Date: ${data.invoice.date}</div>
+              <div class="meta-row">Status: ${data.invoice.status}</div>
             </div>
           </div>
 
           <div class="party-grid">
             <div class="party-block">
               <div class="section-label">From</div>
-              <strong>${escapeHtml(data.location.name)}</strong>
-              ${locationLines.map((line) => `<div class="party-line">${escapeHtml(line)}</div>`).join("")}
+              <strong>${data.location.name}</strong>
+              ${locationLines.map((line) => `<div class="party-line">${line}</div>`).join("")}
               ${
                 data.location.hstRegistrationNo
-                  ? `<div class="party-line"><strong>HST#</strong> ${escapeHtml(data.location.hstRegistrationNo)}</div>`
+                  ? `<div class="party-line"><strong>HST#</strong> ${data.location.hstRegistrationNo}</div>`
                   : ""
               }
             </div>
@@ -223,9 +261,7 @@ export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
               <div class="section-label">Bill To</div>
               ${customerLines
                 .map((line, index) =>
-                  index === 0
-                    ? `<strong>${escapeHtml(line)}</strong>`
-                    : `<div class="party-line">${escapeHtml(line)}</div>`
+                  index === 0 ? `<strong>${line}</strong>` : `<div class="party-line">${line}</div>`
                 )
                 .join("")}
             </div>
@@ -273,12 +309,12 @@ export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
           }
 
           <div class="totals">
-            <div class="totals-row"><span>Discount</span><span>${escapeHtml(data.totals.discount)}</span></div>
-            <div class="totals-row"><span>Subtotal</span><span>${escapeHtml(data.totals.subTotal)}</span></div>
-            <div class="totals-row"><span>Tax</span><span>${escapeHtml(data.totals.tax)}</span></div>
-            <div class="totals-row"><strong>Total</strong><strong>${escapeHtml(data.totals.total)}</strong></div>
-            <div class="totals-row"><span>Paid</span><span>${escapeHtml(data.totals.paid)}</span></div>
-            <div class="totals-row"><strong>Balance</strong><strong>${escapeHtml(data.totals.balance)}</strong></div>
+            <div class="totals-row"><span>Discount</span><span>${data.totals.discount}</span></div>
+            <div class="totals-row"><span>Subtotal</span><span>${data.totals.subTotal}</span></div>
+            <div class="totals-row"><span>Tax</span><span>${data.totals.tax}</span></div>
+            <div class="totals-row"><strong>Total</strong><strong>${data.totals.total}</strong></div>
+            <div class="totals-row"><span>Paid</span><span>${data.totals.paid}</span></div>
+            <div class="totals-row"><strong>Balance</strong><strong>${data.totals.balance}</strong></div>
           </div>
 
           ${
@@ -286,7 +322,7 @@ export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
               ? `
                 <div class="notes">
                   <div class="section-label">Notes</div>
-                  <div>${escapeHtml(data.invoice.notes)}</div>
+                  <div>${data.invoice.notes}</div>
                 </div>
               `
               : ""
@@ -308,18 +344,62 @@ export const generateInvoicePrintHtml = (data: InvoicePrintData): string => {
   `;
 };
 
-export const printInvoice = (data: InvoicePrintData): boolean => {
+const buildLoadingHtml = (): string => `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>Preparing invoice...</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <style>
+        body {
+          margin: 0;
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: Arial, sans-serif;
+          color: #111827;
+          background: #ffffff;
+        }
+        .message {
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="message">Preparing invoice...</div>
+    </body>
+  </html>
+`;
+
+export const openInvoicePrintWindow = (): Window | null => {
   try {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      return false;
+      return null;
     }
 
     printWindow.document.open();
-    printWindow.document.write(generateInvoicePrintHtml(data));
+    printWindow.document.write(buildLoadingHtml());
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => printWindow.print(), 150);
+    return printWindow;
+  } catch (error) {
+    console.error("Failed to open invoice print window:", error);
+    return null;
+  }
+};
+
+export const printInvoice = (data: InvoicePrintData, printWindow?: Window | null): boolean => {
+  try {
+    const targetWindow = printWindow ?? openInvoicePrintWindow();
+    if (!targetWindow) {
+      return false;
+    }
+
+    targetWindow.document.open();
+    targetWindow.document.write(generateInvoicePrintHtml(data));
+    targetWindow.document.close();
+    targetWindow.focus();
 
     return true;
   } catch (error) {
