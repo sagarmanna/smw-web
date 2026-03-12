@@ -7,6 +7,13 @@ export interface InvoiceEmailStatementLineItem {
   price?: string;
 }
 
+export interface InvoiceEmailStatementPayment {
+  date?: string;
+  type?: string;
+  ref?: string;
+  amount?: string;
+}
+
 export interface InvoiceEmailStatementTotals {
   subtotal?: string;
   tax?: string;
@@ -29,6 +36,7 @@ export interface InvoiceEmailStatementBody {
     message?: string;
     totals?: InvoiceEmailStatementTotals;
     hstNumber?: string;
+    payments?: InvoiceEmailStatementPayment[];
   };
   emailTemplate?: InvoiceEmailStatementTemplate;
 }
