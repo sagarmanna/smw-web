@@ -19,11 +19,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Menu, User, LogOut, Sun, Moon, MapPin, Newspaper } from "lucide-react";
+import {
+  Menu,
+  User,
+  LogOut,
+  Sun,
+  Moon,
+  MapPin,
+  Newspaper,
+  Accessibility,
+  Palette,
+  Contrast,
+  RotateCcw,
+  Check,
+} from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Image from "next/image";
 import Link from "next/link";
 import { useAppSelector } from "@/redux/hooks";
+import { useAccessibility } from "@/components/AccessibilityProvider";
 import { useLocations } from "@/hooks/useLocations";
 import { useLocationChange } from "@/hooks/useLocationChange";
 import { useLocationAccess } from "@/hooks/useLocationAccess";
@@ -43,6 +57,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const {
+    mode,
+    resetAccessibility,
+    setMode,
+  } = useAccessibility();
   const location = params.location as string;
   const { userInfo, isLoading } = useAppSelector((state) => state.user);
   const { locations, changeLocation } = useLocations();
@@ -64,6 +83,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const handleThemeToggle = () => {
     setTheme(theme === "light" ? "dark" : "light");
   };
+
+  const activePreset = mode;
 
   const handleLocationChange = (newLocation: string) => {
     // Check if user has access to the new location
@@ -354,6 +375,68 @@ export default function Header({ onMenuClick }: HeaderProps) {
             )}
             <span className="sr-only">Toggle theme</span>
           </Button>
+
+          {/* Accessibility Controls */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 px-0" aria-label="Accessibility options">
+                <Accessibility className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64" align="end">
+              <DropdownMenuLabel>Accessibility</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="justify-between"
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setMode("monochrome");
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <Contrast className="h-4 w-4" />
+                  <span>Monochrome</span>
+                </span>
+                {activePreset === "monochrome" ? <Check className="h-4 w-4" /> : null}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="justify-between"
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setMode("deuteranopia");
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  <span>Red/Green Friendly</span>
+                </span>
+                {activePreset === "deuteranopia" ? <Check className="h-4 w-4" /> : null}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="justify-between"
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setMode("tritanopia");
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  <span>Blue/Yellow Friendly</span>
+                </span>
+                {activePreset === "tritanopia" ? <Check className="h-4 w-4" /> : null}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  resetAccessibility();
+                }}
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span>Reset</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Latest Features & Updates */}
           {/* TODO: Remove this once we have a new latest updates page */}

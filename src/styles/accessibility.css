@@ -1,0 +1,37 @@
+/* Global accessibility overrides. Disabled by default unless mode is set. */
+
+html[data-a11y-mode="monochrome"] {
+  filter: grayscale(1);
+}
+
+/* Color-vision-friendly palettes for token-based UI colors */
+html[data-a11y-mode="deuteranopia"] {
+  --primary: 215 90% 45%;
+  --primary-foreground: 0 0% 100%;
+  --destructive: 30 95% 46%;
+  --destructive-foreground: 0 0% 100%;
+  --chart-1: 215 90% 45%;
+  --chart-2: 32 95% 50%;
+  --chart-3: 0 0% 25%;
+  --chart-4: 190 80% 35%;
+  --chart-5: 0 0% 55%;
+}
+
+html[data-a11y-mode="tritanopia"] {
+  --primary: 350 80% 45%;
+  --primary-foreground: 0 0% 100%;
+  --destructive: 25 95% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --chart-1: 350 80% 45%;
+  --chart-2: 95 70% 35%;
+  --chart-3: 15 75% 42%;
+  --chart-4: 0 0% 24%;
+  --chart-5: 0 0% 58%;
+}
+
+html[data-a11y-mode="monochrome"] :focus-visible,
+html[data-a11y-mode="deuteranopia"] :focus-visible,
+html[data-a11y-mode="tritanopia"] :focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
