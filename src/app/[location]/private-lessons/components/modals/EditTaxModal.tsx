@@ -55,8 +55,8 @@ export function EditTaxModal({
       return;
     }
 
-    if (numeric <= 0) {
-      setError("Tax must be a positive number.");
+    if (numeric < 0) {
+      setError("Tax must be zero or a positive number.");
       return;
     }
 
