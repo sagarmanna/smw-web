@@ -197,6 +197,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const isReturned = isReturnedByStatus || isCreditInvoice;
   const isVoided =
     normalizedInvoiceStatus === "voided" || normalizedInvoiceStatus === "void";
+  const isBlankInvoice = !invoiceDetail?.customer?.customerId && !invoiceDetail?.customer?.name?.trim();
   const hasHistoryEntries = historyData.length > 0;
   const hasItems = (invoiceDetail?.items.length ?? 0) > 0;
 
@@ -292,18 +293,21 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-gray-500 hover:text-gray-700"
-                        onClick={handlePrintInvoice}
-                        aria-label="Print invoice"
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
+                      <span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:hover:text-gray-300"
+                          onClick={handlePrintInvoice}
+                          aria-label={isBlankInvoice ? "Print invoice disabled for blank invoice" : "Print invoice"}
+                          disabled={isBlankInvoice}
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                      </span>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <p>Print Invoice</p>
+                      <p>{isBlankInvoice ? "Print unavailable for blank invoice" : "Print Invoice"}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
