@@ -212,7 +212,7 @@ export function EditLineItemModal({
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "Saving..." : "save"}
+                  {isSaving ? "Saving..." : "Save"}
                 </Button>
               </div>
             </div>

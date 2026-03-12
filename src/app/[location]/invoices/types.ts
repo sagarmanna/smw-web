@@ -33,7 +33,7 @@ export interface InvoiceComment {
   createdOn: string;
 }
 
-export type InvoiceStatus = "Owing" | "Paid" | "Cancelled" | "Returned" | "Voided";
+export type InvoiceStatus = string;
 
 export interface InvoiceCustomer {
   name: string;

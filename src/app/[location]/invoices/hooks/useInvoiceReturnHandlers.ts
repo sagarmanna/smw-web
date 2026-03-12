@@ -1,23 +1,30 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AppDispatch } from "@/redux/store";
-import type { InvoiceDetail, InvoiceStatus } from "../types";
-import { updateInvoiceDetail } from "../[id]/invoices-details.slice";
-import { API_DELAY, TOAST_MESSAGES } from "../utils/constants";
+import type { InvoiceDetail } from "../types";
+import { fetchInvoice } from "../[id]/invoices-details.slice";
+import { returnInvoice } from "../[id]/invoices-details.api";
+import { TOAST_MESSAGES } from "../utils/constants";
 
 interface UseInvoiceReturnHandlersProps {
   invoiceDetail: InvoiceDetail | null;
   dispatch: AppDispatch;
+  location: string;
+  invoiceId: number;
   onReturnComplete?: () => void;
 }
 
 export function useInvoiceReturnHandlers({
   invoiceDetail,
   dispatch,
+  location,
+  invoiceId,
   onReturnComplete,
 }: UseInvoiceReturnHandlersProps) {
+  const router = useRouter();
   const [isReturning, setIsReturning] = React.useState(false);
 
   const handleReturnConfirm = React.useCallback(async () => {
@@ -29,61 +36,17 @@ export function useInvoiceReturnHandlers({
     setIsReturning(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, API_DELAY.MEDIUM));
+      const response = await returnInvoice(location, invoiceId);
+      if (!response?.success) {
+        throw new Error(response?.message || "Failed to return invoice");
+      }
 
-      // Update status to Returned
-      const updatedStatus: InvoiceStatus = "Returned";
-
-      // Make all values negative for returned invoice
-      const updatedItems = invoiceDetail.items.map((item) => ({
-        ...item,
-        qty: -Math.abs(item.qty),
-        price: -Math.abs(item.price),
-      }));
-
-      // Update payments - if already paid, keep existing payments but make amounts negative
-      // If not paid, add a new payment entry
-      const updatedPayments =
-        invoiceDetail.payments.length > 0
-          ? invoiceDetail.payments.map((payment) => ({
-              ...payment,
-              amount: String(-Math.abs(parseFloat(String(payment.amount).replace(/[$,]/g, "")))),
-            }))
-          : [
-              {
-                id: 1,
-                date: (() => {
-                  const now = new Date();
-                  const month = now.toLocaleDateString("en-US", { month: "short" });
-                  const day = now.getDate().toString().padStart(2, "0");
-                  const year = now.getFullYear();
-                  return `${month} ${day}, ${year}`;
-                })(),
-                type: "Credit Used",
-                ref: `I-${invoiceDetail.id - 26}`,
-                notes: "",
-                amount: String(-Math.abs(invoiceDetail.totals.total)),
-              },
-            ];
-
-      // Update totals to negative
-      const updatedTotals = {
-        discounts: -Math.abs(invoiceDetail.totals.discounts),
-        subtotal: -Math.abs(invoiceDetail.totals.subtotal),
-        tax: invoiceDetail.totals.tax,
-        total: -Math.abs(invoiceDetail.totals.total),
-        paid: -Math.abs(invoiceDetail.totals.total),
-        balance: 0,
-      };
-
-      // Update Redux state
-      dispatch(updateInvoiceDetail({
-        status: updatedStatus,
-        items: updatedItems,
-        payments: updatedPayments,
-        totals: updatedTotals,
-      }));
+      const creditInvoiceId = response.data?.creditInvoiceId;
+      if (typeof creditInvoiceId === "number" && creditInvoiceId > 0) {
+        router.push(`/${location}/invoices/${creditInvoiceId}`);
+      } else {
+        await dispatch(fetchInvoice({ location, invoiceId })).unwrap();
+      }
 
       setIsReturning(false);
       if (onReturnComplete) {
@@ -95,7 +58,7 @@ export function useInvoiceReturnHandlers({
       setIsReturning(false);
       toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
     }
-  }, [invoiceDetail, dispatch, onReturnComplete]);
+  }, [invoiceDetail, dispatch, location, invoiceId, onReturnComplete, router]);
 
   return {
     handleReturnConfirm,

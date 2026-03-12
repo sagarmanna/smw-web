@@ -184,10 +184,22 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
     setShowVoidModal(false);
   }, [handleVoidConfirm]);
 
-  const isReturned = invoiceDetail?.status === "Returned";
-  const isVoided = invoiceDetail?.status === "Voided";
+  const normalizedInvoiceStatus = String(invoiceDetail?.status ?? "")
+    .trim()
+    .toLowerCase();
+  const isReturnedByStatus = normalizedInvoiceStatus === "returned";
+  const isCreditInvoice = Boolean(
+    invoiceDetail &&
+      (invoiceDetail.totals.total < 0 ||
+        invoiceDetail.totals.balance < 0 ||
+        invoiceDetail.items.some((item) => item.qty < 0 || item.price < 0))
+  );
+  const isReturned = isReturnedByStatus || isCreditInvoice;
+  const isVoided =
+    normalizedInvoiceStatus === "voided" || normalizedInvoiceStatus === "void";
   const isBlankInvoice = !invoiceDetail?.customer?.customerId && !invoiceDetail?.customer?.name?.trim();
   const hasHistoryEntries = historyData.length > 0;
+  const hasItems = (invoiceDetail?.items.length ?? 0) > 0;
 
   if (isLoading) {
     return (
@@ -240,7 +252,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                   <Badge className="bg-green-600 hover:bg-green-700 text-white">
                     Returned
                   </Badge>
-                ) : !isVoided ? (
+                ) : !isVoided && (!!customerId || hasItems) ? (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -299,9 +311,9 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                {invoiceDetail.status === "Paid" || isReturned ? (
+                {normalizedInvoiceStatus === "paid" || isReturned ? (
                   <span className="text-sm font-semibold ml-2">
-                    {isReturned ? "PAID" : invoiceDetail.status} {formatCurrency(invoiceDetail.totals.total)}
+                    {invoiceDetail.status} {formatCurrency(invoiceDetail.totals.total)}
                   </span>
                 ) : isVoided ? (
                   <span className="text-sm font-semibold ml-2">
@@ -378,7 +390,9 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             items={invoiceDetail.items}
             isLoading={isLoading}
             isVoided={isVoided}
-            lockItemAndTaxActions={hasHistoryEntries}
+            isReturned={isReturned}
+            hasNoCustomer={!customerId}
+            lockItemAndTaxActions={!!customerId && hasHistoryEntries}
             onSaveDiscount={handleSaveDiscount}
             onSaveItem={handleSaveItem}
             onSaveItemTax={handleSaveItemTax}
@@ -401,9 +415,9 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
             <InvoiceTotalsCard
               totals={invoiceDetail.totals}
-              items={invoiceDetail.items}
               isLoading={isLoading}
               isVoided={isVoided}
+              hasNoCustomer={!customerId && !hasItems}
               onAdjustTax={handleAdjustTax}
             />
           </div>

@@ -11,12 +11,41 @@ export interface GetEmailMultiCustomerResponse {
   message?: string;
 }
 
+export interface SendEmailMultiCustomerRequest {
+  lessonIds: number[];
+  to: string[];
+  subject: string;
+  content: string;
+}
+
+export interface SendEmailMultiCustomerResponse {
+  success: boolean;
+  data: {
+    body: {
+      isSent: boolean;
+      recipientCount: number;
+    };
+  };
+  message?: string;
+}
+
 interface GetEmailMultiCustomerApiResponse {
   success: boolean;
   data?: {
     body?: {
       emails?: string[];
       subject?: string;
+    };
+  };
+  message?: string;
+}
+
+interface SendEmailMultiCustomerApiResponse {
+  success: boolean;
+  data?: {
+    body?: {
+      isSent?: boolean;
+      recipientCount?: number;
     };
   };
   message?: string;
@@ -54,6 +83,41 @@ export async function getEmailMultiCustomer(
   return {
     success: true,
     data: { body: { emails, subject } },
+    message: body?.message,
+  };
+}
+
+/**
+ * POST /admin/v2/{location}/private-lesson/email-multi-customer/send
+ * Sends one email to the selected lesson customers.
+ * Throws on failure so callers can show API response message.
+ */
+export async function sendEmailMultiCustomer(
+  location: string,
+  payload: SendEmailMultiCustomerRequest
+): Promise<SendEmailMultiCustomerResponse> {
+  const response = await apiClient.post<SendEmailMultiCustomerApiResponse>(
+    `/admin/v2/${location}/private-lesson/email-multi-customer/send`,
+    payload
+  );
+
+  const body = response.data;
+  const rawBody = body?.data?.body;
+  const isSent = rawBody?.isSent === true;
+  const recipientCount =
+    typeof rawBody?.recipientCount === "number" ? rawBody.recipientCount : 0;
+
+  if (!body?.success) {
+    throw new Error(
+      typeof body?.message === "string" && body.message.trim() !== ""
+        ? body.message
+        : "Failed to send email"
+    );
+  }
+
+  return {
+    success: true,
+    data: { body: { isSent, recipientCount } },
     message: body?.message,
   };
 }

@@ -15,8 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AdjustTaxModal, TaxAdjustmentData } from "../modals/AdjustTaxModal";
-import { calculateTaxFromItems } from "../../utils/totalsCalculator";
-import type { InvoiceItem } from "../../types";
 
 interface InvoiceTotalsCardProps {
   totals: {
@@ -27,25 +25,20 @@ interface InvoiceTotalsCardProps {
     paid: number;
     balance: number;
   };
-  items?: InvoiceItem[];
   isLoading?: boolean;
   isVoided?: boolean;
+  hasNoCustomer?: boolean;
   onAdjustTax?: (adjustmentData: TaxAdjustmentData) => void;
 }
 
 export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
   totals,
-  items = [],
   isLoading = false,
   isVoided = false,
+  hasNoCustomer = false,
   onAdjustTax,
 }: InvoiceTotalsCardProps) {
   const [isAdjustTaxModalOpen, setIsAdjustTaxModalOpen] = React.useState(false);
-
-  // Calculate tax from items (sum of all item taxes)
-  const taxCalculated = React.useMemo(() => {
-    return calculateTaxFromItems(items);
-  }, [items]);
 
   const detailRows = React.useMemo<SectionCardDataRow[]>(() => {
     return [
@@ -81,9 +74,9 @@ export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
   }, [totals]);
 
   const handleOpenAdjustTaxModal = React.useCallback(() => {
-    if (isVoided) return;
+    if (isVoided || hasNoCustomer) return;
     setIsAdjustTaxModalOpen(true);
-  }, [isVoided]);
+  }, [isVoided, hasNoCustomer]);
 
   const handleSaveTaxAdjustment = React.useCallback(
     (adjustmentData: TaxAdjustmentData) => {
@@ -112,7 +105,7 @@ export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem 
                 onClick={handleOpenAdjustTaxModal}
-                disabled={isVoided}
+                disabled={isVoided || hasNoCustomer}
               >
                 Adjust Tax...
               </DropdownMenuItem>
@@ -124,7 +117,6 @@ export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
         open={isAdjustTaxModalOpen}
         onClose={() => setIsAdjustTaxModalOpen(false)}
         onSave={onAdjustTax ? handleSaveTaxAdjustment : undefined}
-        taxCalculated={taxCalculated}
         currentTax={totals.tax}
       />
     </>
