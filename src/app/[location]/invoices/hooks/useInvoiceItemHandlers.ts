@@ -21,6 +21,7 @@ interface UseInvoiceItemHandlersProps {
   invoiceId: number;
   invoiceDetail: InvoiceDetail | null;
   dispatch: AppDispatch;
+  refresh: () => Promise<void>;
 }
 
 function applyItemUpdate(
@@ -56,6 +57,7 @@ export function useInvoiceItemHandlers({
   invoiceId,
   invoiceDetail,
   dispatch,
+  refresh,
 }: UseInvoiceItemHandlersProps) {
   const handleLoadItemTaxOptions = React.useCallback(
     async (
@@ -124,6 +126,11 @@ export function useInvoiceItemHandlers({
             ...updatedItem,
             id: String(addLineItemResponse.data.id),
           };
+
+          // Full refresh so the table reflects the server state immediately
+          await refresh();
+          toast.success("Line item added successfully");
+          return;
         } else {
           const lineItemId = Number(updatedItem.id);
           if (Number.isNaN(lineItemId)) {
@@ -154,24 +161,14 @@ export function useInvoiceItemHandlers({
           }
         }
 
-        const updatedItems = itemExists
-          ? invoiceDetail.items.map((item) =>
-              item.id === normalizedItem.id ? normalizedItem : item
-            )
-          : [...invoiceDetail.items, normalizedItem];
-
-        applyItemUpdate(dispatch, updatedItems, invoiceDetail.totals);
-        toast.success(
-          itemExists
-            ? TOAST_MESSAGES.SUCCESS.ITEM_UPDATED
-            : "Line item added successfully"
-        );
+        await refresh();
+        toast.success(TOAST_MESSAGES.SUCCESS.ITEM_UPDATED);
       } catch (error) {
         console.error("Failed to save item:", error);
         toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
       }
     },
-    [invoiceDetail, dispatch, location, invoiceId]
+    [invoiceDetail, dispatch, location, invoiceId, refresh]
   );
 
   const handleDeleteItem = React.useCallback(
@@ -193,15 +190,14 @@ export function useInvoiceItemHandlers({
           return;
         }
 
-        const updatedItems = invoiceDetail.items.filter((item) => item.id !== itemId);
-        applyItemUpdate(dispatch, updatedItems, invoiceDetail.totals);
+        await refresh();
         toast.success(TOAST_MESSAGES.SUCCESS.ITEM_DELETED);
       } catch (error) {
         console.error("Failed to delete item:", error);
         toast.error(TOAST_MESSAGES.ERROR.FAILED_TO_SAVE);
       }
     },
-    [invoiceDetail, dispatch, location]
+    [invoiceDetail, dispatch, location, refresh]
   );
 
   const handleSaveItemTax = React.useCallback(
