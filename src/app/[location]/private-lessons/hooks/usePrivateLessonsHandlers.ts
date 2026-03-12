@@ -32,9 +32,11 @@ import {
 } from "../privateLessonsListing.slice";
 import type { EmailFormData } from "@/components/EmailModal";
 import type { LessonDiscountData } from "../privateLessonsListing.slice";
-import { isDev } from "@/utils/env";
 import { extractErrorMessage } from "@/utils/api/createCrudApi";
-import { getEmailMultiCustomer } from "../actionApi/emailMultiCustomer.api";
+import {
+  getEmailMultiCustomer,
+  sendEmailMultiCustomer,
+} from "../actionApi/emailMultiCustomer.api";
 
 function mapSubstituteLessonsToRows(lessons: SubstituteLessonItem[]): PrivateLessonRow[] {
   const statusMap: Record<number, string> = {
@@ -215,14 +217,33 @@ export function usePrivateLessonsHandlers({
   }, [location, router]);
 
   // Save Handlers
-  const handleSendEmail = React.useCallback((emailData: EmailFormData) => {
-    // TODO: Replace with real API call
+  const handleSendEmail = React.useCallback(async (emailData: EmailFormData) => {
+    const lessonIds = selectedLessons.map((lesson) => lesson.id);
+    if (lessonIds.length === 0) {
+      toast.error("No lessons selected");
+      return;
+    }
 
-    modalState.setIsEmailModalOpen(false);
-    clearSelection();
+    try {
+      const response = await sendEmailMultiCustomer(location, {
+        lessonIds,
+        to: emailData.recipients,
+        subject: emailData.subject,
+        content: emailData.content,
+      });
 
-    toast.success("Mail has been sent successfully");
-  }, [clearSelection, modalState]);
+      clearSelection();
+      modalState.setIsEmailModalOpen(false);
+      toast.success(
+        typeof response.message === "string" && response.message.trim() !== ""
+          ? response.message
+          : "Mail has been sent successfully"
+      );
+    } catch (error) {
+      const message = extractErrorMessage(error, "Failed to send email");
+      toast.error(message);
+    }
+  }, [selectedLessons, location, clearSelection, modalState]);
 
   const handleUnscheduleConfirm = React.useCallback(() => {
     modalState.setIsUnscheduleConfirmModalOpen(false);
