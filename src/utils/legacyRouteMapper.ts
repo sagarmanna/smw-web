@@ -83,6 +83,11 @@ const legacyRouteMap: LegacyRouteConfig[] = [
       `/lesson/view?id=${params.id || ''}`
   },
   {
+    pattern: /^\/[^/]+\/invoices\/[^/]+$/, // Matches /[location]/invoices/[id]
+    legacyUrl: (params) =>
+      `/invoice/view?id=${params.id || ''}`
+  },
+  {
     pattern: /^\/[^/]+\/locations\/[^/]+$/, // Matches /[location]/locations/[id]
     legacyUrl: '/location-view'
   },
@@ -114,6 +119,10 @@ const legacyRouteMap: LegacyRouteConfig[] = [
   {
     pattern: /^\/[^/]+\/private-lessons$/, // Matches /[location]/private-lessons (list page)
     legacyUrl: () => `/lesson/index?LessonSearch%5BdateRange%5D=${getTodayDateRange()}`
+  },
+  {
+    pattern: /^\/[^/]+\/invoices$/, // Matches /[location]/invoices (list page)
+    legacyUrl: '/invoice/index?InvoiceSearch%5Btype%5D=2'
   },
   {
     pattern: '/dashboard',
