@@ -113,11 +113,17 @@ export function useInvoiceDetails(
     onDiscountWarning: setShowDiscountWarning,
   });
 
+  const refresh = React.useCallback(async () => {
+    dispatch(clearCache());
+    await dispatch(fetchInvoice({ location, invoiceId })).unwrap();
+  }, [dispatch, location, invoiceId]);
+
   const { handleSaveItem, handleDeleteItem, handleSaveItemTax, handleLoadItemTaxOptions } = useInvoiceItemHandlers({
     location,
     invoiceId,
     invoiceDetail,
     dispatch,
+    refresh,
   });
 
   const { handleAdjustTax } = useInvoiceTaxHandlers({
@@ -184,11 +190,6 @@ export function useInvoiceDetails(
       fetchComments(1);
     }
   }, [invoiceDetail?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const refresh = React.useCallback(async () => {
-    dispatch(clearCache());
-    await dispatch(fetchInvoice({ location, invoiceId })).unwrap();
-  }, [dispatch, location, invoiceId]);
 
   return {
     loading: isLoading,
