@@ -409,7 +409,7 @@ export const getSideMenus = (location: string, locationFlags: { [key: string]: s
       id: 'invoices',
       title: 'Invoices',
       icon: <DollarSign className="h-4 w-4" />,
-      url: '/invoice/index?InvoiceSearch%5Btype%5D=2',
+      url: getMenuSource(locationFlags, 'invoices') === 'legacy' ? '/invoice/index?InvoiceSearch%5Btype%5D=2' : '/invoices',
       source: getMenuSource(locationFlags, 'invoices') as 'legacy' | 'modern',
       items: [],
       hidden: isMenuEnabled(locationFlags, 'invoices') ? ('no' as const) : ('yes' as const),
