@@ -9,7 +9,6 @@ import { updateTotals } from "../[id]/invoices-details.slice";
 import { TOAST_MESSAGES } from "../utils/constants";
 import { adjustInvoiceTax } from "../[id]/invoices-details.api";
 import { parseMoney } from "../[id]/invoices-details.utils";
-import { calculateTaxFromItems } from "../utils/totalsCalculator";
 
 interface UseInvoiceTaxHandlersProps {
   location: string;
@@ -32,14 +31,10 @@ export function useInvoiceTaxHandlers({
       }
 
       try {
-        // Compute final tax amount using shared utility
-        const taxCalculated = calculateTaxFromItems(invoiceDetail.items);
-        const finalTax = Math.max(0, taxCalculated + adjustmentData.adjustment);
-
         const response = await adjustInvoiceTax(
           location,
           invoiceId,
-          finalTax
+          adjustmentData.adjustment
         );
 
         if (response && response.success && response.data?.body) {

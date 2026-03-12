@@ -409,7 +409,6 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
 
             <InvoiceTotalsCard
               totals={invoiceDetail.totals}
-              items={invoiceDetail.items}
               isLoading={isLoading}
               isVoided={isVoided}
               onAdjustTax={handleAdjustTax}
