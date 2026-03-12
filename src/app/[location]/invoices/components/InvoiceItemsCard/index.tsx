@@ -31,6 +31,7 @@ interface InvoiceItemsCardProps {
   isVoided?: boolean;
   isReturned?: boolean;
   lockItemAndTaxActions?: boolean;
+  hasNoCustomer?: boolean;
   onSaveDiscount?: (selectedItemIds: string[], discountData: DiscountData) => Promise<boolean>;
   onSaveItem?: (item: InvoiceItem) => void;
   onSaveItemTax?: (selectedItemIds: string[], taxStatus: string) => Promise<{ success: boolean; taxRate: number }>;
@@ -45,6 +46,7 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
   isVoided = false,
   isReturned = false,
   lockItemAndTaxActions = false,
+  hasNoCustomer = false,
   onSaveDiscount,
   onSaveItem,
   onSaveItemTax,
@@ -450,18 +452,20 @@ export const InvoiceItemsCard = React.memo(function InvoiceItemsCard({
           </DropdownMenu>
 
           {/* Collapse/expand arrow - below */}
-          <button
-            type="button"
-            onClick={() => setIsExpanded((prev) => !prev)}
-            aria-label={isExpanded ? "Hide item details" : "Show item details"}
-            className="h-8 w-8 flex items-center justify-center rounded-md border border-transparent hover:bg-primary/10 transition-colors"
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-[hsl(var(--primary))]" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-[hsl(var(--primary))]" />
-            )}
-          </button>
+          {(!hasNoCustomer || items.length > 0) && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded((prev) => !prev)}
+              aria-label={isExpanded ? "Hide item details" : "Show item details"}
+              className="h-8 w-8 flex items-center justify-center rounded-md border border-transparent hover:bg-primary/10 transition-colors"
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-[hsl(var(--primary))]" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-[hsl(var(--primary))]" />
+              )}
+            </button>
+          )}
         </div>
       }
     >

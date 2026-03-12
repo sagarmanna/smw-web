@@ -27,6 +27,7 @@ interface InvoiceTotalsCardProps {
   };
   isLoading?: boolean;
   isVoided?: boolean;
+  hasNoCustomer?: boolean;
   onAdjustTax?: (adjustmentData: TaxAdjustmentData) => void;
 }
 
@@ -34,6 +35,7 @@ export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
   totals,
   isLoading = false,
   isVoided = false,
+  hasNoCustomer = false,
   onAdjustTax,
 }: InvoiceTotalsCardProps) {
   const [isAdjustTaxModalOpen, setIsAdjustTaxModalOpen] = React.useState(false);
@@ -72,9 +74,9 @@ export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
   }, [totals]);
 
   const handleOpenAdjustTaxModal = React.useCallback(() => {
-    if (isVoided) return;
+    if (isVoided || hasNoCustomer) return;
     setIsAdjustTaxModalOpen(true);
-  }, [isVoided]);
+  }, [isVoided, hasNoCustomer]);
 
   const handleSaveTaxAdjustment = React.useCallback(
     (adjustmentData: TaxAdjustmentData) => {
@@ -103,7 +105,7 @@ export const InvoiceTotalsCard = React.memo(function InvoiceTotalsCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem 
                 onClick={handleOpenAdjustTaxModal}
-                disabled={isVoided}
+                disabled={isVoided || hasNoCustomer}
               >
                 Adjust Tax...
               </DropdownMenuItem>

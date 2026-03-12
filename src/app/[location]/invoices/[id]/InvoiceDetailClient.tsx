@@ -198,6 +198,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
   const isVoided =
     normalizedInvoiceStatus === "voided" || normalizedInvoiceStatus === "void";
   const hasHistoryEntries = historyData.length > 0;
+  const hasItems = (invoiceDetail?.items.length ?? 0) > 0;
 
   if (isLoading) {
     return (
@@ -250,7 +251,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
                   <Badge className="bg-green-600 hover:bg-green-700 text-white">
                     Returned
                   </Badge>
-                ) : !isVoided ? (
+                ) : !isVoided && (!!customerId || hasItems) ? (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -386,7 +387,8 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
             isLoading={isLoading}
             isVoided={isVoided}
             isReturned={isReturned}
-            lockItemAndTaxActions={hasHistoryEntries}
+            hasNoCustomer={!customerId}
+            lockItemAndTaxActions={!!customerId && hasHistoryEntries}
             onSaveDiscount={handleSaveDiscount}
             onSaveItem={handleSaveItem}
             onSaveItemTax={handleSaveItemTax}
@@ -411,6 +413,7 @@ export function InvoiceDetailClient({ location, id }: InvoiceDetailClientProps) 
               totals={invoiceDetail.totals}
               isLoading={isLoading}
               isVoided={isVoided}
+              hasNoCustomer={!customerId && !hasItems}
               onAdjustTax={handleAdjustTax}
             />
           </div>
