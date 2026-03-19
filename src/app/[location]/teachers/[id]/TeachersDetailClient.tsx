@@ -11,7 +11,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { useTeacherDetails } from "../hooks/useTeacherDetails";
 import { TeachersDetailCard } from "../components/TeachersDetailCard";
-import { TeacherEmailCard } from "../components/TeacherEmailCard";
+import UserProfileEmailCard from "@/app/user/profile/components/cards/UserProfileEmailCard"
 import { TeacherPhoneCard } from "../components/TeacherPhoneCard";
 import { TeacherAddressCard } from "../components/TeacherAddressCard";
 import { TeacherPrivateQualificationCard } from "../components/TeacherPrivateQualificationCard";
@@ -169,13 +169,12 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
             />
             {/* Mobile Email and Phone Cards - Only on Mobile */}
             <div className="lg:hidden space-y-3 sm:space-y-4">
-              <TeacherEmailCard
-                emails={emails}
-                onUpdate={updateEmails}
-                loading={isLoading}
-                location={location}
-                teacherId={teacherId}
-                onRefresh={refresh}
+              <UserProfileEmailCard 
+              emails={emails} 
+              onUpdate={updateEmails} 
+              loading={isLoading} 
+              location={location} 
+              entityId={teacherId} 
               />
 
               <TeacherPhoneCard
@@ -193,13 +192,12 @@ export function TeachersDetailClient({ location, id }: TeachersDetailClientProps
           <div className="space-y-3 sm:space-y-4">
             {/* Desktop Email and Phone Cards */}
             <div className="hidden lg:block">
-              <TeacherEmailCard
-                emails={emails}
-                onUpdate={updateEmails}
-                loading={isLoading}
-                location={location}
-                teacherId={teacherId}
-                onRefresh={refresh}
+              <UserProfileEmailCard
+                emails={emails} 
+                onUpdate={updateEmails} 
+                loading={isLoading} 
+                location={location} 
+                entityId={teacherId}
               />
             </div>
 
